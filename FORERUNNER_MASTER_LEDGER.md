@@ -80,6 +80,18 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
+The owner's new permanent goal explicitly authorizes independently actionable
+source work across the full engine while tests/native execution remain deferred.
+Independent AI/campaign increment: optional `game.solo_skulls` reuses the existing
+Chupathingy/OpenCE MCC skull parser and 17 implemented gameplay hooks for native
+local solo content, including CE. Empty is stock; network, multiplayer-scenario,
+editor and MCC ownership remain excluded. Map start/restart initializes before
+actor placement; disposal clears local state. Bandanna uses the existing ammo
+helper. Unsupported names warn and are skipped. No parallel skull system, packet,
+scoring multiplier or Spark rules importer was added. No tests/builds/queries/games
+ran; new functionality is unverified. Native Firefight, creator-map, network-skull
+and physical-VR acceptance remain open. AGENTS.md was not modified.
+
 Resumed source development: Spark `3329a4a5ab12b6f02c75b82e054f75b0896f1e2a`
 now has receipt-backed owned CE609 solo staging and an exact Forerunner profile;
 its current admitted binary still uses native map selection. Forerunner now keeps

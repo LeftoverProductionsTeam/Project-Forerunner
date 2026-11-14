@@ -303,9 +303,9 @@ real mcc_campaign_effects_gain(void)
 boolean mcc_campaign_unlimited_ammo(void)
 {
     /* (or the Bandanna skull: "Infinite Ammo", reloads kept; mcc_skulls.c) */
-    return mcc_cache_tags_loaded() && mcc_campaign_owned &&
-        ((game_connection()==_game_connection_network_client ? (mcc_campaign.flags&1u)!=0 : cheat.infinite_ammo) ||
-        mcc_skull_active(MCC_SKULL_BANDANNA));
+    return mcc_skull_active(MCC_SKULL_BANDANNA) ||
+        (mcc_cache_tags_loaded() && mcc_campaign_owned &&
+        (game_connection()==_game_connection_network_client ? (mcc_campaign.flags&1u)!=0 : cheat.infinite_ammo));
 }
 
 /* Script muting is additional to the player's audio settings, and belongs

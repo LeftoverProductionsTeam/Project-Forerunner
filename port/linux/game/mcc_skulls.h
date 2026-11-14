@@ -8,9 +8,9 @@ globals plus debug_ice_cream_flavor_force_coop, appended to the engine's
 external global table, and the gameplay each skull is documented to change
 (Halopedia's CEA:Skulls and MCC:Skulls, the MCC skull menu's own text).
 
-Nothing here touches Xbox or Custom Edition maps: a skull is only active
-while an MCC map is loaded (mcc_skull_active), and every hook in the shared
-code asks that first. */
+game.mcc_skulls remains MCC-only. game.solo_skulls explicitly opts native
+solo content into implemented effects through the same hooks, only in local
+play. Stock defaults and non-MCC network games remain unaffected. */
 #ifndef MCC_SKULLS_H
 #define MCC_SKULLS_H
 #include "cseries.h"
@@ -44,11 +44,14 @@ boolean mcc_skull_global(char const *name);
 skull off, then the ones game.mcc_skulls names on, as MCC's menu would. */
 void mcc_skulls_begin(void);
 void mcc_skulls_dispose(void);
+/* Native solo map lifecycle; leaves the existing MCC-owned state alone. */
+void mcc_skulls_begin_local_map(void);
+void mcc_skulls_dispose_local_map(void);
 /* The checkpoint and network state (mcc_campaign_snapshot/restore). */
 unsigned long mcc_skulls_snapshot(void);
 void mcc_skulls_restore(unsigned long mask);
 
-/* TRUE while an MCC map is loaded and the skull is on. */
+/* TRUE for an active MCC skull or an explicitly opted-in local solo skull. */
 boolean mcc_skull_active(short skull);
 
 /* ---- the skulls' effects, asked from the shared code */
@@ -86,6 +89,8 @@ boolean mcc_skulls_restart_on_death(void);
 /* no MCC maps in this build (HALO_MCC, halo_port_features.h): the hooks
 the shared code calls do nothing, their arguments unevaluated */
 #define mcc_skull_active(a0) ((void)sizeof(a0), (boolean)0)
+#define mcc_skulls_begin_local_map() ((void)0)
+#define mcc_skulls_dispose_local_map() ((void)0)
 #define mcc_skulls_difficulty_scale(a0) ((void)sizeof(a0), (real)1)
 #define mcc_skulls_perception_scale(a0) ((void)sizeof(a0), (real)1)
 #define mcc_skulls_blast_scale() ((real)1)

@@ -1351,6 +1351,13 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"boom, eye_patch, recession, blind, ghost, sputnik). A map's own scripts\n"
 		"may turn skulls on and off after that. Xbox and Custom Edition maps are\n"
 		"never affected." },
+	{ "game.solo_skulls", _config_string, "\"\"", "HALO_SOLO_SKULLS", _environment_value, _platform_desktop,
+		"Optional skull effects for local native solo maps, including CE.\n"
+		"Comma-separated names: fog, black_eye, mythic, iron, famine, catch,\n"
+		"anger, thunderstorm, thats_just_wrong, assassins, bandanna, boom,\n"
+		"eye_patch, recession, blind, ghost, sputnik. Empty keeps stock rules.\n"
+		"Set at map start/restart; never applies to network games or MCC maps.\n"
+		"Uses existing skull hooks; unsupported names are skipped with a warning." },
 #endif
 
 	{ "game.bomb_spawns", _config_string, "\"\"", "HALO_BOMB_SPAWNS", _environment_value, _platform_all | _platform_server,

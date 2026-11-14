@@ -10,8 +10,9 @@ documentation and Halopedia's skull pages (CEA:Skulls, MCC:Skulls):
   documented (Anger's rate, Catch's chance, That's Just... Wrong's reach)
   the factor is this port's; the direction is MCC's.
 
-Nothing applies outside an MCC map: mcc_skull_active is FALSE on Xbox and
-Custom Edition maps whatever the globals hold, so stock Halo is unchanged. */
+The existing MCC setting remains MCC-only. Native solo maps may explicitly
+opt into the implemented effects with game.solo_skulls; multiplayer never
+inherits that local choice. Both settings default to empty. */
 #ifndef HALO_MCC
 #include "../include/halo_port_features.h"
 #endif
@@ -24,6 +25,8 @@ Custom Edition maps whatever the globals hold, so stock Halo is unchanged. */
 #include "game/game_allegiance.h"
 #include "game/game_globals.h"
 #include "game/players.h"
+#include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "items/weapons.h"
 #include "objects/objects.h"
 #include "units/units.h"
@@ -42,6 +45,7 @@ static char const *const mcc_skull_names[MCC_SKULL_COUNT] = {
 /* The globals' storage: what the host's scripts set, or what the host sent. */
 static boolean mcc_skull_values[MCC_SKULL_COUNT];
 static boolean mcc_skulls_owned;
+static boolean mcc_skulls_local;
 
 #define MCC_SKULL_GLOBAL(index, name) \
     { "debug_ice_cream_flavor_status_" name, _hs_type_boolean, 0, &mcc_skull_values[index] }
@@ -106,10 +110,26 @@ static short mcc_skull_from_word(char const *word, size_t length)
     return NONE;
 }
 
-/* game.mcc_skulls: the skulls MCC's menu would have on, "fog, black_eye". */
-static void mcc_skulls_from_config(void)
+/* Only effects with shared native hooks are offered outside MCC. */
+static boolean mcc_skull_local_supported(short skull)
 {
-    char const *text = config_string("game.mcc_skulls");
+    switch (skull) {
+    case MCC_SKULL_ASSASSINS: case MCC_SKULL_FAMINE: case MCC_SKULL_BLIND:
+    case MCC_SKULL_GHOST: case MCC_SKULL_BLACK_EYE: case MCC_SKULL_CATCH:
+    case MCC_SKULL_SPUTNIK: case MCC_SKULL_MYTHIC: case MCC_SKULL_ANGER:
+    case MCC_SKULL_THUNDERSTORM: case MCC_SKULL_IRON: case MCC_SKULL_THATS_JUST_WRONG:
+    case MCC_SKULL_BANDANNA: case MCC_SKULL_BOOM: case MCC_SKULL_EYE_PATCH:
+    case MCC_SKULL_FOG: case MCC_SKULL_RECESSION:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
+/* Reuse the same skull names/parser for both explicit settings. */
+static void mcc_skulls_from_config(char const *setting)
+{
+    char const *text = config_string(setting);
     char line[256];
     size_t at = 0, used = 0;
     if (!text || !text[0]) return;
@@ -121,7 +141,11 @@ static void mcc_skulls_from_config(void)
         if (at > start) {
             short skull = mcc_skull_from_word(text + start, at - start);
             if (skull == NONE) {
-                error(_error_log, "mcc: game.mcc_skulls names no skull: %.*s", (int)(at - start), text + start);
+                error(_error_log, "skulls: %s names no skull: %.*s", setting, (int)(at - start), text + start);
+                continue;
+            }
+            if (mcc_skulls_local && !mcc_skull_local_supported(skull)) {
+                error(_error_log, "skulls: %s is not implemented for native solo maps", mcc_skull_names[skull]);
                 continue;
             }
             mcc_skull_values[skull] = TRUE;
@@ -129,20 +153,46 @@ static void mcc_skulls_from_config(void)
                 used ? ", " : "", mcc_skull_names[skull]);
         }
     }
-    if (used) error(_error_log, "mcc: skulls on from game.mcc_skulls: %s", line);
+    if (used) error(_error_log, "skulls: on from %s: %s", setting, line);
 }
 
 void mcc_skulls_begin(void)
 {
     memset(mcc_skull_values, 0, sizeof(mcc_skull_values));
     mcc_skulls_owned = TRUE;
-    mcc_skulls_from_config();
+    mcc_skulls_local = FALSE;
+    mcc_skulls_from_config("game.mcc_skulls");
 }
 
 void mcc_skulls_dispose(void)
 {
     memset(mcc_skull_values, 0, sizeof(mcc_skull_values));
     mcc_skulls_owned = FALSE;
+    mcc_skulls_local = FALSE;
+}
+
+void mcc_skulls_begin_local_map(void)
+{
+    struct scenario *scenario;
+    if (mcc_cache_tags_loaded()) return;
+    mcc_skulls_dispose();
+    scenario = global_scenario_get();
+    if (game_connection() != _game_connection_local || game_in_editor() ||
+        !scenario || scenario->type != _scenario_type_solo || !config_string("game.solo_skulls")[0]) return;
+    mcc_skulls_owned = TRUE;
+    mcc_skulls_local = TRUE;
+    mcc_skulls_from_config("game.solo_skulls");
+}
+
+void mcc_skulls_dispose_local_map(void)
+{
+    if (mcc_skulls_local) mcc_skulls_dispose();
+}
+
+static boolean mcc_skulls_enabled(void)
+{
+    return mcc_skulls_owned && (mcc_cache_tags_loaded() ||
+        (mcc_skulls_local && game_connection() == _game_connection_local));
 }
 
 unsigned long mcc_skulls_snapshot(void)
@@ -163,8 +213,7 @@ void mcc_skulls_restore(unsigned long mask)
 
 boolean mcc_skull_active(short skull)
 {
-    return skull >= 0 && skull < MCC_SKULL_COUNT && mcc_skulls_owned &&
-        mcc_cache_tags_loaded() && mcc_skull_values[skull];
+    return skull >= 0 && skull < MCC_SKULL_COUNT && mcc_skulls_enabled() && mcc_skull_values[skull];
 }
 
 /* ---- effects */
@@ -177,7 +226,7 @@ static boolean mcc_skulls_enemy_team(short team_index)
 real mcc_skulls_difficulty_scale(short value_type)
 {
     real scale = 1.0f;
-    if (!mcc_skulls_owned || !mcc_cache_tags_loaded()) return scale;
+    if (!mcc_skulls_enabled()) return scale;
     switch (value_type) {
     /* Mythic: "Enemies have increased health"; CEA doubled Covenant
      * infantry's health, shields with it. */

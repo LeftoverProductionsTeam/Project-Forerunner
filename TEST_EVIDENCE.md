@@ -420,3 +420,11 @@ iteration and retry scheduling using the existing host eligibility predicate.
 Paid grants/funded failures retain retries; ordinary co-op is not restricted.
 No tests/builds/queries/games ran. Mixed paid/unpaid deaths, zero-life late join,
 failed placement, quit/slot reuse and victory/defeat return remain native gates.
+
+Independent source increment adds opt-in `game.solo_skulls` for native local solo
+maps through the existing skull parser/effects, with native start/restart/disposal
+hooks and Bandanna's existing ammo helper. Network sessions, multiplayer scenarios,
+editors and MCC-owned state are excluded; unsupported names warn and are skipped.
+No tests/builds/queries/games ran. Effect fidelity, map transitions, restart and
+checkpoint behavior, empty defaults and unchanged MCC/network behavior remain
+unverified. No multiplayer, scoring, menu or Spark-rules acceptance is implied.

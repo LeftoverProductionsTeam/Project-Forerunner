@@ -121,6 +121,7 @@ struct game_options;
 #include "cseries/cseries.h"
 #include "game/game.h"
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
+#include "mcc_skulls.h" /* port: port/linux/game/mcc_skulls.c */
 #include "stubbs_horde.h" /* port: port/linux/game/stubbs_horde.c */
 #include "ai/ai.h"
 #include "bink/bink_playback.h"
@@ -727,6 +728,8 @@ void game_initialize_for_new_map(
 	game_time_initialize_for_new_map();
 	interface_initialize_for_new_map();
 	game_allegiance_initialize_for_new_map();
+	/* port: explicitly opted-in local solo skulls, before actors are placed. */
+	mcc_skulls_begin_local_map();
 	players_initialize_for_new_map();
 	scenario_initialize_for_new_map();
 	objects_initialize_for_new_map();
@@ -1121,6 +1124,8 @@ void game_dispose_from_old_map(
 	game_time_dispose_from_old_map();
 	ui_widgets_close_all();
 	ui_widgets_safe_to_load(FALSE);
+	/* port: local skull choices must not leak into the next map/session. */
+	mcc_skulls_dispose_local_map();
 	game_globals->active = FALSE;
 
 	return;
