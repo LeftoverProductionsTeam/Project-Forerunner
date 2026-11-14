@@ -1,9 +1,15 @@
 # Forerunner workspace rules
 
-Current milestone: one playable, synchronized Firefight encounter, reusing
-Faber's existing work where compatible. Prefer small changes to existing code;
-do not expand into Extraction, Forge redesign, MegaWorld or broad rewrites.
-Use focused checks while developing and regression checks at integration gates.
+Current scope is the owner's complete Forerunner roadmap, not Firefight only.
+Flagships include synchronized Firefight/Zombie Survival, timerless single-map
+Extraction with shared persistent gear, genuine connected 19-region MegaWorld,
+and VR, alongside Forge/Spark, voice, campaign/co-op and native Linux/Windows.
+Keep the exact requirements and unfinished acceptance gates in the existing
+master ledger and Spark contract. 128 players and huge hordes are proof targets,
+not established capabilities. Reuse compatible OpenCE/Chupathingy/Faber/OpenH1
+and Spark implementations before writing equivalents. Prefer small changes to
+existing code; no duplicate editors, storage/VOIP systems or unrelated rewrites.
+Focused/regression validation remains deferred under the source-only rule below.
 After two unsuccessful approaches, reassess the cause. Substantial new subsystems,
 frameworks or extensive test infrastructure require the user's approval after
 explaining why existing code and simpler alternatives are insufficient.
@@ -19,8 +25,9 @@ The authoritative Forerunner source is this root repository on local `master`.
 Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
 with actual Git status, source and running owned jobs before continuing.
 The complete user directive is preserved under `docs/forerunner/`.
-The user's later anti-overengineering directive narrows the current milestone
-and supersedes earlier encouragement of unnecessary complexity or scope growth.
+The anti-overengineering directive restrains complexity and infrastructure.
+The owner's later full-engine, Extraction, MegaWorld, shared-loot, voice and VR
+directives explicitly expand scope without waiving safety or authorizing tests.
 
 Guilty Spark is a separate editor project. Do not modify it, original game
 installations, maps, disc images, saves or personal assets. The user authorized

@@ -557,3 +557,24 @@ This is necessary runtime source progress, UNVERIFIED. No tests, builds, audio
 queries, launches, headset sessions, Spark edits or pushes. Direction/gain, latency,
 head motion, tracking loss and both headset/controller families need validation;
 voice portal occlusion and multi-region audio contexts remain unfinished.
+
+Cross-project source/ownership cycle follows the owner's explicit full-roadmap
+AGENTS reconciliation; safety, source-only, attribution and approval rules remain.
+Spark was inspected read-only at `d56354bee4813ea3a311afe0ac48a9b378505c3a`,
+with its three unfinished GPU-draft/view files left untouched. Existing native
+round/profile verification, runtime bindings, world assembly and light draft
+responsibilities are compared with Forerunner and pinned upstream implementations
+in the Spark contract; no editor code or preview director was copied into runtime.
+
+Critical Firefight repair removes the blanket `hs_update` pause, preserving host
+doors/triggers/objectives and existing client co-op authority. The optional finite
+director checks Spark's actual compiled `gs_firefight`, `gs_ff_reset` and
+`gs_ff_bootstrap` bindings before taking control, then disables itself if any is
+present. Presence is not cache validation or generic controller detection; other
+authored controllers still require the finite setting OFF. Finite result ownership
+also prevents a now-running campaign script from bypassing its waves/result notice.
+All other active/lives/death/spawn callers were reviewed and retained. Necessary
+runtime bug fix, UNVERIFIED: no builds, tests, launches, Spark mutations or pushes.
+Historical B40 evidence predates restored ambient mission scripting and does not
+prove the current finite encounter or Spark native round. Durable loot, authored
+Extraction, region residency and remaining full-engine gates stay open.

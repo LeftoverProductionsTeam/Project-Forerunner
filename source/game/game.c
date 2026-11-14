@@ -428,8 +428,9 @@ void game_tick(
 	/* port: in network co-op only the host runs the scripts. A client running
 	them would place the map's actors and objects a second time and make
 	decisions that belong to the host. */
-	/* port: the opt-in Firefight encounter owns host progression once ready. */
-	if (!(network_game_distributed_client() && network_coop_active()) && !coop_enemies_firefight_active())
+	/* port: keep doors, triggers and objectives running in Firefight too.
+	   The finite director yields to authored round scripts in coop_enemies.c. */
+	if (!(network_game_distributed_client() && network_coop_active()))
 		profile_scope(game_tick_hs_section, hs_update();)
 	profile_scope(game_tick_recorded_animations_section, recorded_animations_update();)
 	HALO_PERF_BEGIN(_halo_perf_tick_objects);

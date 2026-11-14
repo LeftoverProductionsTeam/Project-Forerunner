@@ -42,6 +42,7 @@ Only the host runs the AI, so all of this is the host's.
 #include "game/game_allegiance.h"
 #include "game/players.h"
 #include "game_modes.h"
+#include "hs/hs.h"
 #include "items/weapons.h"
 #include "items/weapon_definitions.h"
 #include "main/main.h"
@@ -185,6 +186,7 @@ and actors.c's Outbreak encounterless-child branch
 static struct
 {
 	boolean enabled;
+	boolean script_owner_checked;
 	boolean resupply;
 	short phase;
 	short wave;
@@ -221,6 +223,12 @@ static boolean coop_enemies_host(
 boolean coop_enemies_firefight_active(void)
 {
 	return firefight.enabled && firefight.phase != 0 && coop_enemies_host();
+}
+
+boolean coop_enemies_firefight_result_ready(void)
+{
+	/* The result notice finishes before the director requests lobby return. */
+	return coop_enemies_firefight_active() && firefight.phase == 5;
 }
 
 /* A spent life belongs to the dead player's full handle until a spawn succeeds.
@@ -954,6 +962,27 @@ static void firefight_update(void)
 		return;
 	if (!firefight.phase)
 	{
+		/* Spark's native_round_plan/verify_native_round use these compiled
+		   bindings (firefight.rs). Presence is an ownership stop, not proof
+		   the artifact passed validation. Never replace a broken native
+		   round with our unrelated finite director or freeze its scripts. */
+		static char const *const native_round_scripts[] =
+		{
+			"gs_firefight", "gs_ff_reset", "gs_ff_bootstrap"
+		};
+		short script;
+
+		if (!firefight.script_owner_checked)
+		{
+			firefight.script_owner_checked = TRUE;
+			for (script = 0; script < NUMBEROF(native_round_scripts); script++)
+				if (hs_find_script_by_name(native_round_scripts[script]) != NONE)
+				{
+					firefight.enabled = FALSE;
+					platform_log("firefight: authored script %s found; finite director disabled", native_round_scripts[script]);
+					return;
+				}
+		}
 		if (firefight_prepare())
 		{
 			firefight.phase = 1;
@@ -1378,6 +1407,7 @@ void coop_enemies_reset(
 	encounter with its original allowance and score, preserving the map's
 	frozen actor/spawn settings. Ordinary Firefight wipes do not call here. */
 	firefight.phase = 0;
+	firefight.script_owner_checked = FALSE;
 	firefight.wave = 0;
 	firefight.score = 0;
 	firefight.deadline = 0;

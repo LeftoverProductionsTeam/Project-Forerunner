@@ -63,8 +63,11 @@ at their vehicle's seats once its own riders get out */
 void coop_enemies_update(
 	void);
 
-/* game.c: the opt-in Firefight encounter has taken over the host's scripts. */
+/* The finite director owns its tracked enemies/lives/result, never the whole
+script scheduler. Recognized Spark native round scripts disable that director. */
 boolean coop_enemies_firefight_active(void);
+/* main.c: active finite rounds alone decide when their result may end the map. */
+boolean coop_enemies_firefight_result_ready(void);
 boolean coop_enemies_firefight_out_of_lives(void);
 boolean coop_enemies_firefight_can_spawn(long player_index);
 /* players.c, before detaching a real dead player's body. */

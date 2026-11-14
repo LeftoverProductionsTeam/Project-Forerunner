@@ -81,7 +81,7 @@ the ability to launch a process.
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
 | `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path and current difficulty. With no engine player profile, retains the validated request while the user creates one in native menus, then starts in the same process. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
-| `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. New unverified menu source exposes OFF/ON under Server Setup → Co-op Options → Firefight, using existing setting save/cancel. Leave OFF for a Spark-authored wave controller. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
+| `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. Unverified menu source exposes OFF/ON under Server Setup → Co-op Options → Firefight. Leave OFF for authored wave controllers. New source also yields when compiled `gs_firefight`, `gs_ff_reset` or `gs_ff_bootstrap` is present; that prevents a second finite director without pausing general HaloScript. Recognition is not validation, generic controller discovery or native co-op acceptance. Historical B40 evidence predates this repair. |
 | `network.firefight_lives` / `HALO_NET_FIREFIGHT_LIVES` | Unverified host source, 0–99, frozen at map start. Deaths spend available lives for player-bound respawns; the last paid respawn completes at zero. Failed native spawns retain grants; departed/reused player slots cannot transfer them. Respawn-only wipes preserve progress. A full world revert clears grants and restarts at wave one with zero score and the initial allowance; not saved mid-wave continuation. |
 | `network.firefight_resupply` / `HALO_NET_FIREFIGHT_RESUPPLY` | New unverified host source, off by default and frozen at map start. Replenishes living players' carried weapon reserves/battery charge before waves two and three through existing inventory replication. Keeps native magazine/reload state and equipment. Finite director only; does not enable Spark's native HaloScript resupply option or import its JSON. |
 | `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment and final-death credit. Three waves of two initial bodies plus native carrier children, bounded to 32 tracked bodies per wave on a co-op scenario; not Spark's authored rules. |
@@ -450,6 +450,31 @@ host/local ownership, tag paths, slot selection, loaded/reserve magazines, batte
 age and grenades; it refuses duplicate object references and excludes objective
 weapons. Map name/checksum are provenance, not cross-cache content admission.
 These snapshots are not a new sidecar, disk format, client claim or durable stash.
+
+## Current code-reuse and ownership checkpoint
+
+Spark inspected read-only at `d56354bee4813ea3a311afe0ac48a9b378505c3a`, with
+unfinished `World.tsx`, `GpuLightmapDraft.tsx` and `gpuLightmap.ts` work present
+and left untouched. Its MIT license remains its own; no Rust/editor source was
+copied into Forerunner or linked across repositories. The responsibility review
+uses the already pinned OpenCE/Chupathingy foundation, Faber `e4ffe0fe`,
+OpenH1 `baed7757`, and Mota's `2467e708` sidecar source in the upstream matrix.
+
+| Responsibility | Existing implementation and handoff |
+| --- | --- |
+| Native Firefight | Spark `crates/spark-core/src/firefight.rs::{native_round_plan, verify_native_round}` authors/checks encounters, profiles and the three `gs_*` scripts above. Forerunner's existing `source/hs/hs.c::hs_update` executes native scripts; `source/game/game.c::game_tick` no longer suppresses them during finite Firefight. `coop_enemies.c::firefight_update` disables its optional director once it finds any of those compiled bindings. The finite director's terminal-result gate prevents unrelated campaign wins from skipping its waves/result notice; native-script-owned rounds retain normal mission results. Other controllers still require the finite setting OFF. |
+| Loadouts and shared equipment | Spark `firefight.rs::{native_player_profile_arguments, verify_native_player_profile}` emits/checks standard native starting profiles. Forerunner uses native inventories and `game_modes.c::game_modes_inventory_capture` for both mode reports. Reuse that boundary; do not import Spark's preview director or turn a starting profile into a persistent stash. Durable owner-bound reservations/settlement, rarity/upgrades and full inventory UI remain open. |
+| Extraction | Forerunner `extraction.c` owns local native control/volume state. Spark has no located consumer of `extraction_deploy`, `extraction_activate` or `extraction_return` yet. Author the controls/zones and physical route specified above using existing native source/compile paths; no editor or launcher is to be duplicated in the runtime. Native pickups/AI remain native; no authored JSON import or multiplayer/reward acceptance is implied. |
+| MegaWorld and baked content | Spark `megaworld.rs`/`megaworld_build.rs` own source identities, assembly and native output. The uncommitted `gpuLightmap.ts::bakeGpuLightmapDraft` explicitly produces a direct-light draft, not native lightmap tags. Forerunner keeps its native BSP/cache/collision/renderer/resource paths; simultaneous bounded multi-region residency is unfinished. A preview/GPU draft is not a new accepted engine format or proof of 19-region traversal. |
+| VR, voice and Forge | Continue the existing OpenXR/bgfx renderer adapter using pinned OpenH1 transforms/interactions, the inherited Delta/Opus/Halo sound path, and compatible Faber/Mota placement behavior. Do not remove OpenCE browser/guest voice paths as duplicates of native Delta voice: they still have distinct callers/build gates. No second renderer, VOIP stack, sidecar format or cross-repository build dependency was added. |
+
+All changes after the admitted executable remain source-only/UNVERIFIED. No
+capability/discovery field was upgraded by this checkpoint. Spark's next useful
+handoff is its exact compiled native encounter/cache and ordinary matching data,
+with the finite director OFF, followed by the authored Extraction bindings and
+two-region player/Warthog route. Neither project may claim gameplay or copy
+personal stash data from this source review. Preserve copyright/license notices
+if a later reviewed source adaptation is made; do not publish or push it.
 
 ## Native formats and extended data
 

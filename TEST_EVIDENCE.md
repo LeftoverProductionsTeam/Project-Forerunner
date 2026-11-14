@@ -540,3 +540,12 @@ for the moved head; invalid/stale poses use native fallback. Source/diffs only:
 no builds, tests, audio-device access, launches or hardware sessions. Direction,
 gain, latency and head/underwater/boundary transitions remain unverified; no voice
 portal occlusion, MegaWorld acoustics or full-VR acceptance is claimed.
+
+UNVERIFIED Firefight source restores general host HaloScript updates and disables
+the finite director for recognized Spark compiled round scripts. A narrow result
+guard prevents unrelated campaign wins from ending an active finite round early.
+Only source, caller/dependency paths and diffs were read. No builds, tests or game
+launches; prior B40 results predate these semantics. Doors/triggers/objectives,
+single director selection, native authored rounds and finite outcome timing all
+need authorized gameplay validation. The AGENTS full-roadmap update preserves the
+source-only/safety rules and is not an acceptance claim.

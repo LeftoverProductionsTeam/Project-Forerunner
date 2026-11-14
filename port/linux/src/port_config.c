@@ -1818,7 +1818,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"the opening. Default: a nearby Grunt; explicit actor/spawn selection\n"
 		"uses the map's loaded tags and native encounter locations. Two initial\n"
 		"enemies per wave; native carrier children join it, up to 32 tracked\n"
-		"bodies per wave. 100 team points per final death, then the lobby. Off." },
+		"bodies per wave. 100 team points per final death, then the lobby.\n"
+		"Map scripts keep running. Recognized Spark native round scripts\n"
+		"disable this director; leave off for other authored wave controllers." },
 	{ "network.firefight_actor", _config_string, "\"\"", "HALO_NET_FIREFIGHT_ACTOR", _environment_value,
 		_platform_all,
 		"Host: loaded actor-variant tag path without extension for the finite\n"

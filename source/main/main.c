@@ -994,6 +994,10 @@ void main_save_cancel(
 void main_won_map(
 	void)
 {
+	/* port: world/objective scripts keep running during finite Firefight,
+	   but their campaign win must not bypass its waves or result notice. */
+	if (coop_enemies_firefight_active() && !coop_enemies_firefight_result_ready())
+		return;
 	main_globals.saving_map = FALSE;
 	main_globals.won_map = TRUE;
 	return;
