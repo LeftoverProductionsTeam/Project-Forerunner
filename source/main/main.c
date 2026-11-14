@@ -383,6 +383,7 @@ symbols in this file:
 #include "networking/network_server_manager.h" /* port: a co-op game's level won */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "coop_enemies.h" /* port: opt-in Firefight encounter */
+#include "extraction.h" /* port: opt-in native Extraction owns return/redeployment. */
 #include "coop_scripts.h" /* port: port/linux/game/coop_scripts.c */
 #include "network_chat.h" /* port: port/linux/game/network_chat.c */
 #include "network_shield_effects.h" /* port: port/linux/game/network_shield_effects.c */
@@ -994,6 +995,10 @@ void main_save_cancel(
 void main_won_map(
 	void)
 {
+	/* port: an admitted Extraction map keeps its hub/run alive. A campaign
+	   objective's game_won is not an escape or an equipment settlement. */
+	if (extraction_owns_map())
+		return;
 	/* port: world/objective scripts keep running during finite Firefight,
 	   but their campaign win must not bypass its waves or result notice. */
 	if (coop_enemies_firefight_active() && !coop_enemies_firefight_result_ready())
@@ -2581,6 +2586,13 @@ static void main_won_map_private(
 	short level;
 	short local_player_index;
 
+	/* port: scripts may schedule a win on the first tick, before Extraction
+	   binds its controls later in that tick. Recheck before leaving the map. */
+	if (extraction_owns_map())
+	{
+		main_globals.won_map = FALSE;
+		return;
+	}
 	/* port: Firefight owns its result and repeats the arena. This must precede
 	both MCC and Xbox/CE campaign completion, including on defeat or abort. */
 	if (coop_enemies_firefight_active())

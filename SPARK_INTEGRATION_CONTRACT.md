@@ -403,7 +403,12 @@ route and native safe-hub geometry; the engine adds no teleport or map switch.
 Arrival must successfully capture actually owned native equipment before a
 return can complete; failure leaves it pending without publishing a result.
 A valid return shows a post-run summary; use the deploy
-control again to retain the same live inventory and begin another run. This is
+control again to retain the same live inventory and begin another run. Native
+campaign `game_won` calls do not leave an admitted Extraction map:
+`extraction.c::extraction_owns_map` gates both `main.c::main_won_map` and its
+deferred transition. This includes wins scheduled by first-tick scripts before
+control binding. Unrelated HaloScript updates remain enabled; missing/invalid
+bindings and ordinary campaign maps retain native completion. This is
 UNVERIFIED source, not a durable award: stash/loadout selection, rarity/upgrades,
 persistent rewards and full hub UI remain unfinished, with no multiplayer
 admission or new discovery capability. Spark must not

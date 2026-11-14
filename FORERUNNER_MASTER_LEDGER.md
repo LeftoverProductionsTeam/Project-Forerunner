@@ -605,3 +605,11 @@ AGPL attribution remain in source and the Spark contract. Native Linux paths
 remain outside HALO_OPENXR. This cycle is runtime functionality source, not
 accepted gameplay; no tests, builds or launches. Tracked weapon rendering,
 reticles, physical interactions, vehicle aiming and hardware proof remain open.
+
+UNVERIFIED Extraction outcome repair: admitted native hub/run maps now own
+completion through extraction_owns_map, including a deferred main-loop recheck
+for first-tick HaloScript wins before binding. Campaign game_won cannot bypass
+physical return/redeployment; general scripts and ordinary campaign completion
+remain unchanged. This is a necessary gameplay repair, with no new subsystem.
+Death recovery, durable settlement and combined finite-director outcomes remain
+unfinished. Source/caller review only; no tests, builds or launches.

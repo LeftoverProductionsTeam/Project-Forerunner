@@ -567,3 +567,11 @@ no builds, tests, game launches, microphone/device queries or headset runs.
 Menu/focus/tracking loss, recentering, locomotion, firing convergence, networking
 and restore behavior all require later authorized validation. Tracked gun models,
 correct VR reticles, physical interactions and vehicle aiming remain unfinished.
+
+UNVERIFIED Extraction outcome gate: source review traces HaloScript game_won
+through HS_EVALUATE_NO_ARGUMENTS into main_won_map and its deferred transition.
+Both gates consult the existing admitted Extraction state; first-tick script
+ordering requires the deferred recheck. No scripts are suppressed and no stash
+reward is granted. No builds, tests or launches. Ordinary campaign completion,
+map binding failure, early scripted wins, escape and redeployment need later
+native validation; death recovery and durable settlement remain open.

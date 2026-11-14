@@ -49,6 +49,11 @@ static boolean extraction_requested(void)
 		global_scenario && global_scenario->type == _scenario_type_solo;
 }
 
+boolean extraction_owns_map(void)
+{
+	return extraction_requested() && extraction.bound && extraction.admitted;
+}
+
 static void extraction_notice(char const *text)
 {
 	wchar_t wide[128];
