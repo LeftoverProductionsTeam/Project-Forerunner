@@ -484,3 +484,12 @@ runs occurred. Both headset targets, pose/projection accuracy, resize/loss,
 render caches/occlusion, color, wall collision, menus, native game controls and
 physical interactions remain unverified or unfinished. No full-VR or measured
 performance acceptance is claimed.
+
+Basic Touch/Index input and rumble are now connected in source through native
+Xbox input. Focus/stale/tracking neutralization, a reserved-button-free Index
+pause combination and combined controller hints are present; input reuses
+located poses and freshly synchronizes actions. XR focus does not bypass SDL's
+remapper gate. No tests, builds, native queries, launches or hardware sessions
+ran. Button/axis signs and layout behavior, menu/chat/guide ownership, fallback,
+focus loss/recovery, haptics and both controller families remain unverified.
+Tracked weapon aim, physical interactions and headset menu display are unfinished.

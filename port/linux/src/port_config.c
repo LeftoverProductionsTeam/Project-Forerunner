@@ -925,8 +925,8 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 #ifdef HALO_OPENXR
 	{ "vr.enabled", _config_boolean, "false", "HALO_VR", _environment_value, _platform_desktop,
 		"Optional Windows64 OpenXR/Vulkan integration. Source only, unverified.\n"
-		"Stereo rendering source is present. Headset menus, tracked gameplay\n"
-		"input and physical interactions are unfinished. Off by default.\n"
+		"Stereo rendering and basic controller source are present. Headset menus,\n"
+		"tracked weapon aim and physical interactions are unfinished. Off by default.\n"
 		"Read at start-up; requires a build configured with --with-openxr." },
 #endif
 

@@ -32,7 +32,7 @@ extern void platform_log(const char *format, ...);
 	X(xrStringToPath) X(xrCreateActionSet) X(xrDestroyActionSet) X(xrCreateAction) \
 	X(xrSuggestInteractionProfileBindings) X(xrAttachSessionActionSets) X(xrCreateActionSpace) \
 	X(xrSyncActions) X(xrGetActionStateBoolean) X(xrGetActionStateFloat) \
-	X(xrGetActionStateVector2f) X(xrGetActionStatePose) X(xrApplyHapticFeedback)
+	X(xrGetActionStateVector2f) X(xrGetActionStatePose) X(xrApplyHapticFeedback) X(xrStopHapticFeedback)
 #define DECLARE_XR(name) static PFN_##name name;
 XR_FUNCTIONS(DECLARE_XR)
 #undef DECLARE_XR
@@ -70,6 +70,9 @@ static struct
 	XrTime space_change_time;
 	unsigned int reference_serial;
 	int space_change_pending;
+	struct vr_openxr_frame input;
+	ULONGLONG input_ticks;
+	int haptic_active[2];
 } vr;
 
 static int check(XrResult result, const char *operation)
@@ -435,7 +438,7 @@ static void locate_hand(XrSpace space, XrAction action, XrPath hand, struct vr_o
 		(location.locationFlags & valid) == valid) pose_copy(&location.pose, out);
 }
 
-static void input_read(struct vr_openxr_frame *frame)
+static void input_read(struct vr_openxr_frame *frame, int locate_poses)
 {
 	XrActiveActionSet active = { vr.action_set, XR_NULL_PATH };
 	XrActionsSyncInfo sync = { XR_TYPE_ACTIONS_SYNC_INFO };
@@ -444,7 +447,12 @@ static void input_read(struct vr_openxr_frame *frame)
 	if (!frame->focused) return;
 	sync.countActiveActionSets = 1;
 	sync.activeActionSets = &active;
-	if (XR_FAILED(xrSyncActions(vr.session, &sync))) return;
+	/* XR_SESSION_NOT_FOCUSED is a positive result, not XR_FAILED. */
+	if (xrSyncActions(vr.session, &sync) != XR_SUCCESS)
+	{
+		frame->focused = 0;
+		return;
+	}
 	for (hand = 0; hand < 2; hand++)
 	{
 		XrActionStateGetInfo get = { XR_TYPE_ACTION_STATE_GET_INFO };
@@ -473,9 +481,37 @@ static void input_read(struct vr_openxr_frame *frame)
 				else frame->hand[hand].squeeze = state.currentState;
 			}
 		}
-		locate_hand(vr.aim[hand], vr.actions[_action_aim], vr.hands[hand], &frame->hand[hand].aim);
-		locate_hand(vr.grip[hand], vr.actions[_action_grip], vr.hands[hand], &frame->hand[hand].grip);
+		if (locate_poses)
+		{
+			locate_hand(vr.aim[hand], vr.actions[_action_aim], vr.hands[hand], &frame->hand[hand].aim);
+			locate_hand(vr.grip[hand], vr.actions[_action_grip], vr.hands[hand], &frame->hand[hand].grip);
+		}
 	}
+}
+
+int vr_openxr_input_read(struct vr_openxr_frame *frame)
+{
+	int hand;
+
+	if (!frame) return 0;
+	memset(frame, 0, sizeof(*frame));
+	if (!vr_openxr_running()) return 0;
+	/* Render stalls and tracking gaps must not leave a fire/movement input
+	   held. Action reads do not wait for a second XR frame or advance poses. */
+	if (!vr.input_ticks || GetTickCount64() - vr.input_ticks > 250) return 1;
+	*frame = vr.input;
+	frame->focused = vr.state == XR_SESSION_STATE_FOCUSED;
+	for (hand = 0; hand < 2; hand++)
+	{
+		frame->hand[hand].buttons = 0;
+		frame->hand[hand].stick[0] = frame->hand[hand].stick[1] = 0.0f;
+		frame->hand[hand].trigger = frame->hand[hand].squeeze = 0.0f;
+	}
+	/* Reuse this frame's located poses; only digital/analog actions need a
+	   fresh read before native input. Avoid a second set of pose queries. */
+	input_read(frame, 0);
+	if (!frame->focused) memset(frame->hand, 0, sizeof(frame->hand));
+	return 1;
 }
 
 int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
@@ -489,6 +525,8 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
 	int eye;
 
 	memset(frame, 0, sizeof(*frame));
+	memset(&vr.input, 0, sizeof(vr.input));
+	vr.input_ticks = 0;
 	if (!vr.session || vr.unavailable || vr.frame_begun) return 0;
 	while (xrPollEvent(vr.instance, &event) == XR_SUCCESS)
 	{
@@ -565,7 +603,9 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
 		}
 	}
 	frame->should_render = vr.frame.shouldRender && vr.views_valid;
-	input_read(frame);
+	input_read(frame, 1);
+	vr.input = *frame;
+	vr.input_ticks = GetTickCount64();
 	return 1;
 }
 
@@ -674,12 +714,19 @@ void vr_openxr_haptic(int hand, float amplitude, float seconds)
 	XrHapticActionInfo info = { XR_TYPE_HAPTIC_ACTION_INFO };
 	XrHapticVibration vibration = { XR_TYPE_HAPTIC_VIBRATION };
 
-	if (hand < 0 || hand > 1 || !vr.running || vr.unavailable || vr.state != XR_SESSION_STATE_FOCUSED ||
-		!(amplitude > 0.0f) || !(seconds > 0.0f)) return;
+	if (hand < 0 || hand > 1 || !vr.running || vr.unavailable) return;
 	info.action = vr.actions[_action_haptic];
 	info.subactionPath = vr.hands[hand];
+	if (!(amplitude > 0.0f) || !(seconds > 0.0f) || vr.state != XR_SESSION_STATE_FOCUSED)
+	{
+		if (vr.haptic_active[hand])
+			xrStopHapticFeedback(vr.session, &info);
+		vr.haptic_active[hand] = 0;
+		return;
+	}
 	vibration.amplitude = amplitude > 1.0f ? 1.0f : amplitude;
 	vibration.duration = (XrDuration)((seconds > 1.0f ? 1.0f : seconds) * 1e9);
 	vibration.frequency = XR_FREQUENCY_UNSPECIFIED;
-	xrApplyHapticFeedback(vr.session, &info, (const XrHapticBaseHeader *)&vibration);
+	vr.haptic_active[hand] = xrApplyHapticFeedback(vr.session, &info,
+		(const XrHapticBaseHeader *)&vibration) == XR_SUCCESS;
 }

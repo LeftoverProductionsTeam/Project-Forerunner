@@ -55,6 +55,9 @@ drive the controller.
 #include "keyboard_prompts.h"
 #include "controller_buttons.h"
 #include "controller_remap.h"
+#ifdef HALO_OPENXR
+#include "vr_openxr.h"
+#endif
 
 #include <SDL3/SDL.h>
 #if defined(SDL_PLATFORM_LINUX) && !defined(HALO_ANDROID)
@@ -2535,6 +2538,79 @@ static void merge_button(XINPUT_GAMEPAD *pad, int analog_index, BOOL down)
 		pad->bAnalogButtons[analog_index] = 0xff;
 }
 
+#ifdef HALO_OPENXR
+/* Adapted from OpenH1/goath1 vr.c's halo_vr_gamepad/halo_vr_rumble,
+   baed77571d53abe32b27434b4ba869f11db00fe9 (AGPL-3.0-or-later).
+   The existing Xbox input path remains the gameplay owner. UNVERIFIED. */
+static SHORT openxr_stick(float value)
+{
+	if (value > 1.0f) value = 1.0f;
+	if (value < -1.0f) value = -1.0f;
+	if (!(value >= -1.0f && value <= 1.0f)) return 0;
+	return (SHORT)(value * 32767.0f);
+}
+
+static BYTE openxr_trigger(float value)
+{
+	if (!(value > 0.0f)) return 0;
+	return value >= 1.0f ? 255 : (BYTE)(value * 255.0f);
+}
+
+static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
+{
+	struct vr_openxr_frame frame;
+	XINPUT_GAMEPAD xr;
+	unsigned int left, right;
+	unsigned long buttons;
+	BOOL pause_combo, moved;
+	int index;
+
+	memset(pad, 0, sizeof(*pad));
+	if (!vr_openxr_input_read(&frame))
+		return FALSE;
+	if (!frame.focused)
+		return TRUE;
+	memset(&xr, 0, sizeof(xr));
+	left = frame.hand[0].buttons;
+	right = frame.hand[1].buttons;
+	/* Index has no application menu button in the standard profile. Both
+	   stick clicks open Halo's pause/menu without binding reserved System. */
+	pause_combo = (left & _vr_button_stick) && (right & _vr_button_stick);
+	if (pause_combo || ((left | right) & _vr_button_menu))
+		xr.wButtons |= XINPUT_GAMEPAD_START;
+	if (!pause_combo && (menus || frame.should_render))
+	{
+		merge_button(&xr, XINPUT_GAMEPAD_A, right & _vr_button_primary);
+		merge_button(&xr, XINPUT_GAMEPAD_B, right & _vr_button_secondary);
+		merge_button(&xr, XINPUT_GAMEPAD_X, left & _vr_button_primary);
+		merge_button(&xr, XINPUT_GAMEPAD_Y, left & _vr_button_secondary);
+		merge_button(&xr, XINPUT_GAMEPAD_WHITE, frame.hand[0].squeeze > 0.75f);
+		merge_button(&xr, XINPUT_GAMEPAD_BLACK, frame.hand[1].squeeze > 0.75f);
+		xr.bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = openxr_trigger(frame.hand[0].trigger);
+		xr.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = openxr_trigger(frame.hand[1].trigger);
+		if (left & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_LEFT_THUMB;
+		if (right & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_RIGHT_THUMB;
+		xr.sThumbLX = openxr_stick(frame.hand[0].stick[0]);
+		xr.sThumbLY = openxr_stick(frame.hand[0].stick[1]);
+		xr.sThumbRX = openxr_stick(frame.hand[1].stick[0]);
+		xr.sThumbRY = openxr_stick(frame.hand[1].stick[1]);
+	}
+	*pad = xr;
+	buttons = xr.wButtons;
+	for (index = 0; index < 8; index++)
+		if (xr.bAnalogButtons[index] > 30) buttons |= 1UL << (16 + index);
+	moved = abs(xr.sThumbLX) > 8000 || abs(xr.sThumbLY) > 8000 ||
+		abs(xr.sThumbRX) > 8000 || abs(xr.sThumbRY) > 8000;
+	if (buttons || moved)
+	{
+		pthread_mutex_lock(&mouse_lock);
+		pad_used_ms = SDL_GetTicks();
+		pthread_mutex_unlock(&mouse_lock);
+	}
+	return TRUE;
+}
+#endif
+
 #ifdef HALO_SWITCH_CONSOLE
 /* ---------- gyro aiming (the Switch)
 
@@ -3091,7 +3167,14 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 	SDL_Gamepad *gamepads[PORT_COUNT];
 	int count;
 	XINPUT_GAMEPAD physical;
+	XINPUT_GAMEPAD const *prompt_pad;
+#ifdef HALO_OPENXR
+	XINPUT_GAMEPAD xr, prompt;
+	BOOL xr_connected = FALSE;
+#endif
 	int captured;
+	BOOL physical_connected;
+	BOOL prompt_connected;
 	unsigned long prompt_buttons;
 	int prompt_index;
 
@@ -3110,20 +3193,42 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 	controller_device_update((short)port, port_gamepad(gamepads, count, port));
 	/* Keep physical remapping separate from the keyboard and touch controls. */
 	memset(&physical, 0, sizeof(physical));
+	physical_connected = port_gamepad(gamepads, count, port) != NULL;
 	if (port_gamepad(gamepads, count, port))
 		sdl_gamepad_state(port_gamepad(gamepads, count, port), &physical);
+	prompt_pad = &physical;
+	prompt_connected = physical_connected;
+#ifdef HALO_OPENXR
+	memset(&xr, 0, sizeof(xr));
+	if (port == 0 && vr_openxr_running())
+	{
+		struct platform_input_state context;
+
+		/* Peek without consuming mouse/key deltas. Keep XR focus separate
+		   from SDL's remapper, with one combined raw controller hint sample. */
+		platform_input_read(&context, FALSE);
+		xr_connected = openxr_gamepad_read(&xr, context.menus);
+		if (xr_connected)
+		{
+			prompt = physical;
+			controller_remap_merge(&xr, &prompt);
+			prompt_pad = &prompt;
+			prompt_connected = TRUE;
+		}
+	}
+#endif
 	/* Keep the opening chat press so even B can open it without immediately closing it. */
 	chat_pad_record((short)port, &physical);
 	chat_physical_pad[port] = chat_pad[port];
-	/* Observe physical input before keyboard/touch merging or remapping. */
-	prompt_buttons = physical.wButtons;
+	/* Observe controller input before keyboard/touch merging or remapping. */
+	prompt_buttons = prompt_pad->wButtons;
 	for (prompt_index = 0; prompt_index < 8; prompt_index++)
-		if (physical.bAnalogButtons[prompt_index] > 30) prompt_buttons |= 1UL << (16 + prompt_index);
+		if (prompt_pad->bAnalogButtons[prompt_index] > 30) prompt_buttons |= 1UL << (16 + prompt_index);
 	keyboard_prompt_pad((short)port, prompt_buttons,
-		abs(physical.sThumbLX) > 12000 || abs(physical.sThumbLY) > 12000 ||
-		abs(physical.sThumbRX) > 12000 || abs(physical.sThumbRY) > 12000,
-		port_gamepad(gamepads, count, port) != NULL);
-	captured = controller_remap_input((short)port, &physical, port_gamepad(gamepads, count, port) != NULL);
+		abs(prompt_pad->sThumbLX) > 12000 || abs(prompt_pad->sThumbLY) > 12000 ||
+		abs(prompt_pad->sThumbRX) > 12000 || abs(prompt_pad->sThumbRY) > 12000,
+		prompt_connected);
+	captured = controller_remap_input((short)port, &physical, physical_connected);
 	if (port == 0)
 	{
 		struct platform_input_state input;
@@ -3181,7 +3286,7 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 			else
 				keyboard_controls(held, &state->Gamepad);
 		}
-		if (port_gamepad(gamepads, count, 0))
+		if (physical_connected)
 			controller_remap_merge(&physical, &state->Gamepad);
 		{
 			/* one person in the game: every gamepad is theirs (port, this fork:
@@ -3197,6 +3302,12 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 					sdl_gamepad_state(gamepad, &state->Gamepad);
 			}
 		}
+#ifdef HALO_OPENXR
+		/* OpenH1's merge stage: the runtime owns XR focus. Existing guide,
+		   chat and capture ownership still process the final native pad. */
+		if (xr_connected && !console_active)
+			controller_remap_merge(&xr, &state->Gamepad);
+#endif
 		test_input_gamepad(&state->Gamepad);
 		touch_input_gamepad(&state->Gamepad);
 #if defined(HALO_ANDROID) || defined(HALO_WEB)
@@ -3271,6 +3382,14 @@ DWORD WINAPI XInputSetState(HANDLE device, PXINPUT_FEEDBACK feedback)
 	feedback->Header.dwStatus = ERROR_SUCCESS;
 	if (port < 0)
 		return ERROR_DEVICE_NOT_CONNECTED;
+#ifdef HALO_OPENXR
+	/* OpenH1's motor-to-hand mapping, refreshed like SDL's existing rumble. */
+	if (port == 0)
+	{
+		vr_openxr_haptic(0, feedback->Rumble.wLeftMotorSpeed / 65535.0f, 0.1f);
+		vr_openxr_haptic(1, feedback->Rumble.wRightMotorSpeed / 65535.0f, 0.1f);
+	}
+#endif
 #if defined(HALO_ANDROID) || defined(HALO_WEB)
 	/* the phone vibrates for the touch controls' player (in a browser, where
 	it can) */

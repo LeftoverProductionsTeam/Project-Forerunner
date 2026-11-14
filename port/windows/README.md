@@ -251,9 +251,9 @@ Windows64 OpenXR backend. It is off at runtime unless `vr.enabled` / `HALO_VR`
 is enabled. That path selects the existing bgfx Vulkan renderer; flat-screen
 defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
-The device/session, renderer and stereo camera/FOV caller are connected in
-source through the existing native frame/window traversal. They remain
-unverified, incomplete VR: headset menus, tracked gameplay input and OpenH1
+The device/session, renderer, stereo camera/FOV caller and basic controller
+input are connected in source through existing native frame/window and Xbox
+input paths. They remain unverified, incomplete VR: headset menus, tracked weapon aim and OpenH1
 physical interactions still need wiring. No compilation or headset
 validation has been performed under the owner's source-only instruction.
 
@@ -268,6 +268,18 @@ only when configured later. Their SPDX licence is Apache-2.0 OR MIT; see the
 [Khronos SDK licence](https://github.com/KhronosGroup/OpenXR-SDK/blob/release-1.1.63/LICENSE).
 The installed Windows `openxr_loader.dll` selects the active PC runtime; no
 loader/runtime or proprietary SDK is copied into this repository.
+
+Basic controls reuse OpenH1's Xbox-style mapping: right A/B map to native A/B;
+left X/Y (Touch) or A/B (Index) map to native X/Y. The left/right triggers are
+native LT/RT, grips are White/Black, sticks and individual clicks retain native
+movement/look and thumb-click actions. Both stick clicks together provide
+Start/pause for Index; Touch also binds its left menu button. Native profile
+button layouts still determine gameplay actions. Keyboard/SDL gamepads remain
+merged; XR focus is separate from the desktop-only SDL remapper. The existing
+guide/chat input owners still process the final pad. Unfocused, stale or
+untracked gameplay input is neutral; native rumble also feeds the two hands.
+All mappings, focus/ownership transitions and haptics are unverified. No tracked
+weapon pose, physical reload/grenade gesture or hand-model acceptance is implied.
 
 - The movies play through FFmpeg's Bink decoder
   (`port/linux/src/bink_ffmpeg.c`), built for Bink only and linked

@@ -51,6 +51,9 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame);
 void vr_openxr_frame_end(int submit_stereo);
 void vr_openxr_haptic(int hand, float amplitude, float seconds);
 int vr_openxr_running(void);
+/* Same-thread input read from the latest located frame, with fresh actions.
+   Returns zero without a running XR session; stale/unfocused input is neutral. */
+int vr_openxr_input_read(struct vr_openxr_frame *frame);
 
 /* Platform renderer only: the VkImage bits accepted by bgfx's existing
    external-texture argument. Runtime ownership remains acquire -> release. */

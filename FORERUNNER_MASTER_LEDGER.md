@@ -428,3 +428,17 @@ session protocol are identified; no competing format or reader was invented.
 The user also relayed per-player BSP and server-selected third-person biped
 work as follow-up source-comparison leads; those reports are not acceptance
 evidence and do not establish first-person arms or protocol compatibility.
+
+Controller source cycle adapts OpenH1's basic Xbox mapping into existing
+`xinput_sdl.c`: Touch/Index face buttons, sticks, triggers and grip bumpers
+join native port zero, with two-stick-click Start for Index and Touch's menu
+action. XR keeps runtime focus and merges after SDL's desktop-focused remapper,
+before existing guide/chat/capture ownership. Hints read one combined raw pad
+snapshot; keyboard/SDL fallback stays merged. Fresh actions reuse the latest
+located poses, with focus/stale/tracking neutralization and no second pose
+query set. Existing rumble feeds both hands and zero feedback stops haptics.
+This is necessary runtime source progress, UNVERIFIED. No tests, configure,
+builds, native queries, launches, Spark changes or pushes. Headset menu rendering,
+tracked weapon aim, physical interactions/collision, remote tracked poses and
+both-headset multiplayer acceptance remain open; native simulation/wire format
+are unchanged. Advanced SDL remap editing remains SDL-owned.
