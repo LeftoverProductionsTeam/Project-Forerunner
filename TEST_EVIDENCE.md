@@ -367,3 +367,10 @@ references before native getters/placement, adapting Faber's existing spawn chec
 An incomplete variant warns and fails; a tracked Firefight request also aborts.
 No tests/builds/queries/games ran. The retired raw C47 QA files were not recovered;
 its retained nearest-symbol receipt does not prove the old physics-crash cause.
+
+The next source-only increment adds optional carried-weapon resupply between
+finite waves, adapting Faber's reserve refill and using existing reserve/battery
+inventory snapshots. It is off by default and preserves magazine/reload state.
+No tests/builds/queries/games ran. Ballistic reserve and battery replenishment,
+reload timing, excluded dead/dropped inventory and real owner-client agreement
+remain unaccepted.

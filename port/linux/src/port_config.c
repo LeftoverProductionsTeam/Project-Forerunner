@@ -1812,6 +1812,11 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"unfunded team wipe ends in defeat. A full world\n"
 		"checkpoint revert restarts the encounter with zero score and its\n"
 		"original lives; a respawn-only wipe keeps progress and spent lives." },
+	{ "network.firefight_resupply", _config_boolean, "false", "HALO_NET_FIREFIGHT_RESUPPLY", _environment_value,
+		_platform_all,
+		"Host: refill living players' carried weapon reserves and battery charge\n"
+		"between finite Firefight waves. Fixed at map start. Does not refill\n"
+		"loaded magazines, cancel reloads or grant equipment. Off by default." },
 	{ "network.coop_pickups", _config_string, "\"none\"", "HALO_NET_COOP_PICKUPS", _environment_value, _platform_all,
 		"Extra campaign weapons, grenades, health kits, overshields and camouflage.\n"
 		"Modes: \"none\", \"per_player\" (coop_enemies percent per extra player),\n"

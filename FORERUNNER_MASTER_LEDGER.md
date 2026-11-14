@@ -212,9 +212,19 @@ current `docs/SOURCE_ONLY_STORAGE_POLICY.md` records retirement of old raw QA
 collections; the corresponding raw crash/symbol files were not found in the known
 roots. Do not recreate that retired environment or infer a physics fix from the
 receipt alone. A later authorized native run needs a fresh exact failure record.
-This cycle adapts Faber's actor/unit reference prerequisites to
+Source checkpoint `2938c5798` adapts Faber's actor/unit reference prerequisites to
 `actors_spawn_from_unit`: incomplete variants report their path and return no
 actors; tracked Firefight requests also abort through the existing failure path.
 The current empty-tag fallback already limits unsafe reads, so this is explicit
 spawn rejection, not a claim to repair the old crash. No tags, originals or Spark
 files were changed. No tests/builds/queries/games ran; native acceptance is open.
+
+The next source-only gameplay increment adapts Faber's reserve-ammunition refill
+to an optional finite resupply before waves two and three. The existing module
+refills only living players' carried weapons, bounded by native magazine capacity;
+battery weapons regain charge. It preserves loaded rounds, reload state, heat,
+weapons and grenade counts. `network.firefight_resupply` defaults off and freezes
+at map start. Existing inventory snapshots carry reserves/age; no packet, inventory
+framework, equipment spawning or infinite-ammo trait was added. No tests/builds/
+queries/games ran. Reserve/battery behavior, reload timing, owner-client agreement
+and creator-map acceptance remain open.

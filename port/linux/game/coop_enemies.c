@@ -41,6 +41,8 @@ Only the host runs the AI, so all of this is the host's.
 #include "game/game.h"
 #include "game/game_allegiance.h"
 #include "game/players.h"
+#include "items/weapons.h"
+#include "items/weapon_definitions.h"
 #include "main/main.h"
 #include "cutscene/cinematics.h"
 #include "interface/hud_messaging.h"
@@ -175,12 +177,14 @@ static struct
 replication. The actor creation and clear-all-wave progression are adapted from
 SutlabSol's OpenCE-Faber e4ffe0fe9874870b4fca1fca76beb83514c793f4,
 firefight_spawner.c:spawn_single_actor_at/track_enemy_unit,
-firefight.c:firefight_update/firefight_notify_actor_or_unit_killed
+firefight.c:firefight_update/firefight_notify_actor_or_unit_killed/
+firefight_apply_tick_player_traits
 and actors.c's Outbreak encounterless-child branch
 (AGPL-3.0-or-later). No Faber ranks, menus or private network packet are needed. */
 static struct
 {
 	boolean enabled;
+	boolean resupply;
 	short phase;
 	short wave;
 	long score;
@@ -843,6 +847,63 @@ static void firefight_pursue(long unit_index)
 	}
 }
 
+/* Faber's reserve refill, applied once between waves instead of infinite-ammo
+traits. Use the carried weapons' native capacities; normal inventory snapshots
+already carry reserve ammunition and battery age to their owners. */
+static void firefight_resupply_players(void)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+	boolean changed = FALSE;
+
+	if (!firefight.resupply)
+		return;
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum *unit;
+		short slot;
+
+		if (player->quit_out_of_game)
+			continue;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		if (!unit || unit->unit.player_index != iterator.datum_index || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			continue;
+		for (slot = 0; slot < NUMBEROF(unit->unit.weapon_object_indices); slot++)
+		{
+			struct weapon_datum *weapon = weapon_try_and_get(unit->unit.weapon_object_indices[slot]);
+			struct weapon_definition *definition;
+			short magazine;
+			boolean holds_rounds = FALSE;
+
+			if (!weapon || !TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit))
+				continue;
+			definition = weapon_definition_get(weapon->definition_index);
+			for (magazine = 0; magazine < MIN(definition->weapon.magazines.count, NUMBEROF(weapon->weapon.magazines)); magazine++)
+			{
+				struct weapon_magazine_definition *capacity = TAG_BLOCK_GET_ELEMENT(
+					&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
+
+				if (capacity->rounds_loaded_maximum > 0 || capacity->rounds_total_maximum > 0)
+					holds_rounds = TRUE;
+				if (capacity->rounds_total_maximum > 0 &&
+					weapon->weapon.magazines[magazine].rounds_total < capacity->rounds_total_maximum)
+				{
+					weapon->weapon.magazines[magazine].rounds_total = capacity->rounds_total_maximum;
+					changed = TRUE;
+				}
+			}
+			if (!holds_rounds && weapon->weapon.age > 0.f)
+			{
+				weapon->weapon.age = 0.f;
+				changed = TRUE;
+			}
+		}
+	}
+	if (changed)
+		firefight_notice("Firefight: carried ammunition resupplied");
+}
+
 static void firefight_update(void)
 {
 	long now = game_time_get();
@@ -954,6 +1015,7 @@ static void firefight_update(void)
 	{
 		if (firefight.wave < 3)
 		{
+			firefight_resupply_players();
 			firefight.wave++;
 			csmemset(firefight.killed, 0, sizeof(firefight.killed));
 			firefight.phase = 1;
@@ -1241,6 +1303,7 @@ void coop_enemies_new_game(
 	csmemset(&firefight, 0, sizeof(firefight));
 	csmemset(firefight.respawn_players, NONE, sizeof(firefight.respawn_players));
 	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
+	firefight.resupply = config_boolean("network.firefight_resupply") != 0;
 	firefight.initial_lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
 	firefight.lives = firefight.initial_lives;
 	firefight.selection_valid = strlen(actor) < sizeof(firefight.actor_path) && strlen(spawn) < sizeof(firefight.spawn_encounter);
