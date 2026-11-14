@@ -74,6 +74,17 @@ SDL_SHA256 = "1a784cb2a5c64d56fe7a62090fe9d242d9865f235e4ea9678f1a6ba4e693e7de"
 THIRD_PARTY = BUILD / "third_party"
 SDL_DIR = THIRD_PARTY / f"SDL3-{SDL_VERSION}"
 
+# Same Khronos SDK pin as OpenH1 baed77571d53abe32b27434b4ba869f11db00fe9,
+# tools/linux_guest_build.py. Headers remain unchanged (Apache-2.0 OR MIT).
+# No loader is shipped: the user's installed OpenXR loader/runtime owns it.
+OPENXR_TAG = "release-1.1.63"
+OPENXR_DIR = THIRD_PARTY / f"OpenXR-{OPENXR_TAG}"
+OPENXR_HEADERS = {
+    "openxr.h": "17e8e334a7ad0c6933b31143330d4771010e393df5d5d9d08566eb15bb171a15",
+    "openxr_platform.h": "f17e6d752e0065ede9f2a4c8932155acff96462306a2468a67a6ad77484641d8",
+    "openxr_platform_defines.h": "a458ba5777415f2de518fdcdcc87fcf8651ba0468c9f69a101378672aad80946",
+}
+
 # Flags shared by every unit. The Microsoft target gives the game the ABI it
 # was written against natively: 16-bit wchar_t, MSVC structure layout,
 # __declspec, calling conventions and COMDAT inline functions.
@@ -380,6 +391,23 @@ def fetch_sdl() -> None:
     archive.unlink()
 
 
+def fetch_openxr_headers() -> None:
+    """The optional Windows64 backend's unchanged Khronos headers only."""
+    directory = OPENXR_DIR / "openxr"
+    for name, expected in OPENXR_HEADERS.items():
+        destination = directory / name
+        if destination.is_file() and hashlib.sha256(destination.read_bytes()).hexdigest() == expected:
+            continue
+        url = f"https://raw.githubusercontent.com/KhronosGroup/OpenXR-SDK/{OPENXR_TAG}/include/openxr/{name}"
+        with urllib.request.urlopen(url, timeout=30) as response:
+            contents = response.read()
+        digest = hashlib.sha256(contents).hexdigest()
+        if digest != expected:
+            raise SystemExit(f"{url}: SHA-256 {digest}, not the pinned {expected}")
+        directory.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(contents)
+
+
 # The runtime of instrumented builds (-fprofile-generate), which LLVM for
 # Windows ships only for x86-64: its C sources, from the LLVM release of the
 # compiler that uses them, built for the 32-bit game.
@@ -615,10 +643,19 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
     # the bgfx renderer (tools/bgfx_build.py): its libraries, and the define
     # and headers of the platform units (d3d8_gl.c, sdl_platform.c)
     use_bgfx = target.bgfx and not target.server and bgfx_available(sln)
+    use_openxr = target.name == "windows64" and getattr(sln, "with_openxr", False)
+    if use_openxr and not use_bgfx:
+        raise SystemExit("--with-openxr requires the existing Windows64 bgfx/Vulkan renderer")
+    if use_openxr:
+        fetch_openxr_headers()
+    openxr_flags = ["-DHALO_OPENXR", "-Iport/windows/include"] if use_openxr else []
+    if use_openxr:
+        abi += " -DHALO_OPENXR"
     bgfx_libraries = bgfx_build(n, BgfxTarget(
         name=prefix, platform="windows", cc=f"{compile_launcher(sln)}{cc}",
         target_flags=[f"--target={target.triple}", "-gcodeview", march_flag(sln)],
         build_dir=build / "bgfx", archive_command="llvm-ar rcs $out $in",
+        extra_flags=openxr_flags,
     )) if use_bgfx else []
     bgfx_cflags = " ".join(bgfx_include_flags()) if use_bgfx else ""
     # (the server links no SDL: server/platform/sdl_headless.c has the few
@@ -728,6 +765,8 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
             f"-I{posix_include}",
             f"-I{linux_platform}",
             f"-I{_quote(sdl_include)}",
+            *openxr_flags,
+            *([f"-I{OPENXR_DIR}", "-Ibuild/bgfx/bgfx/3rdparty/khronos"] if use_openxr else []),
         ])
         replaced = set(config.get("replaced_platform_sources", []))
         mbedtls_include = " ".join([f"-I{MBEDTLS_DIR / 'include'}", *WINDOWS_MBEDTLS_DEFINES])
@@ -769,6 +808,8 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
             add_object(LZMA_DIR / "LzmaDec.c", " ".join([abi, *WIN32_FLAGS, "-w"]))
         miniupnpc_include = f"-I{MINIUPNPC_DIR / 'include'} -DMINIUPNP_STATICLIB"
         for source in sorted((PORT_DIR / "src").glob("*.c")):
+            if source.name == "win32_openxr.c" and not use_openxr:
+                continue
             if target.server and source.name in WINDOWS_SERVER_EXCLUDED:
                 continue
             if source.name == "win32_upnp.c":

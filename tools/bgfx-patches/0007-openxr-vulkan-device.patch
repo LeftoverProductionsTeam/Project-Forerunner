@@ -1,0 +1,75 @@
+diff --git a/src/renderer_vk.cpp b/src/renderer_vk.cpp
+--- a/src/renderer_vk.cpp
++++ b/src/renderer_vk.cpp
+@@ -14,3 +14,7 @@
+ extern "C" int bgfx_vk_gpu_timer;
+ 
++#if defined(HALO_OPENXR)
++#include "vr_openxr_vulkan.h"
++#endif
++
+ #if BX_PLATFORM_OSX
+@@ -1564,2 +1568,5 @@
+ 				}
++#if defined(HALO_OPENXR)
++				result = vr_openxr_vulkan_create_instance(vkGetInstanceProcAddr, &ici, m_allocatorCb, &m_instance);
++#else
+ 				result = vkCreateInstance(
+@@ -1568,4 +1575,5 @@
+ 					, &m_instance
+ 					);
++#endif
+ 
+ 				if (VK_SUCCESS != result)
+@@ -1777,3 +1785,19 @@
+ 
++#if defined(HALO_OPENXR)
++				if (vr_openxr_vulkan_prepared() )
++				{
++					const VkPhysicalDevice headset = vr_openxr_vulkan_physical_device(m_instance);
++					physicalDeviceIdx = UINT32_MAX;
++					for (uint32_t ii = 0; ii < numPhysicalDevices; ++ii)
++					{
++						if (physicalDevices[ii] == headset) physicalDeviceIdx = ii;
++					}
++					if (UINT32_MAX == physicalDeviceIdx)
++					{
++						BX_TRACE("OpenXR headset GPU is unavailable to this Vulkan backend.");
++						goto error;
++					}
++				}
++#endif
+ 				m_physicalDevice = physicalDevices[physicalDeviceIdx];
+ 				bx::memCopy(&s_extension[0], &physicalDeviceExtensions[physicalDeviceIdx][0], sizeof(s_extension) );
+@@ -2356,2 +2380,7 @@
+ 				};
++#if defined(HALO_OPENXR)
++				if (vr_openxr_vulkan_prepared() )
++					result = vr_openxr_vulkan_create_device(vkGetInstanceProcAddr, m_physicalDevice, &dci, m_allocatorCb, &m_device);
++				else
++#endif
+ 				result = vkCreateDevice(
+@@ -2619,3 +2648,6 @@
+ 			g_internalData.context = m_device;
++#if defined(HALO_OPENXR)
++			vr_openxr_vulkan_bind(m_instance, m_physicalDevice, m_device, m_globalQueueFamily, 0);
++#endif
+ 			return true;
+ 		error:
+@@ -2674,4 +2706,7 @@
+ 			};
+ 
++#if defined(HALO_OPENXR)
++			vr_openxr_vulkan_shutdown();
++#endif
+ 			return false;
+ 		}
+@@ -2731,4 +2766,8 @@
+ 			}
+ 
++#if defined(HALO_OPENXR)
++			vr_openxr_vulkan_shutdown();
++#endif
++
+ 			if (NULL != m_externalDevice)
+ 			{

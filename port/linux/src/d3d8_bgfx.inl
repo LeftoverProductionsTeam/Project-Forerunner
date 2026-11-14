@@ -5456,8 +5456,16 @@ static BOOL bg_initialize(void)
 #if defined(__APPLE__)
 		type = BGFX_RENDERER_TYPE_METAL;
 #elif defined(_WIN32)
+#ifdef HALO_OPENXR
+		/* Both headset families use one Vulkan/OpenXR device. Flat-screen
+		   renderer selection is unchanged when VR is off. */
+		type = config_boolean("vr.enabled") ? BGFX_RENDERER_TYPE_VULKAN :
+			strcmp(config_string("display.renderer"), "d3d11") == 0 ? BGFX_RENDERER_TYPE_DIRECT3D11 :
+			BGFX_RENDERER_TYPE_VULKAN;
+#else
 		type = strcmp(config_string("display.renderer"), "d3d11") == 0 ? BGFX_RENDERER_TYPE_DIRECT3D11 :
 			BGFX_RENDERER_TYPE_VULKAN;
+#endif
 #else
 		type = BGFX_RENDERER_TYPE_VULKAN;
 #endif

@@ -98,6 +98,11 @@ parser.add_argument(
 # kept for the scripts that still ask for it; --renderer=gl leaves it out)
 parser.add_argument("--renderer", choices=["gl", "bgfx"], help=argparse.SUPPRESS)
 parser.add_argument(
+    "--with-openxr", action="store_true",
+    help="optional, unverified Windows64 OpenXR/Vulkan integration; requires bgfx. "
+    "Downloads pinned Khronos headers when configured; disabled by default",
+)
+parser.add_argument(
     "--console-limits",
     action="store_true",
     help="native ports (Linux, macOS): the original Xbox build's network and object limits "
@@ -247,6 +252,7 @@ sln = SimpleNamespace(
     packaged=args.packaged,
     port_lto=args.lto,
     with_bgfx=args.with_bgfx and args.renderer != "gl",
+    with_openxr=args.with_openxr,
     port_portable=args.portable,
     port_pgo=args.pgo,
     port_pgo_profile=args.pgo_profile,

@@ -450,3 +450,13 @@ Native creation excludes dynamic scenery; `forge_clone` now refuses host scenery
 copies before allocation/quota changes. Local scenery and existing shared classes
 retain their paths. No tests/builds/queries/games ran; refusal, quota preservation
 and peer geometry agreement remain unverified. No new transport was added.
+
+Approved Windows64 VR source checkpoint: optional OpenXR/Vulkan bootstrap,
+runtime device/GPU selection through the existing bgfx renderer, shared
+Touch/Index actions, session/frame lifecycle and eye-image ownership APIs are
+present in source. Reuses OpenH1 `baed77571d53abe32b27434b4ba869f11db00fe9`
+with attribution. No configure/header download, build, tests, runtime query,
+game launch or hardware validation ran. The frame APIs are not yet called by
+the game loop; stereo renderer import/synchronization, camera/FOV and gameplay
+input wiring and physical interactions remain open. Neither headset is claimed
+supported in practice, and no performance comparison has been measured.

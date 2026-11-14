@@ -922,6 +922,14 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 #endif
 #endif
 
+#ifdef HALO_OPENXR
+	{ "vr.enabled", _config_boolean, "false", "HALO_VR", _environment_value, _platform_desktop,
+		"Optional Windows64 OpenXR/Vulkan integration. Source only, unverified.\n"
+		"Device, session and controller code is present; stereo game rendering\n"
+		"and tracked gameplay integration are unfinished. Off by default.\n"
+		"Read at start-up; requires a build configured with --with-openxr." },
+#endif
+
 	/* ---- audio */
 	{ "audio.volume", _config_real, "1.0", "HALO_VOLUME", _environment_value, _platform_all,
 		"The volume of everything, from 0.0 to 1.0." },

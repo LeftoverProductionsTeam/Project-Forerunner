@@ -61,7 +61,7 @@ comparisons pass. Inputs were automated; full Faber and human acceptance remain 
 | OpenGL loading/rendering | Desktop shader prologue and immediate draw declaration repaired; native gameplay captures and clean exit | Human play, performance, audio and other GPUs/backends |
 | Firefight / Forge | Faber-derived actor spawning/pursuit and finite three-wave B40 encounter pass native two-client combat; Forge not integrated | Human play, creator map, full HUD/settings/lives, late join/restart and remaining Faber features |
 | Extraction / AI Zombies | No native integration completed | Complete authoritative gameplay loops and persistence tests |
-| OpenH1 VR | Source/platform/protocol investigation completed | Optional adapter integration and physical headset + desktop-peer combat |
+| OpenH1 VR | Approved shared Windows64 OpenXR/Vulkan bootstrap and Touch/Index actions added in source, unverified | Stereo renderer/camera/input wiring, physical interactions and hardware + desktop-peer combat |
 | Spark / MegaWorld | Version-1 read-only discovery and reference client tested against real engine; no editing/world traversal | End-to-end editing and two-way player/vehicle traversal |
 | Releases | No public release or push performed | Supported-platform, installer, regression and human acceptance |
 
@@ -370,3 +370,22 @@ records those remaining content requirements. No engine bridge, arbitrary global
 reader or extra source patch was justified. No tests/builds/queries/games ran;
 the next executable gate remains deferred and Spark's reviewed CE controller/
 launch handoff remains incomplete. Broader milestones are not substituted for it.
+
+Approved VR source cycle: the owner explicitly authorized one optional Windows64
+OpenXR implementation for Vive/Index Knuckles and Quest 2 PCVR, then selected
+performance and reuse of existing runtimes. The implementation targets the
+existing bgfx Vulkan renderer rather than a second renderer or an OpenGL-only
+VR branch. `win32_openxr.c` adapts pinned OpenH1 device-creation callbacks,
+session/frame lifecycle, pose/action reads, haptics and runtime-owned eye images.
+Touch and Index profiles share actions. The existing bgfx patch path connects
+runtime-required device creation and headset GPU selection; `--with-openxr`
+and off-by-default `vr.enabled` keep ordinary builds/flat-screen selection.
+Khronos header provenance remains pinned in the existing Windows build script.
+This is necessary VR source progress, not working headset gameplay or a measured
+performance result. Next: wire borrowed eye images and Vulkan synchronization
+into the existing renderer, stereo camera/FOV rendering and tracked game input,
+then adapt compatible OpenH1 physical interactions without changing simulation
+or silently changing the network protocol. Session events/frame APIs have no
+game-loop caller yet. All new functionality is UNVERIFIED. No configure, header
+download, compiler, tests, native query, game, headset session, Spark mutation,
+remote change or push ran. The full engine goal remains active.

@@ -2792,6 +2792,11 @@ BOOL platform_bgfx_chosen(void)
 {
 	const char *renderer = config_string("display.renderer");
 
+#ifdef HALO_OPENXR
+	/* The optional headset path shares the existing Vulkan renderer. */
+	if (config_boolean("vr.enabled"))
+		return TRUE;
+#endif
 #ifdef _WIN32
 	if (strcmp(renderer, "d3d11") == 0)
 		return TRUE;

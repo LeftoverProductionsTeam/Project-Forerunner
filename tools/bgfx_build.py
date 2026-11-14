@@ -144,6 +144,8 @@ class BgfxTarget:
     archive_command: str
     # what the objects wait for (a portable build's system root)
     implicit: List[Path] = field(default_factory=list)
+    # Optional application interop, leaving every other target unchanged.
+    extra_flags: List[str] = field(default_factory=list)
 
 
 def bgfx_include_flags() -> List[str]:
@@ -175,6 +177,7 @@ def bgfx_build(n: Writer, target: BgfxTarget) -> List[Path]:
         # (line tables only: a crash's calls are named, and the executable,
         # which keeps its debug information, stays near its size)
         *target.target_flags, "-O2", "-gline-tables-only", "-std=c++20", "-fno-exceptions", "-fno-rtti", "-w",
+        *target.extra_flags,
         *platform_flags,
         "-DBX_CONFIG_DEBUG=0", f"-I{bx / 'include'}", f"-I{bx / 'include/compat' / compat}", f"-I{bx / '3rdparty'}",
         f"-I{bimg / 'include'}", f"-I{bimg / '3rdparty/astc-encoder/include'}",

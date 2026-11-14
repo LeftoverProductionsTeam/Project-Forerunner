@@ -246,6 +246,28 @@ argument to a function of the C runtime.
 
 ## Limits
 
+The optional `--with-openxr` configure flag includes an **unverified, incomplete**
+Windows64 OpenXR backend. It is off at runtime unless `vr.enabled` / `HALO_VR`
+is enabled. That path selects the existing bgfx Vulkan renderer; flat-screen
+defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
+Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
+The device/session and frame/action APIs are source progress, not working VR:
+stereo game cameras, runtime-image import/synchronization, gameplay input and
+OpenH1 physical interactions still need wiring. No compilation or headset
+validation has been performed under the owner's source-only instruction.
+
+`win32_openxr.c` and its interfaces adapt OpenH1/goath1's `host_vr.c`,
+`host_vr_vulkan.h` and `vr_host.h` at
+`baed77571d53abe32b27434b4ba869f11db00fe9` (AGPL-3.0-or-later).
+The existing bgfx patch mechanism connects runtime Vulkan device creation and
+GPU selection without importing OpenH1's Linux/Vulkan host or changing netcode.
+Khronos headers use OpenH1's `OpenXR-SDK` `release-1.1.63` pin and SHA-256
+digests in `tools/windows_build.py`, fetched unchanged into ignored build data
+only when configured later. Their SPDX licence is Apache-2.0 OR MIT; see the
+[Khronos SDK licence](https://github.com/KhronosGroup/OpenXR-SDK/blob/release-1.1.63/LICENSE).
+The installed Windows `openxr_loader.dll` selects the active PC runtime; no
+loader/runtime or proprietary SDK is copied into this repository.
+
 - The movies play through FFmpeg's Bink decoder
   (`port/linux/src/bink_ffmpeg.c`), built for Bink only and linked
   statically with the same clang (`tools/ffmpeg_build.py`, under MSYS2's
