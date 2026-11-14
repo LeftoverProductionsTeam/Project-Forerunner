@@ -1416,6 +1416,8 @@ void pc_menu_start_map_update(unsigned char main_menu_loaded)
 {
 #ifdef HALO_CUSTOM_EDITION
 	static boolean checked;
+	static boolean profile_notice;
+	static char requested_map[68];
 	char const *map;
 	char file[64], canonical[68], why[192];
 	struct player_profile profile;
@@ -1437,36 +1439,48 @@ void pc_menu_start_map_update(unsigned char main_menu_loaded)
 	}
 	if (!main_menu_loaded || !main_menu_is_active() || !ui_widgets_active())
 		return;
-	checked = TRUE;
-	/* The family parser accepts scenario paths elsewhere. This entry accepts
-	only a basename@ce, with no truncation or arbitrary filesystem path. */
-	if (strpbrk(map, "\\/:") || map_family_parse(map, file, sizeof(file)) != _map_family_custom_edition)
+	if (!requested_map[0])
 	{
-		platform_log("menus: game.start_map requires a CE solo-map basename@ce");
-		return;
-	}
-	snprintf(canonical, sizeof(canonical), "%s@ce", file);
-	if (_stricmp(map, canonical) || !custom_campaign_map(canonical))
-	{
-		platform_log("menus: startup map is absent, oversized or not a CE solo cache: %s", map);
-		return;
-	}
-	why[0] = 0;
-	if (!map_families_playable(why, sizeof(why)) || !map_family_resources_ready(why, sizeof(why)))
-	{
-		platform_log("menus: startup map refused: %s", why);
-		return;
+		/* Validate once while the native menus remain available for creating
+		a profile in Spark's new private save folder. */
+		checked = TRUE;
+		/* The family parser accepts scenario paths elsewhere. This entry accepts
+		only a basename@ce, with no truncation or arbitrary filesystem path. */
+		if (strpbrk(map, "\\/:") || map_family_parse(map, file, sizeof(file)) != _map_family_custom_edition)
+		{
+			platform_log("menus: game.start_map requires a CE solo-map basename@ce");
+			return;
+		}
+		snprintf(canonical, sizeof(canonical), "%s@ce", file);
+		if (_stricmp(map, canonical) || !custom_campaign_map(canonical))
+		{
+			platform_log("menus: startup map is absent, oversized or not a CE solo cache: %s", map);
+			return;
+		}
+		why[0] = 0;
+		if (!map_families_playable(why, sizeof(why)) || !map_family_resources_ready(why, sizeof(why)))
+		{
+			platform_log("menus: startup map refused: %s", why);
+			return;
+		}
+		strcpy(requested_map, canonical);
+		checked = FALSE;
 	}
 	if (!campaign_profile(0, &profile))
 	{
-		platform_log("menus: startup map needs an existing player profile; create one in the menus, then launch again");
+		if (!profile_notice)
+		{
+			platform_log("menus: startup map waiting for a player profile; create one in the native menus");
+			profile_notice = TRUE;
+		}
 		return;
 	}
-	campaign_start(canonical, PIN(main_get_difficulty(), 0, NUMBER_OF_GAME_DIFFICULTY_LEVELS - 1), 0);
+	checked = TRUE;
+	campaign_start(requested_map, PIN(main_get_difficulty(), 0, NUMBER_OF_GAME_DIFFICULTY_LEVELS - 1), 0);
 	/* campaign_start sets the map name, which normally permits save loading.
 	Opt out afterwards; no existing save is removed or rewritten here. */
 	main_disallow_persistent_storage();
-	platform_log("menus: starting authored CE solo map fresh: %s", canonical);
+	platform_log("menus: starting authored CE solo map fresh: %s", requested_map);
 #else
 	(void)main_menu_loaded;
 #endif

@@ -208,6 +208,19 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "--server");
 	server_json_string(&json, NULL, "--probe");
 	server_json_array_end(&json);
+#if defined(HALO_CUSTOM_EDITION) && !defined(HALO_SERVER) && !defined(HALO_ANDROID) && !defined(HALO_WEB) && !defined(HALO_BROWSER)
+	/* Optional local startup metadata, not a gameplay or editing operation. */
+	server_json_object_begin(&json, "startup_map");
+	server_json_string(&json, "setting", "game.start_map");
+	server_json_string(&json, "environment", "HALO_START_MAP");
+	server_json_string(&json, "selector", "basename@ce");
+	server_json_integer(&json, "cache_version", 609);
+	server_json_string(&json, "scenario_type", "solo");
+	server_json_string(&json, "profile", "native-menu-create-or-existing");
+	server_json_boolean(&json, "fresh_start", 1);
+	server_json_boolean(&json, "network_host", 0);
+	server_json_object_end(&json);
+#endif
 	server_json_array_begin(&json, "upstream_projects");
 	server_json_string(&json, NULL, "OpenCE");
 	server_json_string(&json, NULL, "ChupathingyCE");

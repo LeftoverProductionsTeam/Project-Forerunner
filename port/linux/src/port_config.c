@@ -1289,9 +1289,10 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	/* ---- game */
 	{ "game.start_map", _config_string, "\"\"", "HALO_START_MAP", _environment_value, _platform_desktop,
 		"Once the main menu is ready, start this installed CE solo map fresh,\n"
-		"for example 'gs_firefight@ce', using the current difficulty and an\n"
-		"existing player profile. Empty keeps normal startup. Missing maps,\n"
-		"resources or profiles leave the menus available. This does not host\n"
+		"for example 'gs_firefight@ce', using the current difficulty and a\n"
+		"player profile. Empty keeps normal startup. Missing maps or resources\n"
+		"leave the menus available. With no profile, create one there and the\n"
+		"requested map starts afterwards. This does not host\n"
 		"a network game or import Firefight JSON. Use private saves for playtests." },
 	{ "game.start_with_one_player", _config_boolean, DEFAULT_START_ALONE, "HALO_START_WITH_ONE_PLAYER", _environment_value,
 		_platform_all | _platform_xbox,

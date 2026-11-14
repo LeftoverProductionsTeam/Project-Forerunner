@@ -80,6 +80,20 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
+Resumed source development: Spark `3329a4a5ab12b6f02c75b82e054f75b0896f1e2a`
+now has receipt-backed owned CE609 solo staging and an exact Forerunner profile;
+its current admitted binary still uses native map selection. Forerunner now keeps
+an explicit `game.start_map` request while a fresh private engine profile is created
+in normal menus, then starts it once in the same process. Validation is retained
+without per-frame cache reads/log spam. Desktop discovery adds optional local
+startup metadata, with no new operation, launcher, network traffic or map-loaded
+claim. Offline campaign startup cannot run the network-host-only finite director;
+Spark also explicitly sets it OFF. Existing custom-solo completion and same-revision
+Restart Level remain native. No tests/builds/queries/games ran; all new source is
+unverified. The contract names Spark's exact next identity/parser/environment
+changes. Continue independent Firefight source work; do not wait for a finished
+Zombie map or call the overall goal complete/stalled on that content dependency.
+
 Owner-requested companion check-in, source only: Spark is now at
 `9bfb746549f93363e60572423438c7dd59d774ee`, with six dirty controller/catalog/UI
 files preserved. It has bounded encounter/squad authoring and reviewed appended

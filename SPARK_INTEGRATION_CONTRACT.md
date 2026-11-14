@@ -11,11 +11,11 @@ No separate coordination service or repeated cross-project polling/builds.
 
 Review baseline: Forerunner gameplay `21a809b0`, shared-life source `c8196f81`,
 repository reconciliation `3347a00c2`; Spark inspected read-only at
-`9bfb746549f93363e60572423438c7dd59d774ee` with six unfinished controller-binding,
-catalog and UI files. Forerunner source was reviewed at `d831ee13d` with pending
-finite-Firefight menu edits. Spark's
+`3329a4a5ab12b6f02c75b82e054f75b0896f1e2a`, clean at inspection, including its
+receipt-backed owned Forerunner solo staging source. Forerunner source was reviewed
+at `7732e61dd` before the startup-profile continuation change. Spark's
 source changes remain untouched. Forerunner changes after the accepted gameplay build
-are source-only/unverified, not advertised capabilities.
+are source-only/unverified; source discovery metadata is not gameplay acceptance.
 
 ## Discovery and feature negotiation
 
@@ -38,6 +38,7 @@ The response has these fields:
 | `network` | Compiled advertised version and native-layout version; both currently 44 |
 | `operations` | Currently only `runtime.discover` |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
+| `startup_map` | Optional new unverified desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Absent on the accepted old executable and non-desktop/server builds. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
 
 Network numbers describe the compiled code, not universal peer compatibility or
@@ -79,7 +80,7 @@ the ability to launch a process.
 | --- | --- |
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
-| `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path, current difficulty and an existing engine player profile. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
+| `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path and current difficulty. With no engine player profile, retains the validated request while the user creates one in native menus, then starts in the same process. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
 | `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. New unverified menu source exposes OFF/ON under Server Setup → Co-op Options → Firefight, using existing setting save/cancel. Leave OFF for a Spark-authored wave controller. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
 | `network.firefight_lives` / `HALO_NET_FIREFIGHT_LIVES` | Unverified host source, 0–99, frozen at map start. Deaths spend available lives for player-bound respawns; the last paid respawn completes at zero. Failed native spawns retain grants; departed/reused player slots cannot transfer them. Respawn-only wipes preserve progress. A full world revert clears grants and restarts at wave one with zero score and the initial allowance; not saved mid-wave continuation. |
 | `network.firefight_resupply` / `HALO_NET_FIREFIGHT_RESUPPLY` | New unverified host source, off by default and frozen at map start. Replenishes living players' carried weapon reserves/battery charge before waves two and three through existing inventory replication. Keeps native magazine/reload state and equipment. Finite director only; does not enable Spark's native HaloScript resupply option or import its JSON. |
@@ -166,10 +167,15 @@ Two concrete restrictions remain in Spark:
   Chupathingy and MCC source; it refuses recovered/native documents and OpenCE
   documents. `forge_build.rs::authoring_preflight` also explicitly refuses OpenCE
   compilation. Registration/discovery does not make this a supported build route.
-- `runtime.rs::prepare_launch` permits a separate data folder only for exact
-  executable hashes in `shared_content_interface`. The accepted Forerunner
-  Firefight executable recorded here is absent from that list. A registered
-  Forerunner profile alone therefore does not enable the shared-content launch.
+- `runtime.rs::shared_content_interface` now admits the recorded Forerunner
+  executable through its exact-hash `forerunner` profile. New source in
+  `src-tauri/src/runtime_rebuild.rs` stages validated self-contained CE609 solo
+  receipts through the existing owned playtest registry: private executable/SDL,
+  Xbox UI, exact cache, CE banks and isolated settings/saves/logs/cache. Launch
+  clears inherited overrides and sets `HALO_NET_FIREFIGHT_ENCOUNTER=false`.
+  This is untested source, and its admitted old binary still requires native menu
+  selection. It deliberately does not send `HALO_START_MAP` or claim loaded-map
+  confirmation, automatic revision reload, live editing or multiplayer acceptance.
 
 The smallest connection uses a reviewed **CE content build target** and a
 separately selected **Forerunner executable profile**. Reuse the existing compiler,
@@ -194,11 +200,22 @@ that standard CE solo cache and its resource banks. Use private data/save roots,
 an engine player profile created through its normal UI, and the existing build
 receipt/hash checks; a scenario's equipment profile is not the engine player
 profile. Invalid paths, truncated names, wrong-family/multiplayer/missing caches,
-missing resources/profiles and competing session/test/server startup are refused
-without leaving an existing session. One attempt per process; normal menus stay
-available on refusal, and returning to them does not replay the startup selection.
+missing resources and competing session/test/server startup are refused without
+leaving an existing session. An empty private profile folder now leaves the menus
+available and retains the already validated map request. Creating a normal profile
+continues that request in the same process, without repeated cache checks or log
+spam. One successful selection per process; returning to menus does not replay it.
 This setting has not been compiled or exercised and is absent from the previously
 accepted executables. Discovery still advertises only `runtime.discover`.
+
+The solo startup sets the existing local campaign connection. The finite director
+only updates for a network co-op host, so it does not run on this path even if an
+unrelated host preference was enabled. Spark should keep its explicit director-OFF
+setting for clarity and any future co-op route. Native HaloScript owns encounter
+placement and wave rules; no private `gs_ff_*` global reader or rules importer is
+added. A native `game_won` on a custom solo cache has no Xbox campaign successor;
+the existing main-menu path handles completion. Restart Level resets that same
+loaded revision, not a newly written cache.
 
 The authored solo source path already has profile guards:
 `main_get_solo_level_from_name` rejects `@ce` names and
@@ -303,13 +320,14 @@ Smallest intended end-to-end gate, still unimplemented/unverified:
    the change. Compiler/preview success is insufficient. Execution is deferred under
    the owner's current instruction to do code only, with tests later.
 
-**Spark implements next:** registration/discovery source now exists. Connect a
-reviewed CE build receipt to the selected Forerunner profile through its existing
-launch/deployment code, preserving executable identity and private data/save
-ownership. The new unverified startup selection supplies the exact solo-map name
-through that private configuration after the native build/staging step. Its
-shared-folder identity policy still needs an explicit Forerunner
-decision and later native acceptance. Reuse conversion/native source generation
+**Spark implements next:** owned receipt-backed solo staging now exists in source.
+Keep its native menu route for the currently admitted executable. After an exact
+new Forerunner build is reviewed and authorized for validation, admit that identity
+and preserve the optional `startup_map` discovery object in the existing capability
+parser (the current struct discards it). Only then send the receipt's exact
+`basename@ce` through `HALO_START_MAP` or private `[game].start_map`; absence retains
+the menu fallback. Keep private ownership and native director-OFF settings, and do
+not treat startup metadata/logs as loaded-map or gameplay confirmation. Reuse conversion/native source generation
 for the chosen Zombie candidate and support a reviewed derived-source encounter
 handoff without dropping the existing recovery guards. Do not advertise live
 editing, JSON import or multiplayer authoring as ready. For the chosen recovered

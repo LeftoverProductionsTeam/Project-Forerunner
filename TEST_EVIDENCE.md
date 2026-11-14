@@ -405,3 +405,12 @@ victory cannot overtake the later three-second elimination deadline. Existing
 alive/paid-respawn checks release the hold; existing defeat/return handles expiry.
 No tests/builds/queries/games ran. Fatal final-wave timing, funded respawns and
 normal progression require native acceptance; prior B40 results do not cover this.
+
+Resumed source-only handoff increment retains a validated CE solo startup request
+while the user creates a native engine profile in an empty private save folder.
+It starts once in the same process without old-checkpoint loading; existing
+session rejection remains. Discovery adds optional desktop `startup_map` metadata,
+not a new operation or map-loaded acknowledgement. Spark read-only source review
+reached `3329a4a`; owned receipt staging now exists but uses the older menu-only
+binary. No tests/builds/queries/games ran. Cold/existing profile behavior, malformed
+input, session conflicts, revised cache loading and authored gameplay remain open.
