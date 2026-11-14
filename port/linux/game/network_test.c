@@ -291,6 +291,8 @@ static struct
 	game time the host's item spawns were logged at */
 	real pickup_every;
 	real items_interval;
+	real actors_interval;
+	long actors_logged_time;
 	long spawns_logged_time;
 	real bomb_interval;
 	boolean bomb_in_goal;
@@ -526,6 +528,8 @@ static void network_test_read_settings(
 	network_test.pickup_time = (real)config_real("debug.network_test_pickup");
 	network_test.pickup_every = (real)config_real("debug.network_test_pickup_every");
 	network_test.items_interval = (real)config_real("debug.network_test_items");
+	network_test.actors_interval = (real)config_real("debug.network_test_actors");
+	network_test.actors_logged_time = NONE;
 	network_test.spawns_logged_time = NONE;
 	network_test.bomb_interval = (real)config_real("debug.network_test_bomb");
 	network_test.bomb_in_goal = config_boolean("debug.network_test_bomb_in_goal");
@@ -1509,6 +1513,25 @@ static void network_test_run_cues(
 	}
 }
 
+/* Sample once at the requested interval, including after a checkpoint rewinds. */
+static void network_test_log_actors(
+	void)
+{
+	long now = game_time_get();
+	long interval;
+
+	if (!(network_test.actors_interval > 0.0f))
+		return;
+	interval = MAX(1, (long)(PIN(network_test.actors_interval, 0.0f, 3600.0f) * TICKS_PER_SECOND));
+	if (network_test.actors_logged_time != NONE && now >= network_test.actors_logged_time &&
+		now - network_test.actors_logged_time < interval)
+	{
+		return;
+	}
+	network_test.actors_logged_time = now;
+	network_actors_log_units();
+}
+
 /* debug.network_test_items: every weapon, equipment and vehicle this
 machine has ("network test: item <game time> <absolute index> <x> <y> <z>
 <holder's absolute index or -1> <at rest> <tag>"), and the host's the
@@ -2141,6 +2164,8 @@ void network_test_update(
 		network_test.cues_start = NONE;
 		network_test.next_cue = 0;
 	}
+	if (game_in_progress() && !main_menu_loaded)
+		network_test_log_actors();
 	if (game_in_progress() && !main_menu_loaded)
 		network_test_run_cues();
 	/* (this fork) */

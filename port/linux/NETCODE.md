@@ -1658,6 +1658,36 @@ action button where the host has nothing for them to pick up, with where it
 has them and the nearest item: a client that sees a pickup the host does
 not.
 
+`debug.network_test_actors` (`HALO_NETWORK_TEST_ACTORS`) enables readback of
+actual units referenced by the host/client actor control tables, at the requested
+interval in seconds. It is off by default and sends no network data. Each snapshot
+has these lines (handles and definitions are full hexadecimal datum indices):
+
+```text
+network test: actor <tick> <host|client> <handle> <definition> <x> <y> <z> <body> <shield> <dead> <parent> <seat> <tracked>
+network test: actors <tick> <host|client> <count> cinematic <0|1> bsp <index>
+```
+
+The values come from each machine's world objects, not an echo of received
+messages. A bounded remembered set retains corpses until deletion, giving current
+control-table entries priority; `tracked` is 1 for a current entry and 0 for a
+remembered unit. Deleted/reused handles and player units are excluded. Cinematic
+units may also be controlled through this path; their motion does not prove combat
+AI. Compare non-cinematic snapshots with actual common units, movement, damage
+and death evidence; player drift logs alone do not establish AI synchronization.
+`python tools/forerunner_actor_check.py <host.log> <client.log>` checks bounded
+snapshot agreement. Empty, cinematic-only, stationary or malformed evidence cannot
+pass. `--require-damage` additionally requires a damage/death transition on both
+machines. Its default comparison allows two ticks of sampling offset and requires
+five common snapshots, with sustained differences reported after three snapshots.
+Keep launcher exits and private debug logs beside the result; this readback is not
+campaign completion or a cross-platform acceptance test.
+Both confirmed-dead units with nonpositive body vitality are equivalent for the
+body comparison: ordinary host damage retains negative overkill, kill replay
+sets the client's body to zero, and `distributed_vitality_pack` clamps negatives.
+The report retains the raw maximum difference and normalization count. Live or
+positive body values, death flags and every other field remain checked.
+
 ### Comparing two builds
 
 `tools/net_compare.py` checks that two builds play a network game in step:

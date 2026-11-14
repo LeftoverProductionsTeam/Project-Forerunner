@@ -2524,6 +2524,11 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"equipment and vehicle it has, where it is and who holds it (the host\n"
 		"also the map's item spawns, once a game), for the machines' items to be\n"
 		"compared (tools/item_sync_check.py). 0 never does." },
+	{ "debug.network_test_actors", _config_real, "0.0", "HALO_NETWORK_TEST_ACTORS", _environment_value, _platform_all,
+		"Every this many seconds of a test game, log actual AI-driven units and\n"
+		"remembered corpses: network handles, positions, health, seats and deaths,\n"
+		"with cinematic and BSP state. 0 never does. At most one snapshot per\n"
+		"tick, bounded by the actor capacity; intervals above an hour use an hour." },
 	{ "debug.network_test_bomb", _config_real, "0.0", "HALO_NETWORK_TEST_BOMB", _environment_value, _platform_all,
 		"For an automated test Bomb game (host:<map>:grifball). After this many\n"
 		"seconds, and again each time that long after, the last player is stood\n"

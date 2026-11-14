@@ -34,11 +34,13 @@ an AI unit the same way it kills a player's.
 
 #include "cseries.h"
 #include "game/game.h"
+#include "cutscene/cinematics.h"
 #include "networking/network_game_globals.h"
 #include "objects/objects.h"
 #include "objects/damage.h"
 #include "sound/game_sound.h"
 #include "sound/sound_definitions.h"
+#include "scenario/scenario.h"
 #include "units/units.h"
 #include "units/unit_control_data.h"
 #include "network_coop.h"
@@ -238,6 +240,13 @@ static byte host_event_number;
 
 static struct client_actor client_actors[MAXIMUM_NETWORK_ACTORS];
 static short client_actor_count;
+
+/* Diagnostic readback keeps a bounded set of formerly driven units so a
+corpse can still be observed after it leaves the control tables. */
+static long logged_actor_units[MAXIMUM_NETWORK_ACTORS];
+static short logged_actor_count;
+
+void platform_log(char const *format, ...);
 
 /* ---------- private code */
 
@@ -574,6 +583,67 @@ void network_actors_new_game(
 {
 	host_actor_count = 0;
 	client_actor_count = 0;
+	logged_actor_count = 0;
+}
+
+/* Add an existing, non-player unit once, preserving its full salted handle.
+Current control-table entries are considered before remembered corpses. */
+static void actor_log_remember(
+	long unit_index,
+	long *units,
+	short *count)
+{
+	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_unit);
+	short index;
+
+	if (!unit || unit->unit.player_index != NONE || *count >= MAXIMUM_NETWORK_ACTORS)
+		return;
+	for (index = 0; index < *count; index++)
+	{
+		if (units[index] == unit_index)
+			return;
+	}
+	units[(*count)++] = unit_index;
+}
+
+/* Opt-in test readback only: sample actual world units, not received payloads.
+Nothing here creates actors, changes control or sends network data. */
+void network_actors_log_units(
+	void)
+{
+	long units[MAXIMUM_NETWORK_ACTORS];
+	boolean host = game_connection() == _game_connection_network_server;
+	char const *role = host ? "host" : "client";
+	short tracked = host ? host_actor_count : client_actor_count;
+	short count = 0;
+	short index;
+	long now = game_time_get();
+
+	if (!host && game_connection() != _game_connection_network_client)
+		return;
+	for (index = 0; index < tracked; index++)
+	{
+		actor_log_remember(host ? host_actors[index].unit_index : client_actors[index].unit_index, units, &count);
+	}
+	tracked = count;
+	for (index = 0; index < logged_actor_count; index++)
+		actor_log_remember(logged_actor_units[index], units, &count);
+	for (index = 0; index < count; index++)
+	{
+		struct unit_datum *unit = unit_get(units[index]);
+
+		platform_log("network test: actor %ld %s %08lx %08lx %.6f %.6f %.6f %.6f %.6f %d %08lx %d %d",
+			now, role, (unsigned long)units[index], (unsigned long)unit->definition_index,
+			unit->object.position.x, unit->object.position.y, unit->object.position.z,
+			unit->object.body_vitality, unit->object.shield_vitality,
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ? 1 : 0,
+			(unsigned long)unit->object.parent_object_index, (int)unit->unit.parent_seat_index,
+			index < tracked ? 1 : 0);
+	}
+	platform_log("network test: actors %ld %s %d cinematic %d bsp %d", now, role, (int)count,
+		cinematic_in_progress() ? 1 : 0, (int)global_structure_bsp_index_get());
+	csmemcpy(logged_actor_units, units, count * sizeof(units[0]));
+	logged_actor_count = count;
 }
 
 /* host: unit_control calls this when an actor drives its unit */
