@@ -23,13 +23,20 @@ none of its unaccepted requirements is superseded by this checkpoint.
 
 ## Current engineering gate
 
-Validate native campaign/co-op and AI before integrating advanced modes.
+Advance one native synchronized Firefight encounter using compatible Faber code.
+The user's anti-overengineering directive narrows this milestone; Extraction,
+Forge redesign, MegaWorld and broad rewrites are outside its scope.
 The repaired Fractum foundation is selected for the Windows x86 baseline:
 four native OpenCE/Forerunner movement sessions pass across Blood Gulch and
 Beaver Creek, with each runtime hosting. Scripted combat sessions also pass
 both directions. The shader/loading crash is repaired; hidden OpenGL gameplay
 renders and exits cleanly. These bounded automated results do not establish
 complete campaign/match, human, VR, or cross-platform acceptance.
+Snapshot 005 fixes a real campaign-host bug: the zero-valued co-op variant was
+ignored and stale Slayer initialization asserted on campaign data. B40 now passes
+92-second mixed-peer sessions in both hosting directions, and native actor readback
+confirms nine moving units, seven damaged units and six deaths on both peers.
+A10 no longer asserts, but its automated opening yields no on-foot acceptance.
 
 ## Work and acceptance
 
@@ -62,9 +69,9 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
-Use the authorized staged `a10.map` with the full stock lobby fixture to run
-native cooperative campaign sessions. Inspect actual AI/object, cinematic and
-player state rather than treating multiplayer player logs as AI acceptance.
-Record failures, repair root causes, rebuild a new immutable snapshot and rerun.
-Then adapt Faber's actual Firefight implementation in bounded increments,
-preserving protocol-44 classic play and explicitly negotiating advanced state.
+Reuse Faber's actor creation and finite clear-all-wave progression with existing
+co-op replication on a campaign map with loaded enemy tags and navigation.
+Demonstrate actual wave spawning, combat, enemy deaths and shared completion.
+Do not port unrelated ranks, menus, skulls or new frameworks for this encounter.
+Last cycle produced a necessary campaign gameplay repair plus diagnostic overhead
+needed to distinguish real AI agreement from player-only logs; freeze that tooling.

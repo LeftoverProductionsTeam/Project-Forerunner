@@ -190,3 +190,45 @@ editing, transactions, standalone server/mobile/browser adapters are unverified.
 Human gameplay; full matches and campaign/co-op completion; many-player load;
 non-Windows builds/peers; Firefight/Extraction/Zombies; physical VR; live Spark
 editing; connected-world traversal; clean-machine release acceptance.
+
+## Campaign-host repair and bounded native AI readback
+
+Snapshot 005 source SHA-256:
+`51bf2e7a13df5e9dfeeaa9b585c3f7e5c417b24424f53abcd1705d3e8218890e`;
+executable SHA-256:
+`12b60dfe75fc3d0fbf55f1e0f578b8d1106f08135bec434995702a2a7056ffdc`.
+It compiles successfully in `integrated-build-005`. The campaign host assertion
+was stale Slayer state: `network_game_create_game_objects` skipped co-op's
+zero-valued authoritative variant. The fix always applies that variant/options.
+Nine real-source harness cases pass, including two old-condition controls.
+
+`native-coop-b40-fixed.json`: **2/2 PASS**, 92 seconds compared each direction
+against unchanged OpenCE. AB mean/max position 0.046/1.287, drift 218/1553,
+largest 0.046305; BA 0.035/0.102, drift 81/1112, largest 0.164551. Transient
+differences: AB position 1 second/grenades 6; BA grenades 7. No tolerances lowered.
+`native-mp-after-coop-fix.json`: Blood Gulch **2/2 PASS**, 32 seconds each,
+zero drift in 960 samples each and no mismatched seconds.
+
+`native-coop-ai-b40.json`: native Forerunner/Forerunner player comparison passes.
+Actual world actor logs contain 65 common non-cinematic snapshots/672 unit
+comparisons, nine common living/moving actors, seven damaged actors and six
+death transitions. `native-coop-ai-b40-actors-semantic.json`: **PASS**. Largest
+position difference 1.373198 was transient, below persistence criteria.
+The first raw comparison failed only on negative corpse overkill versus zero.
+Source confirms dead units leave actor control and kill replay uses zero;
+the narrow rule equates nonpositive bodies only when both are confirmed dead.
+147 normalized samples/raw maximum 5.166667 remain reported. Live/positive body,
+death, shield, identity, seat and position checks remain active. The raw failure
+is retained as `native-coop-ai-b40-actors.json`; no gameplay health was altered.
+
+`native-coop-a10-fixed.json`: no startup assertion, but **ERROR** after 112
+seconds of opening state with zero on-foot samples; not campaign acceptance.
+Original failed A10/B40 host assertions and symbolization remain preserved.
+Campaign fixture copies match original authorized hashes; B40:
+`0A7B26D6D828E7B773D36D9D5C798B9BF4B143332301A0C0E7A3D685782EAB48`.
+
+Focused regression: **431 passed, 87 skipped** (`forerunner-campaign-regression.log`),
+plus **10 compiled-engine Spark tests passed** on snapshot 005. Final actor
+semantic tool checks: **30 passed** (`actor-semantic-tests.log`, overlapping
+21 earlier checks). Actor logger real-source cases/controls: 20 passed within
+the regression. No full campaign, Firefight match or non-Windows build claimed.

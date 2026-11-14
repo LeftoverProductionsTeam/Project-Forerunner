@@ -1,9 +1,20 @@
 # Forerunner workspace rules
 
+Current milestone: one playable, synchronized Firefight encounter, reusing
+Faber's existing work where compatible. Prefer small changes to existing code;
+do not expand into Extraction, Forge redesign, MegaWorld or broad rewrites.
+Use focused checks while developing and regression checks at integration gates.
+After two unsuccessful approaches, reassess the cause. Substantial new subsystems,
+frameworks or extensive test infrastructure require the user's approval after
+explaining why existing code and simpler alternatives are insufficient.
+Judge progress by gameplay and necessary repairs, not infrastructure volume.
+
 The authoritative Forerunner source is this repository on local `main`.
 Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
 with actual Git status, source and running owned jobs before continuing.
 The complete user directive is preserved under `docs/forerunner/`.
+The user's later anti-overengineering directive narrows the current milestone
+and supersedes earlier encouragement of unnecessary complexity or scope growth.
 
 Guilty Spark is a separate editor project. Do not modify it, original game
 installations, maps, disc images, saves or personal assets. The user authorized
