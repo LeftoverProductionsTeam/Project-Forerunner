@@ -3013,11 +3013,13 @@ static boolean network_game_server_handle_message_client_add_player_request_preg
 			network_event("server failed to decode a message_client_add_player_request_pregame packet");
 		}
 	}
-	/* a machine joining the game in progress: its players are added as in
-	game (network_game_server_start_late_joiner then starts it; one that
-	cannot, the game full, is refused there) */
-	else if (network_game_server_get_state(server, NULL) == _network_game_server_state_ingame &&
-		!network_game_server_client_machine_is_loaded(server, client_machine))
+	/* port: a pregame request may arrive after the start settings were sent,
+	while the machines load. Keep it in the authoritative in-game queue:
+	changing those settings now would give the machines different players.
+	The same queue serves a machine joining the game in progress. */
+	else if (network_game_server_get_state(server, NULL) == _network_game_server_state_pregame ||
+		(network_game_server_get_state(server, NULL) == _network_game_server_state_ingame &&
+			!network_game_server_client_machine_is_loaded(server, client_machine)))
 	{
 		struct network_player player;
 		short packet_type = _message_client_add_player_request_pregame;

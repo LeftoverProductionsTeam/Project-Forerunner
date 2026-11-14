@@ -308,9 +308,13 @@ static void play_a_game_with_a_late_joiner(void)
 	/* the game ends; its carnage report; the next game's lobby */
 	now_milliseconds += 8 * 60 * 1000;
 	server.state = _network_game_server_state_postgame;
+	server.queued_player_valid = TRUE;
+	server.waiting_player_count = 2;
 	now_milliseconds += 20 * 1000;
 	CHECK(network_game_server_reset_to_pregame(&server), "the server did not go back to the pregame");
 	CHECK(server.state == _network_game_server_state_pregame, "the server is not in the pregame");
+	CHECK(!server.queued_player_valid && !server.waiting_player_count,
+		"the previous game's player requests survived the pregame reset");
 }
 
 /* each machine named says it has the map loaded, as its precache report does */
