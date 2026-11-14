@@ -624,3 +624,11 @@ This is not ballistic prediction, a physical scope or hardware acceptance.
 UNVERIFIED settings flush repair: pinned SDL header and source flow reviewed;
 failed flush now prevents replacement. No tests, builds, launches or settings/
 save access. Fault behavior and platform parity await authorized validation.
+
+UNVERIFIED profile-directory guard: native enumeration/path-copy bounds and
+Extraction deployment/return/reset paths were read. Same-slot/different-directory
+returns are refused; unavailable lookups remain pending with bounded cadence.
+No tests, builds, launches or personal settings/save access. Re-enumeration,
+missing/read-only profiles, transient lookup failure, clock resets and normal
+returns need later native validation. This is local ownership evidence only,
+not durable identity, authenticated networking or a stash persistence claim.

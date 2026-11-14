@@ -665,3 +665,13 @@ physical interactions and hardware performance/acceptance remain open.
 UNVERIFIED settings protection: config_write_file honors SDL_FlushIO failure
 before replacement, retaining its existing close/cleanup path. Pinned SDL header
 and source review only; no tests, settings/save access or gear writer.
+
+UNVERIFIED local inventory-owner repair: Extraction records the native saved
+profile directory on deployment and compares it before publishing a return,
+covering reuse of an enumeration slot. Missing return identity stays pending
+with one-second retries; mismatched directory loses the result. No profile path
+is logged/exported or gear written/granted. Source review also confirms native
+CreateFileA ignores sharing, so it cannot supply a stash transaction lock.
+This is a necessary ownership safeguard, not a new persistence subsystem.
+Durable item/run identity, exclusivity and settlement remain open; no tests,
+builds, launches or personal profile/save access.

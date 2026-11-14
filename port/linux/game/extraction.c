@@ -13,6 +13,7 @@
 #include "objects/objects.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
+#include "tag_files/files.h"
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
 #include "extraction.h"
@@ -35,6 +36,8 @@ static struct
 	short deploy_name, activate_name, zone, return_zone;
 	long player, unit, last_tick, activation_ticks;
 	long profile;
+	char profile_directory[MAXIMUM_FILENAME_LENGTH + 1];
+	long return_check_tick;
 	short local_player;
 	enum extraction_phase phase;
 	boolean equipment_valid, equipment_blocked;
@@ -138,6 +141,8 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct object_datum *control;
 	struct unit_datum *unit;
 	struct player_datum *player;
+	long profile;
+	char profile_directory[MAXIMUM_FILENAME_LENGTH + 1];
 
 	if (!extraction_requested() || !extraction.bound || !extraction.admitted)
 		return FALSE;
@@ -156,10 +161,19 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			scenario_trigger_volume_test_object(extraction.return_zone, unit_index) &&
 			!scenario_trigger_volume_test_object(extraction.zone, unit_index))
 		{
+			profile = player_ui_get_active_player_profile_index(player->local_player_index);
+			if (profile == NONE || !player_ui_get_path_to_local_player_profile_directory(
+				player->local_player_index, profile_directory) || !profile_directory[0])
+			{
+				extraction_notice("DEPLOYMENT BLOCKED | Saved profile unavailable. Select a profile and retry at the terminal.");
+				return TRUE;
+			}
 			extraction.player = unit->unit.player_index;
 			extraction.unit = unit_index;
 			extraction.local_player = player->local_player_index;
-			extraction.profile = player_ui_get_active_player_profile_index(extraction.local_player);
+			extraction.profile = profile;
+			csstrncpy(extraction.profile_directory, profile_directory, MAXIMUM_FILENAME_LENGTH);
+			extraction.profile_directory[MAXIMUM_FILENAME_LENGTH] = 0;
 			extraction.phase = _extraction_deployed;
 			extraction.equipment_valid = FALSE;
 			extraction.equipment_blocked = FALSE;
@@ -240,6 +254,29 @@ void extraction_update(void)
 		!scenario_trigger_volume_test_object(extraction.zone, extraction.unit))
 	{
 		char report[128];
+		char profile_directory[MAXIMUM_FILENAME_LENGTH + 1];
+
+		/* The native index is an enumeration slot, not a durable identity.
+		   Compare its actual directory before publishing a return. Limit
+		   transient profile/equipment retries to the native one-second cadence. */
+		if (extraction.equipment_blocked &&
+			(unsigned long)now - (unsigned long)extraction.return_check_tick < TICKS_PER_SECOND)
+			return;
+		extraction.return_check_tick = now;
+		if (!player_ui_get_path_to_local_player_profile_directory(extraction.local_player, profile_directory) ||
+			!profile_directory[0])
+		{
+			extraction.equipment_valid = FALSE;
+			if (!extraction.equipment_blocked)
+				extraction_notice("RETURN BLOCKED | Saved profile unavailable. No recovery committed.");
+			extraction.equipment_blocked = TRUE;
+			return;
+		}
+		if (strcmp(profile_directory, extraction.profile_directory))
+		{
+			extraction_lose_run();
+			return;
+		}
 
 		extraction.equipment_valid = game_modes_inventory_capture(extraction.player, &extraction.equipment);
 		if (!extraction.equipment_valid)

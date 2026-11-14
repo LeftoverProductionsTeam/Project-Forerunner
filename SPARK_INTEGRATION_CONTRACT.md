@@ -479,8 +479,21 @@ Persistence reuse review: pinned Faber `e4ffe0fe` has per-profile statistics in
 Its `write_xbox_text_file` uses an in-place Win32 `CREATE_ALWAYS` write; the record
 tracks stats, not owned item reservations/settlement. Reuse the existing native
 saved-profile boundary, not that writer as a crash-safe cross-platform stash.
-Forerunner now binds a local run to `player_ui_get_active_player_profile_index`;
-this is not authenticated multiplayer identity or a new persistence interface.
+Forerunner now binds a local run to `player_ui_get_active_player_profile_index`
+and the native enclosing directory returned by
+`player_ui_get_path_to_local_player_profile_directory`. The index is an
+enumeration slot (`saved_game_files.c`), so `extraction.c` also compares that
+directory before publishing a return. Deployment needs an available saved
+profile; an unavailable return lookup stays pending with bounded one-second
+retries, while a different directory discards the result. These checks do not
+establish a durable UUID or authenticated multiplayer identity.
+`xbox_files.c::CreateFileA` currently ignores `share_mode`; Faber's sharing-zero
+open therefore supplies no process exclusivity here. `port_config.c` now checks
+flush failure before its existing atomic replacement, but settings replacement
+does not provide item reservations or competing-runtime ownership. Stable item/
+run identity, exclusive ownership and exactly-once settlement remain required
+before a durable shared gear writer is introduced. No new stash format or
+discovery interface was added, and Spark must not export personal profile paths.
 No personal inventory file has been created or changed by these source edits.
 
 ## Current code-reuse and ownership checkpoint
