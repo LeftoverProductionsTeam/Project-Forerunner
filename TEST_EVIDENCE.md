@@ -355,3 +355,9 @@ survive failed native spawns, clear after a live owned spawn and are included in
 team-wipe/defeat decisions. All-dead spawn failures reuse the existing death timer.
 No tests/builds/queries/games ran. Final-life, simultaneous deaths, failure retry,
 quit/slot reuse and exhausted defeat remain unaccepted gameplay gates.
+
+The next source-only repair keeps a dead tracked carrier off the garbage list
+until the existing native spawn attempt finishes, then restores the normal
+garbage policy. Direct destruction and zero-child outcomes remain native.
+No tests/builds/queries/games ran. Collection under memory pressure, actual child
+combat/peer agreement and the historical Zombie crash remain unaccepted.

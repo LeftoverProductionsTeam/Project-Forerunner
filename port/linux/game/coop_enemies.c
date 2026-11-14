@@ -396,6 +396,18 @@ void coop_enemies_firefight_enemy_damaged(long unit_index, long player_index)
 	}
 }
 
+static boolean firefight_spawn_pending(struct unit_datum const *unit)
+{
+	struct unit_definition *definition;
+
+	if (!unit || !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		TEST_FLAG(unit->unit.flags, _unit_spawned_actors_bit))
+		return FALSE;
+	definition = unit_definition_get(unit->definition_index);
+	return TEST_FLAG(definition->unit.flags, _unit_is_destroyed_after_dying_bit) &&
+		definition->unit.spawned_actor_variant.index != NONE && definition->unit.spawn_actor_upper_bound > 0;
+}
+
 /* Faber's firefight_notify_actor_or_unit_killed records a native death rather
 than waiting for a corpse. Keep this encounter's exact handles and one award;
 destruction damage may delete the body before the next Firefight tick. */
@@ -419,6 +431,10 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 			struct player_datum *player = player_try_and_get(player_index);
 
 			firefight.killed[index] = TRUE;
+			/* A dead carrier still owes its native spawn attempt. Garbage
+			collection must not remove it before the death animation does so. */
+			if (firefight_spawn_pending(unit))
+				object_set_garbage(unit_index, FALSE);
 			firefight.score += 100;
 			/* Faber credits a player's tracked AI kills. Reuse the native
 			replicated counter here; normal game_statistics counts player
@@ -435,16 +451,23 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 	}
 }
 
-static boolean firefight_spawn_pending(struct unit_datum const *unit)
+/* Native unit_test_spawning has finished (including a valid zero-child roll).
+The children are already tracked; normal corpse collection is safe again. Direct
+native destruction is not changed or replaced with a synthetic spawn. */
+void coop_enemies_firefight_spawn_finished(long unit_index)
 {
-	struct unit_definition *definition;
+	short index;
 
-	if (!unit || !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-		TEST_FLAG(unit->unit.flags, _unit_spawned_actors_bit))
-		return FALSE;
-	definition = unit_definition_get(unit->definition_index);
-	return TEST_FLAG(definition->unit.flags, _unit_is_destroyed_after_dying_bit) &&
-		definition->unit.spawned_actor_variant.index != NONE && definition->unit.spawn_actor_upper_bound > 0;
+	if (!coop_enemies_firefight_active() || firefight.phase != 2)
+		return;
+	for (index = 0; index < firefight.unit_count; index++)
+	{
+		if (firefight.units[index] == unit_index && firefight.killed[index])
+		{
+			object_set_garbage(unit_index, TRUE);
+			break;
+		}
+	}
 }
 
 /* The same host summary serves newly loaded peers and combat updates. Pending

@@ -1677,6 +1677,9 @@ short unit_test_spawning(
 			}
 
 			SET_FLAG(unit->unit.flags, _unit_spawned_actors_bit, TRUE);
+			/* port: tracked Firefight carriers must survive garbage collection
+			until this native attempt finishes (coop_enemies.c). */
+			coop_enemies_firefight_spawn_finished(unit_index);
 		}
 	}
 

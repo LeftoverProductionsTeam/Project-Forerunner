@@ -176,6 +176,10 @@ Faber's Outbreak gate for tracked parents: native children join that wave's same
 32-slot tracker, and a dead carrier's pending native spawn delays wave completion.
 Partial, unsupported or over-capacity child creation aborts explicitly. This is
 neither a converted Zombie map nor accepted carrier gameplay.
+Later unverified source keeps dead tracked carriers off the native garbage list
+until `unit_test_spawning` finishes, then restores normal garbage eligibility.
+Native direct destruction and valid zero-child rolls retain their behavior;
+this does not establish a repair for the historical Zombie physics crash.
 
 ## Reuse audit and ownership
 

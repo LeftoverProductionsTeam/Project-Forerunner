@@ -187,7 +187,7 @@ Wave clear/terminal messages keep their existing path; new maps/full reverts
 clear the notice cache. No new packet, capability, renderer or persistent HUD was
 added. No tests/builds/queries/games ran; visual and peer acceptance remain open.
 
-The next source-only repair retains the respawn bought by the final shared life.
+Source checkpoint `ce9bf1cf0` retains the respawn bought by the final shared life.
 Death-time charging now reserves one spawn against the full player handle; only
 a successful owned live spawn clears it. Per-player gates reject unfunded deaths,
 while the team-wipe/defeat gates allow pending paid spawns at zero. Failed all-dead
@@ -196,3 +196,13 @@ grants. New maps/full world reverts clear them. This fixes a source-visible
 off-by-one and early-defeat path; it adds no packet or recovery subsystem.
 No tests/builds/queries/games ran. Final-life solo/two-player deaths, failed spawn,
 quit/slot reuse and later unfunded defeat still require native acceptance.
+
+The next source-only carrier repair removes a dead tracked parent from the native
+garbage list while its animation still owes a child-spawn attempt. Native
+`unit_test_spawning` releases that hold after setting its completion flag; actual
+children continue through the existing tracker. This prevents automatic corpse
+collection from silently cancelling the pending burst and clearing the wave.
+Direct native destruction and zero-child rolls remain native; no synthetic spawn,
+new tracking table or timeout was added. No tests/builds/queries/games ran.
+Memory-pressure, carrier-child and creator-map gameplay remain unaccepted; the
+historical Zombie damage/physics crash is not claimed repaired.
