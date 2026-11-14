@@ -165,8 +165,11 @@ accepted executables. Discovery still advertises only `runtime.discover`.
 Forerunner's finite host director may select an original loaded Zombie variant
 and native spawn location once compatible source exists. It remains separate
 from Spark's `gs_firefight` HaloScript controller: select exactly one wave owner.
-The director still requires a network co-op/solo scenario and two ready players;
-the original Demo multiplayer cache does not satisfy that requirement.
+The director still requires a network co-op/solo scenario. New unverified source
+allows one ready host to start; every present player must be alive/on foot and
+the opening cinematic finished. This is separate from the ordinary solo
+HaloScript route above. The original Demo multiplayer cache still does not
+satisfy the director's scenario requirement.
 Native final-death notification now has unverified source so a destroyed wave body
 can be credited before removal. A subsequent unverified source increment adapts
 Faber's Outbreak gate for tracked parents: native children join that wave's same

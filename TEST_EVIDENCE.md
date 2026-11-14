@@ -336,3 +336,9 @@ clears attribution for AI/environmental/no-statistics damage and awards only onc
 on final death, with departed/reused handles refused and short-counter saturation.
 Source review only; no tests/builds/queries/games ran. This is not accepted kill
 agreement, full individual scoring, assists, medals or a Firefight HUD.
+
+The next source-only increment permits one network co-op host to start the finite
+director. It retains the existing zero-player, cinematic and all-present-players
+alive/on-foot checks. No tests/builds/queries/games ran; neither solo acceptance nor
+new two-peer acceptance is claimed. Historical Zombie crash source review did not
+prove a cause, and no speculative physics/lifetime patch was applied.

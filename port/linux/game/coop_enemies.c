@@ -532,7 +532,8 @@ static boolean firefight_prepare(void)
 			player_position = unit->object.position;
 		players++;
 	}
-	if (players < 2)
+	/* A co-op host may play alone; every present player must be ready. */
+	if (!players)
 		return FALSE;
 	if (!firefight.selection_valid || (firefight.spawn_encounter[0] && !explicit_actor))
 	{

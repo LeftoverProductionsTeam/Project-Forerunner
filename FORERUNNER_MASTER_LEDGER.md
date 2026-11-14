@@ -160,7 +160,7 @@ does not accept synchronized gameplay. Only these Forerunner documentation files
 were changed in this follow-up. No tests, builds, queries, games, Spark writes or
 remote/branch changes were performed.
 
-The next source-only gameplay increment adapts Faber's tracked AI kill credit to
+Source checkpoint `e16b0f20f` adapts Faber's tracked AI kill credit to
 the existing native player kill counter. The host retains each tracked body's last
 actual damaging owner, including NONE for AI/environmental/no-statistics damage;
 only the existing final-death callback awards once. Initial bodies and native
@@ -169,3 +169,12 @@ and the short counter saturates rather than wrapping. Existing statistics
 replication carries the change; team points remain unchanged. No tests, builds,
 runtime queries or games ran. Individual point totals, assists, medals and HUD
 integration remain open. This cycle adds gameplay source, not infrastructure.
+
+The next source-only gameplay increment removes the finite director's unnecessary
+two-player start gate. One network co-op host may start; zero players, an opening
+cinematic or any present player dead/unspawned/in a vehicle still waits. Ordinary
+solo HaloScript playback is separate and the Demo multiplayer scenario remains
+unsupported. Static review did not establish the retained Zombie crash's cause:
+normal deletion is deferred and ordinary object allocation does not trigger GC.
+No speculative physics/lifetime patch was made. No tests/builds/queries/games ran;
+solo and two-peer gameplay acceptance remain open.

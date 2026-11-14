@@ -1789,7 +1789,7 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"network.coop_enemies_multiplier." },
 	{ "network.firefight_encounter", _config_boolean, "false", "HALO_NET_FIREFIGHT_ENCOUNTER", _environment_value,
 		_platform_all,
-		"Host: run a finite three-wave encounter after two co-op players leave\n"
+		"Host: run a finite three-wave encounter after all present co-op players leave\n"
 		"the opening. Default: a nearby Grunt; explicit actor/spawn selection\n"
 		"uses the map's loaded tags and native encounter locations. Two initial\n"
 		"enemies per wave; native carrier children join it, up to 32 tracked\n"
