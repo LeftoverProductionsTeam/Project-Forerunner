@@ -549,3 +549,11 @@ launches; prior B40 results predate these semantics. Doors/triggers/objectives,
 single director selection, native authored rounds and finite outcome timing all
 need authorized gameplay validation. The AGENTS full-roadmap update preserves the
 source-only/safety rules and is not an acceptance claim.
+
+UNVERIFIED Extraction safeguards bind the local saved profile, explicitly reset
+outside-image run state in native before-load callbacks, and require successful
+native equipment capture before completing a return. The capture-failure message
+is bounded to one per attempt/run; no gear or reward is granted. Source/dependency
+review only, including pinned Faber's stats writer; no tests, builds, launches or
+personal-save access. Same-clock restores, profile switching, capture recovery
+and eventual durable/duplicate-resistant settlement remain unverified.

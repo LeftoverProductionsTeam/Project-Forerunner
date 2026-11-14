@@ -9,6 +9,7 @@
 #include "game/players.h"
 #include "game_modes.h"
 #include "interface/hud_messaging.h"
+#include "interface/player_ui.h"
 #include "objects/objects.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
@@ -33,8 +34,10 @@ static struct
 	boolean bound, admitted;
 	short deploy_name, activate_name, zone, return_zone;
 	long player, unit, last_tick, activation_ticks;
+	long profile;
+	short local_player;
 	enum extraction_phase phase;
-	boolean equipment_valid;
+	boolean equipment_valid, equipment_blocked;
 	struct game_modes_inventory equipment;
 } extraction;
 
@@ -63,6 +66,8 @@ void extraction_reset(void)
 {
 	csmemset(&extraction, 0, sizeof(extraction));
 	extraction.player = extraction.unit = NONE;
+	extraction.profile = NONE;
+	extraction.local_player = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.last_tick = NONE;
 }
@@ -110,7 +115,8 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (!control || !unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return FALSE;
 	player = player_try_and_get(unit->unit.player_index);
-	if (!player || player->unit_index != unit_index || player->quit_out_of_game)
+	if (!player || player->unit_index != unit_index || player->quit_out_of_game ||
+		player->local_player_index < 0 || player->local_player_index >= MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
 		return FALSE;
 	if (control->object.name_index == extraction.deploy_name)
 	{
@@ -121,8 +127,11 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		{
 			extraction.player = unit->unit.player_index;
 			extraction.unit = unit_index;
+			extraction.local_player = player->local_player_index;
+			extraction.profile = player_ui_get_active_player_profile_index(extraction.local_player);
 			extraction.phase = _extraction_deployed;
 			extraction.equipment_valid = FALSE;
+			extraction.equipment_blocked = FALSE;
 			csmemset(&extraction.equipment, 0, sizeof(extraction.equipment));
 			extraction_notice("DEPLOYED | Return to the extraction control when ready. No raid timer.");
 		}
@@ -170,11 +179,15 @@ void extraction_update(void)
 	player = player_try_and_get(extraction.player);
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(extraction.unit, _object_mask_biped);
 	if (!player || player->quit_out_of_game || player->unit_index != extraction.unit || !unit ||
+		player->local_player_index != extraction.local_player ||
+		player_ui_get_active_player_profile_index(extraction.local_player) != extraction.profile ||
 		unit->unit.player_index != extraction.player ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 	{
 		extraction.phase = _extraction_lost;
 		extraction.activation_ticks = 0;
+		extraction.equipment_valid = FALSE;
+		csmemset(&extraction.equipment, 0, sizeof(extraction.equipment));
 		extraction_notice("RUN LOST | No extraction result committed.");
 		return;
 	}
@@ -202,13 +215,18 @@ void extraction_update(void)
 		char report[128];
 
 		extraction.equipment_valid = game_modes_inventory_capture(extraction.player, &extraction.equipment);
+		if (!extraction.equipment_valid)
+		{
+			if (!extraction.equipment_blocked)
+				extraction_notice("RETURN BLOCKED | Equipment could not be secured. No recovery committed.");
+			extraction.equipment_blocked = TRUE;
+			return;
+		}
+		extraction.equipment_blocked = FALSE;
 		extraction.phase = _extraction_returned;
-		if (extraction.equipment_valid)
-			snprintf(report, sizeof(report), "RUN COMPLETE | Carried: %d weapons, %d frag, %d plasma. Terminal: redeploy.",
-				(int)extraction.equipment.weapon_count, (int)extraction.equipment.grenades[0],
-				(int)extraction.equipment.grenades[1]);
-		else
-			snprintf(report, sizeof(report), "RUN COMPLETE | Use the field terminal to redeploy.");
+		snprintf(report, sizeof(report), "RUN COMPLETE | Carried: %d weapons, %d frag, %d plasma. Terminal: redeploy.",
+			(int)extraction.equipment.weapon_count, (int)extraction.equipment.grenades[0],
+			(int)extraction.equipment.grenades[1]);
 		/* This report records the live loadout, not an awarded/persisted stash. */
 		extraction_notice(report);
 	}

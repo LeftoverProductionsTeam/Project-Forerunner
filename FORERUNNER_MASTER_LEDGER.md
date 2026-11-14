@@ -578,3 +578,19 @@ runtime bug fix, UNVERIFIED: no builds, tests, launches, Spark mutations or push
 Historical B40 evidence predates restored ambient mission scripting and does not
 prove the current finite encounter or Spark native round. Durable loot, authored
 Extraction, region residency and remaining full-engine gates stay open.
+
+Inventory precondition source cycle reviewed pinned Faber `e4ffe0fe` profile
+stats/identity/writer code before introducing storage. Its in-place Win32 text
+writer and stats records do not supply portable atomic item ownership or run
+settlement; no writer, identity secret or new storage framework was imported.
+Reused the native active saved-profile getter to bind Extraction's run owner.
+
+Necessary repairs: native checkpoint/disk/core before-load callbacks now clear
+Extraction state explicitly, rather than relying solely on tick rewind. Profile
+or controller-owner changes invalidate an active run, and failed native equipment
+capture can no longer publish RUN COMPLETE or enable redeployment as a success.
+The pending return retries without repeated failure messages or gear mutation.
+UNVERIFIED; source/callers/diffs only, with no builds, tests, launches, user-save
+access, Spark mutations or pushes. Durable reservations/item identity/settlement,
+cross-mode stash/loadouts and authenticated multiplayer ownership remain open;
+these safeguards do not establish persistence or duplication-exploit acceptance.

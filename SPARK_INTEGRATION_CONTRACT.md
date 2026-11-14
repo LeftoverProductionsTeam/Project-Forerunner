@@ -394,11 +394,15 @@ live scenario **control** objects named `extraction_deploy` and
 reachable. Put the deploy control inside the safe hub's return volume, outside
 the activation zone, and the extraction control inside the activation zone.
 Native use begins a run or a cancellable ten-second signal activation. Leaving
-cancels it; death/replaced player handles and checkpoint rewind invalidate the
-run. After activation the same live player must physically reach the return
+cancels it; death/replaced player handles, a different local saved profile or
+any checkpoint/disk/core restore invalidate the run. The restore callback clears
+run state even when native load paths preserve the clock. After activation the
+same live player must physically reach the return
 volume outside the activation zone. Keep a real bidirectional player/vehicle
 route and native safe-hub geometry; the engine adds no teleport or map switch.
-Arrival records native equipment and shows a post-run summary; use the deploy
+Arrival must successfully capture actually owned native equipment before a
+return can complete; failure leaves it pending without publishing a result.
+A valid return shows a post-run summary; use the deploy
 control again to retain the same live inventory and begin another run. This is
 UNVERIFIED source, not a durable award: stash/loadout selection, rarity/upgrades,
 persistent rewards and full hub UI remain unfinished, with no multiplayer
@@ -450,6 +454,15 @@ host/local ownership, tag paths, slot selection, loaded/reserve magazines, batte
 age and grenades; it refuses duplicate object references and excludes objective
 weapons. Map name/checksum are provenance, not cross-cache content admission.
 These snapshots are not a new sidecar, disk format, client claim or durable stash.
+
+Persistence reuse review: pinned Faber `e4ffe0fe` has per-profile statistics in
+`port/linux/game/firefight_stats.c::{get_active_profile_index, save_profile_records}`.
+Its `write_xbox_text_file` uses an in-place Win32 `CREATE_ALWAYS` write; the record
+tracks stats, not owned item reservations/settlement. Reuse the existing native
+saved-profile boundary, not that writer as a crash-safe cross-platform stash.
+Forerunner now binds a local run to `player_ui_get_active_player_profile_index`;
+this is not authenticated multiplayer identity or a new persistence interface.
+No personal inventory file has been created or changed by these source edits.
 
 ## Current code-reuse and ownership checkpoint
 
