@@ -2390,12 +2390,18 @@ static void main_lost_map_private(
 	{
 		main_globals.lost_map = FALSE;
 		main_globals.loss_timer = 0;
-		/* port: Firefight keeps its world/lives on a team wipe. With no lives,
-		its host update announces defeat and ends the round instead. */
+		/* port: Firefight keeps its world on a wipe. Paid respawns finish;
+		with none left, its host update announces defeat and ends the round. */
 		if (coop_enemies_firefight_active())
 		{
 			if (!coop_enemies_firefight_out_of_lives())
+			{
 				players_respawn_at_checkpoint();
+				/* port: native allocation/placement can fail; keep the paid
+				respawn and retry through this same death timer. */
+				if (players_are_all_dead())
+					main_lost_map();
+			}
 			return;
 		}
 		/* port: the co-op host chooses whether a team wipe rewinds or only

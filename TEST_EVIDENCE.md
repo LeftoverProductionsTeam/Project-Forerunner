@@ -348,3 +348,10 @@ host HUD/reliable client notice path, bounded to once per second. It shares the
 late-join formatter and resets its text/timer cache at map start/full revert.
 No tests/builds/queries/games ran. This is transient feedback source, not accepted
 visual/peer agreement or a persistent Firefight HUD.
+
+The next source-only repair reserves the respawn paid for by each available
+shared life, including the final one at zero. Grants use full player handles,
+survive failed native spawns, clear after a live owned spawn and are included in
+team-wipe/defeat decisions. All-dead spawn failures reuse the existing death timer.
+No tests/builds/queries/games ran. Final-life, simultaneous deaths, failure retry,
+quit/slot reuse and exhausted defeat remain unaccepted gameplay gates.

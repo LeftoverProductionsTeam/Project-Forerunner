@@ -187,6 +187,7 @@ static struct
 	long deadline;
 	short lives;
 	short initial_lives;
+	long respawn_players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 	long wipe_deadline;
 	short unit_count;
 	long units[FIREFIGHT_MAX_TRACKED_ENEMIES];
@@ -217,11 +218,40 @@ boolean coop_enemies_firefight_active(void)
 	return firefight.enabled && firefight.phase != 0 && coop_enemies_host();
 }
 
-/* Faber's shared pool: deaths consume a life; at zero the living players
-continue, but nobody respawns. The host owns both the pool and spawning. */
+/* A spent life belongs to the dead player's full handle until a spawn succeeds.
+The last life must still buy its respawn, even though the shared pool is zero. */
+static boolean firefight_respawn_reserved(long player_index)
+{
+	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+
+	return VALID_INDEX(slot, NUMBEROF(firefight.respawn_players)) &&
+		firefight.respawn_players[slot] == player_index;
+}
+
+boolean coop_enemies_firefight_can_spawn(long player_index)
+{
+	return !coop_enemies_firefight_active() || (firefight.phase < 4 &&
+		(firefight.lives > 0 || firefight_respawn_reserved(player_index)));
+}
+
+/* Team-wipe respawns and defeat both include already paid-for respawns. Quit
+players and recycled slots cannot keep the encounter alive with an old grant. */
 boolean coop_enemies_firefight_out_of_lives(void)
 {
-	return coop_enemies_firefight_active() && (firefight.lives == 0 || firefight.phase >= 4);
+	struct data_iterator iterator;
+	struct player_datum *player;
+
+	if (!coop_enemies_firefight_active())
+		return FALSE;
+	if (firefight.phase >= 4)
+		return TRUE;
+	if (firefight.lives > 0)
+		return FALSE;
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+		if (!player->quit_out_of_game && firefight_respawn_reserved(iterator.datum_index))
+			return FALSE;
+	return TRUE;
 }
 
 static void firefight_notice(char const *text)
@@ -308,6 +338,8 @@ boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_i
 void coop_enemies_firefight_player_died(long unit_index)
 {
 	struct unit_datum *unit;
+	struct player_datum *player;
+	long player_index, slot;
 	char text[128];
 
 	if (!coop_enemies_firefight_active() || firefight.phase >= 4)
@@ -317,10 +349,32 @@ void coop_enemies_firefight_player_died(long unit_index)
 	owned dead body consumes a life, before player_died clears its binding. */
 	if (!unit || unit->unit.player_index == NONE || !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return;
+	player_index = unit->unit.player_index;
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+	player = player_try_and_get(player_index);
+	if (!player || player->quit_out_of_game || player->unit_index != unit_index ||
+		!VALID_INDEX(slot, NUMBEROF(firefight.respawn_players)) || firefight_respawn_reserved(player_index))
+		return;
 	if (firefight.lives > 0)
+	{
+		firefight.respawn_players[slot] = player_index;
 		firefight.lives--;
+	}
 	snprintf(text, sizeof(text), "Firefight: shared lives remaining %d", (int)firefight.lives);
 	firefight_notice(text);
+}
+
+void coop_enemies_firefight_player_spawned(long player_index)
+{
+	struct player_datum *player;
+	struct unit_datum *unit;
+
+	if (!coop_enemies_firefight_active() || !firefight_respawn_reserved(player_index))
+		return;
+	player = player_try_and_get(player_index);
+	unit = player ? (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_unit) : NULL;
+	if (unit && unit->unit.player_index == player_index && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		firefight.respawn_players[DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index)] = NONE;
 }
 
 /* Keep the actual last damaging owner, including NONE for AI/environmental or
@@ -448,7 +502,7 @@ static boolean firefight_check_defeat(long now)
 		if (unit && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 			alive++;
 	}
-	if (total > 0 && alive == 0 && firefight.lives == 0)
+	if (total > 0 && alive == 0 && coop_enemies_firefight_out_of_lives())
 	{
 		if (!firefight.wipe_deadline)
 			firefight.wipe_deadline = now + 3 * TICKS_PER_SECOND;
@@ -1162,6 +1216,7 @@ void coop_enemies_new_game(
 
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
+	csmemset(firefight.respawn_players, NONE, sizeof(firefight.respawn_players));
 	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
 	firefight.initial_lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
 	firefight.lives = firefight.initial_lives;
@@ -1195,6 +1250,7 @@ void coop_enemies_reset(
 	firefight.deadline = 0;
 	firefight.lives = firefight.initial_lives;
 	firefight.variant = NONE;
+	csmemset(firefight.respawn_players, NONE, sizeof(firefight.respawn_players));
 	firefight.unit_count = 0;
 	firefight.wipe_deadline = 0;
 	firefight.outcome[0] = 0;

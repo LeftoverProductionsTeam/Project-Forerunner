@@ -1426,7 +1426,7 @@ static void player_spawn(
 	short starting_location_index;
 
 	/* port: only the Firefight host limits respawns; ordinary co-op is unchanged. */
-	if (coop_enemies_firefight_out_of_lives())
+	if (!coop_enemies_firefight_can_spawn(player_index))
 		return;
 	player = player_get(player_index);
 	saved_unit_index = NONE;
@@ -1576,6 +1576,10 @@ static void player_spawn(
 	player2->action_object_index = NONE;
 	if (player->local_player_index != NONE)
 		observer_obsolete_position(player->local_player_index);
+
+	/* port: retain a paid Firefight respawn on failure; only a live owned
+	unit consumes the grant (port/linux/game/coop_enemies.c). */
+	coop_enemies_firefight_player_spawned(player_index);
 
 	return;
 }

@@ -66,8 +66,11 @@ void coop_enemies_update(
 /* game.c: the opt-in Firefight encounter has taken over the host's scripts. */
 boolean coop_enemies_firefight_active(void);
 boolean coop_enemies_firefight_out_of_lives(void);
+boolean coop_enemies_firefight_can_spawn(long player_index);
 /* players.c, before detaching a real dead player's body. */
 void coop_enemies_firefight_player_died(long unit_index);
+/* players.c, only a successful owned live spawn clears its paid respawn grant. */
+void coop_enemies_firefight_player_spawned(long player_index);
 /* units.c: actual damage owner, or NONE for uncredited/no-statistics damage. */
 void coop_enemies_firefight_enemy_damaged(long unit_index, long player_index);
 /* units.c: final unit_died only, after detaching its actor bindings. */

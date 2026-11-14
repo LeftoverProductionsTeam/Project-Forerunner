@@ -179,10 +179,20 @@ normal deletion is deferred and ordinary object allocation does not trigger GC.
 No speculative physics/lifetime patch was made. No tests/builds/queries/games ran;
 solo and two-peer gameplay acceptance remain open.
 
-The next source-only presentation increment reuses the late-join status formatter
+Source checkpoint `4266cbbfe` reuses the late-join status formatter
 for changed combat counts: wave, remaining tracked enemies, pending carrier
 spawns, team points and shared lives. The host samples at most once per second
 and sends only changed text through existing local HUD/reliable peer notices.
 Wave clear/terminal messages keep their existing path; new maps/full reverts
 clear the notice cache. No new packet, capability, renderer or persistent HUD was
 added. No tests/builds/queries/games ran; visual and peer acceptance remain open.
+
+The next source-only repair retains the respawn bought by the final shared life.
+Death-time charging now reserves one spawn against the full player handle; only
+a successful owned live spawn clears it. Per-player gates reject unfunded deaths,
+while the team-wipe/defeat gates allow pending paid spawns at zero. Failed all-dead
+spawns retry through the existing death timer; quit/reused slots cannot transfer
+grants. New maps/full world reverts clear them. This fixes a source-visible
+off-by-one and early-defeat path; it adds no packet or recovery subsystem.
+No tests/builds/queries/games ran. Final-life solo/two-player deaths, failed spawn,
+quit/slot reuse and later unfunded defeat still require native acceptance.

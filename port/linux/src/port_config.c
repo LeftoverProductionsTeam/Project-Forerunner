@@ -1807,8 +1807,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "network.firefight_lives", _config_integer, "7", "HALO_NET_FIREFIGHT_LIVES", _environment_value,
 		_platform_all,
 		"Host: shared lives for the finite Firefight encounter, 0 to 99. Each\n"
-		"actual player death consumes one; at zero the survivors keep fighting\n"
-		"without respawns. An exhausted team wipe ends in defeat. A full world\n"
+		"actual player death spends one to reserve that player's respawn. The\n"
+		"last paid respawn still completes at zero; later deaths get none. An\n"
+		"unfunded team wipe ends in defeat. A full world\n"
 		"checkpoint revert restarts the encounter with zero score and its\n"
 		"original lives; a respawn-only wipe keeps progress and spent lives." },
 	{ "network.coop_pickups", _config_string, "\"none\"", "HALO_NET_COOP_PICKUPS", _environment_value, _platform_all,
