@@ -698,3 +698,12 @@ observer/player state and packets are unchanged. No new audio/VOIP system.
 This is runtime source/necessary cache work, not hardware or MegaWorld audio
 acceptance. Source/callers/build-source gates reviewed only; no tests, builds,
 launches, audio queries or save access. Multi-region acoustics remain open.
+
+UNVERIFIED controller snap turning adapts pinned OpenH1's physical-right-stick
+latch inside existing VR controller aim. Native smooth turning remains default;
+optional snap steps use 0.7/0.3 thresholds and bounded 30-degree default settings.
+Ownership, menu/focus/tracking, recenter and world changes require neutral before
+rearming. Existing body heading, facing, renderer and packet paths are reused;
+vehicles/gamepad aim remain native. Source/callers/diffs reviewed only; no tests,
+builds, launches or hardware access. This is runtime source, not VR acceptance;
+headset direction/comfort, bindings, mixed inputs and platform parity remain open.

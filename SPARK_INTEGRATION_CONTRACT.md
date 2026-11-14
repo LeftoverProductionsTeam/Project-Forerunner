@@ -541,6 +541,14 @@ separation and native-eye convergence adapt OpenH1 `baed77571d53abe32b27434b4ba8
 Native facing/throttle carry the action; no network fields or version changed.
 Map lifecycle and `source/saved games/game_state.c::before_load_procs` release
 outside-image tracking state. No new Spark export or content schema is required.
+Optional controller snap turning now reuses the same pin's `vr.c` latch and
+0.7/0.3 thresholds in `vr_render.c::controller_turn_delta`. `vr.turn` defaults
+to native `"smooth"`; `"snap"` uses `vr.snap_turn_angle` (30 degrees, 1..180).
+Only eligible local first-person controller aim consumes the physical right
+stick. Neutral rearming covers ownership, menu, focus/tracking and world changes;
+vehicle/gamepad controls remain native. Existing facing carries the turn, without
+new network fields, an XR frame loop or Spark data. Source only, unverified;
+actual Quest 2/Index input, direction, comfort and mixed controls remain open.
 Controller weapon posing now adapts the same OpenH1 pin's
 `vr_render_weapon_camera` and `vr.weapon_offset` defaults.
 `vr_render.c::prepare_weapon_camera` prepares one right-hand animation camera

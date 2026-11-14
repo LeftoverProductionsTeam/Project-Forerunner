@@ -652,3 +652,12 @@ Reviewed native/server source inclusion and non-OpenXR guards only. No tests,
 builds, launches, audio enumeration or hardware access. Leaning/blocked heads,
 doors/tunnels/underwater, tracking expiry, mode/BSP/restore changes, cache cadence,
 radio/proximity and Linux/Windows parity require later authorized validation.
+
+UNVERIFIED snap-turn source: reviewed pinned OpenH1's vr.c latch/thresholds,
+native player-control call ownership, cached XR tracking, body heading and
+world/menu reset paths. Added optional controller-only snap mode with native
+smooth default, neutral rearming and bounded angle fallback. No new XR action
+sync, renderer, packets or simulation rate. No tests, builds, launches or
+hardware access. Threshold/held-stick behavior, turning direction, focus/menu
+resume, recenter/restore, native mixed controls, vehicles, Touch/Index bindings
+and Linux/non-OpenXR parity need later authorized validation.

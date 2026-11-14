@@ -945,6 +945,18 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Native models/animations are reused. Grip alignment, standalone hands,\n"
 		"two-hand support and physical reload/grenade actions are unverified or\n"
 		"unfinished. Optional Windows64 OpenXR builds only." },
+	{ "vr.turn", _config_string, "\"smooth\"", "HALO_VR_TURN", _environment_value, _platform_desktop,
+		"With controller aim, \"snap\" adapts OpenH1's physical-right-stick turn\n"
+		"steps. Return below 0.3 before another push above 0.7. \"smooth\" and\n"
+		"other values keep native profile turning (the existing default).\n"
+		"A centered XR stick keeps native look input; while deflected it owns\n"
+		"snap-mode turning. Menus, tracking loss and world changes require a\n"
+		"neutral stick before rearming. Vehicles/gamepad aim keep native controls.\n"
+		"Optional Windows64 OpenXR source only, unverified." },
+	{ "vr.snap_turn_angle", _config_real, "30.0", "HALO_VR_SNAP_TURN_ANGLE", _environment_value, _platform_desktop,
+		"Controller snap-turn degrees, 1 to 180. Invalid/non-finite values use\n"
+		"OpenH1's 30-degree default. Existing native facing carries the turn;\n"
+		"no new network fields or simulation rate. Source only, unverified." },
 #endif
 
 	/* ---- audio */

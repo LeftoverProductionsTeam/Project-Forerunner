@@ -10,6 +10,7 @@
  * Per-eye world-hit reticle projection adapts vr_render_crosshairs, using
  * this runtime's native firing preview and HUD instead of a second HUD layer.
  * Audio head clearance adapts that pin's game_sound.c::sound_vr_ears_get.
+ * Optional snap turning adapts vr.c's snap latch and threshold policy.
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
@@ -51,6 +52,7 @@ static struct
 	unsigned int reference_serial;
 	real origin[3], yaw_cos, yaw_sin, origin_yaw;
 	boolean aim_synced;
+	boolean snap_armed;
 	long aim_unit;
 	real body_yaw;
 	boolean weapon_camera_valid;
@@ -71,6 +73,7 @@ static real wrapped_yaw(real yaw)
 void vr_render_reset_aim(void)
 {
 	stereo.aim_synced = FALSE;
+	stereo.snap_armed = FALSE;
 	stereo.aim_unit = NONE;
 	stereo.weapon_camera_valid = FALSE;
 	stereo.reticle_checked = stereo.reticle_scoped = FALSE;
@@ -107,6 +110,7 @@ static void recenter(struct vr_openxr_frame const *frame)
 	real yaw;
 	short axis;
 
+	stereo.snap_armed = FALSE;
 	quaternion_rotate(frame->eye[0].orientation, xr_forward, forward[0]);
 	quaternion_rotate(frame->eye[1].orientation, xr_forward, forward[1]);
 	yaw = ABS(forward[0][0] + forward[1][0]) + ABS(forward[0][2] + forward[1][2]) > _real_epsilon ?
@@ -379,11 +383,19 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	stereo.eye = NONE;
 	*prepared = windows;
 	if (!xgpu_openxr_frame_begin(&frame))
+	{
+		stereo.snap_armed = FALSE;
 		return count;
+	}
+	if (!frame.focused)
+		stereo.snap_armed = FALSE;
 	/* A single local 3D view and its existing console/interface view. Keep
 	   split-screen and screenshot paths intact; never submit half an eye pair. */
 	if (!frame.should_render || count != 2 || windows[0].console_window || !windows[1].console_window)
+	{
+		stereo.snap_armed = FALSE;
 		return count;
+	}
 	if (stereo.aim_synced)
 	{
 		long player_index = windows[0].local_player_index != NONE ?
@@ -532,6 +544,38 @@ boolean vr_render_listener(short local_player_index, struct observer_result cons
 	return TRUE;
 }
 
+/* OpenH1's physical-right-stick hysteresis. Native look remains available
+   when the XR stick is centered; a deflected stick owns snap-mode turning. */
+static real controller_turn_delta(struct vr_openxr_frame const *frame, real native_delta)
+{
+	real x = frame->hand[1].stick[0];
+	double degrees;
+
+	if (strcmp(config_string("vr.turn"), "snap"))
+	{
+		stereo.snap_armed = FALSE;
+		return native_delta;
+	}
+	if (!(x >= -1.f && x <= 1.f))
+	{
+		stereo.snap_armed = FALSE;
+		return 0.f;
+	}
+	if (ABS(x) < 0.3f)
+		stereo.snap_armed = TRUE;
+	if (ABS(x) <= 0.001f)
+		return native_delta;
+	if (ABS(x) > 0.7f && stereo.snap_armed)
+	{
+		stereo.snap_armed = FALSE;
+		degrees = config_real("vr.snap_turn_angle");
+		if (!(degrees >= 1.0 && degrees <= 180.0))
+			degrees = 30.0;
+		return (real)(degrees * (_pi / 180.0)) * (x > 0.f ? -1.f : 1.f);
+	}
+	return 0.f;
+}
+
 /* Adapted from OpenH1's halo_vr_aim and vr_aim_converge at the pin above.
    Native shots still originate at Halo's deterministic eye. Converge that
    facing on the controller's hit point, without moving the simulated body. */
@@ -547,19 +591,28 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	float rotated[3], translation[3];
 	real distance = 100.0f, along, across, nearest, turn, turn_cos, turn_sin, move_forward;
 	short axis;
-	boolean hit;
+	boolean hit, allowed;
 
 	if (local_player_index != 0)
 		return FALSE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	allowed = permitted && !strcmp(config_string("vr.aim"), "controller") && unit &&
+		unit->object.parent_object_index == NONE && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
+		unit->unit.player_index == local_player_get_player_index(local_player_index) &&
+		director_get_perspective(local_player_index) == _director_perspective_first_person &&
+		stereo.origin_valid && vr_openxr_tracking_read(&frame) && frame.focused && frame.should_render &&
+		frame.hand[1].aim.valid && frame.reference_serial == stereo.reference_serial;
+	if (allowed)
+	{
+		if (!stereo.aim_synced || stereo.aim_unit != unit_index)
+			stereo.snap_armed = FALSE;
+		turn_delta = controller_turn_delta(&frame, turn_delta);
+	}
+	else
+		stereo.snap_armed = FALSE;
 	if (permitted && stereo.aim_synced && stereo.aim_unit == unit_index)
 		stereo.body_yaw = wrapped_yaw(stereo.body_yaw + turn_delta);
-	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
-	if (!permitted || strcmp(config_string("vr.aim"), "controller") || !unit ||
-		unit->object.parent_object_index != NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-		unit->unit.player_index != local_player_get_player_index(local_player_index) ||
-		director_get_perspective(local_player_index) != _director_perspective_first_person ||
-		!stereo.origin_valid || !vr_openxr_tracking_read(&frame) || !frame.focused || !frame.should_render ||
-		!frame.hand[1].aim.valid || frame.reference_serial != stereo.reference_serial)
+	if (!allowed)
 		goto release;
 	if (!stereo.aim_synced || stereo.aim_unit != unit_index)
 		stereo.body_yaw = wrapped_yaw(previous_yaw + turn_delta);
@@ -612,6 +665,7 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	throttle->j = turn_sin * move_forward + turn_cos * throttle->j;
 	return TRUE;
 release:
+	stereo.snap_armed = FALSE;
 	/* Return native view heading to the body on loss/menu/seat transitions. */
 	if (stereo.aim_synced && stereo.aim_unit == unit_index)
 	{

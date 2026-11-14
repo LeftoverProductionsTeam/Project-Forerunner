@@ -295,6 +295,16 @@ eye-to-controller hit-point convergence; movement is rotated into native facing
 so pointing the hand does not steer walking. Menus, cinematics, vehicle seats,
 focus/tracking loss and map/restore transitions release the tracked path. Existing
 player-action fields carry facing/throttle; no remote hand poses were added.
+With controller aim, optional `vr.turn = "snap"` / `HALO_VR_TURN=snap` adapts
+OpenH1's physical right-stick latch: push past 0.7, release below 0.3 before
+another step. `vr.snap_turn_angle` / `HALO_VR_SNAP_TURN_ANGLE` defaults to 30
+degrees (1..180, invalid values use 30). Native profile turning remains the
+default (`"smooth"`), including vehicles and gamepad aim. A centered XR stick
+retains native look; while deflected it owns snap-mode turning. Ownership,
+menu/focus/tracking and world transitions require neutral before rearming.
+This uses the existing body heading and facing fields, not another input or
+network path. Snap direction, comfort, bindings and headset behavior are
+unverified; no hardware checks, builds or tests have been run.
 Controller weapon posing now adapts OpenH1's `vr_render_weapon_camera`: only the
 native first-person animation/node build sees the right-hand camera, then the
 head camera is restored for world rendering. Both eyes use the same posed weapon;
