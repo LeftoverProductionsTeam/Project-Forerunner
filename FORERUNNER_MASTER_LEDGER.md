@@ -27,8 +27,27 @@ none of its unaccepted requirements is superseded by this checkpoint.
 ## Current engineering gate
 
 Advance one native synchronized Firefight encounter using compatible Faber code.
-The user's anti-overengineering directive narrows this milestone; Extraction,
-Forge redesign, MegaWorld and broad rewrites are outside its scope.
+Later owner directives add timerless single-map Extraction and the connected
+19-region MegaWorld as permanent flagship requirements alongside Firefight,
+VR and the other approved runtime work. Keep the anti-overengineering rules;
+these additions do not authorize unrelated rewrites or duplicate editors.
+
+Extraction acceptance requires an original Marathon-inspired hub/menu, inventory
+and loadouts, deployment, AI with optional PvPvE, collectible loot, an interactable
+extraction point, successful escape, death/loss, durable rewards, a post-run report
+and redeployment. There is no mandatory raid timer; activation countdowns are
+allowed. Complete one genuinely playable map before expanding that loop across
+MegaWorld. Source presence is not gameplay acceptance.
+
+MegaWorld acceptance requires all 19 original multiplayer regions connected by
+natural bidirectional walk/drive/combat routes, with no boundary teleports or
+map-loading screens. Preserve players, vehicles, weapons, inventory, AI and
+mission state; allow multiplayer occupants and synchronized modes in different
+regions. Order: two-region player/Warthog traversal, preserved simulation/network
+state, bounded multi-region resource residency, all 19 regions, then world-wide
+timerless Extraction. Do not load 19 whole caches or remove unrelated limits.
+Spark owns geometry/layout; Forerunner owns residency, simulation and replication.
+Stock Xbox support is not implied. Every stage remains unverified until gameplay.
 The updated complete goal is in the user's attachment
 `C:\Users\patri\.codex\attachments\767bbb4b-5e23-4cb8-91e5-4ba24b240624\pasted-text-1.txt`.
 It retains the current foundation and makes Windows Vive/Knuckles VR the next
@@ -464,3 +483,32 @@ origin/orientation helpers; change detection and serialized positions agree.
 No record size or network protocol changed. This is necessary runtime source
 progress, UNVERIFIED; no tests, builds, launches, Spark changes or pushes. This
 does not add AI animation/weapon/action history or native in-engine Theater.
+
+Extraction source cycle adds a small native gameplay module using existing map
+controls, trigger volumes and simulation ticks. The opt-in local-only path binds
+live deployment/activation controls, records the full player/unit handles, runs
+only a cancellable activation countdown, and rejects death/handle replacement or
+checkpoint rewind. Readiness is not evacuation; loot, persistence and the full
+hub/report/redeployment loop remain open. This is runtime source progress,
+UNVERIFIED: no tests, builds, launches, Spark mutations or pushes. The updated
+Spark contract records exact current bindings and the two-region MegaWorld
+handoff, source identities and outstanding residency/replication requirements.
+
+Voice is also a permanent integration requirement: preserve inherited proximity
+chat including enemies, team/party radio across regions, range/PTT/mute/volume
+controls and user-controlled microphone privacy. Review Windows headset capture
+and Halo spatial playback before adding features. Connected cave/tunnel audio
+must use the real world coordinate/portal context; no second VOIP stack or
+unnecessary legacy packet change. Source review and hardware/gameplay acceptance
+are separate; no headset microphone or multi-region audio pass is claimed.
+
+Owner-added shared inventory requirement: Zombie Apocalypse Firefight Survival
+and Combat Evolved Extraction must share loot/equipment/persistence, compatible
+cross-mode recovered gear and pre-run loadouts. Include weapons, ammo, armor,
+equipment, rarity, capacity and upgrades. Firefight recovery uses evacuation or
+defined survival milestones; Extraction recovery uses successful extraction into
+a personal stash, with meaningful configurable death loss and no mandatory raid
+timer. Multiplayer ownership/settlement must be authoritative. Durable saves must
+survive crashes and prevent duplicate awards, loadout duplication and unintended
+overwrites. Reuse native/Faber inventory and existing profile storage before
+adding anything else. These requirements are open; no persistent gear is claimed.

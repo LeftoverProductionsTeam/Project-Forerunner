@@ -121,6 +121,7 @@ struct game_options;
 #include "cseries/cseries.h"
 #include "game/game.h"
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
+#include "extraction.h" /* port: port/linux/game/extraction.c */
 #include "mcc_skulls.h" /* port: port/linux/game/mcc_skulls.c */
 #include "stubbs_horde.h" /* port: port/linux/game/stubbs_horde.c */
 #include "ai/ai.h"
@@ -437,6 +438,7 @@ void game_tick(
 	HALO_PERF_BEGIN(_halo_perf_tick_units);
 	profile_scope(game_tick_players_after_section, players_update_after_game();)
 	HALO_PERF_END(_halo_perf_tick_units);
+	extraction_update(); /* port: opt-in native timerless Extraction interactions */
 	profile_scope(game_tick_hud_section, hud_update();)
 	profile_scope(game_tick_player_effect_section, player_effect_update();)
 	/* port: the wind steps once a tick (scenario.c; it stepped by the
@@ -710,6 +712,7 @@ void network_objects_placed(void);
 void game_initialize_for_new_map(
 	void)
 {
+	extraction_reset(); /* port: no run state survives a different scenario */
 	match_assert(
 		"c:\\halo\\SOURCE\\game\\game.c",
 		0x1D1,
@@ -1089,6 +1092,7 @@ void game_dispose_from_old_map(
 
 	halo_switch_renderer_idle();
 #endif
+	extraction_reset(); /* port: discard references before map storage is freed */
 	rasterizer_dispose_from_old_map();
 	game_state_dispose_from_old_map();
 	cheats_dispose_from_old_map();

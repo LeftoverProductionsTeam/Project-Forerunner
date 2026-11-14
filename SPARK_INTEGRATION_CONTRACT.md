@@ -377,6 +377,66 @@ AI encounters; Firefight and Extraction configuration; gametype markers/rules;
 supported environment parameters; diagnostics/performance; preview/validate/save/
 export; conflict detection and undo/redo. None is silently declared implemented.
 
+## Timerless Extraction and connected MegaWorld requirements
+
+Owner-added flagship milestones complement Firefight and VR. Extraction must
+complete one playable map with original Marathon-inspired terminal/hub UX,
+inventory/loadouts, deploy, AI/optional PvPvE, loot, interaction-based extraction,
+escape, loss, persistent rewards, report and redeployment. No mandatory raid
+timer; an activation countdown is permitted. Spark owns the map/source/UX
+authoring; Forerunner owns authoritative gameplay and durable result settlement.
+
+The first UNVERIFIED local desktop source slice is `game.extraction` (off by
+default), reached through the existing native solo-map path. A candidate needs
+live scenario **control** objects named `extraction_deploy` and
+`extraction_activate` (native use, `triggers_when = 0`) and a trigger volume named
+`extraction_zone`. Controls must be powered, usable and reachable; the extraction
+control must be usable from inside that volume. Native use begins a run or a
+cancellable ten-second signal activation. Leaving cancels it; death/replaced
+player handles and checkpoint rewind invalidate the run. Current source stops
+at signal readiness: there is no loot/reward/evacuation or completed hub/report
+loop, no multiplayer admission and no new discovery capability. Spark must not
+advertise playable Extraction from these bindings alone. Retain native AI,
+collision, encounter and equipment source; the engine does not import authoring
+JSON or run a second Firefight director for native scripted encounters.
+
+Spark source inspected read-only at clean local master
+`73c1041439a92ae623a70081ba158cb366bf82f6`: `megaworld.rs` identifies regions as
+`<cache_sha256>:<bsp_index>` and retains source bounds, translation and yaw;
+`MEGAWORLD_SEAM_ROUTES_20261108.md` uses the existing assembly/native compiler
+for tunnel, vehicle and ridge routes. Preserve those identities and transforms;
+do not define another editor/layout format. The first handoff needs two owned
+regions in one connected compiled scenario, source/compiled collision and portal
+identities, a continuous common coordinate frame and independently usable
+forward/reverse player and Warthog routes. Include their real materials, native
+dependencies and explicit region-to-source mapping, without reducing source
+geometry or substituting teleports. No proprietary map data is to be distributed.
+
+Forerunner's current `scenario_switch_structure_bsp` unloads the old BSP and
+reconnects global collision, objects, AI, renderer and audio state. It is not
+multi-region streaming or simultaneous residency. OpenCE main inspected at
+`1519c65facbb068e44b956da2769198a83a17847` is already inherited; community
+multi-BSP reports do not prove a newer implementation here. Two joined regions
+within current limits are the first native traversal candidate, not proof of
+19-region capacity. Concurrent residency, bounded resource loading/unloading,
+cross-region authority/replication, persistent world state and portal-aware
+render/audio contexts remain engine requirements. Keep all limits and original
+installations intact; no stock Xbox support or seamless BSP switching is claimed.
+
+Development order remains two-region traversal, state preservation, bounded
+multi-region residency, all 19 regions, then timerless Extraction across the
+finished world. No gameplay acceptance exists for these new stages.
+
+Both flagship modes also require one engine-owned persistent gear foundation:
+weapon/ammo/armor/equipment loot, rarity/upgrades/capacity, stash/loadout choice,
+authoritative pickup and loss, and crash-safe duplicate-resistant settlement.
+Firefight may bank at defined milestones or evacuation; Extraction banks only
+after successful escape and has no mandatory raid timer. Compatible recovered
+equipment can cross modes. Spark authors discoverable loot and mode rules using
+supported native tags; it must not write player stashes, invent awarded gear or
+advertise a persistence endpoint that Forerunner has not implemented. Current
+interaction source does not grant or persist loot.
+
 ## Native formats and extended data
 
 Preserve supported native scenario/tag formats. Extended runtime data belongs in

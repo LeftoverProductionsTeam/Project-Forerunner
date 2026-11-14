@@ -33,6 +33,7 @@ symbols in this file:
 #include "cseries.h"
 
 #include "device_controls.h"
+#include "extraction.h" /* port: port/linux/game/extraction.c */
 #include "memory/data.h"
 #include "scenario/scenario_definitions.h"
 
@@ -141,7 +142,8 @@ void control_touched(
 	struct control_datum *control= control_get(control_index);
 	struct control_definition *definition= control_definition_get(control->definition_index);
 
-	if (definition->control.triggers_when == 0)
+	/* port: opt-in Extraction terminals use the native validated action path. */
+	if (definition->control.triggers_when == 0 && !extraction_control_touched(control_index, unit_index))
 		control_toggle(control_index);
 
 	return;

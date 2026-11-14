@@ -509,3 +509,10 @@ world-space attached objects in the existing HREC object stream. The browser
 viewer can display these tracks with existing local-map models or a labeled
 placeholder. Source/diffs only; no parser tests, builds, recordings, browser
 launches or native runs were executed. AI animation/action fidelity is open.
+
+UNVERIFIED Extraction interaction/state source uses native controls and a named
+zone, with no raid timer, cancellable ten-second activation, death/identity checks
+and checkpoint-rewind invalidation. Only source/diffs read; no tests, builds,
+launches or Spark changes. This is not a complete deploy/loot/escape/persistence
+loop. The second flagship single-map acceptance and 19-region MegaWorld stages
+remain open, alongside VR/Firefight. No region streaming or traversal is accepted.
