@@ -102,6 +102,15 @@ encounter acceptance remain deferred. This cycle adds a gameplay entry control,
 not gameplay acceptance; Spark CE content/launch and the synchronized creator-map
 gate remain open.
 
+Current source repair holds finite wave transitions while the existing
+three-second unfunded team-elimination check is pending. Previously the final
+wave's clear countdown could finish before that later wipe deadline and announce
+victory with no living player or paid respawn. A live player/paid grant clears the
+wait; an expired wipe uses the existing defeat/arena-return path. No new timer or
+protocol was added. No tests/builds/queries/games ran. Final-clear versus last-player
+death timing, funded respawn recovery and ordinary wave progression remain native
+acceptance gates. This is a necessary gameplay repair in source, not accepted play.
+
 The owner selected Zombie Apocalypse as the authored Firefight candidate and asked
 to use Spark's conversion workflow. The existing integration contract now records
 the concrete Spark handoff, reusable code, ownership and missing engine operations.

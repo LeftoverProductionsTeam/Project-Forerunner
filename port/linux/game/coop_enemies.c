@@ -934,6 +934,11 @@ static void firefight_update(void)
 		firefight.deadline = now + 5 * TICKS_PER_SECOND;
 		firefight_notice("Firefight: defeat - team eliminated, no shared lives");
 	}
+	/* A wave-clear countdown must not award victory or start reinforcements
+	while the eliminated team is waiting for its defeat notice. A live player
+	or paid respawn clears this wait through firefight_check_defeat. */
+	if (firefight.phase < 4 && firefight.wipe_deadline)
+		return;
 	if (firefight.phase == 1 && now >= firefight.deadline)
 	{
 		firefight.unit_count = 0;

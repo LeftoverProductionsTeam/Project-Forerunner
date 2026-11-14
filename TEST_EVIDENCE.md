@@ -398,3 +398,10 @@ through the current generator and setting binding. Only server-settings XML was
 regenerated; init/save/cancel and row fitting reuse existing code. No tests/builds/
 queries/games ran. Native layout/input, persistence/cancel and hosting behavior
 remain unverified; historical B40 gameplay does not cover this menu control.
+
+Source-only transition repair prevents the existing clear/preparation countdowns
+from advancing during a pending unfunded team wipe. In particular, final-wave
+victory cannot overtake the later three-second elimination deadline. Existing
+alive/paid-respawn checks release the hold; existing defeat/return handles expiry.
+No tests/builds/queries/games ran. Fatal final-wave timing, funded respawns and
+normal progression require native acceptance; prior B40 results do not cover this.
