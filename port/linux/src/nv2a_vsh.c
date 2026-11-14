@@ -765,6 +765,8 @@ char *nv2a_fixed_function_glsl(void)
 
 #ifdef HALO_GLES
 	xgpu_text_append(&text, "#version %s\n", xgpu_capabilities.shading_language);
+#else
+	xgpu_text_append(&text, "%s", XGPU_GL_VERSION_LINE);
 #endif
 	xgpu_text_append(&text, "%s", shader_prologue);
 	for (index = 0; index < XGPU_VERTEX_ATTRIBUTE_COUNT; index++)

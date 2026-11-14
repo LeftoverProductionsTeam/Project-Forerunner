@@ -4932,7 +4932,9 @@ static GLuint vertex_shader_make(struct vertex_shader_object *program, BOOL imme
 
 static GLuint vertex_shader_get(struct vertex_shader_object *program, BOOL immediate, BOOL lit, BOOL plasma)
 {
-	return vertex_shader_make(program, immediate, lit, plasma, device.vertex_shader->packed_mask, FALSE);
+	/* Immediate vertices are floats; the loading screen has no declaration. */
+	return vertex_shader_make(program, immediate, lit, plasma,
+		immediate ? 0 : device.vertex_shader->packed_mask, FALSE);
 }
 
 /* (prepare: its compile asked for and not waited on, a map's loading
