@@ -1783,10 +1783,20 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"network.coop_enemies_multiplier." },
 	{ "network.firefight_encounter", _config_boolean, "false", "HALO_NET_FIREFIGHT_ENCOUNTER", _environment_value,
 		_platform_all,
-		"Host: after two co-op players leave the opening cinematic near loaded\n"
-		"Covenant grunts, run a finite three-wave Firefight encounter instead\n"
-		"of the campaign scripts. Two enemies per wave, 100 team points per\n"
-		"confirmed death, then return to the same map's lobby. Off by default." },
+		"Host: run a finite three-wave encounter after two co-op players leave\n"
+		"the opening. Default: a nearby Grunt; explicit actor/spawn selection\n"
+		"uses the map's loaded tags and native encounter locations. Two enemies\n"
+		"per wave, 100 team points per final death, then back to the lobby. Off." },
+	{ "network.firefight_actor", _config_string, "\"\"", "HALO_NET_FIREFIGHT_ACTOR", _environment_value,
+		_platform_all,
+		"Host: loaded actor-variant tag path without extension for the finite\n"
+		"encounter. Empty keeps the nearby-Grunt selection. Explicit missing\n"
+		"tags abort rather than substituting enemies; native faction is kept." },
+	{ "network.firefight_spawn_encounter", _config_string, "\"\"", "HALO_NET_FIREFIGHT_SPAWN_ENCOUNTER", _environment_value,
+		_platform_all,
+		"Host: exact native scenario encounter name supplying a squad start in\n"
+		"the loaded BSP. Requires firefight_actor. Empty uses an existing nearby\n"
+		"actor's origin. Selects placement only, not wave/group rules or JSON." },
 	{ "network.firefight_lives", _config_integer, "7", "HALO_NET_FIREFIGHT_LIVES", _environment_value,
 		_platform_all,
 		"Host: shared lives for the finite Firefight encounter, 0 to 99. Each\n"

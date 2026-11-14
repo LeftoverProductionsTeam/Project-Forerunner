@@ -9,10 +9,11 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
-Review baseline: Forerunner gameplay `21a809b0`, checkpoint `2fc9731e`;
-Spark `b57cb654371a5336590fba9fbd0d4c765a7d99d9`. Spark's unrelated unfinished
-edits remain untouched. New Forerunner shared-life code is in progress/unverified,
-not an advertised capability.
+Review baseline: Forerunner gameplay `21a809b0`, shared-life source `c8196f81`,
+repository reconciliation `3347a00c2`; Spark inspected read-only at
+`1f16760` with unfinished actor-source reconciliation in its Firefight UI.
+Spark's source changes remain untouched. Forerunner shared lives and the new
+actor/spawn selection are source-only/unverified, not advertised capabilities.
 
 ## Discovery and feature negotiation
 
@@ -77,6 +78,7 @@ the ability to launch a process.
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
 | `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
+| `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment; final deaths alone earn wave credit. Still three two-body waves on a co-op scenario, not Spark's authored rules. |
 | Spark `FirefightConfig` schema `1` | Authoring/preview only. **Forerunner has no importer for this JSON.** |
 | Standard actor palettes, encounters/squads, player profiles, HaloScript | Existing native authoring/runtime boundary. Spark emits source; the inherited engine executes supported compiled caches. Specific generated maps still require gameplay acceptance. |
 | Live edits, runtime-state query, transactions/undo | Not implemented by this adapter. No private-memory/debug-console fallback. |
@@ -85,6 +87,55 @@ Accepted discovery identity: `7c65d0865c34-dirty.d990a0d29b19`, Windows/x86,
 upstream version `0.9.1-dev`; exact executable/source hashes are in TEST_EVIDENCE.md.
 Matching contract, cache version and peer network version are separate checks.
 No version-1 discovery field grants gameplay, live editing or universal cross-play.
+
+## Companion check-in: current source and the missing connection
+
+Spark has implemented the first registration/discovery connection in existing
+modules: `src/runtimeWorkbench.ts`, `src/components/RuntimeRegistration.tsx` and
+`src-tauri/src/runtime_connections.rs`. Forerunner is an installed OpenCE-family
+profile, not a guessed download or a new runtime manager. Its opt-in query uses
+the saved executable SHA, checks `--help`, requests contract 1, bounds time/output,
+validates the response and rechecks executable identity. Source inspection matches
+Forerunner's current response fields. These Spark changes have not been built or
+queried under the owner's no-tests instruction.
+
+Spark also has source for equipped native solo rounds, per-group spawn-zone
+assignments and full prepared-round source export through its existing QuickForge
+pipeline. Recent source-only changes are described in Spark's `docs/FIREFIGHT_ENGINE.md`;
+its offline preview remains authoring feedback, never runtime AI authority.
+
+Two concrete restrictions remain in Spark:
+
+- `crates/spark-core/src/firefight.rs::native_round_plan` admits fresh CE,
+  Chupathingy and MCC source; it refuses recovered/native documents and OpenCE
+  documents. `forge_build.rs::authoring_preflight` also explicitly refuses OpenCE
+  compilation. Registration/discovery does not make this a supported build route.
+- `runtime.rs::prepare_launch` permits a separate data folder only for exact
+  executable hashes in `shared_content_interface`. The accepted Forerunner
+  Firefight executable recorded here is absent from that list. A registered
+  Forerunner profile alone therefore does not enable the shared-content launch.
+
+The smallest connection uses a reviewed **CE content build target** and a
+separately selected **Forerunner executable profile**. Reuse the existing compiler,
+receipt and launch plan; do not enable every OpenCE build, remove recovery guards,
+or create a JSON importer merely to connect these two choices.
+
+Forerunner's existing source provides `paths.data` / `HALO_DATA_ROOT`,
+`paths.saves` / `HALO_SAVE_ROOT`, and `paths.custom_maps` /
+`HALO_CUSTOM_MAPS_ROOT`. Use private owned configuration/data/save folders with
+`--config`; retain exact executable/cache/resource identities. Standard CE caches
+go in `maps_ce` with their own required CE resource banks; required Xbox UI data
+stays in `maps`. `map_families.c::map_family_list_campaigns` and
+`menu_functions.c::custom_campaign_map` supply the existing CE solo-map chooser
+and launch route. There is no advertised direct-map launch RPC. Documented path
+settings are source facts, not acceptance of Spark's current launcher with this
+executable. Do not bypass its identity checks through a debug console.
+
+Forerunner's finite host director may select an original loaded Zombie variant
+and native spawn location once compatible source exists. It remains separate
+from Spark's `gs_firefight` HaloScript controller: select exactly one wave owner.
+The director still requires a network co-op/solo scenario and two ready players;
+the original Demo multiplayer cache does not satisfy that requirement.
 
 ## Reuse audit and ownership
 
@@ -146,16 +197,21 @@ Smallest intended end-to-end gate, still unimplemented/unverified:
    the change. Compiler/preview success is insufficient. Execution is deferred under
    the owner's current instruction to do code only, with tests later.
 
-**Spark implements next:** add a selected Forerunner target to its existing runtime
-registry using contract-1 discovery and actual executable identity; reuse CE
-conversion/native source generation for the chosen Zombie candidate; support a
-reviewed derived-source encounter handoff with the existing build receipt. Do not
-advertise live editing, JSON import or multiplayer authoring as ready.
+**Spark implements next:** registration/discovery source now exists. Connect a
+reviewed CE build receipt to the selected Forerunner profile through its existing
+launch/deployment code, preserving executable identity and private data/save
+ownership. Its shared-folder identity policy still needs an explicit Forerunner
+decision and later native acceptance. Reuse conversion/native source generation
+for the chosen Zombie candidate and support a reviewed derived-source encounter
+handoff without dropping the existing recovery guards. Do not advertise live
+editing, JSON import or multiplayer authoring as ready.
 
 **Forerunner owes:** the actual Zombie actor/spawner lifecycle, relevant Faber
 HUD/lives/configuration integration and safe loading of the resulting content.
-The current Grunt/nearby-campaign restriction and missing rules importer are engine
-requirements, not defects for Spark to hide. New structured multiplayer data must
+Actor/spawn selection now has source beyond the Grunt default, but the co-op/solo
+restriction, carrier/child-unit lifecycle, full wave composition and missing rules
+importer remain open. Spark need not duplicate engine simulation to hide them.
+New structured multiplayer data must
 use negotiated Delta support, not raw native-struct packets or silent protocol-44 changes.
 
 ## Adapter requirements retained for implementation

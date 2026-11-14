@@ -51,6 +51,7 @@ Only the host runs the AI, so all of this is the host's.
 #include "physics/collisions.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
+#include "tag_files/tag_groups.h"
 #include "units/units.h"
 #include "units/bipeds.h"
 #include "units/unit_definitions.h"
@@ -184,6 +185,11 @@ static struct
 	long units[2];
 	boolean killed[2];
 	long variant;
+	short team;
+	real facing;
+	boolean selection_valid;
+	char actor_path[256];
+	char spawn_encounter[TAG_STRING_LENGTH+1];
 	real_point3d origin;
 } firefight;
 
@@ -273,26 +279,84 @@ static boolean firefight_check_defeat(long now)
 	return FALSE;
 }
 
-/* A real enemy already standing near the players supplies a loaded grunt tag
-and a navigable spawn origin. Refuse to start without both; no tag injection. */
+/* Faber's discover_map_spawn_points reads these same native squad locations.
+An explicit encounter supplies geometry only; it is not a JSON rules importer. */
+static boolean firefight_authored_origin(real_point3d const *player_position)
+{
+	struct scenario *scenario = global_scenario_get();
+	boolean found = FALSE;
+	real nearest = 0.0f;
+	long encounter_index, squad_index, location_index;
+
+	for (encounter_index = 0; encounter_index < scenario->ai_encounters.count; encounter_index++)
+	{
+		struct encounter_definition *encounter = TAG_BLOCK_GET_ELEMENT(&scenario->ai_encounters,
+			encounter_index, struct encounter_definition);
+
+		if (strncmp(encounter->name, firefight.spawn_encounter, sizeof(encounter->name)))
+			continue;
+		if (encounter->manual_structure_bsp_reference_index != NONE &&
+			encounter->manual_structure_bsp_reference_index != global_structure_bsp_index_get())
+			continue;
+		if (encounter->runtime_structure_bsp_reference_index != NONE &&
+			encounter->runtime_structure_bsp_reference_index != global_structure_bsp_index_get())
+			continue;
+		for (squad_index = 0; squad_index < encounter->squads.count; squad_index++)
+		{
+			struct squad_definition *squad = TAG_BLOCK_GET_ELEMENT(&encounter->squads, squad_index, struct squad_definition);
+
+			for (location_index = 0; location_index < squad->starting_locations.count; location_index++)
+			{
+				struct actor_starting_location *start = TAG_BLOCK_GET_ELEMENT(&squad->starting_locations,
+					location_index, struct actor_starting_location);
+				struct location location;
+				real distance;
+
+				if (!valid_real_point3d(&start->position) || !valid_real(start->facing) ||
+					scenario_leaf_index_from_point(&start->position) == NONE)
+					continue;
+				scenario_location_from_point(&location, &start->position);
+				if (location.cluster_index == NONE)
+					continue;
+				distance = distance_squared3d(player_position, &start->position);
+				if (!found || distance < nearest)
+				{
+					found = TRUE;
+					nearest = distance;
+					firefight.origin = start->position;
+					firefight.facing = start->facing;
+				}
+			}
+		}
+	}
+	return found;
+}
+
+/* Default: an existing nearby Grunt supplies the tag and origin. Explicit
+selection uses the map's loaded actor variant and optional native spawn encounter;
+missing authored data never silently becomes a different stock enemy. */
 static boolean firefight_prepare(void)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
 	struct actor_datum *actor;
+	struct object_iterator enemies;
 	real_point3d player_position;
 	short players = 0;
 	real nearest = 20.0f * 20.0f;
-	long remove_units[MAXIMUM_ACTORS];
-	short remove_count = 0;
+	boolean explicit_actor = firefight.actor_path[0] != 0;
+	boolean found_origin = FALSE;
 
 	if (cinematic_in_progress())
 		return FALSE;
 	data_iterator_new(&iterator, player_data);
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 	{
-		struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		struct unit_datum *unit;
 
+		if (player->quit_out_of_game)
+			continue;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE)
 			return FALSE;
 		if (!players)
@@ -301,16 +365,58 @@ static boolean firefight_prepare(void)
 	}
 	if (players < 2)
 		return FALSE;
-	firefight.variant = NONE;
-	data_iterator_new(&iterator, actor_data);
-	while ((actor = (struct actor_datum *)data_iterator_next(&iterator)) != NULL)
+	if (!firefight.selection_valid || (firefight.spawn_encounter[0] && !explicit_actor))
 	{
-		struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(actor->meta.unit_index, _object_mask_biped);
+		firefight.phase = 4;
+		firefight.deadline = game_time_get() + 5 * TICKS_PER_SECOND;
+		firefight_notice("Firefight: invalid actor/spawn selection; encounter aborted");
+		return FALSE;
+	}
+	firefight.variant = NONE;
+	if (explicit_actor)
+	{
 		struct actor_variant_definition *variant;
+
+		firefight.variant = tag_loaded(ACTOR_VARIANT_DEFINITION_TAG, firefight.actor_path);
+		if (firefight.variant == NONE)
+		{
+			firefight.phase = 4;
+			firefight.deadline = game_time_get() + 5 * TICKS_PER_SECOND;
+			firefight_notice("Firefight: configured actor is not loaded; encounter aborted");
+			return FALSE;
+		}
+		variant = actor_variant_definition_get(firefight.variant);
+		if (variant->actor_reference.index == NONE || variant->unit_reference.index == NONE)
+		{
+			firefight.phase = 4;
+			firefight.deadline = game_time_get() + 5 * TICKS_PER_SECOND;
+			firefight_notice("Firefight: configured actor has missing dependencies; encounter aborted");
+			return FALSE;
+		}
+		firefight.team = unit_definition_get(variant->unit_reference.index)->unit.default_team;
+		if (!VALID_INDEX(firefight.team, NUMBER_OF_SOLO_CAMPAIGN_TEAMS) || !game_team_is_enemy(_game_team_player, firefight.team))
+		{
+			firefight.phase = 4;
+			firefight.deadline = game_time_get() + 5 * TICKS_PER_SECOND;
+			firefight_notice("Firefight: configured actor is not hostile; encounter aborted");
+			return FALSE;
+		}
+	}
+	/* Swarm actors have no single meta.unit_index. Inspect each real biped
+	and its native actor binding so infection forms keep per-body identity. */
+	object_iterator_new(&enemies, _object_mask_biped, 0);
+	while (object_iterator_next(&enemies))
+	{
+		struct unit_datum *unit = unit_get(enemies.index);
+		struct actor_variant_definition *variant;
+		long actor_index = unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index;
 		real x, y, z, distance;
 
-		if (!unit || !game_team_is_enemy(_game_team_player, unit->object.owner_team_index) ||
+		if (unit->unit.player_index != NONE || actor_index == NONE || !game_team_is_enemy(_game_team_player, unit->object.owner_team_index) ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE)
+			continue;
+		actor = actor_try_and_get(actor_index);
+		if (!actor || actor->meta.variant_definition_index == NONE)
 			continue;
 		variant = actor_variant_definition_get(actor->meta.variant_definition_index);
 		x = unit->object.position.x - player_position.x;
@@ -318,21 +424,46 @@ static boolean firefight_prepare(void)
 		z = unit->object.position.z - player_position.z;
 		distance = x*x + y*y + z*z;
 		if (variant->actor_reference.index != NONE && distance < nearest &&
-			actor_definition_get(variant->actor_reference.index)->type == _actor_grunt)
+			(explicit_actor ? actor->meta.variant_definition_index == firefight.variant :
+			actor_definition_get(variant->actor_reference.index)->type == _actor_grunt))
 		{
+			found_origin = TRUE;
 			nearest = distance;
 			firefight.variant = actor->meta.variant_definition_index;
+			firefight.team = unit->object.owner_team_index;
+			firefight.facing = (real)atan2(unit->object.forward.j, unit->object.forward.i);
 			firefight.origin = unit->object.position;
 		}
-		if (remove_count < NUMBEROF(remove_units))
-			remove_units[remove_count++] = actor->meta.unit_index;
 	}
-	if (firefight.variant == NONE)
+	if (firefight.spawn_encounter[0])
+	{
+		found_origin = firefight_authored_origin(&player_position);
+		if (!found_origin)
+		{
+			firefight.phase = 4;
+			firefight.deadline = game_time_get() + 5 * TICKS_PER_SECOND;
+			firefight_notice("Firefight: no valid configured spawn in this BSP; encounter aborted");
+			return FALSE;
+		}
+	}
+	if (firefight.variant == NONE || !found_origin)
+		return FALSE;
+	if (!VALID_INDEX(firefight.team, NUMBER_OF_SOLO_CAMPAIGN_TEAMS))
 		return FALSE;
 	/* The campaign encounter gives way to the announced wave. These removals
-	are setup, never credited as wave deaths or score. */
-	while (remove_count > 0)
-		object_delete(remove_units[--remove_count]);
+	are setup, never credited as wave deaths or score. Walk the bodies again:
+	a swarm may contain more bodies than the actor table has entries. */
+	object_iterator_new(&enemies, _object_mask_biped, 0);
+	while (object_iterator_next(&enemies))
+	{
+		struct unit_datum *unit = unit_get(enemies.index);
+		long actor_index = unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index;
+
+		if (unit->unit.player_index == NONE && actor_index != NONE && actor_try_and_get(actor_index) &&
+			game_team_is_enemy(_game_team_player, unit->object.owner_team_index) &&
+			!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) && unit->object.parent_object_index == NONE)
+			object_delete(enemies.index);
+	}
 	/* Reuse co-op's in-memory spawn positions for a team recovery. A full
 	checkpoint revert would resurrect waves and restore spent lives. */
 	players_note_checkpoint();
@@ -346,18 +477,32 @@ static long firefight_spawn(short number)
 	struct actor_datum *actor;
 	real_point3d position;
 	long unit_index, actor_index;
+	boolean swarm;
 
 	if (!coop_enemies_spread_position(&firefight.origin, number + 1, NULL, &position))
 		return NONE;
 	object_placement_data_new(&placement, variant->unit_reference.index, NONE);
 	placement.position = position;
-	placement.owner_team_index = _game_team_covenant;
+	vector3d_from_angle(&placement.forward, firefight.facing);
+	placement.owner_team_index = firefight.team;
 	unit_index = object_new(&placement);
 	if (unit_index == NONE)
 		return NONE;
-	biped_fix_position(unit_index, NONE, &position, NULL, 1.0f, TRUE, FALSE, FALSE);
+	if (object_get(unit_index)->object.type != _object_type_biped)
+	{
+		object_delete(unit_index);
+		return NONE;
+	}
+	if (!biped_fix_position(unit_index, NONE, &position, NULL, 1.0f, TRUE, FALSE, FALSE))
+	{
+		object_delete(unit_index);
+		return NONE;
+	}
 	actor_customize_unit(firefight.variant, unit_index);
-	actor_index = actor_create_for_unit(FALSE, unit_index, firefight.variant, NONE, NONE,
+	/* Keep the native type/flag contract: Flood infection forms use real swarm
+	attachment, while combat forms remain individual actors. Never rewrite tags. */
+	swarm = TEST_FLAG(actor_definition_get(variant->actor_reference.index)->flags, _actor_definition_swarm_actor_bit);
+	actor_index = actor_create_for_unit(swarm, unit_index, firefight.variant, NONE, NONE,
 		FALSE, NONE, FALSE, 2, 0, NONE, 0);
 	if (actor_index == NONE)
 	{
@@ -371,7 +516,7 @@ static long firefight_spawn(short number)
 		actor_set_active(actor_index, TRUE);
 	if (actor->meta.active && actor->meta.dormant)
 		actor_set_dormant(actor_index, FALSE);
-	actor_set_team(actor_index, _game_team_covenant);
+	actor_set_team(actor_index, firefight.team);
 	object_set_automatic_deactivation(unit_index, FALSE);
 	actor_verify_activation(actor_index);
 	return unit_index;
@@ -386,11 +531,13 @@ static void firefight_pursue(long unit_index)
 	struct data_iterator iterator;
 	struct player_datum *player;
 	long target = NONE, prop_index;
+	long actor_index;
 	real nearest = 0.0f;
 
-	if (unit->unit.actor_index == NONE)
+	actor_index = unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index;
+	if (actor_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return;
-	actor = actor_get(unit->unit.actor_index);
+	actor = actor_get(actor_index);
 	data_iterator_new(&iterator, player_data);
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 	{
@@ -412,7 +559,7 @@ static void firefight_pursue(long unit_index)
 	actor->emotions.currently_defending = FALSE;
 	actor->emotions.forced_to_charge = TRUE;
 	actor->state.artificial_combat_status = MAX(actor->state.artificial_combat_status, 4);
-	prop_index = prop_get_base_by_unit_index(unit->unit.actor_index, target, TRUE, TRUE);
+	prop_index = prop_get_base_by_unit_index(actor_index, target, TRUE, TRUE);
 	if (prop_index != NONE)
 	{
 		struct prop_datum *prop = prop_try_and_get(prop_index);
@@ -425,7 +572,7 @@ static void firefight_pursue(long unit_index)
 		if (prop && (actor->target.target_prop_index != prop_index || prop->state != _prop_state_acknowledged))
 		{
 			/* Faber's AI_UNIT_EFFECT_MAGIC_SIGHT. */
-			actor_handle_unit_effect(unit->unit.actor_index, prop_index, 3);
+			actor_handle_unit_effect(actor_index, prop_index, 3);
 			prop = prop_try_and_get(prop_index);
 		}
 		if (prop && prop->state >= _prop_state_becoming_unacknowledged && prop->state <= _prop_state_acknowledged)
@@ -438,12 +585,12 @@ static void firefight_pursue(long unit_index)
 			actor->target.target_type = _actor_target_acknowledged_enemy;
 		}
 	}
-	if (!actor->control.path.path.valid && nearest > 3.5f * 3.5f)
+	if (!actor->meta.swarm && !actor->control.path.path.valid && nearest > 3.5f * 3.5f)
 	{
 		if (prop_index != NONE)
-			actor_move_to_prop(unit->unit.actor_index, prop_index, 5.0f);
+			actor_move_to_prop(actor_index, prop_index, 5.0f);
 		else
-			actor_move_to_point(unit->unit.actor_index, &object_get(target)->object.position, NONE, NONE);
+			actor_move_to_point(actor_index, &object_get(target)->object.position, NONE, NONE);
 	}
 }
 
@@ -512,7 +659,11 @@ static void firefight_update(void)
 				firefight_notice("Firefight: enemy lost; encounter aborted");
 				return;
 			}
-			if (!firefight.killed[index] && TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			/* Feigned Flood deaths retain their actor binding. Final unit_died
+			detaches both actor kinds; only then can this body award wave credit. */
+			if (!firefight.killed[index] && TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
+				unit->unit.feign_death_timer == 0 && unit->unit.actor_index == NONE &&
+				unit->unit.swarm_actor_index == NONE)
 			{
 				firefight.killed[index] = TRUE;
 				firefight.score += 100;
@@ -818,11 +969,19 @@ void coop_enemies_new_game(
 	void)
 {
 	char const *mode = config_string("network.coop_enemies_mode");
+	char const *actor = config_string("network.firefight_actor");
+	char const *spawn = config_string("network.firefight_spawn_encounter");
 
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
 	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
 	firefight.lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
+	firefight.selection_valid = strlen(actor) < sizeof(firefight.actor_path) && strlen(spawn) < sizeof(firefight.spawn_encounter);
+	if (firefight.selection_valid)
+	{
+		strcpy(firefight.actor_path, actor);
+		strcpy(firefight.spawn_encounter, spawn);
+	}
 	/* (an amount past Server Setup's, as it shows it: its nearest choice's
 	end) */
 	coop_enemies.percent = (short)PIN(config_integer("network.coop_enemies"), COOP_ENEMIES_MINIMUM_PERCENT,

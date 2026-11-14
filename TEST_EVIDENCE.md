@@ -275,3 +275,19 @@ An initial invocation used an absent test path, ran no tests, and was corrected.
 This accepts one bounded automated encounter, not the full Faber feature set or
 human gameplay. Full HUD/lives/settings, individual kill credit/medals, defeat,
 late join/reconnect, creator-map and non-Windows acceptance remain open.
+
+## Subsequent source-only work: not runtime evidence
+
+The owner deferred tests, builds, runtime queries and game launches. Shared-life
+source `c8196f81` and the subsequent loaded-actor/native-spawn increment have not
+been compiled or executed. Historical B40 results above do not cover these edits.
+The new source retains native faction/swarm attachment, requires valid placement
+and excludes feigned Flood deaths from wave credit; it does not establish Zombie
+gameplay, carrier-child accounting, an authored-rules importer or MP-map support.
+
+The requested companion check-in read Spark at `1f16760` and its unfinished
+Firefight source edits. Its registration/discovery consumer and prepared-round
+export are implemented source, not a tested Spark-to-Forerunner loop. The existing
+integration contract records the concrete OpenCE build and shared-folder launch
+guards. No Spark file, original map, runtime or installation was changed; no test,
+build, capability query, game launch, fetch or push was performed in this increment.

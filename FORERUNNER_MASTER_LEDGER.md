@@ -88,10 +88,25 @@ No Forerunner importer for Spark Firefight JSON exists, and no converted candida
 was produced by this coordination update. Do not relabel the B40 proof as Zombie play.
 
 Code-only work is now requested: no new tests/builds/native runs until the owner
-resumes execution. Shared-life/defeat code is in progress: real death accounting,
-host-only respawn gate and no campaign-state rewind on a Firefight team wipe.
-It is unverified. Existing small harness edits predate the no-tests instruction
-and were not run. Preserve the accepted runtime and finish engine-side integration
-against the real Zombie actor/spawner requirements. Spark owns conversion/authoring;
-Forerunner owns loading, combat, lifecycle and replication. No new coordination
-framework, test orchestrator or cross-repository edits are authorized by this handoff.
+resumes execution. Shared-life/defeat source is preserved in `c8196f81`: real death
+accounting, host-only respawn gate and no campaign-state rewind on a Firefight wipe.
+The next source increment selects an exact loaded actor variant and optional named
+native squad spawn, preserves faction/native swarm attachment, refuses blocked
+placement and excludes feigned Flood deaths from wave credit. It removes the
+actor-count-limited setup removal list in favor of native body iteration. These
+changes are unbuilt/untested; prior B40 evidence does not cover them. Existing small
+harness edits predate the no-tests instruction and were not run.
+
+The requested Spark check-in inspected source read-only at `1f16760`, plus its
+unfinished Firefight source-reconciliation edits. Spark now has unverified installed
+Forerunner registration/discovery and prepared native-round source export. Its
+OpenCE build preflight and exact-hash shared-data launch policy still block a
+direct authored Forerunner loop. The existing contract records the exact modules,
+path settings, CE scenario route and next handoff; no extra coordination system
+was added. No Spark file, original game data, remote or branch was changed.
+
+Continue the actual Zombie actor/spawner and authored encounter lifecycle in
+Forerunner; Spark owns reviewed conversion/authoring and CE build receipt routing.
+The original Demo multiplayer map, missing original audio, carrier children,
+multi-group waves, full HUD and creator-map/two-peer acceptance remain open. Do not
+call the actor selector or the accepted B40 proof a completed Zombie encounter.
