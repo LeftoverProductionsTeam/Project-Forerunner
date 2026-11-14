@@ -192,6 +192,15 @@ def environment_of(window=False, display=None):
     return net_compare.copy_environment(copy, "127.0.0.210", "127.0.0.211", "join", 1, args, [])
 
 
+def test_private_loopback_runs_disable_background_reporting():
+    environment = environment_of()
+    for name in ("HALO_USAGE_STATS", "HALO_NET_REPORT_HOSTED", "HALO_NET_REPORT_GAMES",
+                 "HALO_NET_REPORT_EVENTS", "HALO_MAP_TORRENTS", "HALO_WORKSHOP_MAPS",
+                 "HALO_DISCORD_REGISTER_LAUNCH"):
+        assert environment[name] == "false"
+    assert environment["HALO_CRASH_REPORTS"] == "no"
+
+
 def test_headless_copies_have_no_display(monkeypatch):
     monkeypatch.setenv("DISPLAY", ":0")
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
