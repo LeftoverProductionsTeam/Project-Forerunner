@@ -661,3 +661,7 @@ pose before headset turning/leaning. No new HUD renderer, assets, simulation,
 packets or Linux dependency. Source/caller/diff review only; no builds/tests or
 launches. Reticle/grip alignment, vergence, physical scopes, vehicle aiming,
 physical interactions and hardware performance/acceptance remain open.
+
+UNVERIFIED settings protection: config_write_file honors SDL_FlushIO failure
+before replacement, retaining its existing close/cleanup path. Pinned SDL header
+and source review only; no tests, settings/save access or gear writer.

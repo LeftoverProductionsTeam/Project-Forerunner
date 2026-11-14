@@ -620,3 +620,7 @@ headset access or native validation. Hit/spread references, both-eye consistency
 FOV/viewport changes, HUD warnings, tracking loss, aiming transitions, recenter,
 world/fog rendering, Linux/flat parity and comfort need authorized validation.
 This is not ballistic prediction, a physical scope or hardware acceptance.
+
+UNVERIFIED settings flush repair: pinned SDL header and source flow reviewed;
+failed flush now prevents replacement. No tests, builds, launches or settings/
+save access. Fault behavior and platform parity await authorized validation.

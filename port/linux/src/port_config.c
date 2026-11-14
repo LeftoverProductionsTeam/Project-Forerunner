@@ -3732,7 +3732,7 @@ static int config_write_file(const char *path, const char *text)
 			return 0;
 		written = SDL_WriteIO(stream, text, length) == length;
 		if (written)
-			SDL_FlushIO(stream);
+			written = SDL_FlushIO(stream); /* keep the old file if flushing fails */
 		written = SDL_CloseIO(stream) && written;
 	}
 	written = written && SDL_RenamePath(temporary, path);
