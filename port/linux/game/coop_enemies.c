@@ -97,6 +97,9 @@ enum
 	/* a kept rider placed every this many ticks, as the seated ones
 	jumped out */
 	RIDER_RELEASE_TICKS = 4,
+	FIREFIGHT_INITIAL_ENEMIES = 2,
+	/* Faber's existing bounded tracked-enemy table. */
+	FIREFIGHT_MAX_TRACKED_ENEMIES = 32,
 };
 
 /* (coop_enemies.h's count of the places on all the rings) */
@@ -171,7 +174,8 @@ static struct
 /* One finite encounter, using existing campaign tags, navigation and co-op
 replication. The actor creation and clear-all-wave progression are adapted from
 SutlabSol's OpenCE-Faber e4ffe0fe9874870b4fca1fca76beb83514c793f4,
-firefight_spawner.c:spawn_single_actor_at and firefight.c:firefight_update
+firefight_spawner.c:spawn_single_actor_at/track_enemy_unit, firefight.c:firefight_update
+and actors.c's Outbreak encounterless-child branch
 (AGPL-3.0-or-later). No Faber ranks, menus or private network packet are needed. */
 static struct
 {
@@ -182,8 +186,9 @@ static struct
 	long deadline;
 	short lives;
 	long wipe_deadline;
-	long units[2];
-	boolean killed[2];
+	short unit_count;
+	long units[FIREFIGHT_MAX_TRACKED_ENEMIES];
+	boolean killed[FIREFIGHT_MAX_TRACKED_ENEMIES];
 	long variant;
 	short team;
 	real facing;
@@ -231,6 +236,66 @@ static void firefight_notice(char const *text)
 	platform_log("firefight: %s", text);
 }
 
+static void firefight_wake_unit(long unit_index, long actor_index, short team)
+{
+	struct actor_datum *actor = actor_get(actor_index);
+
+	actor->meta.force_active = TRUE;
+	actor->meta.dormant_desire = FALSE;
+	if (!actor->meta.active)
+		actor_set_active(actor_index, TRUE);
+	if (actor->meta.active && actor->meta.dormant)
+		actor_set_dormant(actor_index, FALSE);
+	actor_set_team(actor_index, team);
+	object_set_automatic_deactivation(unit_index, FALSE);
+	actor_verify_activation(actor_index);
+}
+
+boolean coop_enemies_firefight_tracks_unit(long unit_index)
+{
+	short index;
+
+	if (!coop_enemies_firefight_active() || firefight.phase != 2 || unit_index == NONE)
+		return FALSE;
+	for (index = 0; index < firefight.unit_count; index++)
+		if (firefight.units[index] == unit_index)
+			return TRUE;
+	return FALSE;
+}
+
+/* Native carrier children join the same bounded table, as Faber's spawner
+tracks real units. A partial or untrackable spawn aborts instead of clearing a
+wave with uncounted enemies. The parent may already have a recorded final death. */
+boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_index)
+{
+	struct unit_datum *unit;
+	long actor_index;
+
+	if (!coop_enemies_firefight_tracks_unit(parent_index))
+		return FALSE;
+	if (coop_enemies_firefight_tracks_unit(unit_index))
+		return TRUE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	actor_index = unit ? (unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index) : NONE;
+	if (!unit || firefight.unit_count >= NUMBEROF(firefight.units) || unit->unit.player_index != NONE ||
+		actor_index == NONE ||
+		TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		!VALID_INDEX(unit->object.owner_team_index, NUMBER_OF_SOLO_CAMPAIGN_TEAMS) ||
+		!game_team_is_enemy(_game_team_player, unit->object.owner_team_index))
+	{
+		firefight.phase = 4;
+		firefight.deadline = game_time_get() + 5 * TICKS_PER_SECOND;
+		firefight_notice("Firefight: native child spawn failed or exceeded capacity; encounter aborted");
+		return FALSE;
+	}
+	firefight_wake_unit(unit_index, actor_index, unit->object.owner_team_index);
+	firefight.units[firefight.unit_count] = unit_index;
+	firefight.killed[firefight.unit_count] = FALSE;
+	firefight.unit_count++;
+	platform_log("firefight: spawned child %08lx from %08lx", (unsigned long)unit_index, (unsigned long)parent_index);
+	return TRUE;
+}
+
 void coop_enemies_firefight_player_died(long unit_index)
 {
 	struct unit_datum *unit;
@@ -264,7 +329,7 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 		unit->unit.feign_death_timer != 0 || unit->unit.actor_index != NONE ||
 		unit->unit.swarm_actor_index != NONE)
 		return;
-	for (index = 0; index < NUMBEROF(firefight.units); index++)
+	for (index = 0; index < firefight.unit_count; index++)
 	{
 		if (firefight.units[index] == unit_index && !firefight.killed[index])
 		{
@@ -501,7 +566,6 @@ static long firefight_spawn(short number)
 {
 	struct actor_variant_definition *variant = actor_variant_definition_get(firefight.variant);
 	struct object_placement_data placement;
-	struct actor_datum *actor;
 	real_point3d position;
 	long unit_index, actor_index;
 	boolean swarm;
@@ -536,16 +600,7 @@ static long firefight_spawn(short number)
 		object_delete(unit_index);
 		return NONE;
 	}
-	actor = actor_get(actor_index);
-	actor->meta.force_active = TRUE;
-	actor->meta.dormant_desire = FALSE;
-	if (!actor->meta.active)
-		actor_set_active(actor_index, TRUE);
-	if (actor->meta.active && actor->meta.dormant)
-		actor_set_dormant(actor_index, FALSE);
-	actor_set_team(actor_index, firefight.team);
-	object_set_automatic_deactivation(unit_index, FALSE);
-	actor_verify_activation(actor_index);
+	firefight_wake_unit(unit_index, actor_index, firefight.team);
 	return unit_index;
 }
 
@@ -653,7 +708,8 @@ static void firefight_update(void)
 	}
 	if (firefight.phase == 1 && now >= firefight.deadline)
 	{
-		for (index = 0; index < NUMBEROF(firefight.units); index++)
+		firefight.unit_count = 0;
+		for (index = 0; index < FIREFIGHT_INITIAL_ENEMIES; index++)
 		{
 			firefight.units[index] = firefight_spawn(index);
 			if (firefight.units[index] == NONE)
@@ -663,19 +719,20 @@ static void firefight_update(void)
 				firefight_notice("Firefight: spawn failed; encounter aborted");
 				return;
 			}
+			firefight.unit_count++;
 			platform_log("firefight: spawned %08lx", (unsigned long)firefight.units[index]);
 		}
 		firefight.phase = 2;
 		{
 			char text[128];
 
-			snprintf(text, sizeof(text), "Firefight: wave %d of 3 - eliminate both enemies", (int)firefight.wave);
+			snprintf(text, sizeof(text), "Firefight: wave %d of 3 - eliminate all enemies", (int)firefight.wave);
 			firefight_notice(text);
 		}
 	}
 	if (firefight.phase == 2)
 	{
-		for (index = 0; index < NUMBEROF(firefight.units); index++)
+		for (index = 0; index < firefight.unit_count; index++)
 		{
 			struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(firefight.units[index], _object_mask_biped);
 
@@ -688,9 +745,23 @@ static void firefight_update(void)
 			}
 			if (!firefight.killed[index] && now % 15 == 0)
 				firefight_pursue(firefight.units[index]);
-			dead += firefight.killed[index] ? 1 : 0;
+			if (firefight.killed[index])
+			{
+				/* A carrier dies before its animation destroys it and releases
+				children. Keep the wave open until that native spawn is resolved. */
+				if (unit)
+				{
+					struct unit_definition *definition = unit_definition_get(unit->definition_index);
+
+					if (TEST_FLAG(definition->unit.flags, _unit_is_destroyed_after_dying_bit) &&
+						definition->unit.spawned_actor_variant.index != NONE && definition->unit.spawn_actor_upper_bound > 0 &&
+						!TEST_FLAG(unit->unit.flags, _unit_spawned_actors_bit))
+						continue;
+				}
+				dead++;
+			}
 		}
-		if (dead == NUMBEROF(firefight.units))
+		if (dead == firefight.unit_count)
 		{
 			firefight.phase = 3;
 			firefight.deadline = now + 3 * TICKS_PER_SECOND;
@@ -1016,6 +1087,7 @@ void coop_enemies_reset(
 	coop_enemies.rider_count = 0;
 	/* A checkpoint restored another set of object handles. */
 	firefight.phase = 0;
+	firefight.unit_count = 0;
 	firefight.wipe_deadline = 0;
 	csmemset(firefight.killed, 0, sizeof(firefight.killed));
 }

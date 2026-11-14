@@ -292,9 +292,17 @@ integration contract records the concrete OpenCE build and shared-folder launch
 guards. No Spark file, original map, runtime or installation was changed; no test,
 build, capability query, game launch, fetch or push was performed in this increment.
 
-The next source-only repair replaces wave-death polling with a final `unit_died`
+Source checkpoint `1e791b589` replaces wave-death polling with a final `unit_died`
 notification, retaining exact handles and one award before destruction can remove
 the body. It also fixes `actors_spawn_from_unit` using the ordinary actor binding
 after selecting a swarm binding. Static source review only: no tests, build or game
 was run. Carrier child spawning/accounting and the recorded physics crash remain
 open; these changes are not Zombie gameplay acceptance.
+
+The subsequent source-only carrier increment adapts Faber's tracked-unit table
+(32 slots) and Outbreak encounterless-child gate. Only tracked Firefight parents
+get that gate; their real native children join pursuit, final-death credit and wave
+completion. A pending carrier spawn holds the wave open; partial/unsupported or
+over-capacity creation aborts. No tests/builds/native runs were performed. Normal
+object deletion was confirmed deferred by source inspection, so the apparent
+destruction-order issue was not patched or claimed as the Zombie crash's cause.

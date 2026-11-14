@@ -78,7 +78,7 @@ the ability to launch a process.
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
 | `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
-| `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment; final deaths alone earn wave credit. Still three two-body waves on a co-op scenario, not Spark's authored rules. |
+| `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment and final-death credit. Three waves of two initial bodies plus native carrier children, bounded to 32 tracked bodies per wave on a co-op scenario; not Spark's authored rules. |
 | Spark `FirefightConfig` schema `1` | Authoring/preview only. **Forerunner has no importer for this JSON.** |
 | Standard actor palettes, encounters/squads, player profiles, HaloScript | Existing native authoring/runtime boundary. Spark emits source; the inherited engine executes supported compiled caches. Specific generated maps still require gameplay acceptance. |
 | Live edits, runtime-state query, transactions/undo | Not implemented by this adapter. No private-memory/debug-console fallback. |
@@ -137,8 +137,11 @@ from Spark's `gs_firefight` HaloScript controller: select exactly one wave owner
 The director still requires a network co-op/solo scenario and two ready players;
 the original Demo multiplayer cache does not satisfy that requirement.
 Native final-death notification now has unverified source so a destroyed wave body
-can be credited before removal. Encounterless carrier children are still blocked
-by the original native encounter/squad requirement and are not wave-accounted.
+can be credited before removal. A subsequent unverified source increment adapts
+Faber's Outbreak gate for tracked parents: native children join that wave's same
+32-slot tracker, and a dead carrier's pending native spawn delays wave completion.
+Partial, unsupported or over-capacity child creation aborts explicitly. This is
+neither a converted Zombie map nor accepted carrier gameplay.
 
 ## Reuse audit and ownership
 
@@ -211,8 +214,9 @@ editing, JSON import or multiplayer authoring as ready.
 
 **Forerunner owes:** the actual Zombie actor/spawner lifecycle, relevant Faber
 HUD/lives/configuration integration and safe loading of the resulting content.
-Actor/spawn selection now has source beyond the Grunt default, but the co-op/solo
-restriction, carrier/child-unit lifecycle, full wave composition and missing rules
+Actor/spawn selection and carrier-child tracking now have unverified source beyond
+the Grunt default, but the co-op/solo restriction, carrier gameplay acceptance,
+full wave composition and missing rules
 importer remain open. Spark need not duplicate engine simulation to hide them.
 New structured multiplayer data must
 use negotiated Delta support, not raw native-struct packets or silent protocol-44 changes.

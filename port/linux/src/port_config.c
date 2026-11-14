@@ -1785,8 +1785,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		_platform_all,
 		"Host: run a finite three-wave encounter after two co-op players leave\n"
 		"the opening. Default: a nearby Grunt; explicit actor/spawn selection\n"
-		"uses the map's loaded tags and native encounter locations. Two enemies\n"
-		"per wave, 100 team points per final death, then back to the lobby. Off." },
+		"uses the map's loaded tags and native encounter locations. Two initial\n"
+		"enemies per wave; native carrier children join it, up to 32 tracked\n"
+		"bodies per wave. 100 team points per final death, then the lobby. Off." },
 	{ "network.firefight_actor", _config_string, "\"\"", "HALO_NET_FIREFIGHT_ACTOR", _environment_value,
 		_platform_all,
 		"Host: loaded actor-variant tag path without extension for the finite\n"

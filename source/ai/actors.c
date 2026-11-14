@@ -321,6 +321,7 @@ symbols in this file:
 #include "networking/network_game_globals.h"
 #include "stubbs_mode.h" /* port: port/linux/game/stubbs_mode.c */
 #include "mcc_skulls.h" /* port: MCC's skulls on MCC maps */
+#include "coop_enemies.h" /* port: native Firefight child ownership (coop_enemies.c) */
 
 /* ---------- constants */
 
@@ -2885,6 +2886,7 @@ short actors_spawn_from_unit(
 			source_unit->unit.actor_index;
 		short encounter_index;
 		short squad_index;
+		boolean firefight_parent = coop_enemies_firefight_tracks_unit(unit_index);
 
 		if (source_actor_index != NONE)
 		{
@@ -2900,7 +2902,9 @@ short actors_spawn_from_unit(
 			squad_index = source_unit->unit.fake_squad_index;
 		}
 
-		if (encounter_index != NONE && squad_index != NONE)
+		/* port: Faber's Outbreak allows its encounterless carriers to spawn
+		children too. Here only a tracked host Firefight parent gets that path. */
+		if ((encounter_index != NONE && squad_index != NONE) || firefight_parent)
 		{
 			struct actor_variant_definition *actor_variant_definition =
 				actor_variant_definition_get(actor_variant_definition_index);
@@ -2935,7 +2939,7 @@ short actors_spawn_from_unit(
 
 					if (spawned_unit->object.type == _object_type_biped)
 					{
-						biped_fix_position(
+						if (!biped_fix_position(
 							spawned_unit_index,
 							NONE,
 							&placement_data.position,
@@ -2943,7 +2947,18 @@ short actors_spawn_from_unit(
 							1.f,
 							TRUE,
 							FALSE,
-							FALSE);
+							FALSE) && firefight_parent)
+						{
+							/* port: no unreachable child silently omitted from a wave. */
+							object_delete(spawned_unit_index);
+							break;
+						}
+					}
+					else if (firefight_parent)
+					{
+						/* port: this encounter tracks biped enemies only. */
+						object_delete(spawned_unit_index);
+						break;
 					}
 
 					actor_customize_unit(actor_variant_definition_index, spawned_unit_index);
@@ -2966,10 +2981,19 @@ short actors_spawn_from_unit(
 							_error_silent,
 							"WARNING: cannot create actor to be spawned from unit");
 						object_delete(spawned_unit_index);
+						/* port: abort a partial Firefight spawn below. */
+						if (firefight_parent)
+							break;
 					}
 					else
 					{
 						actor_verify_activation(actor_index);
+						/* port: retain every actual native child in its parent's wave. */
+						if (firefight_parent && !coop_enemies_firefight_track_spawned_unit(unit_index, spawned_unit_index))
+						{
+							object_delete(spawned_unit_index);
+							break;
+						}
 						if (throw_velocity > 0.f)
 						{
 							real_vector3d acceleration;
@@ -2988,7 +3012,12 @@ short actors_spawn_from_unit(
 						spawned_actor_count++;
 					}
 				}
+				else if (firefight_parent)
+					break; /* port: no repeated allocation attempts for a failed wave. */
 			}
+			/* port: partial creation is an explicit failure, never a cleared wave. */
+			if (firefight_parent && spawned_actor_count != actor_count)
+				coop_enemies_firefight_track_spawned_unit(unit_index, NONE);
 		}
 	}
 

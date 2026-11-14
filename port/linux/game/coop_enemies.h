@@ -69,5 +69,9 @@ boolean coop_enemies_firefight_out_of_lives(void);
 void coop_enemies_firefight_player_died(long unit_index);
 /* units.c: final unit_died only, after detaching its actor bindings. */
 void coop_enemies_firefight_enemy_died(long unit_index);
+/* actors.c: only tracked Firefight parents may spawn encounterless children.
+The host tracks each actual child; NONE or exhausted tracking aborts the encounter. */
+boolean coop_enemies_firefight_tracks_unit(long unit_index);
+boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_index);
 
 #endif

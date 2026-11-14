@@ -97,7 +97,7 @@ actor-count-limited setup removal list in favor of native body iteration. These
 changes are unbuilt/untested; prior B40 evidence does not cover them. Existing small
 harness edits predate the no-tests instruction and were not run.
 
-The next source-only repair records exact tracked wave deaths in native final
+Source checkpoint `1e791b589` records exact tracked wave deaths in native final
 `unit_died`, adapting Faber's kill notification. Destruction damage can delete a
 body before the director's polling tick; a recorded death now survives that removal.
 Feigned deaths, duplicate notifications, clients and untracked/live deletions do
@@ -115,11 +115,13 @@ was added. No Spark file, original game data, remote or branch was changed.
 
 Continue the actual Zombie actor/spawner and authored encounter lifecycle in
 Forerunner; Spark owns reviewed conversion/authoring and CE build receipt routing.
-Native `actors_spawn_from_unit` still requires an encounter/squad, so the finite
-director's encounterless carriers cannot release their children. Faber's Outbreak
-path provides an existing adaptation to inspect; actual child identities must join
-wave completion before enabling that path. Do not count only a dead carrier and
-declare its surviving infection forms cleared.
-The original Demo multiplayer map, missing original audio, carrier children,
+The next source increment adapts Faber's Outbreak encounterless-child gate for
+tracked Firefight parents only. Native children join the existing wave table,
+bounded to Faber's 32 slots total per wave, with the same pursuit/final-death path.
+Wave completion waits for a dead carrier's pending native spawn and all actual
+children; partial, unsupported or over-capacity creation aborts explicitly. This
+is unbuilt/untested source. Normal object deletion was inspected and is deferred;
+no speculative destruction-order patch was applied and no physics-crash fix claimed.
+The original Demo multiplayer map, missing original audio, carrier gameplay,
 multi-group waves, full HUD and creator-map/two-peer acceptance remain open. Do not
 call the actor selector or the accepted B40 proof a completed Zombie encounter.
