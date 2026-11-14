@@ -2888,8 +2888,9 @@ short actors_spawn_from_unit(
 
 		if (source_actor_index != NONE)
 		{
-			struct actor_datum *source_actor = actor_get(source_unit->unit.actor_index);
-			/* BUG: January reads actor_index even when source_actor_index selected swarm_actor_index. */
+			/* port: use the selected binding; the original read actor_index
+			even when the source belongs to a swarm and only that binding exists. */
+			struct actor_datum *source_actor = actor_get(source_actor_index);
 			encounter_index = source_actor->meta.encounter_index;
 			squad_index = source_actor->meta.squad_index;
 		}

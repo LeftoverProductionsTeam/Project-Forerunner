@@ -136,6 +136,9 @@ and native spawn location once compatible source exists. It remains separate
 from Spark's `gs_firefight` HaloScript controller: select exactly one wave owner.
 The director still requires a network co-op/solo scenario and two ready players;
 the original Demo multiplayer cache does not satisfy that requirement.
+Native final-death notification now has unverified source so a destroyed wave body
+can be credited before removal. Encounterless carrier children are still blocked
+by the original native encounter/squad requirement and are not wave-accounted.
 
 ## Reuse audit and ownership
 

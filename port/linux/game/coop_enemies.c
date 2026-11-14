@@ -249,6 +249,33 @@ void coop_enemies_firefight_player_died(long unit_index)
 	firefight_notice(text);
 }
 
+/* Faber's firefight_notify_actor_or_unit_killed records a native death rather
+than waiting for a corpse. Keep this encounter's exact handles and one award;
+destruction damage may delete the body before the next Firefight tick. */
+void coop_enemies_firefight_enemy_died(long unit_index)
+{
+	struct unit_datum *unit;
+	short index;
+
+	if (!coop_enemies_firefight_active() || firefight.phase != 2)
+		return;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (!unit || !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		unit->unit.feign_death_timer != 0 || unit->unit.actor_index != NONE ||
+		unit->unit.swarm_actor_index != NONE)
+		return;
+	for (index = 0; index < NUMBEROF(firefight.units); index++)
+	{
+		if (firefight.units[index] == unit_index && !firefight.killed[index])
+		{
+			firefight.killed[index] = TRUE;
+			firefight.score += 100;
+			platform_log("firefight: enemy died %08lx", (unsigned long)unit_index);
+			break;
+		}
+	}
+}
+
 /* Adapted from Faber's firefight_count_living_players and wipe check: quit
 players are not survivors, and an exhausted team must stay dead for 3 seconds. */
 static boolean firefight_check_defeat(long now)
@@ -658,16 +685,6 @@ static void firefight_update(void)
 				firefight.deadline = now + 5 * TICKS_PER_SECOND;
 				firefight_notice("Firefight: enemy lost; encounter aborted");
 				return;
-			}
-			/* Feigned Flood deaths retain their actor binding. Final unit_died
-			detaches both actor kinds; only then can this body award wave credit. */
-			if (!firefight.killed[index] && TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
-				unit->unit.feign_death_timer == 0 && unit->unit.actor_index == NONE &&
-				unit->unit.swarm_actor_index == NONE)
-			{
-				firefight.killed[index] = TRUE;
-				firefight.score += 100;
-				platform_log("firefight: enemy died %08lx", (unsigned long)firefight.units[index]);
 			}
 			if (!firefight.killed[index] && now % 15 == 0)
 				firefight_pursue(firefight.units[index]);

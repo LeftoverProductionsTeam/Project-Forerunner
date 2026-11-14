@@ -291,3 +291,10 @@ export are implemented source, not a tested Spark-to-Forerunner loop. The existi
 integration contract records the concrete OpenCE build and shared-folder launch
 guards. No Spark file, original map, runtime or installation was changed; no test,
 build, capability query, game launch, fetch or push was performed in this increment.
+
+The next source-only repair replaces wave-death polling with a final `unit_died`
+notification, retaining exact handles and one award before destruction can remove
+the body. It also fixes `actors_spawn_from_unit` using the ordinary actor binding
+after selecting a swarm binding. Static source review only: no tests, build or game
+was run. Carrier child spawning/accounting and the recorded physics crash remain
+open; these changes are not Zombie gameplay acceptance.

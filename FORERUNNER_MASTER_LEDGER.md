@@ -90,12 +90,20 @@ was produced by this coordination update. Do not relabel the B40 proof as Zombie
 Code-only work is now requested: no new tests/builds/native runs until the owner
 resumes execution. Shared-life/defeat source is preserved in `c8196f81`: real death
 accounting, host-only respawn gate and no campaign-state rewind on a Firefight wipe.
-The next source increment selects an exact loaded actor variant and optional named
+Source checkpoint `2e9c17e57` selects an exact loaded actor variant and optional named
 native squad spawn, preserves faction/native swarm attachment, refuses blocked
 placement and excludes feigned Flood deaths from wave credit. It removes the
 actor-count-limited setup removal list in favor of native body iteration. These
 changes are unbuilt/untested; prior B40 evidence does not cover them. Existing small
 harness edits predate the no-tests instruction and were not run.
+
+The next source-only repair records exact tracked wave deaths in native final
+`unit_died`, adapting Faber's kill notification. Destruction damage can delete a
+body before the director's polling tick; a recorded death now survives that removal.
+Feigned deaths, duplicate notifications, clients and untracked/live deletions do
+not award points. `actors_spawn_from_unit` also now reads its selected swarm or
+individual binding, fixing the original wrong-binding lookup. Neither repair has
+been built or tested. The original Zombie physics crash is not claimed repaired.
 
 The requested Spark check-in inspected source read-only at `1f16760`, plus its
 unfinished Firefight source-reconciliation edits. Spark now has unverified installed
@@ -107,6 +115,11 @@ was added. No Spark file, original game data, remote or branch was changed.
 
 Continue the actual Zombie actor/spawner and authored encounter lifecycle in
 Forerunner; Spark owns reviewed conversion/authoring and CE build receipt routing.
+Native `actors_spawn_from_unit` still requires an encounter/squad, so the finite
+director's encounterless carriers cannot release their children. Faber's Outbreak
+path provides an existing adaptation to inspect; actual child identities must join
+wave completion before enabling that path. Do not count only a dead carrier and
+declare its surviving infection forms cleared.
 The original Demo multiplayer map, missing original audio, carrier children,
 multi-group waves, full HUD and creator-map/two-peer acceptance remain open. Do not
 call the actor selector or the accepted B40 proof a completed Zombie encounter.

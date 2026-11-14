@@ -2880,6 +2880,9 @@ void unit_died(
 		}
 
 		unit->unit.time_of_death = game_time_get();
+		/* port: record the final wave death before destruction can delete
+		the body; feigned deaths never reach this branch (coop_enemies.c). */
+		coop_enemies_firefight_enemy_died(unit_index);
 	}
 
 	unit->unit.flags &= ~(
