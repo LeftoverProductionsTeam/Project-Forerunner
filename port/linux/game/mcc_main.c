@@ -30,7 +30,7 @@ build's pointers, which this build's Xbox addresses are not) */
 #include "networking/network_game_manager.h"
 #include "../src/port_config.h"
 
-boolean mcc_main_campaign_won(void)
+boolean mcc_main_campaign_won(char const *requested)
 {
     struct network_game *game;
     char const *current;
@@ -43,11 +43,17 @@ boolean mcc_main_campaign_won(void)
     game = server ? network_game_get_game() : NULL;
     current = game ? game->map.name : main_get_map_name();
     /* (game.mcc_campaigns, or a Workshop item's own levels: mcc_maps.c) */
-    if (!mcc_maps_campaign_order(current)) return FALSE;
+    /* A resolved script destination needs no external campaign manifest. */
+    if (!requested && !mcc_maps_campaign_order(current)) return FALSE;
     /* Clients follow the host's existing round/settings messages. */
     if (game_connection() == _game_connection_network_client) return TRUE;
     mcc_progress_complete(current, game_difficulty_level_get());
-    state = mcc_maps_next_mission(current, next);
+    if (requested && strlen(requested) < sizeof(next)) {
+        strcpy(next, requested);
+        state = 1;
+    } else {
+        state = mcc_maps_next_mission(current, next);
+    }
     if (state < 0) {
         error(_error_silent, "mcc campaign: next mission for %s is unavailable: %s", current, next);
         mcc_error_text(current, "The next campaign mission is missing or invalid. Install the complete package; no mission was skipped.", text, 512);

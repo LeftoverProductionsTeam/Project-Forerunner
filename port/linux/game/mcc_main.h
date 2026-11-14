@@ -3,11 +3,13 @@
 boolean mcc_main_load_failed(char const *name);
 boolean mcc_main_network_load_failed(char const *name);
 boolean mcc_main_map_completed(void);
-boolean mcc_main_campaign_won(void);
+/* requested: the mission the level's own scripts named with map_name
+ * (main_script_map_name), which needs no campaign manifest; NULL for none. */
+boolean mcc_main_campaign_won(char const *requested);
 #if defined(HALO_MCC) && !HALO_MCC
 /* no MCC maps in this build (HALO_MCC, halo_port_features.h): the hooks
 the shared code calls do nothing, their arguments unevaluated */
-#define mcc_main_campaign_won() ((boolean)0)
+#define mcc_main_campaign_won(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_main_load_failed(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_main_network_load_failed(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_main_map_completed() ((boolean)0)
