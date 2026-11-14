@@ -851,7 +851,9 @@ def test_tool_layouts_are_the_games(layout_program):
     what a build would not take)"""
     import random
 
-    own = define(DELTA.read_text(encoding="utf-8"), "DELTA_LEGACY_NEWEST")
+    # The generic publisher also models older ChupathingyCE builds. Compare
+    # this native encoder using its layout floor, not the historical HELLO.
+    own = define(DELTA.read_text(encoding="utf-8"), "DELTA_NATIVE_LAYOUT_NEWEST")
     for version, (layout, refused) in c_layouts(layout_program, {}).items():
         assert layout == delta_table.built_in_layout(version) and refused == 0, version
     generator = random.Random(4)
@@ -957,29 +959,29 @@ def layout_line(output, version):
 def test_loader_reads_layouts(keys, checker, tmp_path):
     """this wire's row's layouts: read, and used past the build's own
     versions within the limits; the built-in facts for its own versions"""
-    row = dict(floor(), layouts={"35": {"options_size": 60}, "44": {"options_size": 48, "dropped_messages": [92, 93],
+    row = dict(floor(), layouts={"35": {"options_size": 60}, "45": {"options_size": 48, "dropped_messages": [92, 93],
                                                                     "shield_effects_maximum": 7, "later": {"a": [1]}},
-                                  "46": {"settings_size": 13210, "join_request_extra": 300, "join_request_fill": "zeros"},
-                                  "47": {"options_size": 20, "join_request_extra": 64, "join_request_fill": "pass"}})
+                                  "47": {"settings_size": 13210, "join_request_extra": 300, "join_request_fill": "zeros"},
+                                  "48": {"options_size": 20, "join_request_extra": 64, "join_request_fill": "pass"}})
     table = write_signed(keys, tmp_path / "t10", document(serial=10, row=row))
-    output = run_checker(checker, tmp_path, "layout", 44, "offer", table, "layout", 35, "layout", 41, "layout", 44,
-                         "layout", 46, "layout", 47, "state")
+    output = run_checker(checker, tmp_path, "layout", 45, "offer", table, "layout", 35, "layout", 41, "layout", 45,
+                         "layout", 47, "layout", 48, "state")
     assert "offer 1" in output and "4 layout facts" in output
-    assert layout_line(output, 44).startswith("layout 44 settings 13200 options 44 shield 6 dropped 78,79,91,94,95,96,97,98,99,100,101,102,103,104,105,106,107 ")
+    assert layout_line(output, 45).startswith("layout 45 settings 13200 options 44 shield 6 dropped 78,79,91,94,95,96,97,98,99,100,101,102,103,104,105,106,107 ")
     lines = [line for line in output.splitlines() if line.startswith("layout ")][1:]
     assert lines[0] == "layout 35 settings 13136 options 44 shield 6 dropped - learned 0 refused 0 facts 4 join 0"
     assert lines[1].startswith("layout 41 settings 13136 options 44 shield 6 dropped 78,79,91,94,95 learned 0 refused 0")
-    assert lines[2].startswith("layout 44 settings 13204 options 48 shield 7 dropped 78,79,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107 ")
-    assert lines[3].startswith("layout 46 settings 13210 options 48 shield 7 ")
-    assert lines[4].startswith("layout 47 settings 13210 options 48 shield 7 ") and " refused 2 " in lines[4]
+    assert lines[2].startswith("layout 45 settings 13204 options 48 shield 7 dropped 78,79,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107 ")
+    assert lines[3].startswith("layout 47 settings 13210 options 48 shield 7 ")
+    assert lines[4].startswith("layout 48 settings 13210 options 48 shield 7 ") and " refused 2 " in lines[4]
     # (the join request: 234 zero bytes from 40, 236 from 42 (its version
-    # after them), the table's 300 from 46; a fill this build does not write
+    # after them), the table's 300 from 47; a fill this build does not write
     # is not taken)
     assert lines[1].endswith(" join 234") and lines[2].endswith(" join 236")
     assert lines[3].endswith(" join 300") and lines[4].endswith(" join 300")
     # (the cached table, read again at the next start)
-    output = run_checker(checker, tmp_path, "layout", 44)
-    assert layout_line(output, 44).startswith("layout 44 settings 13204 options 48 ")
+    output = run_checker(checker, tmp_path, "layout", 45)
+    assert layout_line(output, 45).startswith("layout 45 settings 13204 options 48 ")
 
 
 def test_loader_skips_other_wires_layouts(keys, checker, tmp_path):
@@ -1021,15 +1023,30 @@ FACT_43 = {"settings_size": 13200, "join_request_extra": 236, "join_request_fill
            "rider_ejection_up": 200, "dropped_messages": [97, 98, 99, 100, 103, 104, 105, 106, 107]}
 
 
+def test_loader_keeps_native_44_layout_with_signed_serial_12_facts(keys, checker, tmp_path):
+    """The published serial-12 row describes ChupathingyCE's older encoder.
+
+    Forerunner already has the checkpoint epoch and pose/deck fields in C;
+    signature acceptance must not add them again to its native 44 layout.
+    """
+    fact = dict(FACT_43, options_size=44, shield_effects_maximum=6,
+                dropped_messages=[78, 79, 91, 94, 95, 97, 98, 99, 100, 103, 104, 105, 106, 107])
+    table = write_signed(keys, tmp_path / "serial12", document(serial=12, row=dict(floor(), layouts={"44": fact})))
+    output = run_checker(checker, tmp_path, "offer", table, "layout43", 44, "layout", 44)
+    assert "offer 1" in output
+    assert "layout43 44 version_at -1 header 0 epoch 0 ejection 0 parts refused 0" in output
+    assert layout_line(output, 44).startswith("layout 44 settings 13200 options 44 ")
+
+
 def test_loader_reads_generic_layouts(keys, checker, tmp_path):
     """chupa-43a's facts: read from this wire's row, a part of a later
     build's place and keys it does not know passed over"""
     later = dict(FACT_43, unit_state_parts=FACT_43["unit_state_parts"] + [{"bit": 5, "size": 2, "at": "x"}])
-    row = dict(floor(), layouts={"44": dict(FACT_43, settings_size=13210), "45": {"later": [1], "header_extra": 6},
-                                  "46": {"unit_state_parts": [{"bit": 6, "size": 30, "at": "middle"}]}})
+    row = dict(floor(), layouts={"45": dict(FACT_43, settings_size=13210), "46": {"later": [1], "header_extra": 6},
+                                  "47": {"unit_state_parts": [{"bit": 6, "size": 30, "at": "middle"}]}})
     table = write_signed(keys, tmp_path / "t12", document(serial=12, row=row))
-    output = run_checker(checker, tmp_path, "layout43", 43, "offer", table, "layout43", 41, "layout43", 44,
-                         "layout", 44, "layout43", 45, "layout43", 46, "state")
+    output = run_checker(checker, tmp_path, "layout43", 43, "offer", table, "layout43", 41, "layout43", 45,
+                         "layout", 45, "layout43", 46, "layout43", 47, "state")
     assert "offer 1" in output
     lines = [line for line in output.splitlines() if line.startswith("layout43 ")]
     # (43 built in, before any table. Port, this fork: its game plays 43
@@ -1037,17 +1054,17 @@ def test_loader_reads_generic_layouts(keys, checker, tmp_path):
     # facts, which ChupathingyCE's 41 game takes for it)
     assert lines[0] == "layout43 43 version_at -1 header 0 epoch 0 ejection 0 parts refused 0"
     assert lines[1] == "layout43 41 version_at -1 header 0 epoch 0 ejection 0 parts refused 0"
-    assert lines[2] == "layout43 44 version_at 234 header 4 epoch 96 ejection 200 parts 6:30@2 7:28@1 refused 0"
+    assert lines[2] == "layout43 45 version_at 234 header 4 epoch 96 ejection 200 parts 6:30@2 7:28@1 refused 0"
     # (this fork's built-in 43 drops 96 to 107, 101 and 102 too: network_rules.c)
-    assert layout_line(output, 44).startswith("layout 44 settings 13210 options 44 shield 6 "
+    assert layout_line(output, 45).startswith("layout 45 settings 13210 options 44 shield 6 "
                                               "dropped 78,79,91,94,95,96,97,98,99,100,101,102,103,104,105,106,107 ")
-    assert layout_line(output, 44).endswith(" join 236")
-    assert lines[3].startswith("layout43 45 version_at 234 header 6 epoch 96 ")
+    assert layout_line(output, 45).endswith(" join 236")
+    assert lines[3].startswith("layout43 46 version_at 234 header 6 epoch 96 ")
     # (a place this build does not know: that part not taken, the rest kept)
     assert " 6:30@2 " in lines[4] and lines[4].endswith(" refused 1")
     # (a part of a later build's place, in a list this build otherwise reads)
-    table = write_signed(keys, tmp_path / "t13", document(serial=13, row=dict(floor(), layouts={"44": later})))
-    output = run_checker(checker, tmp_path, "offer", table, "layout43", 44)
+    table = write_signed(keys, tmp_path / "t13", document(serial=13, row=dict(floor(), layouts={"45": later})))
+    output = run_checker(checker, tmp_path, "offer", table, "layout43", 45)
     assert "offer 1" in output and " 5:2@255 " not in output and "refused 1" in output
 
 
@@ -1141,12 +1158,12 @@ def test_loader_override_layouts(checker, tmp_path):
     """network.legacy_table: a server announces a number of its own, with
     layouts, unsigned and never passed on"""
     local = tmp_path / "local.json"
-    local.write_bytes(document(serial=1, row={"announce": 38, "minimum": 11, "maximum": 46,
-                                              "layouts": {"44": {"options_size": 48}}}))
-    output = run_checker(checker, tmp_path, "state", "layout", 44, override=local)
-    assert state_line(output)[0] == "state 38 11 46 serial 0 override 1 disabled 0 signed 0"
+    local.write_bytes(document(serial=1, row={"announce": 38, "minimum": 11, "maximum": 47,
+                                              "layouts": {"45": {"options_size": 48}}}))
+    output = run_checker(checker, tmp_path, "state", "layout", 45, override=local)
+    assert state_line(output)[0] == "state 38 11 47 serial 0 override 1 disabled 0 signed 0"
     assert "1 layout facts" in output
-    assert layout_line(output, 44).startswith("layout 44 settings 13204 options 48 ")
+    assert layout_line(output, 45).startswith("layout 45 settings 13204 options 48 ")
 
 
 # ---------- auto-announce: the "hosting" list, network.announce, the hold

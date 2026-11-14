@@ -47,6 +47,39 @@ def test_rules(tmp_path):
     assert "network_rules_test: ok" in result.stdout
 
 
+@pytest.mark.parametrize("old_layout_guard", [False, True])
+def test_native_44_layout_regression(tmp_path, old_layout_guard):
+    """Published serial-12 facts must not extend a header already native at 44.
+
+    The negative control restores the old guard in the production C source;
+    the same compiled test must then detect the doubled checkpoint epoch.
+    """
+    cc = compiler()
+    if not cc:
+        pytest.skip("no C compiler")
+    source = ROOT / "port/linux/game/network_rules.c"
+    if old_layout_guard:
+        text = source.read_text(encoding="utf-8")
+        assert text.count("DELTA_NATIVE_LAYOUT_NEWEST") == 3
+        text = text.replace("DELTA_NATIVE_LAYOUT_NEWEST", "DELTA_LEGACY_NEWEST")
+        header = (ROOT / "port/linux/include/delta.h").as_posix()
+        text = text.replace('#include "../include/delta.h"', f'#include "{header}"')
+        source = tmp_path / "old_network_rules.c"
+        source.write_text(text, encoding="utf-8")
+    binary = tmp_path / "native44"
+    compiled = subprocess.run(
+        [cc, "-std=c11", "-Wall", "-Wextra", "-Werror", "-O1", "-I", str(ROOT / "port/linux/game"),
+         str(ROOT / "port/linux/tests/network_rules_test.c"), str(source), "-o", str(binary)],
+        capture_output=True, text=True)
+    assert compiled.returncode == 0, compiled.stdout + compiled.stderr
+    result = subprocess.run([str(binary), "native44"], capture_output=True, text=True)
+    assert result.returncode == int(old_layout_guard), result.stdout + result.stderr
+    if old_layout_guard:
+        assert "layout.header_extra == 0" in result.stdout
+    else:
+        assert "network_rules_test: ok" in result.stdout
+
+
 def _field_sizes():
     """each game message's packet fields' bytes, by name (pad 0, bytes 1,
     shorts 2, longs 4), from network_messages.c's field lists"""

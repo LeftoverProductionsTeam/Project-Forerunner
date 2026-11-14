@@ -454,6 +454,12 @@ layout too). A build that reads a signed legacy table's layouts says the
 newest of them past this one (network_rules_layout_newest). */
 #define DELTA_LEGACY_NEWEST 43
 
+/* The native game already implements 44's layout (the same wire as 43).
+ * A signed table for ChupathingyCE's older game must not add that layout's
+ * checkpoint epoch and unit parts a second time. This is independent of
+ * the historical Delta wire/HELLO ledger above. */
+#define DELTA_NATIVE_LAYOUT_NEWEST 44
+
 /* OpenCE's network versions (HALO_PORT_NETWORK_VERSION in its builds), the
 first of its releases with each, and whether the version's change is one the
 version before plays multiplayer with as it is (additive: messages a machine

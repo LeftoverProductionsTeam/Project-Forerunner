@@ -691,14 +691,14 @@ void network_rules_layout_apply(struct network_rules_layout *layout, struct delt
 {
 	int index;
 
-	if (layout->version == NETWORK_RULES_VERSION_UNKNOWN || layout->version <= DELTA_LEGACY_NEWEST || !facts)
+	if (layout->version == NETWORK_RULES_VERSION_UNKNOWN || layout->version <= DELTA_NATIVE_LAYOUT_NEWEST || !facts)
 		return;
 	for (index = 0; index < count; index++)
 	{
 		struct delta_layout_fact const *fact = &facts[index];
 		int byte;
 
-		if (fact->version <= DELTA_LEGACY_NEWEST || fact->version > layout->version)
+		if (fact->version <= DELTA_NATIVE_LAYOUT_NEWEST || fact->version > layout->version)
 			continue;
 		if (fact->options_size)
 		{
@@ -841,7 +841,7 @@ void network_rules_layout(unsigned version, struct network_rules_layout *layout)
 {
 	network_rules_layout_built_in(version, layout);
 	/* (the table asked only for a version it may extend) */
-	if (network_rules_layout_source && version != NETWORK_RULES_VERSION_UNKNOWN && version > DELTA_LEGACY_NEWEST)
+	if (network_rules_layout_source && version != NETWORK_RULES_VERSION_UNKNOWN && version > DELTA_NATIVE_LAYOUT_NEWEST)
 	{
 		struct delta_layout_fact facts[DELTA_LAYOUT_FACTS];
 		int count = network_rules_layout_source(facts, DELTA_LAYOUT_FACTS);
