@@ -514,6 +514,16 @@ OpenH1 `baed7757`, and Mota's `2467e708` sidecar source in the upstream matrix.
 | VR, voice and Forge | Continue the existing OpenXR/bgfx renderer adapter using pinned OpenH1 transforms/interactions, the inherited Delta/Opus/Halo sound path, and compatible Faber/Mota placement behavior. Do not remove OpenCE browser/guest voice paths as duplicates of native Delta voice: they still have distinct callers/build gates. No second renderer, VOIP stack, sidecar format or cross-repository build dependency was added. |
 
 The existing network co-op host director in `coop_enemies.c::firefight_update`
+also supports optional map-start `network.firefight_wave_growth` (default zero,
+valid 0..32). Each cleared built-in wave adds that many initial enemies up to
+the existing 32-body tracker. Wave arithmetic is bounded before multiplication,
+including endless runs; carrier children still share capacity and native
+placement/allocation failures abort. This is UNVERIFIED source in the same
+director/AI/replication path, not a new population capability. Spark's native
+scripts still disable it and retain their own authored composition/progression.
+No export format, network field, global pool or supported discovery changed.
+
+The same director
 now reads map-start `network.firefight_wave_limit` (default 3, zero repeats until
 defeat/exit) and `network.firefight_initial_enemies` (default 2, valid 1..32).
 Zero-limit progression adapts pinned Faber `firefight.c::firefight_update`'s

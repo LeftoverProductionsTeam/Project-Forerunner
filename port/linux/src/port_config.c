@@ -1879,6 +1879,14 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Host: loaded actor-variant tag path without extension for the built-in\n"
 		"encounter. Empty keeps the nearby-Grunt selection. Explicit missing\n"
 		"tags abort rather than substituting enemies; native faction is kept." },
+	{ "network.firefight_wave_growth", _config_integer, "0", "HALO_NET_FIREFIGHT_WAVE_GROWTH", _environment_value,
+		_platform_all,
+		"Host: additional initial enemies after each cleared built-in Firefight\n"
+		"wave, 0 to 32. Zero/invalid values keep a fixed wave size. Total initial\n"
+		"enemies saturate at the existing 32-body tracker; carrier children still\n"
+		"need room in that same tracker, and capacity/placement failure aborts.\n"
+		"Fixed at map start; authored scripts own their progression. No native\n"
+		"pool increase, new director or population proof. Unverified source." },
 	{ "network.firefight_spawn_encounter", _config_string, "\"\"", "HALO_NET_FIREFIGHT_SPAWN_ENCOUNTER", _environment_value,
 		_platform_all,
 		"Host: exact native scenario encounter name supplying a squad start in\n"

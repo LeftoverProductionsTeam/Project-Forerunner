@@ -716,3 +716,12 @@ and volumes; no metadata importer or new subsystem. Spark still needs every
 selectable hub start checked (currently any one suffices) and the compiled map.
 Source/callers/diffs only; no tests, builds, launches, saves or pushes. This is
 a necessary gameplay admission repair, not Extraction/persistence acceptance.
+
+UNVERIFIED survival progression: optional host map-start wave_growth adds
+initial enemies between cleared waves through the existing director/spawner.
+Zero default retains fixed waves; 0..32 growth saturates at the current 32-body
+tracker with bounded arithmetic even in endless runs. Native carrier children
+still share capacity; placement/allocation/capacity failure aborts. Authored
+HaloScript ownership, native pools/AI/replication and finite outcomes are kept.
+This is runtime source, not complete Zombie outbreaks or huge-horde proof.
+Source/callers/diff review only; no tests, builds, launches, saves or pushes.

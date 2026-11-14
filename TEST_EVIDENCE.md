@@ -669,3 +669,12 @@ touched-by-player native terminals, with representable short-index counts.
 No tests, builds, launches or assets/saves accessed. Missing/duplicate/aliased
 markers, wrong control modes, ordinary campaign fallback, valid solo deployment,
 all hub starts, death recovery and redeployment need later authorized validation.
+
+UNVERIFIED bounded survival growth: reviewed existing Faber capped roster/count
+policy, host wave progression, native spawn/child tracking, map-start settings
+and full-revert paths. The optional growth rule uses the same producer and
+bounds the wave-derived multiplier before arithmetic. Zero default preserves
+fixed size, and authored scripts still disable this director. No tests, builds,
+launches or hardware/save access. Default/invalid/custom/endless sizes, saturation,
+reverts, carrier capacity, placement pressure and peer replication remain native
+validation gates; this is not measured large-horde or Zombie-mode acceptance.

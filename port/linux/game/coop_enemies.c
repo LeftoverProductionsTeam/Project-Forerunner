@@ -194,6 +194,7 @@ static struct
 	long wave;
 	long wave_limit;
 	short initial_enemies;
+	short wave_growth;
 	long score;
 	long deadline;
 	short lives;
@@ -1020,8 +1021,14 @@ static void firefight_update(void)
 		return;
 	if (firefight.phase == 1 && now >= firefight.deadline)
 	{
+		/* Bound before multiplying: even an endless run at LONG_MAX retains
+		   the native tracker limit without overflowing a wave-derived count. */
+		long growth_waves = PIN(firefight.wave - 1, 0, FIREFIGHT_MAX_TRACKED_ENEMIES);
+		short count = (short)MIN(FIREFIGHT_MAX_TRACKED_ENEMIES,
+			firefight.initial_enemies + growth_waves * firefight.wave_growth);
+
 		firefight.unit_count = 0;
-		for (index = 0; index < firefight.initial_enemies; index++)
+		for (index = 0; index < count; index++)
 		{
 			firefight.units[index] = firefight_spawn(index);
 			if (firefight.units[index] == NONE)
@@ -1395,6 +1402,7 @@ void coop_enemies_new_game(
 	char const *spawn = config_string("network.firefight_spawn_encounter");
 	long wave_limit = config_integer("network.firefight_wave_limit");
 	long initial_enemies = config_integer("network.firefight_initial_enemies");
+	long wave_growth = config_integer("network.firefight_wave_growth");
 
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
@@ -1406,6 +1414,8 @@ void coop_enemies_new_game(
 	firefight.wave_limit = wave_limit >= 0 && wave_limit <= 999 ? wave_limit : 3;
 	firefight.initial_enemies = initial_enemies >= 1 && initial_enemies <= FIREFIGHT_MAX_TRACKED_ENEMIES ?
 		(short)initial_enemies : FIREFIGHT_INITIAL_ENEMIES;
+	firefight.wave_growth = wave_growth >= 0 && wave_growth <= FIREFIGHT_MAX_TRACKED_ENEMIES ?
+		(short)wave_growth : 0;
 	firefight.initial_lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
 	firefight.lives = firefight.initial_lives;
 	firefight.selection_valid = strlen(actor) < sizeof(firefight.actor_path) && strlen(spawn) < sizeof(firefight.spawn_encounter);
