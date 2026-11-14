@@ -342,3 +342,9 @@ director. It retains the existing zero-player, cinematic and all-present-players
 alive/on-foot checks. No tests/builds/queries/games ran; neither solo acceptance nor
 new two-peer acceptance is claimed. Historical Zombie crash source review did not
 prove a cause, and no speculative physics/lifetime patch was applied.
+
+The next source-only increment sends changed combat counts through the existing
+host HUD/reliable client notice path, bounded to once per second. It shares the
+late-join formatter and resets its text/timer cache at map start/full revert.
+No tests/builds/queries/games ran. This is transient feedback source, not accepted
+visual/peer agreement or a persistent Firefight HUD.

@@ -199,6 +199,8 @@ static struct
 	char actor_path[256];
 	char spawn_encounter[TAG_STRING_LENGTH+1];
 	char outcome[128];
+	char last_status[128];
+	long status_deadline;
 	real_point3d origin;
 } firefight;
 
@@ -391,16 +393,13 @@ static boolean firefight_spawn_pending(struct unit_datum const *unit)
 		definition->unit.spawned_actor_variant.index != NONE && definition->unit.spawn_actor_upper_bound > 0;
 }
 
-/* The existing reliable client-ready path calls once for a newly loaded peer.
-This is presentation of host state, not a new gameplay packet or client authority. */
-void coop_enemies_firefight_send_status(long machine_index)
+/* The same host summary serves newly loaded peers and combat updates. Pending
+carrier spawns stay distinct from living enemies, as in wave completion. */
+static void firefight_format_status(char *text, long size)
 {
 	short index, remaining = 0, pending = 0;
 	char const *phase;
-	char text[128];
 
-	if (!coop_enemies_firefight_active() || machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
-		return;
 	for (index = 0; index < firefight.unit_count; index++)
 	{
 		if (!firefight.killed[index])
@@ -411,8 +410,19 @@ void coop_enemies_firefight_send_status(long machine_index)
 	}
 	phase = firefight.phase == 1 ? "preparing" : firefight.phase == 2 ? "in progress" :
 		firefight.phase == 3 ? "cleared" : "finished";
-	snprintf(text, sizeof(text), "Firefight: wave %d/3 %s; enemies %d; carriers pending %d; score %ld; lives %d",
+	snprintf(text, size, "Firefight: wave %d/3 %s; enemies %d; carriers pending %d; score %ld; lives %d",
 		(int)firefight.wave, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
+}
+
+/* The existing reliable client-ready path calls once for a newly loaded peer.
+This is presentation of host state, not a new gameplay packet or client authority. */
+void coop_enemies_firefight_send_status(long machine_index)
+{
+	char text[128];
+
+	if (!coop_enemies_firefight_active() || machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+		return;
+	firefight_format_status(text, sizeof(text));
 	distributed_send_notice_to_machine(machine_index, text);
 	if (firefight.phase >= 4 && firefight.outcome[0])
 		distributed_send_notice_to_machine(machine_index, firefight.outcome);
@@ -804,6 +814,8 @@ static void firefight_update(void)
 			platform_log("firefight: spawned %08lx", (unsigned long)firefight.units[index]);
 		}
 		firefight.phase = 2;
+		firefight.last_status[0] = 0;
+		firefight.status_deadline = now + TICKS_PER_SECOND;
 		{
 			char text[128];
 
@@ -845,6 +857,20 @@ static void firefight_update(void)
 				snprintf(text, sizeof(text), "Firefight: wave %d cleared - team score %ld", (int)firefight.wave, firefight.score);
 				firefight_notice(text);
 			}
+		}
+		else if (now >= firefight.status_deadline)
+		{
+			char text[128];
+
+			/* Existing reliable notices reach every peer; send only changed
+			counts, at most once a second, without a new HUD-state protocol. */
+			firefight_format_status(text, sizeof(text));
+			if (strcmp(text, firefight.last_status))
+			{
+				strcpy(firefight.last_status, text);
+				firefight_notice(text);
+			}
+			firefight.status_deadline = now + TICKS_PER_SECOND;
 		}
 	}
 	if (firefight.phase == 3 && now >= firefight.deadline)
@@ -1172,6 +1198,8 @@ void coop_enemies_reset(
 	firefight.unit_count = 0;
 	firefight.wipe_deadline = 0;
 	firefight.outcome[0] = 0;
+	firefight.last_status[0] = 0;
+	firefight.status_deadline = 0;
 	csmemset(firefight.killed, 0, sizeof(firefight.killed));
 }
 

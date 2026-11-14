@@ -170,7 +170,7 @@ replication carries the change; team points remain unchanged. No tests, builds,
 runtime queries or games ran. Individual point totals, assists, medals and HUD
 integration remain open. This cycle adds gameplay source, not infrastructure.
 
-The next source-only gameplay increment removes the finite director's unnecessary
+Source checkpoint `d2fec18a6` removes the finite director's unnecessary
 two-player start gate. One network co-op host may start; zero players, an opening
 cinematic or any present player dead/unspawned/in a vehicle still waits. Ordinary
 solo HaloScript playback is separate and the Demo multiplayer scenario remains
@@ -178,3 +178,11 @@ unsupported. Static review did not establish the retained Zombie crash's cause:
 normal deletion is deferred and ordinary object allocation does not trigger GC.
 No speculative physics/lifetime patch was made. No tests/builds/queries/games ran;
 solo and two-peer gameplay acceptance remain open.
+
+The next source-only presentation increment reuses the late-join status formatter
+for changed combat counts: wave, remaining tracked enemies, pending carrier
+spawns, team points and shared lives. The host samples at most once per second
+and sends only changed text through existing local HUD/reliable peer notices.
+Wave clear/terminal messages keep their existing path; new maps/full reverts
+clear the notice cache. No new packet, capability, renderer or persistent HUD was
+added. No tests/builds/queries/games ran; visual and peer acceptance remain open.
