@@ -46,6 +46,9 @@ static char const *config_string(char const *name){CHECK(!strcmp(name,"network.c
 static long tick,main_loss_last_tick;
 static boolean paused,all_dead,save_succeeds;
 static int reverts,respawns;
+static boolean firefight_active,firefight_exhausted;
+static boolean coop_enemies_firefight_active(void){return firefight_active;}
+static boolean coop_enemies_firefight_out_of_lives(void){return firefight_exhausted;}
 static struct {boolean lost_map,saving_map;short loss_timer;} main_globals;
 static struct {boolean saved_game_valid;void *base_address;unsigned long cpu_allocation_size;} game_state_globals;
 /* These legacy checkpoints contain no temporary console or MCC state. */
@@ -141,6 +144,12 @@ int main(int argc,char **argv)
   wipe();CHECK(reverts==2&&!respawns,"second wipe failed");
   setup();main_lost_map();paused=TRUE;tick=92;main_lost_map_private();CHECK(!reverts,"pause advanced death timer");
   paused=FALSE;main_lost_map_private();tick=184;main_lost_map_private();CHECK(reverts==1,"resumed death timer stalled");
+ } else CASE("firefight") {
+  firefight_active=TRUE;policy="revert";wipe();
+  CHECK(!reverts&&respawns==1,"Firefight team wipe restored the world/lives");
+  firefight_exhausted=TRUE;wipe();
+  CHECK(!reverts&&respawns==1,"exhausted Firefight team respawned");
+  CHECK(!main_globals.lost_map&&!main_globals.loss_timer,"Firefight retained campaign loss timer");
  } else CASE("failure") {
   policy="respawn";all_dead=FALSE;add_player();wipe();CHECK(reverts==1&&!respawns,"scripted failure used wipe policy/roster guard");
  } else return 2;

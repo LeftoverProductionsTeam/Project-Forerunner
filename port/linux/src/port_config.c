@@ -1787,6 +1787,11 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Covenant grunts, run a finite three-wave Firefight encounter instead\n"
 		"of the campaign scripts. Two enemies per wave, 100 team points per\n"
 		"confirmed death, then return to the same map's lobby. Off by default." },
+	{ "network.firefight_lives", _config_integer, "7", "HALO_NET_FIREFIGHT_LIVES", _environment_value,
+		_platform_all,
+		"Host: shared lives for the finite Firefight encounter, 0 to 99. Each\n"
+		"actual player death consumes one; at zero the survivors keep fighting\n"
+		"without respawns. An exhausted team wipe ends in defeat." },
 	{ "network.coop_pickups", _config_string, "\"none\"", "HALO_NET_COOP_PICKUPS", _environment_value, _platform_all,
 		"Extra campaign weapons, grenades, health kits, overshields and camouflage.\n"
 		"Modes: \"none\", \"per_player\" (coop_enemies percent per extra player),\n"

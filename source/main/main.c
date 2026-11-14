@@ -2390,6 +2390,14 @@ static void main_lost_map_private(
 	{
 		main_globals.lost_map = FALSE;
 		main_globals.loss_timer = 0;
+		/* port: Firefight keeps its world/lives on a team wipe. With no lives,
+		its host update announces defeat and ends the round instead. */
+		if (coop_enemies_firefight_active())
+		{
+			if (!coop_enemies_firefight_out_of_lives())
+				players_respawn_at_checkpoint();
+			return;
+		}
 		/* port: the co-op host chooses whether a team wipe rewinds or only
 		respawns. Scripted failures still revert, or their cutscene would
 		never end. A missing save falls back to checkpoint positions. */

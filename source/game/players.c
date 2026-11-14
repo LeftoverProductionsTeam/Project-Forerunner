@@ -239,6 +239,7 @@ symbols in this file:
 #include "data.h"
 #include "devices/devices.h"
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "coop_enemies.h" /* port: Firefight life accounting and respawn gate */
 #include "bots.h" /* port: port/linux/game/bots.c */
 #include "server_team_switch.h" /* port: port/linux/game/server_team_switch.c */
 #include "cutscene/cinematics.h" /* port: network co-op's first spawns */
@@ -858,6 +859,9 @@ void player_died(
 
 	player = player_get(player_index);
 	player->dead_unit_index = player->unit_index;
+	/* port: Faber-derived Firefight shared lives count actual owned deaths,
+	not live-unit replacement (port/linux/game/coop_enemies.c). */
+	coop_enemies_firefight_player_died(player->unit_index);
 	player->unit_index = NONE;
 	if (player->local_player_index != NONE)
 	{
@@ -1421,6 +1425,9 @@ static void player_spawn(
 	long starting_equipment_count;
 	short starting_location_index;
 
+	/* port: only the Firefight host limits respawns; ordinary co-op is unchanged. */
+	if (coop_enemies_firefight_out_of_lives())
+		return;
 	player = player_get(player_index);
 	saved_unit_index = NONE;
 	if (!game_engine_running() && player->local_player_index != NONE)

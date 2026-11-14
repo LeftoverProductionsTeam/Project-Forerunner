@@ -179,6 +179,8 @@ static struct
 	short wave;
 	long score;
 	long deadline;
+	short lives;
+	long wipe_deadline;
 	long units[2];
 	boolean killed[2];
 	long variant;
@@ -198,6 +200,13 @@ boolean coop_enemies_firefight_active(void)
 	return firefight.enabled && firefight.phase != 0 && coop_enemies_host();
 }
 
+/* Faber's shared pool: deaths consume a life; at zero the living players
+continue, but nobody respawns. The host owns both the pool and spawning. */
+boolean coop_enemies_firefight_out_of_lives(void)
+{
+	return coop_enemies_firefight_active() && (firefight.lives == 0 || firefight.phase >= 4);
+}
+
 static void firefight_notice(char const *text)
 {
 	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
@@ -214,6 +223,54 @@ static void firefight_notice(char const *text)
 	for (index = 0; index < count; index++)
 		distributed_send_notice_to_machine(machines[index], text);
 	platform_log("firefight: %s", text);
+}
+
+void coop_enemies_firefight_player_died(long unit_index)
+{
+	struct unit_datum *unit;
+	char text[128];
+
+	if (!coop_enemies_firefight_active() || firefight.phase >= 4)
+		return;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_unit);
+	/* player_died also handles live-unit replacement/deletion. Only an actual
+	owned dead body consumes a life, before player_died clears its binding. */
+	if (!unit || unit->unit.player_index == NONE || !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return;
+	if (firefight.lives > 0)
+		firefight.lives--;
+	snprintf(text, sizeof(text), "Firefight: shared lives remaining %d", (int)firefight.lives);
+	firefight_notice(text);
+}
+
+/* Adapted from Faber's firefight_count_living_players and wipe check: quit
+players are not survivors, and an exhausted team must stay dead for 3 seconds. */
+static boolean firefight_check_defeat(long now)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+	short total = 0, alive = 0;
+
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum *unit;
+
+		if (player->quit_out_of_game)
+			continue;
+		total++;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_unit);
+		if (unit && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			alive++;
+	}
+	if (total > 0 && alive == 0 && firefight.lives == 0)
+	{
+		if (!firefight.wipe_deadline)
+			firefight.wipe_deadline = now + 3 * TICKS_PER_SECOND;
+		return now >= firefight.wipe_deadline;
+	}
+	firefight.wipe_deadline = 0;
+	return FALSE;
 }
 
 /* A real enemy already standing near the players supplies a loaded grunt tag
@@ -276,6 +333,9 @@ static boolean firefight_prepare(void)
 	are setup, never credited as wave deaths or score. */
 	while (remove_count > 0)
 		object_delete(remove_units[--remove_count]);
+	/* Reuse co-op's in-memory spawn positions for a team recovery. A full
+	checkpoint revert would resurrect waves and restore spent lives. */
+	players_note_checkpoint();
 	return TRUE;
 }
 
@@ -402,8 +462,20 @@ static void firefight_update(void)
 			firefight.wave = 1;
 			firefight.deadline = now + 5 * TICKS_PER_SECOND;
 			firefight_notice("Firefight: prepare for the wave");
+			{
+				char text[128];
+
+				snprintf(text, sizeof(text), "Firefight: shared lives remaining %d", (int)firefight.lives);
+				firefight_notice(text);
+			}
 		}
 		return;
+	}
+	if (firefight.phase < 4 && firefight_check_defeat(now))
+	{
+		firefight.phase = 4;
+		firefight.deadline = now + 5 * TICKS_PER_SECOND;
+		firefight_notice("Firefight: defeat - team eliminated, no shared lives");
 	}
 	if (firefight.phase == 1 && now >= firefight.deadline)
 	{
@@ -750,6 +822,7 @@ void coop_enemies_new_game(
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
 	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
+	firefight.lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
 	/* (an amount past Server Setup's, as it shows it: its nearest choice's
 	end) */
 	coop_enemies.percent = (short)PIN(config_integer("network.coop_enemies"), COOP_ENEMIES_MINIMUM_PERCENT,
@@ -767,6 +840,7 @@ void coop_enemies_reset(
 	coop_enemies.rider_count = 0;
 	/* A checkpoint restored another set of object handles. */
 	firefight.phase = 0;
+	firefight.wipe_deadline = 0;
 	csmemset(firefight.killed, 0, sizeof(firefight.killed));
 }
 

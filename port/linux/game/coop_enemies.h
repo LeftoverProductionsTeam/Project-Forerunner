@@ -64,5 +64,8 @@ void coop_enemies_update(
 
 /* game.c: the opt-in Firefight encounter has taken over the host's scripts. */
 boolean coop_enemies_firefight_active(void);
+boolean coop_enemies_firefight_out_of_lives(void);
+/* players.c, before detaching a real dead player's body. */
+void coop_enemies_firefight_player_died(long unit_index);
 
 #endif
