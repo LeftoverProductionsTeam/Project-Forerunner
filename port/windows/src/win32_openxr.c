@@ -55,7 +55,7 @@ static struct
 	XrSystemId system;
 	XrSession session;
 	XrSessionState state;
-	XrSpace space, aim[2], grip[2];
+	XrSpace space, view_space, aim[2], grip[2];
 	XrActionSet action_set;
 	XrAction actions[NUMBER_OF_ACTIONS];
 	XrPath hands[2];
@@ -97,7 +97,7 @@ void vr_openxr_vulkan_shutdown(void)
 	/* The renderer has finished with runtime images before this call. On
 	   session/device loss destroy the session rather than reusing stale handles. */
 	if (vr.session && vr.frame_begun && !vr.owned[0] && !vr.owned[1])
-		vr_openxr_frame_end(0);
+		vr_openxr_frame_end(_vr_layer_none, 0.0f);
 	for (eye = 0; eye < 2; eye++)
 	{
 		if (vr.aim[eye]) xrDestroySpace(vr.aim[eye]);
@@ -106,6 +106,7 @@ void vr_openxr_vulkan_shutdown(void)
 		free(vr.images[eye]);
 	}
 	if (vr.space) xrDestroySpace(vr.space);
+	if (vr.view_space) xrDestroySpace(vr.view_space);
 	if (vr.session) xrDestroySession(vr.session);
 	if (vr.action_set) xrDestroyActionSet(vr.action_set);
 	if (vr.instance && xrDestroyInstance) xrDestroyInstance(vr.instance);
@@ -407,7 +408,9 @@ void vr_openxr_vulkan_bind(VkInstance instance, VkPhysicalDevice physical, VkDev
 	if (!check(xrCreateSession(vr.instance, &create, &vr.session), "create shared Vulkan session")) goto failed;
 	space.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
 	space.poseInReferenceSpace.orientation.w = 1.0f;
-	if (!check(xrCreateReferenceSpace(vr.session, &space, &vr.space), "create local space") ||
+	if (!check(xrCreateReferenceSpace(vr.session, &space, &vr.space), "create local space")) goto failed;
+	space.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
+	if (!check(xrCreateReferenceSpace(vr.session, &space, &vr.view_space), "create view space") ||
 		!actions_create() || !swapchains_create()) goto failed;
 	platform_log("OpenXR: Vulkan session, Touch and Index actions created (UNVERIFIED; tracked gameplay controls incomplete)");
 	return;
@@ -676,10 +679,11 @@ void vr_openxr_vulkan_release(int eye)
 	vr.released[eye] = 1;
 }
 
-void vr_openxr_frame_end(int submit_stereo)
+void vr_openxr_frame_end(enum vr_openxr_layer mode, float menu_aspect)
 {
 	XrFrameEndInfo end = { XR_TYPE_FRAME_END_INFO };
 	XrCompositionLayerProjection projection = { XR_TYPE_COMPOSITION_LAYER_PROJECTION };
+	XrCompositionLayerQuad menu = { XR_TYPE_COMPOSITION_LAYER_QUAD };
 	XrCompositionLayerProjectionView views[2] = {{ XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW },
 		{ XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW }};
 	const XrCompositionLayerBaseHeader *layer = (const XrCompositionLayerBaseHeader *)&projection;
@@ -688,7 +692,7 @@ void vr_openxr_frame_end(int submit_stereo)
 	if (!vr.frame_begun) return;
 	end.displayTime = vr.frame.predictedDisplayTime;
 	end.environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE;
-	if (submit_stereo && !vr.unavailable && vr.frame.shouldRender && vr.views_valid &&
+	if (mode == _vr_layer_stereo && !vr.unavailable && vr.frame.shouldRender && vr.views_valid &&
 		vr.released[0] && vr.released[1] && !vr.owned[0] && !vr.owned[1])
 	{
 		for (eye = 0; eye < 2; eye++)
@@ -702,6 +706,24 @@ void vr_openxr_frame_end(int submit_stereo)
 		projection.space = vr.space;
 		projection.viewCount = 2;
 		projection.views = views;
+		end.layerCount = 1;
+		end.layers = &layer;
+	}
+	else if (mode == _vr_layer_menu && !vr.unavailable && vr.frame.shouldRender &&
+		vr.view_space && menu_aspect > 0.0f && vr.released[0] && !vr.owned[0] && !vr.owned[1])
+	{
+		/* OpenH1's head-locked quad approach, using the existing left image
+		   only while native menus own the frame. No second UI renderer. */
+		menu.space = vr.view_space;
+		menu.eyeVisibility = XR_EYE_VISIBILITY_BOTH;
+		menu.subImage.swapchain = vr.swapchain[0];
+		menu.subImage.imageRect.extent.width = (int32_t)vr.width[0];
+		menu.subImage.imageRect.extent.height = (int32_t)vr.height[0];
+		menu.pose.orientation.w = 1.0f;
+		menu.pose.position.z = -1.5f;
+		menu.size.width = 2.0f;
+		menu.size.height = menu.size.width / menu_aspect;
+		layer = (const XrCompositionLayerBaseHeader *)&menu;
 		end.layerCount = 1;
 		end.layers = &layer;
 	}

@@ -493,3 +493,13 @@ remapper gate. No tests, builds, native queries, launches or hardware sessions
 ran. Button/axis signs and layout behavior, menu/chat/guide ownership, fallback,
 focus loss/recovery, haptics and both controller families remain unverified.
 Tracked weapon aim, physical interactions and headset menu display are unfinished.
+
+Headset menu display now has UNVERIFIED source: existing native menus/overlay
+compose once into the left-eye image and submit as a VIEW-space quad, with the
+same completed canvas mirrored to the desktop. Menu ownership suppresses stereo
+preparation for that frame; gameplay keeps the existing stereo path. Only source
+and diffs were read. No builds, tests, patch application, runtime queries, game
+launches or hardware validation ran. Image orientation/color, clipping, focus,
+mouse/controller transitions, hidden-window presentation, resize/loss and comfort
+remain unverified. Tracked pointers, weapon aim and physical interactions remain
+unfinished; no full-VR acceptance is claimed.

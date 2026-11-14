@@ -48,7 +48,15 @@ int vr_openxr_requested(void);
 /* The render thread owns the complete wait/begin/acquire/release/end sequence.
    End every begun frame, even if tracking is invalid or no image is rendered. */
 int vr_openxr_frame_begin(struct vr_openxr_frame *frame);
-void vr_openxr_frame_end(int submit_stereo);
+enum vr_openxr_layer
+{
+	_vr_layer_none,
+	_vr_layer_stereo,
+	_vr_layer_menu
+};
+/* Menu frames reuse eye zero as a head-locked quad; aspect is the native
+   desktop canvas width/height, independent of the swapchain's pixel shape. */
+void vr_openxr_frame_end(enum vr_openxr_layer layer, float menu_aspect);
 void vr_openxr_haptic(int hand, float amplitude, float seconds);
 int vr_openxr_running(void);
 /* Same-thread input read from the latest located frame, with fresh actions.

@@ -442,3 +442,16 @@ builds, native queries, launches, Spark changes or pushes. Headset menu renderin
 tracked weapon aim, physical interactions/collision, remote tracked poses and
 both-headset multiplayer acceptance remain open; native simulation/wire format
 are unchanged. Advanced SDL remap editing remains SDL-owned.
+
+Menu source cycle reuses OpenH1's head-locked OpenXR quad approach on the
+existing left-eye swapchain. Native menu ownership selects the ordinary single
+game render; the current bgfx blit and overlay compose once into that image,
+then a static full-quad copy mirrors the completed canvas to the desktop.
+Desktop mouse/layout coordinates and physical-image cutouts are kept aligned.
+XR menu submission does not depend on the desktop being due for presentation.
+No additional renderer, swapchain, protocol or editor interface was introduced.
+This is necessary runtime source progress, UNVERIFIED. No tests, configure,
+builds, patch application, native queries, launches, Spark changes or pushes.
+Headset menu appearance/comfort, ownership transitions, resize/loss and both
+headsets still need authorized validation. Tracked weapon aim, physical
+interactions/collision and remote tracked poses remain unfinished.

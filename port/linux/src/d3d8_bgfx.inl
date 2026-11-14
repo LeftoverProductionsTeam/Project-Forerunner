@@ -290,6 +290,8 @@ static struct
 {
 	struct bg_openxr_image *images, *current, *eye[2];
 	int begun, rendering_eye, rendered[2], failed;
+	int menu_requested, menu_rendered;
+	float menu_aspect;
 } bg_openxr;
 #endif
 
@@ -2322,6 +2324,8 @@ static bgfx_frame_buffer_handle_t bg_framebuffer_get(struct bg_target *color, st
 #ifdef HALO_OPENXR
 int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame)
 {
+	struct platform_input_state input;
+
 	if (!frame || !bg.ready || !bg_vulkan || bg_openxr.begun)
 		return 0;
 	if (!vr_openxr_frame_begin(frame))
@@ -2331,6 +2335,14 @@ int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame)
 	bg_openxr.rendered[0] = bg_openxr.rendered[1] = FALSE;
 	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
 	bg_openxr.failed = FALSE;
+	platform_input_read(&input, FALSE);
+	bg_openxr.menu_requested = input.menus;
+	bg_openxr.menu_rendered = FALSE;
+	bg_openxr.menu_aspect = 0.0f;
+	/* Native menus keep their ordinary single render and input layout. Their
+	   completed canvas is presented as a quad instead of stereo gameplay. */
+	if (bg_openxr.menu_requested)
+		frame->should_render = FALSE;
 	return 1;
 }
 
@@ -2409,17 +2421,27 @@ void xgpu_openxr_eye_end(void)
 static void bg_openxr_frame_submitted(void)
 {
 	int submitted;
+	enum vr_openxr_layer layer = _vr_layer_none;
 
 	if (!bg_openxr.begun)
 		return;
 	submitted = bgfx_vk_openxr_finish_frame();
 	vr_openxr_eye_release(0);
 	vr_openxr_eye_release(1);
-	vr_openxr_frame_end(submitted && !bg_openxr.failed && bg_openxr.rendered[0] && bg_openxr.rendered[1]);
+	if (submitted && !bg_openxr.failed)
+	{
+		if (bg_openxr.menu_rendered)
+			layer = _vr_layer_menu;
+		else if (bg_openxr.rendered[0] && bg_openxr.rendered[1])
+			layer = _vr_layer_stereo;
+	}
+	vr_openxr_frame_end(layer, bg_openxr.menu_aspect);
 	bg_openxr.begun = FALSE;
 	bg_openxr.current = NULL;
 	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
 	bg_openxr.rendering_eye = -1;
+	bg_openxr.menu_rendered = FALSE;
+	bg_openxr.menu_requested = FALSE;
 }
 #endif
 
@@ -4324,23 +4346,19 @@ static void bg_window_update(void)
 
 /* the back buffer into the window, letterboxed to its shape: the rectangle
 it fills */
-static void bg_blit(unsigned short view, int letterbox[4])
+static BOOL bg_blit_to(unsigned short view, int letterbox[4], struct bg_target *back_buffer,
+	bgfx_frame_buffer_handle_t framebuffer, unsigned long pixel_width, unsigned long pixel_height)
 {
-	struct bg_target *back_buffer = bg_target_get(&device.back_buffer);
 	unsigned long width = (unsigned long)bg.window_width, height;
 	float x0, y0;
 
-#ifdef HALO_OPENXR
-	if (bg_openxr.begun && bg_openxr.rendered[1] && bg_openxr.eye[1])
-		back_buffer = &bg_openxr.eye[1]->target;
-#endif
 	bgfx_set_view_mode(view, BGFX_VIEW_MODE_SEQUENTIAL);
-	bgfx_set_view_frame_buffer(view, (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE);
-	bgfx_set_view_rect(view, 0, 0, (uint16_t)bg.window_width, (uint16_t)bg.window_height, 0.0f, 1.0f);
+	bgfx_set_view_frame_buffer(view, framebuffer);
+	bgfx_set_view_rect(view, 0, 0, (uint16_t)pixel_width, (uint16_t)pixel_height, 0.0f, 1.0f);
 	bgfx_set_view_clear(view, BGFX_CLEAR_COLOR, 0x000000ff, 1.0f, 0);
 	bgfx_touch(view);
 	if (!back_buffer || !BGFX_HANDLE_IS_VALID(bg.blit) || !BGFX_HANDLE_IS_VALID(bg.present_quad))
-		return;
+		return FALSE;
 	height = (unsigned long)((unsigned long long)bg.window_width * back_buffer->pixel_height / back_buffer->pixel_width);
 	if (height > (unsigned long)bg.window_height)
 	{
@@ -4379,10 +4397,71 @@ static void bg_blit(unsigned short view, int letterbox[4])
 		for (index = 0; index < 3; index++)
 			bgfx_set_uniform(bg.crt_parameters[index], parameters[index], 1);
 		bgfx_submit(view, bg.crt, 0, BGFX_DISCARD_ALL);
-		return;
+		return TRUE;
 	}
 	bgfx_submit(view, bg.blit, 0, BGFX_DISCARD_ALL);
+	return TRUE;
 }
+
+static void bg_blit(unsigned short view, int letterbox[4])
+{
+	struct bg_target *back_buffer = bg_target_get(&device.back_buffer);
+
+#ifdef HALO_OPENXR
+	if (bg_openxr.begun && bg_openxr.rendered[1] && bg_openxr.eye[1])
+		back_buffer = &bg_openxr.eye[1]->target;
+#endif
+	bg_blit_to(view, letterbox, back_buffer, (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE,
+		(unsigned long)bg.window_width, (unsigned long)bg.window_height);
+}
+
+#ifdef HALO_OPENXR
+static BOOL bg_openxr_menu_begin(int letterbox[4])
+{
+	struct bg_target *source, *target;
+	bgfx_frame_buffer_handle_t framebuffer;
+
+	if (!bg_openxr.begun || !bg_openxr.menu_requested || bg_openxr.failed ||
+		bg_openxr.rendered[0] || bg_openxr.rendered[1] || bg.window_width <= 0 || bg.window_height <= 0 ||
+		bg.view + 3 >= BG_MAXIMUM_VIEWS ||
+		!BGFX_HANDLE_IS_VALID(bg.copy) || !BGFX_HANDLE_IS_VALID(bg.full_quad))
+		return FALSE;
+	/* Keep the native source before the acquired eye overrides back-buffer
+	   lookup. The overlay consumes its batch once, on this same canvas. */
+	source = bg_target_get(&device.back_buffer);
+	if (!source || !xgpu_openxr_eye_begin(0))
+		return FALSE;
+	target = &bg_openxr.current->target;
+	framebuffer = bg_framebuffer_get(target, NULL);
+	xgpu_openxr_eye_end();
+	bg.present_view = (unsigned short)(bg.view + 1);
+	if (!bg_blit_to(bg.present_view, letterbox, source, framebuffer, target->pixel_width, target->pixel_height))
+	{
+		bg_openxr.failed = TRUE;
+		return FALSE;
+	}
+	bg_openxr.menu_aspect = (float)bg.window_width / bg.window_height;
+	bg_openxr.menu_rendered = TRUE;
+	return TRUE;
+}
+
+static void bg_openxr_menu_mirror(void)
+{
+	unsigned short view = (unsigned short)(bg.present_view + 1);
+
+	/* The static full quad avoids overwriting the menu blit's dynamic
+	   letterbox vertices, and preserves desktop pointer coordinates. */
+	bgfx_set_view_mode(view, BGFX_VIEW_MODE_SEQUENTIAL);
+	bgfx_set_view_frame_buffer(view, (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE);
+	bgfx_set_view_rect(view, 0, 0, (uint16_t)bg.window_width, (uint16_t)bg.window_height, 0.0f, 1.0f);
+	bgfx_set_view_clear(view, BGFX_CLEAR_COLOR, 0x000000ff, 1.0f, 0);
+	bgfx_set_vertex_buffer(0, bg.full_quad, 0, 4);
+	bgfx_set_texture(0, bg.samplers[0], bg_openxr.eye[0]->target.texture,
+		BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_PT_TRISTRIP, 0);
+	bgfx_submit(view, bg.copy, 0, BGFX_DISCARD_ALL);
+}
+#endif
 
 /* ---------- the overlay (ui_overlay.c), over the picture at the window's
 resolution: its vertices and atlas as ui_overlay.c makes them, its shaders
@@ -4632,6 +4711,10 @@ int xgpu_bgfx_overlay_draw(const void *vertices, int count, int vertex_bytes, co
 {
 	bgfx_transient_vertex_buffer_t buffer;
 	float scale[4];
+#ifdef HALO_OPENXR
+	float menu_cutouts[4][4];
+	int index;
+#endif
 
 	if (!bg.ready || !count || !atlas || !bg_overlay_prepare(atlas_size, icons, icon_size, icon_count) ||
 		vertex_bytes != (int)bg.overlay_layout.stride ||
@@ -4702,6 +4785,24 @@ int xgpu_bgfx_overlay_draw(const void *vertices, int count, int vertex_bytes, co
 	scale[1] = -2.0f / (float)window_height;
 	scale[2] = scale[3] = 0.0f;
 	bgfx_set_uniform(bg.overlay_uniforms[0], scale, 1);
+#ifdef HALO_OPENXR
+	if (bg_openxr.menu_rendered)
+	{
+		/* Vertices and mouse layout remain desktop pixels. Fragment cutouts
+		   use the acquired image's physical pixels instead. */
+		float sx = (float)bg_openxr.eye[0]->target.pixel_width / window_width;
+		float sy = (float)bg_openxr.eye[0]->target.pixel_height / window_height;
+
+		for (index = 0; index < 4; index++)
+		{
+			menu_cutouts[index][0] = cutouts[index][0] * sx;
+			menu_cutouts[index][1] = cutouts[index][1] * sy;
+			menu_cutouts[index][2] = cutouts[index][2] * sx;
+			menu_cutouts[index][3] = cutouts[index][3] * sy;
+		}
+		cutouts = menu_cutouts;
+	}
+#endif
 	bgfx_set_uniform(bg.overlay_uniforms[1], cutouts, 4);
 	bgfx_set_uniform(bg.overlay_uniforms[2], plasma_shift, 1);
 	bgfx_set_uniform(bg.overlay_uniforms[3], plasma_shift + 4, 1);
@@ -5059,9 +5160,9 @@ static void bg_present(void)
 	int letterbox[4] = { 0, 0, 0, 0 };
 #ifdef HALO_OPENXR
 	struct vr_openxr_frame idle_frame;
+	BOOL menu;
 
-	/* Pump session events and close a zero-layer frame while the native
-	   menus, screenshots or another non-stereo caller own the desktop. */
+	/* Pump session events for callers outside the stereo game renderer too. */
 	if (!bg_openxr.begun)
 		xgpu_openxr_frame_begin(&idle_frame);
 #endif
@@ -5070,8 +5171,17 @@ static void bg_present(void)
 		screenshot_every = *config_string("debug.screenshot_directory") ? config_integer("debug.screenshot_every") : 0;
 	bg_warm();
 	bg.present_view = (unsigned short)(bg.view + 1);
-	if ((window = bg_window_due()) != FALSE)
+	window = bg_window_due();
+#ifdef HALO_OPENXR
+	menu = bg_openxr_menu_begin(letterbox);
+	if (window || menu)
+#else
+	if (window)
+#endif
 	{
+#ifdef HALO_OPENXR
+		if (!menu)
+#endif
 		bg_blit(bg.present_view, letterbox);
 #ifdef HALO_GAME_BROWSER
 		/* the overlay's screens, over the picture at the window's resolution
@@ -5080,6 +5190,10 @@ static void bg_present(void)
 			bg.window_width, bg.window_height);
 #endif
 	}
+#ifdef HALO_OPENXR
+	if (menu && window)
+		bg_openxr_menu_mirror();
+#endif
 	/* (debug.test_input's shot too, as the window: xinput_sdl.c) */
 	if (test_screenshot_requested && *config_string("debug.screenshot_directory"))
 	{

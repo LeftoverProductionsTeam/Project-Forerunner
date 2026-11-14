@@ -253,9 +253,16 @@ defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
 The device/session, renderer, stereo camera/FOV caller and basic controller
 input are connected in source through existing native frame/window and Xbox
-input paths. They remain unverified, incomplete VR: headset menus, tracked weapon aim and OpenH1
+input paths. They remain unverified, incomplete VR: tracked weapon aim and OpenH1
 physical interactions still need wiring. No compilation or headset
 validation has been performed under the owner's source-only instruction.
+
+Native menu frames now have a source-only head-locked OpenXR quad path. It
+reuses the left-eye image, composites the existing menu and overlay once, and
+mirrors that canvas to the desktop. Mouse layout remains in desktop coordinates;
+gameplay resumes stereo when native menu ownership ends. Hidden desktop frames
+can still submit the menu quad. Tracking, layout/cutouts, colors, transitions and
+comfort remain unverified; tracked pointers and physical UI interaction are open.
 
 `win32_openxr.c` and its interfaces adapt OpenH1/goath1's `host_vr.c`,
 `host_vr_vulkan.h` and `vr_host.h` at
