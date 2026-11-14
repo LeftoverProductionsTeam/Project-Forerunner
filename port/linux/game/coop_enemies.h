@@ -9,7 +9,7 @@ Network co-op's extra enemies, for its players (coop_enemies.c).
 
 /* network_coop.c: a game begins (its EXTRA ENEMIES read), or the host's
 game state went back (a cutscene skipped): the dropships' riders kept are
-forgotten. A full world revert restarts the finite Firefight encounter;
+forgotten. A full world revert restarts the built-in Firefight encounter;
 respawn-only team wipes preserve its progress and shared lives. */
 void coop_enemies_new_game(
 	void);
@@ -63,10 +63,10 @@ at their vehicle's seats once its own riders get out */
 void coop_enemies_update(
 	void);
 
-/* The finite director owns its tracked enemies/lives/result, never the whole
+/* The built-in director owns its tracked enemies/lives/result, never the whole
 script scheduler. Recognized Spark native round scripts disable that director. */
 boolean coop_enemies_firefight_active(void);
-/* main.c: active finite rounds alone decide when their result may end the map. */
+/* main.c: active built-in rounds decide when their result may end the map. */
 boolean coop_enemies_firefight_result_ready(void);
 boolean coop_enemies_firefight_out_of_lives(void);
 boolean coop_enemies_firefight_can_spawn(long player_index);

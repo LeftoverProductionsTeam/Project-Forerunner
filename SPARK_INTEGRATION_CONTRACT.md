@@ -513,6 +513,24 @@ OpenH1 `baed7757`, and Mota's `2467e708` sidecar source in the upstream matrix.
 | MegaWorld and baked content | Spark `megaworld.rs`/`megaworld_build.rs` own source identities, assembly and native output. The uncommitted `gpuLightmap.ts::bakeGpuLightmapDraft` explicitly produces a direct-light draft, not native lightmap tags. Forerunner keeps its native BSP/cache/collision/renderer/resource paths; simultaneous bounded multi-region residency is unfinished. A preview/GPU draft is not a new accepted engine format or proof of 19-region traversal. |
 | VR, voice and Forge | Continue the existing OpenXR/bgfx renderer adapter using pinned OpenH1 transforms/interactions, the inherited Delta/Opus/Halo sound path, and compatible Faber/Mota placement behavior. Do not remove OpenCE browser/guest voice paths as duplicates of native Delta voice: they still have distinct callers/build gates. No second renderer, VOIP stack, sidecar format or cross-repository build dependency was added. |
 
+The existing network co-op host director in `coop_enemies.c::firefight_update`
+now reads map-start `network.firefight_wave_limit` (default 3, zero repeats until
+defeat/exit) and `network.firefight_initial_enemies` (default 2, valid 1..32).
+Zero-limit progression adapts pinned Faber `firefight.c::firefight_update`'s
+`set_limit` policy without adding its separate round/set engine or packets.
+Native script ownership still disables this entire director, including these
+options; Spark's authored scenarios retain their own HaloScript rules. Larger
+counts need native room/resources and share the unchanged 32-body tracker with
+carrier children; failure aborts rather than dropping untracked enemies.
+Dead bipeds no longer count as standing occupants in the reused spread helper;
+full queries remain conservatively occupied. No bodies/loot are deleted by
+this placement check. Loaded Flood variants can use existing actor selection,
+but this is UNVERIFIED generic survival source, not accepted Zombie outbreaks,
+dynamic objectives, persistent rewards or huge-horde/128-player proof. Local
+Extraction and the network-only director still have different admission paths;
+their combined run/outcome loop remains unfinished. No new Spark operation or
+native-map format is introduced.
+
 Optional controller-facing source now uses `source/game/player_control.c`'s
 `handle_one_player_input` and `port/linux/game/vr_render.c`'s
 `vr_render_player_aim`; `port/windows/src/win32_openxr.c::vr_openxr_tracking_read`

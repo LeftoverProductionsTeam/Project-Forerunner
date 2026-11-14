@@ -175,13 +175,15 @@ static struct
 	short rider_count;
 } coop_enemies;
 
-/* One finite encounter, using existing campaign tags, navigation and co-op
+/* One host encounter, using existing campaign tags, navigation and co-op
 replication. The actor creation and clear-all-wave progression are adapted from
 SutlabSol's OpenCE-Faber e4ffe0fe9874870b4fca1fca76beb83514c793f4,
 firefight_spawner.c:spawn_single_actor_at/track_enemy_unit,
 firefight.c:firefight_update/firefight_notify_actor_or_unit_killed/
 firefight_apply_tick_player_traits
-and actors.c's Outbreak encounterless-child branch
+and actors.c's Outbreak encounterless-child branch. The zero-limit survival
+policy follows that pin's firefight_update/set_limit without importing its
+separate sets/rounds engine.
 (AGPL-3.0-or-later). No Faber ranks, menus or private network packet are needed. */
 static struct
 {
@@ -189,7 +191,9 @@ static struct
 	boolean script_owner_checked;
 	boolean resupply;
 	short phase;
-	short wave;
+	long wave;
+	long wave_limit;
+	short initial_enemies;
 	long score;
 	long deadline;
 	short lives;
@@ -303,8 +307,8 @@ static void firefight_equipment_reports(void)
 
 		if (!game_modes_inventory_capture(iterator.datum_index, &inventory))
 			continue;
-		snprintf(text, sizeof(text), "Firefight wave %d equipment: %d weapons, %d frag, %d plasma.",
-			(int)firefight.wave, (int)inventory.weapon_count, (int)inventory.grenades[0], (int)inventory.grenades[1]);
+		snprintf(text, sizeof(text), "Firefight wave %ld equipment: %d weapons, %d frag, %d plasma.",
+			firefight.wave, (int)inventory.weapon_count, (int)inventory.grenades[0], (int)inventory.grenades[1]);
 		if (distributed_player_is_local(iterator.datum_index))
 		{
 			wchar_t wide[128];
@@ -488,7 +492,8 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 			collection must not remove it before the death animation does so. */
 			if (firefight_spawn_pending(unit))
 				object_set_garbage(unit_index, FALSE);
-			firefight.score += 100;
+			/* Endless encounters must not overflow the host's score. */
+			firefight.score = firefight.score <= LONG_MAX - 100 ? firefight.score + 100 : LONG_MAX;
 			/* Faber credits a player's tracked AI kills. Reuse the native
 			replicated counter here; normal game_statistics counts player
 			victims only. No new statistics structure or packet is needed. */
@@ -540,8 +545,12 @@ static void firefight_format_status(char *text, long size)
 	}
 	phase = firefight.phase == 1 ? "preparing" : firefight.phase == 2 ? "in progress" :
 		firefight.phase == 3 ? "cleared" : "finished";
-	snprintf(text, size, "Firefight: wave %d/3 %s; enemies %d; carriers pending %d; score %ld; lives %d",
-		(int)firefight.wave, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
+	if (firefight.wave_limit)
+		snprintf(text, size, "Firefight: wave %ld/%ld %s; enemies %d; carriers pending %d; score %ld; lives %d",
+			firefight.wave, firefight.wave_limit, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
+	else
+		snprintf(text, size, "Firefight: wave %ld/endless %s; enemies %d; carriers pending %d; score %ld; lives %d",
+			firefight.wave, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
 }
 
 /* The existing reliable client-ready path calls once for a newly loaded peer.
@@ -965,7 +974,7 @@ static void firefight_update(void)
 		/* Spark's native_round_plan/verify_native_round use these compiled
 		   bindings (firefight.rs). Presence is an ownership stop, not proof
 		   the artifact passed validation. Never replace a broken native
-		   round with our unrelated finite director or freeze its scripts. */
+		   round with our unrelated built-in director or freeze its scripts. */
 		static char const *const native_round_scripts[] =
 		{
 			"gs_firefight", "gs_ff_reset", "gs_ff_bootstrap"
@@ -979,7 +988,7 @@ static void firefight_update(void)
 				if (hs_find_script_by_name(native_round_scripts[script]) != NONE)
 				{
 					firefight.enabled = FALSE;
-					platform_log("firefight: authored script %s found; finite director disabled", native_round_scripts[script]);
+					platform_log("firefight: authored script %s found; built-in director disabled", native_round_scripts[script]);
 					return;
 				}
 		}
@@ -1012,7 +1021,7 @@ static void firefight_update(void)
 	if (firefight.phase == 1 && now >= firefight.deadline)
 	{
 		firefight.unit_count = 0;
-		for (index = 0; index < FIREFIGHT_INITIAL_ENEMIES; index++)
+		for (index = 0; index < firefight.initial_enemies; index++)
 		{
 			firefight.units[index] = firefight_spawn(index);
 			if (firefight.units[index] == NONE)
@@ -1032,7 +1041,10 @@ static void firefight_update(void)
 		{
 			char text[128];
 
-			snprintf(text, sizeof(text), "Firefight: wave %d of 3 - eliminate all enemies", (int)firefight.wave);
+			if (firefight.wave_limit)
+				snprintf(text, sizeof(text), "Firefight: wave %ld of %ld - eliminate all enemies", firefight.wave, firefight.wave_limit);
+			else
+				snprintf(text, sizeof(text), "Firefight: survival wave %ld - eliminate all enemies", firefight.wave);
 			firefight_notice(text);
 		}
 	}
@@ -1068,7 +1080,7 @@ static void firefight_update(void)
 			{
 				char text[128];
 
-				snprintf(text, sizeof(text), "Firefight: wave %d cleared - team score %ld", (int)firefight.wave, firefight.score);
+				snprintf(text, sizeof(text), "Firefight: wave %ld cleared - team score %ld", firefight.wave, firefight.score);
 				firefight_notice(text);
 			}
 		}
@@ -1089,10 +1101,11 @@ static void firefight_update(void)
 	}
 	if (firefight.phase == 3 && now >= firefight.deadline)
 	{
-		if (firefight.wave < 3)
+		if (!firefight.wave_limit || firefight.wave < firefight.wave_limit)
 		{
 			firefight_resupply_players();
-			firefight.wave++;
+			if (firefight.wave < LONG_MAX)
+				firefight.wave++;
 			csmemset(firefight.killed, 0, sizeof(firefight.killed));
 			firefight.phase = 1;
 			firefight.deadline = now + 5 * TICKS_PER_SECOND;
@@ -1105,7 +1118,10 @@ static void firefight_update(void)
 			{
 				char text[128];
 
-				snprintf(text, sizeof(text), "Firefight: victory - three waves cleared, team score %ld", firefight.score);
+				if (firefight.wave_limit == 3)
+					snprintf(text, sizeof(text), "Firefight: victory - three waves cleared, team score %ld", firefight.score);
+				else
+					snprintf(text, sizeof(text), "Firefight: victory - %ld waves cleared, team score %ld", firefight.wave, firefight.score);
 				firefight_notice(text);
 			}
 		}
@@ -1193,6 +1209,9 @@ static boolean coop_enemies_occupied(
 		return TRUE;
 	object_count = objects_in_sphere(0, _object_mask_biped | _object_mask_vehicle, &location, &body,
 		SPREAD_SEARCH_RADIUS, object_indices, NUMBEROF(object_indices));
+	/* A full query may omit another living actor; do not call that empty. */
+	if (object_count >= NUMBEROF(object_indices))
+		return TRUE;
 	for (index = 0; index < object_count; index++)
 	{
 		struct object_datum *object = object_get(object_indices[index]);
@@ -1202,7 +1221,7 @@ static boolean coop_enemies_occupied(
 			if (point_in_sphere(&body, &object->object.bounding_sphere_center, object->object.bounding_sphere_radius))
 				return TRUE;
 		}
-		else
+		else if (!TEST_FLAG(object->object.damage_flags, _object_dead_bit))
 		{
 			real dx = object->object.position.x - floor->x;
 			real dy = object->object.position.y - floor->y;
@@ -1374,12 +1393,19 @@ void coop_enemies_new_game(
 	char const *mode = config_string("network.coop_enemies_mode");
 	char const *actor = config_string("network.firefight_actor");
 	char const *spawn = config_string("network.firefight_spawn_encounter");
+	long wave_limit = config_integer("network.firefight_wave_limit");
+	long initial_enemies = config_integer("network.firefight_initial_enemies");
 
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
 	csmemset(firefight.respawn_players, NONE, sizeof(firefight.respawn_players));
 	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
 	firefight.resupply = config_boolean("network.firefight_resupply") != 0;
+	/* Map-start host rules only. Invalid values retain the default encounter;
+	   zero waves follows Faber's endless policy, not an empty free victory. */
+	firefight.wave_limit = wave_limit >= 0 && wave_limit <= 999 ? wave_limit : 3;
+	firefight.initial_enemies = initial_enemies >= 1 && initial_enemies <= FIREFIGHT_MAX_TRACKED_ENEMIES ?
+		(short)initial_enemies : FIREFIGHT_INITIAL_ENEMIES;
 	firefight.initial_lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
 	firefight.lives = firefight.initial_lives;
 	firefight.selection_valid = strlen(actor) < sizeof(firefight.actor_path) && strlen(spawn) < sizeof(firefight.spawn_encounter);
@@ -1403,9 +1429,9 @@ void coop_enemies_reset(
 {
 	coop_enemies.vehicle_count = 0;
 	coop_enemies.rider_count = 0;
-	/* A full world revert invalidates the wave handles. Restart the finite
+	/* A full world revert invalidates the wave handles. Restart the built-in
 	encounter with its original allowance and score, preserving the map's
-	frozen actor/spawn settings. Ordinary Firefight wipes do not call here. */
+	frozen actor/spawn/wave/count settings. Respawn-only wipes do not call here. */
 	firefight.phase = 0;
 	firefight.script_owner_checked = FALSE;
 	firefight.wave = 0;

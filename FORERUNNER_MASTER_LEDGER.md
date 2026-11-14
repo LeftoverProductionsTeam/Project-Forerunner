@@ -675,3 +675,15 @@ CreateFileA ignores sharing, so it cannot supply a stash transaction lock.
 This is a necessary ownership safeguard, not a new persistence subsystem.
 Durable item/run identity, exclusivity and settlement remain open; no tests,
 builds, launches or personal profile/save access.
+
+UNVERIFIED Firefight survival source reuses the existing host director and
+pinned Faber's zero-limit progression policy: map-start wave_limit defaults to
+three, zero repeats until defeat/exit; initial_enemies defaults to two, valid
+1..32. The shared 32-body/child tracker and native pools remain unchanged;
+allocation/placement/capacity failure still aborts. Host counters saturate rather
+than overflow. Dead bipeds no longer block spread as standing actors, while full
+occupancy queries remain conservative. No corpse/loot deletion or new director.
+Spark-native script ownership still wins. Network co-op authority and existing
+status transport are unchanged. This is runtime source/necessary placement work,
+not full Zombie Survival, local Extraction integration or large-horde proof.
+Source/callers/diffs only; no tests, builds, launches, save access or pushes.

@@ -1839,16 +1839,31 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"network.coop_enemies_multiplier." },
 	{ "network.firefight_encounter", _config_boolean, "false", "HALO_NET_FIREFIGHT_ENCOUNTER", _environment_value,
 		_platform_all,
-		"Host: run a finite three-wave encounter after all present co-op players leave\n"
+		"Host: run a built-in encounter after all present co-op players leave\n"
 		"the opening. Default: a nearby Grunt; explicit actor/spawn selection\n"
-		"uses the map's loaded tags and native encounter locations. Two initial\n"
-		"enemies per wave; native carrier children join it, up to 32 tracked\n"
-		"bodies per wave. 100 team points per final death, then the lobby.\n"
+		"uses the map's loaded tags and native encounter locations. Defaults to\n"
+		"three waves and two initial enemies; wave_limit and initial_enemies\n"
+		"configure those host rules. Carrier children join the same 32-body\n"
+		"tracker. 100 team points per final death. Source only, unverified.\n"
 		"Map scripts keep running. Recognized Spark native round scripts\n"
 		"disable this director; leave off for other authored wave controllers." },
+	{ "network.firefight_wave_limit", _config_integer, "3", "HALO_NET_FIREFIGHT_WAVE_LIMIT", _environment_value,
+		_platform_all,
+		"Host: built-in Firefight waves before victory, 1 to 999. Zero repeats\n"
+		"waves until defeat or exit, following Faber's zero-limit survival rule.\n"
+		"Invalid values retain three waves. Fixed at map start; recognized\n"
+		"authored scripts still disable this director. No new raid timer.\n"
+		"Not complete Zombie/Extraction integration or large-horde proof." },
+	{ "network.firefight_initial_enemies", _config_integer, "2", "HALO_NET_FIREFIGHT_INITIAL_ENEMIES", _environment_value,
+		_platform_all,
+		"Host: built-in Firefight initial enemies per wave, 1 to 32. Invalid\n"
+		"values retain two. Carrier children share the existing 32-body tracker;\n"
+		"capacity or native spawn failure aborts the encounter. Native pools and\n"
+		"resource limits are unchanged. Fixed at map start; unverified source.\n"
+		"Loaded Flood variants can use existing actor selection; no new AI." },
 	{ "network.firefight_actor", _config_string, "\"\"", "HALO_NET_FIREFIGHT_ACTOR", _environment_value,
 		_platform_all,
-		"Host: loaded actor-variant tag path without extension for the finite\n"
+		"Host: loaded actor-variant tag path without extension for the built-in\n"
 		"encounter. Empty keeps the nearby-Grunt selection. Explicit missing\n"
 		"tags abort rather than substituting enemies; native faction is kept." },
 	{ "network.firefight_spawn_encounter", _config_string, "\"\"", "HALO_NET_FIREFIGHT_SPAWN_ENCOUNTER", _environment_value,
@@ -1858,7 +1873,7 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"actor's origin. Selects placement only, not wave/group rules or JSON." },
 	{ "network.firefight_lives", _config_integer, "7", "HALO_NET_FIREFIGHT_LIVES", _environment_value,
 		_platform_all,
-		"Host: shared lives for the finite Firefight encounter, 0 to 99. Each\n"
+		"Host: shared lives for the built-in Firefight encounter, 0 to 99. Each\n"
 		"actual player death spends one to reserve that player's respawn. The\n"
 		"last paid respawn still completes at zero; later deaths get none. An\n"
 		"unfunded team wipe ends in defeat. A full world\n"
@@ -1867,7 +1882,7 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "network.firefight_resupply", _config_boolean, "false", "HALO_NET_FIREFIGHT_RESUPPLY", _environment_value,
 		_platform_all,
 		"Host: refill living players' carried weapon reserves and battery charge\n"
-		"between finite Firefight waves. Fixed at map start. Does not refill\n"
+		"between continuing Firefight waves. Fixed at map start. Does not refill\n"
 		"loaded magazines, cancel reloads or grant equipment. Off by default." },
 	{ "network.coop_pickups", _config_string, "\"none\"", "HALO_NET_COOP_PICKUPS", _environment_value, _platform_all,
 		"Extra campaign weapons, grenades, health kits, overshields and camouflage.\n"

@@ -632,3 +632,13 @@ No tests, builds, launches or personal settings/save access. Re-enumeration,
 missing/read-only profiles, transient lookup failure, clock resets and normal
 returns need later native validation. This is local ownership evidence only,
 not durable identity, authenticated networking or a stash persistence claim.
+
+UNVERIFIED host wave-limit/count source: inspected all wave/score readers,
+initialization/revert paths, native spread indices and shared child capacity.
+Defaults retain three waves/two initial enemies and the existing victory text.
+Zero-limit progression reuses Faber's set_limit policy; native scripts still
+disable this producer. Placement excludes dead bipeds and refuses full occupancy
+queries. No tests, builds, launches or native validation. Default/custom/endless
+outcomes, resource pressure, corpse clearance, carrier children, late joins,
+lives/reverts/resupply and platform parity require later validation. Wave/score
+saturation is source-reviewed, not a duration or population performance claim.
