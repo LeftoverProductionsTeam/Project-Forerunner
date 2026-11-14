@@ -11,9 +11,10 @@ No separate coordination service or repeated cross-project polling/builds.
 
 Review baseline: Forerunner gameplay `21a809b0`, shared-life source `c8196f81`,
 repository reconciliation `3347a00c2`; Spark inspected read-only at
-`1f16760` with unfinished actor-source reconciliation in its Firefight UI.
-Spark's source changes remain untouched. Forerunner shared lives and the new
-actor/spawn selection are source-only/unverified, not advertised capabilities.
+`20acb45fb84bd4789732a5f99c41c6a0acaafadb` with unfinished native encounter
+inspection/layout-readback edits. Forerunner source is `f96bf1d23`. Spark's source
+changes remain untouched. Forerunner changes after the accepted gameplay build
+are source-only/unverified, not advertised capabilities.
 
 ## Discovery and feature negotiation
 
@@ -84,6 +85,7 @@ the ability to launch a process.
 | Spark `FirefightConfig` schema `1` | Authoring/preview only. **Forerunner has no importer for this JSON.** |
 | Standard actor palettes, encounters/squads, player profiles, HaloScript | Existing native authoring/runtime boundary. Spark emits source; the inherited engine executes supported compiled caches. Specific generated maps still require gameplay acceptance. |
 | Firefight late-join status text | New unverified source sends current host wave/phase, enemy/pending-spawn counts, score/lives and any terminal outcome after a newly loaded client's reliable ready message. Existing notice transport only; not a query RPC, structured HUD state or full late-join gameplay acceptance. |
+| Tracked Firefight AI kill credit | New unverified host source credits the last damaging player's existing native kill counter once on final death. AI/environmental/no-statistics damage clears individual attribution; departed/reused player handles are refused. Existing statistics transport only; no individual point totals, assists, medals or new discovery operation. |
 | Live edits, runtime-state query, transactions/undo | Not implemented by this adapter. No private-memory/debug-console fallback. |
 
 Accepted discovery identity: `7c65d0865c34-dirty.d990a0d29b19`, Windows/x86,
@@ -104,8 +106,21 @@ queried under the owner's no-tests instruction.
 
 Spark also has source for equipped native solo rounds, per-group spawn-zone
 assignments and full prepared-round source export through its existing QuickForge
-pipeline. Recent source-only changes are described in Spark's `docs/FIREFIGHT_ENGINE.md`;
+pipeline. `src/components/Firefight.tsx::includeSourceAssets` now reuses the
+existing source-import path for actor/weapon closures, retaining source SHA,
+namespaced dependencies and stale-project/Save guards. The current native
+scenario reader exposes actor palette, squad/start overrides and firing positions;
+`firefight.rs::verify_native_round` checks the planned actor/count/state/positions.
+`forge_build.rs` applies current readback to retained build reuse too. These are
+unverified source improvements, not proof of extraction, compilation or gameplay.
+Recent source-only changes are described in Spark's `docs/FIREFIGHT_ENGINE.md`;
 its offline preview remains authoring feedback, never runtime AI authority.
+
+Spark's current checkpoint explicitly leaves the recovered-scenario append writer
+and original script/controller preservation metadata unfinished. Its separate
+camera-script preservation source does not establish those Firefight operations.
+Reading encounter tables is not authority to overwrite them or reuse fresh-source
+index-zero commands against an existing scenario.
 
 Two concrete restrictions remain in Spark:
 
@@ -228,7 +243,13 @@ shared-folder identity policy still needs an explicit Forerunner
 decision and later native acceptance. Reuse conversion/native source generation
 for the chosen Zombie candidate and support a reviewed derived-source encounter
 handoff without dropping the existing recovery guards. Do not advertise live
-editing, JSON import or multiplayer authoring as ready.
+editing, JSON import or multiplayer authoring as ready. For the chosen recovered
+Zombie map, extend the existing Source Guardian/working-tag build path to append
+reviewed encounters, actor references and the controller while preserving original
+tables/scripts and dependencies. Reuse the new actor/weapon closure inclusion and
+native layout readback; the new reader alone does not close this writer gap.
+The first authored solo loop is a content/runtime handoff gate, not acceptance of
+the synchronized Firefight milestone. Two-peer execution remains a separate gate.
 
 **Forerunner owes:** the actual Zombie actor/spawner lifecycle, relevant Faber
 HUD/lives/configuration integration and safe loading of the resulting content.

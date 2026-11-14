@@ -328,3 +328,11 @@ existing persistent-checkpoint opt-out for fresh authored playback. It does not
 create a profile, host a session or import rules; refusal leaves normal menus.
 No tests, builds, capability queries or game launches were run. Accepted binaries
 predate this setting; authored revision loading and complete combat remain open.
+
+The next source-only increment adds individual kill credit for the finite
+director's exact tracked AI bodies, adapting Faber's final-kill notification to
+the native replicated player counter. It retains the actual last damage owner,
+clears attribution for AI/environmental/no-statistics damage and awards only once
+on final death, with departed/reused handles refused and short-counter saturation.
+Source review only; no tests/builds/queries/games ran. This is not accepted kill
+agreement, full individual scoring, assists, medals or a Firefight HUD.

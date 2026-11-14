@@ -134,7 +134,7 @@ Actor/spawn settings remain frozen for that map. Respawn-only Firefight wipes do
 not call this reset and continue preserving progress/spent lives. Preparation also
 retires old pending hostile carrier bursts from a restored world, without score.
 Source review only; no tests/builds/native runs and no new recovery framework.
-The next source increment adds optional desktop `game.start_map` /
+Source checkpoint `f96bf1d23` adds optional desktop `game.start_map` /
 `HALO_START_MAP`: one installed CE solo cache selected once through the normal
 campaign/profile/loader path, fresh instead of an older saved checkpoint. It
 checks native cache kind/resources and refuses competing startups/sessions;
@@ -146,3 +146,26 @@ authored solo encounter; keep the separate finite co-op director off for that pa
 The original Demo multiplayer map, missing original audio, carrier gameplay,
 multi-group waves, full HUD and creator-map/two-peer acceptance remain open. Do not
 call the actor selector or the accepted B40 proof a completed Zombie encounter.
+
+The companion follow-up inspected Spark read-only at
+`20acb45fb84bd4789732a5f99c41c6a0acaafadb`, including its current native encounter
+inspection/layout-readback edits. Its actor/weapon closure inclusion, exact native
+round-layout checks and retained-build readback can feed Forerunner's existing CE
+loader without duplicating authoring or simulation. Spark still owes a preserving
+recovered-scenario append writer plus reviewed CE receipt-to-Forerunner launch
+routing; OpenCE build preflight and the exact-executable shared-folder policy
+remain closed. The existing integration contract records these concrete next steps.
+Forerunner remains the runtime/playtest companion; the initial solo content gate
+does not accept synchronized gameplay. Only these Forerunner documentation files
+were changed in this follow-up. No tests, builds, queries, games, Spark writes or
+remote/branch changes were performed.
+
+The next source-only gameplay increment adapts Faber's tracked AI kill credit to
+the existing native player kill counter. The host retains each tracked body's last
+actual damaging owner, including NONE for AI/environmental/no-statistics damage;
+only the existing final-death callback awards once. Initial bodies and native
+children start uncredited, full player handles reject departed/reused players,
+and the short counter saturates rather than wrapping. Existing statistics
+replication carries the change; team points remain unchanged. No tests, builds,
+runtime queries or games ran. Individual point totals, assists, medals and HUD
+integration remain open. This cycle adds gameplay source, not infrastructure.

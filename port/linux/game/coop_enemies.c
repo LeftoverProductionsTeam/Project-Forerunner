@@ -174,7 +174,8 @@ static struct
 /* One finite encounter, using existing campaign tags, navigation and co-op
 replication. The actor creation and clear-all-wave progression are adapted from
 SutlabSol's OpenCE-Faber e4ffe0fe9874870b4fca1fca76beb83514c793f4,
-firefight_spawner.c:spawn_single_actor_at/track_enemy_unit, firefight.c:firefight_update
+firefight_spawner.c:spawn_single_actor_at/track_enemy_unit,
+firefight.c:firefight_update/firefight_notify_actor_or_unit_killed
 and actors.c's Outbreak encounterless-child branch
 (AGPL-3.0-or-later). No Faber ranks, menus or private network packet are needed. */
 static struct
@@ -190,6 +191,7 @@ static struct
 	short unit_count;
 	long units[FIREFIGHT_MAX_TRACKED_ENEMIES];
 	boolean killed[FIREFIGHT_MAX_TRACKED_ENEMIES];
+	long last_damage_player[FIREFIGHT_MAX_TRACKED_ENEMIES];
 	long variant;
 	short team;
 	real facing;
@@ -295,6 +297,7 @@ boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_i
 	firefight_wake_unit(unit_index, actor_index, unit->object.owner_team_index);
 	firefight.units[firefight.unit_count] = unit_index;
 	firefight.killed[firefight.unit_count] = FALSE;
+	firefight.last_damage_player[firefight.unit_count] = NONE;
 	firefight.unit_count++;
 	platform_log("firefight: spawned child %08lx from %08lx", (unsigned long)unit_index, (unsigned long)parent_index);
 	return TRUE;
@@ -318,6 +321,25 @@ void coop_enemies_firefight_player_died(long unit_index)
 	firefight_notice(text);
 }
 
+/* Keep the actual last damaging owner, including NONE for AI/environmental or
+no-statistics damage. A feigned death is not a kill; later damage can change its
+owner before the final death. Full player handles prevent slot-reuse credit. */
+void coop_enemies_firefight_enemy_damaged(long unit_index, long player_index)
+{
+	short index;
+
+	if (!coop_enemies_firefight_active() || firefight.phase != 2)
+		return;
+	for (index = 0; index < firefight.unit_count; index++)
+	{
+		if (firefight.units[index] == unit_index && !firefight.killed[index])
+		{
+			firefight.last_damage_player[index] = player_index;
+			break;
+		}
+	}
+}
+
 /* Faber's firefight_notify_actor_or_unit_killed records a native death rather
 than waiting for a corpse. Keep this encounter's exact handles and one award;
 destruction damage may delete the body before the next Firefight tick. */
@@ -337,8 +359,20 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 	{
 		if (firefight.units[index] == unit_index && !firefight.killed[index])
 		{
+			long player_index = firefight.last_damage_player[index];
+			struct player_datum *player = player_try_and_get(player_index);
+
 			firefight.killed[index] = TRUE;
 			firefight.score += 100;
+			/* Faber credits a player's tracked AI kills. Reuse the native
+			replicated counter here; normal game_statistics counts player
+			victims only. No new statistics structure or packet is needed. */
+			if (player && !player->quit_out_of_game && player->statistics.kills[0] < SHORT_MAX)
+			{
+				player->statistics.kills[0]++;
+				platform_log("firefight: player %08lx killed %08lx, kills %d",
+					(unsigned long)player_index, (unsigned long)unit_index, (int)player->statistics.kills[0]);
+			}
 			platform_log("firefight: enemy died %08lx", (unsigned long)unit_index);
 			break;
 		}
@@ -764,6 +798,7 @@ static void firefight_update(void)
 				firefight_notice("Firefight: spawn failed; encounter aborted");
 				return;
 			}
+			firefight.last_damage_player[index] = NONE;
 			firefight.unit_count++;
 			platform_log("firefight: spawned %08lx", (unsigned long)firefight.units[index]);
 		}

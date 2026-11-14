@@ -68,6 +68,8 @@ boolean coop_enemies_firefight_active(void);
 boolean coop_enemies_firefight_out_of_lives(void);
 /* players.c, before detaching a real dead player's body. */
 void coop_enemies_firefight_player_died(long unit_index);
+/* units.c: actual damage owner, or NONE for uncredited/no-statistics damage. */
+void coop_enemies_firefight_enemy_damaged(long unit_index, long player_index);
 /* units.c: final unit_died only, after detaching its actor bindings. */
 void coop_enemies_firefight_enemy_died(long unit_index);
 /* actors.c: only tracked Firefight parents may spawn encounterless children.

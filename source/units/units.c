@@ -7406,6 +7406,15 @@ void unit_damage_aftermath(
 			damage_data->owner_object_index);
 	}
 
+	/* port: retain the last real damage owner for tracked Firefight enemies;
+	final unit_died awards once, including a delayed feigned death. */
+	if (body_damage > 0.f || shield_damage > 0.f ||
+		TEST_FLAG(damage_flags, _object_being_damaged_body_depleted_bit))
+	{
+		coop_enemies_firefight_enemy_damaged(unit_index,
+			TEST_FLAG(damage_data->flags, _damage_no_statistics_bit) ? NONE : damage_data->owner_player_index);
+	}
+
 	if (!TEST_FLAG(
 			damage_data->flags,
 			_damage_silent_bit) &&
