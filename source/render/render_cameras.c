@@ -133,6 +133,7 @@ symbols in this file:
 #include "cseries.h"
 #include "cseries/errors.h"
 #include "render/render_cameras.h"
+#include "vr_render.h" /* port: optional OpenXR eye frusta, port/linux/game/vr_render.c */
 #include "render/render_camera_projection.h"
 #include "render/render_cameras_internal.h"
 #include "render/render_debug.h"
@@ -767,6 +768,10 @@ void render_camera_build_frustum_bounds(
 		frustum_bounds->y0 = -frustum_bounds->y1;
 		frustum_bounds->y1 = -temporary_y0;
 	}
+#ifdef HALO_OPENXR
+	/* port: normalize OpenXR's asymmetric FOV through the native projection. */
+	vr_render_frustum_bounds(camera, frustum_bounds);
+#endif
 	return;
 }
 
@@ -1217,6 +1222,14 @@ static void render_camera_build_frustum_checked(
 	real far_top;
 	real_point3d view_point;
 	long vertex_index;
+#ifdef HALO_OPENXR
+	real_rectangle2d eye_bounds;
+
+	/* port: non-player views also use the eye FOV. Explicit clipped bounds
+	   from the existing player/reflection path retain their clipping. */
+	if (!frustum_bounds && vr_render_frustum_bounds(camera, &eye_bounds))
+		frustum_bounds = &eye_bounds;
+#endif
 
 	if (frustum_bounds)
 	{

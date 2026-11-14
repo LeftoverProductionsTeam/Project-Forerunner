@@ -35,6 +35,8 @@ struct vr_openxr_hand
 struct vr_openxr_frame
 {
 	int should_render, focused;
+	/* Camera anchoring resets when a new session/local reference is ready. */
+	unsigned int reference_serial;
 	float display_period;
 	struct vr_openxr_pose eye[2];
 	/* Left, right, up, down angles in radians, from xrLocateViews. */

@@ -63,6 +63,7 @@ symbols in this file:
 #include "cseries/errors.h"
 #include "render.h"
 #include "render_cameras_internal.h"
+#include "vr_render.h" /* port: optional stereo traversal, port/linux/game/vr_render.c */
 #include "render_particles.h"
 #include "objects.h"
 #include "render_sprite.h"
@@ -889,6 +890,16 @@ void render_frame(
 
 		window = &windoze[window_index];
 		render.window_index = window_index;
+#ifdef HALO_OPENXR
+		/* port: both stereo eyes retain the native local-player window index. */
+		{
+			short native_window_index = window_index;
+
+			if (!vr_render_window_begin(window, &native_window_index))
+				continue;
+			render.window_index = native_window_index;
+		}
+#endif
 		if (window->console_window)
 		{
 			window_type = 0;
@@ -906,6 +917,10 @@ void render_frame(
 			render_player_frame(
 				window,
 				screenshot_index != NULL ? &screenshot_combined_index : NULL);
+#ifdef HALO_OPENXR
+			/* port: an eye stays acquired through its interface window. */
+			vr_render_window_end(window);
+#endif
 			continue;
 		}
 		else
@@ -915,6 +930,10 @@ void render_frame(
 
 		HALO_PERF_RENDER_PART(_halo_perf_render_end);
 		render_nonplayer_frame(window, window_type);
+#ifdef HALO_OPENXR
+		/* port: close this eye's views; Present releases after GPU submission. */
+		vr_render_window_end(window);
+#endif
 	}
 
 	HALO_PERF_RENDER_PART(_halo_perf_render_end);

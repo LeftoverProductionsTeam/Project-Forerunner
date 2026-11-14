@@ -472,3 +472,15 @@ hardware validation ran. Stereo game cameras/FOV, menus, input, color-space
 appearance, failure recovery, image lifetime and actual GPU scheduling remain
 unverified; the game-side caller is still unfinished. No performance result or
 playable VR support is claimed.
+
+The next source checkpoint connects the OpenH1-derived eye pose/scale and
+asymmetric FOV adapter to one existing native frame traversal, retaining native
+local-player indices. Native camera layouts, simulated player count, tick rate
+and wire protocol are unchanged. Local-reference/session re-anchoring and XR
+cadence bypasses are source only. A skipped-submit Vulkan hook flushes pending
+resource commands before releasing eyes and submits no projection for skipped
+views. No patch application, builds, tests, launches, runtime queries or headset
+runs occurred. Both headset targets, pose/projection accuracy, resize/loss,
+render caches/occlusion, color, wall collision, menus, native game controls and
+physical interactions remain unverified or unfinished. No full-VR or measured
+performance acceptance is claimed.

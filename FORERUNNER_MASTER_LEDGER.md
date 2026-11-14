@@ -61,7 +61,7 @@ comparisons pass. Inputs were automated; full Faber and human acceptance remain 
 | OpenGL loading/rendering | Desktop shader prologue and immediate draw declaration repaired; native gameplay captures and clean exit | Human play, performance, audio and other GPUs/backends |
 | Firefight / Forge | Faber-derived actor spawning/pursuit and finite three-wave B40 encounter pass native two-client combat; Forge not integrated | Human play, creator map, full HUD/settings/lives, late join/restart and remaining Faber features |
 | Extraction / AI Zombies | No native integration completed | Complete authoritative gameplay loops and persistence tests |
-| OpenH1 VR | Approved shared Windows64 OpenXR/Vulkan bootstrap and Touch/Index actions added in source, unverified | Stereo renderer/camera/input wiring, physical interactions and hardware + desktop-peer combat |
+| OpenH1 VR | Shared Windows64 OpenXR/Vulkan device, eye targets and native stereo camera/FOV traversal connected in source, unverified | Headset menus, tracked gameplay input/physical interactions and hardware + desktop-peer combat |
 | Spark / MegaWorld | Version-1 read-only discovery and reference client tested against real engine; no editing/world traversal | End-to-end editing and two-way player/vehicle traversal |
 | Releases | No public release or push performed | Supported-platform, installer, regression and human acceptance |
 
@@ -406,3 +406,25 @@ necessary runtime source progress; the game-side stereo camera/FOV caller,
 headset menus, full pacing/input/interaction wiring and hardware acceptance
 remain open. No tests, configure, builds, patch application, launches, Spark
 changes or pushes ran. All new functionality remains UNVERIFIED.
+
+Stereo caller source cycle connects `vr_render.c` to the existing native
+`render_frame` traversal: two eye cameras and their interface views share one
+native frame, retain the actual local-player index and use OpenH1-derived pose
+axes/metre scale/asymmetric frustum normalization. Native camera structs,
+simulated players, 30 Hz game time and network payloads are unchanged. Local
+reference/session changes reset the render anchor. Active XR bypasses desktop
+frame caps and legacy render throttling; menu/non-stereo callers pump a
+zero-layer XR frame. A conditional Vulkan queue hook flushes pending resource
+commands and drops the projection when a resize skips native submission,
+without adding a per-eye GPU wait. All source remains UNVERIFIED; native
+patch application, build, render, hardware, color/occlusion, camera collision,
+headset menu and controller/physical interaction acceptance remain open. No
+tests, configure, builds, launches, native queries, Spark mutations or pushes.
+
+Mota subsequently supplied `SutlabSol/OpenCE-Forge` main, now pinned at
+`2467e708b67bdab994b4f3725516a72e31f629b3` in the existing upstream matrix and
+Spark contract. Its actual text-sidecar reader/writer and stock-versus-Forge
+session protocol are identified; no competing format or reader was invented.
+The user also relayed per-player BSP and server-selected third-person biped
+work as follow-up source-comparison leads; those reports are not acceptance
+evidence and do not establish first-person arms or protocol compatibility.

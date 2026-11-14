@@ -48,6 +48,8 @@ stencil write mask rides in the back stencil's read mask, as bgfx reads it. The 
 #include "ui_overlay_cellwall.h"
 #ifdef HALO_OPENXR
 #include "vr_openxr.h"
+/* Same-thread submission result from the existing Vulkan queue (bgfx patch). */
+extern int bgfx_vk_openxr_finish_frame(void);
 #endif
 
 /* a 2D copy of width x height from the source's top left (mip level) to the
@@ -2406,11 +2408,14 @@ void xgpu_openxr_eye_end(void)
    OpenXR uses that same queue; no CPU readback or per-eye device-idle wait. */
 static void bg_openxr_frame_submitted(void)
 {
+	int submitted;
+
 	if (!bg_openxr.begun)
 		return;
+	submitted = bgfx_vk_openxr_finish_frame();
 	vr_openxr_eye_release(0);
 	vr_openxr_eye_release(1);
-	vr_openxr_frame_end(!bg_openxr.failed && bg_openxr.rendered[0] && bg_openxr.rendered[1]);
+	vr_openxr_frame_end(submitted && !bg_openxr.failed && bg_openxr.rendered[0] && bg_openxr.rendered[1]);
 	bg_openxr.begun = FALSE;
 	bg_openxr.current = NULL;
 	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
@@ -5052,6 +5057,14 @@ static void bg_present(void)
 	BOOL window;
 	static long screenshot_every = -1;
 	int letterbox[4] = { 0, 0, 0, 0 };
+#ifdef HALO_OPENXR
+	struct vr_openxr_frame idle_frame;
+
+	/* Pump session events and close a zero-layer frame while the native
+	   menus, screenshots or another non-stereo caller own the desktop. */
+	if (!bg_openxr.begun)
+		xgpu_openxr_frame_begin(&idle_frame);
+#endif
 
 	if (screenshot_every < 0)
 		screenshot_every = *config_string("debug.screenshot_directory") ? config_integer("debug.screenshot_every") : 0;

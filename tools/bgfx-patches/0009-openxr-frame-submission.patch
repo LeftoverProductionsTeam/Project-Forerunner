@@ -1,0 +1,49 @@
+diff --git a/src/renderer_vk.cpp b/src/renderer_vk.cpp
+--- a/src/renderer_vk.cpp
++++ b/src/renderer_vk.cpp
+@@ -19,6 +19,9 @@
+ 
+ namespace bgfx { namespace vk
+ {
++#if defined(HALO_OPENXR)
++	static bool openxr_frame_submitted = false;
++#endif
+ 	struct PrimInfo
+ 	{
+ 		VkPrimitiveTopology m_topology;
+@@ -11702,6 +11705,9 @@
+ 
+ 	void RendererContextVK::submit(Frame* _render, const ClearQuad& /*_clearQuad*/, const MipGen& /*_mipGen*/, TextVideoMemBlitter& _textVideoMemBlitter)
+ 	{
++#if defined(HALO_OPENXR)
++		openxr_frame_submitted = false;
++#endif
+ 		m_indexBuffers.freeUnused();
+ 		m_vertexBuffers.freeUnused();
+ 		m_shaders.freeUnused();
+@@ -13094,7 +13100,24 @@
+ 		}
+ 
+ 		kick();
+-	}
++#if defined(HALO_OPENXR)
++		openxr_frame_submitted = !m_lost;
++#endif
++	}
++
++#if defined(HALO_OPENXR)
++	// Same-thread interop after bgfx::frame: a resize can skip submit's views.
++	// Flush pending resource commands before releasing runtime images, but
++	// never present their undefined/old contents as a rendered stereo pair.
++	extern "C" int bgfx_vk_openxr_finish_frame(void)
++	{
++		if (NULL == s_renderVK || s_renderVK->m_lost)
++			return 0;
++		if (!openxr_frame_submitted)
++			s_renderVK->kick();
++		return openxr_frame_submitted ? 1 : 0;
++	}
++#endif
+ 
+ } /* namespace vk */ } // namespace bgfx
+ 

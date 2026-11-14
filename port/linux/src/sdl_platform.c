@@ -39,6 +39,9 @@ and the debug keyboard that the game's console reads.
 #include "../game/text_filter.h"
 #include "launcher.h"
 #include "vrr.h"
+#ifdef HALO_OPENXR
+#include "vr_openxr.h"
+#endif
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -3490,6 +3493,11 @@ static Uint64 frame_interval_ns(void)
 	float rate;
 	int vrr = platform_vrr();
 
+#ifdef HALO_OPENXR
+	/* The headset wait owns the cadence; desktop FPS/VRR limits do not. */
+	if (vr_openxr_running())
+		return 0;
+#endif
 	if (read_at != config_changes())
 	{
 		read_at = config_changes();

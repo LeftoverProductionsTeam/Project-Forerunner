@@ -425,6 +425,7 @@ void platform_log(const char *format, ...);
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "mcc_main.h" /* port: port/linux/game/mcc_main.h */
 #include "view_fov.h" /* port: display.fov, before the projection and culling */
+#include "vr_render.h" /* port: optional OpenXR stereo views, port/linux/game/vr_render.c */
 #include "halo_perf_log.h" /* port: console.perf_log */
 #include "plasma_lighting.h" /* port: port/linux/game/plasma_lighting.c */
 #include "mcc_cache.h"
@@ -3042,7 +3043,12 @@ void main_rasterizer_throttle(
 	main_globals.rasterizer_throttle_start_index =
 		rasterizer_globals.frame_and_vertical_blank_index + 1;
 #ifndef HALO_XBOX_CONSOLE
-	if (rasterizer_globals.framerate_throttle && !halo_interpolation_enabled())
+	if (rasterizer_globals.framerate_throttle && !halo_interpolation_enabled()
+#ifdef HALO_OPENXR
+		/* port: the OpenXR runtime paces a running headset session. */
+		&& !vr_openxr_running()
+#endif
+		)
 #else
 	if (rasterizer_globals.framerate_throttle)
 #endif
@@ -3669,6 +3675,9 @@ static void main_game_render(
 	long player_window_count;
 	long window_count;
 	short last_local_player_index;
+	/* port: stereo substitutes local render views, never simulated players. */
+	struct render_window *render_windows;
+	short render_window_count;
 
 	MAIN_STAGE("render: lock_global_random_seed");
 	lock_global_random_seed();
@@ -3754,14 +3763,25 @@ static void main_game_render(
 
 	if (global_screenshot_count.count <= 0)
 	{
+		/* port: one native frame traversal for both OpenXR eyes and their
+		   existing interface views (port/linux/game/vr_render.c). */
+		render_windows = global_screenshot_count.windows;
+		render_window_count = (short)(player_window_count + 1);
+#ifdef HALO_OPENXR
+		render_window_count = vr_render_prepare(render_windows, render_window_count, &render_windows);
+#endif
 		MAIN_STAGE("render: render_frame");
 		render_frame(
-			global_screenshot_count.windows,
-			player_window_count + 1,
+			render_windows,
+			render_window_count,
 			NULL,
 			NULL,
 			main_globals.movie,
 			(real)time_delta_since_tick_sec);
+#ifdef HALO_OPENXR
+		/* port: clear the eye-camera override before other render callers. */
+		vr_render_finish();
+#endif
 	}
 	else
 	{
@@ -4196,6 +4216,12 @@ static boolean main_loop_iteration(
 					/* frames between ticks too (render_interpolation.c) */
 					if (halo_interpolation_enabled())
 						render_frame = main_globals.main_menu_scenario_loaded || main_globals.halt_time_scale;
+#endif
+#ifdef HALO_OPENXR
+					/* port: headset views can update between native 30 Hz ticks.
+					   This does not change game_time_update or network state. */
+					if (vr_openxr_running())
+						render_frame = TRUE;
 #endif
 					render_frame &= !game_engine_running() || game_time_get()>=3;
 

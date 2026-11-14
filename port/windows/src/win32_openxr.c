@@ -67,6 +67,9 @@ static struct
 	VkFormat format;
 	XrFrameState frame;
 	XrView views[2];
+	XrTime space_change_time;
+	unsigned int reference_serial;
+	int space_change_pending;
 } vr;
 
 static int check(XrResult result, const char *operation)
@@ -403,7 +406,7 @@ void vr_openxr_vulkan_bind(VkInstance instance, VkPhysicalDevice physical, VkDev
 	space.poseInReferenceSpace.orientation.w = 1.0f;
 	if (!check(xrCreateReferenceSpace(vr.session, &space, &vr.space), "create local space") ||
 		!actions_create() || !swapchains_create()) goto failed;
-	platform_log("OpenXR: Vulkan session, Touch and Index actions created (UNVERIFIED; stereo game wiring pending)");
+	platform_log("OpenXR: Vulkan session, Touch and Index actions created (UNVERIFIED; tracked gameplay controls incomplete)");
 	return;
 failed:
 	/* Vulkan is still owned by bgfx, so leave its device alive. */
@@ -490,6 +493,15 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
 	while (xrPollEvent(vr.instance, &event) == XR_SUCCESS)
 	{
 		if (event.type == XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING) vr.unavailable = 1;
+		if (event.type == XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING)
+		{
+			const XrEventDataReferenceSpaceChangePending *changed = (const XrEventDataReferenceSpaceChangePending *)&event;
+			if (changed->session == vr.session && changed->referenceSpaceType == XR_REFERENCE_SPACE_TYPE_LOCAL)
+			{
+				vr.space_change_time = changed->changeTime;
+				vr.space_change_pending = 1;
+			}
+		}
 		if (event.type == XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED)
 		{
 			const XrEventDataSessionStateChanged *changed = (const XrEventDataSessionStateChanged *)&event;
@@ -501,6 +513,7 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
 					XrSessionBeginInfo session = { XR_TYPE_SESSION_BEGIN_INFO };
 					session.primaryViewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
 					vr.running = check(xrBeginSession(vr.session, &session), "begin session");
+					if (vr.running) vr.reference_serial++;
 				}
 				if (vr.state == XR_SESSION_STATE_STOPPING && vr.running)
 				{
@@ -523,6 +536,12 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
 		return 0;
 	}
 	vr.frame_begun = 1;
+	if (vr.space_change_pending && vr.frame.predictedDisplayTime >= vr.space_change_time)
+	{
+		vr.reference_serial++;
+		vr.space_change_pending = 0;
+	}
+	frame->reference_serial = vr.reference_serial;
 	vr.views_valid = 0;
 	vr.released[0] = vr.released[1] = 0;
 	frame->focused = vr.state == XR_SESSION_STATE_FOCUSED;

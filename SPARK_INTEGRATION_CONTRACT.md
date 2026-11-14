@@ -385,15 +385,21 @@ identity and required capabilities. A runtime must reject an unknown required
 feature before modifying a session. No proprietary Halo tag extension or legacy
 conversion is introduced by this checkpoint.
 
-Community compatibility lead (14 November): Mota recommends Watanoge's existing
-Forge/Firefight work and reports a newer map-preserving streaming-tag/text
-placement sidecar. The inspected Watanoge snapshot is pinned in
-[the upstream matrix](UPSTREAM_FEATURE_MATRIX.md); its tag-pack and CE-cache
-trailer paths do not establish that newer sidecar's exact format. No such
-sidecar reader, Spark write operation or cross-fork session compatibility is
-currently advertised by Forerunner. Reuse the actual upstream format when its
-source is available rather than inventing a competing schema. A placement file
-does not supply missing client gameplay tags: every participating peer must
+Community compatibility lead (14 November): Mota supplied
+[`SutlabSol/OpenCE-Forge`, main](https://github.com/SutlabSol/OpenCE-Forge),
+inspected at `2467e708b67bdab994b4f3725516a72e31f629b3`. Its existing
+`port/linux/game/forge_runtime_tags.c` contains the exact format entry points:
+`forge_write_sidecar_state_file`, `parse_forge_state_text_buffer` and
+`forge_load_saved_map_state_if_present`. Saves use `custom_maps/<name>.txt`,
+`[OpenCE Forge Map]`, `Base Map:` and `[ForgeState]` with typed placement/edit
+records. Reuse this upstream format rather than defining a competing writer.
+The required runtime object/tag admission and full record semantics are not yet
+implemented here; Spark must not advertise Forerunner as its sidecar consumer.
+The fork's source selects stock protocol for ordinary games and Forge-specific
+`0x462C` / game kind `0x46` for Forge; its messages and tag-streaming paths are
+not automatically compatible with Forerunner. Watanoge's separate Forge/Firefight
+snapshot remains pinned in [the upstream matrix](UPSTREAM_FEATURE_MATRIX.md).
+A placement file does not supply missing client gameplay tags: every peer must
 resolve compatible content and dependencies before spawning, including late
 joiners. Existing visual-only loose-tag mods do not meet that requirement.
 Keep proprietary base MCC data local; no asset-sharing capability is implied.
