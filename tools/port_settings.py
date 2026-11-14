@@ -2374,7 +2374,11 @@ COOP_ENEMIES_MULTIPLIERS = [2, 4, 8, 16, 32]
 # help of each of them; menu_functions.c's gametype_options give their
 # settings' values)
 COOP_SETUP_SCREENS = [
-    ("coop_options", "CO-OP OPTIONS", "Team wipes, friendly fire, enemies and collisions,\\nfor this game.", [
+    ("coop_options", "CO-OP OPTIONS", "Firefight, team wipes, friendly fire and extras,\\nfor this game.", [
+        ("coop_firefight", "FIREFIGHT:", ["OFF", "ON"], [
+            "Play the map's own encounters and\\nmission scripts.",
+            "Three survival waves after the opening.\\nUses enemies already in the map. Leave OFF for\\nmaps that have their own waves.",
+        ]),
         ("coop_friendly_fire", "FRIENDLY FIRE:", ["OFF", "ON", "SHIELD ONLY", "EXPLOSIVES ONLY"], [
             "Players can not be hurt by weapons and explosives\\nfired by the other players.",
             "Players can be hurt by weapons or explosives\\nfired by the other players.",

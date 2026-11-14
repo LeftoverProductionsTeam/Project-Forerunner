@@ -11,8 +11,9 @@ No separate coordination service or repeated cross-project polling/builds.
 
 Review baseline: Forerunner gameplay `21a809b0`, shared-life source `c8196f81`,
 repository reconciliation `3347a00c2`; Spark inspected read-only at
-`3e47ad0403f1b4ea7023286fedb972018d861c9f` with unfinished encounter count/grid and
-native-operation UI edits. Forerunner source was reviewed at `7f3cd6fbd`. Spark's
+`9bfb746549f93363e60572423438c7dd59d774ee` with six unfinished controller-binding,
+catalog and UI files. Forerunner source was reviewed at `d831ee13d` with pending
+finite-Firefight menu edits. Spark's
 source changes remain untouched. Forerunner changes after the accepted gameplay build
 are source-only/unverified, not advertised capabilities.
 
@@ -79,7 +80,7 @@ the ability to launch a process.
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
 | `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path, current difficulty and an existing engine player profile. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
-| `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
+| `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. New unverified menu source exposes OFF/ON under Server Setup → Co-op Options → Firefight, using existing setting save/cancel. Leave OFF for a Spark-authored wave controller. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
 | `network.firefight_lives` / `HALO_NET_FIREFIGHT_LIVES` | Unverified host source, 0–99, frozen at map start. Deaths spend available lives for player-bound respawns; the last paid respawn completes at zero. Failed native spawns retain grants; departed/reused player slots cannot transfer them. Respawn-only wipes preserve progress. A full world revert clears grants and restarts at wave one with zero score and the initial allowance; not saved mid-wave continuation. |
 | `network.firefight_resupply` / `HALO_NET_FIREFIGHT_RESUPPLY` | New unverified host source, off by default and frozen at map start. Replenishes living players' carried weapon reserves/battery charge before waves two and three through existing inventory replication. Keeps native magazine/reload state and equipment. Finite director only; does not enable Spark's native HaloScript resupply option or import its JSON. |
 | `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment and final-death credit. Three waves of two initial bodies plus native carrier children, bounded to 32 tracked bodies per wave on a co-op scenario; not Spark's authored rules. |
@@ -132,10 +133,32 @@ or a legitimate conversion of the original Demo multiplayer Zombie map. Existing
 `owned_source_context`; reuse the relevant CE receipt/source checks in a scoped
 append route instead of removing the general MCC tools guard.
 
-Recovered Firefight controller attachment and original script/controller
-preservation metadata remain unfinished. Separate camera-script preservation does
-not establish those operations. Do not apply fresh-source index-zero commands to
-the recovered scenario, or treat an actor append as a complete authored round.
+Spark now has unverified source for reviewed controller-module attachment in
+`crates/spark-core/src/working_tags.rs`, `src-tauri/src/runtime_workbench.rs` and
+`src/components/RuntimeDock.tsx`. It retains original source-module inventory and
+signatures, checks the reviewed attachment hash, refuses name collisions and
+refuses existing script bytecode without recovered source modules. The UI and
+working-tag admission still target MCC/H1A. This progress does not provide CE
+recovered-source attachment or an accepted original-Zombie conversion. Do not
+apply fresh-source index-zero commands to the recovered scenario, or treat an
+actor append as a complete authored round.
+
+The current uncommitted `src/haloScript.ts` and `src/components/Firefight.tsx`
+also bind wave groups to exact source-cache encounter names, checking actor
+variant, normal/insane counts, starting-location count and not-initially-created
+state. Groups require distinct encounters and explicit ownership review; manual
+or startup activation is selected deliberately. Bound controllers retain scenario
+equipment. This reuses the existing exporter rather than creating an engine JSON
+importer. Navigation, script interaction, visible score/outcome and gameplay are
+not established by those source checks. All these changes remain untested.
+
+Forerunner's useful companion role is execution of the resulting standard CE
+content: native actors, physics, combat, saves/profile isolation and authoritative
+co-op replication. Spark keeps conversion, encounter/script editing, source
+identity and build readback. Reuse its authoring work; do not copy its preview
+simulation or map writer into the engine. Native authored controllers still run
+with `network.firefight_encounter=false`; the finite engine director is a separate
+choice, not an automatic interpretation of Spark's broader rules.
 
 Two concrete restrictions remain in Spark:
 
@@ -294,8 +317,9 @@ Zombie map, extend the existing Source Guardian/working-tag build path to append
 reviewed encounters, actor references and the controller while preserving original
 tables/scripts and dependencies. Reuse the new actor/weapon closure inclusion and
 native layout readback. Extend the new preserving append operation through a
-reviewed CE-specific source admission and multi-group/controller attachment;
-the current MCC-only single-squad route does not close that gap. Keep native
+reviewed CE-specific source admission, multi-group authoring and the existing
+controller-attachment implementation; its current MCC-only admission does not
+close that gap. Keep native
 HaloScript/encounter ownership separate from the finite host director: an authored
 controller runs with `network.firefight_encounter=false`.
 Include visible score/outcome feedback and deliberate restart/exit behavior in

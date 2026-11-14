@@ -80,6 +80,28 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
+Owner-requested companion check-in, source only: Spark is now at
+`9bfb746549f93363e60572423438c7dd59d774ee`, with six dirty controller/catalog/UI
+files preserved. It has bounded encounter/squad authoring and reviewed appended
+script-module source, plus unfinished exact-encounter controller bindings. The
+recovered-source writer/attachment still targets MCC/H1A; CE source admission and
+identity-reviewed Forerunner private launch remain the next connection. The
+existing `SPARK_INTEGRATION_CONTRACT.md` records the updated source findings and
+ownership. No Spark files were changed and no tests/builds/queries/games ran.
+Forerunner was inspected on root master at `d831ee13d`; the pending generator,
+binding and generated-menu edits were preserved, unbuilt and untested. That cycle
+produces integration requirements, not new gameplay or acceptance evidence.
+
+Current source increment exposes finite Firefight OFF/ON through Server Setup →
+Co-op Options, binding `network.firefight_encounter` through existing settings
+init/save/cancel and row fitting. Only the existing server-settings XML was
+regenerated from `tools/port_settings.py`; no new menu system or runtime controller.
+Help keeps authored map waves separate. No tests/builds/queries/games ran. Native
+layout, mouse/controller navigation, save/cancel persistence and normal hosted
+encounter acceptance remain deferred. This cycle adds a gameplay entry control,
+not gameplay acceptance; Spark CE content/launch and the synchronized creator-map
+gate remain open.
+
 The owner selected Zombie Apocalypse as the authored Firefight candidate and asked
 to use Spark's conversion workflow. The existing integration contract now records
 the concrete Spark handoff, reusable code, ownership and missing engine operations.

@@ -10931,6 +10931,8 @@ static struct gametype_option const gametype_options[] =
 		{ "stock", "glow", "light_show", "overshield", "glow_overshield", "light_show_overshield", "players" } },
 	/* co-op's options (Server Setup's CO-OP OPTIONS: tools/port_settings.py's
 	COOP_SETUP_SCREENS; coop_enemies.c) */
+	{ "coop_firefight_spinner", _option_setting, 0, 0, 2, { 0 }, "network.firefight_encounter",
+		{ "false", "true" } },
 	{ "coop_friendly_fire_spinner", _option_setting, 0, 0, 4, { 0 }, "network.coop_friendly_fire",
 		{ "off", "on", "shields_only", "explosives_only" } },
 	{ "coop_team_wipe_spinner", _option_setting, 0, 0, 3, { 0 }, "network.coop_team_wipe",

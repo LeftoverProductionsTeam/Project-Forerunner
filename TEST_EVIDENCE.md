@@ -392,3 +392,9 @@ fresh-start checkpoint opt-out. Restart Level resets loaded state; a revised cac
 needs a fresh process. Spark's current terminal/score globals do not establish
 visible HUD/outcome/replay behavior. No tests/builds/queries/games or profile writes
 ran; source inspection is not authored-round gameplay acceptance.
+
+Source-only menu increment adds finite Firefight OFF/ON to existing Co-op Options
+through the current generator and setting binding. Only server-settings XML was
+regenerated; init/save/cancel and row fitting reuse existing code. No tests/builds/
+queries/games ran. Native layout/input, persistence/cancel and hosting behavior
+remain unverified; historical B40 gameplay does not cover this menu control.
