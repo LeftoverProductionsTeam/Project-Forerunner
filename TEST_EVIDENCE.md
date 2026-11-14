@@ -608,3 +608,15 @@ launches or hardware access. Pose/grip alignment, animated weapon effects,
 both-eye consistency, near-depth/projection, tracking loss, recentering, model
 visibility and native flat/Linux parity all require later authorized validation.
 Correct VR reticles and physical interaction acceptance remain open.
+
+UNVERIFIED VR reticle source follows native pre-spread ray/autoaim preview,
+finite projectile collision and per-eye native world-to-screen projection.
+The same cached target serves both eye HUD passes; only is_crosshair_bitmap
+pieces inside crosshairs_draw are moved/hidden. Scope images and CE warnings
+retain existing flags/placement. Shared HUD function retains the original FOV
+expression outside the XR scope. Native body-camera gamepad weapon posing now
+follows pinned OpenH1. Source/callers/diffs only; no tests, builds, launches,
+headset access or native validation. Hit/spread references, both-eye consistency,
+FOV/viewport changes, HUD warnings, tracking loss, aiming transitions, recenter,
+world/fog rendering, Linux/flat parity and comfort need authorized validation.
+This is not ballistic prediction, a physical scope or hardware acceptance.

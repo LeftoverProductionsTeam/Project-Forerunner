@@ -54,6 +54,7 @@ symbols in this file:
 
 #include "cseries/cseries.h"
 #include "passenger_camera.h" /* port: port/linux/game/passenger_camera.c */
+#include "vr_render.h" /* port: scoped per-eye native aiming reticle. */
 #include "cseries/errors.h"
 #include "bitmaps/bitmap_group.h"
 #include "main/main.h" /* port: first_person_reticle_scale */
@@ -1019,6 +1020,11 @@ static void crosshairs_draw(
 		struct weapon_hud_interface_definition *root_definition = weapon_hud_interface_definition_get(hud_index);
 		short map_type_flags = global_scenario_get()->type != _scenario_type_main_menu;
 
+#ifdef HALO_OPENXR
+		/* port: one native firing target shared by both eyes; ordinary HUD
+		   warnings, scope images and meters retain their existing anchors. */
+		vr_render_reticle_begin(player->local_player_index, weapon_index, &render.camera, &render.frustum);
+#endif
 		SET_FLAG(map_type_flags, 1, local_player_count() == 1);
 		SET_FLAG(map_type_flags, 2, local_player_count() > 1);
 		if (unit_index != NONE)
@@ -1400,6 +1406,9 @@ static void crosshairs_draw(
 
 	/* port: other HUD elements keep their ordinary anchors */
 	passenger_camera_reticle_end();
+#ifdef HALO_OPENXR
+	vr_render_reticle_end(); /* port: scope only the aiming bitmaps above. */
+#endif
 	match_assert_stack_frame("c:\\halo\\SOURCE\\interface\\hud_weapon.c", 0x4E2);
 	return;
 }

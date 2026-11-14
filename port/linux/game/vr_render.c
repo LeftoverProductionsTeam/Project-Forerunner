@@ -7,6 +7,8 @@
  * AGPL-3.0-or-later. The OpenH1 renderer/host is not duplicated here.
  * Controller weapon-camera placement and vr.weapon_offset defaults also
  * adapt that pin's vr_render_weapon_camera and port_config.c. UNVERIFIED.
+ * Per-eye world-hit reticle projection adapts vr_render_crosshairs, using
+ * this runtime's native firing preview and HUD instead of a second HUD layer.
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
@@ -15,11 +17,14 @@
 #include "vr_render.h"
 #include "camera/observer.h"
 #include "camera/director.h"
+#include "cutscene/cinematics.h"
 #include "game/players.h"
+#include "items/weapons.h"
 #include "objects/objects.h"
 #include "physics/collisions.h"
 #include "physics/collision_usage.h"
 #include "render/render_cameras.h"
+#include "render/render_cameras_internal.h"
 #include "scenario/scenario.h"
 #include "units/units.h"
 #include "../src/vr_openxr.h"
@@ -44,6 +49,10 @@ static struct
 	real body_yaw;
 	boolean weapon_camera_valid;
 	struct render_camera weapon_camera;
+	boolean reticle_checked, reticle_valid, reticle_scoped, reticle_visible;
+	long reticle_unit, reticle_weapon;
+	real_point3d reticle_target;
+	real_point2d reticle_offset;
 } stereo;
 
 static real wrapped_yaw(real yaw)
@@ -58,6 +67,7 @@ void vr_render_reset_aim(void)
 	stereo.aim_synced = FALSE;
 	stereo.aim_unit = NONE;
 	stereo.weapon_camera_valid = FALSE;
+	stereo.reticle_checked = stereo.reticle_scoped = FALSE;
 }
 
 static void quaternion_rotate(float const q[4], float const v[3], float out[3])
@@ -193,18 +203,29 @@ static void prepare_weapon_camera(struct render_camera const *base, struct vr_op
 	static const float xr_forward[3] = { 0.f, 0.f, -1.f };
 	static const float xr_up[3] = { 0.f, 1.f, 0.f };
 	struct unit_datum *unit;
+	long player_index = local_player_get_player_index(0);
+	struct player_datum *player = player_index != NONE ? player_try_and_get(player_index) : NULL;
 	real_vector3d body, left, up = *global_up3d, translation, forward, hand_up, right;
 	real_vector3d const *offset;
 	float rotated[3], relative[3];
 	short axis;
 
-	if (!stereo.aim_synced || !frame->focused || !frame->hand[1].aim.valid ||
-		strcmp(config_string("vr.aim"), "controller") ||
-		director_get_perspective(0) != _director_perspective_first_person)
+	if (!player || cinematic_in_progress() || director_get_perspective(0) != _director_perspective_first_person)
 		return;
-	unit = (struct unit_datum *)object_try_and_get_and_verify_type(stereo.aim_unit, _object_mask_biped);
-	if (!unit || unit->unit.player_index != local_player_get_player_index(0) ||
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+	if (!unit || unit->unit.player_index != player_index ||
 		unit->object.parent_object_index != NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return;
+	if (strcmp(config_string("vr.aim"), "controller"))
+	{
+		/* OpenH1's gamepad path poses the weapon from the native body camera,
+		   before headset turning/leaning, so looking aside does not aim it. */
+		stereo.weapon_camera = *base;
+		stereo.weapon_camera_valid = TRUE;
+		return;
+	}
+	if (!stereo.aim_synced || stereo.aim_unit != player->unit_index ||
+		!frame->focused || !frame->hand[1].aim.valid)
 		return;
 	body.i = cosine(stereo.body_yaw);
 	body.j = sine(stereo.body_yaw);
@@ -252,6 +273,93 @@ boolean vr_render_weapon_camera(struct render_camera *camera)
 	return TRUE;
 }
 
+static boolean reticle_target(long unit_index, long weapon_index)
+{
+	real_point3d origin;
+	real_vector3d direction, ray;
+	struct collision_result collision;
+	struct weapon_datum *weapon;
+	boolean hit;
+
+	if (global_current_collision_user_depth <= 0 ||
+		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
+		return FALSE;
+	if (weapon_index != NONE)
+	{
+		weapon = weapon_try_and_get(weapon_index);
+		if (!weapon || weapon->object.parent_object_index != unit_index ||
+			!weapon_get_projectile_ray(weapon_index, 0, &origin, &direction))
+			return FALSE;
+	}
+	else
+		director_camera_deterministic(unit_index, &origin, &direction);
+	if (!valid_real_point3d(&origin) || !valid_real_vector3d(&direction) || normalize3d(&direction) <= 0.f)
+		return FALSE;
+	scale_vector3d(&direction, 100.f, &ray);
+	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_aim_assist;
+	hit = collision_test_vector(_collision_test_for_projectiles_flags, &origin, &ray,
+		object_get_ultimate_parent(unit_index), &collision);
+	--global_current_collision_user_depth;
+	if (hit)
+		stereo.reticle_target = collision.point;
+	else
+		point_from_line3d(&origin, &direction, 100.f, &stereo.reticle_target);
+	return valid_real_point3d(&stereo.reticle_target);
+}
+
+void vr_render_reticle_begin(short local_player_index, long weapon_index,
+	struct render_camera const *camera, struct render_frustum const *frustum)
+{
+	long player_index;
+	struct player_datum *player;
+	struct unit_datum *unit;
+	real_point2d screen;
+
+	stereo.reticle_scoped = stereo.reticle_visible = FALSE;
+	if (!vr_render_eye_pass() || local_player_index != 0 || !camera || !frustum ||
+		cinematic_in_progress() || director_get_perspective(0) != _director_perspective_first_person ||
+		player_control_get_zoom_level(0) != NONE)
+		return;
+	player_index = local_player_get_player_index(0);
+	player = player_index != NONE ? player_try_and_get(player_index) : NULL;
+	unit = player ? (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped) : NULL;
+	if (!unit || unit->unit.player_index != player_index || unit->object.parent_object_index != NONE ||
+		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return;
+	stereo.reticle_scoped = TRUE;
+	if (!stereo.reticle_checked || stereo.reticle_unit != player->unit_index || stereo.reticle_weapon != weapon_index)
+	{
+		stereo.reticle_unit = player->unit_index;
+		stereo.reticle_weapon = weapon_index;
+		stereo.reticle_valid = reticle_target(player->unit_index, weapon_index);
+		stereo.reticle_checked = TRUE;
+	}
+	if (!stereo.reticle_valid || !render_camera_world_to_screen(camera, frustum, &stereo.reticle_target, &screen))
+		return;
+	stereo.reticle_offset.x = screen.x - (real)((camera->window_bounds.x0 + camera->window_bounds.x1) / 2);
+	stereo.reticle_offset.y = screen.y - (real)((camera->window_bounds.y0 + camera->window_bounds.y1) / 2);
+	stereo.reticle_visible = TRUE;
+}
+
+boolean vr_render_reticle_place(point2d *point, real *reticle_scale)
+{
+	if (!stereo.reticle_scoped)
+		return TRUE;
+	if (!stereo.reticle_visible)
+		return FALSE;
+	point->x = (short)PIN((real)point->x + stereo.reticle_offset.x, SHORT_MIN, SHORT_MAX);
+	point->y = (short)PIN((real)point->y + stereo.reticle_offset.y, SHORT_MIN, SHORT_MAX);
+	/* Headset projection already places the world; flat FOV scaling would
+	   move the projected reticle a second time about the HUD's centre. */
+	*reticle_scale = 1.f;
+	return TRUE;
+}
+
+void vr_render_reticle_end(void)
+{
+	stereo.reticle_scoped = FALSE;
+}
+
 short vr_render_prepare(struct render_window *windows, short count, struct render_window **prepared)
 {
 	struct vr_openxr_frame frame;
@@ -260,6 +368,7 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	stereo.active = FALSE;
 	stereo.listener_valid = FALSE;
 	stereo.weapon_camera_valid = FALSE;
+	stereo.reticle_checked = stereo.reticle_scoped = FALSE;
 	stereo.eye = NONE;
 	*prepared = windows;
 	if (!xgpu_openxr_frame_begin(&frame))
@@ -337,6 +446,7 @@ void vr_render_finish(void)
 	xgpu_openxr_eye_end();
 	stereo.active = FALSE;
 	stereo.eye = NONE;
+	stereo.reticle_scoped = FALSE;
 }
 
 boolean vr_render_listener(short local_player_index, struct observer_result const *base,

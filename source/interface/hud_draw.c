@@ -84,6 +84,7 @@ symbols in this file:
 
 #include "cseries/cseries.h"
 #include "passenger_camera.h" /* port: port/linux/game/passenger_camera.c */
+#include "vr_render.h" /* port: per-eye native aiming bitmap placement. */
 #include "cseries/errors.h"
 #include "math/real_math.h"
 #include "bitmaps/bitmaps.h"
@@ -1781,6 +1782,7 @@ static void hud_draw_bitmap_with_meter(
 	real_vector2d xy_scale;
 	point2d point;
 	real_rectangle2d bounds;
+	real reticle_scale; /* port: headset placement owns its aiming scale. */
 
 	csmemset(stack_buffer, 0x62, sizeof(stack_buffer));
 
@@ -1816,6 +1818,13 @@ static void hud_draw_bitmap_with_meter(
 	/* port: the crosshairs_draw scope moves only the weapon's reticle */
 	if (is_crosshair_bitmap)
 		passenger_camera_reticle_offset(&point);
+	/* port: preserve ordinary/native scaling outside the XR reticle scope. */
+	reticle_scale = is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center ?
+		render_fov_reticle_scale(render.local_player_index) : 1.0f;
+#ifdef HALO_OPENXR
+	if (is_crosshair_bitmap && !vr_render_reticle_place(&point, &reticle_scale))
+		return; /* port: behind/outside this eye; never invent a centered aim. */
+#endif
 	hud_calculate_bitmap_bounds(
 		bitmap,
 		absolute_placement->corner,
@@ -1832,8 +1841,7 @@ static void hud_draw_bitmap_with_meter(
 		theta,
 		color,
 		/* port: a reticle at the centre keeps to its aim (view_fov.c) */
-		is_crosshair_bitmap && absolute_placement->corner == _hud_anchor_center ?
-			render_fov_reticle_scale(render.local_player_index) : 1.0f);
+		reticle_scale);
 
 	match_assert_stack_frame("c:\\halo\\SOURCE\\interface\\hud_draw.c", 814);
 

@@ -519,9 +519,19 @@ rendering. `view_fov.c::viewmodel_projection_begin` preserves headset eye
 projection instead of applying flat-screen viewmodel FOV. Native weapon models,
 animation graphs and visibility remain authoritative; no new Spark resource
 format or hand/weapon renderer was introduced. This remains unbuilt and
-unverified. Grip calibration, correct VR reticles, standalone/two-hand physical
-interactions, vehicle aiming and headset acceptance are still missing; Spark
-must not advertise full VR support from this source interface.
+unverified. `vr_render.c::vr_render_reticle_begin` now reuses
+`weapons.c::weapon_get_projectile_ray` and native projectile collision for one
+finite pre-spread target per frame, projected separately through each eye's
+native frustum. `hud_weapon.c::crosshairs_draw` scopes the existing aiming
+sprites; `hud_draw.c::hud_draw_bitmap_with_meter` applies the per-eye placement
+without moving warnings, meters or scope images. No second HUD renderer,
+simulation update, firing action or network field is introduced. The gamepad
+weapon camera now keeps native body aim before headset turning/leaning, also
+following OpenH1. Grip/reticle alignment, vergence comfort, physical scopes,
+standalone/two-hand interactions, vehicle aiming and headset acceptance remain
+unverified or unfinished; Spark must not advertise full VR support from these
+source interfaces. Existing native weapon HUD/model tags remain sufficient;
+there is no new map-side VR schema or projectile-flight prediction.
 
 Native proximity voice now has optional `audio.voice_obstruction` source
 (default false). `source/sound/sound_manager.c::sound_world_obstruction` calls

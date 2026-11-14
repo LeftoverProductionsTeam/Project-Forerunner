@@ -253,8 +253,8 @@ defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
 The device/session, renderer, stereo camera/FOV caller and basic controller
 input are connected in source through existing native frame/window and Xbox
-input paths. They remain unverified, incomplete VR: correct reticles and OpenH1
-physical interactions still need wiring. No compilation or headset
+input paths. They remain unverified, incomplete VR: physical scopes and OpenH1
+interactions still need wiring. No compilation or headset
 validation has been performed under the owner's source-only instruction.
 
 Native menu frames now have a source-only head-locked OpenXR quad path. It
@@ -303,9 +303,20 @@ flat-screen viewmodel FOV overrides are skipped during stereo eye rendering.
 approximate grip offset in metres (right/up/forward). Components outside -1..1,
 non-finite or malformed values use those defaults. Original models, animations
 and visibility rules remain in use; no independent hand renderer was added.
-This is unbuilt, untested source, not complete VR gunplay. Grip calibration,
-correct VR reticles, standalone/two-hand interactions, physical reload/grenade
-actions and vehicle aiming remain open.
+The gamepad path poses the weapon from the native body camera before headset
+turning/leaning, following OpenH1's gamepad weapon-camera behavior. Unzoomed,
+on-foot VR reticles use the existing native pre-spread firing ray (the same
+preview used by passenger aiming) and a finite collision target, shared by both
+eyes. Each eye projects that target into native HUD coordinates. Existing aiming
+sprites move together without drawing a second reticle; warnings, meters and
+scope images keep native placement. A target behind/outside an eye hides only
+its aiming pieces. Headset placement bypasses flat-screen reticle FOV scaling;
+the world/fog FOV queries retain their existing behavior. No shot is created and
+no simulation or network fields are changed by this rendering query.
+This is unbuilt, untested source, not complete VR gunplay. Grip/reticle alignment,
+vergence comfort, physical scopes, standalone/two-hand interactions, physical
+reload/grenade actions and vehicle aiming remain open or unverified. The preview
+is an initial straight firing reference, not projectile-flight prediction.
 
 - The movies play through FFmpeg's Bink decoder
   (`port/linux/src/bink_ffmpeg.c`), built for Bink only and linked

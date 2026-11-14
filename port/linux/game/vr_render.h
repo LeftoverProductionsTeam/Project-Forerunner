@@ -6,6 +6,7 @@
 #include "math/real_math.h"
 #include "../src/vr_openxr.h"
 struct render_camera;
+struct render_frustum;
 struct render_window;
 struct observer_result;
 
@@ -17,6 +18,12 @@ void vr_render_finish(void);
 boolean vr_render_eye_pass(void);
 /* Only changes position/orientation while native first-person nodes build. */
 boolean vr_render_weapon_camera(struct render_camera *camera);
+/* Scoped to native crosshairs_draw. One world target per frame, projected
+   per eye; FALSE from place hides only an aiming bitmap outside its view. */
+void vr_render_reticle_begin(short local_player_index, long weapon_index,
+	struct render_camera const *camera, struct render_frustum const *frustum);
+boolean vr_render_reticle_place(point2d *point, real *reticle_scale);
+void vr_render_reticle_end(void);
 boolean vr_render_frustum_bounds(struct render_camera const *camera, real_rectangle2d *bounds);
 /* Center of the actual eye cameras, for the existing sound listener only.
    Does not change the observer, simulation or XR frame ownership. */

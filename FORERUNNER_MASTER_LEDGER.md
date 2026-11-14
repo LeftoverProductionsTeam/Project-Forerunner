@@ -649,3 +649,15 @@ renderer, game data, network fields or Linux dependency. Attribution/pin remains
 in source and the Spark contract. Grip calibration, correct VR reticles,
 standalone/two-hand/physical actions and vehicle aiming remain unfinished or
 unverified. Source/caller/diff review only; no tests, builds or headset launches.
+
+UNVERIFIED VR sight/aim source: reuse native weapon_get_projectile_ray (the
+passenger preview path), native projectile collision and world-to-screen HUD
+projection for one finite pre-spread target shared by both eyes. Scoped native
+aiming sprites project per eye; warnings, meters and zoom images keep their
+anchors. Invalid/behind/outside targets hide only aiming pieces. Flat reticle
+FOV scaling is bypassed only inside that scope; world/fog FOV queries stay
+unchanged. OpenH1's gamepad weapon-camera behavior now keeps the native body
+pose before headset turning/leaning. No new HUD renderer, assets, simulation,
+packets or Linux dependency. Source/caller/diff review only; no builds/tests or
+launches. Reticle/grip alignment, vergence, physical scopes, vehicle aiming,
+physical interactions and hardware performance/acceptance remain open.
