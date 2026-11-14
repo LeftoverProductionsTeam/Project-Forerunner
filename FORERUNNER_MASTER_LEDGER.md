@@ -707,3 +707,12 @@ rearming. Existing body heading, facing, renderer and packet paths are reused;
 vehicles/gamepad aim remain native. Source/callers/diffs reviewed only; no tests,
 builds, launches or hardware access. This is runtime source, not VR acceptance;
 headset direction/comfort, bindings, mixed inputs and platform parity remain open.
+
+UNVERIFIED Extraction handoff repair: read-only Spark f8213a5 now has native
+terminal/volume authoring and touched-by-player source readback. Runtime binding
+refuses duplicate markers, oversized short-index blocks, aliased terminals and
+non-use control modes before claiming campaign outcomes. Reuses native controls
+and volumes; no metadata importer or new subsystem. Spark still needs every
+selectable hub start checked (currently any one suffices) and the compiled map.
+Source/callers/diffs only; no tests, builds, launches, saves or pushes. This is
+a necessary gameplay admission repair, not Extraction/persistence acceptance.

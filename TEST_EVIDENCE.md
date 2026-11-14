@@ -661,3 +661,11 @@ sync, renderer, packets or simulation rate. No tests, builds, launches or
 hardware access. Threshold/held-stick behavior, turning direction, focus/menu
 resume, recenter/restore, native mixed controls, vehicles, Touch/Index bindings
 and Linux/non-OpenXR parity need later authorized validation.
+
+UNVERIFIED Extraction marker admission: inspected Spark f8213a5 native logic
+source, native scenario name/index structures, control_touched trigger mode and
+runtime outcome/reset callers. Binding now requires unique names and distinct
+touched-by-player native terminals, with representable short-index counts.
+No tests, builds, launches or assets/saves accessed. Missing/duplicate/aliased
+markers, wrong control modes, ordinary campaign fallback, valid solo deployment,
+all hub starts, death recovery and redeployment need later authorized validation.

@@ -509,8 +509,8 @@ OpenH1 `baed7757`, and Mota's `2467e708` sidecar source in the upstream matrix.
 | --- | --- |
 | Native Firefight | Spark `crates/spark-core/src/firefight.rs::{native_round_plan, verify_native_round}` authors/checks encounters, profiles and the three `gs_*` scripts above. Forerunner's existing `source/hs/hs.c::hs_update` executes native scripts; `source/game/game.c::game_tick` no longer suppresses them during finite Firefight. `coop_enemies.c::firefight_update` disables its optional director once it finds any of those compiled bindings. The finite director's terminal-result gate prevents unrelated campaign wins from skipping its waves/result notice; native-script-owned rounds retain normal mission results. Other controllers still require the finite setting OFF. |
 | Loadouts and shared equipment | Spark `firefight.rs::{native_player_profile_arguments, verify_native_player_profile}` emits/checks standard native starting profiles. Forerunner uses native inventories and `game_modes.c::game_modes_inventory_capture` for both mode reports. Reuse that boundary; do not import Spark's preview director or turn a starting profile into a persistent stash. Durable owner-bound reservations/settlement, rarity/upgrades and full inventory UI remain open. |
-| Extraction | Forerunner `extraction.c` owns local native control/volume state. Spark has no located consumer of `extraction_deploy`, `extraction_activate` or `extraction_return` yet. Author the controls/zones and physical route specified above using existing native source/compile paths; no editor or launcher is to be duplicated in the runtime. Native pickups/AI remain native; no authored JSON import or multiplayer/reward acceptance is implied. |
-| MegaWorld and baked content | Spark `megaworld.rs`/`megaworld_build.rs` own source identities, assembly and native output. The uncommitted `gpuLightmap.ts::bakeGpuLightmapDraft` explicitly produces a direct-light draft, not native lightmap tags. Forerunner keeps its native BSP/cache/collision/renderer/resource paths; simultaneous bounded multi-region residency is unfinished. A preview/GPU draft is not a new accepted engine format or proof of 19-region traversal. |
+| Extraction | Forerunner `extraction.c` owns local native control/volume state. Spark now authors the four names through `src/nativeLogic.ts::extractionLayout` and `crates/spark-core/src/native_logic.rs::{scenario_commands,compile}`. The runtime requires unique markers and distinct native touched-by-player terminals. Complete the safe-hub starts, physical route and compiled handoff specified above; no editor or launcher is duplicated. Native pickups/AI remain native; no authored JSON import or multiplayer/reward acceptance is implied. |
+| MegaWorld and baked content | Spark `megaworld.rs`/`megaworld_build.rs` own source identities, assembly and native output. The earlier inspected `gpuLightmap.ts::bakeGpuLightmapDraft` produces a direct-light draft, not native lightmap tags; that historical finding is not current native-lightmap acceptance. Forerunner keeps its native BSP/cache/collision/renderer/resource paths; simultaneous bounded multi-region residency is unfinished. A preview/GPU draft is not a new accepted engine format or proof of 19-region traversal. |
 | VR, voice and Forge | Continue the existing OpenXR/bgfx renderer adapter using pinned OpenH1 transforms/interactions, the inherited Delta/Opus/Halo sound path, and compatible Faber/Mota placement behavior. Do not remove OpenCE browser/guest voice paths as duplicates of native Delta voice: they still have distinct callers/build gates. No second renderer, VOIP stack, sidecar format or cross-repository build dependency was added. |
 
 The existing network co-op host director in `coop_enemies.c::firefight_update`
@@ -604,6 +604,23 @@ personal stash data from this source review. Preserve copyright/license notices
 if a later reviewed source adaptation is made; do not publish or push it.
 
 ## Native formats and extended data
+
+Read-only Spark source refresh at `f8213a5b40759ba78b0ad4c56fc1169a1fc0476f`
+found an existing Extraction authoring path: `src/nativeLogic.ts::extractionLayout`
+checks named controls/volumes, startup power, relative placement and a hub start;
+`native_logic.rs::scenario_commands` writes ordinary rotational trigger volumes,
+and `compile` reads back named Extraction controls' touched-by-player tag mode.
+`verify_compiled` checks required scripts, not complete playable Extraction.
+Forerunner `extraction.c::extraction_bind` now refuses duplicate names, oversized
+short-index blocks, aliased terminals and incompatible native control modes
+before taking map outcome ownership. These are UNVERIFIED source safeguards.
+Spark's next source requirement is to check **every selectable** solo start in
+the hub/outside activation: its current `extractionLayout` accepts any one match.
+Then hand off one compiled solo cache with matching native dependencies, authored
+controls/volumes/loadout and a bidirectional route. Compilation, native use,
+death recovery and redeployment still need later authorized gameplay evidence.
+Neither repository's source is a build dependency of the other; Spark was not
+modified and no editor metadata, source file or personal gear was imported.
 
 Preserve supported native scenario/tag formats. Extended runtime data belongs in
 explicit versioned sidecars, with target runtime, schema version, map/content

@@ -5,6 +5,7 @@
    SPDX-License-Identifier: AGPL-3.0-or-later */
 
 #include "cseries.h"
+#include "devices/device_controls.h"
 #include "game/game.h"
 #include "game/players.h"
 #include "game_modes.h"
@@ -109,11 +110,35 @@ void extraction_reset(void)
 static void extraction_bind(void)
 {
 	short index;
+	boolean unique = TRUE;
+	struct control_datum *deploy, *activate;
 
 	extraction.bound = TRUE;
-	extraction.deploy_name = scenario_object_name_index_from_string(global_scenario, "extraction_deploy");
-	extraction.activate_name = scenario_object_name_index_from_string(global_scenario, "extraction_activate");
+	extraction.admitted = FALSE;
+	extraction.deploy_name = extraction.activate_name = NONE;
 	extraction.zone = extraction.return_zone = NONE;
+	/* These bindings use native short indices. Refuse ambiguity instead of
+	   owning a campaign whose terminals/volumes cannot identify one action. */
+	if (global_scenario->object_names.count > SHORT_MAX || global_scenario->trigger_volumes.count > SHORT_MAX)
+		goto finished;
+	for (index = 0; index < global_scenario->object_names.count; index++)
+	{
+		struct scenario_object_name *name = TAG_BLOCK_GET_ELEMENT(
+			&global_scenario->object_names, index, struct scenario_object_name);
+
+		if (!strcmp(name->name, "extraction_deploy"))
+		{
+			if (extraction.deploy_name != NONE)
+				unique = FALSE;
+			extraction.deploy_name = index;
+		}
+		else if (!strcmp(name->name, "extraction_activate"))
+		{
+			if (extraction.activate_name != NONE)
+				unique = FALSE;
+			extraction.activate_name = index;
+		}
+	}
 	for (index = 0; index < global_scenario->trigger_volumes.count; index++)
 	{
 		struct scenario_trigger_volume *volume = TAG_BLOCK_GET_ELEMENT(
@@ -121,19 +146,30 @@ static void extraction_bind(void)
 
 		if (!strcmp(volume->name, "extraction_zone"))
 		{
+			if (extraction.zone != NONE)
+				unique = FALSE;
 			extraction.zone = index;
 		}
 		else if (!strcmp(volume->name, "extraction_return"))
+		{
+			if (extraction.return_zone != NONE)
+				unique = FALSE;
 			extraction.return_zone = index;
+		}
 	}
-	extraction.admitted = extraction.deploy_name != NONE && extraction.activate_name != NONE &&
-		extraction.zone != NONE && extraction.return_zone != NONE &&
-		object_try_and_get_and_verify_type(object_index_from_name_index(extraction.deploy_name), _object_mask_control) &&
-		object_try_and_get_and_verify_type(object_index_from_name_index(extraction.activate_name), _object_mask_control);
+	deploy = extraction.deploy_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.deploy_name)) : NULL;
+	activate = extraction.activate_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.activate_name)) : NULL;
+	/* Match Spark's native touched-by-player tag requirement. Other trigger
+	   kinds never reach extraction_control_touched through control_touched. */
+	extraction.admitted = unique && extraction.zone != NONE && extraction.return_zone != NONE &&
+		deploy && activate && deploy != activate &&
+		control_definition_get(deploy->definition_index)->control.triggers_when == 0 &&
+		control_definition_get(activate->definition_index)->control.triggers_when == 0;
+finished:
 	if (extraction.admitted)
 		extraction_notice("FIELD TERMINAL | Use the deployment control to begin. No raid timer.");
 	else
-		extraction_notice("Extraction unavailable: map needs deployment/activation controls and extraction/return zones.");
+		extraction_notice("Extraction unavailable: use unique deployment/activation controls (touched by player) and extraction/return zones.");
 }
 
 boolean extraction_control_touched(long control_index, long unit_index)
