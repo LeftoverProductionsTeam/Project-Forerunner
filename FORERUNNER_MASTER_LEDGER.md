@@ -111,6 +111,16 @@ protocol was added. No tests/builds/queries/games ran. Final-clear versus last-p
 death timing, funded respawn recovery and ordinary wave progression remain native
 acceptance gates. This is a necessary gameplay repair in source, not accepted play.
 
+Actor-path source audit at `d85d7929c`: finite spawning passes the exact selected
+variant to native `actor_customize_unit`/`actor_create_for_unit`, matching Faber's
+creation parameters while retaining real swarm attachment. Native `actor_combat.c`
+still applies campaign difficulty values. Existing departure code detaches/deletes
+or kills departing units. No additional rank/difficulty/leave patch was justified.
+This cycle supplies source evidence only, with no runtime functionality added and
+no tests/builds/queries/games. Next integration evidence still needs Spark's reviewed
+CE candidate/launch route and authorized native execution; the broader HUD, creator
+map, synchronized gameplay and hardware acceptance requirements remain open.
+
 The owner selected Zombie Apocalypse as the authored Firefight candidate and asked
 to use Spark's conversion workflow. The existing integration contract now records
 the concrete Spark handoff, reusable code, ownership and missing engine operations.
