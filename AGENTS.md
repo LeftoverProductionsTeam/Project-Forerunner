@@ -9,7 +9,7 @@ frameworks or extensive test infrastructure require the user's approval after
 explaining why existing code and simpler alternatives are insufficient.
 Judge progress by gameplay and necessary repairs, not infrastructure volume.
 
-The authoritative Forerunner source is this repository on local `main`.
+The authoritative Forerunner source is this root repository on local `master`.
 Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
 with actual Git status, source and running owned jobs before continuing.
 The complete user directive is preserved under `docs/forerunner/`.

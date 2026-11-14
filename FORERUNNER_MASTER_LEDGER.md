@@ -7,11 +7,14 @@ none of its unaccepted requirements is superseded by this checkpoint.
 
 ## Authoritative source and provenance
 
-- Source: `D:\Project Forerunner`, branch `main`.
+- Source: `D:\Project Forerunner`, branch `master` (renamed at the user's request;
+  existing commits and working edits retained).
 - Foundation: FractumSeraph/OpenCE `eae91445333bc8ebfb1604e08fcedffbd5c3a558`.
   Its history contains OpenCE `1519c65facbb068e44b956da2769198a83a17847`
   and Chupathingy through `a42702df52416de4008e91fe18c49f94d9efabb0`.
-- Latest implementation commit: `9cd38e48` (read-only Spark discovery).
+- Latest gameplay implementation: `21a809b004a057548b641d023df24a613cf14f47`,
+  a finite Faber-derived Firefight encounter using existing co-op replication.
+  Campaign variant repair: `cf7cb64a`; actor readback: `5c3266fc`.
   Seven verified repair/tool commits follow `b2bd604329c71f06c1109c632ff19ea4c29e4027`,
   the author-preserving cherry-pick of Milenko's Chupathingy commit
   `78d28a70839998775322af8aa571fa494966c0c8`.
@@ -26,6 +29,10 @@ none of its unaccepted requirements is superseded by this checkpoint.
 Advance one native synchronized Firefight encounter using compatible Faber code.
 The user's anti-overengineering directive narrows this milestone; Extraction,
 Forge redesign, MegaWorld and broad rewrites are outside its scope.
+The updated complete goal is in the user's attachment
+`C:\Users\patri\.codex\attachments\767bbb4b-5e23-4cb8-91e5-4ba24b240624\pasted-text-1.txt`.
+It retains the current foundation and makes Windows Vive/Knuckles VR the next
+major milestone after playable multiplayer Firefight, followed by native Forge/Spark.
 The repaired Fractum foundation is selected for the Windows x86 baseline:
 four native OpenCE/Forerunner movement sessions pass across Blood Gulch and
 Beaver Creek, with each runtime hosting. Scripted combat sessions also pass
@@ -37,6 +44,10 @@ ignored and stale Slayer initialization asserted on campaign data. B40 now passe
 92-second mixed-peer sessions in both hosting directions, and native actor readback
 confirms nine moving units, seven damaged units and six deaths on both peers.
 A10 no longer asserts, but its automated opening yields no on-foot acceptance.
+The first B40 Firefight slice now completes three waves with two rendered native
+clients: six real enemies move and die on both peers, team scores reach
+200/400/600, both receive victory and return to pregame. Actor and player
+comparisons pass. Inputs were automated; full Faber and human acceptance remain open.
 
 ## Work and acceptance
 
@@ -48,7 +59,7 @@ A10 no longer asserts, but its automated opening yields no on-foot acceptance.
 | Windows native comparison tool | Owned process trees/private copies; tests and real swapped-host sessions pass | Wider modes, transitions, physical machines |
 | Isolated Windows build | Tracked-source export, source/tool identity, MSVC/SDK discovery implemented; isolation tests and integrated compilation pass | Other platforms and release pipeline |
 | OpenGL loading/rendering | Desktop shader prologue and immediate draw declaration repaired; native gameplay captures and clean exit | Human play, performance, audio and other GPUs/backends |
-| Firefight / Forge | Faber source investigated; not integrated | Real incremental integration, build and multiplayer/gameplay acceptance |
+| Firefight / Forge | Faber-derived actor spawning/pursuit and finite three-wave B40 encounter pass native two-client combat; Forge not integrated | Human play, creator map, full HUD/settings/lives, late join/restart and remaining Faber features |
 | Extraction / AI Zombies | No native integration completed | Complete authoritative gameplay loops and persistence tests |
 | OpenH1 VR | Source/platform/protocol investigation completed | Optional adapter integration and physical headset + desktop-peer combat |
 | Spark / MegaWorld | Version-1 read-only discovery and reference client tested against real engine; no editing/world traversal | End-to-end editing and two-way player/vehicle traversal |
@@ -69,9 +80,10 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
-Reuse Faber's actor creation and finite clear-all-wave progression with existing
-co-op replication on a campaign map with loaded enemy tags and navigation.
-Demonstrate actual wave spawning, combat, enemy deaths and shared completion.
-Do not port unrelated ranks, menus, skulls or new frameworks for this encounter.
-Last cycle produced a necessary campaign gameplay repair plus diagnostic overhead
-needed to distinguish real AI agreement from player-only logs; freeze that tooling.
+Preserve the verified three-wave encounter and accepted baseline. Next validate
+human controls and a compatible creator map, then adapt the relevant existing Faber
+HUD/lives/configuration code needed for the full Firefight milestone. Ranks, menus
+and skulls remain useful later mode/server integration candidates, not discarded.
+Do not repeat accepted Blood Gulch or infrastructure checks without a relevant change.
+Last cycle produced native gameplay: real waves, pursuit, combat, scoring and
+shared completion. It added no framework or new wire format. Existing tooling is frozen.

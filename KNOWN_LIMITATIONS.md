@@ -35,7 +35,7 @@ source provenance.
 | --- | --- |
 | Classic campaign/multiplayer/co-op | Human rendered play, complete matches/campaign, map changes, reconnects, vehicles, checkpoints/reset, AI and cross-platform regression. Bounded automated movement/combat is covered. |
 | 128-player sessions | Source capacity exists; full session load, synchronization, resource limits, and performance have not been demonstrated. |
-| Firefight | Faber's real implementation is not integrated. Adapt host authority, bounded/versioned serialization, spawning/lives/objectives; finish a multiplayer match with synchronized AI and results. |
+| Firefight | Bounded B40 encounter completes three two-enemy waves with shared score/victory on two automated rendered clients. Full Faber HUD, individual scoring/medals, lives/defeat, configurable rosters/objectives, late join/reconnect, creator maps and human acceptance remain open. |
 | Extraction | No native authoritative deploy/loot/objective/extract/persistence loop implemented. Death, failed extraction, and item ownership remain open. |
 | Zombies | Existing multiplayer Infection source is inherited but not accepted through a completed match. AI Flood survival, barricades, scarcity, and optional extraction endings remain unimplemented. |
 | Forge/Spark integration | Read-only versioned discovery is tested; manipulation, transactions, conflict detection, persistence, and Spark create/test/revise remain open. Faber's Windows hooks are not a cross-platform editing API. |

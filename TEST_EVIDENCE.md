@@ -232,3 +232,46 @@ plus **10 compiled-engine Spark tests passed** on snapshot 005. Final actor
 semantic tool checks: **30 passed** (`actor-semantic-tests.log`, overlapping
 21 earlier checks). Actor logger real-source cases/controls: 20 passed within
 the regression. No full campaign, Firefight match or non-Windows build claimed.
+
+## First finite Firefight encounter
+
+Gameplay commit `21a809b004a057548b641d023df24a613cf14f47`, local `master`.
+Existing `coop_enemies.c` adapts Faber's actor construction, pursuit and
+clear-all-wave progression; existing co-op packets carry actors, damage and notices.
+Host setting `network.firefight_encounter` is off by default. This bounded
+encounter awards 100 shared team points per confirmed wave-enemy death.
+
+`firefight-build-002` compiled successfully. Source snapshot SHA-256:
+`d990a0d29b1913bb58dd2ed3977c73b91b5ab3fcfbb7b490447b94f8a4d4a275`;
+executable SHA-256:
+`fb8d204f21e57a4db6ed44f078338a02023c49a3998b6a437e1f4d1d8f8fa4b7`.
+`native-firefight-001` spawned enemies but stalled in wave 1: missing pursuit.
+The second attempt reused Faber's pursuit/perception/path code instead of
+teleporting units or injecting damage. Both attempts remain preserved.
+
+`native-firefight-002/result.json`: **three waves completed**, two hidden
+OpenGL Windows clients on B40, automated aiming/fire input, normal projectiles
+and finite ammunition, no scripted kill/damage injection. All six spawned
+handles were observed alive, moving and dead on both peers
+(`wave-unit-evidence.json`). Host movement per wave unit: 1.63 to 2.60 world units;
+client movement: 1.52 to 2.46. Both receive wave scores **200/400/600** and victory;
+both private debug logs record postgame then pregame. Processes were stopped by
+their owning test after that transition; this is not a clean-exit benchmark.
+
+Existing player comparator: **PASS**, 88 seconds compared, mean/max position
+0.040/0.420, drift 349/901 (38.7%), largest 0.011993, two transient grenade
+seconds and one alive mismatch. Actor comparator with damage required: **PASS**,
+61 snapshots/443 unit comparisons, maximum position difference 0.992687,
+12 common movers including ambient units, seven damaged units, six deaths.
+Raw corpse overkill remains visible under the previously documented semantic rule.
+No tolerances lowered. `player-agreement.json`, `actor-agreement.json`.
+
+56 framebuffer captures per peer. Visual inspection confirms first-person weapon,
+HUD, wave notices, real enemy combat and return to menus. Representative capture:
+`native-firefight-002/observed-client-5400.png`; the original BMP is retained.
+Focused existing co-op checks: **83 passed**, `firefight-focused-regression.log`.
+An initial invocation used an absent test path, ran no tests, and was corrected.
+
+This accepts one bounded automated encounter, not the full Faber feature set or
+human gameplay. Full HUD/lives/settings, individual kill credit/medals, defeat,
+late join/reconnect, creator-map and non-Windows acceptance remain open.
