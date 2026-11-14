@@ -414,3 +414,9 @@ not a new operation or map-loaded acknowledgement. Spark read-only source review
 reached `3329a4a`; owned receipt staging now exists but uses the older menu-only
 binary. No tests/builds/queries/games ran. Cold/existing profile behavior, malformed
 input, session conflicts, revised cache loading and authored gameplay remain open.
+
+Source-only shared-life repair skips eliminated players in network respawn
+iteration and retry scheduling using the existing host eligibility predicate.
+Paid grants/funded failures retain retries; ordinary co-op is not restricted.
+No tests/builds/queries/games ran. Mixed paid/unpaid deaths, zero-life late join,
+failed placement, quit/slot reuse and victory/defeat return remain native gates.

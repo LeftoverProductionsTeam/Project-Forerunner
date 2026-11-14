@@ -94,6 +94,16 @@ unverified. The contract names Spark's exact next identity/parser/environment
 changes. Continue independent Firefight source work; do not wait for a finished
 Zombie map or call the overall goal complete/stalled on that content dependency.
 
+Follow-up source repair applies the existing Firefight spawn-eligibility predicate
+to network co-op respawn iteration and per-player retry scheduling. Eliminated
+players without an allowance/grant no longer repeatedly request a refused spawn;
+paid final-life and failed funded spawns still retry through existing paths.
+Ordinary co-op remains allowed by that predicate. No timers, grants, packets or
+spectator subsystem were added. No tests/builds/queries/games ran. Shared-life
+exhaustion, funded/unfunded simultaneous deaths, placement failure and terminal
+lobby transitions remain unverified. Private CE startup is preserved in
+`018c67313`; continue from this source rather than waiting for Spark content.
+
 Owner-requested companion check-in, source only: Spark is now at
 `9bfb746549f93363e60572423438c7dd59d774ee`, with six dirty controller/catalog/UI
 files preserved. It has bounded encounter/squad authoring and reviewed appended

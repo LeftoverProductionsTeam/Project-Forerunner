@@ -2997,7 +2997,10 @@ static boolean players_respawn_network_coop(
 	{
 		/* a first spawn is someone who has not died yet, past the opening.
 		a death is everyone else, and not someone still held for that opening */
-		if (player->unit_index != NONE || player->quit_out_of_game)
+		/* port: eliminated Firefight spectators are not failed spawns. Keep
+		retrying only players with an allowance or a paid respawn. */
+		if (player->unit_index != NONE || player->quit_out_of_game ||
+			!coop_enemies_firefight_can_spawn(iterator.datum_index))
 			continue;
 		if (first_spawn)
 		{
@@ -5062,7 +5065,10 @@ void players_update_before_game(
 				}
 				/* port: in co-op only the host spawns players; clients get their units
 				from the network. One who quit doesn't come back. */
-				else if (!main_menu_is_active() && !network_game_distributed_client() && !player->quit_out_of_game)
+				/* port: a Firefight spectator without a life must not continually
+				schedule a respawn the host's spawn gate will refuse. */
+				else if (!main_menu_is_active() && !network_game_distributed_client() && !player->quit_out_of_game &&
+					coop_enemies_firefight_can_spawn(iterator.datum_index))
 				{
 					if (player->statistics.deaths == 0)
 					{
