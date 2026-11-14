@@ -65,8 +65,9 @@ int voice_take_frame(struct voice_frame *frame);
 delta_voice_channel) and its bytes */
 void voice_heard(unsigned long now, int speaker_machine, int speaker_player, int route, int channel,
 	unsigned short sequence, const unsigned char *packet, int length);
-/* where a speaker's player is (the game's world units; position NULL: not
-known, played in the middle) and how far the host's proximity reaches */
+/* Speaker position in Halo's listener-local units (voice_game.c transforms
+world coordinates with the native sound listener). NULL: unplaced proximity
+is silent until its position is known. Radio channels remain non-positional. */
 void voice_place(int speaker_machine, const float *position, float range);
 /* everything heard forgotten (the game left) */
 void voice_reset(void);

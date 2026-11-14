@@ -8,9 +8,12 @@
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
+#include "cseries/cseries_windows.h"
 #include "../../include/halo_math.h"
 #include "vr_render.h"
+#include "camera/observer.h"
 #include "render/render_cameras.h"
+#include "scenario/scenario.h"
 #include "../src/vr_openxr.h"
 #include <string.h>
 
@@ -21,6 +24,8 @@ static struct
 	struct render_window windows[4];
 	real_rectangle2d bounds[2];
 	boolean active, origin_valid;
+	boolean listener_valid;
+	unsigned long listener_time;
 	short eye;
 	unsigned int reference_serial;
 	real origin[3], yaw_cos, yaw_sin;
@@ -126,6 +131,7 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	short eye;
 
 	stereo.active = FALSE;
+	stereo.listener_valid = FALSE;
 	stereo.eye = NONE;
 	*prepared = windows;
 	if (!xgpu_openxr_frame_begin(&frame))
@@ -145,6 +151,8 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 		stereo.windows[eye * 2].rasterizer_camera = stereo.windows[eye * 2].render_camera;
 	}
 	stereo.active = TRUE;
+	stereo.listener_valid = windows[0].local_player_index != NONE;
+	stereo.listener_time = system_milliseconds();
 	*prepared = stereo.windows;
 	return 4;
 }
@@ -190,6 +198,43 @@ void vr_render_finish(void)
 	xgpu_openxr_eye_end();
 	stereo.active = FALSE;
 	stereo.eye = NONE;
+}
+
+boolean vr_render_listener(short local_player_index, struct observer_result const *base,
+	struct observer_result *listener)
+{
+	struct render_camera const *left = &stereo.windows[0].render_camera;
+	struct render_camera const *right = &stereo.windows[2].render_camera;
+	real_vector3d side;
+
+	if (!base || !listener || !stereo.listener_valid || !vr_openxr_running() ||
+		local_player_index != stereo.windows[0].local_player_index ||
+		system_milliseconds() - stereo.listener_time > 250)
+		return FALSE;
+	*listener = *base;
+	listener->position.x = (left->position.x + right->position.x) * 0.5f;
+	listener->position.y = (left->position.y + right->position.y) * 0.5f;
+	listener->position.z = (left->position.z + right->position.z) * 0.5f;
+	listener->forward.i = left->forward.i + right->forward.i;
+	listener->forward.j = left->forward.j + right->forward.j;
+	listener->forward.k = left->forward.k + right->forward.k;
+	listener->up.i = left->up.i + right->up.i;
+	listener->up.j = left->up.j + right->up.j;
+	listener->up.k = left->up.k + right->up.k;
+	if (magnitude_squared3d(&listener->forward) < _real_epsilon ||
+		magnitude_squared3d(&listener->up) < _real_epsilon)
+		return FALSE;
+	normalize3d(&listener->forward);
+	cross_product3d(&listener->up, &listener->forward, &side);
+	if (magnitude_squared3d(&side) < _real_epsilon)
+		return FALSE;
+	normalize3d(&side);
+	cross_product3d(&listener->forward, &side, &listener->up);
+	normalize3d(&listener->up);
+	/* Never pair the moved head with the body's old acoustic/underwater
+	   location. Outside the loaded BSP, retain the native listener. */
+	scenario_location_from_point(&listener->location, &listener->position);
+	return listener->location.cluster_index != NONE;
 }
 
 boolean vr_render_frustum_bounds(struct render_camera const *camera, real_rectangle2d *bounds)

@@ -51,6 +51,7 @@ none. Nothing is ever recorded.
 #include "networking/network_game_manager.h"
 #include "networking/network_client_manager.h"
 #include "objects/objects.h"
+#include "sound/sound_manager.h"
 #include "halo_keyboard.h"
 #include "network_coop.h"
 #include "chat.h"
@@ -479,36 +480,38 @@ static void local_update(int role)
 		}
 	}
 	configured = delta_peer_game_voice_config(&config) != 0;
-	voice_update(now, push, voice_game_channel_state(channel) == _voice_channel_open, configured ? config.kbps : 24);
-	while (voice_take_frame(&frame))
-	{
-		delta_peer_game_voice_say(channel, frame.sequence, frame.data, frame.length);
-		/* (a party frame to the members in other games too) */
-		if (channel == _delta_voice_channel_party && voice_game.party_path && voice_game.party_path->send)
-			voice_game.party_path->send(voice_game.party_path->context, frame.sequence, frame.data, frame.length);
-	}
 	hears = voice_hears();
 	if (!voice_game.has_party)
 		hears &= ~DELTA_VOICE_PARTY;
 	delta_peer_game_set_voice_hears(hears, voice_game.has_party ? voice_game.party : NULL);
-	/* (each voice heard placed where its player is) */
+	/* Halo transforms native sound sources before DirectSound, whose listener
+	   stays at the canonical origin. Proximity voice uses that same space. */
 	for (machine = 0; machine < MACHINES; machine++)
 	{
-		real_point3d place;
+		real_point3d place, local;
 
 		if (!voice_game.heard_time[machine] || now - voice_game.heard_time[machine] > PLACE_TIME)
 			continue;
-		if (player_place(voice_game.heard_player[machine], &place))
+		if (player_place(voice_game.heard_player[machine], &place) &&
+			sound_world_to_listener((short)local_player_get_next(NONE), &place, &local))
 		{
 			float position[3];
 
-			position[0] = place.x;
-			position[1] = place.y;
-			position[2] = place.z;
+			position[0] = local.x;
+			position[1] = local.y;
+			position[2] = local.z;
 			voice_place(machine, position, configured ? config.proximity / 10.0f : 15.0f);
 		}
 		else
 			voice_place(machine, NULL, 0.0f);
+	}
+	/* Place newly heard frames before decoding/mixing them this frame. */
+	voice_update(now, push, voice_game_channel_state(channel) == _voice_channel_open, configured ? config.kbps : 24);
+	while (voice_take_frame(&frame))
+	{
+		delta_peer_game_voice_say(channel, frame.sequence, frame.data, frame.length);
+		if (channel == _delta_voice_channel_party && voice_game.party_path && voice_game.party_path->send)
+			voice_game.party_path->send(voice_game.party_path->context, frame.sequence, frame.data, frame.length);
 	}
 }
 

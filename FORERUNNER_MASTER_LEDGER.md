@@ -545,3 +545,15 @@ launches, Spark changes or pushes. Durable settlement/reservations, crash and
 cross-process protection, stash UI, rarity/upgrades and multiplayer Extraction
 remain open. Shared game code introduces no Windows-only inventory dependency,
 packet change, global limit increase or new storage framework.
+
+Positional-audio source cycle repairs the inherited VOIP coordinate boundary:
+Halo's native sound listener transforms world sources before its canonical-origin
+DirectSound mixer. Proximity voice now uses that same matrix, is positioned before
+mixing, and stays silent while unlocated; radio remains non-positional. Optional
+XR sound uses the midpoint/orientation of actual rendered eyes, once per frame
+after camera preparation, with native acoustic-location lookup and stale/invalid
+fallback. Observer state, tick velocity, simulation and wire formats are unchanged.
+This is necessary runtime source progress, UNVERIFIED. No tests, builds, audio
+queries, launches, headset sessions, Spark edits or pushes. Direction/gain, latency,
+head motion, tracking loss and both headset/controller families need validation;
+voice portal occlusion and multi-region audio contexts remain unfinished.

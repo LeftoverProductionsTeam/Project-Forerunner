@@ -236,6 +236,7 @@ symbols in this file:
 #include "camera/director.h" /* port: director_get_followed_unit */
 #include "coop_sound_sync.h" /* port: port/linux/game/coop_sound_sync.c */
 #include "camera/observer.h"
+#include "vr_render.h" /* port: optional centered XR listener, port/linux/game/vr_render.c */
 #include "effects/player_effects.h"
 #include "game/game.h"
 #include "game/game_globals.h"
@@ -4268,11 +4269,20 @@ static void refresh_listener(
 				observer_get_camera(local_player_index);
 			real_vector3d velocity; /* port: listener_measure_velocity */
 			boolean underwater;
+#ifdef HALO_OPENXR
+			struct observer_result tracked_listener;
+#endif
 
 			match_assert(
 				"c:\\halo\\SOURCE\\sound\\sound_manager.c",
 				0x4EF,
 				camera);
+#ifdef HALO_OPENXR
+			/* port: the midpoint of the rendered eyes drives local audio,
+			   without writing tracking into the native observer/player. */
+			if (vr_render_listener(local_player_index, camera, &tracked_listener))
+				camera = &tracked_listener;
+#endif
 			listener->valid = TRUE;
 			underwater = scenario_location_underwater(
 				&camera->location,
@@ -4388,6 +4398,22 @@ static void refresh_listener(
 		&properties);
 
 	return;
+}
+
+/* port: DirectSound stays at Halo's canonical origin; source positions are
+transformed per listener before reaching it. Positional VOIP follows that too. */
+boolean sound_world_to_listener(short local_player_index, real_point3d const *world, real_point3d *local)
+{
+	struct sound_listener *listener;
+
+	if (!world || !local || !game_in_progress() || local_player_index < 0 ||
+		local_player_index >= MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
+		return FALSE;
+	listener = listener_get(local_player_index);
+	if (!listener->valid)
+		return FALSE;
+	matrix4x3_inverse_transform_point(&listener->matrix, world, local);
+	return TRUE;
 }
 
 static void detail_sound_random_offset(

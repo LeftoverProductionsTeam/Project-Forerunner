@@ -83,8 +83,11 @@ has no external caller, and `docs/delta.md` still marks the OpenCE/Delta voice
 bridge planned. Proximity streams use Halo's 3D/HRTF mixer, but do not acquire
 portal/collision occlusion from the native sound-source path. Host routing uses
 world positions and one primary player per machine, not a region audio context.
-Native listeners still derive from observer cameras; the render-only XR camera
-adapter does not establish tracked-head audio. Multi-region cave/tunnel acoustics,
+New UNVERIFIED source converts proximity voice through the native listener
+matrix before Halo/DirectSound playback, instead of passing world coordinates
+to the canonical-origin mixer. Optional OpenXR builds derive a centered listener
+from the actual eye cameras before their single sound pass, with native acoustic
+location lookup and stale/invalid fallback. Multi-region cave/tunnel acoustics,
 VR PTT ergonomics and actual Windows headset capture remain unverified/open.
 
 Focused Forerunner source repair keeps an unavailable explicitly named microphone

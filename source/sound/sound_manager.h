@@ -86,6 +86,9 @@ boolean sound_refresh_looping(
 
 /* ---------- globals */
 
+/* port: voice uses the same native listener-local space as game sounds. */
+boolean sound_world_to_listener(short local_player_index, real_point3d const *world, real_point3d *local);
+
 extern boolean debug_sound;
 
 /* ---------- public code */

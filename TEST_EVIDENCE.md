@@ -531,3 +531,12 @@ tests, builds, launches or gameplay. Physical hub/activation routing, vehicle
 traversal, exact ammo/battery/ownership handling and both native Linux/Windows
 builds remain unverified. No durable stash, crash-safe award, cross-cache item
 admission, large-session performance or complete flagship acceptance is claimed.
+
+UNVERIFIED positional audio now uses Halo's listener-space transform for native
+proximity voice. Unlocated proximity is silent; team/party radio stays 2D.
+Optional XR builds supply the centered eye-camera pose to the existing listener
+and run sound once after camera preparation. Native acoustic location is queried
+for the moved head; invalid/stale poses use native fallback. Source/diffs only:
+no builds, tests, audio-device access, launches or hardware sessions. Direction,
+gain, latency and head/underwater/boundary transitions remain unverified; no voice
+portal occlusion, MegaWorld acoustics or full-VR acceptance is claimed.

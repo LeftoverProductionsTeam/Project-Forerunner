@@ -3665,6 +3665,18 @@ void main_loop_of_death(
 	return;
 }
 
+/* port: optional XR builds render sound after their eye cameras are ready,
+once for the frame, never once per eye. Other builds retain the original order. */
+static void main_game_render_sound(void)
+{
+	MAIN_STAGE("render: sound_render");
+	HALO_PERF_BEGIN(_halo_perf_sound);
+	HALO_PERF_BEGIN(_halo_perf_render_sound);
+	sound_render();
+	HALO_PERF_END(_halo_perf_render_sound);
+	HALO_PERF_END(_halo_perf_sound);
+}
+
 static void main_game_render(
 	double time_delta_since_tick_sec)
 {
@@ -3683,12 +3695,9 @@ static void main_game_render(
 	lock_global_random_seed();
 	MAIN_STAGE("render: collision_log_continue_period");
 	collision_log_continue_period(TRUE);
-	MAIN_STAGE("render: sound_render");
-	HALO_PERF_BEGIN(_halo_perf_sound);
-	HALO_PERF_BEGIN(_halo_perf_render_sound);
-	sound_render();
-	HALO_PERF_END(_halo_perf_render_sound);
-	HALO_PERF_END(_halo_perf_sound);
+#ifndef HALO_OPENXR
+	main_game_render_sound();
+#endif
 	force_single_screen = game_engine_force_single_screen();
 	last_local_player_index = NONE;
 
@@ -3769,6 +3778,7 @@ static void main_game_render(
 		render_window_count = (short)(player_window_count + 1);
 #ifdef HALO_OPENXR
 		render_window_count = vr_render_prepare(render_windows, render_window_count, &render_windows);
+		main_game_render_sound(); /* port: fresh centered headset listener */
 #endif
 		MAIN_STAGE("render: render_frame");
 		render_frame(
@@ -3785,6 +3795,9 @@ static void main_game_render(
 	}
 	else
 	{
+#ifdef HALO_OPENXR
+		main_game_render_sound(); /* port: screenshot paths still render sound once */
+#endif
 		MAIN_STAGE("render: screenshot_render");
 		screenshot_render(global_screenshot_count.windows);
 	}

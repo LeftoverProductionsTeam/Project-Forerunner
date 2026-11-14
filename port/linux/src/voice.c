@@ -786,6 +786,10 @@ static void speaker_play(struct speaker *speaker, unsigned long now)
 	unsigned long queued;
 	float gain = voice.volume * voice.channel_volume[speaker->channel];
 
+	/* Do not turn an unlocated proximity source into full-volume radio. */
+	if (speaker->route == _delta_voice_route_proximity && !speaker->placed)
+		gain = 0.0f;
+
 	if (!speaker->voice)
 	{
 		if (voice_jitter_count(&speaker->jitter) == 0)
