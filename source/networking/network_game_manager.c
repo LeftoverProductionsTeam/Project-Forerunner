@@ -852,12 +852,10 @@ boolean network_game_create_game_objects(
 		game_unload();
 	}
 
-	if (game->variant.game_engine_index)
-	{
-		game_set_game_variant(&game->variant);
-		/* port: and its PC options */
-		game_set_game_variant_options(&game->variant_options);
-	}
+	/* port: co-op's game_engine_none is a complete variant too. Keeping the
+	previous multiplayer variant starts its engine on the campaign map. */
+	game_set_game_variant(&game->variant);
+	game_set_game_variant_options(&game->variant_options);
 
 	if (game_load(&options))
 	{
