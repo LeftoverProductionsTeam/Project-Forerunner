@@ -385,6 +385,19 @@ identity and required capabilities. A runtime must reject an unknown required
 feature before modifying a session. No proprietary Halo tag extension or legacy
 conversion is introduced by this checkpoint.
 
+Community compatibility lead (14 November): Mota recommends Watanoge's existing
+Forge/Firefight work and reports a newer map-preserving streaming-tag/text
+placement sidecar. The inspected Watanoge snapshot is pinned in
+[the upstream matrix](UPSTREAM_FEATURE_MATRIX.md); its tag-pack and CE-cache
+trailer paths do not establish that newer sidecar's exact format. No such
+sidecar reader, Spark write operation or cross-fork session compatibility is
+currently advertised by Forerunner. Reuse the actual upstream format when its
+source is available rather than inventing a competing schema. A placement file
+does not supply missing client gameplay tags: every participating peer must
+resolve compatible content and dependencies before spawning, including late
+joiners. Existing visual-only loose-tag mods do not meet that requirement.
+Keep proprietary base MCC data local; no asset-sharing capability is implied.
+
 Legacy target conversion remains Spark's responsibility. The
 [compatibility matrix](COMPATIBILITY_MATRIX.md) records the evidence limits for
 Xbox, PC, CE, MCC and the community runtimes; unsupported gameplay is not a valid

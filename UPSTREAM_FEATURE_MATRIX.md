@@ -27,6 +27,7 @@ component validator. Validation of the resulting tree is recorded separately.
 | [Chupathingy](https://github.com/ChupathingyCE/chupathingyce) | `78d28a70839998775322af8aa571fa494966c0c8` | Shared ancestry is preserved through Fractum; see comparison above | Retain combined implementations; import missing changes individually with author credit. |
 | [FractumSeraph/OpenCE](https://github.com/FractumSeraph/OpenCE) | `eae91445333bc8ebfb1604e08fcedffbd5c3a558` | `1519c65facbb068e44b956da2769198a83a17847` | Selected after repairs, Windows x86 compilation, swapped-host native movement/combat and hidden OpenGL gameplay. Other acceptance gates remain open. |
 | [OpenCE-Faber](https://github.com/SutlabSol/OpenCE-Faber) | `e4ffe0fe9874870b4fca1fca76beb83514c793f4` | `da8d455623cf50002e6a798b1980068fd3ca0292` | Adapt Firefight and object editing incrementally. Whole-branch adoption would replace newer core fixes. |
+| [Watanoge/halo-content-evolved](https://github.com/Watanoge/halo-content-evolved) | `aff7a5d1b8ef592eea1106b64713e2a5d0a74569` | Not computed; source inspected through read-only GitHub access | Mota-recommended Forge/Firefight compatibility reference. Inspect its existing extensions before implementing equivalents; no branch merge, network compatibility or gameplay acceptance is claimed. |
 | [OpenH1/GOAT H1, dev](https://github.com/OpenH1/goath1) | `baed77571d53abe32b27434b4ba869f11db00fe9` | `6ec42856d73e258e5a8c7e9cd19161f46d89d0e4` | Separate optional VR/renderer adaptation; do not merge its protocol and simulation changes wholesale. |
 | [GulchCE](https://github.com/chestahh/GulchCE) | `66b4df0bc9afeb09189a7f9c0fff0c5b1f5d51b2` | `1519c65facbb068e44b956da2769198a83a17847` | Compare individual MCC fixes against already inherited MCC modules; preserve map-family boundaries. |
 | [DamnationCE](https://github.com/xshxdex98/DamnationCE) | `d31736d3748f1156995e6bba13126f87aeff40ee` | `0b2c6759bb4cb3ee5dcc3d650de2dcda74d79620` | Older CE/co-op reference; avoid copying AI/network systems already present in newer ancestry. |
@@ -50,6 +51,21 @@ component validator. Validation of the resulting tree is recorded separately.
 | Spark adapter and MegaWorld | `server_mode.c` capability contract v1; `tools/spark_runtime.py` reference client | Read-only discovery implemented and tested against real engine. Live editing and connected-world traversal are not implemented. |
 
 ## Licensing and repository rules
+
+Mota's 14 November community lead identifies Watanoge's Forge/Firefight additions
+and describes Mota's newer streaming-tag/placement-sidecar work. The inspected
+Watanoge snapshot credits Mota and contains `port/forge/src/forge_runtime_tags.c`,
+`forge_network.c`, `forge_cache_builder.c` and `port/linux/game/firefight*.c`.
+Its documented pack path imports tags on demand, preloads network actors in
+matching order, and its saved-map reader also reads placement text from a CE
+cache trailer. These inspected paths do not establish the newer separate text
+sidecar's schema. Its Forge session selects a distinct network version and uses
+fork-specific messages; CE-file loading alone is not live Forge/Firefight
+protocol compatibility. `port/linux/TAG_INJECTION.md` requires matching import
+roots/order and locally available packs across peers. Our existing `mods.c`
+is visual-only replacement, not gameplay-tag admission. No upstream code was
+imported or executed in this audit. Follow the existing Spark contract before
+adding a placement-file reader; preserve original maps and locally owned data.
 
 The combined foundation uses [AGPL-3.0-or-later](LICENSE), retaining
 Chupathingy's [GPL-3.0-or-later notices](LICENSE.GPL-3.0). This is inherited work;
