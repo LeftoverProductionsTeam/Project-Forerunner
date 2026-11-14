@@ -389,13 +389,20 @@ authoring; Forerunner owns authoritative gameplay and durable result settlement.
 The first UNVERIFIED local desktop source slice is `game.extraction` (off by
 default), reached through the existing native solo-map path. A candidate needs
 live scenario **control** objects named `extraction_deploy` and
-`extraction_activate` (native use, `triggers_when = 0`) and a trigger volume named
-`extraction_zone`. Controls must be powered, usable and reachable; the extraction
-control must be usable from inside that volume. Native use begins a run or a
-cancellable ten-second signal activation. Leaving cancels it; death/replaced
-player handles and checkpoint rewind invalidate the run. Current source stops
-at signal readiness: there is no loot/reward/evacuation or completed hub/report
-loop, no multiplayer admission and no new discovery capability. Spark must not
+`extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named
+`extraction_zone` and `extraction_return`. Controls must be powered, usable and
+reachable. Put the deploy control inside the safe hub's return volume, outside
+the activation zone, and the extraction control inside the activation zone.
+Native use begins a run or a cancellable ten-second signal activation. Leaving
+cancels it; death/replaced player handles and checkpoint rewind invalidate the
+run. After activation the same live player must physically reach the return
+volume outside the activation zone. Keep a real bidirectional player/vehicle
+route and native safe-hub geometry; the engine adds no teleport or map switch.
+Arrival records native equipment and shows a post-run summary; use the deploy
+control again to retain the same live inventory and begin another run. This is
+UNVERIFIED source, not a durable award: stash/loadout selection, rarity/upgrades,
+persistent rewards and full hub UI remain unfinished, with no multiplayer
+admission or new discovery capability. Spark must not
 advertise playable Extraction from these bindings alone. Retain native AI,
 collision, encounter and equipment source; the engine does not import authoring
 JSON or run a second Firefight director for native scripted encounters.
@@ -436,6 +443,13 @@ equipment can cross modes. Spark authors discoverable loot and mode rules using
 supported native tags; it must not write player stashes, invent awarded gear or
 advertise a persistence endpoint that Forerunner has not implemented. Current
 interaction source does not grant or persist loot.
+
+The shared native gear reader in `game_modes.c` now feeds both Extraction return
+reports and Firefight wave-clear reports before optional resupply. It reads real
+host/local ownership, tag paths, slot selection, loaded/reserve magazines, battery
+age and grenades; it refuses duplicate object references and excludes objective
+weapons. Map name/checksum are provenance, not cross-cache content admission.
+These snapshots are not a new sidecar, disk format, client claim or durable stash.
 
 ## Native formats and extended data
 

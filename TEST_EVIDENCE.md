@@ -524,3 +524,10 @@ audio device enumeration, microphone access, tests, builds or game/headset runs.
 The source audit is in UPSTREAM_FEATURE_MATRIX.md. Cross-session party transport,
 OpenCE voice bridging, VR listener tracking and region/portal occlusion remain
 open; inherited source wiring is not a functional audio acceptance claim.
+
+UNVERIFIED shared native equipment capture is connected to Extraction return
+reports/redeployment and Firefight wave-clear summaries. Source/diffs only; no
+tests, builds, launches or gameplay. Physical hub/activation routing, vehicle
+traversal, exact ammo/battery/ownership handling and both native Linux/Windows
+builds remain unverified. No durable stash, crash-safe award, cross-cache item
+admission, large-session performance or complete flagship acceptance is claimed.

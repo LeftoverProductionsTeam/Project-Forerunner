@@ -25,12 +25,15 @@ of their own (menu_functions.c's OPENCE).
 */
 
 #include "cseries.h"
+#include "cache/cache_files.h"
 #include "game/game.h"
 #include "game/game_engine.h"
 #include "game/game_engine_playlist.h"
 #include "game/players.h"
+#include "items/weapons.h"
 #include "networking/network_game_globals.h"
 #include "objects/objects.h"
+#include "tag_files/tag_files.h"
 #include "text/unicode.h"
 #include "units/units.h"
 #include "game_modes.h"
@@ -38,6 +41,86 @@ of their own (menu_functions.c's OPENCE).
 #include "infection.h"
 
 #include <string.h>
+
+typedef char inventory_weapon_capacity_matches_native[
+	GAME_MODES_INVENTORY_WEAPONS == MAXIMUM_WEAPONS_PER_UNIT ? 1 : -1];
+
+boolean game_modes_inventory_capture(long player_index, struct game_modes_inventory *inventory)
+{
+	struct player_datum *player;
+	struct unit_datum *unit;
+	struct game_modes_inventory captured;
+	char const *map_name;
+	long owned[GAME_MODES_INVENTORY_WEAPONS];
+	short slot, other, magazine;
+
+	if (!inventory)
+		return FALSE;
+	csmemset(inventory, 0, sizeof(*inventory));
+	if (!game_in_progress() || network_game_distributed_client() ||
+		(game_connection() != _game_connection_local && game_connection() != _game_connection_network_server))
+		return FALSE;
+	player = player_try_and_get(player_index);
+	if (!player || player->quit_out_of_game || player->unit_index == NONE)
+		return FALSE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+	if (!unit || unit->unit.player_index != player_index || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return FALSE;
+	map_name = cache_file_loaded_map_name();
+	if (!map_name || strlen(map_name) >= sizeof(captured.map_name))
+		return FALSE;
+	csmemset(&captured, 0, sizeof(captured));
+	strcpy(captured.map_name, map_name);
+	captured.map_checksum = cache_files_get_checksum();
+	captured.selected_slot = NONE;
+	for (slot = 0; slot < NUMBEROF(captured.grenades); slot++)
+	{
+		if (unit->unit.grenade_counts[slot] < 0)
+			return FALSE;
+		captured.grenades[slot] = unit->unit.grenade_counts[slot];
+	}
+	for (slot = 0; slot < MAXIMUM_WEAPONS_PER_UNIT; slot++)
+	{
+		long weapon_index = unit->unit.weapon_object_indices[slot];
+		struct weapon_datum *weapon;
+		struct game_modes_inventory_weapon *item;
+		char const *path;
+
+		owned[slot] = weapon_index;
+		if (weapon_index == NONE)
+			continue;
+		/* Two slots must not recover the same native object twice. */
+		for (other = 0; other < slot; other++)
+			if (owned[other] == weapon_index)
+				return FALSE;
+		weapon = weapon_try_and_get(weapon_index);
+		if (!weapon || weapon->object.parent_object_index != player->unit_index)
+			return FALSE;
+		/* Objective weapons are mission state, never personal salvage. */
+		if (weapon_is_flag(weapon_index))
+			continue;
+		path = tag_get_name(weapon->definition_index);
+		if (!path || !path[0] || strlen(path) >= sizeof(captured.weapons[0].tag_path) ||
+			!(weapon->weapon.age >= 0.0f && weapon->weapon.age <= 1.0f))
+			return FALSE;
+		item = &captured.weapons[captured.weapon_count++];
+		strcpy(item->tag_path, path);
+		item->slot = slot;
+		item->age = weapon->weapon.age;
+		for (magazine = 0; magazine < NUMBEROF(item->rounds_loaded); magazine++)
+		{
+			if (weapon->weapon.magazines[magazine].rounds_loaded < 0 ||
+				weapon->weapon.magazines[magazine].rounds_total < 0)
+				return FALSE;
+			item->rounds_loaded[magazine] = weapon->weapon.magazines[magazine].rounds_loaded;
+			item->rounds_reserve[magazine] = weapon->weapon.magazines[magazine].rounds_total;
+		}
+		if (unit->unit.current_weapon_index == slot)
+			captured.selected_slot = slot;
+	}
+	*inventory = captured;
+	return TRUE;
+}
 
 /* game_engine.c's values of the variant's (its enums goal_radar,
 game_engine_weapons and game_engine_vehicles) */

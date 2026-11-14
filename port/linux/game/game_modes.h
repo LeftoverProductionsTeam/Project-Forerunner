@@ -85,4 +85,27 @@ boolean game_modes_motion_sensor_hidden(void);
 /* no aim assist: neither autoaim nor magnetism (Hardcore) */
 boolean game_modes_aim_assist_off(void);
 
+/* Native equipment snapshots shared by survival/Extraction results. These
+   contain no object handles and are not a disk/network format or permission
+   to spawn a tag from another cache. Map name/checksum are provenance only. */
+#define GAME_MODES_INVENTORY_WEAPONS 4
+struct game_modes_inventory_weapon
+{
+	char tag_path[256];
+	short slot;
+	short rounds_loaded[2], rounds_reserve[2];
+	float age;
+};
+struct game_modes_inventory
+{
+	char map_name[256];
+	unsigned long map_checksum;
+	short weapon_count, selected_slot;
+	short grenades[2];
+	struct game_modes_inventory_weapon weapons[GAME_MODES_INVENTORY_WEAPONS];
+};
+/* Host/local authority only; captures a living player's actually owned gear.
+   No grants, mutations, stash writes or client-submitted item descriptions. */
+boolean game_modes_inventory_capture(long player_index, struct game_modes_inventory *inventory);
+
 #endif

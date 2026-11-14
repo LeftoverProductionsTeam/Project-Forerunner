@@ -41,6 +41,7 @@ Only the host runs the AI, so all of this is the host's.
 #include "game/game.h"
 #include "game/game_allegiance.h"
 #include "game/players.h"
+#include "game_modes.h"
 #include "items/weapons.h"
 #include "items/weapon_definitions.h"
 #include "main/main.h"
@@ -276,6 +277,46 @@ static void firefight_notice(char const *text)
 	for (index = 0; index < count; index++)
 		distributed_send_notice_to_machine(machines[index], text);
 	platform_log("firefight: %s", text);
+}
+
+/* The same native gear reader as Extraction, at the actual wave-clear
+   milestone before optional resupply. This is a report, not a stash award. */
+static void firefight_equipment_reports(void)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+	struct game_modes_inventory inventory;
+
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		char text[128];
+		long machine;
+
+		if (!game_modes_inventory_capture(iterator.datum_index, &inventory))
+			continue;
+		snprintf(text, sizeof(text), "Firefight wave %d equipment: %d weapons, %d frag, %d plasma.",
+			(int)firefight.wave, (int)inventory.weapon_count, (int)inventory.grenades[0], (int)inventory.grenades[1]);
+		if (distributed_player_is_local(iterator.datum_index))
+		{
+			wchar_t wide[128];
+			short index;
+			long local;
+
+			for (index = 0; text[index] && index < NUMBEROF(wide) - 1; index++)
+				wide[index] = (wchar_t)(unsigned char)text[index];
+			wide[index] = 0;
+			for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
+				if (local_player_get_player_index(local) == iterator.datum_index)
+					hud_print_message((short)local, wide);
+		}
+		else
+		{
+			machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index));
+			if (machine != NONE)
+				distributed_send_notice_to_machine(machine, text);
+		}
+	}
 }
 
 static void firefight_wake_unit(long unit_index, long actor_index, short team)
@@ -994,6 +1035,7 @@ static void firefight_update(void)
 		{
 			firefight.phase = 3;
 			firefight.deadline = now + 3 * TICKS_PER_SECOND;
+			firefight_equipment_reports();
 			{
 				char text[128];
 

@@ -523,3 +523,25 @@ mode/device changes close capture, clear queues/gate and reset codec history.
 Permission denials stay denied; capture remains off by default and opens only when
 talking is authorized. Necessary bug fix, UNVERIFIED. No packet change, duplicate
 VOIP stack, tests, builds, audio/runtime queries, launches, Spark edits or pushes.
+
+Owner-prioritized roadmap continues native Linux alongside Windows/VR. Rendering
+and lighting must consume Spark's target-compatible GPU-baked native content
+within each target's real limits. Zombie Apocalypse must become distinct Flood
+survival with outbreaks, changing objectives, scavenging, optional extraction,
+persistent rewards and scalable hordes, reusing shared systems. Generic campaign
+co-op/three-wave Firefight is not that acceptance. Genuine 19-region play and VR
+remain flagship requirements; 128 players and huge Flood populations are targets
+requiring eventual performance/replication proof, not established capabilities.
+
+Shared equipment source cycle reuses `game_modes.c` for host/local native gear
+capture (paths, slots, magazines, battery age, grenades and map provenance), with
+ownership/death/duplicate checks and objective exclusion. Extraction now requires
+an authored physical return volume after signal activation, records its carried
+loadout once on arrival, reports it and permits redeployment using the same live
+player/inventory. Firefight uses the same reader for per-owner wave-clear reports
+before optional resupply. No gear is minted, restored, awarded or written to a
+stash. This is necessary runtime source progress, UNVERIFIED; no builds, tests,
+launches, Spark changes or pushes. Durable settlement/reservations, crash and
+cross-process protection, stash UI, rarity/upgrades and multiplayer Extraction
+remain open. Shared game code introduces no Windows-only inventory dependency,
+packet change, global limit increase or new storage framework.

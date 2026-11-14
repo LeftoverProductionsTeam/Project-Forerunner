@@ -1,12 +1,13 @@
 /* Native timerless Extraction: the first interaction/state slice.
    Uses existing control actions, scenario volumes and simulation ticks.
-   This does not yet implement loot, rewards, evacuation transport or hub UI.
-   It is opt-in/local only until multiplayer admission and results are wired.
+   This does not yet implement a loot stash, durable rewards or the hub UI.
+   It is opt-in/local only until multiplayer admission and durable results are wired.
    SPDX-License-Identifier: AGPL-3.0-or-later */
 
 #include "cseries.h"
 #include "game/game.h"
 #include "game/players.h"
+#include "game_modes.h"
 #include "interface/hud_messaging.h"
 #include "objects/objects.h"
 #include "scenario/scenario.h"
@@ -23,15 +24,18 @@ enum extraction_phase
 	_extraction_deployed,
 	_extraction_activating,
 	_extraction_ready,
+	_extraction_returned,
 	_extraction_lost
 };
 
 static struct
 {
 	boolean bound, admitted;
-	short deploy_name, activate_name, zone;
+	short deploy_name, activate_name, zone, return_zone;
 	long player, unit, last_tick, activation_ticks;
 	enum extraction_phase phase;
+	boolean equipment_valid;
+	struct game_modes_inventory equipment;
 } extraction;
 
 static boolean extraction_requested(void)
@@ -59,7 +63,7 @@ void extraction_reset(void)
 {
 	csmemset(&extraction, 0, sizeof(extraction));
 	extraction.player = extraction.unit = NONE;
-	extraction.deploy_name = extraction.activate_name = extraction.zone = NONE;
+	extraction.deploy_name = extraction.activate_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.last_tick = NONE;
 }
 
@@ -70,7 +74,7 @@ static void extraction_bind(void)
 	extraction.bound = TRUE;
 	extraction.deploy_name = scenario_object_name_index_from_string(global_scenario, "extraction_deploy");
 	extraction.activate_name = scenario_object_name_index_from_string(global_scenario, "extraction_activate");
-	extraction.zone = NONE;
+	extraction.zone = extraction.return_zone = NONE;
 	for (index = 0; index < global_scenario->trigger_volumes.count; index++)
 	{
 		struct scenario_trigger_volume *volume = TAG_BLOCK_GET_ELEMENT(
@@ -79,16 +83,18 @@ static void extraction_bind(void)
 		if (!strcmp(volume->name, "extraction_zone"))
 		{
 			extraction.zone = index;
-			break;
 		}
+		else if (!strcmp(volume->name, "extraction_return"))
+			extraction.return_zone = index;
 	}
-	extraction.admitted = extraction.deploy_name != NONE && extraction.activate_name != NONE && extraction.zone != NONE &&
+	extraction.admitted = extraction.deploy_name != NONE && extraction.activate_name != NONE &&
+		extraction.zone != NONE && extraction.return_zone != NONE &&
 		object_try_and_get_and_verify_type(object_index_from_name_index(extraction.deploy_name), _object_mask_control) &&
 		object_try_and_get_and_verify_type(object_index_from_name_index(extraction.activate_name), _object_mask_control);
 	if (extraction.admitted)
 		extraction_notice("FIELD TERMINAL | Use the deployment control to begin. No raid timer.");
 	else
-		extraction_notice("Extraction unavailable: map needs deployment/activation controls and extraction_zone.");
+		extraction_notice("Extraction unavailable: map needs deployment/activation controls and extraction/return zones.");
 }
 
 boolean extraction_control_touched(long control_index, long unit_index)
@@ -108,11 +114,16 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		return FALSE;
 	if (control->object.name_index == extraction.deploy_name)
 	{
-		if (extraction.phase == _extraction_hub || extraction.phase == _extraction_lost)
+		if ((extraction.phase == _extraction_hub || extraction.phase == _extraction_lost ||
+			extraction.phase == _extraction_returned) &&
+			scenario_trigger_volume_test_object(extraction.return_zone, unit_index) &&
+			!scenario_trigger_volume_test_object(extraction.zone, unit_index))
 		{
 			extraction.player = unit->unit.player_index;
 			extraction.unit = unit_index;
 			extraction.phase = _extraction_deployed;
+			extraction.equipment_valid = FALSE;
+			csmemset(&extraction.equipment, 0, sizeof(extraction.equipment));
 			extraction_notice("DEPLOYED | Return to the extraction control when ready. No raid timer.");
 		}
 		return TRUE;
@@ -159,6 +170,7 @@ void extraction_update(void)
 	player = player_try_and_get(extraction.player);
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(extraction.unit, _object_mask_biped);
 	if (!player || player->quit_out_of_game || player->unit_index != extraction.unit || !unit ||
+		unit->unit.player_index != extraction.player ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 	{
 		extraction.phase = _extraction_lost;
@@ -177,9 +189,27 @@ void extraction_update(void)
 		else if (--extraction.activation_ticks <= 0)
 		{
 			extraction.phase = _extraction_ready;
-			/* Evacuation and durable result commit are the next source gate.
-			   Do not pretend this readiness message is a successful escape. */
-			extraction_notice("EXTRACTION SIGNAL READY");
+			extraction_notice("EXTRACTION SIGNAL READY | Reach the return point alive.");
 		}
+	}
+	/* The authored escape route leads physically back to the hub. Preserve
+	   the same player, vehicle and native inventory; no map switch or teleport.
+	   Overlapping zones cannot turn activation alone into successful escape. */
+	if (extraction.phase == _extraction_ready &&
+		scenario_trigger_volume_test_object(extraction.return_zone, extraction.unit) &&
+		!scenario_trigger_volume_test_object(extraction.zone, extraction.unit))
+	{
+		char report[128];
+
+		extraction.equipment_valid = game_modes_inventory_capture(extraction.player, &extraction.equipment);
+		extraction.phase = _extraction_returned;
+		if (extraction.equipment_valid)
+			snprintf(report, sizeof(report), "RUN COMPLETE | Carried: %d weapons, %d frag, %d plasma. Terminal: redeploy.",
+				(int)extraction.equipment.weapon_count, (int)extraction.equipment.grenades[0],
+				(int)extraction.equipment.grenades[1]);
+		else
+			snprintf(report, sizeof(report), "RUN COMPLETE | Use the field terminal to redeploy.");
+		/* This report records the live loadout, not an awarded/persisted stash. */
+		extraction_notice(report);
 	}
 }

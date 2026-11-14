@@ -1299,10 +1299,11 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	/* ---- game */
 	{ "game.extraction", _config_boolean, "false", "HALO_EXTRACTION", _environment_value, _platform_desktop,
 		"Unverified local Extraction interaction source. Requires a solo map\n"
-		"with extraction_deploy/extraction_activate controls and extraction_zone.\n"
-		"No raid timer; only an activated ten-second extraction signal. Loot,\n"
-		"evacuation, persistent rewards and the complete hub/results loop are\n"
-		"unfinished. Does not enable Extraction multiplayer." },
+		"with extraction_deploy/extraction_activate controls, extraction_zone\n"
+		"and extraction_return. No raid timer; activate a ten-second signal\n"
+		"then physically return alive for an equipment report and redeployment.\n"
+		"Stash/loadouts, upgrades, durable rewards and hub UI are unfinished.\n"
+		"Does not enable Extraction multiplayer." },
 	{ "game.start_map", _config_string, "\"\"", "HALO_START_MAP", _environment_value, _platform_desktop,
 		"Once the main menu is ready, start this installed CE solo map fresh,\n"
 		"for example 'gs_firefight@ce', using the current difficulty and a\n"
