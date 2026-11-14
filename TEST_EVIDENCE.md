@@ -374,3 +374,9 @@ inventory snapshots. It is off by default and preserves magazine/reload state.
 No tests/builds/queries/games ran. Ballistic reserve and battery replenishment,
 reload timing, excluded dead/dropped inventory and real owner-client agreement
 remain unaccepted.
+
+The next source-only transition repair places the existing Firefight arena return
+before MCC package and Xbox/CE campaign completion. This avoids the source path
+through MCC progress/next-mission handling for finite victory, defeat or abort.
+No tests/builds/queries/games or profile writes ran. Result/lobby behavior and
+campaign progress protection still require native validation.

@@ -219,7 +219,7 @@ The current empty-tag fallback already limits unsafe reads, so this is explicit
 spawn rejection, not a claim to repair the old crash. No tags, originals or Spark
 files were changed. No tests/builds/queries/games ran; native acceptance is open.
 
-The next source-only gameplay increment adapts Faber's reserve-ammunition refill
+Source checkpoint `67a10a144` adapts Faber's reserve-ammunition refill
 to an optional finite resupply before waves two and three. The existing module
 refills only living players' carried weapons, bounded by native magazine capacity;
 battery weapons regain charge. It preserves loaded rounds, reload state, heat,
@@ -228,3 +228,12 @@ at map start. Existing inventory snapshots carry reserves/age; no packet, invent
 framework, equipment spawning or infinite-ammo trait was added. No tests/builds/
 queries/games ran. Reserve/battery behavior, reload timing, owner-client agreement
 and creator-map acceptance remain open.
+
+The next source-only transition repair moves the existing finite Firefight
+arena-return guard ahead of both campaign-completion paths. It previously followed
+MCC package completion, whose `mcc_progress_complete` could record a mission win
+and select the next mission even on a Firefight defeat/abort. The existing host
+co-op lobby return now runs first; ordinary campaign order is unchanged. No new
+result packet or transition mechanism was added. No tests/builds/queries/games or
+profile writes ran. Terminal/lobby and MCC progress protection remain unverified
+in gameplay; this does not establish MCC Firefight acceptance.

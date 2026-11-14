@@ -185,6 +185,9 @@ Carrier child variants now also have an unverified prerequisite check adapted
 from Faber: missing actor/unit references report the variant path and reject the
 spawn before native placement; tracked Firefight requests abort. Optional empty
 tag fields are not a runnable actor definition. No source tag is rewritten.
+The finite terminal return also has an unverified ordering repair: its existing
+same-arena co-op lobby path runs before MCC package or Xbox/CE campaign completion,
+so a finite result does not enter campaign progress/next-mission handling.
 
 ## Reuse audit and ownership
 

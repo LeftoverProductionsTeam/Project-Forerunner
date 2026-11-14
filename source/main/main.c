@@ -2575,6 +2575,15 @@ static void main_won_map_private(
 	short level;
 	short local_player_index;
 
+	/* port: Firefight owns its result and repeats the arena. This must precede
+	both MCC and Xbox/CE campaign completion, including on defeat or abort. */
+	if (coop_enemies_firefight_active())
+	{
+		main_globals.won_map = FALSE;
+		network_game_server_port_cooperative_won(NULL);
+		return;
+	}
+
 	/* port: explicit MCC campaigns own their mission order and host decision.
 	 * The Xbox/CE level table below cannot represent package mission identities. */
 	if (mcc_main_campaign_won())
@@ -2592,13 +2601,6 @@ static void main_won_map_private(
 		struct network_game *game = network_game_get_game();
 
 		main_globals.won_map = FALSE;
-		/* port: Firefight repeats its arena; it does not complete a campaign
-		mission or unlock the next one in the player's profile. */
-		if (coop_enemies_firefight_active())
-		{
-			network_game_server_port_cooperative_won(NULL);
-			return;
-		}
 		level = game ? main_get_solo_level_from_name(game->map.name) : NONE;
 		player_profile_save_level_completed(0);
 		network_game_server_port_cooperative_won(level != NONE ?
