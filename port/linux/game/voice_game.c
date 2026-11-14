@@ -449,7 +449,7 @@ static void local_update(int role)
 {
 	struct delta_wire_voice_config config;
 	unsigned long now = system_milliseconds();
-	boolean push, next, configured;
+	boolean push, next, configured, obstruction_enabled;
 	int channel, hears;
 	struct voice_frame frame;
 	short machine;
@@ -484,26 +484,34 @@ static void local_update(int role)
 	if (!voice_game.has_party)
 		hears &= ~DELTA_VOICE_PARTY;
 	delta_peer_game_set_voice_hears(hears, voice_game.has_party ? voice_game.party : NULL);
+	obstruction_enabled = config_boolean("audio.voice_positional") && config_boolean("audio.voice_obstruction");
 	/* Halo transforms native sound sources before DirectSound, whose listener
 	   stays at the canonical origin. Proximity voice uses that same space. */
 	for (machine = 0; machine < MACHINES; machine++)
 	{
 		real_point3d place, local;
+		long obstruction = 0, occlusion = 0;
+		real range = configured ? config.proximity / 10.0f : 15.0f;
+		short listener = (short)local_player_get_next(NONE);
 
 		if (!voice_game.heard_time[machine] || now - voice_game.heard_time[machine] > PLACE_TIME)
 			continue;
 		if (player_place(voice_game.heard_player[machine], &place) &&
-			sound_world_to_listener((short)local_player_get_next(NONE), &place, &local))
+			sound_world_to_listener(listener, &place, &local))
 		{
 			float position[3];
+			boolean audible = TRUE;
 
 			position[0] = local.x;
 			position[1] = local.y;
 			position[2] = local.z;
-			voice_place(machine, position, configured ? config.proximity / 10.0f : 15.0f);
+			if (obstruction_enabled && voice_speaker_channel(machine) == _delta_voice_channel_proximity)
+				audible = sound_world_obstruction(listener, &place, range, &obstruction, &occlusion);
+			voice_place(machine, audible ? position : NULL, range);
 		}
 		else
 			voice_place(machine, NULL, 0.0f);
+		voice_environment(machine, (int)obstruction, (int)occlusion);
 	}
 	/* Place newly heard frames before decoding/mixing them this frame. */
 	voice_update(now, push, voice_game_channel_state(channel) == _voice_channel_open, configured ? config.kbps : 24);

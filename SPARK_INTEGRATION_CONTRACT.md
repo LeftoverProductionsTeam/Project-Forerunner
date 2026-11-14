@@ -500,6 +500,19 @@ This remains unbuilt and unverified. Tracked weapon models, correct VR reticles,
 physical interactions, vehicle aiming and headset acceptance are still missing;
 Spark must not advertise full VR support from this source interface.
 
+Native proximity voice now has optional `audio.voice_obstruction` source
+(default false). `source/sound/sound_manager.c::sound_world_obstruction` calls
+the inherited `game_sound.c::compute_sound_obstruction` and native millibel
+conversion. `voice_game.c::local_update`, `voice.c::voice_environment` and
+`dsound_sdl.c::dsound_voice_place` feed that result into the existing I3DL2 mixer;
+no VOIP transport, microphone policy or network packet changed. The reused
+query cache now keys BSP identity and clears on native map/restore paths.
+Spark supplies ordinary native BSP sound/cluster/visibility and collision data;
+no new acoustic sidecar is required. Team/party radio ignores obstruction.
+This is UNVERIFIED source, using the native observer and currently loaded BSP.
+XR-origin obstruction, multiple local listeners and connected-region acoustics
+remain unfinished; neither this nor a GPU lightmap draft proves them.
+
 All changes after the admitted executable remain source-only/UNVERIFIED. No
 capability/discovery field was upgraded by this checkpoint. Spark's next useful
 handoff is its exact compiled native encounter/cache and ordinary matching data,

@@ -4099,7 +4099,7 @@ void dsound_voice_close(void *voice);
 int dsound_voice_submit(void *voice, const short *samples, unsigned long frames);
 unsigned long dsound_voice_queued(void *voice);
 void dsound_voice_place(void *voice, int mode, const float *position, float minimum_distance, float maximum_distance,
-	float gain);
+	float gain, int obstruction, int occlusion);
 
 void *dsound_voice_open(void)
 {
@@ -4173,15 +4173,20 @@ unsigned long dsound_voice_queued(void *voice)
 gain and pan alone (OpenCE's way: full within the minimum distance, then
 down to a fifth at the maximum, panned by the side it is on); and its gain */
 void dsound_voice_place(void *voice, int mode, const float *position, float minimum_distance, float maximum_distance,
-	float gain)
+	float gain, int obstruction, int occlusion)
 {
 	struct sdl_stream *stream = stream_from_interface(voice);
+	DSI3DL2BUFFER properties;
+	float room_rolloff;
 
 	if (!voice)
 		return;
 	mixer_lock_take();
 	stream->volume = gain < 0.0f ? 0.0f : gain;
 	stream->mix_left = stream->mix_right = 1.0f;
+	stream->direct = stream->direct_hf = 0;
+	stream->room = stream->room_hf = 0;
+	room_rolloff = stream->room_rolloff_factor;
 	if (mode && position)
 	{
 		/* (DirectSound's space: y up, as the game sets it, sound_dsound_xbox.c) */
@@ -4191,8 +4196,6 @@ void dsound_voice_place(void *voice, int mode, const float *position, float mini
 		stream->minimum_distance = minimum_distance > 0.0f ? minimum_distance : 1.0f;
 		stream->maximum_distance = maximum_distance > stream->minimum_distance ? maximum_distance :
 			stream->minimum_distance;
-		stream->direct = stream->direct_hf = 0;
-		stream->room = stream->room_hf = 0;
 	}
 	if (mode == 1 && position)
 	{
@@ -4218,6 +4221,17 @@ void dsound_voice_place(void *voice, int mode, const float *position, float mini
 		stream->mode = DS3DMODE_DISABLE;
 	}
 	pthread_mutex_unlock(&mixer_lock);
+	/* Use the game's existing I3DL2 muffling, with its LF ratios. Voice keeps
+	   its previous direct/room levels; radio and non-3D routes clear the effect. */
+	if (mode == 1 && position && (obstruction || occlusion))
+	{
+		memset(&properties, 0, sizeof(properties));
+		properties.flRoomRolloffFactor = room_rolloff;
+		properties.Obstruction.lHFLevel = obstruction;
+		properties.Occlusion.lHFLevel = occlusion;
+		properties.Occlusion.flLFRatio = 0.2f;
+		IDirectSoundStream_SetI3DL2Source((IDirectSoundStream *)voice, &properties, DS3D_IMMEDIATE);
+	}
 }
 
 #endif

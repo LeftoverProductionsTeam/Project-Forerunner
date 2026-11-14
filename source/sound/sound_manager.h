@@ -88,6 +88,10 @@ boolean sound_refresh_looping(
 
 /* port: voice uses the same native listener-local space as game sounds. */
 boolean sound_world_to_listener(short local_player_index, real_point3d const *world, real_point3d *local);
+/* port: native BSP obstruction, in DirectSound millibels; FALSE is inaudible.
+   Reuses game_sound.c's native observer/query cache, not a new propagation model. */
+boolean sound_world_obstruction(short local_player_index, real_point3d const *world,
+	real maximum_distance, long *obstruction, long *occlusion);
 
 extern boolean debug_sound;
 

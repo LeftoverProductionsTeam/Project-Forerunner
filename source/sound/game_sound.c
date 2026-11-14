@@ -213,6 +213,9 @@ typedef char sound_attachment_data_node_index_offset_assert[
 
 /* ---------- prototypes */
 
+#ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
+static void obstruction_cache_clear(void); /* port: geometry/restore lifetime. */
+#endif
 static void compute_combined_pas(
 	void);
 static boolean location_potentially_audible(
@@ -264,6 +267,9 @@ void game_sound_dispose(
 void game_sound_initialize_for_new_map(
 	void)
 {
+#ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
+	obstruction_cache_clear(); /* port: a new cache can reuse tick/position keys. */
+#endif
 	if (game_looping_sound_data)
 	{
 		data_make_valid(game_looping_sound_data);
@@ -291,6 +297,9 @@ void game_sound_clear(
 {
 	long looping_sound_index;
 
+#ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
+	obstruction_cache_clear(); /* port: also called before saved-state restores. */
+#endif
 	for (looping_sound_index = data_next_index(game_looping_sound_data, NONE);
 		looping_sound_index != NONE;
 		looping_sound_index = data_next_index(game_looping_sound_data, looping_sound_index))
@@ -938,10 +947,16 @@ static struct
 	boolean valid;
 	long game_time;
 	short local_player_index;
+	short structure_bsp_index; /* port: geometry can change without a tick. */
 	real_point3d position;
 	real obstruction;
 	real occlusion;
 } obstruction_cache[OBSTRUCTION_CACHE_SLOTS];
+
+static void obstruction_cache_clear(void)
+{
+	csmemset(obstruction_cache, 0, sizeof(obstruction_cache));
+}
 
 static long obstruction_cache_slot(
 	short local_player_index,
@@ -966,6 +981,7 @@ void compute_sound_obstruction(
 
 	if (obstruction_cache[slot].valid &&
 		obstruction_cache[slot].game_time == now &&
+		obstruction_cache[slot].structure_bsp_index == global_structure_bsp_index && /* port: BSP identity. */
 		obstruction_cache[slot].local_player_index == local_player_index &&
 		obstruction_cache[slot].position.x == source->location.position.x &&
 		obstruction_cache[slot].position.y == source->location.position.y &&
@@ -1051,6 +1067,7 @@ void compute_sound_obstruction(
 #ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	obstruction_cache[slot].valid = TRUE;
 	obstruction_cache[slot].game_time = now;
+	obstruction_cache[slot].structure_bsp_index = global_structure_bsp_index; /* port: BSP identity. */
 	obstruction_cache[slot].local_player_index = local_player_index;
 	obstruction_cache[slot].position = source->location.position;
 	obstruction_cache[slot].obstruction = source->obstruction;

@@ -575,3 +575,13 @@ ordering requires the deferred recheck. No scripts are suppressed and no stash
 reward is granted. No builds, tests or launches. Ordinary campaign completion,
 map binding failure, early scripted wins, escape and redeployment need later
 native validation; death recovery and durable settlement remain open.
+
+UNVERIFIED optional voice obstruction reuses compute_sound_obstruction,
+native dsound obstruction/occlusion conversions and the existing I3DL2 mixer.
+All private mixer callers were reviewed. Speaker/environment state is local;
+radio routes clear/ignore it, unlocated/unreachable proximity stays silent, and
+the setting defaults off. Native query-cache BSP keys and clear hooks prevent
+geometry/restore reuse. Source/diff review only; no tests, builds, launches,
+audio enumeration or microphone/headset runs. Audible attenuation, clear paths,
+wall/door/tunnel transitions, map/restore cache behavior, radio and Linux/Windows
+parity all await authorization. XR-origin and multi-region audio remain open.

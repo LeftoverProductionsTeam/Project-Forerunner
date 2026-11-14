@@ -61,7 +61,7 @@ void dsound_voice_close(void *voice);
 int dsound_voice_submit(void *voice, const short *samples, unsigned long frames);
 unsigned long dsound_voice_queued(void *voice);
 void dsound_voice_place(void *voice, int mode, const float *position, float minimum_distance, float maximum_distance,
-	float gain);
+	float gain, int obstruction, int occlusion);
 
 /* ---------- constants */
 
@@ -110,6 +110,7 @@ struct speaker
 	int placed;
 	float position[3];
 	float range;
+	int obstruction, occlusion;
 	/* debug.voice_test's log */
 	unsigned long bytes;
 	float level;
@@ -754,6 +755,16 @@ void voice_place(int speaker_machine, const float *position, float range)
 	speaker->range = range;
 }
 
+void voice_environment(int speaker_machine, int obstruction, int occlusion)
+{
+	struct speaker *speaker = speaker_of(speaker_machine, 0);
+
+	if (!speaker)
+		return;
+	speaker->obstruction = obstruction < -10000 ? -10000 : obstruction > 0 ? 0 : obstruction;
+	speaker->occlusion = occlusion < -10000 ? -10000 : occlusion > 0 ? 0 : occlusion;
+}
+
 int voice_speaker_talking(unsigned long now, int speaker_machine)
 {
 	struct speaker *speaker = speaker_of(speaker_machine, 0);
@@ -802,10 +813,11 @@ static void speaker_play(struct speaker *speaker, unsigned long now)
 	{
 		float range = speaker->range > PROXIMITY_FULL ? speaker->range : PROXIMITY_FULL + 1.0f;
 
-		dsound_voice_place(speaker->voice, voice.positional ? 1 : 2, speaker->position, PROXIMITY_FULL, range, gain);
+		dsound_voice_place(speaker->voice, voice.positional ? 1 : 2, speaker->position, PROXIMITY_FULL, range, gain,
+			speaker->obstruction, speaker->occlusion);
 	}
 	else
-		dsound_voice_place(speaker->voice, 0, NULL, 0.0f, 0.0f, gain);
+		dsound_voice_place(speaker->voice, 0, NULL, 0.0f, 0.0f, gain, 0, 0);
 	queued = dsound_voice_queued(speaker->voice);
 	while (queued < PLAY_AHEAD)
 	{

@@ -1043,6 +1043,12 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "audio.voice_positional", _config_boolean, "true", "HALO_VOICE_POSITIONAL", _environment_value, _platform_all,
 		"Hear proximity voices from where the players are, with the game's 3D\n"
 		"sound (and Headphone 3D). false pans and fades them only." },
+	{ "audio.voice_obstruction", _config_boolean, "false", "HALO_VOICE_OBSTRUCTION", _environment_value, _platform_all,
+		"Optional, unverified proximity-voice obstruction using Halo's native BSP\n"
+		"sound distances, visibility/collision queries and I3DL2 muffling. Requires\n"
+		"voice_positional. Team/party radio is unaffected. Uses the native observer\n"
+		"and currently loaded BSP; connected-region and XR-origin acoustics are\n"
+		"unfinished. Off preserves existing voice behavior." },
 #endif
 
 	/* ---- input */

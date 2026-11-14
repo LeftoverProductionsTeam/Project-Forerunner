@@ -69,6 +69,9 @@ void voice_heard(unsigned long now, int speaker_machine, int speaker_player, int
 world coordinates with the native sound listener). NULL: unplaced proximity
 is silent until its position is known. Radio channels remain non-positional. */
 void voice_place(int speaker_machine, const float *position, float range);
+/* Native obstruction/occlusion in millibels (-10000..0), proximity only.
+   Zero releases the effect; radio routes always ignore it. */
+void voice_environment(int speaker_machine, int obstruction, int occlusion);
 /* everything heard forgotten (the game left) */
 void voice_reset(void);
 

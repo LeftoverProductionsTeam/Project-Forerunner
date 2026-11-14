@@ -242,6 +242,7 @@ symbols in this file:
 #include "game/game_globals.h"
 #include "game/players.h"
 #include "objects/objects.h" /* port: object_get_point_velocity */
+#include "physics/collision_usage.h" /* port: bound native voice obstruction queries. */
 #include "render/render_debug.h"
 #include "scenario/scenario.h"
 #include "tag_files/tag_files.h"
@@ -4414,6 +4415,41 @@ boolean sound_world_to_listener(short local_player_index, real_point3d const *wo
 		return FALSE;
 	matrix4x3_inverse_transform_point(&listener->matrix, world, local);
 	return TRUE;
+}
+
+/* port: expose the existing geometry query/conversion to proximity VOIP.
+   Keep the native observer and cache semantics; no cross-region acoustics or
+   separate XR obstruction origin is claimed by this source-only bridge. */
+boolean sound_world_obstruction(short local_player_index, real_point3d const *world,
+	real maximum_distance, long *obstruction, long *occlusion)
+{
+	struct sound_source source;
+	real distance_squared;
+
+	if (!obstruction || !occlusion)
+		return FALSE;
+	*obstruction = *occlusion = 0;
+	if (!world || !valid_real_point3d(world) || !(maximum_distance > 0.f && maximum_distance < REAL_MAX) ||
+		!game_in_progress() || global_structure_bsp_index == NONE ||
+		local_player_index < 0 || local_player_index >= MAXIMUM_NUMBER_OF_LOCAL_PLAYERS ||
+		!listener_get(local_player_index)->valid ||
+		global_current_collision_user_depth <= 0 ||
+		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
+		return FALSE;
+	csmemset(&source, 0, sizeof(source));
+	source.spatialization_mode = _sound_spatialization_mode_absolute;
+	source.scale = source.gain = 1.f;
+	source.location.position = *world;
+	scenario_location_from_point(&source.location.game_location, world);
+	if (source.location.game_location.cluster_index == NONE)
+		return FALSE;
+	distance_squared = source_distance_squared(local_player_index, &source);
+	if (distance_squared > maximum_distance * maximum_distance)
+		return FALSE;
+	compute_sound_obstruction(local_player_index, &source, square_root(distance_squared));
+	*obstruction = dsound_obstruction_from_obstruction(source.obstruction);
+	*occlusion = dsound_occlusion_from_occlusion(source.occlusion);
+	return source.occlusion < 1.f;
 }
 
 static void detail_sound_random_offset(

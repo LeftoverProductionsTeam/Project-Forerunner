@@ -613,3 +613,14 @@ physical return/redeployment; general scripts and ordinary campaign completion
 remain unchanged. This is a necessary gameplay repair, with no new subsystem.
 Death recovery, durable settlement and combined finite-director outcomes remain
 unfinished. Source/caller review only; no tests, builds or launches.
+
+UNVERIFIED native voice reuse cycle: audio.voice_obstruction (off by default)
+connects inherited Halo BSP sound/visibility/collision queries and millibel
+conversion to existing Delta/Opus proximity playback and I3DL2 muffling. Radio
+ignores the effect; microphone privacy and wire formats are unchanged. The
+reused native query cache keys BSP identity and clears for maps/restores.
+This is runtime source plus a necessary cache repair, with no second VOIP or
+acoustic subsystem. Native Linux/Windows share the code. Only the current BSP
+and native observer are covered; XR-origin and connected-region acoustics,
+multiple local listeners and hardware behavior remain unfinished/unverified.
+No builds, tests, launches or audio-device queries.
