@@ -624,3 +624,16 @@ acoustic subsystem. Native Linux/Windows share the code. Only the current BSP
 and native observer are covered; XR-origin and connected-region acoustics,
 multiple local listeners and hardware behavior remain unfinished/unverified.
 No builds, tests, launches or audio-device queries.
+
+UNVERIFIED Extraction wipe recovery: the existing native player respawn loop
+now shares one implementation for checkpoint relocation and authored starts.
+Extraction uses native starts after a real local wipe, discards the failed
+run/equipment result, and preserves the current world instead of reverting a
+save. Native starting-equipment profiles remain authoritative; no recovered
+gear is restored/granted. Failed allocation uses the existing loss timer for
+retry. Live-player scripted failures and finite Firefight keep their existing
+outcome owners. Spark must author all selectable solo starts in the safe hub,
+with native equipment and collision clearance. No hub placement is verified.
+This cycle adds gameplay recovery code, not a new respawn/storage system.
+Persistent settlement, per-player multiplayer loss and combined director modes
+remain open. Source/callers/diffs only; no tests, builds, launches or save access.

@@ -2415,6 +2415,15 @@ static void main_lost_map_private(
 			}
 			return;
 		}
+		/* port: local Extraction keeps its world/loot/AI on a wipe. Native
+		   starting locations must be in the authored safe hub. Retry failed
+		   native allocations through the existing timer, without loading a save. */
+		if (extraction_respawn_after_loss())
+		{
+			if (players_are_all_dead())
+				main_lost_map();
+			return;
+		}
 		/* port: the co-op host chooses whether a team wipe rewinds or only
 		respawns. Scripted failures still revert, or their cutscene would
 		never end. A missing save falls back to checkpoint positions. */

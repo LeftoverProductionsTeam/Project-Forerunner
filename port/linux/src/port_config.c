@@ -1314,6 +1314,8 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"with extraction_deploy/extraction_activate controls, extraction_zone\n"
 		"and extraction_return. No raid timer; activate a ten-second signal\n"
 		"then physically return alive for an equipment report and redeployment.\n"
+		"Native player starts must be inside the safe hub. A real team wipe\n"
+		"respawns at those starts without rewinding the world or restoring loot.\n"
 		"Stash/loadouts, upgrades, durable rewards and hub UI are unfinished.\n"
 		"Does not enable Extraction multiplayer." },
 	{ "game.start_map", _config_string, "\"\"", "HALO_START_MAP", _environment_value, _platform_desktop,

@@ -585,3 +585,14 @@ geometry/restore reuse. Source/diff review only; no tests, builds, launches,
 audio enumeration or microphone/headset runs. Audible attenuation, clear paths,
 wall/door/tunnel transitions, map/restore cache behavior, radio and Linux/Windows
 parity all await authorization. XR-origin and multi-region audio remain open.
+
+UNVERIFIED local Extraction recovery source shares native player_spawn/equipment
+and all-dead handling with the existing checkpoint respawn API. All callers were
+read: ordinary/co-op/finite Firefight calls retain checkpoint relocation; the
+Extraction loss path chooses authored starts without checkpoint/teammate moves.
+The run result is cleared; allocation failure retains native timed retry, and
+scripted failures with living players retain campaign handling. No tests,
+builds, launches or save/profile access. Real death, repeated wipes, allocation
+failure, authored hub starts, equipment, world/AI/loot continuity and ordinary
+respawns all need later native validation. Persistence and multiplayer remain
+unfinished; source presence is not proof of safe respawn or loss acceptance.

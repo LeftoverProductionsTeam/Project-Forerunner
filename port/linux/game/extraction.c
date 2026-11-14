@@ -67,6 +67,32 @@ static void extraction_notice(char const *text)
 		hud_print_message((short)local, wide);
 }
 
+static void extraction_lose_run(void)
+{
+	boolean newly_lost = extraction.phase != _extraction_lost;
+
+	extraction.phase = _extraction_lost;
+	extraction.activation_ticks = 0;
+	extraction.equipment_valid = FALSE;
+	extraction.equipment_blocked = FALSE;
+	csmemset(&extraction.equipment, 0, sizeof(extraction.equipment));
+	if (newly_lost)
+		extraction_notice("RUN LOST | No extraction result committed.");
+}
+
+boolean extraction_respawn_after_loss(void)
+{
+	/* Scripted failure while players live retains native campaign handling.
+	   This path grants no captured/recovered gear and never loads a save. */
+	if (!extraction_owns_map() || !players_are_all_dead())
+		return FALSE;
+	extraction_lose_run();
+	players_respawn_at_start();
+	if (!players_are_all_dead())
+		extraction_notice("FIELD RECOVERY | Use the hub terminal to redeploy.");
+	return TRUE;
+}
+
 void extraction_reset(void)
 {
 	csmemset(&extraction, 0, sizeof(extraction));
@@ -189,11 +215,7 @@ void extraction_update(void)
 		unit->unit.player_index != extraction.player ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 	{
-		extraction.phase = _extraction_lost;
-		extraction.activation_ticks = 0;
-		extraction.equipment_valid = FALSE;
-		csmemset(&extraction.equipment, 0, sizeof(extraction.equipment));
-		extraction_notice("RUN LOST | No extraction result committed.");
+		extraction_lose_run();
 		return;
 	}
 	if (extraction.phase == _extraction_activating)

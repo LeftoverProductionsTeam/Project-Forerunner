@@ -3422,8 +3422,10 @@ void players_note_checkpoint(
 /* Everyone back after all died: each where they were at the last checkpoint
 (players_checkpoint_position), then those with no such spot beside the
 others. Players who come back are spawned first, at the level's start. */
-void players_respawn_at_checkpoint(
-	void)
+/* port: share native creation/equipment and all-dead recovery. Extraction
+   selects authored starts without checkpoint/teammate relocation. */
+static void players_respawn_dead(
+	boolean use_checkpoint)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
@@ -3437,9 +3439,12 @@ void players_respawn_at_checkpoint(
 		if (player->unit_index != NONE || player->quit_out_of_game)
 			continue;
 		player_spawn(iterator.datum_index);
-		position = players_checkpoint_position(iterator.datum_index);
-		unplaced[DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index)] = player->unit_index != NONE &&
-			!(position && player_teleport(iterator.datum_index, NONE, position));
+		if (use_checkpoint)
+		{
+			position = players_checkpoint_position(iterator.datum_index);
+			unplaced[DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index)] = player->unit_index != NONE &&
+				!(position && player_teleport(iterator.datum_index, NONE, position));
+		}
 	}
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
@@ -3459,6 +3464,21 @@ void players_respawn_at_checkpoint(
 	}
 
 	return;
+}
+
+/* port: preserve the existing checkpoint API and its callers. */
+void players_respawn_at_checkpoint(
+	void)
+{
+	players_respawn_dead(TRUE);
+}
+
+/* port: no world rewind or checkpoint relocation. Map authors own the safe
+   starting locations and the normal native starting-equipment profiles. */
+void players_respawn_at_start(
+	void)
+{
+	players_respawn_dead(FALSE);
 }
 
 boolean player_position_switches_bsp(

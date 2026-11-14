@@ -393,6 +393,20 @@ live scenario **control** objects named `extraction_deploy` and
 `extraction_zone` and `extraction_return`. Controls must be powered, usable and
 reachable. Put the deploy control inside the safe hub's return volume, outside
 the activation zone, and the extraction control inside the activation zone.
+Put every native player starting location selectable by this solo map inside
+the safe hub's return volume and outside the activation zone. Supply the normal
+native starting-equipment profiles; Forerunner does not invent a replacement
+loadout or inject missing tags. `players.c::players_respawn_at_start` shares
+native player creation/equipment with checkpoint respawn but skips checkpoint
+and teammate relocation. `extraction.c::extraction_respawn_after_loss`, called
+from `main.c::main_lost_map_private`, discards the failed equipment result and
+uses that path after a real local team wipe, without world/save rewind.
+Allocation failure retries through the existing native loss timer. Scripted
+failure with live players retains campaign handling. Finite Firefight keeps
+its existing death owner; combined finite-director outcomes remain unfinished.
+This unverified local recovery is not per-player multiplayer loss, durable
+settlement or a safe-hub placement acceptance claim. Spark must supply and
+eventually validate its native starts, collision clearance and equipment.
 Native use begins a run or a cancellable ten-second signal activation. Leaving
 cancels it; death/replaced player handles, a different local saved profile or
 any checkpoint/disk/core restore invalidate the run. The restore callback clears

@@ -406,6 +406,9 @@ void players_note_checkpoint(
 	void);
 void players_respawn_at_checkpoint(
 	void);
+/* port: same native creation/equipment, at authored starts without relocation. */
+void players_respawn_at_start(
+	void);
 void players_reconnect_to_structure_bsp(
 	void);
 
