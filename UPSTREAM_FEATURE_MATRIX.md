@@ -69,6 +69,29 @@ is visual-only replacement, not gameplay-tag admission. No upstream code was
 imported or executed in this audit. Follow the existing Spark contract before
 adding a placement-file reader; preserve original maps and locally owned data.
 
+Voice audit (owner-requested, source only): native desktop Chupathingy voice is
+already connected through `voice_game.c`, Delta Peer, `voice.c`/Opus and
+`dsound_voice_*` in the existing Halo mixer. Host proximity routing admits nearby
+enemies as well as teammates; team/party radio is global within the session.
+Range, PTT, open-mic opt-in, mute and channel/master volumes already exist.
+Capture defaults off and uses SDL recording-device selection on Windows; no
+Vive/Meta microphone SDK or second VOIP implementation is needed for that path.
+None of this source inspection proves current audio or headset gameplay.
+
+Outstanding connections: the cross-session `voice_game_set_party_path` interface
+has no external caller, and `docs/delta.md` still marks the OpenCE/Delta voice
+bridge planned. Proximity streams use Halo's 3D/HRTF mixer, but do not acquire
+portal/collision occlusion from the native sound-source path. Host routing uses
+world positions and one primary player per machine, not a region audio context.
+Native listeners still derive from observer cameras; the render-only XR camera
+adapter does not establish tracked-head audio. Multi-region cave/tunnel acoustics,
+VR PTT ergonomics and actual Windows headset capture remain unverified/open.
+
+Focused Forerunner source repair keeps an unavailable explicitly named microphone
+closed instead of substituting the system mic. Mode/device changes close old
+capture and discard buffered/encoded voice and encoder history. Existing settings
+and codec/network framing are retained; hardware/privacy transitions are untested.
+
 The combined foundation uses [AGPL-3.0-or-later](LICENSE), retaining
 Chupathingy's [GPL-3.0-or-later notices](LICENSE.GPL-3.0). This is inherited work;
 its authorship/history must remain intact. OpenCE, Faber, OpenH1, GulchCE, and the

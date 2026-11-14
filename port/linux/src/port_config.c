@@ -1028,7 +1028,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"The everyone channel's volume, from 0.0 to 2.0. 0 turns it off." },
 	{ "audio.voice_input_device", _config_string, "\"\"", "HALO_VOICE_INPUT_DEVICE", _environment_value,
 		_platform_all,
-		"The microphone, by its system name. Empty for the system's." },
+		"The microphone, by its system name. Empty uses audio.input_device\n"
+		"or the system's default. A missing named microphone leaves capture\n"
+		"closed; choose default explicitly to use the system's microphone." },
 	{ "audio.voice_open_mic_level", _config_real, "0.01", "HALO_VOICE_OPEN_MIC_LEVEL", _environment_value,
 		_platform_all,
 		"How loud you must be for open mic to send (0.001 to 1.0)." },

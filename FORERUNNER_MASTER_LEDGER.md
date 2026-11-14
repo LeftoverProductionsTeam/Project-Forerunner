@@ -512,3 +512,14 @@ timer. Multiplayer ownership/settlement must be authoritative. Durable saves mus
 survive crashes and prevent duplicate awards, loadout duplication and unintended
 overwrites. Reuse native/Faber inventory and existing profile storage before
 adding anything else. These requirements are open; no persistent gear is claimed.
+
+Voice source cycle reviewed inherited capture, Delta host routing, party hooks
+and Halo playback. Native proximity includes enemies; in-session team/party radio,
+PTT/mutes/volumes and named Windows device selection are connected in source.
+Cross-session party transport has no caller; OpenCE/Delta bridging remains planned;
+portal occlusion, region contexts and XR tracked-head listener integration are open.
+Repaired explicit microphone selection: no silent system-device fallback, and
+mode/device changes close capture, clear queues/gate and reset codec history.
+Permission denials stay denied; capture remains off by default and opens only when
+talking is authorized. Necessary bug fix, UNVERIFIED. No packet change, duplicate
+VOIP stack, tests, builds, audio/runtime queries, launches, Spark edits or pushes.

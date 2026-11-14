@@ -190,6 +190,7 @@ static float clamped(double value, float minimum, float maximum)
 }
 
 static void test_load(const char *source);
+static void microphone_close(void);
 
 static void read_settings(void)
 {
@@ -198,6 +199,9 @@ static void read_settings(void)
 	voice from anything but the microphone) */
 	const char *test = strcmp(build_identity_channel(), "release") ? config_string("debug.voice_test") : "";
 	int was = voice.mode;
+	char previous_device[sizeof(voice.input_device)];
+
+	snprintf(previous_device, sizeof(previous_device), "%s", voice.input_device);
 
 	voice.mode = same_text(mode, "push_to_talk") ? _voice_mode_push_to_talk :
 		same_text(mode, "open_mic") ? _voice_mode_open_mic : _voice_mode_off;
@@ -215,6 +219,21 @@ static void read_settings(void)
 	"default" being the system's) */
 	if (!voice.input_device[0] && strcmp(config_string("audio.input_device"), "default"))
 		snprintf(voice.input_device, sizeof(voice.input_device), "%s", config_string("audio.input_device"));
+	if (voice.mode != was || !same_text(previous_device, voice.input_device))
+	{
+		/* Honor the new consent/device boundary immediately. Do not send
+		   queued PCM, encoded frames or encoder redundancy from the old one. */
+		microphone_close();
+		voice.outgoing_head = voice.outgoing_count = 0;
+		voice.input_level = 0.0f;
+		voice.gate_until = 0;
+		if (voice.encoder)
+			opus_encoder_ctl(voice.encoder, OPUS_RESET_STATE);
+	}
+	/* A settings change lets the selected device be tried again when the
+	   player next talks. An OS permission denial remains denied. */
+	if (voice.microphone == _voice_microphone_missing)
+		voice.microphone = _voice_microphone_closed;
 	/* (the test feed: talks all the time, push to talk or not) */
 	if (test && test[0] && !voice.test)
 	{
@@ -409,12 +428,12 @@ static void SDLCALL permission_answered(void *userdata, const char *permission, 
 
 static SDL_AudioDeviceID input_device(void)
 {
-	SDL_AudioDeviceID chosen = SDL_AUDIO_DEVICE_DEFAULT_RECORDING;
+	SDL_AudioDeviceID chosen = 0;
 	SDL_AudioDeviceID *devices;
 	int count = 0, index;
 
 	if (!voice.input_device[0] || same_text(voice.input_device, "default"))
-		return chosen;
+		return SDL_AUDIO_DEVICE_DEFAULT_RECORDING;
 	devices = SDL_GetAudioRecordingDevices(&count);
 	for (index = 0; devices && index < count; index++)
 	{
@@ -423,8 +442,8 @@ static SDL_AudioDeviceID input_device(void)
 		if (name && same_text(name, voice.input_device))
 			chosen = devices[index];
 	}
-	if (chosen == SDL_AUDIO_DEVICE_DEFAULT_RECORDING)
-		platform_log("voice: no microphone called \"%s\": the system's", voice.input_device);
+	if (!chosen)
+		platform_log("voice: selected microphone \"%s\" is unavailable; capture stays closed", voice.input_device);
 	SDL_free(devices);
 	return chosen;
 }
@@ -447,6 +466,7 @@ static void microphone_close(void)
 static int microphone_open(void)
 {
 	SDL_AudioSpec spec;
+	SDL_AudioDeviceID device;
 
 	if (voice.capture)
 		return 1;
@@ -478,7 +498,13 @@ static int microphone_open(void)
 	spec.format = SDL_AUDIO_F32;
 	spec.channels = 1;
 	spec.freq = RATE;
-	voice.capture = SDL_OpenAudioDeviceStream(input_device(), &spec, NULL, NULL);
+	device = input_device();
+	if (!device)
+	{
+		voice.microphone = _voice_microphone_missing;
+		return 0;
+	}
+	voice.capture = SDL_OpenAudioDeviceStream(device, &spec, NULL, NULL);
 	if (!voice.capture)
 	{
 		voice.microphone = _voice_microphone_missing;

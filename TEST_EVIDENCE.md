@@ -516,3 +516,11 @@ and checkpoint-rewind invalidation. Only source/diffs read; no tests, builds,
 launches or Spark changes. This is not a complete deploy/loot/escape/persistence
 loop. The second flagship single-map acceptance and 19-region MegaWorld stages
 remain open, alongside VR/Firefight. No region streaming or traversal is accepted.
+
+UNVERIFIED native voice privacy repair fails closed for unavailable named
+microphones and applies mode/device changes by closing capture and discarding
+queued/codec history. Source/diffs and existing declarations were read only; no
+audio device enumeration, microphone access, tests, builds or game/headset runs.
+The source audit is in UPSTREAM_FEATURE_MATRIX.md. Cross-session party transport,
+OpenCE voice bridging, VR listener tracking and region/portal occlusion remain
+open; inherited source wiring is not a functional audio acceptance claim.
