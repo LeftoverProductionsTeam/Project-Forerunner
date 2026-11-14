@@ -229,7 +229,7 @@ framework, equipment spawning or infinite-ammo trait was added. No tests/builds/
 queries/games ran. Reserve/battery behavior, reload timing, owner-client agreement
 and creator-map acceptance remain open.
 
-The next source-only transition repair moves the existing finite Firefight
+Source checkpoint `7f3cd6fbd` moves the existing finite Firefight
 arena-return guard ahead of both campaign-completion paths. It previously followed
 MCC package completion, whose `mcc_progress_complete` could record a mission win
 and select the next mission even on a Firefight defeat/abort. The existing host
@@ -237,3 +237,14 @@ co-op lobby return now runs first; ordinary campaign order is unchanged. No new
 result packet or transition mechanism was added. No tests/builds/queries/games or
 profile writes ran. Terminal/lobby and MCC progress protection remain unverified
 in gameplay; this does not establish MCC Firefight acceptance.
+
+Companion milestone review reached Spark `3e47ad0403f1b4ea7023286fedb972018d861c9f`
+plus its unfinished count/grid/native-operation UI edits, read-only. A preserving
+single-variant/squad append now exists in source; its actual working-tag entrypoint
+still requires `mcc-cea`. The original Zombie CE route, recovered multi-group
+controller attachment and reviewed Forerunner launch routing remain incomplete.
+The existing contract now points to the precise append/admission code and the
+existing CE-aware owned-source checks to reuse. No additional engine API was
+justified; no duplicate writer or simulation was added here. This cycle produces
+integration evidence and requirements, not new runtime functionality. No tests,
+builds, queries, games, Spark writes or remote/branch changes were performed.

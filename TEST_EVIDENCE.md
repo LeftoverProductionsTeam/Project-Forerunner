@@ -380,3 +380,9 @@ before MCC package and Xbox/CE campaign completion. This avoids the source path
 through MCC progress/next-mission handling for finite victory, defeat or abort.
 No tests/builds/queries/games or profile writes ran. Result/lobby behavior and
 campaign progress protection still require native validation.
+
+The companion milestone read Spark `3e47ad0` and its unfinished append count/grid
+changes. Its source-backed encounter append still enters through an MCC-only
+working-tag route; no CE recovered Firefight/controller or Forerunner launch pass
+was established. The existing contract records the source boundary and next work.
+No tests/builds/queries/games or Spark modifications ran in this review.

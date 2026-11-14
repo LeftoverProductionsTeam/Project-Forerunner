@@ -11,9 +11,9 @@ No separate coordination service or repeated cross-project polling/builds.
 
 Review baseline: Forerunner gameplay `21a809b0`, shared-life source `c8196f81`,
 repository reconciliation `3347a00c2`; Spark inspected read-only at
-`20acb45fb84bd4789732a5f99c41c6a0acaafadb` with unfinished native encounter
-inspection/layout-readback edits. Forerunner source is `f96bf1d23`. Spark's source
-changes remain untouched. Forerunner changes after the accepted gameplay build
+`3e47ad0403f1b4ea7023286fedb972018d861c9f` with unfinished encounter count/grid and
+native-operation UI edits. Forerunner source was reviewed at `7f3cd6fbd`. Spark's
+source changes remain untouched. Forerunner changes after the accepted gameplay build
 are source-only/unverified, not advertised capabilities.
 
 ## Discovery and feature negotiation
@@ -117,11 +117,25 @@ unverified source improvements, not proof of extraction, compilation or gameplay
 Recent source-only changes are described in Spark's `docs/FIREFIGHT_ENGINE.md`;
 its offline preview remains authoring feedback, never runtime AI authority.
 
-Spark's current checkpoint explicitly leaves the recovered-scenario append writer
-and original script/controller preservation metadata unfinished. Its separate
-camera-script preservation source does not establish those Firefight operations.
-Reading encounter tables is not authority to overwrite them or reuse fresh-source
-index-zero commands against an existing scenario.
+Spark now has unverified source for preserving encounter appends using one actor
+variant, in `crates/spark-core/src/native_operations.rs` and
+`src-tauri/src/native_operations_native.rs`. It appends after existing encounter/
+palette indices, checks dependencies and uses the existing preview/accept/source
+recovery path. Its current worktree adds 1–32 authored starting positions and a
+shared grid helper; this is one squad, not a multi-group wave controller.
+
+The entrypoint still calls `runtime_workbench::compiled_tags`, whose
+`source_context_for_build` requires `mcc-cea`. It also requires a solo scenario in
+both compiled readback and working source. This is not an admitted CE append route
+or a legitimate conversion of the original Demo multiplayer Zombie map. Existing
+`runtime_workbench::collaboration_tags` shows edition-specific checks around
+`owned_source_context`; reuse the relevant CE receipt/source checks in a scoped
+append route instead of removing the general MCC tools guard.
+
+Recovered Firefight controller attachment and original script/controller
+preservation metadata remain unfinished. Separate camera-script preservation does
+not establish those operations. Do not apply fresh-source index-zero commands to
+the recovered scenario, or treat an actor append as a complete authored round.
 
 Two concrete restrictions remain in Spark:
 
@@ -262,7 +276,11 @@ editing, JSON import or multiplayer authoring as ready. For the chosen recovered
 Zombie map, extend the existing Source Guardian/working-tag build path to append
 reviewed encounters, actor references and the controller while preserving original
 tables/scripts and dependencies. Reuse the new actor/weapon closure inclusion and
-native layout readback; the new reader alone does not close this writer gap.
+native layout readback. Extend the new preserving append operation through a
+reviewed CE-specific source admission and multi-group/controller attachment;
+the current MCC-only single-squad route does not close that gap. Keep native
+HaloScript/encounter ownership separate from the finite host director: an authored
+controller runs with `network.firefight_encounter=false`.
 The first authored solo loop is a content/runtime handoff gate, not acceptance of
 the synchronized Firefight milestone. Two-peer execution remains a separate gate.
 
