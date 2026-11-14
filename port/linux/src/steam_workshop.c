@@ -672,15 +672,8 @@ void steam_workshop_set_own_library(const char *path)
 	snprintf(own_library, sizeof(own_library), "%s", path ? path : "");
 }
 
-static int libraries(char (*paths)[STEAM_WORKSHOP_PATH_SIZE], int maximum)
+static void prepare_own_library(void)
 {
-	char roots[MAXIMUM_STEAM_ROOTS][STEAM_WORKSHOP_PATH_SIZE];
-	int root_count = 0, count = 0, root, index;
-	const char *setting = config_string("paths.steam");
-
-	if (setting && setting[0])
-		snprintf(roots[root_count++], STEAM_WORKSHOP_PATH_SIZE, "%s", setting);
-	/* (the game's own library: its downloads, read before the Workshop tab has opened this run) */
 	if (!own_library[0])
 	{
 		const char *downloads = config_string("paths.steam_downloads"), *data = platform_data_root();
@@ -690,6 +683,18 @@ static int libraries(char (*paths)[STEAM_WORKSHOP_PATH_SIZE], int maximum)
 		else if (data && data[0] && snprintf(own_library, sizeof(own_library), "%s/steam", data) >= (int)sizeof(own_library))
 			own_library[0] = 0;
 	}
+}
+
+static int libraries(char (*paths)[STEAM_WORKSHOP_PATH_SIZE], int maximum)
+{
+	char roots[MAXIMUM_STEAM_ROOTS][STEAM_WORKSHOP_PATH_SIZE];
+	int root_count = 0, count = 0, root, index;
+	const char *setting = config_string("paths.steam");
+
+	if (setting && setting[0])
+		snprintf(roots[root_count++], STEAM_WORKSHOP_PATH_SIZE, "%s", setting);
+	/* (the game's own library: its downloads, read before the Workshop tab has opened this run) */
+	prepare_own_library();
 	if (own_library[0])
 		snprintf(roots[root_count++], STEAM_WORKSHOP_PATH_SIZE, "%s", own_library);
 #ifdef _WIN32
@@ -765,15 +770,21 @@ int steam_workshop_scan(void)
 	catalog.enabled = discovery_enabled();
 	if (!catalog.enabled)
 		return 0;
+	/* With Steam's folders off, read only our own downloads. Resource
+	lookups may still ask libraries() for installed MCC's base resources. */
+	if (catalog.enabled == 2)
+	{
+		prepare_own_library();
+		if (own_library[0] && is_directory(own_library))
+			scan_library(own_library);
+		return catalog.count;
+	}
 	paths = malloc(sizeof(*paths) * 2 * STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
 	if (!paths)
 		return 0;
 	count = libraries(paths, 2 * STEAM_WORKSHOP_MAXIMUM_LIBRARIES);
 	for (index = 0; index < count; index++)
 	{
-		/* (STEAM'S MCC MAPS off: the game's own library only) */
-		if (catalog.enabled == 2 && strcmp(paths[index], own_library))
-			continue;
 		scan_library(paths[index]);
 	}
 	free(paths);

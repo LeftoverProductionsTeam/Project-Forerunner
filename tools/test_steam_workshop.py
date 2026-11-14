@@ -8,10 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from harness import function
-
-# (this fork, since the merge of ChupathingyCE 38aae92ee: build/UPDATING.md)
-pytestmark = pytest.mark.skip(reason="its driver cuts ChupathingyCE's platform_translate_path and steam_workshop.c; the fork's merged ones call translate_elsewhere, platform_custom_edition_root and platform_data_root, which it has no stand-ins for")
+from harness import constant, function
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "port/linux/src"
@@ -215,9 +212,12 @@ typedef int BOOL;
 #define TRUE 1
 #define FALSE 0
 char const *platform_data_root(void) {return getenv("TEST_DATA_ROOT");}
+char const *platform_custom_edition_root(void) {return "";}
 '''
     # port: our own path translation (xbox_files.c), with its Workshop step
     native = (SRC / "xbox_files.c").read_text()
+    translation += "#define MAX_PATH %d\n" % constant(
+        (ROOT / "port/include/xdk/xdk_win32.h").read_text(), "MAX_PATH")
     translation += r'''
 enum { _port_folder_logs };
 static char const *platform_save_root(void) {return platform_data_root();}
@@ -226,7 +226,8 @@ static char const *log_file_name(char const *path) {(void)path; return NULL;}
 static char const *save_root_file_name(char const *path) {(void)path; return NULL;}
 static char save_drive_folder[32];
 '''
-    for name in ("trim_separators", "mcc_folder_prefix", "translate_workshop", "platform_translate_path"):
+    for name in ("directory_exists", "trim_separators", "make_directories", "names_match", "mcc_folder_prefix", "translate_workshop",
+                 "translate_elsewhere", "platform_translate_path"):
         translation += function(native, name) + "\n"
     # Exercise the actual Linux candidate builder on every host. Linux scans
     # below additionally use the full implementation with real symlinks/files.
@@ -249,6 +250,7 @@ static char save_drive_folder[32];
                              str(SRC / "steam_workshop.c"), str(files),
                              str(SRC / "mcc_manifest.c"),
                              str(SRC / "mcc_local_package.c"),
+                             str(SRC / "posix_mcc_share.c"),
                              str(ROOT / "port/linux/game/mcc_sha256.c"),
                              *([str(registry)] if windows else []),
                              *(["-ladvapi32"] if windows and not mock_registry else []),
@@ -500,16 +502,19 @@ def test_scan(tool, tmp_path):
     assert folder.exists()
 
 
-def test_unlinked_installed_items_still_available(tool, tmp_path):
+@pytest.mark.parametrize("enabled", [True, False])
+def test_unlinked_installed_items_still_available(tool, tmp_path, monkeypatch, enabled):
     """an item the game downloaded is read from its own library (the data folder's steam/) with no Steam
     folder, no Steam running and no Steam link: playing it never needs the link"""
     data = tmp_path / "data"
     make_item(data / "steam", "888", "Downloaded Once")
     assert not (data / "steam_sign_in.txt").exists()
-    fields, lists = run(tool, "scan", home=tmp_path / "no-home", data_root=data)
+    if not enabled:
+        monkeypatch.setenv("TEST_REGISTRY_MUST_NOT_READ", "1")
+    fields, lists = run(tool, "scan", home=tmp_path / "no-home", data_root=data, enabled=enabled)
     rows = [row.split("|") for row in lists.get("map", [])]
     assert [(r[0], r[1]) for r in rows] == [("888", "Downloaded Once")]
-    assert rows[0][4].startswith(str(data / "steam"))
+    assert Path(rows[0][4]).is_relative_to(data / "steam")
 
 
 def test_setting_names_a_steam_folder(tool, tmp_path):
@@ -937,7 +942,7 @@ def test_numbered_collection_in_a_second_library(tool, tmp_path):
     make_map(mixed / "maps", "splashsite")
     (mixed / "ModInfo.json").write_text(item_json(GameModContents={"HasCampaign": True,
         "MultiplayerMaps": ["multiplayer/splashsite.json"]}))
-    fields, rows = run(tool, "scan", home=home)
+    fields, rows = run(tool, "scan", home=home, setting=str(steam) if sys.platform == "win32" else "")
     found = [tuple(row.split("|")[i] for i in (0, 2)) for row in rows["map"]]
     assert fields["count"] == str(75 + 2 + 2) and "unlisted" not in rows
     assert sorted(name for item, name in found if item == "3477809506") == sorted(str(n) for n in range(1, 76))
