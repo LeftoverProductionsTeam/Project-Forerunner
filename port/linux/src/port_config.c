@@ -6073,7 +6073,8 @@ static void config_load(void)
 	/* (a run that only answers its command line, halo --version, writes no
 	settings: the file read is left as it is) */
 	config_answer_only = config_argument("--help", NULL, 0) || config_argument("--version", NULL, 0) ||
-		config_argument("--keygen", NULL, 0) || config_argument("--sign", NULL, 0) || config_probe_mode;
+		config_argument("--keygen", NULL, 0) || config_argument("--sign", NULL, 0) ||
+		config_argument("--spark-capabilities", NULL, 0) || config_probe_mode;
 #endif
 #endif
 	text = config_read_file(path, &size);

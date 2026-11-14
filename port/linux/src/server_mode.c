@@ -26,6 +26,9 @@ without a display to wait for, and its exits.
 #include "server_master.h"
 #include "server_netlist.h"
 #include "server_rotation.h"
+#include "server_json.h"
+#include "build_identity.h"
+#include "delta.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -168,7 +171,54 @@ static void print_help(void)
 		"  --config <file>  the settings file (else config.toml beside the executable)\n"
 		"  --keygen         writes a publisher key for the master servers and prints its public key\n"
 		"  --sign <text>    prints the publisher key's signature of the text (an application's proof)\n"
-		"  --version        prints the build and its network version\n");
+		"  --version        prints the build and its network version\n"
+		"  --spark-capabilities 1  prints read-only Spark runtime discovery as JSON\n");
+}
+
+/* Read-only Spark discovery. These are compiled entrypoints, not a claim
+that a gameplay or live-editing acceptance gate has passed. */
+static void print_spark_capabilities(void)
+{
+	struct server_json json;
+	int failed;
+
+	server_json_begin(&json);
+	server_json_object_begin(&json, NULL);
+	server_json_string(&json, "schema", "spark-forerunner.runtime-capabilities");
+	server_json_integer(&json, "contract_version", 1);
+	server_json_string(&json, "engine", "Forerunner");
+	server_json_object_begin(&json, "build");
+	server_json_string(&json, "upstream_version", build_identity_version());
+	server_json_string(&json, "commit", build_identity_commit());
+	server_json_string(&json, "platform", build_identity_platform());
+	server_json_string(&json, "architecture", build_identity_architecture());
+	server_json_object_end(&json);
+	server_json_integer(&json, "simulation_hz", 30);
+	server_json_object_begin(&json, "network");
+	server_json_integer(&json, "advertised_version", HALO_PORT_NETWORK_VERSION);
+	server_json_integer(&json, "native_layout_version", DELTA_NATIVE_LAYOUT_NEWEST);
+	server_json_object_end(&json);
+	server_json_array_begin(&json, "operations");
+	server_json_string(&json, NULL, "runtime.discover");
+	server_json_array_end(&json);
+	server_json_array_begin(&json, "process_entrypoints");
+	server_json_string(&json, NULL, "--version");
+	server_json_string(&json, NULL, "--help");
+	server_json_string(&json, NULL, "--config");
+	server_json_string(&json, NULL, "--server");
+	server_json_string(&json, NULL, "--probe");
+	server_json_array_end(&json);
+	server_json_array_begin(&json, "upstream_projects");
+	server_json_string(&json, NULL, "OpenCE");
+	server_json_string(&json, NULL, "ChupathingyCE");
+	server_json_string(&json, NULL, "FractumSeraph/OpenCE");
+	server_json_array_end(&json);
+	server_json_object_end(&json);
+	failed = json.failed;
+	if (!failed && puts(server_json_text(&json)) == EOF)
+		failed = 1;
+	server_json_free(&json);
+	exit(failed ? EXIT_FAILURE : EXIT_SUCCESS);
 }
 
 /* the command line's arguments that are answered and end the process */
@@ -179,6 +229,17 @@ static void answer_command_line(void)
 
 	for (index = 1; posix_command_line_argument(index, argument, sizeof(argument)); index++)
 	{
+		if (!strcmp(argument, "--spark-capabilities"))
+		{
+			char version[32];
+
+			if (!posix_command_line_argument(index + 1, version, sizeof(version)) || strcmp(version, "1"))
+			{
+				fprintf(stderr, "--spark-capabilities: supported Spark contract version is 1\n");
+				exit(SERVER_EXIT_CONFIGURATION);
+			}
+			print_spark_capabilities();
+		}
 		if (!strcmp(argument, "--version") || !strcmp(argument, "-v"))
 		{
 			fprintf(stdout, "OpenCE %s (network version %d)\n", server_mode_build(), HALO_PORT_NETWORK_VERSION);
