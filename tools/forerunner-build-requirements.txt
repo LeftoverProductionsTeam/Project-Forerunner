@@ -1,0 +1,9 @@
+# Tested with Python 3.12.14 for the native Windows x86 baseline and tool tests.
+# LLVM, MSVC and the Windows SDK are recorded separately in each build manifest.
+ninja==1.13.0
+Pillow==11.1.0
+pytest==8.3.5
+iniconfig==2.3.1
+packaging==26.3
+pluggy==1.7.0
+colorama==0.4.6; sys_platform == "win32"

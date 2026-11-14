@@ -27,13 +27,14 @@ only a gap in it; else 2 when a run could not be played (ERROR: a copy
 failed to start, join or log); 128 + N when the tool was stopped by signal
 N (SIGINT, SIGTERM, SIGHUP), after stopping the copies.
 
-Each copy runs in a session of its own (its process group), which the tool
-ends however it ends itself, so that no copy outlives it.
+Each copy has its own POSIX process group or Windows job, which the tool
+ends on exit. Windows also closes the job when the tool is forcibly killed.
 """
 
 import argparse
 import atexit
 import ctypes
+from contextlib import contextmanager
 import json
 import math
 import os
@@ -394,6 +395,30 @@ def link_once(link, target):
         link.symlink_to(target)
 
 
+def wrapper_arguments(command):
+    if not command:
+        return []
+    if os.name != "nt":
+        return shlex.split(command)
+    # Windows paths and quoting follow CommandLineToArgvW, not a POSIX shell.
+    from ctypes import wintypes
+
+    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    shell.CommandLineToArgvW.argtypes = (wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int))
+    shell.CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+    kernel.LocalFree.argtypes = (wintypes.HLOCAL,)
+    kernel.LocalFree.restype = wintypes.HLOCAL
+    count = ctypes.c_int()
+    arguments = shell.CommandLineToArgvW(command, ctypes.byref(count))
+    if not arguments:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return list(arguments[:count.value])
+    finally:
+        kernel.LocalFree(arguments)
+
+
 def prepare_copy(work, name, executable, data_root, wrapper=""):
     """a folder for one copy: its own executable (config.toml is written
     in the game's folder, beside it), its own data root
@@ -408,25 +433,54 @@ def prepare_copy(work, name, executable, data_root, wrapper=""):
     bin_folder = folder / "bin"
     data = folder / "data"
     saves = folder / "saves"
-    for path in (bin_folder, data, saves):
+    for path in (folder, bin_folder, data, saves):
+        if os.name == "nt" and (path.is_symlink() or getattr(path, "is_junction", lambda: False)()):
+            raise SystemExit(f"net_compare: use a fresh work folder; {path} is a link")
         path.mkdir(parents=True, exist_ok=True)
-    # what the executable needs beside it (its libraries),
-    # linked; the executable copied, so that its folder is this one
+    # The Windows copies need no symlink permission, and have no writable
+    # links to the caller's runtime or maps. Keep build/source directories
+    # out: only runtime libraries and the known runtime data belong here.
     for entry in executable.parent.iterdir():
         if entry.name in (executable.name, "config.toml") or entry.name.endswith(".log"):
             continue
-        link_once(bin_folder / entry.name, entry.resolve())
+        if os.name == "nt":
+            if entry.is_file() and (entry.suffix.lower() == ".dll" or entry.name in (
+                    "brokers.txt", "masters.txt", "licenses.txt", "THIRD-PARTY-NOTICES.txt")):
+                destination = bin_folder / entry.name
+                if destination.is_symlink() or (destination.exists() and destination.samefile(entry)):
+                    raise SystemExit(f"net_compare: use a fresh work folder; {destination} links to the runtime")
+                if not destination.exists():
+                    shutil.copy2(entry, destination)
+            elif entry.is_dir() and entry.name in ("Faber_data", "fonts"):
+                destination = bin_folder / entry.name
+                if destination.is_symlink() or getattr(destination, "is_junction", lambda: False)():
+                    raise SystemExit(f"net_compare: use a fresh work folder; {destination} is a link")
+                if not destination.exists():
+                    shutil.copytree(entry, destination)
+        else:
+            link_once(bin_folder / entry.name, entry.resolve())
     copied = bin_folder / executable.name
+    if os.name == "nt" and (copied.is_symlink() or (copied.exists() and copied.samefile(executable))):
+        raise SystemExit(f"net_compare: use a fresh work folder; {copied} links to the executable")
     if not copied.exists():
-        try:
-            os.link(executable, copied)
-        except OSError:
+        if os.name == "nt":
             shutil.copy2(executable, copied)
-    for entry in ("maps", "custom_maps"):
+        else:
+            try:
+                os.link(executable, copied)
+            except OSError:
+                shutil.copy2(executable, copied)
+    for entry in ("maps", "custom_maps", "maps_ce", "maps_pc", "maps_md", "maps_cex"):
+        if os.name == "nt" and ((data / entry).is_symlink() or
+                                getattr(data / entry, "is_junction", lambda: False)()):
+            raise SystemExit(f"net_compare: use a fresh work folder; {data / entry} is a link")
         if (data_root / entry).is_dir() and not (data / entry).exists():
-            (data / entry).symlink_to((data_root / entry).resolve())
+            if os.name == "nt":
+                shutil.copytree(data_root / entry, data / entry)
+            else:
+                (data / entry).symlink_to((data_root / entry).resolve())
     return {"name": name, "executable": copied, "data": data, "saves": saves, "folder": folder,
-            "command": shlex.split(wrapper) + [str(copied)]}
+            "command": wrapper_arguments(wrapper) + [str(copied)]}
 
 
 def copy_environment(copy, address, broadcast, test, seed, args, extra):
@@ -501,23 +555,26 @@ def latest_tick(path):
 
 # ---------- the copies' processes
 #
-# Each copy runs in a session of its own (start_new_session), so that the
+# On POSIX each copy runs in a session of its own (start_new_session), so that the
 # copy and whatever it started (a wrapper's) are one process group, which
 # stop() ends; and so that a terminal's Ctrl-C reaches only the tool, which
 # stops them. The tool stops them on every way out: returning, an exception,
 # Ctrl-C (KeyboardInterrupt), SIGTERM and SIGHUP (Stopped), and atexit; and
 # a copy is killed by the kernel if the tool dies without that (SIGKILL:
-# PR_SET_PDEATHSIG).
+# PR_SET_PDEATHSIG). On Windows a kill-on-close job owns the copy and every
+# descendant. Its non-inherited handle lives only in this tool, so even an
+# uncatchable termination of the tool closes it and ends the whole tree.
 
 # the copies running
 RUNNING = []
 # the signals the tool stops on, and the one that stopped it
-STOP_SIGNALS = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+STOP_SIGNALS = tuple(getattr(signal, name) for name in ("SIGINT", "SIGTERM", "SIGHUP", "SIGBREAK")
+                     if hasattr(signal, name))
 stopping = None
 
 
 class Stopped(Exception):
-    """the tool was sent SIGTERM or SIGHUP"""
+    """the tool received a stop signal"""
 
     def __init__(self, number):
         super().__init__(f"stopped by signal {number}")
@@ -553,17 +610,146 @@ def die_with_the_tool(parent=os.getpid()):
         os.kill(os.getpid(), signal.SIGKILL)
 
 
+@contextmanager
+def hold_stop_signals():
+    """Finish registering or stopping a process before handling a stop."""
+    if hasattr(signal, "pthread_sigmask"):
+        blocked = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGNALS)
+        try:
+            yield
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, blocked)
+    else:
+        # Windows has no signal mask. Defer its Python signal handlers until
+        # the job and RUNNING entry agree; the job also handles forced death.
+        pending = []
+        previous = {number: signal.signal(number, lambda number, frame: pending.append(number))
+                    for number in STOP_SIGNALS}
+        try:
+            yield
+        finally:
+            for number, handler in previous.items():
+                signal.signal(number, handler)
+        if pending:
+            on_stop_signal(pending[0], None)
+
+
+class WindowsJob:
+    """A private, non-inherited Windows job that cannot leave descendants."""
+
+    def __init__(self):
+        from ctypes import wintypes
+
+        class BasicLimits(ctypes.Structure):
+            _fields_ = [("process_time", ctypes.c_int64), ("job_time", ctypes.c_int64),
+                        ("flags", wintypes.DWORD), ("minimum_working_set", ctypes.c_size_t),
+                        ("maximum_working_set", ctypes.c_size_t), ("active_processes", wintypes.DWORD),
+                        ("affinity", ctypes.c_size_t), ("priority", wintypes.DWORD),
+                        ("scheduling", wintypes.DWORD)]
+
+        class ExtendedLimits(ctypes.Structure):
+            _fields_ = [("basic", BasicLimits), ("io_counters", ctypes.c_uint64 * 6),
+                        ("process_memory", ctypes.c_size_t), ("job_memory", ctypes.c_size_t),
+                        ("peak_process_memory", ctypes.c_size_t), ("peak_job_memory", ctypes.c_size_t)]
+
+        class ThreadEntry(ctypes.Structure):
+            _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD),
+                        ("thread", wintypes.DWORD), ("process", wintypes.DWORD),
+                        ("base_priority", wintypes.LONG), ("delta_priority", wintypes.LONG),
+                        ("flags", wintypes.DWORD)]
+
+        self.thread_entry = ThreadEntry
+        self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        signatures = {
+            "CreateJobObjectW": ((ctypes.c_void_p, wintypes.LPCWSTR), wintypes.HANDLE),
+            "SetInformationJobObject": ((wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p,
+                                         wintypes.DWORD), wintypes.BOOL),
+            "AssignProcessToJobObject": ((wintypes.HANDLE, wintypes.HANDLE), wintypes.BOOL),
+            "CloseHandle": ((wintypes.HANDLE,), wintypes.BOOL),
+            "CreateToolhelp32Snapshot": ((wintypes.DWORD, wintypes.DWORD), wintypes.HANDLE),
+            "Thread32First": ((wintypes.HANDLE, ctypes.POINTER(ThreadEntry)), wintypes.BOOL),
+            "Thread32Next": ((wintypes.HANDLE, ctypes.POINTER(ThreadEntry)), wintypes.BOOL),
+            "OpenThread": ((wintypes.DWORD, wintypes.BOOL, wintypes.DWORD), wintypes.HANDLE),
+            "ResumeThread": ((wintypes.HANDLE,), wintypes.DWORD),
+        }
+        for name, (arguments, result) in signatures.items():
+            function = getattr(self.kernel, name)
+            function.argtypes = arguments
+            function.restype = result
+        self.handle = self.kernel.CreateJobObjectW(None, None)
+        if not self.handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        limits = ExtendedLimits()
+        limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        if not self.kernel.SetInformationJobObject(self.handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+            error = ctypes.WinError(ctypes.get_last_error())
+            self.close()
+            raise error
+
+    def assign(self, process):
+        if not self.kernel.AssignProcessToJobObject(self.handle, int(process._handle)):
+            raise ctypes.WinError(ctypes.get_last_error())
+
+    def resume(self, process):
+        # Popen closes the primary thread's handle. Find it while the child
+        # is still suspended, then use the documented ResumeThread API.
+        snapshot = self.kernel.CreateToolhelp32Snapshot(4, 0)  # TH32CS_SNAPTHREAD
+        if snapshot == ctypes.c_void_p(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            entry = self.thread_entry()
+            entry.size = ctypes.sizeof(entry)
+            found = self.kernel.Thread32First(snapshot, ctypes.byref(entry))
+            while found:
+                if entry.process == process.pid:
+                    thread = self.kernel.OpenThread(2, False, entry.thread)  # THREAD_SUSPEND_RESUME
+                    if not thread:
+                        raise ctypes.WinError(ctypes.get_last_error())
+                    try:
+                        if self.kernel.ResumeThread(thread) == 0xFFFFFFFF:
+                            raise ctypes.WinError(ctypes.get_last_error())
+                    finally:
+                        self.kernel.CloseHandle(thread)
+                    return
+                found = self.kernel.Thread32Next(snapshot, ctypes.byref(entry))
+            raise OSError(f"net_compare: no primary thread for suspended process {process.pid}")
+        finally:
+            self.kernel.CloseHandle(snapshot)
+
+    def close(self):
+        if self.handle:
+            self.kernel.CloseHandle(self.handle)
+            self.handle = None
+
+
 def start(command, **options):
-    """a copy started in a session of its own, and noted as running before
-    a signal can come between (it is blocked meanwhile)"""
-    blocked = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGNALS)
-    try:
-        parent = os.getpid()
-        process = subprocess.Popen(command, start_new_session=True,
-                                   preexec_fn=lambda: die_with_the_tool(parent), **options)
-        RUNNING.append(process)
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, blocked)
+    """Start a copy under process-tree ownership before handling a stop."""
+    with hold_stop_signals():
+        if os.name == "nt":
+            job = WindowsJob()
+            process = None
+            try:
+                flags = (options.pop("creationflags", 0) | 0x4 | subprocess.CREATE_NEW_PROCESS_GROUP |
+                         subprocess.CREATE_NO_WINDOW)
+                process = subprocess.Popen(command, creationflags=flags, **options)  # CREATE_SUSPENDED
+                job.assign(process)
+                process.net_compare_job = job
+                RUNNING.append(process)
+                job.resume(process)
+            except BaseException:
+                job.close()
+                if process is not None:
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait(timeout=10)
+                    if process in RUNNING:
+                        RUNNING.remove(process)
+                raise
+        else:
+            parent = os.getpid()
+            process = subprocess.Popen(command, start_new_session=True,
+                                       preexec_fn=lambda: die_with_the_tool(parent), **options)
+            RUNNING.append(process)
     return process
 
 
@@ -575,10 +761,15 @@ def signal_group(process, number):
 
 
 def stop(process):
-    """ends a copy's process group: SIGTERM (the game quits on it, its files
+    """End a Windows job, or a POSIX process group: SIGTERM (the game quits on it, its files
     all written by now), then SIGKILL two seconds on (a build from before it
     quit on SIGTERM)"""
-    if process.poll() is None:
+    if os.name == "nt":
+        # Closing the last job handle ends the entire tree even when the
+        # wrapper has already exited. Never search for or kill unrelated PIDs.
+        process.net_compare_job.close()
+        process.wait(timeout=10)
+    elif process.poll() is None:
         signal_group(process, signal.SIGTERM)
         try:
             process.wait(timeout=2)
@@ -592,12 +783,9 @@ def stop(process):
 
 
 def stop_all():
-    blocked = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGNALS)
-    try:
+    with hold_stop_signals():
         for process in list(RUNNING):
             stop(process)
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, blocked)
 
 
 def play(run_folder, host_copy, client_copy, map_name, args, host_extra, client_extra, seeds):
@@ -639,16 +827,16 @@ def play(run_folder, host_copy, client_copy, map_name, args, host_extra, client_
     finally:
         # (with the signals that stop the tool held off, so that the
         # stopping is not cut short)
-        blocked = signal.pthread_sigmask(signal.SIG_BLOCK, STOP_SIGNALS)
-        try:
+        with hold_stop_signals():
             for process in processes:
                 stop(process)
-        finally:
-            signal.pthread_sigmask(signal.SIG_SETMASK, blocked)
     # (the end of each copy's debug.txt, beside its log: a crash's story)
     for copy, name in ((host_copy, "host"), (client_copy, "client")):
         try:
-            with open(copy["data"] / "debug.txt", "rb") as debug:
+            debug_path = next((path for path in (copy["saves"] / "logs/debug.txt",
+                                                copy["data"] / "logs/debug.txt", copy["data"] / "debug.txt")
+                               if path.is_file()), copy["data"] / "debug.txt")
+            with open(debug_path, "rb") as debug:
                 debug.seek(max(0, os.path.getsize(debug.name) - 65536))
                 (run_folder / f"{name}.debug.txt").write_bytes(debug.read())
         except OSError:

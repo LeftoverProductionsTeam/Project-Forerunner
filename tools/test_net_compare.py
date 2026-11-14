@@ -1,6 +1,7 @@
 """net_compare.py's reading and judging of the network test's logs, on
 logs written here (playing a game needs the retail maps: NETCODE.md)."""
 import argparse
+import ctypes
 import os
 import signal
 import subprocess
@@ -151,12 +152,38 @@ def test_copy_of_a_flat_folder(tmp_path):
     build.mkdir()
     (build / "halo").write_text("#!/bin/sh\n")
     (build / "libSDL3.so.0").write_text("")
+    (build / "SDL3.dll").write_text("runtime library")
     (build / "config.toml").write_text("")
-    copy = net_compare.prepare_copy(tmp_path / "work", "A", build / "halo", make_data(tmp_path))
+    for directory in ("obj", "third_party", "source"):
+        (build / directory).mkdir()
+        (build / directory / "not-runtime").write_text("do not copy")
+    data = make_data(tmp_path)
+    (data / "maps" / "test.map").write_text("original map")
+    (data / "maps_ce").mkdir()
+    (data / "maps_ce" / "test.map").write_text("original CE map")
+    copy = net_compare.prepare_copy(tmp_path / "work", "A", build / "halo", data)
     assert copy["executable"] == tmp_path / "work/A/bin/halo"
-    assert (tmp_path / "work/A/bin/libSDL3.so.0").resolve() == build / "libSDL3.so.0"
     assert not (tmp_path / "work/A/bin/config.toml").exists()
-    assert (copy["data"] / "maps").is_symlink()
+    if os.name == "nt":
+        assert not copy["executable"].samefile(build / "halo")
+        assert not (copy["data"] / "maps").is_symlink()
+        assert not (copy["executable"].parent / "SDL3.dll").samefile(build / "SDL3.dll")
+        assert not any((copy["executable"].parent / name).exists() for name in ("obj", "third_party", "source"))
+        copy["executable"].write_text("changed executable")
+        (copy["data"] / "maps" / "test.map").write_text("changed map")
+        (copy["data"] / "maps_ce" / "test.map").write_text("changed CE map")
+        assert (build / "halo").read_text() == "#!/bin/sh\n"
+        assert (data / "maps" / "test.map").read_text() == "original map"
+        assert (data / "maps_ce" / "test.map").read_text() == "original CE map"
+    else:
+        assert (tmp_path / "work/A/bin/libSDL3.so.0").resolve() == build / "libSDL3.so.0"
+        assert (copy["data"] / "maps").is_symlink()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows command-line quoting")
+def test_windows_wrapper_keeps_paths_and_quoted_arguments():
+    arguments = [r"C:\Program Files\Python\python.exe", r"D:\test dir\wrapper.py", "a quoted \"word\"", ""]
+    assert net_compare.wrapper_arguments(subprocess.list2cmdline(arguments)) == arguments
 
 
 def environment_of(window=False, display=None):
@@ -193,6 +220,24 @@ while :; do sleep 1; done
 
 
 def alive(pid):
+    if os.name == "nt":
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        kernel.WaitForSingleObject.restype = wintypes.DWORD
+        kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+        handle = kernel.OpenProcess(0x100000, False, pid)  # SYNCHRONIZE
+        if not handle:
+            if ctypes.get_last_error() == 87:  # ERROR_INVALID_PARAMETER: no such PID
+                return False
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            return kernel.WaitForSingleObject(handle, 0) == 258  # WAIT_TIMEOUT
+        finally:
+            kernel.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -226,6 +271,7 @@ def read_pids(pids):
     return [int(pid) for pid in pids.read_text().split()] if pids.exists() else []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX sessions and signals")
 def test_stop_ends_the_copy_and_what_it_started(tmp_path):
     game, pids = fake_game(tmp_path)
     process = net_compare.start([str(game)])
@@ -236,7 +282,9 @@ def test_stop_ends_the_copy_and_what_it_started(tmp_path):
     assert wait_for(lambda: not any(alive(pid) for pid in read_pids(pids)))
 
 
-@pytest.mark.parametrize("number", [signal.SIGTERM, signal.SIGHUP, signal.SIGINT])
+@pytest.mark.skipif(os.name == "nt", reason="POSIX sessions and signals")
+@pytest.mark.parametrize("number", [getattr(signal, name) for name in ("SIGTERM", "SIGHUP", "SIGINT")
+                                    if hasattr(signal, name)])
 def test_the_tool_stopped_leaves_no_copy(tmp_path, number):
     game, pids = fake_game(tmp_path)
     tool = subprocess.Popen([sys.executable, str(Path(net_compare.__file__)), "--a", str(game), "--data",
@@ -256,6 +304,7 @@ def test_the_tool_stopped_leaves_no_copy(tmp_path, number):
     assert not [pid for pid in read_pids(pids) if alive(pid)]
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux PR_SET_PDEATHSIG")
 def test_a_copy_dies_with_a_killed_tool(tmp_path):
     # (SIGKILL cannot be caught: the kernel ends the copies, PR_SET_PDEATHSIG;
     # what a copy started is its own, and the test's to end)
@@ -275,3 +324,93 @@ def test_a_copy_dies_with_a_killed_tool(tmp_path):
                 os.killpg(pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+
+
+def windows_fake_game(tmp_path):
+    pids = tmp_path / "pids"
+    game = tmp_path / "game" / "halo.py"
+    game.parent.mkdir()
+    game.write_text(
+        "import os, subprocess, sys, time\n"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(300)'])\n"
+        f"with open({str(pids)!r}, 'a') as output:\n"
+        "    output.write(f'{os.getpid()} {child.pid}\\n')\n"
+        "if '--exit-wrapper' not in sys.argv:\n"
+        "    time.sleep(300)\n"
+    )
+    return game, pids
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows job ownership")
+@pytest.mark.parametrize("exit_wrapper", [False, True])
+def test_windows_stop_ends_the_whole_tree(tmp_path, exit_wrapper):
+    game, pids = windows_fake_game(tmp_path)
+    command = [sys.executable, str(game)] + (["--exit-wrapper"] if exit_wrapper else [])
+    process = net_compare.start(command)
+    try:
+        assert wait_for(lambda: len(read_pids(pids)) == 2)
+        if exit_wrapper:
+            process.wait(timeout=10)
+            assert alive(read_pids(pids)[1])
+    finally:
+        net_compare.stop(process)
+    assert process not in net_compare.RUNNING
+    assert wait_for(lambda: not any(alive(pid) for pid in read_pids(pids)))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows suspended process assignment")
+def test_windows_assignment_failure_never_runs_the_copy(tmp_path, monkeypatch):
+    game, pids = windows_fake_game(tmp_path)
+
+    def refuse(job, process):
+        raise OSError("job assignment refused")
+
+    before = list(net_compare.RUNNING)
+    monkeypatch.setattr(net_compare.WindowsJob, "assign", refuse)
+    with pytest.raises(OSError, match="job assignment refused"):
+        net_compare.start([sys.executable, str(game)])
+    assert not pids.exists()
+    assert net_compare.RUNNING == before
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows suspended process cleanup")
+def test_windows_missing_executable_leaves_no_running_copy(tmp_path):
+    before = list(net_compare.RUNNING)
+    with pytest.raises(OSError):
+        net_compare.start([str(tmp_path / "missing.exe")])
+    assert net_compare.RUNNING == before
+
+
+def windows_tool_command(tmp_path, game):
+    wrapper = subprocess.list2cmdline([sys.executable])
+    return [sys.executable, str(Path(net_compare.__file__)), "--a", str(game),
+            "--a-wrapper", wrapper, "--b-wrapper", wrapper, "--data", str(make_data(tmp_path)),
+            "--work", str(tmp_path / "work"), "--maps", "bloodgulch", "--start", "0", "--seconds", "1",
+            "--skip", "0", "--timeout", "0"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows jobs on ordinary tool exit")
+def test_windows_tool_error_leaves_no_descendants(tmp_path):
+    game, pids = windows_fake_game(tmp_path)
+    tool = subprocess.run(windows_tool_command(tmp_path, game), capture_output=True, text=True, timeout=25)
+    assert tool.returncode == 2, tool.stdout + tool.stderr
+    assert len(read_pids(pids)) == 4
+    assert wait_for(lambda: not any(alive(pid) for pid in read_pids(pids)))
+    assert "Traceback" not in tool.stderr
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows kill-on-close jobs")
+def test_windows_killed_tool_leaves_no_descendants(tmp_path):
+    game, pids = windows_fake_game(tmp_path)
+    command = windows_tool_command(tmp_path, game)
+    command[command.index("--timeout") + 1] = "60"
+    tool = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    try:
+        assert wait_for(lambda: len(read_pids(pids)) == 4, 20)
+        tool.kill()
+        _, errors = tool.communicate(timeout=10)
+        assert wait_for(lambda: not any(alive(pid) for pid in read_pids(pids))), errors
+    finally:
+        if tool.poll() is None:
+            tool.kill()
+            tool.wait(timeout=10)
