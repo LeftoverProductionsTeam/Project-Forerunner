@@ -1,0 +1,20 @@
+diff --git a/src/renderer_vk.cpp b/src/renderer_vk.cpp
+--- a/src/renderer_vk.cpp
++++ b/src/renderer_vk.cpp
+@@ -11080,7 +11080,16 @@
+ 
+ 			for (TextureHandle th : m_external)
+ 			{
++#if defined(HALO_OPENXR)
++				TextureVK& texture = s_renderVK->m_textures[th.idx];
++				const int ownership = vr_openxr_vulkan_image_state(texture.m_textureImage);
++				// Never transition a cached runtime image the app has not acquired.
++				if (ownership >= 0)
++					texture.setState(m_activeCommandBuffer, ownership
++						? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL);
++#else
+ 				s_renderVK->m_textures[th.idx].setState(m_activeCommandBuffer, VK_IMAGE_LAYOUT_GENERAL);
++#endif
+ 			}
+ 
+ 			setMemoryBarrier(

@@ -26,12 +26,13 @@ void vr_openxr_vulkan_bind(VkInstance instance, VkPhysicalDevice physical, VkDev
 	uint32_t queue_family, uint32_t queue_index);
 /* Once GPU use of runtime images has finished, before bgfx destroys Vulkan. */
 void vr_openxr_vulkan_shutdown(void);
-VkFormat vr_openxr_vulkan_format(void);
-int vr_openxr_vulkan_size(int eye, uint32_t *width, uint32_t *height);
 /* The returned runtime-owned image is valid only until release. The renderer
    must submit its writes and leave COLOR_ATTACHMENT_OPTIMAL before release. */
 VkImage vr_openxr_vulkan_acquire(int eye);
 void vr_openxr_vulkan_release(int eye);
+/* For bgfx's existing external-image queue handling: 0 is not an XR image,
+   1 is acquired and waited, -1 belongs to XR but is not owned by the app. */
+int vr_openxr_vulkan_image_state(VkImage image);
 #ifdef __cplusplus
 }
 #endif

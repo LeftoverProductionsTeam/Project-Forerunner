@@ -389,3 +389,20 @@ or silently changing the network protocol. Session events/frame APIs have no
 game-loop caller yet. All new functionality is UNVERIFIED. No configure, header
 download, compiler, tests, native query, game, headset session, Spark mutation,
 remote change or push ran. The full engine goal remains active.
+
+Next VR source cycle adds the renderer eye adapter in the existing
+`d3d8_bgfx.inl`: acquire/import runtime-owned Vulkan textures with bgfx's native
+external-image argument, redirect the existing back buffer, scale screen/depth
+intermediates to each eye, mirror the right eye, then release/end only after
+same-thread bgfx frame submission. Its queue patch skips unacquired cached XR
+images and returns acquired ones in COLOR_ATTACHMENT_OPTIMAL. Headset sessions
+disable desktop vsync/hidden-window pacing; ordinary flat-screen paths retain
+their settings. No new renderer, CPU image copy or per-eye device-idle wait was
+introduced. The device patch was regenerated from exact pinned raw source after
+inspection exposed whitespace differences in the earlier web representation.
+Patch application itself remains unverified. Unused native format/size getters
+were removed in favor of the single eye-image metadata interface. This cycle is
+necessary runtime source progress; the game-side stereo camera/FOV caller,
+headset menus, full pacing/input/interaction wiring and hardware acceptance
+remain open. No tests, configure, builds, patch application, launches, Spark
+changes or pushes ran. All new functionality remains UNVERIFIED.

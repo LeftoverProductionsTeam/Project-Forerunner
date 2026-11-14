@@ -252,8 +252,9 @@ is enabled. That path selects the existing bgfx Vulkan renderer; flat-screen
 defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
 The device/session and frame/action APIs are source progress, not working VR:
-stereo game cameras, runtime-image import/synchronization, gameplay input and
-OpenH1 physical interactions still need wiring. No compilation or headset
+the renderer imports acquired eye images and closes them after submission, but
+the game-side stereo camera/FOV caller, gameplay input and OpenH1 physical
+interactions still need wiring. No compilation or headset
 validation has been performed under the owner's source-only instruction.
 
 `win32_openxr.c` and its interfaces adapt OpenH1/goath1's `host_vr.c`,

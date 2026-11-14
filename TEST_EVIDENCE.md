@@ -460,3 +460,15 @@ game launch or hardware validation ran. The frame APIs are not yet called by
 the game loop; stereo renderer import/synchronization, camera/FOV and gameplay
 input wiring and physical interactions remain open. Neither headset is claimed
 supported in practice, and no performance comparison has been measured.
+
+The subsequent source-only renderer adapter uses bgfx's existing borrowed-image
+support for acquired OpenXR textures, existing logical target scaling and the
+same Vulkan submission queue. A scoped queue patch avoids transitioning cached
+images outside application ownership and leaves released eyes in the required
+color-attachment layout. Source also supplies a right-eye desktop mirror and
+headset-session pacing exclusions. The earlier device patch now uses exact raw
+pinned source context. No patch application, compilation, tests or runtime/
+hardware validation ran. Stereo game cameras/FOV, menus, input, color-space
+appearance, failure recovery, image lifetime and actual GPU scheduling remain
+unverified; the game-side caller is still unfinished. No performance result or
+playable VR support is claimed.

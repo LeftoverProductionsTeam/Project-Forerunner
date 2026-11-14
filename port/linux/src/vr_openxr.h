@@ -2,9 +2,12 @@
    Pose coordinates follow OpenXR: metres, right/up/back, quaternion xyzw.
    Adapted from OpenH1/goath1 port/linux/src/vr_host.h and host/host_vr.c,
    baed77571d53abe32b27434b4ba869f11db00fe9 (AGPL-3.0-or-later).
-   No native graphics handles or SDK structures enter game code. */
+   Game-facing poses contain no SDK structures. The image interface below is
+   used only by the existing platform renderer. */
 #ifndef HALO_VR_OPENXR_H
 #define HALO_VR_OPENXR_H
+
+#include <stdint.h>
 
 struct vr_openxr_pose
 {
@@ -45,5 +48,23 @@ int vr_openxr_requested(void);
 int vr_openxr_frame_begin(struct vr_openxr_frame *frame);
 void vr_openxr_frame_end(int submit_stereo);
 void vr_openxr_haptic(int hand, float amplitude, float seconds);
+int vr_openxr_running(void);
+
+/* Platform renderer only: the VkImage bits accepted by bgfx's existing
+   external-texture argument. Runtime ownership remains acquire -> release. */
+struct vr_openxr_image
+{
+	uint64_t handle;
+	uint32_t width, height;
+	int bgra;
+};
+int vr_openxr_eye_acquire(int eye, struct vr_openxr_image *image);
+void vr_openxr_eye_release(int eye);
+
+/* Existing renderer entry points for the game-side stereo camera adapter.
+   Present submits and closes the frame, including skipped/failed eye pairs. */
+int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame);
+int xgpu_openxr_eye_begin(int eye);
+void xgpu_openxr_eye_end(void);
 
 #endif

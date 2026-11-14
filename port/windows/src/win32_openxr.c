@@ -360,7 +360,9 @@ static int swapchains_create(void)
 	for (eye = 0; eye < 2; eye++)
 	{
 		XrSwapchainCreateInfo create = { XR_TYPE_SWAPCHAIN_CREATE_INFO };
-		create.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT;
+		/* The existing renderer can sample an eye for postprocessing and the
+		   desktop mirror. It never reads these images back to the CPU. */
+		create.usageFlags = XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT | XR_SWAPCHAIN_USAGE_SAMPLED_BIT;
 		create.format = vr.format;
 		create.sampleCount = 1;
 		create.width = views[eye].recommendedImageRectWidth;
@@ -548,14 +550,37 @@ int vr_openxr_frame_begin(struct vr_openxr_frame *frame)
 	return 1;
 }
 
-VkFormat vr_openxr_vulkan_format(void) { return vr.format; }
+int vr_openxr_running(void) { return vr.running && !vr.unavailable; }
 
-int vr_openxr_vulkan_size(int eye, uint32_t *width, uint32_t *height)
+int vr_openxr_vulkan_image_state(VkImage image)
 {
-	if (eye < 0 || eye > 1 || !vr.swapchain[eye] || vr.unavailable) return 0;
-	*width = vr.width[eye]; *height = vr.height[eye];
+	int eye;
+	uint32_t index;
+
+	for (eye = 0; eye < 2; eye++)
+		for (index = 0; vr.images[eye] && index < vr.count[eye]; index++)
+			if (vr.images[eye][index].image == image)
+				return vr.owned[eye] && vr.waited[eye] && vr.acquired[eye] == index ? 1 : -1;
+	return 0;
+}
+
+int vr_openxr_eye_acquire(int eye, struct vr_openxr_image *image)
+{
+	VkImage native;
+
+	if (!image) return 0;
+	memset(image, 0, sizeof(*image));
+	native = vr_openxr_vulkan_acquire(eye);
+	if (!native) return 0;
+	_Static_assert(sizeof(native) == sizeof(image->handle), "Windows64 Vulkan image handle size");
+	memcpy(&image->handle, &native, sizeof(native));
+	image->width = vr.width[eye];
+	image->height = vr.height[eye];
+	image->bgra = vr.format == VK_FORMAT_B8G8R8A8_SRGB;
 	return 1;
 }
+
+void vr_openxr_eye_release(int eye) { vr_openxr_vulkan_release(eye); }
 
 VkImage vr_openxr_vulkan_acquire(int eye)
 {

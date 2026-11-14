@@ -46,6 +46,9 @@ stencil write mask rides in the back stencil's read mask, as bgfx reads it. The 
 #include "menu_files.h"
 #include "text_hires.h"
 #include "ui_overlay_cellwall.h"
+#ifdef HALO_OPENXR
+#include "vr_openxr.h"
+#endif
 
 /* a 2D copy of width x height from the source's top left (mip level) to the
 destination's (bgfx's texture regions) */
@@ -271,6 +274,22 @@ struct bg_framebuffer
 	uint16_t color, depth;
 	bgfx_frame_buffer_handle_t handle;
 };
+
+#ifdef HALO_OPENXR
+/* One imported texture per runtime image, using bgfx's existing external
+   texture ownership. No second Vulkan device or eye-image copy. */
+struct bg_openxr_image
+{
+	struct bg_openxr_image *next;
+	uint64_t handle;
+	struct bg_target target;
+};
+static struct
+{
+	struct bg_openxr_image *images, *current, *eye[2];
+	int begun, rendering_eye, rendered[2], failed;
+} bg_openxr;
+#endif
 
 /* a texture the game renders one level at a time (the water's ripples), its
 levels' targets copied into one mipmapped texture */
@@ -2164,6 +2183,10 @@ static struct bg_target *bg_target_get(const D3DSurface *surface)
 	if (!surface || !surface->Data)
 		return NULL;
 	surface_dimensions(surface, &width, &height, &depth);
+#ifdef HALO_OPENXR
+	if (bg_openxr.current && !depth && surface->Data == device.back_buffer.Data)
+		return &bg_openxr.current->target;
+#endif
 	/* the screen's targets are drawn at the screen's scale, the secondary
 	target at the 3D view's pixels with its samples (it is drawn with the
 	back buffer's depth buffer, and a frame buffer is one size:
@@ -2184,6 +2207,18 @@ static struct bg_target *bg_target_get(const D3DSurface *surface)
 		scale[0] = (float)halo_shadow_map_scale();
 		scale[1] = scale[0];
 	}
+#ifdef HALO_OPENXR
+	/* Screen-sized intermediates and depth use the acquired eye's actual
+	   pixels; the game keeps its logical viewport and existing target code. */
+	if (bg_openxr.current &&
+		((width == (unsigned long)halo_screen_width() && height == SCREEN_HEIGHT) ||
+		 (!depth && width == SECONDARY_TARGET_WIDTH && height == SECONDARY_TARGET_HEIGHT)))
+	{
+		scale[0] = (float)bg_openxr.current->target.pixel_width / width;
+		scale[1] = (float)bg_openxr.current->target.pixel_height / height;
+		samples = 0;
+	}
+#endif
 	for (entry = *bg_target_bucket(surface->Data); entry; entry = entry->next)
 	{
 		/* (one bgfx would not make is kept, so it is asked for once, and is
@@ -2238,6 +2273,10 @@ static struct bg_target *bg_target_find(DWORD data)
 {
 	struct bg_target *entry, *best = NULL;
 
+#ifdef HALO_OPENXR
+	if (bg_openxr.current && data == bg_openxr.current->target.data)
+		return &bg_openxr.current->target;
+#endif
 	for (entry = *bg_target_bucket(data); entry; entry = entry->next)
 	{
 		if (entry->data == data && !entry->depth && entry->last_rendered &&
@@ -2277,6 +2316,107 @@ static bgfx_frame_buffer_handle_t bg_framebuffer_get(struct bg_target *color, st
 	bg.framebuffers = entry;
 	return entry->handle;
 }
+
+#ifdef HALO_OPENXR
+int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame)
+{
+	if (!frame || !bg.ready || !bg_vulkan || bg_openxr.begun)
+		return 0;
+	if (!vr_openxr_frame_begin(frame))
+		return 0;
+	bg_openxr.begun = TRUE;
+	bg_openxr.rendering_eye = -1;
+	bg_openxr.rendered[0] = bg_openxr.rendered[1] = FALSE;
+	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
+	bg_openxr.failed = FALSE;
+	return 1;
+}
+
+int xgpu_openxr_eye_begin(int eye)
+{
+	struct vr_openxr_image image;
+	struct bg_openxr_image *entry;
+	unsigned long width, height;
+	BOOL depth;
+	unsigned short rect[4];
+	bgfx_frame_buffer_handle_t framebuffer;
+
+	if (!bg_openxr.begun || bg_openxr.current || eye < 0 || eye > 1 || bg_openxr.rendered[eye])
+		return 0;
+	if (!vr_openxr_eye_acquire(eye, &image))
+		goto failed;
+	if (!image.width || !image.height || image.width > UINT16_MAX || image.height > UINT16_MAX)
+		goto failed;
+	for (entry = bg_openxr.images; entry && entry->handle != image.handle; entry = entry->next)
+		;
+	if (!entry)
+	{
+		entry = calloc(1, sizeof(*entry));
+		if (!entry)
+			goto failed;
+		entry->handle = image.handle;
+		entry->target.pixel_width = image.width;
+		entry->target.pixel_height = image.height;
+		entry->target.texture = bgfx_create_texture_2d((uint16_t)image.width, (uint16_t)image.height, false, 1,
+			image.bgra ? BGFX_TEXTURE_FORMAT_BGRA8 : BGFX_TEXTURE_FORMAT_RGBA8,
+			BGFX_TEXTURE_RT | BGFX_TEXTURE_SRGB | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP, NULL, image.handle);
+		entry->next = bg_openxr.images;
+		bg_openxr.images = entry;
+	}
+	if (!BGFX_HANDLE_IS_VALID(entry->target.texture))
+		goto failed;
+	surface_dimensions(&device.back_buffer, &width, &height, &depth);
+	if (!width || !height)
+		goto failed;
+	entry->target.data = device.back_buffer.Data;
+	entry->target.width = width;
+	entry->target.height = height;
+	entry->target.scale[0] = (float)image.width / width;
+	entry->target.scale[1] = (float)image.height / height;
+	framebuffer = bg_framebuffer_get(&entry->target, NULL);
+	if (!BGFX_HANDLE_IS_VALID(framebuffer))
+		goto failed;
+	bg_openxr.eye[eye] = bg_openxr.current = entry;
+	bg_openxr.rendering_eye = eye;
+	/* Defined contents even if the game produces no geometry for this eye. */
+	rect[0] = rect[1] = 0;
+	rect[2] = (unsigned short)image.width;
+	rect[3] = (unsigned short)image.height;
+	bg_view_set(framebuffer, rect, TRUE);
+	bgfx_set_view_clear(bg.view, BGFX_CLEAR_COLOR, 0x000000ff, 1.0f, 0);
+	bgfx_touch(bg.view);
+	bg.view_used = TRUE;
+	return 1;
+failed:
+	bg_openxr.failed = TRUE;
+	return 0;
+}
+
+void xgpu_openxr_eye_end(void)
+{
+	if (!bg_openxr.current)
+		return;
+	bg_openxr.rendered[bg_openxr.rendering_eye] = TRUE;
+	bg_openxr.current = NULL;
+	bg_openxr.rendering_eye = -1;
+}
+
+/* bg_start chooses same-thread bgfx rendering before init. After bgfx_frame
+   the Vulkan queue has received both eyes and their release-layout barriers.
+   OpenXR uses that same queue; no CPU readback or per-eye device-idle wait. */
+static void bg_openxr_frame_submitted(void)
+{
+	if (!bg_openxr.begun)
+		return;
+	vr_openxr_eye_release(0);
+	vr_openxr_eye_release(1);
+	vr_openxr_frame_end(!bg_openxr.failed && bg_openxr.rendered[0] && bg_openxr.rendered[1]);
+	bg_openxr.begun = FALSE;
+	bg_openxr.current = NULL;
+	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
+	bg_openxr.rendering_eye = -1;
+}
+#endif
 
 /* the targets' frame buffer bound (bind_targets'); FALSE if there is
 nothing to draw into */
@@ -4142,6 +4282,11 @@ static unsigned long bg_reset_flags(void)
 {
 	unsigned long flags = platform_vsync_on() ? BGFX_RESET_VSYNC : BGFX_RESET_NONE;
 
+#ifdef HALO_OPENXR
+	/* xrWaitFrame owns pacing while the headset session is running. */
+	if (vr_openxr_running())
+		flags &= ~BGFX_RESET_VSYNC;
+#endif
 	if (config_integer("display.anisotropic_filtering") >= 2)
 		flags |= BGFX_RESET_MAXANISOTROPY;
 	return flags;
@@ -4180,6 +4325,10 @@ static void bg_blit(unsigned short view, int letterbox[4])
 	unsigned long width = (unsigned long)bg.window_width, height;
 	float x0, y0;
 
+#ifdef HALO_OPENXR
+	if (bg_openxr.begun && bg_openxr.rendered[1] && bg_openxr.eye[1])
+		back_buffer = &bg_openxr.eye[1]->target;
+#endif
 	bgfx_set_view_mode(view, BGFX_VIEW_MODE_SEQUENTIAL);
 	bgfx_set_view_frame_buffer(view, (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE);
 	bgfx_set_view_rect(view, 0, 0, (uint16_t)bg.window_width, (uint16_t)bg.window_height, 0.0f, 1.0f);
@@ -4981,6 +5130,9 @@ static void bg_present(void)
 #endif
 
 		frame_number = bgfx_frame(BGFX_FRAME_NONE);
+#ifdef HALO_OPENXR
+		bg_openxr_frame_submitted();
+#endif
 		bg_frame_out();
 #ifdef __APPLE__
 		bg.account.libraries += bgfx_mtl_stats.libraries - before.libraries;
@@ -4996,7 +5148,11 @@ static void bg_present(void)
 	/* (a covered or minimized window: bgfx shows nothing then, so nothing
 	waits for the display, and the game would run as fast as it can; the
 	frames are paced to the display's rate here instead) */
-	if (bg_window_hidden() && !bg_measuring())
+	if (bg_window_hidden() && !bg_measuring()
+#ifdef HALO_OPENXR
+		&& !vr_openxr_running()
+#endif
+		)
 	{
 		static double hidden_next;
 		double interval = bg_display_interval(), now = stats_seconds();
