@@ -80,10 +80,18 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
-Preserve the verified three-wave encounter and accepted baseline. Next validate
-human controls and a compatible creator map, then adapt the relevant existing Faber
-HUD/lives/configuration code needed for the full Firefight milestone. Ranks, menus
-and skulls remain useful later mode/server integration candidates, not discarded.
-Do not repeat accepted Blood Gulch or infrastructure checks without a relevant change.
-Last cycle produced native gameplay: real waves, pursuit, combat, scoring and
-shared completion. It added no framework or new wire format. Existing tooling is frozen.
+The owner selected Zombie Apocalypse as the authored Firefight candidate and asked
+to use Spark's conversion workflow. The existing integration contract now records
+the concrete Spark handoff, reusable code, ownership and missing engine operations.
+Spark was inspected read-only at `b57cb654`; its unfinished work was not changed.
+No Forerunner importer for Spark Firefight JSON exists, and no converted candidate
+was produced by this coordination update. Do not relabel the B40 proof as Zombie play.
+
+Code-only work is now requested: no new tests/builds/native runs until the owner
+resumes execution. Shared-life/defeat code is in progress: real death accounting,
+host-only respawn gate and no campaign-state rewind on a Firefight team wipe.
+It is unverified. Existing small harness edits predate the no-tests instruction
+and were not run. Preserve the accepted runtime and finish engine-side integration
+against the real Zombie actor/spawner requirements. Spark owns conversion/authoring;
+Forerunner owns loading, combat, lifecycle and replication. No new coordination
+framework, test orchestrator or cross-repository edits are authorized by this handoff.

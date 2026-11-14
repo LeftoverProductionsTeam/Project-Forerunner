@@ -9,6 +9,12 @@ frameworks or extensive test infrastructure require the user's approval after
 explaining why existing code and simpler alternatives are insufficient.
 Judge progress by gameplay and necessary repairs, not infrastructure volume.
 
+Current owner instruction: code only; tests and native validation are deferred
+until the owner resumes them. Preserve prior evidence, and label new code unverified.
+Coordinate through SPARK_INTEGRATION_CONTRACT.md and existing checkpoints at
+meaningful milestones. Spark source may be inspected read-only; modify only
+Forerunner. Do not add coordination services or repeatedly poll/rebuild Spark.
+
 The authoritative Forerunner source is this root repository on local `master`.
 Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
 with actual Git status, source and running owned jobs before continuing.
