@@ -345,6 +345,7 @@ symbols in this file:
 #include "game/player_control_runtime.h"
 #include "game/players.h"
 #include "game/local_players.h"
+#include "memory/data.h" /* port: current local co-op participants */
 #include "game/player_queues_new.h"
 #include "integer_math.h"
 #include "input.h"
@@ -2599,10 +2600,22 @@ static void main_won_map_private(
 	if (game_connection() == _game_connection_network_server && network_coop_active())
 	{
 		struct network_game *game = network_game_get_game();
+		/* port: only participants on this machine own local profiles. */
+		struct data_iterator iterator;
+		struct player_datum *player;
 
 		main_globals.won_map = FALSE;
 		level = game ? main_get_solo_level_from_name(game->map.name) : NONE;
-		player_profile_save_level_completed(0);
+		/* port: credit every current local participant for the actual network
+		mission. Neither player_spawn_count nor the solo menu describes this
+		machine's split-screen party; quit profiles must not receive credit. */
+		if (level != NONE)
+		{
+			data_iterator_new(&iterator, player_data);
+			while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+				if (!player->quit_out_of_game && VALID_INDEX(player->local_player_index, MAXIMUM_LOCAL_PLAYERS))
+					player_profile_save_campaign_level_completed(player->local_player_index, level);
+		}
 		network_game_server_port_cooperative_won(level != NONE ?
 			main_get_solo_level_name((level + 1) % NUMBER_OF_SINGLE_PLAYER_LEVELS) : NULL);
 		return;

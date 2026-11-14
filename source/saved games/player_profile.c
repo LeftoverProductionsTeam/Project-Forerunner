@@ -606,14 +606,22 @@ void player_profile_save_last_level_played(
 void player_profile_save_level_completed(
 	short local_player_index)
 {
+	/* port: keep solo callers on their existing mission-selection path. */
+	player_profile_save_campaign_level_completed(local_player_index, main_get_current_solo_level());
+}
+
+/* port: the co-op host's loaded mission may differ from the solo menu's
+last selection. Reuse the same validated writer and native profile format. */
+void player_profile_save_campaign_level_completed(
+	short local_player_index,
+	short level)
+{
 	struct player_profile profile;
-	short level;
 	short difficulty;
 	long player_profile_index;
 
 	match_assert("c:\\halo\\SOURCE\\saved games\\player_profile.c", 0x197, (local_player_index>=0) && (local_player_index<MAXIMUM_NUMBER_OF_LOCAL_PLAYERS));
 
-	level = main_get_current_solo_level();
 	difficulty = game_difficulty_level_get();
 
 	/* port: a level not in the campaign (a Halo PC map's, whose scripts may

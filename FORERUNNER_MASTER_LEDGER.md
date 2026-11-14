@@ -80,6 +80,19 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
+Independent co-op/campaign source repair: network mission completion now credits
+every non-quit local participant on the host, using the hosted map's campaign
+identity. Previously it credited only local player zero through the last solo-menu
+selection, which may name another mission. A new explicit-level entrypoint reuses
+the existing level/difficulty guards and native profile writer; solo callers retain
+their existing wrapper. Finite Firefight/MCC completion still takes its earlier
+branches, and unknown CE missions are not written into stock campaign flags.
+No tests/builds/queries/games or profile writes ran. This is unverified source;
+split-screen/dead/quit/absent local players, stale solo selection and difficulty
+credit remain native gates. Remote-client profile credit needs an explicit
+authoritative completed-mission/difficulty signal distinct from loss/abort/lobby
+reset; no new wire message or inferred victory was introduced here.
+
 Independent Forge source increment: `forge_clone` is an appended, console-only
 native object operation based on Faber's `port/forge/src/forge_3d_mode.c` placement
 recipe at `e4ffe0fe9874870b4fca1fca76beb83514c793f4`. It returns an unnamed fresh

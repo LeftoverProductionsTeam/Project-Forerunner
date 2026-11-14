@@ -117,6 +117,10 @@ real_rgb_color player_profile_get_rgb_color(
 	long color_index);
 void player_profile_save_level_completed(
 	short local_player_index);
+/* port: network co-op supplies its mission, not the solo menu's last map. */
+void player_profile_save_campaign_level_completed(
+	short local_player_index,
+	short level);
 void player_profiles_enumerate_available_to_local_player_index(
 	short local_player_index,
 	word *number_of_profiles,

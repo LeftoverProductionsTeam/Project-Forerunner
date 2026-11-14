@@ -437,3 +437,11 @@ No tests/builds/queries/games ran. Native handle composition, placement/appearan
 allocation/quota failure, client/public-host refusal, late join, platform/script
 table compatibility and unchanged native gameplay remain unverified. No persistent
 layout, AI cloning, full Forge UI or Spark write operation is claimed.
+
+Independent co-op source repair credits all non-quit host-local participants for
+the actual network campaign mission through the existing bounded profile writer.
+Solo callers keep their wrapper; finite Firefight/MCC paths remain separate and
+unknown CE missions cannot set stock flags. No tests/builds/queries/games or
+profile writes ran. Stale solo selection, split-screen/dead/quit/absent profiles,
+difficulty flags and normal solo behavior remain unverified. Remote-client
+progression still needs an explicit authoritative completion interface.
