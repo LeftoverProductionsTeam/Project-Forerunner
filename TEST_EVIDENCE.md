@@ -445,3 +445,8 @@ unknown CE missions cannot set stock flags. No tests/builds/queries/games or
 profile writes ran. Stale solo selection, split-screen/dead/quit/absent profiles,
 difficulty flags and normal solo behavior remain unverified. Remote-client
 progression still needs an explicit authoritative completion interface.
+
+Native creation excludes dynamic scenery; `forge_clone` now refuses host scenery
+copies before allocation/quota changes. Local scenery and existing shared classes
+retain their paths. No tests/builds/queries/games ran; refusal, quota preservation
+and peer geometry agreement remain unverified. No new transport was added.

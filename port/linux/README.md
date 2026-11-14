@@ -666,8 +666,8 @@ Use existing native commands with the returned handle, for example
 
 Only an allowed local/host console may call it. Existing host-cheat restrictions,
 console object quotas and Xbox index limits apply. Attached/dead objects, bipeds
-and objective weapons are refused. Scaled copies require local play because
-native network creation does not carry scale. Map scripts cannot call it; it is
+and objective weapons are refused. Scenery and scaled copies require local play:
+native network creation carries neither dynamic scenery nor scale. Map scripts cannot call it; it is
 not a Spark editing API. Copies last only in the current world: no map/source
 file, Forge layout, undo history or inventory state is saved. This is a Faber-derived
 placement primitive, not the full Forge UI or accepted multiplayer Forge.

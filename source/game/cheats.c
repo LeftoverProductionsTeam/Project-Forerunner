@@ -250,6 +250,13 @@ long cheat_forge_clone(
 		console_warning("forge_clone cannot duplicate an objective weapon");
 		return NONE;
 	}
+	/* port: native object creation does not replicate scenery. A host-only
+	copy would leave the other machines without its geometry/collision. */
+	if (global_network_game_server_get() && object->object.type == _object_type_scenery)
+	{
+		console_warning("forge_clone needs local play for scenery; network creation does not carry scenery");
+		return NONE;
+	}
 	/* Native creation already carries variant/colors, but not object scale.
 	Do not silently create a differently sized object on the other machines. */
 	if (global_network_game_server_get() && object->object.scale != 1.0f)

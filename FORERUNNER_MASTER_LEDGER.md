@@ -80,6 +80,13 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
+Object-sync source correction: native creation excludes scenery. `forge_clone`
+now refuses host scenery copies before allocation/quota changes, avoiding host-only
+geometry/collision; local scenery and the existing scale refusal remain. Dynamic
+scenery/scale needs a negotiated extension: `object_sync` covers vitals/names,
+not these properties. No wire/capability number was repurposed. No tests/builds/
+queries/games ran; refusal, local cloning and peer compatibility remain unverified.
+
 Independent co-op/campaign source repair: network mission completion now credits
 every non-quit local participant on the host, using the hosted map's campaign
 identity. Previously it credited only local player zero through the last solo-menu
