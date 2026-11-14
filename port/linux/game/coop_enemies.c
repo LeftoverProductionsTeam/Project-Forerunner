@@ -195,6 +195,7 @@ static struct
 	boolean selection_valid;
 	char actor_path[256];
 	char spawn_encounter[TAG_STRING_LENGTH+1];
+	char outcome[128];
 	real_point3d origin;
 } firefight;
 
@@ -226,6 +227,8 @@ static void firefight_notice(char const *text)
 	long local;
 	wchar_t wide[128];
 
+	if (firefight.phase >= 4)
+		snprintf(firefight.outcome, sizeof(firefight.outcome), "%s", text);
 	for (index = 0; text[index] && index < NUMBEROF(wide) - 1; index++)
 		wide[index] = (wchar_t)(unsigned char)text[index];
 	wide[index] = 0;
@@ -339,6 +342,45 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 			break;
 		}
 	}
+}
+
+static boolean firefight_spawn_pending(struct unit_datum const *unit)
+{
+	struct unit_definition *definition;
+
+	if (!unit || !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		TEST_FLAG(unit->unit.flags, _unit_spawned_actors_bit))
+		return FALSE;
+	definition = unit_definition_get(unit->definition_index);
+	return TEST_FLAG(definition->unit.flags, _unit_is_destroyed_after_dying_bit) &&
+		definition->unit.spawned_actor_variant.index != NONE && definition->unit.spawn_actor_upper_bound > 0;
+}
+
+/* The existing reliable client-ready path calls once for a newly loaded peer.
+This is presentation of host state, not a new gameplay packet or client authority. */
+void coop_enemies_firefight_send_status(long machine_index)
+{
+	short index, remaining = 0, pending = 0;
+	char const *phase;
+	char text[128];
+
+	if (!coop_enemies_firefight_active() || machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+		return;
+	for (index = 0; index < firefight.unit_count; index++)
+	{
+		if (!firefight.killed[index])
+			remaining++;
+		else if (firefight_spawn_pending((struct unit_datum *)object_try_and_get_and_verify_type(
+			firefight.units[index], _object_mask_biped)))
+			pending++;
+	}
+	phase = firefight.phase == 1 ? "preparing" : firefight.phase == 2 ? "in progress" :
+		firefight.phase == 3 ? "cleared" : "finished";
+	snprintf(text, sizeof(text), "Firefight: wave %d/3 %s; enemies %d; carriers pending %d; score %ld; lives %d",
+		(int)firefight.wave, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
+	distributed_send_notice_to_machine(machine_index, text);
+	if (firefight.phase >= 4 && firefight.outcome[0])
+		distributed_send_notice_to_machine(machine_index, firefight.outcome);
 }
 
 /* Adapted from Faber's firefight_count_living_players and wipe check: quit
@@ -749,15 +791,8 @@ static void firefight_update(void)
 			{
 				/* A carrier dies before its animation destroys it and releases
 				children. Keep the wave open until that native spawn is resolved. */
-				if (unit)
-				{
-					struct unit_definition *definition = unit_definition_get(unit->definition_index);
-
-					if (TEST_FLAG(definition->unit.flags, _unit_is_destroyed_after_dying_bit) &&
-						definition->unit.spawned_actor_variant.index != NONE && definition->unit.spawn_actor_upper_bound > 0 &&
-						!TEST_FLAG(unit->unit.flags, _unit_spawned_actors_bit))
-						continue;
-				}
+				if (firefight_spawn_pending(unit))
+					continue;
 				dead++;
 			}
 		}
@@ -1089,6 +1124,7 @@ void coop_enemies_reset(
 	firefight.phase = 0;
 	firefight.unit_count = 0;
 	firefight.wipe_deadline = 0;
+	firefight.outcome[0] = 0;
 	csmemset(firefight.killed, 0, sizeof(firefight.killed));
 }
 

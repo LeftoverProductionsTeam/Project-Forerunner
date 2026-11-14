@@ -77,6 +77,7 @@ machine (their datum identifiers need not be).
 #include "units/bipeds.h"
 #include "vehicle_riding.h"
 #include "network_coop.h"
+#include "coop_enemies.h"
 #include "host_evidence.h"
 #include "conduct_rules.h"
 #include "network_distributed.h"
@@ -7933,6 +7934,7 @@ static void distributed_handle_message(
 		{
 			distributed_send_all_statistics(machine_index);
 			distributed_send_game_state(machine_index);
+			coop_enemies_firefight_send_status(machine_index);
 		}
 		break;
 	}

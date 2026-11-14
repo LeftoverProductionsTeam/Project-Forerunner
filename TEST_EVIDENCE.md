@@ -306,3 +306,10 @@ completion. A pending carrier spawn holds the wave open; partial/unsupported or
 over-capacity creation aborts. No tests/builds/native runs were performed. Normal
 object deletion was confirmed deferred by source inspection, so the apparent
 destruction-order issue was not patched or claimed as the Zombie crash's cause.
+
+The next source-only increment adds a one-time host Firefight summary to the
+existing reliable new-client-ready branch, plus terminal outcome replay. Repeated
+object-resync requests do not trigger that branch. It shares the carrier-pending
+calculation with wave completion and changes no message layout or discovery
+operation. No tests/builds/native runs were performed; text replay does not accept
+late-join actors, reconnects or a full Firefight HUD.

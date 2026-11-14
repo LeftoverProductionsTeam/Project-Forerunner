@@ -115,13 +115,19 @@ was added. No Spark file, original game data, remote or branch was changed.
 
 Continue the actual Zombie actor/spawner and authored encounter lifecycle in
 Forerunner; Spark owns reviewed conversion/authoring and CE build receipt routing.
-The next source increment adapts Faber's Outbreak encounterless-child gate for
+Source checkpoint `5bd98b76f` adapts Faber's Outbreak encounterless-child gate for
 tracked Firefight parents only. Native children join the existing wave table,
 bounded to Faber's 32 slots total per wave, with the same pursuit/final-death path.
 Wave completion waits for a dead carrier's pending native spawn and all actual
 children; partial, unsupported or over-capacity creation aborts explicitly. This
 is unbuilt/untested source. Normal object deletion was inspected and is deferred;
 no speculative destruction-order patch was applied and no physics-crash fix claimed.
+The next source-only increment sends a newly loaded client the host's current
+wave/phase, remaining enemies, pending carrier spawns, team score and shared lives
+through the existing reliable notice path. It retains the terminal outcome for a
+join during victory/defeat/abort. Only the existing first-ready branch sends this;
+repeated object-resync requests do not repeat it. This is unbuilt/untested text
+presentation, not full late-join AI/gameplay or a structured Firefight HUD packet.
 The original Demo multiplayer map, missing original audio, carrier gameplay,
 multi-group waves, full HUD and creator-map/two-peer acceptance remain open. Do not
 call the actor selector or the accepted B40 proof a completed Zombie encounter.

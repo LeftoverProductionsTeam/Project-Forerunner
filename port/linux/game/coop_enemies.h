@@ -73,5 +73,7 @@ void coop_enemies_firefight_enemy_died(long unit_index);
 The host tracks each actual child; NONE or exhausted tracking aborts the encounter. */
 boolean coop_enemies_firefight_tracks_unit(long unit_index);
 boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_index);
+/* network_distributed.c: one host-state notice after a new client's ready message. */
+void coop_enemies_firefight_send_status(long machine_index);
 
 #endif

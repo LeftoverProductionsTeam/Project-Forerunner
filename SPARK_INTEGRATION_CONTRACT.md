@@ -81,6 +81,7 @@ the ability to launch a process.
 | `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment and final-death credit. Three waves of two initial bodies plus native carrier children, bounded to 32 tracked bodies per wave on a co-op scenario; not Spark's authored rules. |
 | Spark `FirefightConfig` schema `1` | Authoring/preview only. **Forerunner has no importer for this JSON.** |
 | Standard actor palettes, encounters/squads, player profiles, HaloScript | Existing native authoring/runtime boundary. Spark emits source; the inherited engine executes supported compiled caches. Specific generated maps still require gameplay acceptance. |
+| Firefight late-join status text | New unverified source sends current host wave/phase, enemy/pending-spawn counts, score/lives and any terminal outcome after a newly loaded client's reliable ready message. Existing notice transport only; not a query RPC, structured HUD state or full late-join gameplay acceptance. |
 | Live edits, runtime-state query, transactions/undo | Not implemented by this adapter. No private-memory/debug-console fallback. |
 
 Accepted discovery identity: `7c65d0865c34-dirty.d990a0d29b19`, Windows/x86,
