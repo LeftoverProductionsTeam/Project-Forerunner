@@ -1,3 +1,26 @@
+# Project Forerunner
+
+Forerunner is an independent Halo 1 runtime integration in progress, built on
+FractumSeraph's combined OpenCE/Chupathingy source history. Upstream authorship,
+licenses and notices remain intact. The full unified-engine acceptance target
+has not been met; there is no Forerunner release yet.
+
+Start with the [engineering checkpoint](FORERUNNER_MASTER_LEDGER.md),
+[test evidence](TEST_EVIDENCE.md), [feature provenance](UPSTREAM_FEATURE_MATRIX.md),
+[compatibility matrix](COMPATIBILITY_MATRIX.md) and
+[known limitations](KNOWN_LIMITATIONS.md). The complete
+[engineering directive](docs/forerunner/MASTER_DIRECTIVE_2026-11-14.md) remains open.
+
+The Windows x86 baseline can be built from tracked source into a new external
+directory with `python tools/forerunner_build.py --work <new-directory>
+--toolchain <LLVM-directory>`. See `--help` for explicit compiler, MSVC, SDK and
+Ninja paths. The helper preserves a source/tool identity manifest and never
+copies game data. Builds need the user's own Halo data for gameplay.
+
+The upstream documentation below is retained for provenance and implementation
+details. Its releases, services and feature claims belong to the named upstream
+projects; current Forerunner verification is recorded in the evidence above.
+
 # Halo in the browser and on every platform (FractumSeraph's fork)
 
 **Play it now in your browser: [halo.fractumseraph.net](https://halo.fractumseraph.net/)**,

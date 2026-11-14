@@ -1,0 +1,67 @@
+# Forerunner upstream feature matrix
+
+Reviewed 2026-11-14. These are pinned source snapshots, not a claim that every
+advertised feature has passed Forerunner acceptance. Source presence, compilation,
+automated checks, and gameplay evidence are separate gates. See
+[TEST_EVIDENCE.md](TEST_EVIDENCE.md) for run results.
+
+## Foundation and provenance
+
+The selected Windows x86 foundation is FractumSeraph's combined OpenCE/Chupathingy tree at
+`eae91445333bc8ebfb1604e08fcedffbd5c3a558`. It contains the inspected OpenCE
+HEAD as an ancestor; their left/right divergence is 0/3,734 commits. Its common
+ancestor with inspected Chupathingy HEAD is
+`a42702df52416de4008e91fe18c49f94d9efabb0` (1/1,760 commits).
+Ancestry establishes traceability, not behavioral equivalence.
+
+The sole missing Chupathingy commit, `78d28a70839998775322af8aa571fa494966c0c8`,
+was cherry-picked with `-x` as `b2bd604329c71f06c1109c632ff19ea4c29e4027`,
+retaining Milenko's authorship. It validates Workshop filenames and preview paths
+in `port/linux/src/steam_workshop.c`, with parser/fuzzer regressions. The overlap
+with Fractum's narrower dot-name check was resolved using the stronger upstream
+component validator. Validation of the resulting tree is recorded separately.
+
+| Repository | Inspected commit | Common ancestor with inspected OpenCE | Decision |
+| --- | --- | --- | --- |
+| [OpenCE](https://github.com/OpenCommunityEdition/OpenCE) | `1519c65facbb068e44b956da2769198a83a17847` | Same commit | Retain current fixes through the combined foundation; use as comparison build. |
+| [Chupathingy](https://github.com/ChupathingyCE/chupathingyce) | `78d28a70839998775322af8aa571fa494966c0c8` | Shared ancestry is preserved through Fractum; see comparison above | Retain combined implementations; import missing changes individually with author credit. |
+| [FractumSeraph/OpenCE](https://github.com/FractumSeraph/OpenCE) | `eae91445333bc8ebfb1604e08fcedffbd5c3a558` | `1519c65facbb068e44b956da2769198a83a17847` | Selected after repairs, Windows x86 compilation, swapped-host native movement/combat and hidden OpenGL gameplay. Other acceptance gates remain open. |
+| [OpenCE-Faber](https://github.com/SutlabSol/OpenCE-Faber) | `e4ffe0fe9874870b4fca1fca76beb83514c793f4` | `da8d455623cf50002e6a798b1980068fd3ca0292` | Adapt Firefight and object editing incrementally. Whole-branch adoption would replace newer core fixes. |
+| [OpenH1/GOAT H1, dev](https://github.com/OpenH1/goath1) | `baed77571d53abe32b27434b4ba869f11db00fe9` | `6ec42856d73e258e5a8c7e9cd19161f46d89d0e4` | Separate optional VR/renderer adaptation; do not merge its protocol and simulation changes wholesale. |
+| [GulchCE](https://github.com/chestahh/GulchCE) | `66b4df0bc9afeb09189a7f9c0fff0c5b1f5d51b2` | `1519c65facbb068e44b956da2769198a83a17847` | Compare individual MCC fixes against already inherited MCC modules; preserve map-family boundaries. |
+| [DamnationCE](https://github.com/xshxdex98/DamnationCE) | `d31736d3748f1156995e6bba13126f87aeff40ee` | `0b2c6759bb4cb3ee5dcc3d650de2dcda74d79620` | Older CE/co-op reference; avoid copying AI/network systems already present in newer ancestry. |
+| [OpenCE-PS4](https://github.com/iHaiDeeZ/OpenCE-PS4) | `dcf1b836085829999a004afef86bb3c45d361642` | No common Git ancestor: patch/toolchain repository | Optional console adapter. `patches/BASE.txt` separately pins engine base `9662f0f6cb60746444bee9549e4271e387fdc659`. |
+
+## Implementation and acceptance boundaries
+
+| Capability | Actual source examined | Current integration decision and evidence |
+| --- | --- | --- |
+| Classic simulation and independent rendering | `source/game/game_time.c`; `port/linux/src/port_config.c` (`display.interpolation`); `tools/windows_build.py` (`-ffp-contract=off`); vendored musl math | Retain 30 Hz behavior and stock options. OpenCE and Fractum Windows x86 candidates compiled and ran local Blood Gulch player ticks. Full campaign/physics/rendering acceptance remains open. |
+| Multiplayer, co-op, dedicated servers | `network_distributed.c`, `network_actors.c`, `network_coop.c`, `network_rules.c`, `server_*.c`; `halo_port_limits.h` | Retain host authority and existing per-peer serializers. Capacity is 128 players/machines in source; a 128-player session has not been demonstrated. Cross-play requires its own native gate. |
+| Infection and conventional extra modes | `port/linux/game/infection.c`, `game_modes.c`, `gun_game.c` | Existing source is inherited; do not reimplement Infection. No completed Infection match is accepted here yet. |
+| Xbox, PC, CE, HaloMD, MCC assets | `map_families.c`, `ce_*.c`, `mcc_*.c`, `steam_workshop.c`; `docs/mcc_maps.md` | Preserve distinct loaders/resource ownership. Xbox smoke tests do not establish CE or MCC fidelity. Workshop parser fix imported; broader format/gameplay testing remains open. |
+| Forge and live object editing | Faber `port/forge/src/forge_3d_mode.c`, `forge_network.c`, `forge_hooks.c`; build-time symbol replacement | Real upstream code, not integrated. Windows input/hooks and its separate Forge agreement require adapters. Save/export claims need native readback and target-runtime tests. |
+| Firefight | Faber `firefight.c`, `firefight_spawner.c`, `firefight_generators.c`, `firefight_stats.c`, `firefight_network.c`; game-engine callbacks | Real host-side progression/spawning exists. Reuse after adapting serialization and validating multiplayer. Native-struct `csmemcpy` in the network adapter is ABI/endian-sensitive. Upstream fake-world harness tests are not multiplayer acceptance. |
+| Extraction and AI zombie survival | No corresponding native mode found in the reviewed foundation/Faber trees | Not implemented in Forerunner. Build on shared native objectives/spawning after baseline acceptance; asset-extraction utilities are unrelated. |
+| Vulkan/Metal | Inherited `tools/bgfx_build.py`, `port/linux/src/d3d8_bgfx.inl`; OpenH1 host renderers | Keep existing optional bgfx path before replacing stable rendering. Current x86 baseline uses OpenGL/null rendering; optional modern backends have not passed local acceptance. |
+| OpenXR, tracked input, hand interaction | OpenH1 `port/linux/host/host_vr.c`, `port/linux/src/vr.c`, `port/linux/game/vr_*.c` | Adapt as optional capability. Linux builders enable VR; Windows builder explicitly uses `vr=False`. Host/local physical reload and remote-client timed reload differ by design. No headset or mixed-session test performed. |
+| Audio, HUD, input | Inherited SDL3 platform/audio/input and HUD modules | Retain existing implementations and artwork notices. Headless dummy-audio runs prove no audible/spatial audio result. |
+| Recording and replay | Inherited `network_recording.c`, `guide_record.c`; Fractum viewer/service code | Retain source; replay fidelity and production playback acceptance remain open. Do not treat every recording format as deterministic Theater. |
+| Spark adapter and MegaWorld | `server_mode.c` capability contract v1; `tools/spark_runtime.py` reference client | Read-only discovery implemented and tested against real engine. Live editing and connected-world traversal are not implemented. |
+
+## Licensing and repository rules
+
+The combined foundation uses [AGPL-3.0-or-later](LICENSE), retaining
+Chupathingy's [GPL-3.0-or-later notices](LICENSE.GPL-3.0). This is inherited work;
+its authorship/history must remain intact. OpenCE, Faber, OpenH1, GulchCE, and the
+PS4 repository carry AGPL notices at the inspected snapshots. Damnation's root
+`LICENSE.md` is CC0; imported and third-party files still need individual review.
+
+Read each candidate's agent/contribution guidance before adapting it. Keep
+third-party versions, checksums, notices, fonts, and art credits. OpenH1's
+`port/assets/hud/NOTICE.md` explicitly places Aerocatia/Jessie art outside its
+engine license. Console SDK permissions do not grant rights to SDK/game assets.
+No proprietary game data belongs in this repository or release packages.
+
+Future integration uses source comparisons and small author-preserving commits.
+No public release, push, or upstream submission is authorized by this ledger.

@@ -1,3 +1,23 @@
+# Forerunner workspace rules
+
+The authoritative Forerunner source is this repository on local `main`.
+Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
+with actual Git status, source and running owned jobs before continuing.
+The complete user directive is preserved under `docs/forerunner/`.
+
+Guilty Spark is a separate editor project. Do not modify it, original game
+installations, maps, disc images, saves or personal assets. The user authorized
+copying game data from Guilty Spark into isolated Forerunner test staging;
+that authorization does not permit modifying the originals or distributing data.
+Compile disposable source exports outside this checkout. Keep generated
+binaries, caches, test maps and research clones out of tracked source.
+
+Preserve attribution and upstream history. Do not push, publish or submit
+upstream changes without explicit authorization. Build success, source feature
+presence, automated simulation, rendered gameplay and human acceptance remain
+separate evidence. Keep unfinished requirements open, and leave a precise
+checkpoint before stopping. The inherited upstream engineering guidance follows.
+
 # Notes for agents
 
 This repository ports the Halo: Combat Evolved decompilation (Xbox build
