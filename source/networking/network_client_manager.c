@@ -4148,13 +4148,12 @@ boolean network_game_client_join_first_available_game(
 	return FALSE;
 }
 
-#ifdef HALO_BROWSER
-/* web: whether the server's authoritative game record has acknowledged one of
+/* port: whether the server's authoritative game record has acknowledged one of
 this machine's local players.  Successfully writing an add-player request is
 not the same thing: a pregame request can cross the server's transition into
-the match and be ignored there.  Browser invite flow uses this acknowledgement
-to retry with the correct pregame/ingame message instead of leaving the
-machine connected as an observer. */
+the match and be ignored there. Browser invites and native test launches use
+this acknowledgement to retry with the correct pregame/ingame message instead
+of leaving the machine connected as an observer. */
 boolean network_game_client_has_local_player(
 	struct network_game_client *client,
 	short local_player_index)
@@ -4180,7 +4179,6 @@ boolean network_game_client_has_local_player(
 	return FALSE;
 }
 
-#endif
 #ifdef HALO_GAME_BROWSER
 /* port: the map bot's fetch (port/linux/game/map_share_client.c) */
 

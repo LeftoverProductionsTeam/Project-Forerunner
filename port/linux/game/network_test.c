@@ -263,6 +263,7 @@ static struct
 	boolean lobby_map_set;
 	real lobby_seconds;
 	boolean player_added;
+	real player_request_seconds;
 	/* debug.network_test_local_players: the host's players on this machine
 	(2 or more: split screen), and how many it has added */
 	short local_players;
@@ -1917,6 +1918,69 @@ static void network_test_password(
 }
 #endif
 
+/* The pregame widget stops asking once the map starts loading. Drive the
+same client API until the host acknowledges each controller, including a
+join that reaches the game before the widget's first request. */
+static void network_test_join_players(
+	real seconds)
+{
+	struct network_game_client *client;
+	short state;
+	short controller;
+	boolean all_added = TRUE;
+
+	if (network_test.mode != _network_test_join || !network_test.set_up ||
+		filesystem_check_thread_is_active())
+		return;
+	client = global_network_game_client_get();
+	if (!client)
+		return;
+	state = network_game_client_get_state(client, NULL);
+	if (state != 2 && state != 3)
+		return;
+	for (controller = 0; controller < network_test.local_players; controller++)
+	{
+		if (!network_game_client_has_local_player(client, controller))
+			all_added = FALSE;
+	}
+	network_test.player_added = all_added;
+	if (all_added)
+		return;
+	network_test.player_request_seconds += seconds;
+	if (network_test.player_request_seconds < 0.5f)
+		return;
+	network_test.player_request_seconds = 0.0f;
+	for (controller = 0; controller < network_test.local_players; controller++)
+	{
+		if (!network_game_client_has_local_player(client, controller))
+			network_game_client_add_player(client, controller);
+	}
+}
+
+/* debug.network_test_start owns this test's start. The ordinary lobby's
+automatic countdown must not start it before the configured setup time. */
+static void network_test_start_host_if_ready(
+	void)
+{
+	struct network_game_server *server = global_network_game_server_get();
+
+	if (!server || network_game_server_port_start_sent(server))
+		return;
+	if (network_test.setup_seconds >= network_test.start_delay && network_test.map_set &&
+		(!network_test.lobby_map[0] || network_test.lobby_map_set))
+	{
+		network_test.started = TRUE;
+		network_test.setup_seconds = 0.0f;
+		network_game_server_pause_countdown(server, FALSE);
+		network_game_client_request_immediate_start();
+		platform_log("network test: starting the game");
+	}
+	else
+	{
+		network_game_server_pause_countdown(server, TRUE);
+	}
+}
+
 void network_test_update(
 	boolean main_menu_loaded,
 	real seconds)
@@ -1925,6 +1989,7 @@ void network_test_update(
 		network_test_read_settings();
 	if (network_test.mode == _network_test_off)
 		return;
+	network_test_join_players(seconds);
 #ifdef HALO_GAME_BROWSER
 	network_test_password();
 #endif
@@ -2521,7 +2586,7 @@ void network_test_update(
 			/* (as picking the next game's map does: the scores' map choice
 			holds the countdown) */
 			if (global_network_game_server_get())
-				network_game_server_pause_countdown(global_network_game_server_get(), FALSE);
+				network_game_server_pause_countdown(global_network_game_server_get(), TRUE);
 			/* a join that arrived as the last game ended would refuse every
 			later one, the server holding it behind the queued player */
 			network_game_server_port_clear_queued_players(global_network_game_server_get());
@@ -2647,6 +2712,7 @@ void network_test_update(
 				if (network_test.public_game)
 					p2p_set_hosting_public(TRUE);
 			}
+			network_test_start_host_if_ready();
 		}
 		else if (!network_test.started)
 		{
@@ -2758,14 +2824,7 @@ void network_test_update(
 				platform_log("network test: the lobby's map changed to %s", network_test.lobby_map);
 				network_test.setup_seconds = 0.0f;
 			}
-			if (network_test.setup_seconds >= network_test.start_delay && network_test.map_set &&
-				(!network_test.lobby_map[0] || network_test.lobby_map_set))
-			{
-				network_test.started = TRUE;
-				network_test.setup_seconds = 0.0f;
-				network_game_client_request_immediate_start();
-				platform_log("network test: starting the game");
-			}
+			network_test_start_host_if_ready();
 		}
 		/* (a start the lobby held, as a Bomb game's does while a machine's
 		Delta handshake is under way, is asked again, as a player would
@@ -2827,12 +2886,11 @@ void network_test_update(
 				NONE, NULL, NONE, NONE, NONE, NONE);
 			platform_log("network test: joining");
 		}
-		else if (network_test.joined && !network_test.player_added)
+		else if (network_test.joined)
 		{
 			network_test.joined_seconds += seconds;
 			if (network_test.joined_seconds >= 3.0f && global_network_game_client_get())
 			{
-				network_test.player_added = TRUE;
 				/* (the probe: as OpenCE's client asks for a package it lacks,
 				in the lobby; the host's answer is in its log and ours) */
 				if (network_test.mcc_request && !network_test.mcc_requested)
@@ -2842,12 +2900,8 @@ void network_test_update(
 						platform_log("network test: the MCC package request was not sent (no MCC messages at this number)");
 				}
 			}
-		}
-		/* (the other team from the host's player: a team game needs both) */
-		else if (network_test.player_added && !network_test.team_set)
-		{
-			network_test.joined_seconds += seconds;
-			if (network_test.joined_seconds >= 5.0f)
+			/* (the other team from the host's player: a team game needs both) */
+			if (network_test.player_added && !network_test.team_set && network_test.joined_seconds >= 5.0f)
 				network_test.team_set = network_game_client_set_team(NONE);
 		}
 		break;
