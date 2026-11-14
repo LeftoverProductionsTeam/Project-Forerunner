@@ -313,3 +313,10 @@ object-resync requests do not trigger that branch. It shares the carrier-pending
 calculation with wave completion and changes no message layout or discovery
 operation. No tests/builds/native runs were performed; text replay does not accept
 late-join actors, reconnects or a full Firefight HUD.
+
+The next source-only lifecycle repair clears the whole finite encounter on a
+full world revert, restoring the original map-start lives and clearing score,
+wave/timers and old handles. The existing respawn-only wipe path does not invoke
+this reset. Preparation retires restored pending hostile carrier bursts before
+new waves. No tests/builds/native runs were performed; saved mid-wave continuation
+and complete restart/reconnect gameplay acceptance remain open.

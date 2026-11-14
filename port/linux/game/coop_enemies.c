@@ -185,6 +185,7 @@ static struct
 	long score;
 	long deadline;
 	short lives;
+	short initial_lives;
 	long wipe_deadline;
 	short unit_count;
 	long units[FIREFIGHT_MAX_TRACKED_ENEMIES];
@@ -586,16 +587,18 @@ static boolean firefight_prepare(void)
 		return FALSE;
 	/* The campaign encounter gives way to the announced wave. These removals
 	are setup, never credited as wave deaths or score. Walk the bodies again:
-	a swarm may contain more bodies than the actor table has entries. */
+	a swarm may contain more bodies than the actor table has entries. Retire
+	pending carrier bursts too, including those a world revert restored. */
 	object_iterator_new(&enemies, _object_mask_biped, 0);
 	while (object_iterator_next(&enemies))
 	{
 		struct unit_datum *unit = unit_get(enemies.index);
 		long actor_index = unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index;
 
-		if (unit->unit.player_index == NONE && actor_index != NONE && actor_try_and_get(actor_index) &&
+		if (unit->unit.player_index == NONE && unit->object.parent_object_index == NONE &&
 			game_team_is_enemy(_game_team_player, unit->object.owner_team_index) &&
-			!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) && unit->object.parent_object_index == NONE)
+			((actor_index != NONE && actor_try_and_get(actor_index) &&
+				!TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) || firefight_spawn_pending(unit)))
 			object_delete(enemies.index);
 	}
 	/* Reuse co-op's in-memory spawn positions for a team recovery. A full
@@ -1098,7 +1101,8 @@ void coop_enemies_new_game(
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
 	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
-	firefight.lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
+	firefight.initial_lives = (short)PIN(config_integer("network.firefight_lives"), 0, 99);
+	firefight.lives = firefight.initial_lives;
 	firefight.selection_valid = strlen(actor) < sizeof(firefight.actor_path) && strlen(spawn) < sizeof(firefight.spawn_encounter);
 	if (firefight.selection_valid)
 	{
@@ -1120,8 +1124,15 @@ void coop_enemies_reset(
 {
 	coop_enemies.vehicle_count = 0;
 	coop_enemies.rider_count = 0;
-	/* A checkpoint restored another set of object handles. */
+	/* A full world revert invalidates the wave handles. Restart the finite
+	encounter with its original allowance and score, preserving the map's
+	frozen actor/spawn settings. Ordinary Firefight wipes do not call here. */
 	firefight.phase = 0;
+	firefight.wave = 0;
+	firefight.score = 0;
+	firefight.deadline = 0;
+	firefight.lives = firefight.initial_lives;
+	firefight.variant = NONE;
 	firefight.unit_count = 0;
 	firefight.wipe_deadline = 0;
 	firefight.outcome[0] = 0;

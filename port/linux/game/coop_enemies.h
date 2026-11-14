@@ -9,7 +9,8 @@ Network co-op's extra enemies, for its players (coop_enemies.c).
 
 /* network_coop.c: a game begins (its EXTRA ENEMIES read), or the host's
 game state went back (a cutscene skipped): the dropships' riders kept are
-forgotten */
+forgotten. A full world revert restarts the finite Firefight encounter;
+respawn-only team wipes preserve its progress and shared lives. */
 void coop_enemies_new_game(
 	void);
 void coop_enemies_reset(

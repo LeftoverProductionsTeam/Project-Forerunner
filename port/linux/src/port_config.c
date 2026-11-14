@@ -1802,7 +1802,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		_platform_all,
 		"Host: shared lives for the finite Firefight encounter, 0 to 99. Each\n"
 		"actual player death consumes one; at zero the survivors keep fighting\n"
-		"without respawns. An exhausted team wipe ends in defeat." },
+		"without respawns. An exhausted team wipe ends in defeat. A full world\n"
+		"checkpoint revert restarts the encounter with zero score and its\n"
+		"original lives; a respawn-only wipe keeps progress and spent lives." },
 	{ "network.coop_pickups", _config_string, "\"none\"", "HALO_NET_COOP_PICKUPS", _environment_value, _platform_all,
 		"Extra campaign weapons, grenades, health kits, overshields and camouflage.\n"
 		"Modes: \"none\", \"per_player\" (coop_enemies percent per extra player),\n"
