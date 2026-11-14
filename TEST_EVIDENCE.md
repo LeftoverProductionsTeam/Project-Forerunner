@@ -557,3 +557,13 @@ is bounded to one per attempt/run; no gear or reward is granted. Source/dependen
 review only, including pinned Faber's stats writer; no tests, builds, launches or
 personal-save access. Same-clock restores, profile switching, capture recovery
 and eventual durable/duplicate-resistant settlement remain unverified.
+
+UNVERIFIED optional controller-facing source adapts pinned OpenH1 body heading,
+ray convergence and collision queries into Forerunner's existing OpenXR adapter.
+Native input carries facing/throttle; cached tracking is read without another
+pose/action sync or XR frame owner. Default stick aiming is preserved. Map and
+restore hooks clear tracked unit state. Source/caller and diff review only:
+no builds, tests, game launches, microphone/device queries or headset runs.
+Menu/focus/tracking loss, recentering, locomotion, firing convergence, networking
+and restore behavior all require later authorized validation. Tracked gun models,
+correct VR reticles, physical interactions and vehicle aiming remain unfinished.

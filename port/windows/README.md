@@ -253,8 +253,8 @@ defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
 The device/session, renderer, stereo camera/FOV caller and basic controller
 input are connected in source through existing native frame/window and Xbox
-input paths. They remain unverified, incomplete VR: tracked weapon aim and OpenH1
-physical interactions still need wiring. No compilation or headset
+input paths. They remain unverified, incomplete VR: tracked weapon rendering,
+reticles and OpenH1 physical interactions still need wiring. No compilation or headset
 validation has been performed under the owner's source-only instruction.
 
 Native menu frames now have a source-only head-locked OpenXR quad path. It
@@ -287,6 +287,16 @@ guide/chat input owners still process the final pad. Unfocused, stale or
 untracked gameplay input is neutral; native rumble also feeds the two hands.
 All mappings, focus/ownership transitions and haptics are unverified. No tracked
 weapon pose, physical reload/grenade gesture or hand-model acceptance is implied.
+
+`vr.aim = "controller"` / `HALO_VR_AIM=controller` optionally routes the right-hand
+aim pose through native first-person, on-foot facing. The default `"gamepad"`
+keeps native stick aiming. Source adapts OpenH1's separate body heading and
+eye-to-controller hit-point convergence; movement is rotated into native facing
+so pointing the hand does not steer walking. Menus, cinematics, vehicle seats,
+focus/tracking loss and map/restore transitions release the tracked path. Existing
+player-action fields carry facing/throttle; no remote hand poses were added.
+This is unbuilt, untested source, not complete VR gunplay. Tracked weapon models,
+correct VR reticles, physical interactions and vehicle aiming remain open.
 
 - The movies play through FFmpeg's Bink decoder
   (`port/linux/src/bink_ffmpeg.c`), built for Bink only and linked

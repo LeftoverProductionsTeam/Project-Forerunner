@@ -130,6 +130,7 @@ symbols in this file:
 #include "mcc_checkpoint.h" /* port: port/linux/game/mcc_checkpoint.h */
 #include "hs_console_state.h" /* port: port/linux/game/hs_console_state.inl */
 #include "extraction.h" /* port: port/linux/game/extraction.c */
+#include "vr_render.h" /* port: optional tracked aim is outside the saved image. */
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_invalidate(void);
 /* port: hs_runtime.c's and hs_globals_external.c's (game_state_image_accept) */
@@ -213,6 +214,9 @@ static game_state_before_load_proc before_load_procs[] =
 	/* port: run/result handles are outside the saved image. Invalidate them
 	   for every checkpoint/disk/core load, even if the clock does not rewind. */
 	extraction_reset,
+#ifdef HALO_OPENXR
+	vr_render_reset_aim, /* port: do not reuse tracked unit handles after a restore. */
+#endif
 	/* port: where the cluster lists' references are, which the game state
 	being loaded does not hold */
 	cluster_partitions_port_forget,

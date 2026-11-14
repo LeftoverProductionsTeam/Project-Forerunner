@@ -12,9 +12,16 @@
 #include "../../include/halo_math.h"
 #include "vr_render.h"
 #include "camera/observer.h"
+#include "camera/director.h"
+#include "game/players.h"
+#include "objects/objects.h"
+#include "physics/collisions.h"
+#include "physics/collision_usage.h"
 #include "render/render_cameras.h"
 #include "scenario/scenario.h"
+#include "units/units.h"
 #include "../src/vr_openxr.h"
+#include "../src/port_config.h"
 #include <string.h>
 
 #define METRES_PER_WORLD_UNIT 3.048f
@@ -28,8 +35,24 @@ static struct
 	unsigned long listener_time;
 	short eye;
 	unsigned int reference_serial;
-	real origin[3], yaw_cos, yaw_sin;
+	real origin[3], yaw_cos, yaw_sin, origin_yaw;
+	boolean aim_synced;
+	long aim_unit;
+	real body_yaw;
 } stereo;
+
+static real wrapped_yaw(real yaw)
+{
+	while (yaw < 0.0f) yaw += 2.0f * _pi;
+	while (yaw >= 2.0f * _pi) yaw -= 2.0f * _pi;
+	return yaw;
+}
+
+void vr_render_reset_aim(void)
+{
+	stereo.aim_synced = FALSE;
+	stereo.aim_unit = NONE;
+}
 
 static void quaternion_rotate(float const q[4], float const v[3], float out[3])
 {
@@ -65,6 +88,10 @@ static void recenter(struct vr_openxr_frame const *frame)
 	quaternion_rotate(frame->eye[1].orientation, xr_forward, forward[1]);
 	yaw = ABS(forward[0][0] + forward[1][0]) + ABS(forward[0][2] + forward[1][2]) > _real_epsilon ?
 		arctangent(-(forward[0][0] + forward[1][0]), -(forward[0][2] + forward[1][2])) : 0.0f;
+	/* OpenH1 keeps world heading stable when the XR reference is recentered. */
+	if (stereo.origin_valid && stereo.aim_synced)
+		stereo.body_yaw = wrapped_yaw(stereo.body_yaw + yaw - stereo.origin_yaw);
+	stereo.origin_yaw = yaw;
 	stereo.yaw_cos = cosine(-yaw);
 	stereo.yaw_sin = sine(-yaw);
 	for (axis = 0; axis < 3; axis++)
@@ -83,12 +110,16 @@ static void eye_camera(struct render_camera const *base, struct vr_openxr_frame 
 	real tangents[4], half_fov_tangent, aspect;
 	short axis;
 
-	/* Native input supplies body heading; headset pitch/roll are independent
-	   local rendering. Tracked weapon/game input is a later integration. */
+	/* Keep body turning separate from the native weapon's tracked facing. */
 	if (preserve_base_orientation)
 		up = base->up;
 	else
 	{
+		if (stereo.aim_synced)
+		{
+			forward.i = cosine(stereo.body_yaw);
+			forward.j = sine(stereo.body_yaw);
+		}
 		forward.k = 0.0f;
 		if (ABS(forward.i) + ABS(forward.j) < _real_epsilon)
 			forward = *global_forward3d;
@@ -140,6 +171,15 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	   split-screen and screenshot paths intact; never submit half an eye pair. */
 	if (!frame.should_render || count != 2 || windows[0].console_window || !windows[1].console_window)
 		return count;
+	if (stereo.aim_synced)
+	{
+		long player_index = windows[0].local_player_index != NONE ?
+			local_player_get_player_index(windows[0].local_player_index) : NONE;
+		struct player_datum *player = player_index != NONE ? player_try_and_get(player_index) : NULL;
+
+		if (!player || player->unit_index != stereo.aim_unit)
+			stereo.aim_synced = FALSE;
+	}
 	if (!stereo.origin_valid || stereo.reference_serial != frame.reference_serial)
 		recenter(&frame);
 	for (eye = 0; eye < 2; eye++)
@@ -235,6 +275,95 @@ boolean vr_render_listener(short local_player_index, struct observer_result cons
 	   location. Outside the loaded BSP, retain the native listener. */
 	scenario_location_from_point(&listener->location, &listener->position);
 	return listener->location.cluster_index != NONE;
+}
+
+/* Adapted from OpenH1's halo_vr_aim and vr_aim_converge at the pin above.
+   Native shots still originate at Halo's deterministic eye. Converge that
+   facing on the controller's hit point, without moving the simulated body. */
+boolean vr_render_player_aim(short local_player_index, long unit_index, boolean permitted,
+	real previous_yaw, real turn_delta, real_euler_angles2d *facing, real_vector2d *throttle)
+{
+	static const float xr_forward[3] = { 0.0f, 0.0f, -1.0f };
+	struct vr_openxr_frame frame;
+	struct unit_datum *unit;
+	struct collision_result collision;
+	real_point3d eye, origin, point;
+	real_vector3d forward, left, up = *global_up3d, offset, direction, ray, from_line, aim, eye_forward;
+	float rotated[3], translation[3];
+	real distance = 100.0f, along, across, nearest, turn, turn_cos, turn_sin, move_forward;
+	short axis;
+	boolean hit;
+
+	if (local_player_index != 0)
+		return FALSE;
+	if (permitted && stereo.aim_synced && stereo.aim_unit == unit_index)
+		stereo.body_yaw = wrapped_yaw(stereo.body_yaw + turn_delta);
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (!permitted || strcmp(config_string("vr.aim"), "controller") || !unit ||
+		unit->object.parent_object_index != NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		unit->unit.player_index != local_player_get_player_index(local_player_index) ||
+		director_get_perspective(local_player_index) != _director_perspective_first_person ||
+		!stereo.origin_valid || !vr_openxr_tracking_read(&frame) || !frame.focused || !frame.should_render ||
+		!frame.hand[1].aim.valid || frame.reference_serial != stereo.reference_serial)
+		goto release;
+	if (!stereo.aim_synced || stereo.aim_unit != unit_index)
+		stereo.body_yaw = wrapped_yaw(previous_yaw + turn_delta);
+	stereo.aim_unit = unit_index;
+	stereo.aim_synced = TRUE;
+	forward.i = cosine(stereo.body_yaw);
+	forward.j = sine(stereo.body_yaw);
+	forward.k = 0.0f;
+	cross_product3d(&up, &forward, &left);
+	director_camera_deterministic(unit_index, &eye, &eye_forward);
+	for (axis = 0; axis < 3; axis++)
+		translation[axis] = frame.hand[1].aim.position[axis] - stereo.origin[axis];
+	world_axes(translation, &forward, &left, &up, &offset);
+	origin.x = eye.x + offset.i / METRES_PER_WORLD_UNIT;
+	origin.y = eye.y + offset.j / METRES_PER_WORLD_UNIT;
+	origin.z = eye.z + offset.k / METRES_PER_WORLD_UNIT;
+	quaternion_rotate(frame.hand[1].aim.orientation, xr_forward, rotated);
+	world_axes(rotated, &forward, &left, &up, &direction);
+	if (!valid_real_point3d(&origin) || !valid_real_vector3d(&direction) || normalize3d(&direction) <= 0.0f ||
+		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
+		goto release;
+	scale_vector3d(&direction, distance, &ray);
+	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_aim_assist;
+	hit = collision_test_vector(_collision_test_for_line_of_sight_flags | FLAG(_collision_test_objects_bipeds_bit),
+		&origin, &ray, object_get_ultimate_parent(unit_index), &collision);
+	--global_current_collision_user_depth;
+	if (hit)
+		distance = distance3d(&origin, &collision.point);
+	vector_from_points3d(&origin, &eye, &from_line);
+	along = dot_product3d(&from_line, &direction);
+	across = (real)sqrt(MAX(magnitude_squared3d(&from_line) - along * along, 0.0f));
+	nearest = MAX(1.5f / METRES_PER_WORLD_UNIT, 3.0f * across + along);
+	distance = MAX(distance, nearest);
+	point.x = origin.x + direction.i * distance;
+	point.y = origin.y + direction.j * distance;
+	point.z = origin.z + direction.k * distance;
+	vector_from_points3d(&eye, &point, &aim);
+	if (normalize3d(&aim) <= 0.0f)
+		goto release;
+	facing->yaw = arctangent(aim.j, aim.i);
+	facing->pitch = arctangent(aim.k, (real)sqrt(aim.i * aim.i + aim.j * aim.j));
+	facing->yaw = wrapped_yaw(facing->yaw);
+	/* Native biped throttle is relative to desired facing (positive j is
+	   left). Preserve body-directed walking while the hand aims elsewhere. */
+	turn = stereo.body_yaw - facing->yaw;
+	turn_cos = cosine(turn);
+	turn_sin = sine(turn);
+	move_forward = throttle->i;
+	throttle->i = turn_cos * move_forward - turn_sin * throttle->j;
+	throttle->j = turn_sin * move_forward + turn_cos * throttle->j;
+	return TRUE;
+release:
+	/* Return native view heading to the body on loss/menu/seat transitions. */
+	if (stereo.aim_synced && stereo.aim_unit == unit_index)
+	{
+		facing->yaw = stereo.body_yaw;
+	}
+	stereo.aim_synced = FALSE;
+	return FALSE;
 }
 
 boolean vr_render_frustum_bounds(struct render_camera const *camera, real_rectangle2d *bounds)

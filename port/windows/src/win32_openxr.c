@@ -492,18 +492,23 @@ static void input_read(struct vr_openxr_frame *frame, int locate_poses)
 	}
 }
 
+int vr_openxr_tracking_read(struct vr_openxr_frame *frame)
+{
+	if (!frame) return 0;
+	memset(frame, 0, sizeof(*frame));
+	if (!vr_openxr_running()) return 0;
+	if (!vr.input_ticks || GetTickCount64() - vr.input_ticks > 250) return 1;
+	*frame = vr.input;
+	frame->focused = vr.state == XR_SESSION_STATE_FOCUSED;
+	return 1;
+}
+
 int vr_openxr_input_read(struct vr_openxr_frame *frame)
 {
 	int hand;
 
-	if (!frame) return 0;
-	memset(frame, 0, sizeof(*frame));
-	if (!vr_openxr_running()) return 0;
-	/* Render stalls and tracking gaps must not leave a fire/movement input
-	   held. Action reads do not wait for a second XR frame or advance poses. */
-	if (!vr.input_ticks || GetTickCount64() - vr.input_ticks > 250) return 1;
-	*frame = vr.input;
-	frame->focused = vr.state == XR_SESSION_STATE_FOCUSED;
+	/* Render stalls and tracking gaps must not leave fire/movement held. */
+	if (!vr_openxr_tracking_read(frame)) return 0;
 	for (hand = 0; hand < 2; hand++)
 	{
 		frame->hand[hand].buttons = 0;

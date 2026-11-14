@@ -59,6 +59,8 @@ enum vr_openxr_layer
 void vr_openxr_frame_end(enum vr_openxr_layer layer, float menu_aspect);
 void vr_openxr_haptic(int hand, float amplitude, float seconds);
 int vr_openxr_running(void);
+/* Latest located poses only: no action sync, wait or second pose query. */
+int vr_openxr_tracking_read(struct vr_openxr_frame *frame);
 /* Same-thread input read from the latest located frame, with fresh actions.
    Returns zero without a running XR session; stale/unfocused input is neutral. */
 int vr_openxr_input_read(struct vr_openxr_frame *frame);

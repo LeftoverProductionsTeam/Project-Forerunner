@@ -213,6 +213,7 @@ symbols in this file:
 #include "real_math.h"
 #include "passenger_camera.h" /* port: port/linux/game/passenger_camera.c; after the limit2d alias above */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "vr_render.h" /* port: optional OpenXR native aim, port/linux/game/vr_render.c */
 #include "stubbs_mode.h" /* port: port/linux/game/stubbs_mode.c */
 #include "stubbs_functions.h" /* port: port/linux/game/stubbs_functions.c */
 #include "stubbs_engine.h" /* port: port/linux/game/stubbs_engine.c */
@@ -455,6 +456,9 @@ void player_control_dispose(
 void player_control_dispose_from_old_map(
 	void)
 {
+#ifdef HALO_OPENXR
+	vr_render_reset_aim(); /* port: release tracking before map objects disappear. */
+#endif
 	return;
 }
 
@@ -664,6 +668,11 @@ static void handle_one_player_input(
 		struct game_globals_player_control);
 	struct input_blob input;
 	long current_weapon_index;
+#ifdef HALO_OPENXR
+	/* port: controller facing is independent of native body turning. */
+	real previous_yaw;
+	boolean tracked_aim = FALSE;
+#endif
 
 	csmemset(
 		&input,
@@ -807,6 +816,10 @@ static void handle_one_player_input(
 				player->zoom_level);
 		}
 
+#ifdef HALO_OPENXR
+		/* port: retain the body's heading before native look modifies it. */
+		previous_yaw = player->desired_angles.yaw;
+#endif
 		if (!director_inhibited_facing(local_player_index))
 		{
 			player_control_angle_step_ticks = time_delta_sec * TICKS_PER_SECOND;
@@ -817,9 +830,25 @@ static void handle_one_player_input(
 			player_control_angle_step_ticks = 1.f;
 		}
 
+#ifdef HALO_OPENXR
+		/* port: reuse native facing/throttle and existing network actions.
+		   Menus, scripted cameras and vehicle seats retain native ownership. */
+		tracked_aim = vr_render_player_aim(local_player_index, player->unit_index,
+			!director_inhibited_facing(local_player_index) &&
+			!director_inhibited_input(local_player_index) &&
+			!player_control_port_menu_has_controller(local_player_index) &&
+			!cinematic_in_progress() && player_control_camera_control_is_active(),
+			previous_yaw, input.facing_delta.yaw, &player->desired_angles, &input.throttle);
+		if (tracked_aim)
+			player->desired_angles.pitch = PIN(player->desired_angles.pitch,
+				player->pitch_minimum, player->pitch_maximum);
+#endif
 		if (unit->object.parent_object_index == NONE)
 		{
 			if (player_ui_autolevel_enabled(local_player_index) &&
+#ifdef HALO_OPENXR
+				!tracked_aim && /* port: never autolevel tracked controller aim. */
+#endif
 				fabs(player->throttle.i) > 0.5 &&
 				input.facing_delta.pitch < 0.0001f &&
 				player->magnetism_level < 0.0001f)
@@ -2044,6 +2073,9 @@ void player_control_initialize_for_new_map(
 {
 	short local_player_index;
 
+#ifdef HALO_OPENXR
+	vr_render_reset_aim(); /* port: tracked unit handles do not survive a map. */
+#endif
 	player_control_globals->action_test_flags = 0;
 	player_control_globals->action_flags = 0;
 	player_control_globals->suppressed_action_flags = 0;

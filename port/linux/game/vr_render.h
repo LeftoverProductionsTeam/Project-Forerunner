@@ -19,5 +19,10 @@ boolean vr_render_frustum_bounds(struct render_camera const *camera, real_rectan
    Does not change the observer, simulation or XR frame ownership. */
 boolean vr_render_listener(short local_player_index, struct observer_result const *base,
 	struct observer_result *listener);
+/* Optional on-foot controller aim through native facing; no new wire fields.
+   permitted is the native camera/menu/input ownership decision. */
+boolean vr_render_player_aim(short local_player_index, long unit_index, boolean permitted,
+	real previous_yaw, real turn_delta, real_euler_angles2d *facing, real_vector2d *throttle);
+void vr_render_reset_aim(void);
 #endif
 #endif

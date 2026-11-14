@@ -594,3 +594,14 @@ UNVERIFIED; source/callers/diffs only, with no builds, tests, launches, user-sav
 access, Spark mutations or pushes. Durable reservations/item identity/settlement,
 cross-mode stash/loadouts and authenticated multiplayer ownership remain open;
 these safeguards do not establish persistence or duplication-exploit acceptance.
+
+UNVERIFIED OpenH1 reuse cycle: optional Windows64 `vr.aim = "controller"`
+connects cached right-hand aim to existing native first-person on-foot facing,
+with native-eye convergence, separate body heading and body-relative throttle.
+The default remains `"gamepad"`. Existing input/camera/menu/seat ownership gates,
+map lifecycle and before-load callbacks release tracking; no new renderer,
+network layout, source dependency or Spark schema was introduced. OpenH1 pin and
+AGPL attribution remain in source and the Spark contract. Native Linux paths
+remain outside HALO_OPENXR. This cycle is runtime functionality source, not
+accepted gameplay; no tests, builds or launches. Tracked weapon rendering,
+reticles, physical interactions, vehicle aiming and hardware proof remain open.

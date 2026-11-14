@@ -925,9 +925,15 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 #ifdef HALO_OPENXR
 	{ "vr.enabled", _config_boolean, "false", "HALO_VR", _environment_value, _platform_desktop,
 		"Optional Windows64 OpenXR/Vulkan integration. Source only, unverified.\n"
-		"Stereo rendering and basic controller source are present. Headset menus,\n"
-		"tracked weapon aim and physical interactions are unfinished. Off by default.\n"
+		"Stereo, headset menus and basic controller source are present. Physical\n"
+		"interactions and tracked weapon rendering are unfinished. Off by default.\n"
 		"Read at start-up; requires a build configured with --with-openxr." },
+	{ "vr.aim", _config_string, "\"gamepad\"", "HALO_VR_AIM", _environment_value, _platform_desktop,
+		"Optional OpenXR aim: \"gamepad\" retains native stick aiming;\n"
+		"\"controller\" uses the right-hand aim pose on foot in first person.\n"
+		"Controller facing, eye convergence and body-directed movement are source\n"
+		"only, unverified. Weapon models, reticles and physical interactions remain\n"
+		"unfinished. Vehicle aiming keeps native controls." },
 #endif
 
 	/* ---- audio */

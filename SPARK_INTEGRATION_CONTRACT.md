@@ -481,6 +481,20 @@ OpenH1 `baed7757`, and Mota's `2467e708` sidecar source in the upstream matrix.
 | MegaWorld and baked content | Spark `megaworld.rs`/`megaworld_build.rs` own source identities, assembly and native output. The uncommitted `gpuLightmap.ts::bakeGpuLightmapDraft` explicitly produces a direct-light draft, not native lightmap tags. Forerunner keeps its native BSP/cache/collision/renderer/resource paths; simultaneous bounded multi-region residency is unfinished. A preview/GPU draft is not a new accepted engine format or proof of 19-region traversal. |
 | VR, voice and Forge | Continue the existing OpenXR/bgfx renderer adapter using pinned OpenH1 transforms/interactions, the inherited Delta/Opus/Halo sound path, and compatible Faber/Mota placement behavior. Do not remove OpenCE browser/guest voice paths as duplicates of native Delta voice: they still have distinct callers/build gates. No second renderer, VOIP stack, sidecar format or cross-repository build dependency was added. |
 
+Optional controller-facing source now uses `source/game/player_control.c`'s
+`handle_one_player_input` and `port/linux/game/vr_render.c`'s
+`vr_render_player_aim`; `port/windows/src/win32_openxr.c::vr_openxr_tracking_read`
+reuses the already located poses rather than owning another XR frame loop.
+`vr.aim = "controller"` is opt-in; `"gamepad"` remains the default. Body-heading
+separation and native-eye convergence adapt OpenH1 `baed77571d53abe32b27434b4ba869f11db00fe9`
+(`halo_vr_aim`, `vr_aim_converge`, `aim_distance`, AGPL-3.0-or-later).
+Native facing/throttle carry the action; no network fields or version changed.
+Map lifecycle and `source/saved games/game_state.c::before_load_procs` release
+outside-image tracking state. No new Spark export or content schema is required.
+This remains unbuilt and unverified. Tracked weapon models, correct VR reticles,
+physical interactions, vehicle aiming and headset acceptance are still missing;
+Spark must not advertise full VR support from this source interface.
+
 All changes after the admitted executable remain source-only/UNVERIFIED. No
 capability/discovery field was upgraded by this checkpoint. Spark's next useful
 handoff is its exact compiled native encounter/cache and ordinary matching data,
