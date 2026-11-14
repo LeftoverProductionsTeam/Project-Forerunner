@@ -3403,9 +3403,9 @@ struct hs_function_table_storage
 #ifdef HALO_CUSTOM_EDITION
 	/* port: and Halo PC's functions the Xbox's have none of, and the
 	port's mods (below); and OpenCE's structure culling (2), and the map's riding call (1) */
-	struct hs_function_definition const *functions[418 + 3 + 24 + 3 + 2 + 1];
+	struct hs_function_definition const *functions[418 + 3 + 24 + 3 + 2 + 1 + 1]; /* port: Forge clone */
 #else
-	struct hs_function_definition const *functions[418 + 2 + 1];
+	struct hs_function_definition const *functions[418 + 2 + 1 + 1]; /* port: Forge clone */
 #endif
 	struct profile_section profile;
 	hs_token_enumerator token_enumerators[18];
@@ -12199,9 +12199,9 @@ static struct hs_function_definition const mods_list_definition=
 	0,
 };
 
-long const hs_function_table_count= 418 + 3 + 24 + 3 + 2 + 1; /* port: and the map's riding call */
+long const hs_function_table_count= 418 + 3 + 24 + 3 + 2 + 1 + 1; /* port: riding and Forge clone */
 #else
-long const hs_function_table_count= 418 + 2 + 1; /* port: and the map's riding call */
+long const hs_function_table_count= 418 + 2 + 1 + 1; /* port: riding and Forge clone */
 #endif
 
 /* port: the culling tests change only this machine's rendering */
@@ -12271,6 +12271,25 @@ static struct hs_function_definition_with_1_parameter const vehicle_riding_defin
 	},
 };
 
+
+/* port: a console-only placement primitive, appended after all existing calls.
+The returned object may be passed to native object_teleport/object_set_scale. */
+HS_EVALUATE_LONG_FROM_LONG(hs_forge_clone_evaluate, cheat_forge_clone)
+
+static struct hs_function_definition_with_1_parameter const forge_clone_definition=
+{
+	{
+		_hs_type_object,
+		0,
+		"forge_clone",
+		hs_macro_function_parse,
+		hs_forge_clone_evaluate,
+		"creates a fresh native copy of an unattached scenery, weapon, equipment or vehicle at its transform; returns none on refusal. Console only; no map or inventory state is saved.",
+		NULL,
+		1,
+		{ _hs_type_object },
+	},
+};
 
 struct hs_enum_definition const hs_enum_table[]=
 {
@@ -12738,6 +12757,7 @@ struct hs_function_table_storage hs_function_table=
 		&debug_structure_culling_definition.definition, /* port: local culling debug view */
 		/* port: the map's riding call follows all existing indices */
 		&vehicle_riding_definition.definition,
+		&forge_clone_definition.definition, /* port: console-only; preserves prior indices */
 	},
 	{
 		"hs_update",
@@ -13278,6 +13298,7 @@ static boolean const hs_function_allowed_in_maps[]=
 
 	/* port: the map's vehicle riding */
 	TRUE, /* vehicle_riding */
+	FALSE, /* port: forge_clone is a console tool, never a map-script call */
 };
 typedef char verify_hs_function_allowed_in_maps_size[
 	NUMBEROF(hs_function_allowed_in_maps) == NUMBEROF(hs_function_table.functions) ? 1 : -1];

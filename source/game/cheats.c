@@ -61,6 +61,7 @@ symbols in this file:
 #include "input/input.h"
 #include "interface/terminal.h"
 #include "items/weapon_definitions.h"
+#include "items/weapons.h" /* port: objective weapons are not Forge clones */
 #include "main/console.h"
 #include "math/real_math.h"
 #include "objects/objects.h"
@@ -218,6 +219,61 @@ boolean cheats_console_object_made(
 	}
 	cheats_console_objects_made++;
 	return TRUE;
+}
+
+/* port: Faber's native placement recipe (forge_3d_mode.c, e4ffe0fe), without
+tag injection or an editor session. Copy placement, never live ownership,
+inventory, AI, children or scenario-name bindings. */
+long cheat_forge_clone(
+	long object_index)
+{
+	struct object_datum *object;
+	struct object_placement_data placement;
+	long clone_index;
+	real scale;
+
+	if (!terminal_command_running || network_game_distributed_client() || network_game_host_cheats_refused())
+	{
+		console_warning("forge_clone requires an allowed local or host console");
+		return NONE;
+	}
+	object = object_try_and_get(object_index);
+	if (!object || object->object.parent_object_index != NONE ||
+		TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
+		!TEST_FLAG(_object_mask_scenery | _object_mask_weapon | _object_mask_equipment | _object_mask_vehicle, object->object.type))
+	{
+		console_warning("forge_clone needs a live, unattached scenery, weapon, equipment or vehicle object");
+		return NONE;
+	}
+	if (object->object.type == _object_type_weapon && weapon_is_flag(object_index))
+	{
+		console_warning("forge_clone cannot duplicate an objective weapon");
+		return NONE;
+	}
+	/* Native creation already carries variant/colors, but not object scale.
+	Do not silently create a differently sized object on the other machines. */
+	if (global_network_game_server_get() && object->object.scale != 1.0f)
+	{
+		console_warning("forge_clone needs local play for scaled objects; network creation does not carry scale");
+		return NONE;
+	}
+	if (!cheats_console_object_allowed())
+		return NONE;
+	object_placement_data_new(&placement, object->definition_index, NONE);
+	SET_FLAG(placement.flags, _new_object_never_automatically_delete_bit, TRUE);
+	placement.position = object->object.position;
+	placement.forward = object->object.forward;
+	placement.up = object->object.up;
+	placement.owner_team_index = object->object.owner_team_index;
+	placement.variant_number = object->object.variant_number;
+	csmemcpy(placement.change_colors, object->object.base_change_colors, sizeof(placement.change_colors));
+	scale = object->object.scale;
+	/* object_new may move the source's storage; retain no pointer across it. */
+	clone_index = object_new(&placement);
+	if (clone_index == NONE || !cheats_console_object_made(clone_index))
+		return NONE;
+	objects_scripting_set_scale(clone_index, scale, 0);
+	return clone_index;
 }
 
 /* port: what the map's own scripts set rider_ejection to (TRUE until they

@@ -428,3 +428,12 @@ editors and MCC-owned state are excluded; unsupported names warn and are skipped
 No tests/builds/queries/games ran. Effect fidelity, map transitions, restart and
 checkpoint behavior, empty defaults and unchanged MCC/network behavior remain
 unverified. No multiplayer, scoring, menu or Spark-rules acceptance is implied.
+
+Independent Forge source increment adds console-only `forge_clone` using existing
+native creation and host/quota gates, adapting Faber's placement recipe. Old table
+indices stay fixed; map admission forbids the new function. Unsupported classes,
+attached/dead objects, objective weapons and scaled network copies are refused.
+No tests/builds/queries/games ran. Native handle composition, placement/appearance,
+allocation/quota failure, client/public-host refusal, late join, platform/script
+table compatibility and unchanged native gameplay remain unverified. No persistent
+layout, AI cloning, full Forge UI or Spark write operation is claimed.

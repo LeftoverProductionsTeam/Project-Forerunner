@@ -91,6 +91,7 @@ the ability to launch a process.
 | Firefight combat/late-join status text | New unverified source sends changed host wave/phase, enemy/pending-spawn counts and score/lives during combat, at most once per second. A newly loaded client's reliable ready message gets an immediate summary and any terminal outcome. Existing transient host HUD/client chat notices only; not a persistent panel, query RPC, structured HUD state or full late-join gameplay acceptance. |
 | Tracked Firefight AI kill credit | New unverified host source credits the last damaging player's existing native kill counter once on final death. AI/environmental/no-statistics damage clears individual attribution; departed/reused player handles are refused. Existing statistics transport only; no individual point totals, assists, medals or new discovery operation. |
 | Live edits, runtime-state query, transactions/undo | Not implemented by this adapter. No private-memory/debug-console fallback. |
+| Native console `forge_clone` | New unverified engine-only placement primitive, not a Spark operation. Duplicates supported loaded objects through existing native creation, local/host authority and console quotas. Map scripts cannot call it. Network scale is unsupported and scaled host copies are refused. No source save/undo or editor transaction; Spark must not bind a write RPC to this console command. |
 
 Accepted discovery identity: `7c65d0865c34-dirty.d990a0d29b19`, Windows/x86,
 upstream version `0.9.1-dev`; exact executable/source hashes are in TEST_EVIDENCE.md.

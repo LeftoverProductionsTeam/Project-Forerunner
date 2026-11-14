@@ -60,6 +60,9 @@ boolean cheats_console_object_allowed(
 	void);
 boolean cheats_console_object_made(
 	long object_index);
+/* port: a fresh native Forge copy, at the source transform; console only. */
+long cheat_forge_clone(
+	long object_index);
 void cheats_load(
 	void);
 void cheat_active_camouflage_local_player(

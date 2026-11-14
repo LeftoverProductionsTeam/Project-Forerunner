@@ -655,6 +655,24 @@ the rest of the game. The lobby and Server Setup name the gametype's mode.
 `hardcore`, `hardcore_ctf`, `hardcore_oddball` and `hardcore_king`
 (`host:bloodgulch:infection`).
 
+## Runtime object cloning (unverified source)
+
+The native console's `(forge_clone object_name)` creates a fresh scenery, weapon,
+equipment or empty vehicle from its loaded definition. It copies placement,
+variant, base colors, team and scale, returning an unnamed object handle. It does
+not copy live health/ammunition, inventory, AI, occupants or scenario bindings.
+Use existing native commands with the returned handle, for example
+`(object_teleport (forge_clone crate_a) clone_spot)` with actual map object/flag names.
+
+Only an allowed local/host console may call it. Existing host-cheat restrictions,
+console object quotas and Xbox index limits apply. Attached/dead objects, bipeds
+and objective weapons are refused. Scaled copies require local play because
+native network creation does not carry scale. Map scripts cannot call it; it is
+not a Spark editing API. Copies last only in the current world: no map/source
+file, Forge layout, undo history or inventory state is saved. This is a Faber-derived
+placement primitive, not the full Forge UI or accepted multiplayer Forge.
+It has not been built, tested or exercised in gameplay.
+
 ## Settings
 
 The settings are in `config.toml` next to the executable

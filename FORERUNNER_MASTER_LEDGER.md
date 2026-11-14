@@ -80,6 +80,20 @@ Only test processes started by this run may be stopped.
 
 ## Exact next action
 
+Independent Forge source increment: `forge_clone` is an appended, console-only
+native object operation based on Faber's `port/forge/src/forge_3d_mode.c` placement
+recipe at `e4ffe0fe9874870b4fca1fca76beb83514c793f4`. It returns an unnamed fresh
+scenery/weapon/equipment/empty-vehicle copy with placement/variant/colors/team/scale,
+using existing host-cheat gates, console quota and Xbox index limits. Attached or
+dead objects, bipeds and objective weapons are refused. Native creation already
+carries variant/colors but not scale, so scaled network copies are refused rather
+than silently diverging. Existing script indices are preserved by appending; map
+admission forbids the new call. No new packet, tag injection, UI, save/undo system,
+Spark write API or file modification is introduced. Full Faber Forge still needs
+its runtime-tag/editor/network integration; native scale transport is a separate
+negotiated feature. No tests/builds/queries/games ran. This is unverified runtime
+source, not accepted Forge or multiplayer compatibility.
+
 The owner's new permanent goal explicitly authorizes independently actionable
 source work across the full engine while tests/native execution remain deferred.
 Independent AI/campaign increment: optional `game.solo_skulls` reuses the existing
