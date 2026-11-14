@@ -177,6 +177,23 @@ available on refusal, and returning to them does not replay the startup selectio
 This setting has not been compiled or exercised and is absent from the previously
 accepted executables. Discovery still advertises only `runtime.discover`.
 
+The authored solo source path already has profile guards:
+`main_get_solo_level_from_name` rejects `@ce` names and
+`player_profile_save_level_completed` refuses unknown/out-of-range campaign
+levels. `main_reset_map_private` resets the loaded world; it is not a content
+revision loader. Spark must stop only its owned process and launch a fresh one
+against the newly reviewed cache for the revision gate. These are inspected
+source paths, not new native acceptance.
+
+Spark's `src/haloScript.ts::exportHaloCeFirefightRound` currently records team
+wave-clear points and terminal states in `gs_ff_score` / `gs_ff_state`, then waits
+for another start request. Forerunner does not interpret those names as a HUD,
+session-result API or restart command. Spark still needs visible round/outcome
+feedback and an explicit replay/exit policy using reviewed native content. A
+one-player/one-life configuration check or a terminal global alone does not prove
+that human gameplay flow. Keep these globals separate from negotiated runtime
+operations; discovery remains read-only.
+
 Forerunner's finite host director may select an original loaded Zombie variant
 and native spawn location once compatible source exists. It remains separate
 from Spark's `gs_firefight` HaloScript controller: select exactly one wave owner.
@@ -281,6 +298,10 @@ reviewed CE-specific source admission and multi-group/controller attachment;
 the current MCC-only single-squad route does not close that gap. Keep native
 HaloScript/encounter ownership separate from the finite host director: an authored
 controller runs with `network.firefight_encounter=false`.
+Include visible score/outcome feedback and deliberate restart/exit behavior in
+that controller handoff; do not assume its private terminal globals drive engine
+menus or the finite director's notices. Revised cache acceptance uses a fresh
+owned process, not only Restart Level in the old one.
 The first authored solo loop is a content/runtime handoff gate, not acceptance of
 the synchronized Firefight milestone. Two-peer execution remains a separate gate.
 
