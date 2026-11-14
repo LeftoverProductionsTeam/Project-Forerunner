@@ -253,8 +253,8 @@ defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
 The device/session, renderer, stereo camera/FOV caller and basic controller
 input are connected in source through existing native frame/window and Xbox
-input paths. They remain unverified, incomplete VR: tracked weapon rendering,
-reticles and OpenH1 physical interactions still need wiring. No compilation or headset
+input paths. They remain unverified, incomplete VR: correct reticles and OpenH1
+physical interactions still need wiring. No compilation or headset
 validation has been performed under the owner's source-only instruction.
 
 Native menu frames now have a source-only head-locked OpenXR quad path. It
@@ -295,8 +295,17 @@ eye-to-controller hit-point convergence; movement is rotated into native facing
 so pointing the hand does not steer walking. Menus, cinematics, vehicle seats,
 focus/tracking loss and map/restore transitions release the tracked path. Existing
 player-action fields carry facing/throttle; no remote hand poses were added.
-This is unbuilt, untested source, not complete VR gunplay. Tracked weapon models,
-correct VR reticles, physical interactions and vehicle aiming remain open.
+Controller weapon posing now adapts OpenH1's `vr_render_weapon_camera`: only the
+native first-person animation/node build sees the right-hand camera, then the
+head camera is restored for world rendering. Both eyes use the same posed weapon;
+flat-screen viewmodel FOV overrides are skipped during stereo eye rendering.
+`vr.weapon_offset` / `HALO_VR_WEAPON_OFFSET` reuses OpenH1's `"0.15, -0.22, 0.30"`
+approximate grip offset in metres (right/up/forward). Components outside -1..1,
+non-finite or malformed values use those defaults. Original models, animations
+and visibility rules remain in use; no independent hand renderer was added.
+This is unbuilt, untested source, not complete VR gunplay. Grip calibration,
+correct VR reticles, standalone/two-hand interactions, physical reload/grenade
+actions and vehicle aiming remain open.
 
 - The movies play through FFmpeg's Bink decoder
   (`port/linux/src/bink_ffmpeg.c`), built for Bink only and linked

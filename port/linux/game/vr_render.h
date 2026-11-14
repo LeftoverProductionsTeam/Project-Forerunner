@@ -14,6 +14,9 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 boolean vr_render_window_begin(struct render_window *window, short *native_window_index);
 void vr_render_window_end(struct render_window *window);
 void vr_render_finish(void);
+boolean vr_render_eye_pass(void);
+/* Only changes position/orientation while native first-person nodes build. */
+boolean vr_render_weapon_camera(struct render_camera *camera);
 boolean vr_render_frustum_bounds(struct render_camera const *camera, real_rectangle2d *bounds);
 /* Center of the actual eye cameras, for the existing sound listener only.
    Does not change the observer, simulation or XR frame ownership. */

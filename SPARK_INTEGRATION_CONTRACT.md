@@ -510,9 +510,18 @@ separation and native-eye convergence adapt OpenH1 `baed77571d53abe32b27434b4ba8
 Native facing/throttle carry the action; no network fields or version changed.
 Map lifecycle and `source/saved games/game_state.c::before_load_procs` release
 outside-image tracking state. No new Spark export or content schema is required.
-This remains unbuilt and unverified. Tracked weapon models, correct VR reticles,
-physical interactions, vehicle aiming and headset acceptance are still missing;
-Spark must not advertise full VR support from this source interface.
+Controller weapon posing now adapts the same OpenH1 pin's
+`vr_render_weapon_camera` and `vr.weapon_offset` defaults.
+`vr_render.c::prepare_weapon_camera` prepares one right-hand animation camera
+for both eyes. `source/render/render.c::render_window` uses it only around
+native first-person node building and restores the head camera before world
+rendering. `view_fov.c::viewmodel_projection_begin` preserves headset eye
+projection instead of applying flat-screen viewmodel FOV. Native weapon models,
+animation graphs and visibility remain authoritative; no new Spark resource
+format or hand/weapon renderer was introduced. This remains unbuilt and
+unverified. Grip calibration, correct VR reticles, standalone/two-hand physical
+interactions, vehicle aiming and headset acceptance are still missing; Spark
+must not advertise full VR support from this source interface.
 
 Native proximity voice now has optional `audio.voice_obstruction` source
 (default false). `source/sound/sound_manager.c::sound_world_obstruction` calls

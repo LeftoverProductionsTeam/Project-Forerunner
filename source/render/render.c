@@ -455,6 +455,19 @@ static void render_window(
 		build_sprite_prepare_for_window();
 		render_sky();
 		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
+#ifdef HALO_OPENXR
+		/* port: OpenH1's weapon-camera hook, adapted in vr_render.c. Only
+		   native first-person node building sees the controller camera. */
+		if (vr_render_eye_pass())
+		{
+			struct render_camera head_camera = render.camera;
+
+			vr_render_weapon_camera(&render.camera);
+			first_person_weapon_render_update();
+			render.camera = head_camera;
+		}
+		else
+#endif
 		first_person_weapon_render_update();
 		HALO_PERF_RENDER_PART(_halo_perf_render_world);
 		lights_preprocess_scene();

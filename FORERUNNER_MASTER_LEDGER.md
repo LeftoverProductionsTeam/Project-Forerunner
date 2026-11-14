@@ -637,3 +637,15 @@ with native equipment and collision clearance. No hub placement is verified.
 This cycle adds gameplay recovery code, not a new respawn/storage system.
 Persistent settlement, per-player multiplayer loss and combined director modes
 remain open. Source/callers/diffs only; no tests, builds, launches or save access.
+
+UNVERIFIED OpenH1 weapon-pose reuse: optional controller aim now supplies a
+right-hand camera only while native first-person weapon nodes are built, then
+restores the head camera for world rendering. Both eyes share that pose; native
+models, animations and visibility rules remain authoritative. Reused OpenH1's
+vr.weapon_offset setting/defaults with finite bounded parsing and kept headset
+eye projection in control instead of flat-screen viewmodel FOV overrides.
+This is runtime source plus a necessary stereo projection repair, with no new
+renderer, game data, network fields or Linux dependency. Attribution/pin remains
+in source and the Spark contract. Grip calibration, correct VR reticles,
+standalone/two-hand/physical actions and vehicle aiming remain unfinished or
+unverified. Source/caller/diff review only; no tests, builds or headset launches.

@@ -5,6 +5,8 @@
  * frustum normalization adapted from OpenH1/goath1 port/linux/src/vr.c and
  * port/linux/game/vr_render.c, baed77571d53abe32b27434b4ba869f11db00fe9,
  * AGPL-3.0-or-later. The OpenH1 renderer/host is not duplicated here.
+ * Controller weapon-camera placement and vr.weapon_offset defaults also
+ * adapt that pin's vr_render_weapon_camera and port_config.c. UNVERIFIED.
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
@@ -23,6 +25,7 @@
 #include "../src/vr_openxr.h"
 #include "../src/port_config.h"
 #include <string.h>
+#include <stdio.h>
 
 #define METRES_PER_WORLD_UNIT 3.048f
 
@@ -39,6 +42,8 @@ static struct
 	boolean aim_synced;
 	long aim_unit;
 	real body_yaw;
+	boolean weapon_camera_valid;
+	struct render_camera weapon_camera;
 } stereo;
 
 static real wrapped_yaw(real yaw)
@@ -52,6 +57,7 @@ void vr_render_reset_aim(void)
 {
 	stereo.aim_synced = FALSE;
 	stereo.aim_unit = NONE;
+	stereo.weapon_camera_valid = FALSE;
 }
 
 static void quaternion_rotate(float const q[4], float const v[3], float out[3])
@@ -156,6 +162,96 @@ static void eye_camera(struct render_camera const *base, struct vr_openxr_frame 
 	camera->z_near = MIN(camera->z_near, 0.05f / METRES_PER_WORLD_UNIT);
 }
 
+/* OpenH1's game-hands offset is the grip from the original animation camera,
+   in metres, right/up/forward. Invalid/out-of-range settings use its defaults. */
+static real_vector3d const *weapon_offset(void)
+{
+	static boolean initialized;
+	static unsigned long read_at;
+	static real_vector3d offset;
+	unsigned long changes = config_changes();
+	real_vector3d parsed;
+	char extra;
+
+	if (!initialized || changes != read_at)
+	{
+		offset.i = 0.15f;
+		offset.j = -0.22f;
+		offset.k = 0.30f;
+		if (sscanf(config_string("vr.weapon_offset"), " %f , %f , %f %c", &parsed.i, &parsed.j, &parsed.k, &extra) == 3 &&
+			parsed.i >= -1.f && parsed.i <= 1.f && parsed.j >= -1.f && parsed.j <= 1.f &&
+			parsed.k >= -1.f && parsed.k <= 1.f)
+			offset = parsed;
+		initialized = TRUE;
+		read_at = changes;
+	}
+	return &offset;
+}
+
+static void prepare_weapon_camera(struct render_camera const *base, struct vr_openxr_frame const *frame)
+{
+	static const float xr_forward[3] = { 0.f, 0.f, -1.f };
+	static const float xr_up[3] = { 0.f, 1.f, 0.f };
+	struct unit_datum *unit;
+	real_vector3d body, left, up = *global_up3d, translation, forward, hand_up, right;
+	real_vector3d const *offset;
+	float rotated[3], relative[3];
+	short axis;
+
+	if (!stereo.aim_synced || !frame->focused || !frame->hand[1].aim.valid ||
+		strcmp(config_string("vr.aim"), "controller") ||
+		director_get_perspective(0) != _director_perspective_first_person)
+		return;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(stereo.aim_unit, _object_mask_biped);
+	if (!unit || unit->unit.player_index != local_player_get_player_index(0) ||
+		unit->object.parent_object_index != NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return;
+	body.i = cosine(stereo.body_yaw);
+	body.j = sine(stereo.body_yaw);
+	body.k = 0.f;
+	cross_product3d(&up, &body, &left);
+	for (axis = 0; axis < 3; axis++)
+		relative[axis] = frame->hand[1].aim.position[axis] - stereo.origin[axis];
+	world_axes(relative, &body, &left, &up, &translation);
+	quaternion_rotate(frame->hand[1].aim.orientation, xr_forward, rotated);
+	world_axes(rotated, &body, &left, &up, &forward);
+	quaternion_rotate(frame->hand[1].aim.orientation, xr_up, rotated);
+	world_axes(rotated, &body, &left, &up, &hand_up);
+	if (!valid_real_vector3d(&translation) || !valid_real_vector3d(&forward) ||
+		!valid_real_vector3d(&hand_up) || normalize3d(&forward) <= 0.f)
+		return;
+	cross_product3d(&forward, &hand_up, &right);
+	if (normalize3d(&right) <= 0.f)
+		return;
+	cross_product3d(&right, &forward, &hand_up);
+	offset = weapon_offset();
+	stereo.weapon_camera = *base;
+	stereo.weapon_camera.forward = forward;
+	stereo.weapon_camera.up = hand_up;
+	stereo.weapon_camera.position.x += (translation.i -
+		right.i * offset->i - hand_up.i * offset->j - forward.i * offset->k) / METRES_PER_WORLD_UNIT;
+	stereo.weapon_camera.position.y += (translation.j -
+		right.j * offset->i - hand_up.j * offset->j - forward.j * offset->k) / METRES_PER_WORLD_UNIT;
+	stereo.weapon_camera.position.z += (translation.k -
+		right.k * offset->i - hand_up.k * offset->j - forward.k * offset->k) / METRES_PER_WORLD_UNIT;
+	stereo.weapon_camera_valid = valid_real_point3d(&stereo.weapon_camera.position);
+}
+
+boolean vr_render_eye_pass(void)
+{
+	return stereo.active && stereo.eye != NONE;
+}
+
+boolean vr_render_weapon_camera(struct render_camera *camera)
+{
+	if (!camera || !vr_render_eye_pass() || !stereo.weapon_camera_valid)
+		return FALSE;
+	camera->position = stereo.weapon_camera.position;
+	camera->forward = stereo.weapon_camera.forward;
+	camera->up = stereo.weapon_camera.up;
+	return TRUE;
+}
+
 short vr_render_prepare(struct render_window *windows, short count, struct render_window **prepared)
 {
 	struct vr_openxr_frame frame;
@@ -163,6 +259,7 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 
 	stereo.active = FALSE;
 	stereo.listener_valid = FALSE;
+	stereo.weapon_camera_valid = FALSE;
 	stereo.eye = NONE;
 	*prepared = windows;
 	if (!xgpu_openxr_frame_begin(&frame))
@@ -182,6 +279,8 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	}
 	if (!stereo.origin_valid || stereo.reference_serial != frame.reference_serial)
 		recenter(&frame);
+	if (windows[0].local_player_index == 0)
+		prepare_weapon_camera(&windows[0].render_camera, &frame);
 	for (eye = 0; eye < 2; eye++)
 	{
 		stereo.windows[eye * 2] = windows[0];

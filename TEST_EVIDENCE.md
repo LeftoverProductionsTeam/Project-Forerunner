@@ -596,3 +596,15 @@ builds, launches or save/profile access. Real death, repeated wipes, allocation
 failure, authored hub starts, equipment, world/AI/loot continuity and ordinary
 respawns all need later native validation. Persistence and multiplayer remain
 unfinished; source presence is not proof of safe respawn or loss acceptance.
+
+UNVERIFIED controller weapon posing adapts pinned OpenH1's weapon camera and
+grip-offset defaults into existing native first-person node construction. Source
+review follows render_window through first_person_weapon_render_update/node
+matrices and interpolation, then world rendering with the restored head camera.
+Both eyes reuse one pose; viewmodel projection begin/end keeps balanced nesting
+while skipping flat-screen FOV changes during stereo eye passes. Invalid offset
+text/non-finite/out-of-range values use upstream defaults. No tests, builds,
+launches or hardware access. Pose/grip alignment, animated weapon effects,
+both-eye consistency, near-depth/projection, tracking loss, recentering, model
+visibility and native flat/Linux parity all require later authorized validation.
+Correct VR reticles and physical interaction acceptance remain open.

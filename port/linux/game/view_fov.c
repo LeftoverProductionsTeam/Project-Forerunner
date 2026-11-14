@@ -13,6 +13,7 @@ that draw the first-person weapon (rasterizer and render sources).
 
 #include "cseries.h"
 #include "view_fov.h"
+#include "vr_render.h"
 #include "camera/director.h"
 #include "cutscene/cinematics.h"
 #include "game/players.h"
@@ -204,6 +205,11 @@ void viewmodel_projection_begin(void)
 	if (projection_depth++ != 0)
 		return;
 	projection_applied = FALSE;
+#ifdef HALO_OPENXR
+	/* The headset owns both asymmetric eye projections, including weapons. */
+	if (vr_render_eye_pass())
+		return;
+#endif
 	/* (display.viewmodel_fov's angle; by default the view's own, from before
 	display.fov widened it: arms and a gun right against the camera stretch
 	at a wide angle) */
