@@ -2908,9 +2908,22 @@ short actors_spawn_from_unit(
 		{
 			struct actor_variant_definition *actor_variant_definition =
 				actor_variant_definition_get(actor_variant_definition_index);
-			struct actor_definition *actor_definition =
-				actor_definition_get(actor_variant_definition->actor_reference.index);
+			struct actor_definition *actor_definition;
 			short spawn_index;
+
+			/* port: Faber's firefight_spawner.c:spawn_single_actor_at checks
+			both required references before getters/placement. A recovered
+			variant may legitimately load with these optional tag fields empty. */
+			if (!actor_variant_definition || actor_variant_definition->actor_reference.index == NONE ||
+				actor_variant_definition->unit_reference.index == NONE)
+			{
+				error(_error_silent, "WARNING: cannot spawn actors from incomplete actor variant %s",
+					tag_get_name(actor_variant_definition_index));
+				if (firefight_parent)
+					coop_enemies_firefight_track_spawned_unit(unit_index, NONE);
+				return 0;
+			}
+			actor_definition = actor_definition_get(actor_variant_definition->actor_reference.index);
 
 			for (spawn_index = 0; spawn_index < actor_count; spawn_index++)
 			{

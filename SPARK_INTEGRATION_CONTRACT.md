@@ -180,6 +180,10 @@ Later unverified source keeps dead tracked carriers off the native garbage list
 until `unit_test_spawning` finishes, then restores normal garbage eligibility.
 Native direct destruction and valid zero-child rolls retain their behavior;
 this does not establish a repair for the historical Zombie physics crash.
+Carrier child variants now also have an unverified prerequisite check adapted
+from Faber: missing actor/unit references report the variant path and reject the
+spawn before native placement; tracked Firefight requests abort. Optional empty
+tag fields are not a runnable actor definition. No source tag is rewritten.
 
 ## Reuse audit and ownership
 

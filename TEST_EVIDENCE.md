@@ -361,3 +361,9 @@ until the existing native spawn attempt finishes, then restores the normal
 garbage policy. Direct destruction and zero-child outcomes remain native.
 No tests/builds/queries/games ran. Collection under memory pressure, actual child
 combat/peer agreement and the historical Zombie crash remain unaccepted.
+
+The next source-only repair checks a child variant's required actor/unit
+references before native getters/placement, adapting Faber's existing spawn check.
+An incomplete variant warns and fails; a tracked Firefight request also aborts.
+No tests/builds/queries/games ran. The retired raw C47 QA files were not recovered;
+its retained nearest-symbol receipt does not prove the old physics-crash cause.

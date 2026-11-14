@@ -197,7 +197,7 @@ off-by-one and early-defeat path; it adds no packet or recovery subsystem.
 No tests/builds/queries/games ran. Final-life solo/two-player deaths, failed spawn,
 quit/slot reuse and later unfunded defeat still require native acceptance.
 
-The next source-only carrier repair removes a dead tracked parent from the native
+Source checkpoint `4a40f576b` removes a dead tracked parent from the native
 garbage list while its animation still owes a child-spawn attempt. Native
 `unit_test_spawning` releases that hold after setting its completion flag; actual
 children continue through the existing tracker. This prevents automatic corpse
@@ -206,3 +206,15 @@ Direct native destruction and zero-child rolls remain native; no synthetic spawn
 new tracking table or timeout was added. No tests/builds/queries/games ran.
 Memory-pressure, carrier-child and creator-map gameplay remain unaccepted; the
 historical Zombie damage/physics crash is not claimed repaired.
+
+The retained C47 receipt gives nearest crash symbols, not a proven cause. Spark's
+current `docs/SOURCE_ONLY_STORAGE_POLICY.md` records retirement of old raw QA
+collections; the corresponding raw crash/symbol files were not found in the known
+roots. Do not recreate that retired environment or infer a physics fix from the
+receipt alone. A later authorized native run needs a fresh exact failure record.
+This cycle adapts Faber's actor/unit reference prerequisites to
+`actors_spawn_from_unit`: incomplete variants report their path and return no
+actors; tracked Firefight requests also abort through the existing failure path.
+The current empty-tag fallback already limits unsafe reads, so this is explicit
+spawn rejection, not a claim to repair the old crash. No tags, originals or Spark
+files were changed. No tests/builds/queries/games ran; native acceptance is open.
