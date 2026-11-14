@@ -401,7 +401,7 @@ function addChunks(r, chunks) {
           for (let i = 0; i < count; i++) {
             const id = u32(), type = u8(), tag = u16(), x = f32(), y = f32(), z = f32();
             const f = [i16() / 32767, i16() / 32767, i16() / 32767], u = [i16() / 32767, i16() / 32767, i16() / 32767];
-            const rest = u8();
+            const flags = u8();
             // (an object is seen in spans: gone while a player holds a
             // weapon, the flag or the ball, and back, the same object, once
             // it lies about again)
@@ -409,7 +409,7 @@ function addChunks(r, chunks) {
             if (!track) { track = { id, type, tag, samples: [], spans: [], start: tick, end: null }; r.objects.set(id, track); }
             if (!track.spans.length || track.spans[track.spans.length - 1].end != null) track.spans.push({ start: tick, end: null });
             track.tag = tag;
-            track.samples.push({ tick, x, y, z, f, u, rest: rest & 1 });
+            track.samples.push({ tick, x, y, z, f, u, rest: flags & 1, dead: !!(flags & 2) });
           }
           if (whole) r.wholeTicks = (r.wholeTicks || 0) + 1;
           break;
@@ -680,6 +680,7 @@ const flashes = [];
 function objectLook(track) {
   const name = (rec.tags.get(track.tag) || "").toLowerCase();
   const leaf = name.split("\\").pop();
+  if (track.type === 0) return { kind: "biped", size: [0.3, 0.3, 0.7], color: 0xdec080, label: leaf || "Unit" };
   if (track.type === 1) {
     const size = /scorpion/.test(name) ? [3.6, 2.3, 1.4] : /banshee/.test(name) ? [2.6, 3.4, 0.8] :
       /ghost/.test(name) ? [2.1, 1.6, 0.7] : /turret|gun/.test(name) ? [1.2, 1.2, 1.4] : /warthog/.test(name) ? [2.3, 1.45, 1.0] :
@@ -709,7 +710,7 @@ function objectLook(track) {
 // thousands of objects, and a frame draws a few hundred)
 const lookGeometries = new Map(), lookMaterials = new Map(), labelMaterials = new Map();
 function lookGeometry(look) {
-  const key = look.kind === "vehicle" || look.kind === "item" ? `box:${look.size.join(",")}` : `sphere:${look.size}`;
+  const key = look.kind === "vehicle" || look.kind === "item" || look.kind === "biped" ? `box:${look.size.join(",")}` : `sphere:${look.size}`;
   if (!lookGeometries.has(key)) lookGeometries.set(key, key.startsWith("box") ?
     new THREE.BoxGeometry(...look.size) : new THREE.SphereGeometry(look.size, 10, 8));
   return lookGeometries.get(key);
@@ -737,13 +738,21 @@ function makeObjectMesh(track) {
   if (!look) return null;
   const group = new THREE.Group();
   const mesh = new THREE.Mesh(lookGeometry(look), lookMaterial(look));
-  if (look.kind === "vehicle" || look.kind === "item") mesh.position.z = look.size[2] / 2;
+  if (look.kind === "vehicle" || look.kind === "item" || look.kind === "biped") mesh.position.z = look.size[2] / 2;
   group.add(mesh);
-  if (look.label && (look.kind === "vehicle" || look.kind === "powerup" || /flag|ball/i.test(look.label))) {
+  let livingLabel = null, deadLabel = null;
+  if (look.label && (look.kind === "vehicle" || look.kind === "powerup" || look.kind === "biped" || /flag|ball/i.test(look.label))) {
     const label = sharedLabel(look.label, look.color);
-    label.position.z = look.kind === "vehicle" ? look.size[2] + 0.4 : 0.6;
+    label.position.z = look.kind === "vehicle" || look.kind === "biped" ? look.size[2] + 0.4 : 0.6;
     label.scale.multiplyScalar(0.8);
     group.add(label);
+    if (look.kind === "biped") {
+      livingLabel = label;
+      deadLabel = sharedLabel(`${look.label} (dead)`, 0x999999);
+      deadLabel.position.copy(label.position); deadLabel.scale.copy(label.scale);
+      deadLabel.visible = false;
+      group.add(deadLabel);
+    }
   }
   let trail = null;
   if (look.trail) {
@@ -753,7 +762,7 @@ function makeObjectMesh(track) {
     scene.add(trail);
   }
   scene.add(group);
-  return { group, look, trail, unseen: 0 };
+  return { group, look, trail, livingLabel, deadLabel, unseen: 0 };
 }
 
 // (an object's three.js part let go: its own trail's geometry; the shared
@@ -790,6 +799,7 @@ function drawObjects(t) {
     o.unseen = 0;
     // (not between samples on either side of a gap: held, then dropped)
     const a = track.samples[i], next = track.samples[i + 1];
+    if (o.deadLabel) { o.livingLabel.visible = !a.dead; o.deadLabel.visible = a.dead; }
     const b = next && (span.end == null || next.tick < span.end) ? next : null;
     const f = b && b.tick - a.tick <= 6 ? Math.min(1, (t - a.tick) / (b.tick - a.tick)) : 0;
     const x = b && f ? a.x + (b.x - a.x) * f : a.x, y = b && f ? a.y + (b.y - a.y) * f : a.y, z = b && f ? a.z + (b.z - a.z) * f : a.z;

@@ -455,3 +455,12 @@ builds, patch application, native queries, launches, Spark changes or pushes.
 Headset menu appearance/comfort, ownership transitions, resize/loss and both
 headsets still need authorized validation. Tracked weapon aim, physical
 interactions/collision and remote tracked poses remain unfinished.
+
+Replay source cycle extends the existing HREC object records to non-player
+bipeds and their corpses, with an optional dead-state flag in the existing flags
+byte. The viewer shows these unit tracks and death labels using its current
+placeholder/local-map model path. Attached object snapshots now use native world
+origin/orientation helpers; change detection and serialized positions agree.
+No record size or network protocol changed. This is necessary runtime source
+progress, UNVERIFIED; no tests, builds, launches, Spark changes or pushes. This
+does not add AI animation/weapon/action history or native in-engine Theater.

@@ -503,3 +503,9 @@ launches or hardware validation ran. Image orientation/color, clipping, focus,
 mouse/controller transitions, hidden-window presentation, resize/loss and comfort
 remain unverified. Tracked pointers, weapon aim and physical interactions remain
 unfinished; no full-VR acceptance is claimed.
+
+UNVERIFIED replay source now follows non-player bipeds, corpse/death state and
+world-space attached objects in the existing HREC object stream. The browser
+viewer can display these tracks with existing local-map models or a labeled
+placeholder. Source/diffs only; no parser tests, builds, recordings, browser
+launches or native runs were executed. AI animation/action fidelity is open.

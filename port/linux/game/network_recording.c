@@ -71,12 +71,14 @@ a type a reader does not know it skips:
               them 1, too fast 2, too high 3, hovering 4), how much (a float)
  10 objects:  tick (4), whole (1: 1 every object, every 5 seconds; 0 those
               that moved or are new), count (2), then each: object (4, its
-              datum index), type (1: objects.h's, a vehicle 1, a weapon 2,
+              datum index), type (1: objects.h's, a non-player biped 0, a vehicle 1, a weapon 2,
               equipment 3, garbage 4, a projectile 5, a machine 7), tag (2),
               position (3 floats), forward and up (3 each, 2 bytes: times
-              32767), flags (1: at rest 1); a whole pass of more than 2048
+              32767), flags (1: at rest 1, dead biped 2); a whole pass of more than 2048
               objects is several records; every 2 ticks: vehicles, items
-              no one holds, projectiles and grenades, doors and elevators
+              no one holds, projectiles and grenades, doors, elevators and
+              non-player bipeds, including their corpses. Object transforms
+              are world-space, including attached units and projectiles.
  11 gone:     tick (4), count (2), then each object (4) gone since
  12 pose:     tick (4), count (1), then each living player's: player (1),
               body facing (2, radians times 10000), velocity (3, 2 bytes
@@ -299,6 +301,7 @@ static struct
 		real_point3d position;
 		short forward[3];
 		short up[3];
+		byte flags;
 		boolean seen;
 	} objects[RECORDING_MAXIMUM_OBJECTS];
 	long objects_time;
@@ -1013,13 +1016,16 @@ static void vector_quantize(
 	out[2] = (short)PIN(vector->k * 32767.0f, -32767.0f, 32767.0f);
 }
 
-/* whether an object is one the recording follows: a vehicle, an item no
-one holds, a projectile or grenade, a door or elevator */
+/* whether an object is one the recording follows: non-player bipeds,
+vehicles, unheld items, projectiles, doors and elevators. Player units already
+have their own frame/pose records; do not draw them twice. */
 static boolean recording_object_followed(
 	struct object_datum const *object)
 {
 	switch (object->object.type)
 	{
+		case _object_type_biped:
+			return ((struct unit_datum const *)object)->unit.player_index == NONE;
 		case _object_type_vehicle:
 		case _object_type_projectile:
 		case _object_type_machine:
@@ -1061,14 +1067,25 @@ static void recording_objects(
 		long absolute_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index);
 		short forward[3], up[3];
 		real_vector3d moved;
+		real_vector3d world_forward, world_up;
+		real_point3d position;
+		byte flags;
 
 		if (absolute_index < 0 || absolute_index >= RECORDING_MAXIMUM_OBJECTS || !recording_object_followed(object))
 			continue;
 		recording.objects[absolute_index].seen = TRUE;
-		vector_quantize(&object->object.forward, forward);
-		vector_quantize(&object->object.up, up);
-		vector_from_points3d(&recording.objects[absolute_index].position, &object->object.position, &moved);
+		/* Attached transforms are parent-local in object_datum. Record the
+		   same world space as players, including AI riding moving vehicles. */
+		object_get_origin(iterator.index, &position);
+		object_get_orientation(iterator.index, &world_forward, &world_up);
+		vector_quantize(&world_forward, forward);
+		vector_quantize(&world_up, up);
+		flags = magnitude_squared3d(&object->object.translational_velocity) < 0.000001f ? 1 : 0;
+		if (object->object.type == _object_type_biped && TEST_FLAG(object->object.damage_flags, _object_dead_bit))
+			flags |= 2;
+		vector_from_points3d(&recording.objects[absolute_index].position, &position, &moved);
 		if (!whole && recording.objects[absolute_index].object_index == iterator.index &&
+			flags == recording.objects[absolute_index].flags &&
 			magnitude_squared3d(&moved) < 0.0001f &&
 			!csmemcmp(forward, recording.objects[absolute_index].forward, sizeof(forward)) &&
 			!csmemcmp(up, recording.objects[absolute_index].up, sizeof(up)))
@@ -1084,7 +1101,8 @@ static void recording_objects(
 			gone[gone_count++] = recording.objects[absolute_index].object_index;
 		}
 		recording.objects[absolute_index].object_index = iterator.index;
-		recording.objects[absolute_index].position = object->object.position;
+		recording.objects[absolute_index].position = position;
+		recording.objects[absolute_index].flags = flags;
 		csmemcpy(recording.objects[absolute_index].forward, forward, sizeof(forward));
 		csmemcpy(recording.objects[absolute_index].up, up, sizeof(up));
 	}
@@ -1128,16 +1146,16 @@ static void recording_objects(
 			at = put_u32(at, (unsigned long)object_index);
 			at = put_u8(at, (unsigned long)datum->object.type);
 			at = put_u16(at, recording_tag(datum->definition_index));
-			at = put_real(at, datum->object.position.x);
-			at = put_real(at, datum->object.position.y);
-			at = put_real(at, datum->object.position.z);
+			at = put_real(at, recording.objects[absolute_index].position.x);
+			at = put_real(at, recording.objects[absolute_index].position.y);
+			at = put_real(at, recording.objects[absolute_index].position.z);
 			at = put_u16(at, (unsigned long)(unsigned short)forward[0]);
 			at = put_u16(at, (unsigned long)(unsigned short)forward[1]);
 			at = put_u16(at, (unsigned long)(unsigned short)forward[2]);
 			at = put_u16(at, (unsigned long)(unsigned short)up[0]);
 			at = put_u16(at, (unsigned long)(unsigned short)up[1]);
 			at = put_u16(at, (unsigned long)(unsigned short)up[2]);
-			at = put_u8(at, magnitude_squared3d(&datum->object.translational_velocity) < 0.000001f ? 1 : 0);
+			at = put_u8(at, recording.objects[absolute_index].flags);
 		}
 		if (!written_count)
 			break;
