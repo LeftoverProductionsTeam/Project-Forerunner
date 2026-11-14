@@ -128,12 +128,21 @@ through the existing reliable notice path. It retains the terminal outcome for a
 join during victory/defeat/abort. Only the existing first-ready branch sends this;
 repeated object-resync requests do not repeat it. This is unbuilt/untested text
 presentation, not full late-join AI/gameplay or a structured Firefight HUD packet.
-The next lifecycle repair makes a full world revert restart the finite encounter
+Source checkpoint `1cf570365` makes a full world revert restart the finite encounter
 with wave/score/timers/handles cleared and its map-start life allowance restored.
 Actor/spawn settings remain frozen for that map. Respawn-only Firefight wipes do
 not call this reset and continue preserving progress/spent lives. Preparation also
 retires old pending hostile carrier bursts from a restored world, without score.
 Source review only; no tests/builds/native runs and no new recovery framework.
+The next source increment adds optional desktop `game.start_map` /
+`HALO_START_MAP`: one installed CE solo cache selected once through the normal
+campaign/profile/loader path, fresh instead of an older saved checkpoint. It
+checks native cache kind/resources and refuses competing startups/sessions;
+failure leaves normal menus available. This supplies Spark's missing source-side
+exact-map selection without a new launcher, RPC or rules importer. It is unbuilt/
+untested and absent from accepted binaries; Spark's build/staging identity and
+shared-folder integration remain its responsibility. Native HaloScript owns the
+authored solo encounter; keep the separate finite co-op director off for that path.
 The original Demo multiplayer map, missing original audio, carrier gameplay,
 multi-group waves, full HUD and creator-map/two-peer acceptance remain open. Do not
 call the actor selector or the accepted B40 proof a completed Zombie encounter.

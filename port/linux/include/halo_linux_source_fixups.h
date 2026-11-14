@@ -112,6 +112,9 @@ own controller's alone */
 struct widget_instance;
 unsigned char pc_menu_screen_reads_every_controller(struct widget_instance const *widget);
 unsigned char pc_menu_screen_routes_by_controller(struct widget_instance const *widget);
+/* (port/linux/game/menu_functions.c, for source/main/main.c) the optional
+one-shot authored CE solo-map selection through the normal campaign path. */
+void pc_menu_start_map_update(unsigned char main_menu_loaded);
 #ifdef HALO_CONSOLE_ANAMORPHIC_SCREEN
 /* a console's 640 pixels stretched to a 16:9 television (halo_console_features.h):
 the present flags that ask for the mode, the interface's units for one of the

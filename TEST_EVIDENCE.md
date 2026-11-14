@@ -320,3 +320,11 @@ wave/timers and old handles. The existing respawn-only wipe path does not invoke
 this reset. Preparation retires restored pending hostile carrier bursts before
 new waves. No tests/builds/native runs were performed; saved mid-wave continuation
 and complete restart/reconnect gameplay acceptance remain open.
+
+The next source-only increment adds optional one-shot desktop startup of an
+installed CE solo map through the existing menu/campaign/profile/loader path.
+It uses `game.start_map` / `HALO_START_MAP`, existing resource checks, and the
+existing persistent-checkpoint opt-out for fresh authored playback. It does not
+create a profile, host a session or import rules; refusal leaves normal menus.
+No tests, builds, capability queries or game launches were run. Accepted binaries
+predate this setting; authored revision loading and complete combat remain open.

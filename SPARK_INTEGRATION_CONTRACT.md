@@ -77,6 +77,7 @@ the ability to launch a process.
 | --- | --- |
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
+| `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path, current difficulty and an existing engine player profile. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
 | `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. B40 proof: two players, nearby loaded Grunt, three two-enemy waves, shared score/notices and lobby return. Not a generic authored encounter adapter. |
 | `network.firefight_lives` / `HALO_NET_FIREFIGHT_LIVES` | Unverified host source, 0–99, frozen at map start. Deaths consume lives; respawn-only wipes preserve progress. A full world revert restarts at wave one with zero score and the initial allowance; not saved mid-wave continuation. |
 | `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment and final-death credit. Three waves of two initial bodies plus native carrier children, bounded to 32 tracked bodies per wave on a co-op scenario; not Spark's authored rules. |
@@ -132,6 +133,19 @@ stays in `maps`. `map_families.c::map_family_list_campaigns` and
 and launch route. There is no advertised direct-map launch RPC. Documented path
 settings are source facts, not acceptance of Spark's current launcher with this
 executable. Do not bypass its identity checks through a debug console.
+
+The new `game.start_map` setting closes the source-side menu-selection gap for
+the initial solo gate. Spark can put `start_map = 'gs_firefight@ce'` in `[game]`
+of its private `--config` file (or set `HALO_START_MAP`) after compiling/staging
+that standard CE solo cache and its resource banks. Use private data/save roots,
+an engine player profile created through its normal UI, and the existing build
+receipt/hash checks; a scenario's equipment profile is not the engine player
+profile. Invalid paths, truncated names, wrong-family/multiplayer/missing caches,
+missing resources/profiles and competing session/test/server startup are refused
+without leaving an existing session. One attempt per process; normal menus stay
+available on refusal, and returning to them does not replay the startup selection.
+This setting has not been compiled or exercised and is absent from the previously
+accepted executables. Discovery still advertises only `runtime.discover`.
 
 Forerunner's finite host director may select an original loaded Zombie variant
 and native spawn location once compatible source exists. It remains separate
@@ -208,7 +222,9 @@ Smallest intended end-to-end gate, still unimplemented/unverified:
 **Spark implements next:** registration/discovery source now exists. Connect a
 reviewed CE build receipt to the selected Forerunner profile through its existing
 launch/deployment code, preserving executable identity and private data/save
-ownership. Its shared-folder identity policy still needs an explicit Forerunner
+ownership. The new unverified startup selection supplies the exact solo-map name
+through that private configuration after the native build/staging step. Its
+shared-folder identity policy still needs an explicit Forerunner
 decision and later native acceptance. Reuse conversion/native source generation
 for the chosen Zombie candidate and support a reviewed derived-source encounter
 handoff without dropping the existing recovery guards. Do not advertise live

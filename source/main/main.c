@@ -3937,6 +3937,9 @@ static boolean main_loop_iteration(
 			render_frame = TRUE;
 
 #ifndef HALO_XBOX_CONSOLE
+			/* port: optional authored CE solo-map startup through the native
+			menu path (port/linux/game/menu_functions.c). */
+			pc_menu_start_map_update(main_globals.main_menu_scenario_loaded);
 			/* automated system link tests (port/linux/game/network_test.c) */
 			MAIN_STAGE("network_test_update");
 			network_test_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
