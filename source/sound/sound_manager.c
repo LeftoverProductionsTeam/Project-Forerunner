@@ -410,6 +410,13 @@ struct sound_listener
 	real_vector3d velocity;
 };
 
+/* port: OpenH1 baed77571d53abe32b27434b4ba869f11db00fe9 (AGPL-3.0-or-later)
+   publishes the listener actually applied to audio, not a second XR sample. */
+#ifdef HALO_OPENXR
+static boolean sound_tracked_listener;
+static short sound_tracked_cluster, sound_tracked_bsp;
+#endif
+
 struct sound_channel_datum
 {
 	long sound_index;
@@ -3455,12 +3462,36 @@ struct sound_obstruction_cache_entry
 	long datum_index;
 	long game_time;
 	short local_player_index;
+	short structure_bsp_index; /* port: geometry may switch within the tick. */
+	boolean tracked_listener; /* port: native/head origin changes within the tick. */
 	real obstruction;
 	real occlusion;
 };
 
 static struct sound_obstruction_cache_entry sound_obstruction_cache[MAXIMUM_SOUND_DATUMS];
 static struct sound_obstruction_cache_entry looping_sound_obstruction_cache[MAXIMUM_LOOPING_SOUND_DATUMS];
+
+/* port: one validity decision for the published origin and both cache users. */
+static boolean listener_uses_tracking(short local_player_index)
+{
+#ifdef HALO_OPENXR
+	return local_player_index == 0 && sound_tracked_listener &&
+		sound_tracked_bsp == global_structure_bsp_index && game_in_progress() && listener_get(0)->valid;
+#else
+	(void)local_player_index;
+	return FALSE;
+#endif
+}
+
+/* port: these results are outside the saved image and belong to its geometry. */
+void sound_clear_obstruction_cache(void)
+{
+	csmemset(sound_obstruction_cache, 0, sizeof(sound_obstruction_cache));
+	csmemset(looping_sound_obstruction_cache, 0, sizeof(looping_sound_obstruction_cache));
+#ifdef HALO_OPENXR
+	sound_tracked_listener = FALSE;
+#endif
+}
 
 static struct sound_obstruction_cache_entry *sound_obstruction_cache_entry(
 	short kind,
@@ -3503,6 +3534,8 @@ static boolean sound_obstruction_cache_recall(
 	if (!entry || !entry->valid ||
 		entry->datum_index != datum_index ||
 		entry->game_time != now ||
+		entry->structure_bsp_index != global_structure_bsp_index || /* port: BSP lifetime. */
+		entry->tracked_listener != listener_uses_tracking(local_player_index) || /* port: origin. */
 		entry->local_player_index != local_player_index)
 	{
 		return FALSE;
@@ -3529,6 +3562,8 @@ static void sound_obstruction_cache_store(
 	entry->datum_index = datum_index;
 	entry->game_time = game_time_get();
 	entry->local_player_index = local_player_index;
+	entry->structure_bsp_index = global_structure_bsp_index; /* port: BSP lifetime. */
+	entry->tracked_listener = listener_uses_tracking(local_player_index); /* port: origin. */
 	entry->obstruction = source->obstruction;
 	entry->occlusion = source->occlusion;
 }
@@ -4252,6 +4287,9 @@ static void refresh_listener(
 	short local_player_index;
 	struct sound_listener *listener;
 
+#ifdef HALO_OPENXR
+	sound_tracked_listener = FALSE; /* port: publish only a fresh applied pose. */
+#endif
 	if (!game_in_progress())
 	{
 		sound_listener_motion_reset(NONE); /* port: do not carry motion through a session gap */
@@ -4272,6 +4310,7 @@ static void refresh_listener(
 			boolean underwater;
 #ifdef HALO_OPENXR
 			struct observer_result tracked_listener;
+			boolean tracked = FALSE;
 #endif
 
 			match_assert(
@@ -4282,7 +4321,10 @@ static void refresh_listener(
 			/* port: the midpoint of the rendered eyes drives local audio,
 			   without writing tracking into the native observer/player. */
 			if (vr_render_listener(local_player_index, camera, &tracked_listener))
+			{
 				camera = &tracked_listener;
+				tracked = TRUE;
+			}
 #endif
 			listener->valid = TRUE;
 			underwater = scenario_location_underwater(
@@ -4346,6 +4388,15 @@ static void refresh_listener(
 				&camera->position,
 				&camera->forward,
 				&camera->up);
+#ifdef HALO_OPENXR
+			/* port: publish after the matrix is applied, including wall fallback. */
+			if (local_player_index == 0 && tracked)
+			{
+				sound_tracked_listener = TRUE;
+				sound_tracked_cluster = camera->location.cluster_index;
+				sound_tracked_bsp = global_structure_bsp_index;
+			}
+#endif
 #ifndef HALO_XBOX_CONSOLE
 			/* (a tick's velocity, not the last frame's: observer.c, the
 			Doppler effect of ChupathingyCE's mixer, which this fork keeps) */
@@ -4400,6 +4451,18 @@ static void refresh_listener(
 
 	return;
 }
+
+#ifdef HALO_OPENXR
+/* port: publish the already applied audio origin, as OpenH1 does. */
+boolean sound_vr_listener_head(short local_player_index, real_point3d *position, short *cluster_index)
+{
+	if (!listener_uses_tracking(local_player_index))
+		return FALSE;
+	*position = listener_get(0)->matrix.position;
+	*cluster_index = sound_tracked_cluster;
+	return TRUE;
+}
+#endif
 
 /* port: DirectSound stays at Halo's canonical origin; source positions are
 transformed per listener before reaching it. Positional VOIP follows that too. */

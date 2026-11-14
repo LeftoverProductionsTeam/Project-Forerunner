@@ -687,3 +687,14 @@ Spark-native script ownership still wins. Network co-op authority and existing
 status transport are unchanged. This is runtime source/necessary placement work,
 not full Zombie Survival, local Extraction integration or large-horde proof.
 Source/callers/diffs only; no tests, builds, launches, save access or pushes.
+
+UNVERIFIED OpenH1 audio reuse: obstruction consumes the listener origin/cluster
+actually applied by native audio. The existing XR adapter now shares eye-to-head
+clearance and native-position fallback across solid geometry, retaining head
+orientation; it retries changed poses/ticks/BSPs. Native datum/query caches key
+BSP and native/head mode and clear with existing map/restore callbacks. Game
+sounds and optional proximity voice share this path; radio, mic policy, native
+observer/player state and packets are unchanged. No new audio/VOIP system.
+This is runtime source/necessary cache work, not hardware or MegaWorld audio
+acceptance. Source/callers/build-source gates reviewed only; no tests, builds,
+launches, audio queries or save access. Multi-region acoustics remain open.

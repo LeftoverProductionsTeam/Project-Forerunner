@@ -1057,9 +1057,10 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "audio.voice_obstruction", _config_boolean, "false", "HALO_VOICE_OBSTRUCTION", _environment_value, _platform_all,
 		"Optional, unverified proximity-voice obstruction using Halo's native BSP\n"
 		"sound distances, visibility/collision queries and I3DL2 muffling. Requires\n"
-		"voice_positional. Team/party radio is unaffected. Uses the native observer\n"
-		"and currently loaded BSP; connected-region and XR-origin acoustics are\n"
-		"unfinished. Off preserves existing voice behavior." },
+		"voice_positional. Team/party radio is unaffected. Uses the applied native\n"
+		"or optional XR head listener in the loaded BSP, with native-position\n"
+		"fallback across solid walls. Connected-region acoustics remain unfinished.\n"
+		"All new behavior is unverified. Off preserves existing voice behavior." },
 #endif
 
 	/* ---- input */

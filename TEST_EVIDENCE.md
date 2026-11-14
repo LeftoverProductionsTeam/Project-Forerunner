@@ -642,3 +642,13 @@ queries. No tests, builds, launches or native validation. Default/custom/endless
 outcomes, resource pressure, corpse clearance, carrier children, late joins,
 lives/reverts/resupply and platform parity require later validation. Wave/score
 saturation is source-reviewed, not a duration or population performance claim.
+
+UNVERIFIED headset obstruction source follows pinned OpenH1's applied-head
+query and eye/head clearance into existing native listener/mixer and BSP queries.
+Published origin/cluster is taken after matrix application and rejected across
+BSP mismatch. Both cache levels now key geometry/mode and clear on map/restore;
+source geometry fallback retains head orientation without observer mutation.
+Reviewed native/server source inclusion and non-OpenXR guards only. No tests,
+builds, launches, audio enumeration or hardware access. Leaning/blocked heads,
+doors/tunnels/underwater, tracking expiry, mode/BSP/restore changes, cache cadence,
+radio/proximity and Linux/Windows parity require later authorized validation.

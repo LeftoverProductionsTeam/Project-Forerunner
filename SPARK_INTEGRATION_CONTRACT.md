@@ -573,9 +573,19 @@ no VOIP transport, microphone policy or network packet changed. The reused
 query cache now keys BSP identity and clears on native map/restore paths.
 Spark supplies ordinary native BSP sound/cluster/visibility and collision data;
 no new acoustic sidecar is required. Team/party radio ignores obstruction.
-This is UNVERIFIED source, using the native observer and currently loaded BSP.
-XR-origin obstruction, multiple local listeners and connected-region acoustics
-remain unfinished; neither this nor a GPU lightmap draft proves them.
+Optional XR obstruction now adapts the pinned OpenH1
+`game_sound.c::sound_vr_ears_get` / `sound_manager.c::sound_vr_listener_head`
+policy. `vr_render.c::vr_render_listener` caches native eye-to-head clearance
+and chooses a native-position fallback across solid geometry while retaining
+head orientation. `sound_manager.c::refresh_listener` publishes its applied
+origin/cluster; `game_sound.c::compute_sound_obstruction` consumes that snapshot
+for both game sounds and optional proximity voice, without another XR query or
+observer/player mutation. `sound_clear_obstruction_cache` clears native datum
+results/head publication on map/restore paths; both cache levels distinguish
+BSP and native/head modes. Native per-sound tick cadence remains in force.
+This is UNVERIFIED source for the currently loaded BSP. Audible head/door/tunnel
+transitions, multiple local VR listeners and connected-region acoustics remain
+unverified or unfinished; neither source presence nor a GPU draft proves them.
 
 All changes after the admitted executable remain source-only/UNVERIFIED. No
 capability/discovery field was upgraded by this checkpoint. Spark's next useful

@@ -9,6 +9,7 @@
  * adapt that pin's vr_render_weapon_camera and port_config.c. UNVERIFIED.
  * Per-eye world-hit reticle projection adapts vr_render_crosshairs, using
  * this runtime's native firing preview and HUD instead of a second HUD layer.
+ * Audio head clearance adapts that pin's game_sound.c::sound_vr_ears_get.
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
@@ -19,6 +20,7 @@
 #include "camera/director.h"
 #include "cutscene/cinematics.h"
 #include "game/players.h"
+#include "game/game.h"
 #include "items/weapons.h"
 #include "objects/objects.h"
 #include "physics/collisions.h"
@@ -41,6 +43,10 @@ static struct
 	boolean active, origin_valid;
 	boolean listener_valid;
 	unsigned long listener_time;
+	boolean listener_path_valid, listener_path_clear;
+	long listener_path_tick;
+	short listener_path_bsp;
+	real_point3d listener_path_eye, listener_path_head;
 	short eye;
 	unsigned int reference_serial;
 	real origin[3], yaw_cos, yaw_sin, origin_yaw;
@@ -68,6 +74,7 @@ void vr_render_reset_aim(void)
 	stereo.aim_unit = NONE;
 	stereo.weapon_camera_valid = FALSE;
 	stereo.reticle_checked = stereo.reticle_scoped = FALSE;
+	stereo.listener_valid = stereo.listener_path_valid = FALSE;
 }
 
 static void quaternion_rotate(float const q[4], float const v[3], float out[3])
@@ -449,6 +456,37 @@ void vr_render_finish(void)
 	stereo.reticle_scoped = FALSE;
 }
 
+/* OpenH1's eye-to-head clearance, shared by audio positioning and obstruction.
+   Also key the native tick/BSP so moving doors and changed geometry are retried. */
+static boolean listener_head_clear(real_point3d const *eye, real_point3d const *head)
+{
+	real_vector3d eye_to_head;
+	struct collision_result collision;
+	long now = game_time_get();
+
+	if (stereo.listener_path_valid && stereo.listener_path_tick == now &&
+		stereo.listener_path_bsp == global_structure_bsp_index &&
+		distance_squared3d(eye, &stereo.listener_path_eye) == 0.f &&
+		distance_squared3d(head, &stereo.listener_path_head) == 0.f)
+		return stereo.listener_path_clear;
+	if (global_current_collision_user_depth <= 0 ||
+		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
+		return FALSE;
+	vector_from_points3d(eye, head, &eye_to_head);
+	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_sounds;
+	stereo.listener_path_clear = magnitude_squared3d(&eye_to_head) == 0.f ||
+		!collision_test_vector(FLAG(_collision_test_front_facing_surfaces_bit) | FLAG(_collision_test_structure_bit) |
+			FLAG(_collision_test_objects_bit) | FLAG(_collision_test_objects_scenery_bit) |
+			FLAG(_collision_test_objects_machines_bit), eye, &eye_to_head, NONE, &collision);
+	--global_current_collision_user_depth;
+	stereo.listener_path_valid = TRUE;
+	stereo.listener_path_tick = now;
+	stereo.listener_path_bsp = global_structure_bsp_index;
+	stereo.listener_path_eye = *eye;
+	stereo.listener_path_head = *head;
+	return stereo.listener_path_clear;
+}
+
 boolean vr_render_listener(short local_player_index, struct observer_result const *base,
 	struct observer_result *listener)
 {
@@ -483,7 +521,15 @@ boolean vr_render_listener(short local_player_index, struct observer_result cons
 	/* Never pair the moved head with the body's old acoustic/underwater
 	   location. Outside the loaded BSP, retain the native listener. */
 	scenario_location_from_point(&listener->location, &listener->position);
-	return listener->location.cluster_index != NONE;
+	if (listener->location.cluster_index == NONE || base->location.cluster_index == NONE)
+		return FALSE;
+	if (!listener_head_clear(&base->position, &listener->position))
+	{
+		/* Retain head orientation, but do not hear from across a solid wall. */
+		listener->position = base->position;
+		listener->location = base->location;
+	}
+	return TRUE;
 }
 
 /* Adapted from OpenH1's halo_vr_aim and vr_aim_converge at the pin above.

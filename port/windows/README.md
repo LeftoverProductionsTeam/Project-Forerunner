@@ -318,6 +318,16 @@ vergence comfort, physical scopes, standalone/two-hand interactions, physical
 reload/grenade actions and vehicle aiming remain open or unverified. The preview
 is an initial straight firing reference, not projectile-flight prediction.
 
+Audio obstruction now adapts OpenH1's applied-head listener and eye-to-head
+clearance policy. The existing centered-head adapter chooses a native-position
+fallback across solid geometry while keeping head orientation; obstruction reads
+the same already applied audio origin/cluster, including optional proximity
+voice. The clearance cache retries for changed poses, native ticks and BSPs;
+existing per-sound obstruction cadence remains tied to native ticks. Map/restore
+paths clear both cache levels and the published head origin. No observer/player
+state, voice transport or microphone policy is changed. This is unverified source
+for the current loaded BSP, not connected-region acoustics or headset acceptance.
+
 - The movies play through FFmpeg's Bink decoder
   (`port/linux/src/bink_ffmpeg.c`), built for Bink only and linked
   statically with the same clang (`tools/ffmpeg_build.py`, under MSYS2's

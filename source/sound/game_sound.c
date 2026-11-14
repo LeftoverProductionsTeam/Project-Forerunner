@@ -267,6 +267,7 @@ void game_sound_dispose(
 void game_sound_initialize_for_new_map(
 	void)
 {
+	sound_clear_obstruction_cache(); /* port: native datum/listener cache lifetime. */
 #ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	obstruction_cache_clear(); /* port: a new cache can reuse tick/position keys. */
 #endif
@@ -297,6 +298,7 @@ void game_sound_clear(
 {
 	long looping_sound_index;
 
+	sound_clear_obstruction_cache(); /* port: also runs before native state loads. */
 #ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	obstruction_cache_clear(); /* port: also called before saved-state restores. */
 #endif
@@ -948,6 +950,9 @@ static struct
 	long game_time;
 	short local_player_index;
 	short structure_bsp_index; /* port: geometry can change without a tick. */
+#ifdef HALO_OPENXR
+	boolean tracked_listener; /* port: distinguish native/applied-head origins. */
+#endif
 	real_point3d position;
 	real obstruction;
 	real occlusion;
@@ -975,17 +980,36 @@ void compute_sound_obstruction(
 	real distance)
 {
 	struct observer_result const *camera = observer_get_camera(local_player_index);
+	/* port: OpenH1 baed77571d53abe32b27434b4ba869f11db00fe9, AGPL-3.0-or-later:
+	   obstruction starts at the listener actually used for audio, including
+	   the safe native-position fallback when the tracked head is behind a wall. */
+	real_point3d const *listener_position = &camera->position;
+	short listener_cluster_index = camera->location.cluster_index;
+#ifdef HALO_OPENXR
+	real_point3d tracked_position;
+	boolean tracked_listener = sound_vr_listener_head(local_player_index, &tracked_position, &listener_cluster_index);
+#endif
 #ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	long slot = obstruction_cache_slot(local_player_index, &source->location.position);
 	long now = game_time_get();
+#endif
 
+#ifdef HALO_OPENXR
+	if (tracked_listener)
+		listener_position = &tracked_position;
+#endif
+#ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	if (obstruction_cache[slot].valid &&
 		obstruction_cache[slot].game_time == now &&
 		obstruction_cache[slot].structure_bsp_index == global_structure_bsp_index && /* port: BSP identity. */
 		obstruction_cache[slot].local_player_index == local_player_index &&
 		obstruction_cache[slot].position.x == source->location.position.x &&
 		obstruction_cache[slot].position.y == source->location.position.y &&
-		obstruction_cache[slot].position.z == source->location.position.z)
+		obstruction_cache[slot].position.z == source->location.position.z
+#ifdef HALO_OPENXR
+		&& obstruction_cache[slot].tracked_listener == tracked_listener /* port: origin. */
+#endif
+		)
 	{
 		source->obstruction = obstruction_cache[slot].obstruction;
 		source->occlusion = obstruction_cache[slot].occlusion;
@@ -1008,12 +1032,12 @@ void compute_sound_obstruction(
 		source->spatialization_mode==_sound_spatialization_mode_absolute);
 
 	if (source->location.game_location.cluster_index != NONE &&
-		camera->location.cluster_index != NONE)
+		listener_cluster_index != NONE)
 	{
 		struct structure_bsp *structure_bsp = global_structure_bsp_get();
 		byte encoded_distance = structure_bsp_get_cluster_encoded_sound_distance(
 			structure_bsp,
-			camera->location.cluster_index,
+			listener_cluster_index,
 			source->location.game_location.cluster_index);
 		real cluster_distance = (encoded_distance & ~FLAG(_cluster_sound_distance_unreachable_bit))
 			* (MAXIMUM_CLUSTER_SOUND_DISTANCE / CLUSTER_SOUND_DISTANCE_VALUE_MASK);
@@ -1023,7 +1047,7 @@ void compute_sound_obstruction(
 			if (BIT_VECTOR_TEST_FLAG(
 				structure_bsp_get_cluster_pvs(
 					global_structure_bsp_get(),
-					camera->location.cluster_index),
+					listener_cluster_index),
 				source->location.game_location.cluster_index))
 			{
 				real_vector3d listener_to_source;
@@ -1031,7 +1055,7 @@ void compute_sound_obstruction(
 
 				source->obstruction = 0.45f;
 				vector_from_points3d(
-					&camera->position,
+					listener_position,
 					&source->location.position,
 					&listener_to_source);
 				if (!collision_test_vector(
@@ -1041,7 +1065,7 @@ void compute_sound_obstruction(
 						FLAG(_collision_test_objects_bit) |
 						FLAG(_collision_test_objects_scenery_bit) |
 						FLAG(_collision_test_objects_machines_bit),
-					&camera->position,
+					listener_position,
 					&listener_to_source,
 					NONE,
 					&collision))
@@ -1068,6 +1092,9 @@ void compute_sound_obstruction(
 	obstruction_cache[slot].valid = TRUE;
 	obstruction_cache[slot].game_time = now;
 	obstruction_cache[slot].structure_bsp_index = global_structure_bsp_index; /* port: BSP identity. */
+#ifdef HALO_OPENXR
+	obstruction_cache[slot].tracked_listener = tracked_listener; /* port: origin. */
+#endif
 	obstruction_cache[slot].local_player_index = local_player_index;
 	obstruction_cache[slot].position = source->location.position;
 	obstruction_cache[slot].obstruction = source->obstruction;
