@@ -191,6 +191,7 @@ struct game_options;
 #include "mcc_loading.h" /* port: port/linux/game/mcc_loading.c */
 #include "mcc_cache.h" /* port: mcc_level_name */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "coop_enemies.h" /* port: opt-in Firefight encounter */
 #include "mcc_loading.h" /* port: port/linux/game/mcc_loading.c */
 #ifdef HALO_PROFILE
 #include "profile_console.h" /* port: port/linux/game/profile_console.c */
@@ -425,7 +426,8 @@ void game_tick(
 	/* port: in network co-op only the host runs the scripts. A client running
 	them would place the map's actors and objects a second time and make
 	decisions that belong to the host. */
-	if (!(network_game_distributed_client() && network_coop_active()))
+	/* port: the opt-in Firefight encounter owns host progression once ready. */
+	if (!(network_game_distributed_client() && network_coop_active()) && !coop_enemies_firefight_active())
 		profile_scope(game_tick_hs_section, hs_update();)
 	profile_scope(game_tick_recorded_animations_section, recorded_animations_update();)
 	HALO_PERF_BEGIN(_halo_perf_tick_objects);

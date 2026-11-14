@@ -381,6 +381,7 @@ symbols in this file:
 #include "networking/network_game_manager.h"
 #include "networking/network_server_manager.h" /* port: a co-op game's level won */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "coop_enemies.h" /* port: opt-in Firefight encounter */
 #include "coop_scripts.h" /* port: port/linux/game/coop_scripts.c */
 #include "network_chat.h" /* port: port/linux/game/network_chat.c */
 #include "network_shield_effects.h" /* port: port/linux/game/network_shield_effects.c */
@@ -2577,6 +2578,13 @@ static void main_won_map_private(
 		struct network_game *game = network_game_get_game();
 
 		main_globals.won_map = FALSE;
+		/* port: Firefight repeats its arena; it does not complete a campaign
+		mission or unlock the next one in the player's profile. */
+		if (coop_enemies_firefight_active())
+		{
+			network_game_server_port_cooperative_won(NULL);
+			return;
+		}
 		level = game ? main_get_solo_level_from_name(game->map.name) : NONE;
 		player_profile_save_level_completed(0);
 		network_game_server_port_cooperative_won(level != NONE ?

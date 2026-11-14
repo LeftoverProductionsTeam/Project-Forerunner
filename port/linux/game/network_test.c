@@ -156,6 +156,8 @@ network_test_update, which does nothing there */
 #include "../src/browser.h"
 #endif
 #include "hs/hs.h"
+#include "network_coop.h"
+#include "game/game_allegiance.h"
 
 #include "../src/p2p.h" /* port: port/linux/src/p2p.c, p2p_lobby.c */
 #ifdef HALO_GAME_BROWSER
@@ -941,6 +943,7 @@ static void network_test_aim(
 		struct data_iterator targets;
 		struct player_datum *candidate;
 		struct player_datum *target = NULL;
+		long target_unit = NONE;
 		real_point3d eye;
 		real_vector3d direction;
 
@@ -955,10 +958,45 @@ static void network_test_aim(
 				break;
 			}
 		}
-		if (!target)
+		if (network_coop_active())
+		{
+			struct object_iterator units;
+			real nearest = 0.0f;
+
+			unit_get_camera_position(player->unit_index, &eye);
+			object_iterator_new(&units, _object_mask_biped, 0);
+			while (object_iterator_next(&units))
+			{
+				struct unit_datum *unit = unit_get(units.index);
+				struct collision_result collision;
+				boolean blocked;
+				real distance;
+
+				if (unit->unit.player_index != NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+					!game_team_is_enemy(_game_team_player, unit->object.owner_team_index))
+					continue;
+				if (global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
+					continue;
+				global_current_collision_users[global_current_collision_user_depth++] = _collision_user_debugging;
+				blocked = collision_test_line(_collision_test_for_line_of_sight_flags, &eye,
+					&unit->object.bounding_sphere_center, object_get_ultimate_parent(player->unit_index), &collision);
+				--global_current_collision_user_depth;
+				if (blocked)
+					continue;
+				distance = distance_squared3d(&object_get(player->unit_index)->object.position, &unit->object.position);
+				if (target_unit == NONE || distance < nearest)
+				{
+					target_unit = units.index;
+					nearest = distance;
+				}
+			}
+		}
+		else if (target)
+			target_unit = target->unit_index;
+		if (target_unit == NONE)
 			continue;
 		unit_get_camera_position(player->unit_index, &eye);
-		vector_from_points3d(&eye, &object_get(target->unit_index)->object.bounding_sphere_center, &direction);
+		vector_from_points3d(&eye, &object_get(target_unit)->object.bounding_sphere_center, &direction);
 		if (normalize3d(&direction) == 0.0f)
 			continue;
 		player_control_set_facing(player->local_player_index, &direction);
@@ -968,7 +1006,7 @@ static void network_test_aim(
 			long weapon_index = unit->unit.current_weapon_index != NONE ?
 				unit->unit.weapon_object_indices[unit->unit.current_weapon_index] : NONE;
 
-			if (weapon_index != NONE && weapon_get(weapon_index)->weapon.magazines[0].rounds_loaded < 4)
+			if (!network_coop_active() && weapon_index != NONE && weapon_get(weapon_index)->weapon.magazines[0].rounds_loaded < 4)
 				weapon_get(weapon_index)->weapon.magazines[0].rounds_loaded = 32;
 		}
 		firing = TRUE;

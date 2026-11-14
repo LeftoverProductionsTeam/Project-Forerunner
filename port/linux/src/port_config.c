@@ -1781,6 +1781,12 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Extra enemies in online co-op: \"none\", \"per_player\" or \"multiplier\".\n"
 		"\"per_player\" uses network.coop_enemies. \"multiplier\" uses\n"
 		"network.coop_enemies_multiplier." },
+	{ "network.firefight_encounter", _config_boolean, "false", "HALO_NET_FIREFIGHT_ENCOUNTER", _environment_value,
+		_platform_all,
+		"Host: after two co-op players leave the opening cinematic near loaded\n"
+		"Covenant grunts, run a finite three-wave Firefight encounter instead\n"
+		"of the campaign scripts. Two enemies per wave, 100 team points per\n"
+		"confirmed death, then return to the same map's lobby. Off by default." },
 	{ "network.coop_pickups", _config_string, "\"none\"", "HALO_NET_COOP_PICKUPS", _environment_value, _platform_all,
 		"Extra campaign weapons, grenades, health kits, overshields and camouflage.\n"
 		"Modes: \"none\", \"per_player\" (coop_enemies percent per extra player),\n"

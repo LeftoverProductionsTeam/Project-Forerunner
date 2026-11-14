@@ -32,29 +32,42 @@ Only the host runs the AI, so all of this is the host's.
 #include "cseries.h"
 #include "ai/actor_placement.h"
 #include "ai/actors.h"
+#include "ai/actor_activation.h"
+#include "ai/actor_definitions.h"
+#include "ai/actor_types.h"
+#include "ai/props.h"
 #include "ai/ai_scenario_definitions.h"
 #include "ai/encounters.h"
 #include "game/game.h"
 #include "game/game_allegiance.h"
 #include "game/players.h"
+#include "main/main.h"
+#include "cutscene/cinematics.h"
+#include "interface/hud_messaging.h"
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
+#include "networking/network_server_manager.h"
 #include "objects/objects.h"
 #include "physics/collisions.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "units/units.h"
+#include "units/bipeds.h"
 #include "units/unit_definitions.h"
 
 #include "coop_enemies.h"
 #include "network_coop.h"
+#include "network_distributed.h"
 
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 
 /* port_config.c's */
 long config_integer(char const *name);
 char const *config_string(char const *name);
+int config_boolean(char const *name);
+void platform_log(char const *format, ...);
 
 /* ---------- constants */
 
@@ -154,12 +167,329 @@ static struct
 	short rider_count;
 } coop_enemies;
 
+/* One finite encounter, using existing campaign tags, navigation and co-op
+replication. The actor creation and clear-all-wave progression are adapted from
+SutlabSol's OpenCE-Faber e4ffe0fe9874870b4fca1fca76beb83514c793f4,
+firefight_spawner.c:spawn_single_actor_at and firefight.c:firefight_update
+(AGPL-3.0-or-later). No Faber ranks, menus or private network packet are needed. */
+static struct
+{
+	boolean enabled;
+	short phase;
+	short wave;
+	long score;
+	long deadline;
+	long units[2];
+	boolean killed[2];
+	long variant;
+	real_point3d origin;
+} firefight;
+
 /* ---------- private code */
 
 static boolean coop_enemies_host(
 	void)
 {
 	return game_connection() == _game_connection_network_server && network_coop_active();
+}
+
+boolean coop_enemies_firefight_active(void)
+{
+	return firefight.enabled && firefight.phase != 0 && coop_enemies_host();
+}
+
+static void firefight_notice(char const *text)
+{
+	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+	short count = distributed_client_machines(machines, NUMBEROF(machines));
+	short index;
+	long local;
+	wchar_t wide[128];
+
+	for (index = 0; text[index] && index < NUMBEROF(wide) - 1; index++)
+		wide[index] = (wchar_t)(unsigned char)text[index];
+	wide[index] = 0;
+	for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
+		hud_print_message((short)local, wide);
+	for (index = 0; index < count; index++)
+		distributed_send_notice_to_machine(machines[index], text);
+	platform_log("firefight: %s", text);
+}
+
+/* A real enemy already standing near the players supplies a loaded grunt tag
+and a navigable spawn origin. Refuse to start without both; no tag injection. */
+static boolean firefight_prepare(void)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+	struct actor_datum *actor;
+	real_point3d player_position;
+	short players = 0;
+	real nearest = 20.0f * 20.0f;
+	long remove_units[MAXIMUM_ACTORS];
+	short remove_count = 0;
+
+	if (cinematic_in_progress())
+		return FALSE;
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+
+		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE)
+			return FALSE;
+		if (!players)
+			player_position = unit->object.position;
+		players++;
+	}
+	if (players < 2)
+		return FALSE;
+	firefight.variant = NONE;
+	data_iterator_new(&iterator, actor_data);
+	while ((actor = (struct actor_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(actor->meta.unit_index, _object_mask_biped);
+		struct actor_variant_definition *variant;
+		real x, y, z, distance;
+
+		if (!unit || !game_team_is_enemy(_game_team_player, unit->object.owner_team_index) ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE)
+			continue;
+		variant = actor_variant_definition_get(actor->meta.variant_definition_index);
+		x = unit->object.position.x - player_position.x;
+		y = unit->object.position.y - player_position.y;
+		z = unit->object.position.z - player_position.z;
+		distance = x*x + y*y + z*z;
+		if (variant->actor_reference.index != NONE && distance < nearest &&
+			actor_definition_get(variant->actor_reference.index)->type == _actor_grunt)
+		{
+			nearest = distance;
+			firefight.variant = actor->meta.variant_definition_index;
+			firefight.origin = unit->object.position;
+		}
+		if (remove_count < NUMBEROF(remove_units))
+			remove_units[remove_count++] = actor->meta.unit_index;
+	}
+	if (firefight.variant == NONE)
+		return FALSE;
+	/* The campaign encounter gives way to the announced wave. These removals
+	are setup, never credited as wave deaths or score. */
+	while (remove_count > 0)
+		object_delete(remove_units[--remove_count]);
+	return TRUE;
+}
+
+static long firefight_spawn(short number)
+{
+	struct actor_variant_definition *variant = actor_variant_definition_get(firefight.variant);
+	struct object_placement_data placement;
+	struct actor_datum *actor;
+	real_point3d position;
+	long unit_index, actor_index;
+
+	if (!coop_enemies_spread_position(&firefight.origin, number + 1, NULL, &position))
+		return NONE;
+	object_placement_data_new(&placement, variant->unit_reference.index, NONE);
+	placement.position = position;
+	placement.owner_team_index = _game_team_covenant;
+	unit_index = object_new(&placement);
+	if (unit_index == NONE)
+		return NONE;
+	biped_fix_position(unit_index, NONE, &position, NULL, 1.0f, TRUE, FALSE, FALSE);
+	actor_customize_unit(firefight.variant, unit_index);
+	actor_index = actor_create_for_unit(FALSE, unit_index, firefight.variant, NONE, NONE,
+		FALSE, NONE, FALSE, 2, 0, NONE, 0);
+	if (actor_index == NONE)
+	{
+		object_delete(unit_index);
+		return NONE;
+	}
+	actor = actor_get(actor_index);
+	actor->meta.force_active = TRUE;
+	actor->meta.dormant_desire = FALSE;
+	if (!actor->meta.active)
+		actor_set_active(actor_index, TRUE);
+	if (actor->meta.active && actor->meta.dormant)
+		actor_set_dormant(actor_index, FALSE);
+	actor_set_team(actor_index, _game_team_covenant);
+	object_set_automatic_deactivation(unit_index, FALSE);
+	actor_verify_activation(actor_index);
+	return unit_index;
+}
+
+/* Faber's direct_actor_toward_unit, limited to the player target needed by
+this encounter. Use the actor's perception/path machinery, not unit teleports. */
+static void firefight_pursue(long unit_index)
+{
+	struct unit_datum *unit = unit_get(unit_index);
+	struct actor_datum *actor;
+	struct data_iterator iterator;
+	struct player_datum *player;
+	long target = NONE, prop_index;
+	real nearest = 0.0f;
+
+	if (unit->unit.actor_index == NONE)
+		return;
+	actor = actor_get(unit->unit.actor_index);
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum *candidate = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		real distance;
+
+		if (!candidate || TEST_FLAG(candidate->object.damage_flags, _object_dead_bit))
+			continue;
+		distance = distance_squared3d(&unit->object.position, &candidate->object.position);
+		if (target == NONE || distance < nearest)
+		{
+			target = player->unit_index;
+			nearest = distance;
+		}
+	}
+	if (target == NONE || !actor->meta.active)
+		return;
+	actor->external_orders.defending = FALSE;
+	actor->emotions.currently_defending = FALSE;
+	actor->emotions.forced_to_charge = TRUE;
+	actor->state.artificial_combat_status = MAX(actor->state.artificial_combat_status, 4);
+	prop_index = prop_get_base_by_unit_index(unit->unit.actor_index, target, TRUE, TRUE);
+	if (prop_index != NONE)
+	{
+		struct prop_datum *prop = prop_try_and_get(prop_index);
+
+		if (prop && prop->state >= _prop_state_uninspected_orphan && prop->state <= _prop_state_inspected_orphan)
+		{
+			prop_index = prop->parent_prop_index;
+			prop = prop_index != NONE ? prop_try_and_get(prop_index) : NULL;
+		}
+		if (prop && (actor->target.target_prop_index != prop_index || prop->state != _prop_state_acknowledged))
+		{
+			/* Faber's AI_UNIT_EFFECT_MAGIC_SIGHT. */
+			actor_handle_unit_effect(unit->unit.actor_index, prop_index, 3);
+			prop = prop_try_and_get(prop_index);
+		}
+		if (prop && prop->state >= _prop_state_becoming_unacknowledged && prop->state <= _prop_state_acknowledged)
+		{
+			prop->enemy = TRUE;
+			prop->ally = FALSE;
+			prop->preferred_target = TRUE;
+			prop->ineffability = 3;
+			actor->target.target_prop_index = prop_index;
+			actor->target.target_type = _actor_target_acknowledged_enemy;
+		}
+	}
+	if (!actor->control.path.path.valid && nearest > 3.5f * 3.5f)
+	{
+		if (prop_index != NONE)
+			actor_move_to_prop(unit->unit.actor_index, prop_index, 5.0f);
+		else
+			actor_move_to_point(unit->unit.actor_index, &object_get(target)->object.position, NONE, NONE);
+	}
+}
+
+static void firefight_update(void)
+{
+	long now = game_time_get();
+	short index, dead = 0;
+
+	if (!firefight.enabled)
+		return;
+	if (!firefight.phase)
+	{
+		if (firefight_prepare())
+		{
+			firefight.phase = 1;
+			firefight.wave = 1;
+			firefight.deadline = now + 5 * TICKS_PER_SECOND;
+			firefight_notice("Firefight: prepare for the wave");
+		}
+		return;
+	}
+	if (firefight.phase == 1 && now >= firefight.deadline)
+	{
+		for (index = 0; index < NUMBEROF(firefight.units); index++)
+		{
+			firefight.units[index] = firefight_spawn(index);
+			if (firefight.units[index] == NONE)
+			{
+				firefight.phase = 4;
+				firefight.deadline = now + 5 * TICKS_PER_SECOND;
+				firefight_notice("Firefight: spawn failed; encounter aborted");
+				return;
+			}
+			platform_log("firefight: spawned %08lx", (unsigned long)firefight.units[index]);
+		}
+		firefight.phase = 2;
+		{
+			char text[128];
+
+			snprintf(text, sizeof(text), "Firefight: wave %d of 3 - eliminate both enemies", (int)firefight.wave);
+			firefight_notice(text);
+		}
+	}
+	if (firefight.phase == 2)
+	{
+		for (index = 0; index < NUMBEROF(firefight.units); index++)
+		{
+			struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(firefight.units[index], _object_mask_biped);
+
+			if (!firefight.killed[index] && !unit)
+			{
+				firefight.phase = 4;
+				firefight.deadline = now + 5 * TICKS_PER_SECOND;
+				firefight_notice("Firefight: enemy lost; encounter aborted");
+				return;
+			}
+			if (!firefight.killed[index] && TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			{
+				firefight.killed[index] = TRUE;
+				firefight.score += 100;
+				platform_log("firefight: enemy died %08lx", (unsigned long)firefight.units[index]);
+			}
+			if (!firefight.killed[index] && now % 15 == 0)
+				firefight_pursue(firefight.units[index]);
+			dead += firefight.killed[index] ? 1 : 0;
+		}
+		if (dead == NUMBEROF(firefight.units))
+		{
+			firefight.phase = 3;
+			firefight.deadline = now + 3 * TICKS_PER_SECOND;
+			{
+				char text[128];
+
+				snprintf(text, sizeof(text), "Firefight: wave %d cleared - team score %ld", (int)firefight.wave, firefight.score);
+				firefight_notice(text);
+			}
+		}
+	}
+	if (firefight.phase == 3 && now >= firefight.deadline)
+	{
+		if (firefight.wave < 3)
+		{
+			firefight.wave++;
+			csmemset(firefight.killed, 0, sizeof(firefight.killed));
+			firefight.phase = 1;
+			firefight.deadline = now + 5 * TICKS_PER_SECOND;
+			firefight_notice("Firefight: reinforcements incoming");
+		}
+		else
+		{
+			firefight.phase = 4;
+			firefight.deadline = now + 5 * TICKS_PER_SECOND;
+			{
+				char text[128];
+
+				snprintf(text, sizeof(text), "Firefight: victory - three waves cleared, team score %ld", firefight.score);
+				firefight_notice(text);
+			}
+		}
+	}
+	if (firefight.phase == 4 && now >= firefight.deadline)
+	{
+		firefight.phase = 5;
+		/* The main loop owns the world/lobby transition. */
+		main_won_map();
+	}
 }
 
 /* whether this game has extra enemies (it is a co-op host's, with some
@@ -418,6 +748,8 @@ void coop_enemies_new_game(
 	char const *mode = config_string("network.coop_enemies_mode");
 
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
+	csmemset(&firefight, 0, sizeof(firefight));
+	firefight.enabled = config_boolean("network.firefight_encounter") != 0;
 	/* (an amount past Server Setup's, as it shows it: its nearest choice's
 	end) */
 	coop_enemies.percent = (short)PIN(config_integer("network.coop_enemies"), COOP_ENEMIES_MINIMUM_PERCENT,
@@ -433,6 +765,9 @@ void coop_enemies_reset(
 {
 	coop_enemies.vehicle_count = 0;
 	coop_enemies.rider_count = 0;
+	/* A checkpoint restored another set of object handles. */
+	firefight.phase = 0;
+	csmemset(firefight.killed, 0, sizeof(firefight.killed));
 }
 
 short coop_enemies_extra_count(
@@ -625,6 +960,7 @@ void coop_enemies_update(
 
 	if (!coop_enemies_host())
 		return;
+	firefight_update();
 	for (vehicle_number = coop_enemies.vehicle_count - 1; vehicle_number >= 0; vehicle_number--)
 	{
 		struct coop_riding_vehicle *vehicle = &coop_enemies.vehicles[vehicle_number];

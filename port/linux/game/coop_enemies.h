@@ -62,4 +62,7 @@ at their vehicle's seats once its own riders get out */
 void coop_enemies_update(
 	void);
 
+/* game.c: the opt-in Firefight encounter has taken over the host's scripts. */
+boolean coop_enemies_firefight_active(void);
+
 #endif
