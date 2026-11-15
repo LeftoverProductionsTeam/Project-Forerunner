@@ -6,7 +6,7 @@ Real native file/process behavior is covered by tools/test_gear_files.py.
 import re
 import pytest
 
-from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run
+from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 from harness.tests.test_gear import generated as gear_generated
 
 
@@ -33,6 +33,10 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
             'now - medical_players[healer_slot].last_damage < 2 * TICKS_PER_SECOND ||', '')
     files.append(('extraction.inc', extraction))
     files.append(('evacuation.inc', function(director, 'firefight_try_evacuation')))
+    hud = read('source/interface/hud_nav_points.c')
+    files.append(('medical_hud_types.inc', structure(hud, 'hud_waypoint_arrow') +
+                  '\n#define MAXIMUM_NUMBER_OF_NAV_POINTS %d' % constant(hud, 'MAXIMUM_NUMBER_OF_NAV_POINTS')))
+    files.append(('medical_hud.inc', function(hud, 'hud_render_medical_nav_points')))
     devices = read('source/devices/devices.c')
     controls = read('source/devices/device_controls.c')
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
@@ -52,6 +56,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'evac-loop', 'evac-pending', 'evac-presence', 'evac-binding',
                                  'evac-finite-win', 'evac-finite-loss', 'evac-no-survivors',
                                  'medical-authority', 'medical-revive', 'medical-interrupt',
+                                 'medical-guidance', 'medical-guidance-client', 'medical-guidance-budget',
+                                 'medical-guidance-styles', 'medical-guidance-countdown',
                                  'medical-bleed', 'medical-replica', 'medical-restore', 'medical-gear'])
 def test_extraction_workflow(case):
     status, output = run(build('extraction', generated()), case)
@@ -69,6 +75,25 @@ def test_biped_admission_negative_control():
     status, output = run(build('extraction', generated((
         '!unit_can_use_weapon(player->unit_index, created[index])',
         'FALSE'))), 'biped-second')
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('file,before,after,case', [
+    ('extraction.inc', '!(viewer->object.body_vitality >= 0.f)',
+     '!(viewer->object.body_vitality > 0.f)', 'medical-guidance-client'),
+    ('extraction.inc', '!game_team_is_enemy(viewer->object.owner_team_index, target->object.owner_team_index)',
+     'TRUE', 'medical-guidance'),
+    ('medical_hud_types.inc', '#define MAXIMUM_NUMBER_OF_NAV_POINTS 4',
+     '#define MAXIMUM_NUMBER_OF_NAV_POINTS 8', 'medical-guidance-budget'),
+    ('medical_hud.inc', 'custom_render_nav_point(local_player_index, &nearest[index].position, arrow, screen);',
+     '(void)screen;', 'medical-guidance'),
+    ('extraction.inc', '(remaining <= 5 * TICKS_PER_SECOND || remaining % (5 * TICKS_PER_SECOND) == 0)',
+     'TRUE', 'medical-guidance-countdown'),
+])
+def test_medical_guidance_negative_control(file, before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == file else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
     assert status == CHECK_FAILED, output
 
 

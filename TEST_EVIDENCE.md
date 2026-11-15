@@ -9,8 +9,79 @@ The owner's later Development & Verification Directive now authorizes focused
 compilation/automated tests and targeted isolated native smoke/synchronization
 checks. Earlier source-only entries remain unverified until actual results are
 recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
-remain separate final-phase gates. Current work prioritizes inventory authority,
-shared-loot synchronization and safe Extraction persistence.
+remain separate final-phase gates. Current work prioritizes native operations
+gameplay, authoritative gear, revival and co-op stability.
+
+15 November, connected native revival guidance (base `6a0d131f7e`): the existing
+Extraction C harness compiles/passes 35 workflows with MSVC x86 `/O2 /W3 /WX`.
+New cases exercise the actual medical eligibility and native HUD selection/draw
+helper: friendly/hostile/self/dead/pending-death/quit/ownership gates, invalid
+local views, body salt and epoch changes, client receive/recovery, zero-quantized
+living health, four nearest of seven casualties, native occlusion/interpolation,
+missing-arrow/bitmap fallback, private five-second reminders/final one-second
+urgency, and recovery/restore cleanup. Five broken controls detect the captured
+positive-health regression, enemy leakage, unbounded draws/traces, disconnected
+native drawing and reminder spam. Existing inventory, evacuation and medical
+cases remain passing. OS, identity, collision, HUD draw and vitality transport
+adapters are fixtures; these checks are not native multiplayer acceptance.
+
+Native Windows64/bgfx/OpenXR compilation uses the existing cache. Rendered
+acceptance uses existing `net_compare.py --window`, B40/co-op, seconds 75, skip 5,
+start 8, timeout 130, hidden OpenGL windows and XR explicitly false. Both copies
+stand still using `HALO_TEST_INPUT=menu:wait`; only the host enables `HALO_REVIVE`.
+Existing native cues wait for two bodies, pause AI, and prepare low vitality;
+the existing 40-second shot simulator produces one casualty. An event watcher
+uses the existing input-file interface for screenshots and nine seconds of held
+E starting at tick 1500. No new engine probe or testing framework. On both host-
+and client-healer runs, logs show incapacitation at tick 1200, treatment from
+1500 and completion at 1650; both peers show the same body's 0.25 health and
+native medical epoch 1 entry/exit. Input comes from replay, not a human player.
+
+- `build/native-medical-guidance-revival/results.json`: **PASS**, host healer,
+  77 compared seconds, tick offset 0, mean/max position separation 0.018023/1.349904,
+  aim max 0 degrees, one position boundary mismatch within unchanged limits.
+  Drift 61/815 samples, mean/max 0.000155817/0.006441; 216 corrections. Native
+  captures show the blue casualty arrow and its disappearance after treatment:
+  `captures/downed-ally.png` and `captures/revived-ally.png`. This binary predates
+  the message shortening and client eligibility correction.
+- `build/native-medical-guidance-client-healer/results.json`: synchronization
+  **PASS**, 77 seconds, but client HUD presentation **FAIL**. A living healer's
+  tiny positive health rounds to zero in existing native vitality encoding;
+  requiring positive health hid its ally marker. The missing-marker PNG and
+  original logs remain. Native client treatment itself succeeds; that does not
+  establish a correct client HUD. No vitality encoding or damage rule changed.
+- `build/native-medical-guidance-client-fixed/results.json`: **PASS**, joining
+  player heals host, 77 seconds, tick offset 0, mean/max separation
+  0.011057/1.349904, aim max 3 degrees, one position boundary mismatch. Drift
+  23/1607 samples, mean/max 0.000025348/0.003364; 223 corrections. Actual inspected
+  `client-downed-ally.png` shows the corrected native arrow; the matching
+  `client-revived-ally.png` shows completed treatment and marker removal.
+  `casualty-entry.png` preserves the host warning and its remaining text clipping.
+  The final source shortens that casualty caption further; it compiles but is
+  not recaptured. Both successful native verdicts use unmodified judging limits.
+
+Failed preparation is preserved separately: `native-medical-guidance-rendered`
+passes ordinary synchronization for 37 seconds but never reaches its injury
+cues after B40's delayed second-body spawn; it is not casualty proof.
+`native-medical-guidance-casualty` passes 77 seconds but its stimulus assertion
+**ERRORs** because shields recharged before the shot. After those two approaches,
+exact native ticks/shield samples and native shield-depletion source established
+the cause. Preparation at cue offset 4.4 (native tick 1198) immediately before
+the tick-1200 shot produces the accepted casualty. No speculative engine damage
+patch, relaxed gate or relabeled failed presentation was used.
+
+`build/native-medical-guidance-client-fix-build.log` compiled the final native
+client acceptance binary, SHA-256
+`629fbd277f1fa6020fdd080129191f642eea95d012b2c5183336ae9df3bc22d5`.
+Final text-only casualty shortening compiles in
+`build/native-medical-guidance-caption-build.log`, SHA-256
+`1254fc986a3425966864fe21c5a6b50a63925796b33e2c8bd760d558a8c73dd5`.
+Compact PNG conversions preserve identical pixels. Bulk BMPs, copied maps, peer
+data and compile scratch are removed; protected ui/B40/carousel hashes match
+`build/native-firefight-pursuit-inputs.json`. Existing native HUD resources,
+medical metadata and private notices are reused; scripted nav-point slots and
+saved layouts are untouched. Native dense/multiple casualties, hostile PvPvE,
+other platforms, full operations and VR hardware remain unverified.
 
 15 November, native-body loadout admission (base `016dbc727a`): the existing
 connected Extraction/gear C harness passes 23 MSVC x86 `/O2 /W3 /WX` workflows.

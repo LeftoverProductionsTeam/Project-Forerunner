@@ -30,6 +30,9 @@ struct player_action;
 /* Optional native medical control: downed is alive, never a cleared dead bit.
  * Epoch/tick metadata reuses negotiated Delta object sync; legacy stays stock. */
 boolean extraction_medical_incapacitated(long unit_index);
+/* Read-only local guidance and host notices share actual medical ownership and
+ * native allegiance. No spectator/enemy positions or new network state. */
+boolean extraction_medical_ally_incapacitated(long viewer_unit, long target_unit);
 boolean extraction_medical_predictable(short absolute_player_index);
 boolean extraction_medical_network_enabled(void);
 void extraction_medical_network_state(long unit_index, boolean downed, unsigned int epoch, unsigned short tick);

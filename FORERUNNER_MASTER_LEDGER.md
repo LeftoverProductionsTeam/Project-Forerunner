@@ -3,6 +3,27 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current revival guidance: the existing medical state now drives the native HUD's
+four nearest friendly casualty arrows, without consuming scripted mission-marker
+slots. Native occlusion/off-screen/distance drawing and render interpolation are
+reused; custom HUDs fall back from `target_blue` to `default`, then omit missing
+art safely. Host-private notices announce a downed ally and bounded bleedout
+reminders. Thirty-five connected checks and five broken controls pass; Windows64
+compiles. Actual hidden OpenGL B40 co-op demonstrates host and joining-player
+held-Action treatment, the same body recovering to 25% health, and marker removal.
+Both acceptance runs compare 77 seconds at unchanged synchronization limits.
+Client capture exposed tiny positive health quantizing to zero: guidance now
+uses native death/incapacitation authority instead of requiring positive health.
+The corrected client marker is visually confirmed. Earlier stimulus failures
+and missing-marker captures remain as compact evidence; copied maps/A/B runtimes,
+bulk screenshots and compile scratch are removed. Final shorter casualty-caption
+text compiles but is not recaptured. Enemy/ownership/budget gates have source
+coverage; dense squads, native hostile encounters, other platforms, human and
+headset acceptance remain open. No new renderer, wire state, timer or writer.
+Next: native death-loot ownership and persistent recovery through the existing
+inventory paths. Do not expand this accepted guidance slice or repeat old
+protocol/revival investigations without a new defect.
+
 Current equipment repair: Extraction and Survival now test each recovered
 weapon with Halo's existing `unit_can_use_weapon` before dropping any carried
 gear. Loaded/native-compatible tags can still be unusable by a different biped's

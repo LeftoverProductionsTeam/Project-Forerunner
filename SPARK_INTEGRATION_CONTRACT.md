@@ -748,6 +748,11 @@ five seconds and bleedout to thirty. Combat, release, walls, range, vehicle/stat
 changes and death interrupt treatment. Native friendly factions determine aid
 until the separate squad/alliance rules are implemented. A body gets at most one
 incapacitation; no medical equipment economy or new animation is claimed.
+Runtime ally guidance now reuses `source/interface/hud_nav_points.c` and
+`extraction_medical_ally_incapacitated`: up to four nearest friendly casualties,
+with native `target_blue`/`default` HUD arrows when present. It consumes no authored
+nav-point slot, new scenario marker, editor format or wire capability. Custom
+HUDs without either arrow omit the marker; private medical instructions remain.
 
 Desktop network use requires room-wide negotiated Delta `coop` and `object_sync`;
 `network_objects.c` sends versioned epoch/tick metadata in existing reserved

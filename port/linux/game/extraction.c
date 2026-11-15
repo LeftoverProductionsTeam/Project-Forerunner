@@ -845,6 +845,26 @@ boolean extraction_medical_predictable(short absolute_player_index)
 		!extraction_medical_incapacitated(medical_players[absolute_player_index].unit);
 }
 
+boolean extraction_medical_ally_incapacitated(long viewer_unit, long target_unit)
+{
+	struct unit_datum *viewer, *target;
+	struct player_datum *player;
+	if (!game_in_progress() || cinematic_in_progress() || viewer_unit == target_unit ||
+		!extraction_medical_incapacitated(target_unit) || extraction_medical_incapacitated(viewer_unit)) return FALSE;
+	viewer = (struct unit_datum *)object_try_and_get_and_verify_type(viewer_unit, _object_mask_biped);
+	/* A living client's tiny positive health can quantize to zero. Native
+	 * death flags and received incapacitation, not a positive-health guess,
+	 * decide whether this owned body can see allies who need assistance. */
+	if (!viewer || viewer->unit.player_index == NONE || !(viewer->object.body_vitality >= 0.f) ||
+		TEST_FLAG(viewer->object.damage_flags, _object_dead_bit) ||
+		TEST_FLAG(viewer->object.damage_flags, _object_die_act_of_god_bit)) return FALSE;
+	player = player_try_and_get(viewer->unit.player_index);
+	if (!player || player->quit_out_of_game || player->unit_index != viewer_unit) return FALSE;
+	target = unit_get(target_unit);
+	return !TEST_FLAG(target->object.damage_flags, _object_die_act_of_god_bit) &&
+		!game_team_is_enemy(viewer->object.owner_team_index, target->object.owner_team_index);
+}
+
 boolean extraction_medical_network_enabled(void)
 {
 	unsigned int epoch = network_distributed_epoch();
@@ -887,6 +907,9 @@ void extraction_medical_network_state(long unit_index, boolean downed, unsigned 
 boolean extraction_medical_lethal(long unit_index)
 {
 	struct unit_datum *unit;
+	struct data_iterator iterator;
+	struct player_datum *ally;
+	char message[128];
 	long slot;
 	if (!extraction_medical_host()) return FALSE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
@@ -902,8 +925,13 @@ boolean extraction_medical_lethal(long unit_index)
 	unit->object.body_vitality = 0.f;
 	object_deplete_shield(unit_index);
 	platform_log("medical: player %ld incapacitated alive; native unit %ld", slot, unit_index);
-	extraction_player_notice(medical_players[slot].player,
-		"MJOLNIR EMERGENCY STABILIZATION | Downed, alive. An ally must hold Action nearby to apply biofoam before bleedout.");
+	snprintf(message, sizeof(message), "DOWNED | %lds to bleedout. Ally: hold Action nearby.",
+		medical_bleed_seconds);
+	extraction_player_notice(medical_players[slot].player, message);
+	data_iterator_new(&iterator, player_data);
+	while ((ally = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+		if (extraction_medical_ally_incapacitated(ally->unit_index, unit_index))
+			extraction_player_notice(iterator.datum_index, "ALLY DOWN | Hold Action nearby for biofoam. Avoid combat.");
 	return TRUE;
 }
 
@@ -990,7 +1018,7 @@ void extraction_medical_control(long player_index, struct player_action *action)
 			medical_players[target].progress < medical_seconds * TICKS_PER_SECOND)
 		{
 			char message[128];
-			snprintf(message, sizeof(message), "APPLYING BIOFOAM | %ld/%ld seconds. Hold Action; stay close and avoid combat.",
+			snprintf(message, sizeof(message), "BIOFOAM | %ld/%ld seconds. Hold Action; stay close, avoid combat.",
 				medical_players[target].progress / TICKS_PER_SECOND, medical_seconds);
 			extraction_player_notice(player_index, message);
 		}
@@ -1026,6 +1054,20 @@ static void extraction_medical_update(void)
 				platform_log("medical: player %ld pending native death; revive refused", index);
 			unit_kill(medical_players[index].unit); continue; /* Native death/loot, never resurrect a corpse. */
 		}
+		/* Host-clock reminders use existing private notices, not a client
+		 * countdown or another replicated medical timer. */
+		{
+			long remaining = medical_players[index].deadline - now;
+			if (!cinematic_in_progress() && !TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit) &&
+				remaining > 0 && remaining < medical_bleed_seconds * TICKS_PER_SECOND &&
+				remaining % TICKS_PER_SECOND == 0 &&
+				(remaining <= 5 * TICKS_PER_SECOND || remaining % (5 * TICKS_PER_SECOND) == 0))
+			{
+				char message[128];
+				snprintf(message, sizeof(message), "BLEEDOUT | %ld seconds. An ally must hold Action nearby.", remaining / TICKS_PER_SECOND);
+				extraction_player_notice(medical_players[index].player, message);
+			}
+		}
 		if (medical_players[index].healer != NONE)
 		{
 			struct player_datum *healer = player_try_and_get(medical_players[index].healer);
@@ -1042,7 +1084,7 @@ static void extraction_medical_update(void)
 				TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit) ||
 				!extraction_medical_reach(healer->unit_index, medical_players[index].unit))
 			{
-				extraction_player_notice(medical_players[index].healer, "BIOFOAM INTERRUPTED | Hold Action again within reach after combat stops.");
+				extraction_player_notice(medical_players[index].healer, "BIOFOAM INTERRUPTED | Hold Action again nearby after combat.");
 				medical_players[index].healer = NONE; medical_players[index].progress = 0;
 			}
 			else if (medical_players[index].progress >= medical_seconds * TICKS_PER_SECOND)
@@ -1051,8 +1093,8 @@ static void extraction_medical_update(void)
 				medical_players[index].downed = FALSE;
 				platform_log("medical: player %ld revived alive by player %ld; native unit preserved", index,
 					DATUM_INDEX_TO_ABSOLUTE_INDEX(medical_players[index].healer));
-				extraction_player_notice(medical_players[index].player, "BIOFOAM STABILIZED | Back on your feet. Further lethal injury to this body is fatal.");
-				extraction_player_notice(medical_players[index].healer, "BIOFOAM TREATMENT COMPLETE | Ally stabilized. Native health and shield rules resume.");
+				extraction_player_notice(medical_players[index].player, "STABILIZED | Back on your feet. Another lethal injury is fatal.");
+				extraction_player_notice(medical_players[index].healer, "BIOFOAM COMPLETE | Ally stabilized. Native health rules resume.");
 			}
 		}
 	}

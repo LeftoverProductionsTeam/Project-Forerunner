@@ -129,6 +129,7 @@ symbols in this file:
 #endif
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "mcc_campaign.h" /* port: port/linux/game/mcc_campaign.c */
+#include "extraction.h" /* port: native living-incapacitation guidance */
 
 /* ---------- constants */
 
@@ -844,6 +845,63 @@ void custom_render_nav_point(
 	return;
 }
 
+/* Draw the nearest casualties through the ordinary waypoint path, without
+ * allocating or replacing any of the map's four scripted nav-point slots.
+ * A fixed draw bound also limits native line-of-sight tests per local view. */
+static void hud_render_medical_nav_points(short local_player_index)
+{
+	struct { long unit; real_point3d position; real distance; } nearest[MAXIMUM_NUMBER_OF_NAV_POINTS];
+	struct player_datum *player, *candidate;
+	struct unit_datum *viewer;
+	struct data_iterator iterator;
+	real_point3d head;
+	short count = 0, index, other, arrow = NONE;
+	long player_index;
+	if (!VALID_INDEX(local_player_index, MAXIMUM_NUMBER_OF_LOCAL_PLAYERS) || !hud_globals ||
+		hud_globals->waypoint.arrow_bitmap.index == NONE) return;
+	player_index = local_player_get_player_index(local_player_index);
+	player = player_try_and_get(player_index);
+	if (!player || player->local_player_index != local_player_index) return;
+	viewer = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+	if (!viewer) return;
+	data_iterator_new(&iterator, player_data);
+	while ((candidate = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		real_point3d position;
+		real radius, x, y, z, distance;
+		if (candidate->quit_out_of_game || !extraction_medical_ally_incapacitated(player->unit_index, candidate->unit_index) ||
+			unit_get(candidate->unit_index)->unit.player_index != iterator.datum_index) continue;
+		object_get_bounding_sphere(candidate->unit_index, &position, &radius);
+		render_interpolation_object_point(candidate->unit_index, &position);
+		position.z += .35f;
+		x = position.x - viewer->object.bounding_sphere_center.x;
+		y = position.y - viewer->object.bounding_sphere_center.y;
+		z = position.z - viewer->object.bounding_sphere_center.z;
+		distance = x*x + y*y + z*z;
+		if (!valid_real(distance)) continue;
+		for (index = 0; index < count && distance >= nearest[index].distance; index++) {}
+		if (index >= NUMBEROF(nearest)) continue;
+		for (other = MIN(count, NUMBEROF(nearest)-1); other > index; other--) nearest[other] = nearest[other-1];
+		nearest[index].unit = candidate->unit_index;
+		nearest[index].position = position; nearest[index].distance = distance;
+		count = MIN(count+1, NUMBEROF(nearest));
+	}
+	if (!count) return;
+	for (index = 0; index < hud_globals->waypoint.arrows.count; index++)
+	{
+		struct hud_waypoint_arrow *style = TAG_BLOCK_GET_ELEMENT(&hud_globals->waypoint.arrows, index, struct hud_waypoint_arrow);
+		if (!_stricmp(style->name, "default")) arrow = index;
+		if (!_stricmp(style->name, "target_blue")) { arrow = index; break; }
+	}
+	if (arrow == NONE) return; /* A custom HUD need not supply medical art. */
+	unit_get_head_position(player->unit_index, &head);
+	for (index = 0; index < count; index++)
+	{
+		short screen = hud_get_nav_point_render_type(local_player_index, &head, &nearest[index].position, nearest[index].unit);
+		custom_render_nav_point(local_player_index, &nearest[index].position, arrow, screen);
+	}
+}
+
 void hud_render_nav_points(
 	short local_player_index)
 {
@@ -944,6 +1002,7 @@ void hud_render_nav_points(
 	game_engine_render_nav_points(local_player_index);
 	/* port: MCC campaign markers have separate state (mcc_campaign.c) */
 	mcc_campaign_render(local_player_index);
+	hud_render_medical_nav_points(local_player_index);
 
 	return;
 }

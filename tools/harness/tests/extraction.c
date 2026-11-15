@@ -3,6 +3,12 @@
 #define GEAR_FIXTURE_ONLY
 #include "gear.c"
 #include <wchar.h>
+#include <math.h>
+#ifndef _WIN32
+#include <strings.h>
+#define _stricmp strcasecmp
+#endif
+#define valid_real(x) isfinite(x)
 #define HALO_GAME_BROWSER 1
 #define HALO_PORT_MAXIMUM_NETWORK_PLAYERS 16
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 16
@@ -25,6 +31,7 @@ enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4,
  _collision_test_front_facing_surfaces_bit=2, _collision_test_back_facing_surfaces_bit=3,
  _delta_capability_coop=6, _delta_capability_object_sync=17 };
 struct tag_block { long count; void *address; };
+#include "medical_hud_types.inc"
 struct object_fields { long parent_object_index; short name_index; long damage_flags; real_point3d position;
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; };
 struct object_datum { long definition_index; struct object_fields object; };
@@ -56,10 +63,11 @@ struct player_action { unsigned long control_flags; real primary_trigger; struct
  short desired_zoom_level, desired_weapon_index; };
 struct collision_result { long object_index; };
 
-static struct player_datum players[2];
-static long player_handles[2] = { 0x10000, 0x10001 };
-static long unit_handles[2] = { 0x1000a, 0x1000b };
-static struct unit_datum units[2];
+static struct player_datum players[8];
+static long player_handles[8] = { 0x10000, 0x10001, 0x10002, 0x10003, 0x10004, 0x10005, 0x10006, 0x10007 };
+static long unit_handles[8] = { 0x1000a, 0x1000b, 0x1000c, 0x1000d, 0x1000e, 0x1000f, 0x10010, 0x10011 };
+static struct unit_datum units[8];
+static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
 static boolean fail_refund;
@@ -90,6 +98,7 @@ static int native_kills;
 void platform_log(char const *format, ...) { (void)format; }
 static byte remote_account[16] = {1};
 static int local_notices, remote_notices, respawns;
+static char last_remote_notice[128];
 
 static boolean config_boolean(char const *name)
 { return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
@@ -100,13 +109,13 @@ static struct { boolean enabled, gear, victory; short phase; long wave_limit,dea
 #include "survival.inc"
 static long game_time_get(void) { return tick; }
 static struct player_datum *player_try_and_get(long handle)
-{ short i; for(i=0;i<2;i++) if(player_handles[i]==handle) return &players[i]; return NULL; }
+{ short i; for(i=0;i<active_players;i++) if(player_handles[i]==handle) return &players[i]; return NULL; }
 static struct player_datum *player_get(long h) { struct player_datum *p=player_try_and_get(h); CHECK(p,"invalid player"); return p; }
 static void *object_try_and_get_and_verify_type(long h,long mask)
 {
  short i;
  if(h==NONE) return NULL;
- for(i=0;i<2;i++) if(h==unit_handles[i] && (mask&_object_mask_biped)) return &units[i];
+ for(i=0;i<active_players;i++) if(h==unit_handles[i] && (mask&_object_mask_biped)) return &units[i];
  for(i=0;i<3;i++) if(h==control_handles[i] && (mask&_object_mask_control)) return &controls[i];
  for(i=0;i<weapon_count;i++) if(h==weapons[i].handle && (mask&_object_mask_weapon)) return &weapons[i].datum;
  return NULL;
@@ -164,8 +173,8 @@ static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
 static short local_player_get_next(short index) { return index==NONE ? 0 : NONE; }
 static void hud_print_message(short local,wchar_t const *text) { CHECK(local==0,"wrong local notice"); local_notices++; }
 short distributed_client_machines(long *machines,short max) { machines[0]=1; return 1; }
-long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<2,"unsalted absolute player lookup"); return slot==1 ? 1 : 0; }
-void distributed_send_notice_to_machine(long machine,char const *text) { CHECK(machine==1,"wrong remote notice"); remote_notices++; }
+long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return slot==1 ? 1 : NONE; }
+void distributed_send_notice_to_machine(long machine,char const *text) { CHECK(machine==1,"wrong remote notice"); remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text); }
 static long player_ui_get_active_player_profile_index(short local) { return profile ? 0 : NONE; }
 static boolean player_ui_get_path_to_local_player_profile_directory(short local,char *path) { strcpy(path,"owned/profile"); return TRUE; }
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
@@ -191,12 +200,28 @@ static boolean scenario_trigger_volume_test_object(short zone,long h) { return s
 static boolean players_are_all_dead(void) { return (units[0].object.damage_flags&1) && (units[1].object.damage_flags&1); }
 static void players_respawn_at_start(void) { respawns++; }
 static void data_iterator_new(struct data_iterator *i,void *data) { i->next=0; }
-static void *data_iterator_next(struct data_iterator *i) { if(i->next>=2) return NULL; i->datum_index=player_handles[i->next]; return &players[i->next++]; }
+static void *data_iterator_next(struct data_iterator *i) { if(i->next>=active_players) return NULL; i->datum_index=player_handles[i->next]; return &players[i->next++]; }
 
 #include "equipment_flags.inc"
 #include "equipment.inc"
 #include "extraction.inc"
 #include "controls.inc"
+
+static struct hud_waypoint_arrow medical_arrows[2]={{"default"},{"target_blue"}};
+static struct medical_hud_fixture {struct {struct tag_block arrows;struct {long index;} arrow_bitmap;} waypoint;} medical_hud={{{2,medical_arrows},{1}}};
+static struct medical_hud_fixture *hud_globals=&medical_hud;
+static long drawn_units[4];static real_point3d drawn_positions[4];static short drawn_styles[4],drawn_screens[4];
+static short medical_draws,medical_traces;
+static long local_player_get_player_index(short local) {return local>=0&&local<2 ? player_handles[local] : NONE;}
+static void object_get_bounding_sphere(long u,real_point3d *p,real *r) {*p=unit_get(u)->object.bounding_sphere_center;*r=.5f;}
+static void render_interpolation_object_point(long u,real_point3d *p) {(void)u;p->x+=.1f;}
+static void unit_get_head_position(long u,real_point3d *p) {*p=unit_get(u)->object.bounding_sphere_center;p->z+=.6f;}
+static short hud_get_nav_point_render_type(short local,real_point3d const *head,real_point3d const *p,long u)
+{(void)local;(void)head;(void)p;CHECK(medical_traces<4,"unbounded medical line-of-sight tests");drawn_units[medical_traces++]=u;return wall ? 2 : 0;}
+static void custom_render_nav_point(short local,real_point3d const *p,short style,short screen)
+{(void)local;CHECK(medical_draws<4,"medical draw budget exceeded");drawn_positions[medical_draws]=*p;drawn_styles[medical_draws]=style;drawn_screens[medical_draws++]=screen;}
+#include "medical_hud.inc"
+static short medical_markers(short local) {medical_draws=medical_traces=0;hud_render_medical_nav_points(local);CHECK(medical_draws==medical_traces,"marker did not use native line-of-sight/draw path");return medical_draws;}
 
 static void firefight_notice(char const *text) { extraction_notice(text); }
 #include "evacuation.inc"
@@ -420,7 +445,30 @@ int main(int argc,char **argv)
  }
  if(!strncmp(case_name,"medical-",8)) {
   enabled=FALSE; medical_setting=TRUE; extraction_reset(); advance(1);
-  if(!strcmp(case_name,"medical-authority")) {
+  if(!strcmp(case_name,"medical-guidance-client")) {
+   client=TRUE;medical_enabled=FALSE;units[0].object.body_vitality=units[1].object.body_vitality=0.f;
+   CHECK(!medical_markers(0),"client invented an unreceived casualty marker");
+   extraction_medical_network_state(unit_handles[1],TRUE,epoch,(unsigned short)tick);
+   CHECK(medical_markers(0)==1,"negotiated host casualty did not reach a living zero-quantized-health client");
+   units[0].object.body_vitality=-.1f;CHECK(!medical_markers(0),"negative-health viewer received guidance");
+   units[0].object.body_vitality=NAN;CHECK(!medical_markers(0),"invalid-health viewer received guidance");units[0].object.body_vitality=0.f;
+   epoch++;CHECK(!medical_markers(0),"old native epoch leaked a casualty marker");
+   tick++;extraction_medical_network_state(unit_handles[1],TRUE,epoch,(unsigned short)tick);
+   CHECK(medical_markers(0)==1,"current epoch failed to restore received guidance");
+   tick++;extraction_medical_network_state(unit_handles[1],FALSE,epoch,(unsigned short)tick);
+   CHECK(!medical_markers(0),"received recovery retained a medical marker");
+  } else if(!strcmp(case_name,"medical-guidance-budget")) {
+   short i;active_players=8;
+   for(i=1;i<active_players;i++) {
+    players[i].unit_index=unit_handles[i];players[i].local_player_index=NONE;
+    units[i].unit.player_index=player_handles[i];units[i].object.parent_object_index=NONE;
+    units[i].object.bounding_sphere_center.x=8.f-i;units[i].object.body_vitality=-.1f;
+    CHECK(extraction_medical_lethal(unit_handles[i]),"crowded casualty setup failed");
+   }
+   CHECK(medical_markers(0)==4&&medical_traces==4,"nearest medical draw/trace bound lost");
+   for(i=0;i<4;i++)CHECK(drawn_units[i]==unit_handles[7-i],"medical markers did not prioritize nearest casualties");
+   players[7].quit_out_of_game=TRUE;CHECK(medical_markers(0)==4&&drawn_units[0]==unit_handles[6],"departed casualty retained guidance");
+  } else if(!strcmp(case_name,"medical-authority")) {
    units[1].object.body_vitality=-.1f; medical_support=FALSE;
    CHECK(!extraction_medical_lethal(unit_handles[1]),"unsupported peer admitted medical gameplay");
    medical_support=TRUE; medical_object_sync=FALSE;
@@ -448,7 +496,41 @@ int main(int argc,char **argv)
     "critical live Spartan died or did not stabilize");
    CHECK(!native_kills,"incapacitation charged a native death");
    advance(60);
-   if(!strcmp(case_name,"medical-revive")) {
+   if(!strcmp(case_name,"medical-guidance")) {
+    CHECK(medical_markers(0)==1&&drawn_units[0]==unit_handles[1]&&drawn_styles[0]==1&&drawn_screens[0]==0,
+     "living ally did not use the native blue target marker");
+    CHECK(fabsf(drawn_positions[0].x-.1f)<.0001f&&fabsf(drawn_positions[0].z-.35f)<.0001f,
+     "medical marker ignored render interpolation or casualty offset");
+    wall=TRUE;CHECK(medical_markers(0)==1&&drawn_screens[0]==2,"occluded casualty bypassed native waypoint selection");wall=FALSE;
+    CHECK(medical_markers(0)==1&&!file_count,"repeated local/eye draw modified the bank");
+    units[1].object.owner_team_index=1;CHECK(!medical_markers(0),"enemy casualty position was revealed");units[1].object.owner_team_index=0;
+    players[1].quit_out_of_game=TRUE;CHECK(!medical_markers(0),"quit casualty position was revealed");players[1].quit_out_of_game=FALSE;
+    units[1].object.damage_flags=FLAG(_object_dead_bit);CHECK(!medical_markers(0),"dead corpse retained a revive marker");
+    units[1].object.damage_flags=FLAG(_object_die_act_of_god_bit);CHECK(!medical_markers(0),"pending death retained a revive marker");units[1].object.damage_flags=0;
+    units[0].unit.player_index=player_handles[1];CHECK(!medical_markers(0),"stale viewer body ownership revealed medical guidance");units[0].unit.player_index=player_handles[0];
+    players[0].local_player_index=NONE;CHECK(!medical_markers(0),"unowned local view revealed guidance");players[0].local_player_index=0;
+    CHECK(!medical_markers(NONE)&&!medical_markers(MAXIMUM_NUMBER_OF_LOCAL_PLAYERS),"invalid local view drew medical guidance");
+    players[1].local_player_index=1;CHECK(!medical_markers(1),"incapacitated local player drew aid targets");players[1].local_player_index=NONE;
+    unit_handles[1]+=0x10000;players[1].unit_index=unit_handles[1];CHECK(!medical_markers(0),"recycled body inherited a medical marker");unit_handles[1]-=0x10000;players[1].unit_index=unit_handles[1];
+    units[1].object.body_vitality=.25f;CHECK(!medical_markers(0),"recovered native body retained its revive marker");
+   } else if(!strcmp(case_name,"medical-guidance-styles")) {
+    medical_arrows[1].name[0]=0;CHECK(medical_markers(0)==1&&drawn_styles[0]==0,"custom HUD lost native default marker fallback");
+    medical_arrows[0].name[0]=0;CHECK(!medical_markers(0),"missing native marker art produced an invalid draw");
+    strcpy(medical_arrows[1].name,"target_blue");medical_hud.waypoint.arrow_bitmap.index=NONE;
+    CHECK(!medical_markers(0),"missing native waypoint bitmap produced an invalid draw");
+   } else if(!strcmp(case_name,"medical-guidance-countdown")) {
+    int notices=remote_notices;
+    advance((short)(medical_players[1].deadline-tick-25*TICKS_PER_SECOND-1));
+    CHECK(remote_notices==notices,"bleedout guidance spammed every tick");advance(1);
+    CHECK(remote_notices==notices+1&&strstr(last_remote_notice,"25 seconds"),"host bleedout deadline did not reach the casualty");
+    extraction_update();CHECK(remote_notices==notices+1,"same-tick medical update repeated the countdown");
+    advance(20*TICKS_PER_SECOND);
+    CHECK(remote_notices==notices+5&&strstr(last_remote_notice,"5 seconds"),"bounded five-second bleedout reminders lost urgency");
+    advance(TICKS_PER_SECOND);
+    CHECK(remote_notices==notices+6&&strstr(last_remote_notice,"4 seconds"),"final bleedout seconds did not update");
+    units[1].object.body_vitality=.25f;advance(150);
+    CHECK(remote_notices==notices+6&&!medical_markers(0),"recovery retained countdown or marker");
+   } else if(!strcmp(case_name,"medical-revive")) {
     struct player_action press;
     tick++; memset(&press,0,sizeof(press)); press.control_flags=FLAG(_unit_control_action_bit);
     extraction_medical_control(player_handles[0],&press); extraction_update();
@@ -475,7 +557,7 @@ int main(int argc,char **argv)
     CHECK(!units[1].object.body_vitality,"dead Spartan was medically revived");
    } else if(!strcmp(case_name,"medical-restore")) {
     extraction_restored(); advance(1);
-    CHECK(native_kills && !extraction_medical_host(),"saved critical body bypassed operation failure/quarantine");
+    CHECK(native_kills && !extraction_medical_host()&&!medical_markers(0),"saved critical body bypassed operation failure/quarantine or retained guidance");
    } else if(!strcmp(case_name,"medical-gear")) {
     /* Downed remains alive and owns the same native items until actual death. */
     units[1].object.body_vitality=1.f; medical_setting=FALSE; extraction_reset(); enabled=TRUE; advance(1); touch(0,1); a=pickup(1,2);
