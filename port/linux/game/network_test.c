@@ -132,6 +132,7 @@ network_test_update, which does nothing there */
 #include "game/game.h"
 #include "game/game_engine.h"
 #include "game/players.h"
+#include "devices/devices.h"
 #include "objects/objects.h"
 #include "units/units.h"
 #include "units/unit_definitions.h"
@@ -1571,6 +1572,29 @@ static void network_test_log_actors(
 	}
 	network_test.actors_logged_time = now;
 	network_actors_log_units();
+	/* Authored terminal failures need the same native-state evidence as AI.
+	 * This remains behind the existing actors diagnostic, with no new mode. */
+	{
+		struct object_iterator objects;
+		struct data_iterator players;
+		struct player_datum *player;
+		object_iterator_new(&objects, _object_mask_control, 0);
+		while (object_iterator_next(&objects))
+		{
+			struct object_datum *object = object_get(objects.index);
+			platform_log("network test: control %ld %ld name %d at %.3f %.3f %.3f radius %.3f usable %d",
+				now, DATUM_INDEX_TO_ABSOLUTE_INDEX(objects.index), object->object.name_index,
+				object->object.bounding_sphere_center.x, object->object.bounding_sphere_center.y,
+				object->object.bounding_sphere_center.z, object->object.bounding_sphere_radius,
+				device_can_change_position(objects.index));
+		}
+		data_iterator_new(&players, player_data);
+		while ((player = data_iterator_next(&players)) != NULL)
+			platform_log("network test: interaction %ld player %ld local %d action %d object %ld",
+				now, DATUM_INDEX_TO_ABSOLUTE_INDEX(players.datum_index), player->local_player_index,
+				player->action_result, player->action_object_index == NONE ? -1L :
+				DATUM_INDEX_TO_ABSOLUTE_INDEX(player->action_object_index));
+	}
 }
 
 /* debug.network_test_items: every weapon, equipment and vehicle this

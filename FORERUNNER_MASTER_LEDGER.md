@@ -3,6 +3,37 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current operations handoff: Extraction can wake the optional native dormant-void
+`forerunner_extraction_complete` once all living survivors have durably banked
+and physically returned. It reuses Survival's return checks and native HaloScript;
+no new writer, protocol, launcher or quest VM. Connected settlement/signature/
+restore/redeployment checks and Windows64 compilation pass. Native callback and
+full multiplayer banking remain UNVERIFIED. The existing death-timing harness
+again compiles with current mode adapters and preserves spectator ownership.
+
+Native CE fixture now demonstrates two equipped players, real walking/Action,
+authored Covenant combat/clear, surviving Marines physically reaching rescue,
+and a real technology-placeholder weapon pickup advancing HaloScript. The final
+run passes 117 compared seconds, maximum player separation 0.055, no drift;
+tracked actor movement/damage/death also passes unchanged limits. HOWEVER the
+broader item check FAILS after the optional Flood script activates: rifles 18/20
+are held by host units 17/19 but appear loose on the client. Tracked-AI PASS does
+not certify those Flood bodies. This is the next concrete replication defect;
+do not claim Flood combat, full Extraction or Black Echo acceptance. The tech
+item is subsequently dropped, not banked. A separate actual terminal attempt
+correctly refuses the test session's missing saved profile. Remote banking still
+needs the existing verified host-bound Delta identity, not synthesized LAN IDs.
+
+Spark d50b6fa has authored/compiled Black Echo evidence, superseding the old
+absence claim, but its disposable MCC13 cache was removed and does not satisfy
+the existing CE609 startup path by renaming. Exact next handoff, manual objective
+4/7, native allegiances and escort squad requirements are in the existing Spark
+contract. Keep Spark read-only. Original UI/carousel/SDK hashes are unchanged;
+owned peer/map staging, SDK subset and bulk captures are removed. One 106 MB
+compiled fixture, its authored scenario and compact evidence remain for reuse.
+Next: fix the reproduced Flood inventory/body synchronization, then use normal
+profile selection and verified remote identities for native banking acceptance.
+
 Current co-op spectator repair: next-player cycling keeps the sole survivor
 selected and validates live full player/body ownership, departure and death.
 The existing HUD follows the same eligibility; invalid local slots are safe.

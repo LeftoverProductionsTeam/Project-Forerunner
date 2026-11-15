@@ -19,6 +19,9 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
         equipment = mutated(equipment, *fault)
     files.append(('equipment.inc', equipment))
     files.append(('equipment_flags.inc', enum_with(read('source/items/weapon_definitions.h'), '_weapon_must_be_readied_bit')))
+    files.append(('mission_types.inc', enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') +
+                  '\n' + enum_with(read('source/hs/hs.h'), '_hs_unparsed') +
+                  '\n' + structure(read('source/hs/hs_scenario_definitions.h'), 'hs_script')))
     director = read('port/linux/game/coop_enemies.c')
     survival = '\n'.join(function(director, name) for name in (
         'coop_enemies_host', 'coop_enemies_firefight_active',
@@ -52,6 +55,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'confirmation-outage', 'confirmation-published',
                                  'reservation-published',
                                  'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls',
+                                 'mission-complete', 'mission-pending', 'mission-signature', 'mission-return-type', 'mission-restore',
                                  'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
                                  'restore', 'pending', 'binding', 'disconnect',
                                  'survival-win', 'survival-loss', 'survival-retry',
@@ -73,6 +77,14 @@ def test_transfer_negative_control():
     status, output = run(build('extraction', generated((
         'if (!weapon || weapon->object.parent_object_index != player->unit_index)',
         'if (!weapon)'))), 'transfer')
+    assert status == CHECK_FAILED, output
+
+
+def test_mission_completion_negative_control():
+    files = tuple((name, mutated(text,
+                  'extraction_runs[slot].phase != _extraction_returned', 'FALSE'))
+                  if name == 'extraction.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'mission-complete')
     assert status == CHECK_FAILED, output
 
 

@@ -434,6 +434,18 @@ loadout grant succeeded; an activation signal starts the cancellable countdown,
 not a completed escape or banked reward. Keep rearming/toggle behavior in the
 authored control groups/scripts. Source and focused native-function checks cover
 this handoff; acceptance on Spark's authored map remains unverified.
+An optional native `(script dormant forerunner_extraction_complete ...)` returning
+`void` now receives a one-shot wake after every living, owned survivor is back in
+the return volume and has finished durable gear settlement. Pending native death,
+incapacitation, field players and incomplete banking prevent notification. This
+reuses `extraction.c::extraction_players_returned` and `hs_wake_by_name`; disabled
+scripts remain disabled. It is not a reward writer, repeatable event, per-squad
+quest API or proof that authored objectives were completed. Spark must keep the
+activation control unpowered/unusable until its objective conditions permit
+escape. Its dormant wrapper may then call its own `gs_complete_7`. No hardcoded
+Spark objective index, arbitrary console call, new packet or save format is used.
+Source is compiled and connected settlement checks pass; actual native callback,
+banking and complete authored-operation acceptance remain UNVERIFIED.
 Put the deploy control inside the safe hub's return volume, outside
 the activation zone, and the extraction control inside the activation zone.
 Put every native player starting location selectable by this solo map inside
@@ -739,11 +751,42 @@ six, agreed temporary alliances/PvE/PvPvE rules, interruptible downed-but-alive
 revival, true-death looting and reconnect-safe ownership. 128 players and two
 concurrent connected regions before all 19 remain proof targets, not capabilities.
 
-Read-only review of Spark `e472e79` found native logic source/readback and ordinary
-HaloScript authoring in `src/nativeLogic.ts` / `crates/spark-core/src/native_logic.rs`,
-plus native encounters in `firefight.rs`; no Black Echo or reviewed per-squad quest
-export was found in those sources. Do not substitute editor-only JSON, a shared
-global scenario script or a second quest VM for independent authoritative squads.
+Read-only review of Spark `d50b6fa35c747498036a31ba830670665585aee7`
+finds Black Echo in `src/creatorStudio.ts::blackEchoMission` / `addBlackEchoDraft`,
+ordinary HaloScript in `src/haloScript.ts`, native logic/readback in
+`crates/spark-core/src/native_logic.rs`, and encounters in `firefight.rs`.
+Its 15 November native milestone in `docs/RUNTIME_INTEGRATION_20261107.md`
+records an MCC13 cache with SHA-256
+`1773f672708b0aecb629517874f0c143e6ca48bdfc388b653ad91eb4d25d4d2b`,
+four compiled groups, normal 1 / insane 2 actors each, five scripts, seven globals
+and nine HUD messages. Spark removed that disposable compiled cache and SDK;
+Forerunner has no retained playable Black Echo package from that milestone.
+That MCC13 compilation also does not satisfy the current CE609-only
+`game.start_map` interface by renaming the cache. Supply a retained CE609 solo
+cache and its native resource banks for that existing startup path, or review
+the existing MCC launch path separately; do not advertise format compatibility
+from the disposable CE fixture alone.
+This supersedes the older statement that Black Echo authoring was absent.
+Technology objective 4 and extraction objective 7 still use manual setters
+`gs_complete_4` / `gs_complete_7`; their volumes alone do not collect technology
+or bank equipment. Spark must connect real native ownership to objective 4 and
+the optional settled-survivor continuation above to objective 7, with authored
+extraction gating and the normal native hub controls/starts/resources. Its
+scenario globals are shared world state, not independently scoped squad quests.
+Do not substitute editor-only JSON, shared global scripts or a second quest VM
+for independent authoritative squads.
+Native authoring requirements demonstrated by the disposable CE mission:
+transplanted multiplayer content does not automatically make human-team Marines
+friendly to player-team Spartans. Supply native `(ai_allegiance player human)`
+unless the inherited campaign already establishes it. Escort encounters also
+need reachable navigation/firing positions inside their actual rescue volume;
+`encounters.c::encounter_update_follow` also requires migration-enabled squads
+with firing-group masks and a nearer destination squad. A single default squad
+with zero masks does not follow merely because `ai_follow_target_players` was
+called. An explicit native `ai_migrate` to a return squad is another supported
+authoring route; it must still physically reach the volume. Preserve native
+allegiance, combat and movement; do not globally force factions friendly or
+replace rescue/technology ownership checks with volume entry.
 Spark's next handoff must identify the compiled native map/resources/content
 identity, rescue/escort actors, technology objects, trigger/terminal bindings,
 spawn/region identifiers and mission/audio source; supply reviewed objective IDs,

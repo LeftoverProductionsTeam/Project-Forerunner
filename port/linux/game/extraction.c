@@ -7,6 +7,8 @@
 #include "devices/devices.h"
 #include "game/game.h"
 #include "game/players.h"
+#include "hs/hs.h"
+#include "hs/hs_scenario_definitions.h"
 #include "networking/network_game_globals.h"
 #include "game/game_allegiance.h"
 #include "cutscene/cinematics.h"
@@ -64,7 +66,7 @@ struct extraction_run
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
-	boolean survival, evacuation;
+	boolean survival, evacuation, completion_notified;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
 	long last_tick;
 } extraction;
@@ -82,6 +84,7 @@ static boolean medical_enabled, medical_received, medical_restored;
 static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30;
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
+static boolean extraction_players_returned(void);
 
 /* Match Halo's three native forced-death requests. Do not consume the flags,
  * clear death, or substitute settlement for native death and loot disposal. */
@@ -152,7 +155,11 @@ static void extraction_tell(struct extraction_run const *run, char const *text)
 
 static void extraction_block(struct extraction_run *run, char const *text)
 {
-	if (!run->blocked) extraction_tell(run, text);
+	if (!run->blocked)
+	{
+		extraction_tell(run, text);
+		platform_log("extraction: player %ld blocked: %s", DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), text);
+	}
 	run->blocked = TRUE;
 }
 
@@ -356,6 +363,9 @@ static void extraction_bind(void)
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
 finished:
+	platform_log("extraction: native hub %s; deploy %d activate %d return %d zone %d",
+		extraction.admitted ? "admitted" : "unavailable", extraction.deploy_name,
+		extraction.activate_name, extraction.return_zone, extraction.zone);
 	if (extraction.survival)
 	{
 		/* Reuse the native controls, volumes and settlement. Finite encounters
@@ -762,6 +772,24 @@ void extraction_update(void)
 		player = player_try_and_get(extraction_runs[index].player);
 		if (extraction_runs[index].player != NONE && (!player || player->quit_out_of_game)) extraction_run_close(&extraction_runs[index]);
 	}
+	/* The optional authored continuation runs once per fresh map, after actual
+	 * native consumption and durable banking for every living survivor. It
+	 * owns objectives only; gear remains owned by the existing settlement. */
+	if (!extraction.survival && !extraction.completion_notified && extraction_players_returned())
+	{
+		extraction.completion_notified = TRUE;
+		for (index = 0; index < MIN(global_scenario->hs_scripts.count, SHORT_MAX); index++)
+		{
+			struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&global_scenario->hs_scripts, index, struct hs_script);
+			if (!strcmp(script->name, "forerunner_extraction_complete") &&
+				script->script_type == _hs_script_dormant && script->return_type == _hs_type_void)
+			{
+				if (hs_wake_by_name("forerunner_extraction_complete"))
+					platform_log("extraction: all survivors banked; authored completion woken");
+				break;
+			}
+		}
+	}
 }
 
 boolean extraction_survival_settlement_pending(void)
@@ -779,13 +807,11 @@ boolean extraction_survival_settlement_pending(void)
 	return FALSE;
 }
 
-boolean extraction_survival_evacuation_ready(void)
+static boolean extraction_players_returned(void)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
 	short survivors = 0;
-	if (!extraction.survival || !extraction.admitted || !extraction.evacuation || extraction.suspended ||
-		!extraction_requested() || coop_enemies_firefight_outcome() != 0) return FALSE;
 	data_iterator_new(&iterator, player_data);
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 	{
@@ -804,6 +830,12 @@ boolean extraction_survival_evacuation_ready(void)
 		survivors++;
 	}
 	return survivors > 0;
+}
+
+boolean extraction_survival_evacuation_ready(void)
+{
+	return extraction.survival && extraction.admitted && extraction.evacuation && !extraction.suspended &&
+		extraction_requested() && coop_enemies_firefight_outcome() == 0 && extraction_players_returned();
 }
 
 static void extraction_medical_reset(void)

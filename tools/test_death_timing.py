@@ -62,11 +62,19 @@ static int player_data;
 enum {_game_connection_local,_game_connection_network_client,_game_connection_network_server};
 static short game_connection(void) {return _game_connection_local;}
 static boolean network_coop_active(void) {return FALSE;}
+static int spectator_mode;
+static boolean coop_spectating(void) {return spectator_mode;}
 static boolean players_respawn_network_coop(boolean starting) {(void)starting;return FALSE;}
 static void players_respawn_at_checkpoint(void) {}
 static boolean players_are_all_dead(void) {return FALSE;}
 static boolean main_coop_host_revert(void) {return FALSE;}
 static boolean network_coop_wipe_reverts(void) {return FALSE;}
+/* These independent mode/transition owners are off in this local timing world. */
+static void main_script_map_name_clear(void) {}
+static boolean coop_enemies_firefight_active(void) {return FALSE;}
+static boolean coop_enemies_firefight_out_of_lives(void) {return FALSE;}
+static boolean extraction_respawn_after_loss(void) {return FALSE;}
+static boolean mcc_skulls_restart_on_death(void) {return FALSE;}
 enum {_biped_airborne_bit=0,_object_mask_vehicle=1};
 static void data_iterator_new(struct data_iterator *i,int d) {(void)d;i->next=0;}
 static void *data_iterator_next(struct data_iterator *i) {
@@ -111,6 +119,7 @@ static void reset(int count) {
     memset(&main_globals,0,sizeof(main_globals));memset(&players_state,0,sizeof(players_state));
     tick=main_loss_last_tick=main_respawn_last_tick=0;
     paused=cinematic=reverts=attempts=spawns=teleports=0;
+    spectator_mode=0;
     projectiles=enemies=airborne=vehicle_moving=spawn_failed=teleport_failed=multiplayer=0;
     player_count=count;
     for(i=0;i<count;i++) {players[i].unit_index=i?NONE:100;players[i].team_index=0;objects[i].object.bounding_sphere_center.x=100+i;}
@@ -212,6 +221,8 @@ static void cameras(void) {
     dead_camera_update(&c,&control,&command);assert(c.unit_index==101);
     paused=0;multiplayer=1;c.switch_timer=0;
     dead_camera_update(&c,&control,&command);assert(c.unit_index==100&&c.switch_timer==15);
+    spectator_mode=1;c.unit_index=101;c.switch_timer=0;
+    dead_camera_update(&c,&control,&command);assert(c.unit_index==101);
 }
 int main(void) {
     rates();clock_and_lifecycle();coop_blocked();cameras();

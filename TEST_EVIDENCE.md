@@ -12,6 +12,56 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, authored-operation handoff (base `06f474a05d`): optional dormant-void
+`forerunner_extraction_complete` wakes once per fresh map only after all living
+owned survivors return and finish durable equipment settlement. Existing native
+`hs_wake_by_name` and Survival return checks are reused. The connected MSVC world
+passes the existing 66 workflows plus the added return-type case: partial-team
+return, pending writes/death, wrong signatures, restored worlds and redeployment
+cannot produce premature/repeated completion. A deliberately broken survivor
+gate is detected. HS execution/identity/OS adapters remain fixtures. The existing
+death-timing test also passes 15-1000 FPS timing, co-op blocking and spectator
+ownership after restoring its current mode adapters. No new test framework.
+
+Windows64 compiles incrementally (`build/native-mission-final-build.log`), SHA-256
+`aa76e05b254918f08ab783d3346c13f0e4a5fe0975aca34c6e08d7fee8106d17`.
+Spark read-only revision d50b6fa records a Black Echo MCC13 compilation, but its
+cache was disposed. The owned HCEEK subset produced one CE609 native fixture,
+`tools/fixtures/black_echo_native.hsc`, ordinary controls/volumes/encounters and
+a distinct pistol-definition technology placeholder. Original SDK archive hash
+remains `6c9c156237c78ab1b983080495fdcff698a3f15fe0baaadb1c663654d27f7bd4`.
+The retained final cache hash is
+`0dce8f4a570c76349d64ea745c733ed09d5cf624409fe066cac9731d71b88010`;
+source/readback provenance is `build/native-black-echo-fixture/receipt.json`.
+No proprietary map/tag payload is committed. Initial fixture trials corrected
+angle units, cliff/terminal placement, missing player-human allegiance and the
+native rescue squad route. Original behavior/interaction reach were preserved.
+
+Actual hidden OpenGL two-player CE co-op, existing director OFF:
+`build/native-black-echo-native-loot/results.json` passes 117 compared seconds,
+mean/max player separation 0.014/0.055, aim 0 degrees, no mismatched seconds,
+0/3507 divergent prediction ticks and 6 client corrections at unchanged limits.
+Real native Action deploys, HaloScript places hostile/friendly actors, actual
+weapon fire clears Covenant, `ai_migrate` walks Marines to the rescue volume,
+and actual technology weapon ownership completes objective 4. The script then
+reaches optional Flood activation; outbreak completion is NOT verified. Native
+actor checker passes 122 snapshots/271 unit comparisons, maximum separation
+0.046945, common movement/damage/death. This covers its tracked units only.
+
+The broader existing item checker FAILS (`items.txt`): at tick 1770, Flood rifles
+18/20 have host parents 17/19 while the client shows them loose. Do not interpret
+the tracked-actor PASS as complete Flood/body/inventory synchronization. Native
+technology pickup and later drop are observed separately on both peers; no bank
+transaction or reward is demonstrated. Earlier placement/input runs and runs
+with insufficient prediction samples retain their compact PASS/ERROR evidence.
+`build/native-black-echo-live-approach` passes 47 compared seconds and its actual
+terminal capture reports missing saved-profile refusal. Remote persistent owners
+still require existing verified host-bound Delta proofs; no fixture identity or
+LAN-security bypass was added. Native callback, extraction, full mission, larger
+squads, other platforms and hardware acceptance remain OPEN. SDK/map originals
+rehash unchanged. Peer/runtime staging, SDK subset and bulky BMPs are removed;
+one reusable 106 MB fixture and compact native evidence remain.
+
 15 November, co-op spectator recovery (base `50a24056c2`): the existing
 `tools/test_coop_spectate.py` now compiles actual selection, input-edge,
 body-delay and HUD functions together. Its MSVC x86 `/O2 /W3 /WX` workflow

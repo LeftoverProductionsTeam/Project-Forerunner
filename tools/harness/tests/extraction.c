@@ -55,8 +55,9 @@ struct control_definition { struct { short triggers_when,type;real call_value;
  struct {long index;} on_effect,off_effect,denied_effect; } control; };
 struct scenario_object_name { char name[32]; };
 struct scenario_trigger_volume { char name[32]; };
+#include "mission_types.inc"
 struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts; };
 struct object_placement_data { long definition_index; real_point3d position; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -88,7 +89,11 @@ static struct game_globals globals = { { 2, grenades } };
 static struct scenario_object_name names[3] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"} };
 static struct scenario_trigger_volume volumes[2] = { {"extraction_zone"}, {"extraction_return"} };
 static struct player_starting_location starts[2];
-static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts} };
+static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
+static struct hs_script completion_script;
+static short completion_wakes;
+static boolean hs_wake_by_name(char const *name)
+{ CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;return TRUE; }
 static struct scenario *global_scenario = &scenario;
 static void *player_data;
 static long tick;
@@ -276,6 +281,37 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strncmp(case_name,"mission-",8)) {
+  strcpy(completion_script.name,"forerunner_extraction_complete");
+  completion_script.script_type=_hs_script_dormant;completion_script.return_type=_hs_type_void;
+  scenario.hs_scripts.count=1;scenario.hs_scripts.address=&completion_script;
+  advance(1);CHECK(!completion_wakes,"idle hub completed an operation");
+  touch(0,0);touch(0,1);pickup(0,1);pickup(1,2);
+  escape(0);CHECK(!completion_wakes,"first survivor completed the whole operation");
+  if(!strcmp(case_name,"mission-signature")||!strcmp(case_name,"mission-return-type")) {
+   if(!strcmp(case_name,"mission-signature"))completion_script.script_type=_hs_script_continuous;
+   else completion_script.return_type=_hs_type_boolean;
+   escape(1);CHECK(!completion_wakes,"incompatible mission continuation was woken");
+  } else if(!strcmp(case_name,"mission-restore")) {
+   extraction_restored();advance(1);CHECK(!completion_wakes,"restored world completed an operation");
+  } else {
+   units[1].object.position.x=20.f;touch(1,1);advance(300);
+   units[1].object.position.x=0.f;
+   if(!strcmp(case_name,"mission-pending")) {
+    publish_failure=TRUE;advance(1);
+    CHECK(run(1)->phase==_extraction_settling&&!completion_wakes,"uncertain banking completed an operation");
+    publish_failure=FALSE;advance(30);
+   } else {
+    units[0].object.damage_flags=FLAG(_object_die_act_of_god_silent_bit);advance(1);
+    CHECK(run(1)->phase==_extraction_returned&&!completion_wakes,"pending native death completed an operation");
+    units[0].object.damage_flags=0;advance(1);
+   }
+   CHECK(completion_wakes==1,"durably returned survivors did not wake authored completion");
+   advance(30);touch(0,0);escape(0);
+   CHECK(completion_wakes==1,"same-map redeployment repeated a one-shot completion");
+  }
+  extraction_reset();return 0;
+ }
  if(!strcmp(case_name,"pending-deploy")||!strcmp(case_name,"pending-escape")) {
   short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
   short i;struct game_modes_inventory captured;byte item_id[GEAR_ID_BYTES];
