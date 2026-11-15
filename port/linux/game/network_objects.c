@@ -4275,12 +4275,23 @@ static void distributed_client_apply_inventory(
 		long weapon_index = unit->unit.weapon_object_indices[weapon_slot];
 
 		if (weapon_index == wanted_index)
-			continue;
+		{
+			struct weapon_datum *weapon = wanted_index != NONE ? weapon_try_and_get(wanted_index) : NULL;
+			/* A remembered slot alone is not ownership: an object update or
+			 * transfer may have detached this exact item in the meantime. */
+			if (wanted_index == NONE || (weapon && weapon->object.parent_object_index == inventory->unit_index))
+				continue;
+		}
 		/* (not here yet: as it is, until it is) */
 		if (!distributed_client_weapon_here(wanted_index))
 			continue;
 		if (weapon_index != NONE)
-			unit_network_drop_weapon(inventory->unit_index, weapon_slot);
+		{
+			if (weapon_index == wanted_index)
+				unit_network_forget_weapon(inventory->unit_index, weapon_slot);
+			else
+				unit_network_drop_weapon(inventory->unit_index, weapon_slot);
+		}
 		if (wanted_index != NONE)
 		{
 			distributed_client_release_item(wanted_index, FALSE);

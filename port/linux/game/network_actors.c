@@ -626,6 +626,14 @@ void network_actors_log_units(
 		actor_log_remember(host ? host_actors[index].unit_index : client_actors[index].unit_index, units, &count);
 	}
 	tracked = count;
+	/* A placed/dormant AI may never have driven unit_control. Include actual
+	 * world bipeds too, so missing control-table entries cannot hide them. */
+	{
+		struct object_iterator iterator;
+		object_iterator_new(&iterator, _object_mask_biped, 0);
+		while (object_iterator_next(&iterator))
+			actor_log_remember(iterator.index, units, &count);
+	}
 	for (index = 0; index < logged_actor_count; index++)
 		actor_log_remember(logged_actor_units[index], units, &count);
 	for (index = 0; index < count; index++)
@@ -639,6 +647,11 @@ void network_actors_log_units(
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ? 1 : 0,
 			(unsigned long)unit->object.parent_object_index, (int)unit->unit.parent_seat_index,
 			index < tracked ? 1 : 0);
+		platform_log("network test: unit weapons %ld %s %08lx %08lx %08lx %08lx %08lx current %d",
+			now, role, (unsigned long)units[index],
+			(unsigned long)unit->unit.weapon_object_indices[0], (unsigned long)unit->unit.weapon_object_indices[1],
+			(unsigned long)unit->unit.weapon_object_indices[2], (unsigned long)unit->unit.weapon_object_indices[3],
+			(int)unit->unit.current_weapon_index);
 	}
 	platform_log("network test: actors %ld %s %d cinematic %d bsp %d", now, role, (int)count,
 		cinematic_in_progress() ? 1 : 0, (int)global_structure_bsp_index_get());

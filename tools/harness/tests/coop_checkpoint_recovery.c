@@ -558,6 +558,24 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strcmp(name,"inventory-orphan")||!strcmp(name,"inventory-other-owner")){
+        weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
+        distributed_client_apply_inventory(&inventory);
+        object_detach(weapon);
+        if(!strcmp(name,"inventory-other-owner")){
+            rider=add_replica(5,_object_type_biped);attach_child(rider,weapon);
+            unit_get(rider)->unit.weapon_object_indices[0]=weapon;
+        }
+        CHECK(corpse->unit.weapon_object_indices[0]==weapon,"stale slot retains same host object");
+        distributed_client_apply_inventory(&inventory);
+        CHECK(object_get(weapon)->object.parent_object_index==index&&corpse->unit.weapon_object_indices[0]==weapon,
+            "fresh same-slot inventory must repair actual item ownership");
+        if(rider!=NONE)CHECK(unit_get(rider)->unit.weapon_object_indices[0]==NONE,"previous owner retained transferred item");
+        constructed_before=constructed;distributed_client_apply_inventory(&inventory);
+        CHECK(constructed==constructed_before&&corpse->object.first_child_object_index==weapon&&
+            object_get(weapon)->object.next_object_index==NONE,"repeat ownership repair duplicated object or attachment");
+        return 0;
+    }
     if(!strncmp(name,"snapshot-",9))return snapshot_inventory_case(index,!strcmp(name,"snapshot-batches"));
     if(!strcmp(name,"partial-producers")){
         long projectile,child;

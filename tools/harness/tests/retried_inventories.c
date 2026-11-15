@@ -16,7 +16,8 @@ struct tag_block { long count; void *address; };
 struct weapon_magazine_definition { short rounds_total_initial, rounds_total_maximum, rounds_loaded_maximum; };
 struct weapon_definition { struct { struct tag_block magazines; } weapon; };
 struct weapon_magazine { short rounds_total, rounds_loaded; };
-struct weapon_datum { long definition_index; struct { struct weapon_magazine magazines[2]; real age; } weapon; };
+struct weapon_datum { long definition_index; struct {long parent_object_index;} object;
+ struct { struct weapon_magazine magazines[2]; real age; } weapon; };
 struct unit_datum
 {
 	struct { unsigned long damage_flags; } object;
@@ -70,11 +71,18 @@ static void distributed_client_release_item(long index, boolean dropped)
 		for (slot = 0; slot < MAXIMUM_WEAPONS_PER_UNIT; slot++)
 			if (units[object].unit.weapon_object_indices[slot] == index)
 				units[object].unit.weapon_object_indices[slot] = NONE;
+	weapons[index & 0xFFFF].object.parent_object_index=NONE;
 }
-static void unit_network_drop_weapon(long unit_index, short slot) { unit_get(unit_index)->unit.weapon_object_indices[slot] = NONE; }
+static void unit_network_forget_weapon(long unit_index, short slot) { unit_get(unit_index)->unit.weapon_object_indices[slot] = NONE; }
+static void unit_network_drop_weapon(long unit_index, short slot) {
+ long weapon=unit_get(unit_index)->unit.weapon_object_indices[slot];
+ if(weapon!=NONE)weapons[weapon & 0xFFFF].object.parent_object_index=NONE;
+ unit_network_forget_weapon(unit_index,slot);
+}
 static void unit_network_add_weapon(long unit_index, long weapon_index, short slot)
 {
 	unit_get(unit_index)->unit.weapon_object_indices[slot] = weapon_index;
+	weapons[weapon_index & 0xFFFF].object.parent_object_index=unit_index;
 }
 struct distributed_own_inventory;
 static void distributed_client_note_own_inventory(struct distributed_own_inventory *own, long unit_index, boolean compare) {}

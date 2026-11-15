@@ -175,12 +175,21 @@ def test_reconstructed_unit_rejects_old_life_kill():
     "live", "host-dead", "host-kills-live", "bound-corpse", "different-handle", "unknown", "unknown-player", "stale-delete",
     "invalid-tag", "invalid-team", "invalid-color", "invalid-position", "invalid-axes",
     "invalid-identifier", "outside-pool", "allocation-failure", "repeat", "retry",
-    "inventory", "hierarchy", "late-inventory", "projectiles", "partial-producers", "same-epoch-create", "snapshot-empty", "snapshot-batches",
+    "inventory", "inventory-orphan", "inventory-other-owner", "hierarchy", "late-inventory", "projectiles", "partial-producers", "same-epoch-create", "snapshot-empty", "snapshot-batches",
     "kill-current", "kill-unknown", "kill-invalid-number", "kill-invalid-tag", "kill-invalid-node",
 ])
 def test_replica_controls(case):
     status, output = run(build("coop_checkpoint_recovery", generated()), case)
     assert status == 0, output
+
+
+@pytest.mark.parametrize("case", ["inventory-orphan", "inventory-other-owner"])
+def test_inventory_attachment_negative_control(case):
+    files = generated((
+        "if (wanted_index == NONE || (weapon && weapon->object.parent_object_index == inventory->unit_index))",
+        "if (weapon || wanted_index == NONE)"))
+    status, output = run(build("coop_checkpoint_recovery", files), case)
+    assert status == 1, output
 
 
 @pytest.mark.parametrize("before,after,case", [

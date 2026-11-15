@@ -12,6 +12,41 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, client inventory attachment (base `bfa9c0c56e`): the existing
+same-slot fast path now checks the weapon's full native parent. A fresh host
+inventory repairs a detached item or stale claim by another unit through the
+existing forget/release/attach operations, without creating a weapon. The actual
+old source fails both added cases in `coop_checkpoint_recovery.c`, which extracts
+real replica, datum, inventory and unit-network helpers. Both pass after repair,
+along with 11 related recovery cases and all eight existing retried-inventory
+cases. Two deliberately broken fast-path controls are detected. World graph,
+renderer and transport remain fixture boundaries. Windows64 compiles in
+`build/native-inventory-attachment-repair-build.log`, binary SHA-256
+`f2097fc200190a53d9d65f5a371affd4eb3ae203ddbd0afc7b2e8494db89b61b`.
+
+The opt-in existing AI readback now also samples dormant world bipeds and their
+actual inventory slots. `build/native-flood-owner-census` reproduces loose
+rifles while confirming Flood bodies exist at matching host/client positions;
+`native-flood-inventory-census` later has matching attachments without a gameplay
+patch, establishing that the earlier failure is intermittent. The stale-slot
+repair is proven by the connected old/new source cases; the initiating native
+ordering race is not claimed fully explained or eliminated.
+
+Actual corrected-engine hidden OpenGL co-op:
+`build/native-inventory-attachment-repair/results.json` passes 87 compared seconds,
+mean/max player separation 0.018/0.057, no mismatched seconds, 0/2610 divergent
+prediction ticks and 76 client corrections. Existing broader item comparison
+passes 91 snapshots, zero items out of step and 8/8 new items seen (`items.txt`).
+Full-world actor comparison passes 92 snapshots/241 unit comparisons, maximum
+separation 0.099239; dormant Flood bodies are included rather than omitted.
+Native walking, terminal activation, combat, Marine rescue and technology pickup
+repeat. The controlled client `objects_detach` attempt is REFUSED by the existing
+"host decides the game" guard (`client-console.txt`); no orphan was injected and
+that attempt is NOT native repair acceptance. Guard remains unchanged. Outbreak
+completion, extraction/banking, reconnect/restart gameplay and other-platform
+acceptance remain OPEN. Disposable peers, map staging and bulky captures are
+removed; compact original failures and one reusable owned fixture remain.
+
 15 November, authored-operation handoff (base `06f474a05d`): optional dormant-void
 `forerunner_extraction_complete` wakes once per fresh map only after all living
 owned survivors return and finish durable equipment settlement. Existing native
