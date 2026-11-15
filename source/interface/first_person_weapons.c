@@ -130,6 +130,9 @@ symbols in this file:
 #include "rasterizer/rasterizer_model_types.h"
 #endif
 #include "view_fov.h" /* port: port/linux/game/view_fov.c */
+#ifdef HALO_OPENXR
+#include "vr_render.h"
+#endif
 #include "shaders/shader_definitions.h" /* port: (the shield's flare on the arms) */
 #include "shaders/shaders.h"
 /* port: port/linux/game/shield_color.c */
@@ -554,6 +557,9 @@ void first_person_weapon_draw(
 	/* port: not drawn with display.viewmodel_visible off (view_fov.c) */
 	if (!viewmodel_is_visible())
 		return;
+#ifdef HALO_OPENXR
+	vr_render_weapon_draw_begin();
+#endif
 	if (render.local_player_index!=NONE)
 	{
 		struct first_person_weapon *first_person_weapon= first_person_weapon_get(render.local_player_index);
@@ -713,6 +719,9 @@ void first_person_weapon_draw(
 		}
 	}
 
+#ifdef HALO_OPENXR
+	vr_render_weapon_draw_end();
+#endif
 	return;
 }
 
@@ -1636,6 +1645,10 @@ static void first_person_weapon_build_node_matrices(
 			first_person_weapon->node_matrices,
 			(short)MIN(animation_graph->nodes.count, MAXIMUM_NODES_PER_ANIMATION),
 			&render.camera);
+#endif
+#ifdef HALO_OPENXR
+		vr_render_weapon_nodes(local_player_index, first_person_weapon->node_matrices,
+			(short)MIN(animation_graph->nodes.count, MAXIMUM_NODES_PER_ANIMATION));
 #endif
 	}
 

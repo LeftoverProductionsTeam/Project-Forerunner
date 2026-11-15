@@ -974,23 +974,35 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Read at start-up; requires a build configured with --with-openxr." },
 	{ "vr.aim", _config_string, "\"gamepad\"", "HALO_VR_AIM", _environment_value, _platform_desktop,
 		"Optional OpenXR aim: \"gamepad\" retains native stick aiming;\n"
-		"\"controller\" uses the right-hand aim pose on foot in first person.\n"
+		"\"controller\" uses the dominant-hand aim pose on foot in first person.\n"
 		"Controller facing, eye convergence and body-directed movement are source\n"
 		"only, unverified. Gamepad weapons retain native body aim; controller\n"
 		"models use the hand camera. Unzoomed on-foot reticles project the native\n"
 		"firing ray per eye. Grip calibration, physical scopes and interactions\n"
 		"remain unfinished or unverified.\n"
 		"Vehicle aiming keeps native controls." },
+	{ "vr.dominant_hand", _config_string, "\"right\"", "HALO_VR_DOMINANT_HAND", _environment_value, _platform_desktop,
+		"With controller aim, \"left\" uses the left hand for weapon aim, fire,\n"
+		"weapon posing and rumble. Default/right/unknown values keep the right.\n"
+		"Named face buttons, menus and PTT bindings stay physical. Reuses\n"
+		"OpenH1's dominant-hand policy. Live layout changes require neutral\n"
+		"controllers. Optional OpenXR source; hardware acceptance unverified." },
+	{ "vr.swap_sticks", _config_string, "\"auto\"", "HALO_VR_SWAP_STICKS", _environment_value, _platform_desktop,
+		"Controller aim: \"yes\" swaps move/turn sticks and their clicks;\n"
+		"\"no\" keeps left movement/right turning. Auto/unknown values follow\n"
+		"the dominant hand. Gamepad aim and menus keep native layout. Snap\n"
+		"turning follows the selected physical turn stick. Unverified hardware." },
 	{ "vr.weapon_offset", _config_string, "\"0.15, -0.22, 0.30\"", "HALO_VR_WEAPON_OFFSET", _environment_value,
 		_platform_desktop,
 		"With controller aim, approximate native weapon grip from its animation\n"
 		"camera in metres: \"right, up, forward\". Reuses OpenH1's setting and\n"
 		"defaults. Each value must be within -1..1; invalid values use defaults.\n"
+		"Lateral calibration is mirrored for the left weapon hand.\n"
 		"Native models/animations are reused. Grip alignment, standalone hands,\n"
 		"two-hand support and physical reload/grenade actions are unverified or\n"
 		"unfinished. Optional Windows64 OpenXR builds only." },
 	{ "vr.turn", _config_string, "\"smooth\"", "HALO_VR_TURN", _environment_value, _platform_desktop,
-		"With controller aim, \"snap\" adapts OpenH1's physical-right-stick turn\n"
+		"With controller aim, \"snap\" adapts OpenH1's selected-turn-stick\n"
 		"steps. Return below 0.3 before another push above 0.7. \"smooth\" and\n"
 		"other values keep native profile turning (the existing default).\n"
 		"A centered XR stick keeps native look input; while deflected it owns\n"

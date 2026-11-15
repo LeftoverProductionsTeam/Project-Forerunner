@@ -18,6 +18,11 @@ void vr_render_finish(void);
 boolean vr_render_eye_pass(void);
 /* Only changes position/orientation while native first-person nodes build. */
 boolean vr_render_weapon_camera(struct render_camera *camera);
+/* OpenH1's dominant-hand reflection, after native render interpolation.
+   Draw winding is scoped to the native first-person draw only. */
+void vr_render_weapon_nodes(short local_player_index, real_matrix4x3 *nodes, short count);
+void vr_render_weapon_draw_begin(void);
+void vr_render_weapon_draw_end(void);
 /* Scoped to native crosshairs_draw. One world target per frame, projected
    per eye; FALSE from place hides only an aiming bitmap outside its view. */
 void vr_render_reticle_begin(short local_player_index, long weapon_index,

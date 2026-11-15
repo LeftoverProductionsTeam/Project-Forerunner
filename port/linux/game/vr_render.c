@@ -54,8 +54,9 @@ static struct
 	boolean aim_synced;
 	boolean snap_armed;
 	long aim_unit;
+	int aim_hand, turn_hand;
 	real body_yaw;
-	boolean weapon_camera_valid;
+	boolean weapon_camera_valid, weapon_mirrored;
 	struct render_camera weapon_camera;
 	boolean reticle_checked, reticle_valid, reticle_scoped, reticle_visible;
 	long reticle_unit, reticle_weapon;
@@ -76,6 +77,7 @@ void vr_render_reset_aim(void)
 	stereo.snap_armed = FALSE;
 	stereo.aim_unit = NONE;
 	stereo.weapon_camera_valid = FALSE;
+	stereo.weapon_mirrored = FALSE;
 	stereo.reticle_checked = stereo.reticle_scoped = FALSE;
 	stereo.listener_valid = stereo.listener_path_valid = FALSE;
 }
@@ -220,7 +222,10 @@ static void prepare_weapon_camera(struct render_camera const *base, struct vr_op
 	real_vector3d const *offset;
 	float rotated[3], relative[3];
 	short axis;
+	int hand = vr_openxr_weapon_hand();
+	real across = hand == 0 ? -1.f : 1.f;
 
+	stereo.weapon_mirrored = FALSE;
 	if (!player || cinematic_in_progress() || director_get_perspective(0) != _director_perspective_first_person)
 		return;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
@@ -235,19 +240,19 @@ static void prepare_weapon_camera(struct render_camera const *base, struct vr_op
 		stereo.weapon_camera_valid = TRUE;
 		return;
 	}
-	if (!stereo.aim_synced || stereo.aim_unit != player->unit_index ||
-		!frame->focused || !frame->hand[1].aim.valid)
+	if (!stereo.aim_synced || stereo.aim_unit != player->unit_index || stereo.aim_hand != hand ||
+		!frame->focused || !frame->hand[hand].aim.valid)
 		return;
 	body.i = cosine(stereo.body_yaw);
 	body.j = sine(stereo.body_yaw);
 	body.k = 0.f;
 	cross_product3d(&up, &body, &left);
 	for (axis = 0; axis < 3; axis++)
-		relative[axis] = frame->hand[1].aim.position[axis] - stereo.origin[axis];
+		relative[axis] = frame->hand[hand].aim.position[axis] - stereo.origin[axis];
 	world_axes(relative, &body, &left, &up, &translation);
-	quaternion_rotate(frame->hand[1].aim.orientation, xr_forward, rotated);
+	quaternion_rotate(frame->hand[hand].aim.orientation, xr_forward, rotated);
 	world_axes(rotated, &body, &left, &up, &forward);
-	quaternion_rotate(frame->hand[1].aim.orientation, xr_up, rotated);
+	quaternion_rotate(frame->hand[hand].aim.orientation, xr_up, rotated);
 	world_axes(rotated, &body, &left, &up, &hand_up);
 	if (!valid_real_vector3d(&translation) || !valid_real_vector3d(&forward) ||
 		!valid_real_vector3d(&hand_up) || normalize3d(&forward) <= 0.f)
@@ -261,12 +266,56 @@ static void prepare_weapon_camera(struct render_camera const *base, struct vr_op
 	stereo.weapon_camera.forward = forward;
 	stereo.weapon_camera.up = hand_up;
 	stereo.weapon_camera.position.x += (translation.i -
-		right.i * offset->i - hand_up.i * offset->j - forward.i * offset->k) / METRES_PER_WORLD_UNIT;
+		right.i * offset->i * across - hand_up.i * offset->j - forward.i * offset->k) / METRES_PER_WORLD_UNIT;
 	stereo.weapon_camera.position.y += (translation.j -
-		right.j * offset->i - hand_up.j * offset->j - forward.j * offset->k) / METRES_PER_WORLD_UNIT;
+		right.j * offset->i * across - hand_up.j * offset->j - forward.j * offset->k) / METRES_PER_WORLD_UNIT;
 	stereo.weapon_camera.position.z += (translation.k -
-		right.k * offset->i - hand_up.k * offset->j - forward.k * offset->k) / METRES_PER_WORLD_UNIT;
+		right.k * offset->i * across - hand_up.k * offset->j - forward.k * offset->k) / METRES_PER_WORLD_UNIT;
 	stereo.weapon_camera_valid = valid_real_point3d(&stereo.weapon_camera.position);
+	stereo.weapon_mirrored = stereo.weapon_camera_valid && hand == 0;
+}
+
+/* OpenH1 vr_hands.c::vr_hands_mirror at the retained pin: reflect each
+ * finished native node about the weapon camera's forward/up plane. Keep the
+ * negative handedness; rebuilding left from forward/up would undo reflection. */
+void vr_render_weapon_nodes(short local_player_index, real_matrix4x3 *nodes, short count)
+{
+	real_vector3d normal, relative;
+	short index, axis;
+	if (local_player_index != 0 || !stereo.active || stereo.eye == NONE ||
+		!stereo.weapon_camera_valid || !stereo.weapon_mirrored || !nodes) return;
+	cross_product3d(&stereo.weapon_camera.up, &stereo.weapon_camera.forward, &normal);
+	if (normalize3d(&normal) <= 0.f) return;
+	for (index = 0; index < count; index++)
+	{
+		real_matrix4x3 *node = &nodes[index];
+		real along;
+		real_vector3d *basis[3];
+		vector_from_points3d(&stereo.weapon_camera.position, &node->position, &relative);
+		along = 2.f * dot_product3d(&relative, &normal);
+		node->position.x -= along * normal.i;
+		node->position.y -= along * normal.j;
+		node->position.z -= along * normal.k;
+		basis[0] = &node->forward; basis[1] = &node->left; basis[2] = &node->up;
+		for (axis = 0; axis < 3; axis++)
+		{
+			along = 2.f * dot_product3d(basis[axis], &normal);
+			basis[axis]->i -= along * normal.i;
+			basis[axis]->j -= along * normal.j;
+			basis[axis]->k -= along * normal.k;
+		}
+	}
+}
+
+void vr_render_weapon_draw_begin(void)
+{
+	xgpu_openxr_mirrored_draws(stereo.active && stereo.eye != NONE &&
+		stereo.weapon_camera_valid && stereo.weapon_mirrored);
+}
+
+void vr_render_weapon_draw_end(void)
+{
+	xgpu_openxr_mirrored_draws(FALSE);
 }
 
 boolean vr_render_eye_pass(void)
@@ -548,8 +597,11 @@ boolean vr_render_listener(short local_player_index, struct observer_result cons
    when the XR stick is centered; a deflected stick owns snap-mode turning. */
 static real controller_turn_delta(struct vr_openxr_frame const *frame, real native_delta)
 {
-	real x = frame->hand[1].stick[0];
+	int hand = vr_openxr_turn_hand();
+	real x = frame->hand[hand].stick[0];
 	double degrees;
+	if (hand != stereo.turn_hand) stereo.snap_armed = FALSE;
+	stereo.turn_hand = hand;
 
 	if (strcmp(config_string("vr.turn"), "snap"))
 	{
@@ -592,16 +644,23 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	real distance = 100.0f, along, across, nearest, turn, turn_cos, turn_sin, move_forward;
 	short axis;
 	boolean hit, allowed;
+	int hand = vr_openxr_weapon_hand();
 
 	if (local_player_index != 0)
 		return FALSE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (stereo.aim_synced && stereo.aim_hand != hand)
+	{
+		if (stereo.aim_unit == unit_index) facing->yaw = previous_yaw = stereo.body_yaw;
+		stereo.aim_synced = FALSE;
+		stereo.snap_armed = FALSE;
+	}
 	allowed = permitted && !strcmp(config_string("vr.aim"), "controller") && unit &&
 		unit->object.parent_object_index == NONE && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
 		unit->unit.player_index == local_player_get_player_index(local_player_index) &&
 		director_get_perspective(local_player_index) == _director_perspective_first_person &&
 		stereo.origin_valid && vr_openxr_tracking_read(&frame) && frame.focused && frame.should_render &&
-		frame.hand[1].aim.valid && frame.reference_serial == stereo.reference_serial;
+		frame.hand[hand].aim.valid && frame.reference_serial == stereo.reference_serial;
 	if (allowed)
 	{
 		if (!stereo.aim_synced || stereo.aim_unit != unit_index)
@@ -617,6 +676,7 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	if (!stereo.aim_synced || stereo.aim_unit != unit_index)
 		stereo.body_yaw = wrapped_yaw(previous_yaw + turn_delta);
 	stereo.aim_unit = unit_index;
+	stereo.aim_hand = hand;
 	stereo.aim_synced = TRUE;
 	forward.i = cosine(stereo.body_yaw);
 	forward.j = sine(stereo.body_yaw);
@@ -624,12 +684,12 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	cross_product3d(&up, &forward, &left);
 	director_camera_deterministic(unit_index, &eye, &eye_forward);
 	for (axis = 0; axis < 3; axis++)
-		translation[axis] = frame.hand[1].aim.position[axis] - stereo.origin[axis];
+		translation[axis] = frame.hand[hand].aim.position[axis] - stereo.origin[axis];
 	world_axes(translation, &forward, &left, &up, &offset);
 	origin.x = eye.x + offset.i / METRES_PER_WORLD_UNIT;
 	origin.y = eye.y + offset.j / METRES_PER_WORLD_UNIT;
 	origin.z = eye.z + offset.k / METRES_PER_WORLD_UNIT;
-	quaternion_rotate(frame.hand[1].aim.orientation, xr_forward, rotated);
+	quaternion_rotate(frame.hand[hand].aim.orientation, xr_forward, rotated);
 	world_axes(rotated, &forward, &left, &up, &direction);
 	if (!valid_real_point3d(&origin) || !valid_real_vector3d(&direction) || normalize3d(&direction) <= 0.0f ||
 		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)

@@ -3,6 +3,20 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current VR gameplay source: OpenH1 dominant-hand reuse now connects controller
+aim/fire/grips, optional move/turn stick roles, model camera/reflected native
+nodes, scoped OpenGL/bgfx winding and rumble. Physical buttons/PTT and native
+menu/gamepad behavior stay consistent; live role changes require neutral input.
+Fourteen connected checks and three negative controls pass; Windows64 compiles.
+Headset, mirrored GPU output, rumble and full VR gameplay remain unverified.
+New acceptance finding: hidden OpenGL A30 player-state agreement FAILs both
+the handedness build and unmodified `4bde81ed08` baseline. The logger samples
+native object positions; the cause is not established. Next priority is that
+rendered co-op synchronization defect, before more dependent feature expansion.
+Both failed results remain intact at unchanged limits; no gameplay pass claimed.
+Owned maps/peer copies/scratch are removed; one baseline executable is retained
+for that investigation, alongside the existing reusable build cache.
+
 Current Survival recovery: the built-in encounter now reuses native Extraction
 activation/return controls, escrow and hub redeployment. An individual can recover
 and rejoin while others fight; every living player recovered and physically home

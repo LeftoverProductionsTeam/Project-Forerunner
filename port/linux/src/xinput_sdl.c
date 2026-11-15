@@ -2542,6 +2542,19 @@ static void merge_button(XINPUT_GAMEPAD *pad, int analog_index, BOOL down)
 /* Adapted from OpenH1/goath1 vr.c's halo_vr_gamepad/halo_vr_rumble,
    baed77571d53abe32b27434b4ba869f11db00fe9 (AGPL-3.0-or-later).
    The existing Xbox input path remains the gameplay owner. UNVERIFIED. */
+int vr_openxr_weapon_hand(void)
+{
+	return !strcmp(config_string("vr.aim"), "controller") &&
+		!strcmp(config_string("vr.dominant_hand"), "left") ? 0 : 1;
+}
+
+int vr_openxr_turn_hand(void)
+{
+	char const *swap = config_string("vr.swap_sticks");
+	return !strcmp(config_string("vr.aim"), "controller") &&
+		(!strcmp(swap, "yes") || (vr_openxr_weapon_hand() == 0 && strcmp(swap, "no"))) ? 0 : 1;
+}
+
 static SHORT openxr_stick(float value)
 {
 	if (value > 1.0f) value = 1.0f;
@@ -2561,6 +2574,8 @@ static BYTE openxr_trigger(float value)
 static BOOL openxr_talk_armed, openxr_talk_held;
 static int openxr_talk_binding;
 static unsigned int openxr_talk_reference;
+static BOOL openxr_layout_known, openxr_layout_wait;
+static int openxr_layout_weapon, openxr_layout_turn;
 
 static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 {
@@ -2570,13 +2585,14 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	unsigned long buttons;
 	BOOL pause_combo, moved, left_grip, right_grip, talk_down = FALSE, talk_valid = FALSE;
 	char const *talk = config_string("vr.push_to_talk");
-	int index, talk_binding = 0;
+	int index, talk_binding = 0, weapon_hand, turn_hand;
 
 	memset(pad, 0, sizeof(*pad));
 	openxr_talk_held = FALSE;
 	if (!vr_openxr_input_read(&frame))
 	{
 		openxr_talk_armed = FALSE;
+		openxr_layout_known = openxr_layout_wait = FALSE;
 		return FALSE;
 	}
 	if (!frame.focused)
@@ -2587,6 +2603,36 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	memset(&xr, 0, sizeof(xr));
 	left = frame.hand[0].buttons;
 	right = frame.hand[1].buttons;
+	weapon_hand = menus ? 1 : vr_openxr_weapon_hand();
+	turn_hand = menus ? 1 : vr_openxr_turn_hand();
+	if (!menus)
+	{
+		if (openxr_layout_known && (weapon_hand != openxr_layout_weapon || turn_hand != openxr_layout_turn))
+		{
+			openxr_layout_wait = TRUE;
+			openxr_talk_armed = FALSE;
+		}
+		openxr_layout_known = TRUE;
+		openxr_layout_weapon = weapon_hand;
+		openxr_layout_turn = turn_hand;
+		if (openxr_layout_wait)
+		{
+			/* Rebinding cannot turn a held grenade control into fire. */
+			BOOL neutral = !(left | right);
+			for (index = 0; index < 2; index++)
+				neutral = neutral && frame.hand[index].trigger >= 0.f && frame.hand[index].trigger < 0.1f &&
+					frame.hand[index].squeeze >= 0.f && frame.hand[index].squeeze < 0.1f &&
+					frame.hand[index].stick[0] > -0.25f && frame.hand[index].stick[0] < 0.25f &&
+					frame.hand[index].stick[1] > -0.25f && frame.hand[index].stick[1] < 0.25f;
+			if (!neutral)
+			{
+				if (((left | right) & _vr_button_menu) ||
+					((left & _vr_button_stick) && (right & _vr_button_stick))) pad->wButtons = XINPUT_GAMEPAD_START;
+				return TRUE;
+			}
+			openxr_layout_wait = FALSE;
+		}
+	}
 	/* Index has no application menu button in the standard profile. Both
 	   stick clicks open Halo's pause/menu without binding reserved System. */
 	pause_combo = (left & _vr_button_stick) && (right & _vr_button_stick);
@@ -2630,16 +2676,16 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 		merge_button(&xr, XINPUT_GAMEPAD_B, right & _vr_button_secondary);
 		merge_button(&xr, XINPUT_GAMEPAD_X, left & _vr_button_primary);
 		merge_button(&xr, XINPUT_GAMEPAD_Y, left & _vr_button_secondary);
-		merge_button(&xr, XINPUT_GAMEPAD_WHITE, left_grip);
-		merge_button(&xr, XINPUT_GAMEPAD_BLACK, right_grip);
-		xr.bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = openxr_trigger(frame.hand[0].trigger);
-		xr.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = openxr_trigger(frame.hand[1].trigger);
-		if (left & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_LEFT_THUMB;
-		if (right & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_RIGHT_THUMB;
-		xr.sThumbLX = openxr_stick(frame.hand[0].stick[0]);
-		xr.sThumbLY = openxr_stick(frame.hand[0].stick[1]);
-		xr.sThumbRX = openxr_stick(frame.hand[1].stick[0]);
-		xr.sThumbRY = openxr_stick(frame.hand[1].stick[1]);
+		merge_button(&xr, XINPUT_GAMEPAD_WHITE, weapon_hand ? left_grip : right_grip);
+		merge_button(&xr, XINPUT_GAMEPAD_BLACK, weapon_hand ? right_grip : left_grip);
+		xr.bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = openxr_trigger(frame.hand[1 - weapon_hand].trigger);
+		xr.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = openxr_trigger(frame.hand[weapon_hand].trigger);
+		if ((turn_hand ? left : right) & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_LEFT_THUMB;
+		if ((turn_hand ? right : left) & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_RIGHT_THUMB;
+		xr.sThumbLX = openxr_stick(frame.hand[1 - turn_hand].stick[0]);
+		xr.sThumbLY = openxr_stick(frame.hand[1 - turn_hand].stick[1]);
+		xr.sThumbRX = openxr_stick(frame.hand[turn_hand].stick[0]);
+		xr.sThumbRY = openxr_stick(frame.hand[turn_hand].stick[1]);
 	}
 	*pad = xr;
 	buttons = xr.wButtons;
@@ -3249,11 +3295,16 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 	if (port == 0 && vr_openxr_running())
 	{
 		struct platform_input_state context;
+		BOOL xr_menus;
 
 		/* Peek without consuming mouse/key deltas. Keep XR focus separate
 		   from SDL's remapper, with one combined raw controller hint sample. */
 		platform_input_read(&context, FALSE);
-		xr_connected = openxr_gamepad_read(&xr, context.menus);
+		xr_menus = context.menus;
+#ifdef HALO_GUIDE
+		xr_menus = xr_menus || guide_capture;
+#endif
+		xr_connected = openxr_gamepad_read(&xr, xr_menus);
 		if (xr_connected)
 		{
 			prompt = physical;
@@ -3450,8 +3501,8 @@ DWORD WINAPI XInputSetState(HANDLE device, PXINPUT_FEEDBACK feedback)
 	/* OpenH1's motor-to-hand mapping, refreshed like SDL's existing rumble. */
 	if (port == 0)
 	{
-		vr_openxr_haptic(0, feedback->Rumble.wLeftMotorSpeed / 65535.0f, 0.1f);
-		vr_openxr_haptic(1, feedback->Rumble.wRightMotorSpeed / 65535.0f, 0.1f);
+		vr_openxr_haptic(1 - vr_openxr_weapon_hand(), feedback->Rumble.wLeftMotorSpeed / 65535.0f, 0.1f);
+		vr_openxr_haptic(vr_openxr_weapon_hand(), feedback->Rumble.wRightMotorSpeed / 65535.0f, 0.1f);
 	}
 #endif
 #if defined(HALO_ANDROID) || defined(HALO_WEB)

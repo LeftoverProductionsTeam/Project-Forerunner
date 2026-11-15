@@ -64,6 +64,10 @@ int vr_openxr_tracking_read(struct vr_openxr_frame *frame);
 /* Same-thread input read from the latest located frame, with fresh actions.
    Returns zero without a running XR session; stale/unfocused input is neutral. */
 int vr_openxr_input_read(struct vr_openxr_frame *frame);
+/* Physical controllers for logical weapon/turn roles. Named face buttons and
+   PTT stay physical. OpenH1 vr.c hands_assign_input/hand_controller, pin above. */
+int vr_openxr_weapon_hand(void);
+int vr_openxr_turn_hand(void);
 
 /* Platform renderer only: the VkImage bits accepted by bgfx's existing
    external-texture argument. Runtime ownership remains acquire -> release. */
@@ -81,5 +85,7 @@ void vr_openxr_eye_release(int eye);
 int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame);
 int xgpu_openxr_eye_begin(int eye);
 void xgpu_openxr_eye_end(void);
+/* First-person model draw scope; never changes native render-state values. */
+void xgpu_openxr_mirrored_draws(int mirrored);
 
 #endif

@@ -12,6 +12,45 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
+15 November, OpenH1 dominant-hand source integration (base `4bde81ed08`):
+existing `openxr_input` harness passes 14 MSVC x86 `/O2 /W3 /WX` cases, including
+the actual controller roles, native facing/convergence, selected-hand model
+camera, lateral calibration, two-eye node reflection and draw-cull scope. Default
+input, menu roles, physical PTT, pause, invalid axes and neutral rebinding pass.
+Wrong-hand input, wrong-hand native firing and leaked mirror winding are each
+detected by a broken-integration control. World/math/XR adapters are fixtures;
+they are not native hardware, GPU appearance or haptic acceptance.
+
+Native Windows64 builds pass in the existing non-LTO/bgfx/OpenXR cache, including
+`build/native-xr-handedness-final-build.log`. Final help-string-only compile is
+`build/native-xr-handedness-checkpoint-build.log`; executable SHA-256
+`b68dbb8071c439455f8f768a262c230b318680c01cdcd25ab12c3e945bec6ceb`.
+Hidden rendered native A30/co-op
+uses the existing `net_compare.py --window`, OpenGL both peers, 35 seconds,
+skip 5/start 8/timeout 100, XR explicitly disabled, host left/client right hand
+preferences. `build/native-xr-handedness-flat-smoke/results.json`: **FAIL**,
+37 compared seconds, mean/max position separation 0.671228/1.553354, aim max 4
+degrees, drift max 0.005742. Native NVIDIA/OpenGL startup succeeds; player
+position/ammunition agreement does not. This run preceded the small Guide-only
+XR ownership correction, which is compiled afterward and not exercised with
+XR disabled. No rendered multiplayer acceptance is inferred from compilation.
+
+Regression control: owned edits were preserved in a named stash/recovery patch,
+then the actual committed `4bde81ed08` source was built in the existing cache.
+`build/windows64/halo.xr-baseline.exe` SHA-256:
+`4f889fb2dbadb690e23407a2605e1539201f404f129853cdfec6a77ba593e78e`.
+Same hidden rendered scenario: `build/native-xr-handedness-prechange-gl` **FAIL**,
+37 seconds, mean/max position separation 1.580735/3.389448, aim max 113 degrees,
+drift max 0.010665. All limits/results are unchanged; these observations establish
+a preexisting rendered agreement failure, not its cause or a VR hardware result.
+The logger reads raw native object positions. Preserve both sessions' logs and
+the one baseline executable for the next networking investigation; do not repeat
+the old protocol/revival or missing authored-map investigations without cause.
+Restored VR patch SHA-256 matches its pre-control copy exactly. Original map
+hashes are unchanged, copied maps/A/B folders and fixture scratch are removed.
+No XR loader/headset/microphone access was requested. Headset/driver/stereo
+mirroring, rumble, Linux/other targets and mixed VR/desktop acceptance remain open.
+
 15 November, shared Survival evacuation: existing connected Extraction/gear C
 harness passes 20 MSVC x86 `/O2 /W3 /WX` cases. Seven new workflows cover escape,
 redeployment without changing item IDs, another player's continuing run, delayed

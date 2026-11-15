@@ -2124,9 +2124,9 @@ static uint64_t bg_state(BOOL has_depth, uint32_t *stencil, uint32_t *back_stenc
 	*rgba = (uint32_t)((rs[D3DRS_BLENDCOLOR] << 8) | (rs[D3DRS_BLENDCOLOR] >> 24));
 	/* the cull mode names the winding to discard (GL_CW, GL_CCW), in the
 	target's rows from the top, as Metal's are */
-	if (rs[D3DRS_CULLMODE] == 0x900)
+	if (draw_cull_mode(rs[D3DRS_CULLMODE]) == 0x900)
 		state |= BGFX_STATE_CULL_CW;
-	else if (rs[D3DRS_CULLMODE] == 0x901)
+	else if (draw_cull_mode(rs[D3DRS_CULLMODE]) == 0x901)
 		state |= BGFX_STATE_CULL_CCW;
 	/* (Metal rasterizes a multisampled target's samples anyway; Direct3D 11
 	and OpenGL only with it) */

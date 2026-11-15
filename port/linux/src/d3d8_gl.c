@@ -230,6 +230,28 @@ resolution each way, and "original" (Android's default) the 480 lines, scaled
 up at presentation. The width and the scale change only between frames,
 after one is presented (halo_screen_commit). */
 
+/* Reflected first-person nodes need reversed winding in either existing
+ * backend. Keep this draw scope separate from the game's render-state array. */
+#ifdef HALO_OPENXR
+static BOOL openxr_mirrored_draws;
+void xgpu_openxr_mirrored_draws(int mirrored)
+{
+	openxr_mirrored_draws = mirrored != 0;
+}
+#endif
+
+static DWORD draw_cull_mode(DWORD mode)
+{
+#ifdef HALO_OPENXR
+	if (openxr_mirrored_draws)
+	{
+		if (mode == D3DCULL_CW) return D3DCULL_CCW;
+		if (mode == D3DCULL_CCW) return D3DCULL_CW;
+	}
+#endif
+	return mode;
+}
+
 #define SCREEN_HEIGHT 480
 #define SCREEN_MAXIMUM_WIDTH 1920
 
@@ -6023,7 +6045,7 @@ static void apply_raster_state(BOOL has_depth)
 		glClipControl, xgpu.h, which unlike desktop GL's upper-left clip
 		origin also flips the winding, the front is the other winding) */
 		GLenum front_face = (rs[D3DRS_FRONTFACE] == D3DFRONT_CCW) != (XGPU_GL_LEGACY != 0) ? GL_CCW : GL_CW;
-		GLenum cull_mode = rs[D3DRS_CULLMODE] == rs[D3DRS_FRONTFACE] ? GL_FRONT : GL_BACK;
+		GLenum cull_mode = draw_cull_mode(rs[D3DRS_CULLMODE]) == rs[D3DRS_FRONTFACE] ? GL_FRONT : GL_BACK;
 
 		if (gl_state.front_face != front_face)
 		{

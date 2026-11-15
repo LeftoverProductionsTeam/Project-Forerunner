@@ -774,21 +774,21 @@ outside-image tracking state. No new Spark export or content schema is required.
 Optional controller snap turning now reuses the same pin's `vr.c` latch and
 0.7/0.3 thresholds in `vr_render.c::controller_turn_delta`. `vr.turn` defaults
 to native `"smooth"`; `"snap"` uses `vr.snap_turn_angle` (30 degrees, 1..180).
-Only eligible local first-person controller aim consumes the physical right
-stick. Neutral rearming covers ownership, menu, focus/tracking and world changes;
+Only eligible local first-person controller aim consumes its selected physical
+turn stick. Neutral rearming covers ownership, menu, focus/tracking and world changes;
 vehicle/gamepad controls remain native. Existing facing carries the turn, without
 new network fields, an XR frame loop or Spark data. Source only, unverified;
 actual Quest 2/Index input, direction, comfort and mixed controls remain open.
 Controller weapon posing now adapts the same OpenH1 pin's
 `vr_render_weapon_camera` and `vr.weapon_offset` defaults.
-`vr_render.c::prepare_weapon_camera` prepares one right-hand animation camera
+`vr_render.c::prepare_weapon_camera` prepares one dominant-hand animation camera
 for both eyes. `source/render/render.c::render_window` uses it only around
 native first-person node building and restores the head camera before world
 rendering. `view_fov.c::viewmodel_projection_begin` preserves headset eye
 projection instead of applying flat-screen viewmodel FOV. Native weapon models,
 animation graphs and visibility remain authoritative; no new Spark resource
-format or hand/weapon renderer was introduced. This remains unbuilt and
-unverified. `vr_render.c::vr_render_reticle_begin` now reuses
+format or hand/weapon renderer was introduced. The current Windows64 build
+compiles; headset output remains unverified. `vr_render.c::vr_render_reticle_begin` reuses
 `weapons.c::weapon_get_projectile_ray` and native projectile collision for one
 finite pre-spread target per frame, projected separately through each eye's
 native frustum. `hud_weapon.c::crosshairs_draw` scopes the existing aiming
@@ -801,6 +801,23 @@ standalone/two-hand interactions, vehicle aiming and headset acceptance remain
 unverified or unfinished; Spark must not advertise full VR support from these
 source interfaces. Existing native weapon HUD/model tags remain sufficient;
 there is no new map-side VR schema or projectile-flight prediction.
+
+Optional `vr.dominant_hand="left"` / `HALO_VR_DOMINANT_HAND=left` now follows
+OpenH1 `vr.c::{hands_assign_input,hand_controller}` at that same retained pin.
+`vr.swap_sticks` accepts auto/yes/no (auto follows the weapon hand). Shared
+`xinput_sdl.c::{vr_openxr_weapon_hand,vr_openxr_turn_hand}` drive fire/grips,
+movement/clicks, native convergence, weapon camera, snap turning and rumble.
+Face-button labels, menus/Guide and named PTT bindings remain physical; gamepad
+aim retains native halves. Live role changes wait for neutral controllers;
+pause remains available. `vr_render_weapon_nodes` adapts `vr_hands_mirror` after
+native interpolation, with scoped winding in both existing OpenGL/bgfx paths.
+No renderer, animation asset, input/voice system, packet or Spark export added.
+Fourteen connected native-C cases and three broken-integration controls pass.
+Hardware calibration, mirrored model rendering, haptics and headset gameplay
+remain unverified. Hidden OpenGL A30 multiplayer agreement fails in both the
+handedness build and preceding `4bde81ed08` control; the native position-state
+sampling/replication cause is unresolved. Keep this acceptance gate open rather
+than treating headset absence or successful compilation as gameplay proof.
 
 Native proximity voice now has optional `audio.voice_obstruction` source
 and optional Windows64 `vr.push_to_talk` input source. The latter defaults off,
