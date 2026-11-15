@@ -660,7 +660,10 @@ The owner has explicitly authorized that adaptation in the existing renderer.
 The current native Video presets and shared per-pixel model-lighting connection
 require no new Spark schema, compiled-map handoff or lighting asset. They have
 focused compiled-source evidence, not native map/stereo/target acceptance.
-bgfx still lacks HDR and enhanced Light effects; its Video help states the limits.
+bgfx still lacks HDR. Its inherited model Light effects now have a source
+connection to the native selected-light mask, shaders and volume-texture cache,
+with capability/resource/async fallback; actual GPU/stereo output is unverified.
+No new Spark lighting data, fields, asset conversion or authored-map requirement.
 The new shared pre-HUD FXAA pass uses native render targets and requires no
 authoring/cache change. Its source/lifetime checks pass; rendered/stereo output
 is unverified. Optional OpenXR MSAA now resolves two owned eye targets through

@@ -215,7 +215,7 @@ SCREENS = {
                  "Light models per pixel on OpenGL or bgfx.\nOff keeps the Xbox's vertex lighting.", None),
                 ("LIGHT EFFECTS:", "display.light_effects",
                  [("AUTO", "auto"), ("HIGH", "high"), ("LOW", "low"), ("OFF", "off"), ("CUSTOM", "custom")],
-                 "OpenGL only; bgfx support is unfinished.\nCustom uses your choices under CUSTOM LIGHT EFFECTS.",
+                 "Native effects on OpenGL/bgfx; bgfx is unverified.\nCustom uses your choices under CUSTOM LIGHT EFFECTS.",
                  "desktop"),
                 ("DOORS BLOCK LIGHT:", "display.doors_block_light", ON_OFF,
                  "A closed door stops light from the other side.\nOff lets it through, as on the Xbox.", None),
@@ -233,9 +233,9 @@ SCREENS = {
                  "How far the world is drawn.", None),
             ]),
             ("custom_light_effects", "CUSTOM LIGHT EFFECTS",
-             "Used when Advanced > Light effects is Custom.\nOpenGL only; bgfx support is unfinished.", [
+             "Used when Advanced > Light effects is Custom.\nbgfx model effects are source-only and unverified.", [
                 (label + ":", "display." + key, ON_OFF,
-                 help_text + "\nUsed with Light effects: Custom. OpenGL only.", "desktop")
+                 help_text + "\nUsed with Light effects: Custom; GPU limits apply.", "desktop")
                 for label, key, help_text in [
                     ("PROJECTILE LIGHT", "plasma_lighting", "Soft illumination from shots in flight."),
                     ("MUZZLE LIGHT", "muzzle_lighting", "Soft muzzle illumination with a fading trail."),

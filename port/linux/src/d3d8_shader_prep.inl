@@ -73,7 +73,7 @@ struct prep_pending
 	/* bgfx: the key's, until both are made */
 	struct vertex_shader_object *object;
 	double started;
-	BOOL immediate;
+	BOOL immediate, plasma;
 	int flags;
 	struct nv2a_pixel_shader_key key;
 #endif
@@ -415,12 +415,12 @@ static BOOL prep_start(const struct xgpu_program_key *recorded)
 		int flags = recorded->flags & _xgpu_key_depth_bias_bit ? _bg_shader_depth_bias : 0;
 		struct bg_shader *vertex, *fragment;
 
-		/* Reuse the model-lighting translators; Light effects' occlusion
-		 * buffers still require a separate backend connection. */
+		/* Prepare the same inherited model/effect variants that bg_draw uses. */
+		plasma = plasma && object->plasma_model && !object->plasma_lighting_failed && bg_model_effects_supported();
 		key.per_pixel_lighting = lit && object->lighting.lights && !object->lighting_failed && per_pixel_lighting() ?
 			(unsigned char)object->lighting.lights : 0;
-		key.plasma_model = 0;
-		vertex = bg_vertex_shader(object, immediate, key.per_pixel_lighting != 0);
+		key.plasma_model = (unsigned char)(plasma && key.per_pixel_lighting);
+		vertex = bg_vertex_shader(object, immediate, key.per_pixel_lighting != 0, plasma);
 		fragment = bg_fragment_shader(&key, flags);
 		if (vertex && fragment)
 		{
@@ -432,6 +432,7 @@ static BOOL prep_start(const struct xgpu_program_key *recorded)
 		pending.object = object;
 		pending.started = prep_seconds();
 		pending.immediate = immediate;
+		pending.plasma = plasma;
 		pending.flags = flags;
 		pending.key = key;
 		prep_pending_add(&pending);
@@ -481,7 +482,7 @@ static void prep_collect(double deadline, BOOL wait)
 		if (pending->object)
 		{
 			struct bg_shader *vertex = wait ? NULL : bg_vertex_shader(pending->object, pending->immediate,
-				pending->key.per_pixel_lighting != 0);
+				pending->key.per_pixel_lighting != 0, pending->plasma);
 			struct bg_shader *fragment = wait ? NULL : bg_fragment_shader(&pending->key, pending->flags);
 
 			if (vertex && fragment)

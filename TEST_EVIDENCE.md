@@ -54,6 +54,31 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Inherited model Light effects on bgfx, base `1a1dfcac9b`:
+
+- Installed MSVC 14.52.37025 x64 / SDK 10.0.26100.0, `/O2 /W3 /WX`
+  compiles real shader selection, optional startup/retirement, native texture
+  binding, shader preparation/collection and shared GLSL emit/rewrite functions.
+  **15 workflows pass**: vertex/per-pixel variants; pending vertex/pixel jobs,
+  failed links and full native fallback; capability limits and partial startup
+  cleanup; missing/failed/invalid-volume fields; selected-slot/view changes;
+  Vulkan/Metal/D3D11 source rewrites; recorded/pending shader preparation.
+  The first compile caught implicit boolean-to-float initialization warnings;
+  explicit float values fixed production source before these passing results.
+- **10 existing model-lighting source regressions** recompile/pass on MSVC x86,
+  including Classic, async/link fallback and shared FXAA rewrites. Three broken
+  controls are detected: a conflicting texture binding, admitting a non-volume
+  field and retaining an effect mask after shader fallback. Native draw ordering
+  and preparation connections are inspected; both existing Video menu styles
+  regenerate/parse and changed Python syntax passes.
+- GPU/compiler-job/OpenXR APIs are fixtures. Backend rewrites are not GPU shader
+  compilation. No full engine build, rendered model/field, native map transition,
+  hardware stereo, screenshots or measured GPU/CPU costs are claimed. Existing
+  native volume creation/cache/dirty-page ownership is reused; no second field
+  generator, texture cache, simulation or packet change. World/ray-query AO and
+  OpenH1 enhanced-lighting parity remain OPEN. Disposable check outputs are
+  removed; no original map/save, Spark/upstream file, push or release.
+
 Individual inherited Light effects, base `485fa43a12`:
 
 - MSVC 14.52.37025 x64 / SDK 10.0.26100.0, `/O2 /W3 /WX` compiles the

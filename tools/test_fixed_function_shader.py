@@ -270,7 +270,7 @@ enum {_bg_shader_depth_bias=1};
     code += r'''
 struct bg_shader {int lit, ready;};
 struct bg_program {int program;};
-struct nv2a_pixel_shader_key {unsigned char per_pixel_lighting;};
+struct nv2a_pixel_shader_key {unsigned char per_pixel_lighting,plasma_model;};
 static struct bg_shader vertices[4], pixels[3]={{0,1},{1,1},{1,1}};
 static int made, enabled=1, pending_vertex, pending_pixel, failed_link, flags_seen;
 static BOOL per_pixel_lighting(void) {return enabled;}
@@ -356,6 +356,7 @@ int main(int argc,char **argv)
     struct xgpu_text text={0};
     char *rewritten;
     unsigned long size;
+    unsigned int plasma_mask=0;
     int expected=1, immediate=0;
     CHECK(argc==2);
     object.instructions=&instruction;object.instruction_count=1;object.lighting.lights=2;
@@ -366,17 +367,17 @@ int main(int argc,char **argv)
     else if (!strcmp(argv[1],"pending-pixel")) {pending_pixel=1;expected=0;}
     else if (!strcmp(argv[1],"failed-link")) {failed_link=1;expected=0;}
     else if (!strcmp(argv[1],"immediate")) immediate=1;
-    entry=bg_model_program(&object,immediate,&key,1,&vertex,&pixel);
+    entry=bg_model_program(&object,immediate,&plasma_mask,&key,1,&vertex,&pixel);
     CHECK(entry && entry->program==expected && vertex->lit==expected && flags_seen==1);
     CHECK(key.per_pixel_lighting==(expected ? object.lighting.lights : 0));
     pending_vertex=pending_pixel=failed_link=0;
-    entry=bg_model_program(&object,immediate,&key,1,&vertex,&pixel);
+    entry=bg_model_program(&object,immediate,&plasma_mask,&key,1,&vertex,&pixel);
     CHECK(entry && entry->program==(enabled && object.lighting.lights ? 1 : 0));
     /* The same streamed/immediate variant is cached; each draw kind owns
        its own slot. Failed enhanced links must not poison the stock one. */
-    {int before=made;bg_model_program(&object,immediate,&key,1,&vertex,&pixel);CHECK(made==before);}
+    {int before=made;bg_model_program(&object,immediate,&plasma_mask,&key,1,&vertex,&pixel);CHECK(made==before);}
     if (!strcmp(argv[1],"immediate")) {
-        struct bg_shader *other=bg_vertex_shader(&object,FALSE,TRUE);
+        struct bg_shader *other=bg_vertex_shader(&object,FALSE,TRUE,FALSE);
         CHECK(other && other->lit && object.bg_shader[2] && object.bg_shader[3]);
     }
     model_lighting(&text,object.lighting.lights==2,FALSE);

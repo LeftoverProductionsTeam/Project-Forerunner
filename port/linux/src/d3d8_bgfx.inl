@@ -333,6 +333,9 @@ static struct
 	bgfx_vertex_layout_t layout;
 	bgfx_uniform_handle_t uniforms[BG_UNIFORM_COUNT];
 	bgfx_uniform_handle_t samplers[4];
+	/* GulchCE's existing model falloff and visibility fields, units 6/7. */
+	bgfx_uniform_handle_t plasma_uniforms[4], plasma_samplers[2];
+	bgfx_texture_handle_t plasma_white;
 	unsigned long frame;
 
 	/* the window's pixels, as bgfx's back buffer was last reset to */
@@ -620,6 +623,10 @@ static char *bg_vulkan_glsl(const char *source, BOOL fragment, int flags, unsign
 				/* tex0 to tex3 at their stages; others in order */
 				int binding = strncmp(name, "tex", 3) == 0 && name[3] >= '0' && name[3] <= '3' && !name[4] ?
 					name[3] - '0' : sampler_next;
+				/* Shared by vertex and pixel lighting, independent of which
+				 * ordinary material stages either shader declares. */
+				if (!strcmp(name, "plasma_occ_texture0")) binding = 6;
+				if (!strcmp(name, "plasma_occ_texture1")) binding = 7;
 
 				sampler_next = binding + 1;
 				if (bg_vulkan)
@@ -1742,15 +1749,15 @@ static struct bg_shader *bg_shader_get(const char *glsl, BOOL fragment, int flag
 	return shader;
 }
 
-static struct bg_shader *bg_vertex_shader(struct vertex_shader_object *program, BOOL immediate, BOOL lit)
+static struct bg_shader *bg_vertex_shader(struct vertex_shader_object *program, BOOL immediate, BOOL lit, BOOL plasma)
 {
-	void **slot = &program->bg_shader[(immediate ? 1 : 0) + (lit ? 2 : 0)];
+	void **slot = &program->bg_shader[(immediate ? 1 : 0) + (lit ? 2 : 0) + (plasma ? 4 : 0)];
 
 	if (!*slot)
 	{
 		/* (packed normals are unpacked as they are staged: bg_vertex_element) */
 		char *glsl = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count, 0,
-			lit ? &program->lighting : NULL, FALSE);
+			lit ? &program->lighting : NULL, plasma);
 
 		*slot = bg_shader_get(glsl, FALSE, 0, "vertex", FALSE);
 		free(glsl);
@@ -1974,20 +1981,31 @@ static struct bg_program *bg_program_entry(struct bg_shader *vertex, struct bg_s
 
 /* Select both stages together. An enhanced compiler job or failed link
  * must never pair a lit vertex shader with an unlit pixel shader. */
-static struct bg_program *bg_model_program(struct vertex_shader_object *program, BOOL immediate,
+static struct bg_program *bg_model_program(struct vertex_shader_object *program, BOOL immediate, unsigned int *plasma_mask,
 	struct nv2a_pixel_shader_key *key, int flags, struct bg_shader **vertex, struct bg_shader **fragment)
 {
 	struct bg_program *entry;
 
 	key->per_pixel_lighting = program->lighting.lights && !program->lighting_failed && per_pixel_lighting() ?
 		(unsigned char)program->lighting.lights : 0;
-	*vertex = bg_vertex_shader(program, immediate, key->per_pixel_lighting != 0);
+	key->plasma_model = (unsigned char)(*plasma_mask && key->per_pixel_lighting);
+	*vertex = bg_vertex_shader(program, immediate, key->per_pixel_lighting != 0, *plasma_mask != 0);
 	*fragment = bg_fragment_shader(key, flags);
 	entry = *vertex && *fragment ? bg_program_entry(*vertex, *fragment) : NULL;
+	if ((!entry || !BGFX_HANDLE_IS_VALID(entry->program)) && *plasma_mask)
+	{
+		/* A pending/failed effect must not remove a native model, or pair
+		 * an effect vertex shader with an ordinary pixel shader. */
+		*plasma_mask = 0;
+		key->plasma_model = 0;
+		*vertex = bg_vertex_shader(program, immediate, key->per_pixel_lighting != 0, FALSE);
+		*fragment = bg_fragment_shader(key, flags);
+		entry = *vertex && *fragment ? bg_program_entry(*vertex, *fragment) : NULL;
+	}
 	if ((!entry || !BGFX_HANDLE_IS_VALID(entry->program)) && key->per_pixel_lighting)
 	{
 		key->per_pixel_lighting = 0;
-		*vertex = bg_vertex_shader(program, immediate, FALSE);
+		*vertex = bg_vertex_shader(program, immediate, FALSE, FALSE);
 		*fragment = bg_fragment_shader(key, flags);
 		entry = *vertex && *fragment ? bg_program_entry(*vertex, *fragment) : NULL;
 	}
@@ -3228,6 +3246,89 @@ static BOOL bg_texture_get(const DWORD *resource, const D3DCOLOR *palette, struc
 	return TRUE;
 }
 
+/* The inherited model Light effects use the ordinary native texture cache:
+ * no second visibility field, upload cache or collision query path. Their
+ * extra bindings never replace the game's material texture stages 0..3. */
+static BOOL bg_model_effects_supported(void)
+{
+	const bgfx_caps_t *caps = bgfx_get_caps();
+	unsigned int i;
+	uint32_t needed = BGFX_CAPS_FORMAT_TEXTURE_3D | BGFX_CAPS_FORMAT_TEXTURE_VERTEX;
+	if (caps->limits.maxTextureSamplers < 8 || (caps->formats[BGFX_TEXTURE_FORMAT_BGRA8] & needed) != needed ||
+		!BGFX_HANDLE_IS_VALID(bg.plasma_white)) return FALSE;
+	for (i = 0; i < 2; i++)
+		if (!BGFX_HANDLE_IS_VALID(bg.plasma_samplers[i])) return FALSE;
+	for (i = 0; i < 4; i++)
+		if (!BGFX_HANDLE_IS_VALID(bg.plasma_uniforms[i])) return FALSE;
+	return TRUE;
+}
+
+static void bg_model_effects_start(void)
+{
+	static const char *const names[4] = {
+		"plasma_model_slots_v4", "plasma_occ_enabled_v4", "plasma_occ_transform0", "plasma_occ_transform1" };
+	const bgfx_caps_t *caps = bgfx_get_caps();
+	unsigned int i, white = 0xffffffff;
+	uint32_t needed = BGFX_CAPS_FORMAT_TEXTURE_3D | BGFX_CAPS_FORMAT_TEXTURE_VERTEX;
+	bg.plasma_white = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+	for (i = 0; i < 2; i++) bg.plasma_samplers[i] = (bgfx_uniform_handle_t)BGFX_INVALID_HANDLE;
+	for (i = 0; i < 4; i++) bg.plasma_uniforms[i] = (bgfx_uniform_handle_t)BGFX_INVALID_HANDLE;
+	if (caps->limits.maxTextureSamplers < 8 || (caps->formats[BGFX_TEXTURE_FORMAT_BGRA8] & needed) != needed)
+	{
+		bg_log_once("model Light effects need vertex volume textures and eight samplers; ordinary lighting is kept");
+		return;
+	}
+	for (i = 0; i < 4; i++) bg.plasma_uniforms[i] = bgfx_create_uniform(names[i], BGFX_UNIFORM_TYPE_VEC4, 1);
+	bg.plasma_samplers[0] = bgfx_create_uniform("plasma_occ_texture0", BGFX_UNIFORM_TYPE_SAMPLER, 1);
+	bg.plasma_samplers[1] = bgfx_create_uniform("plasma_occ_texture1", BGFX_UNIFORM_TYPE_SAMPLER, 1);
+	bg.plasma_white = bgfx_create_texture_3d(1, 1, 1, false, BGFX_TEXTURE_FORMAT_BGRA8, BGFX_TEXTURE_NONE,
+		bgfx_copy(&white, sizeof(white)), 0);
+	if (!bg_model_effects_supported())
+	{
+		/* Failed optional setup is tried only at renderer startup. */
+		for (i = 0; i < 4; i++)
+		{
+			if (BGFX_HANDLE_IS_VALID(bg.plasma_uniforms[i])) bgfx_destroy_uniform(bg.plasma_uniforms[i]);
+			bg.plasma_uniforms[i] = (bgfx_uniform_handle_t)BGFX_INVALID_HANDLE;
+		}
+		for (i = 0; i < 2; i++)
+		{
+			if (BGFX_HANDLE_IS_VALID(bg.plasma_samplers[i])) bgfx_destroy_uniform(bg.plasma_samplers[i]);
+			bg.plasma_samplers[i] = (bgfx_uniform_handle_t)BGFX_INVALID_HANDLE;
+		}
+		if (BGFX_HANDLE_IS_VALID(bg.plasma_white)) bgfx_destroy_texture(bg.plasma_white);
+		bg.plasma_white = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+		bg_log_once("model Light effects unavailable; ordinary native lighting is kept");
+	}
+}
+
+static void bg_model_effects_bind(unsigned int mask)
+{
+	float slots[4] = { (mask & 1) ? 1.0f : 0.0f, (mask & 2) ? 1.0f : 0.0f, 0.0f, 0.0f };
+	float enabled[4] = { 0.0f }, transform[2][4] = { { 0.0f } };
+	int slot;
+	for (slot = 0; slot < 2; slot++)
+	{
+		bgfx_texture_handle_t texture = bg.plasma_white, resolved;
+		const DWORD *resource = mask & (1u << slot) ? plasma_occlusion_model_texture(slot, transform[slot]) : NULL;
+		struct xgpu_texture_description description;
+		BOOL mipmapped;
+		long override;
+		if (resource && bg_texture_get(resource, NULL, &description, &resolved, &mipmapped, &override) &&
+			description.depth > 1 && !description.cube_map && BGFX_HANDLE_IS_VALID(resolved))
+		{
+			texture = resolved;
+			enabled[slot] = 1.0f;
+		}
+		bgfx_set_texture((uint8_t)(6 + slot), bg.plasma_samplers[slot], texture,
+			BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP | BGFX_SAMPLER_W_CLAMP);
+	}
+	bgfx_set_uniform(bg.plasma_uniforms[0], slots, 1);
+	bgfx_set_uniform(bg.plasma_uniforms[1], enabled, 1);
+	bgfx_set_uniform(bg.plasma_uniforms[2], transform[0], 1);
+	bgfx_set_uniform(bg.plasma_uniforms[3], transform[1], 1);
+}
+
 /* flat: a 2D texture (not a cube or 3D one), the only kind given the
 anisotropy display.anisotropic_filtering forces, on the same terms as the
 OpenGL path's configure_sampler: mipmapped and filtered. bgfx's level is
@@ -3951,6 +4052,7 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 	unsigned long generated, uniform_bytes;
 	uint32_t stencil, back_stencil, rgba;
 	uint64_t state;
+	unsigned int plasma_mask;
 	BOOL has_depth, native, starved;
 	int stage;
 
@@ -4001,7 +4103,10 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 	key.fog_table_mode = (unsigned char)D3D__RenderState[D3DRS_FOGTABLEMODE];
 
 	{
-		struct bg_program *entry = bg_model_program(program, immediate, &key,
+		struct bg_program *entry;
+		plasma_mask = program->plasma_model && !program->plasma_lighting_failed && bg_model_effects_supported() ?
+			plasma_model_lighting_mask() : 0;
+		entry = bg_model_program(program, immediate, &plasma_mask, &key,
 			has_depth && D3D__RenderState[D3DRS_SOLIDOFFSETENABLE] ? _bg_shader_depth_bias : 0,
 			&vertex_shader, &fragment_shader);
 
@@ -4009,7 +4114,7 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 #ifdef HALO_SHADER_PREP
 		if (entry && entry->noted != shader_prep_serial)
 		{
-			prep_note(&entry->noted, program, immediate, key.per_pixel_lighting != 0, FALSE,
+			prep_note(&entry->noted, program, immediate, key.per_pixel_lighting != 0, plasma_mask != 0,
 				has_depth && D3D__RenderState[D3DRS_SOLIDOFFSETENABLE], declaration->packed_mask, &key);
 		}
 #endif
@@ -4094,6 +4199,7 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 	bg_view_set(bg.framebuffer, rect, FALSE);
 	/* (after the view is set: its blits touch it, which drops what is set) */
 	bg_apply_textures();
+	if (plasma_mask) bg_model_effects_bind(plasma_mask);
 	if (bg.test_active)
 	{
 		/* (inside a visibility test: a query of its own, summed at the end) */
@@ -6045,6 +6151,7 @@ static BOOL bg_initialize(void)
 	}
 	for (index = 0; index < BG_QUERY_COUNT; index++)
 		bg.queries[index] = bgfx_create_occlusion_query();
+	bg_model_effects_start();
 	/* what a stage without a texture samples: black, as OpenGL's unit
 	without one */
 	bg.blank = bgfx_create_texture_2d(1, 1, false, 1, BGFX_TEXTURE_FORMAT_BGRA8, BGFX_TEXTURE_NONE,

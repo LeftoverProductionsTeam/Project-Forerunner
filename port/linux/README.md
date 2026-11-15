@@ -735,7 +735,7 @@ settings writer and Cancel discards the preview. There is no separate preset
 file or simulation change. Resolution, FOV and timing remain individual choices.
 Enhanced uses native per-pixel model lighting on OpenGL or bgfx; a pending or
 failed bgfx shader falls back to the native vertex-lit form. OpenGL currently
-owns HDR, Light effects and SMAA/SSAA; bgfx retains SDR and now shares FXAA,
+owns HDR and SMAA/SSAA; bgfx retains SDR and now shares native model Light effects and FXAA,
 alongside MSAA. The optional OpenXR path now renders MSAA into two owned eye
 targets and resolves them into the runtime's single-sample images. It selects
 common color/intermediate/depth capabilities, retires targets on resize/off and
@@ -752,8 +752,14 @@ visibility, ammo counters, Needlers, Jackal/Covenant shields, fuel rods, held
 weapon glow, plasma prongs, vehicles and world emitters. Both existing menu
 styles use the normal OK/Cancel/settings writer. Auto/Low/High/Off retain their
 previous behavior and preserve custom choices. These reuse chester's inherited
-GulchCE effects on OpenGL; bgfx support remains unfinished. Their new controls
-have compiled source/menu evidence, not rendered or performance acceptance.
+GulchCE effects. bgfx now shares the model vertex/per-pixel falloff and existing
+collision-filtered volume fields through its ordinary native texture cache.
+Extra samplers stay at units 6/7, apart from material stages; missing fields keep
+soft falloff without wall visibility, unsupported GPUs or failed shaders keep ordinary model
+lighting. Shader preparation shares those variants, including vertex-only ones.
+The new backend connection and controls have compiled source/menu evidence;
+real Vulkan/Metal/D3D11, stereo, map transitions and performance remain unverified.
+OpenH1 world-space/ray-query AO and its newer lighting path remain unfinished.
 
 When a version changes the default of settings that a `config.toml` has
 untouched (commented out, or not there), the game asks once, before the

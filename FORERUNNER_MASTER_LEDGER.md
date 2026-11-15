@@ -49,7 +49,8 @@ leave the native picture intact. Nine real pass/lifecycle cases and three
 backend shader-source rewrites compile/pass; broken alpha, resize retirement
 and texel-bound controls are detected. Driver compilation, real captures, GPU
 cost and hardware stereo remain unverified. No simulation, packets or assets
-changed. SMAA/SSAA, HDR and enhanced Light effects still need bgfx adapters;
+changed. SMAA/SSAA and HDR still need bgfx adapters; the inherited model Light
+effects now have a source connection below, with real driver acceptance open;
 OpenXR MSAA now has source implementation through the same renderer, below.
 
 Current stereo anti-aliasing: the existing MSAA setting selects a common eye,
@@ -72,7 +73,8 @@ choices survive preset changes. The existing selector caches the mask instead
 of rereading twelve settings per draw. Five actual-source choice/reload/cache
 cases, three unsupported-target guards and six native menu cases compile/pass;
 rendered UI, visual effects, driver/hardware and dense-encounter cost are open.
-These are OpenGL effects; bgfx remains explicitly unsupported. The source audit
+The inherited model effects now have a bgfx connection below; actual rendering
+remains unverified. The source audit
 now includes pinned Faber, OpenCE-Forge and GulchCE setting declarations and their
 remaining semantic gaps. No second effect, renderer, menu engine or writer.
 
@@ -86,12 +88,27 @@ shader preparation. Its missing MCC bump-material key is also connected.
 Ten graphics-source cases, five native-menu workflows and the MCC combiner
 compile/pass; four deliberately broken controls are detected. Windows/Linux/
 Metal driver compilation, actual UI/gameplay, GPU timing and VR remain unverified.
-Video help states bgfx's outstanding HDR, Light effects and SMAA/SSAA limits.
+Video help states bgfx's HDR/SMAA/SSAA limits and unverified model-effect path.
 The owner's Universal Halo Graphics directive explicitly authorizes adapting
 OpenH1's World/ray-query AO in the existing renderer. No approval remains pending
 for that work, but no AO implementation or working AO option is claimed yet.
 Exact option classifications and renderer requirements are in the existing
 UPSTREAM_FEATURE_MATRIX.md; native baked lightmaps must not be darkened twice.
+
+Current model Light effects: bgfx reuses GulchCE's native selected-light mask,
+vertex/per-pixel falloff and collision-filtered volume fields. It binds those
+fields through the ordinary native texture cache at fixed units 6/7, preserving
+material stages 0..3. The existing shader cache/preparation retains distinct
+immediate/streamed, vertex/per-pixel and effect variants; pending/failed effects
+fall back to ordinary lighting and retry their cached jobs. Unsupported vertex
+volume/sampler capabilities or optional startup failures keep the native path.
+Missing fields use white visibility; partial startup resources are released.
+Fifteen actual-source resource/variant/preparation/rewrite workflows compile/pass
+on MSVC x64, ten existing lighting regressions pass on x86, and three broken
+controls are detected. GPU/OpenXR calls are fixtures, not driver compilation or
+gameplay. Real Vulkan/Metal/D3D11, stereo, map transitions and GPU cost remain
+open. OpenH1 World/ray-query AO, its world-light-list/normal-map path and bgfx
+HDR remain unfinished. No new lighting system, collision field, cache or writer.
 
 Previous graphics milestone: Faber's optional soft shadow budget is connected through
 the native renderer, setting persistence and generated Video/Advanced menus.
