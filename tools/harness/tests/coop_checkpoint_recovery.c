@@ -74,6 +74,7 @@ struct object_datum {
         real_vector3d aiming_vector,looking_vector;
     } unit;
     struct {struct weapon_magazine magazines[2];real age;long game_time_last_fired;} weapon;
+    struct { unsigned long flags; } item;
 };
 struct object_header { short identifier; struct object_datum *datum; };
 struct player_datum {
@@ -562,6 +563,29 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strncmp(name,"inventory-stowed",16)) {
+        long secondary=add_replica(5,_object_type_weapon);
+        weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
+        inventory.weapon_indices[1]=secondary;distributed_client_apply_inventory(&inventory);
+        corpse->unit.player_index=player_index;corpse->unit.current_weapon_index=0;corpse->unit.desired_weapon_index=1;
+        corpse->unit.weapon_last_used_at_game_time[1]=444;
+        object_detach(secondary);object_get(secondary)->item.flags=FLAG(_item_attached_to_unit_bit)|FLAG(_item_belongs_to_player_bit);
+        object_get(secondary)->object.owner_player_index=player_index;
+        if(!strcmp(name,"inventory-stowed-transfer"))object_get(secondary)->object.owner_player_index=DATUM_INDEX_NEW(1,7);
+        if(!strcmp(name,"inventory-stowed-ground"))SET_FLAG(object_get(secondary)->object.flags,_object_connected_to_map_bit,TRUE);
+        if(!strcmp(name,"inventory-stowed-nonplayer"))corpse->unit.player_index=NONE;
+        inventory.rounds_total[1][0]=40;inventory.rounds_loaded[1][0]=9;
+        distributed_client_apply_inventory(&inventory);
+        if(!strcmp(name,"inventory-stowed")) {
+            CHECK(corpse->unit.desired_weapon_index==1&&corpse->unit.weapon_last_used_at_game_time[1]==444,
+                "healthy stowed refresh reset a pending weapon choice or native use history");
+            CHECK(object_get(secondary)->object.parent_object_index==NONE,"healthy holstered weapon was reattached");
+        } else CHECK(object_get(secondary)->object.parent_object_index==index&&corpse->unit.weapon_last_used_at_game_time[1]==0,
+            "wrong-owner detached slot was mistaken for healthy stowed inventory");
+        CHECK(object_get(secondary)->weapon.magazines[0].rounds_total==40&&object_get(secondary)->weapon.magazines[0].rounds_loaded==9,
+            "stowed fast path skipped authoritative ammunition");
+        return 0;
+    }
     if(!strncmp(name,"feign-",6)) {
         struct distributed_object_state snapshot;
         CHECK(sizeof(snapshot)==0x2C,"legacy object state packet size changed");
@@ -606,10 +630,15 @@ static int exercise(char const *name) {
         }
         return 0;
     }
-    if(!strcmp(name,"inventory-orphan")||!strcmp(name,"inventory-other-owner")){
+    if(!strcmp(name,"inventory-orphan")||!strcmp(name,"inventory-other-owner")||!strcmp(name,"inventory-readied-orphan")){
         weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
         distributed_client_apply_inventory(&inventory);
         object_detach(weapon);
+        if(!strcmp(name,"inventory-readied-orphan")) {
+            corpse->unit.player_index=player_index;corpse->unit.current_weapon_index=0;
+            object_get(weapon)->object.owner_player_index=player_index;
+            object_get(weapon)->item.flags=FLAG(_item_attached_to_unit_bit)|FLAG(_item_belongs_to_player_bit);
+        }
         if(!strcmp(name,"inventory-other-owner")){
             rider=add_replica(5,_object_type_biped);attach_child(rider,weapon);
             unit_get(rider)->unit.weapon_object_indices[0]=weapon;

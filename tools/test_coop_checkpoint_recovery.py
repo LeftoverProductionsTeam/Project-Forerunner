@@ -70,6 +70,7 @@ def generated(fault=None):
         enum_with(read("source/objects/object_types.h"), "_object_mask_all ="),
         enum_with(objects_h, "_object_dead_bit,"),
         enum_with(objects_h, "_object_connected_to_map_bit,"),
+        enum_with(read("source/items/items.h"), "_item_attached_to_unit_bit ="),
         enum_with(objects_h, "NUMBER_OF_OBJECT_CHANGE_COLORS,"),
         enum_with(units_h, "_unit_active_camouflaged_bit,"),
         enum_with(units_h, "_unit_grenade_throw_idle ="),
@@ -182,7 +183,7 @@ def test_reconstructed_unit_rejects_old_life_kill():
     "live", "host-dead", "host-kills-live", "bound-corpse", "different-handle", "unknown", "unknown-player", "stale-delete",
     "invalid-tag", "invalid-team", "invalid-color", "invalid-position", "invalid-axes",
     "invalid-identifier", "outside-pool", "allocation-failure", "repeat", "retry",
-    "inventory", "inventory-orphan", "inventory-other-owner", "feign-state", "feign-legacy", "feign-player", "feign-invalid", "feign-predicted", "hierarchy", "late-inventory", "projectiles", "partial-producers", "same-epoch-create", "snapshot-empty", "snapshot-batches",
+    "inventory", "inventory-orphan", "inventory-other-owner", "inventory-readied-orphan", "inventory-stowed", "inventory-stowed-transfer", "inventory-stowed-ground", "inventory-stowed-nonplayer", "feign-state", "feign-legacy", "feign-player", "feign-invalid", "feign-predicted", "hierarchy", "late-inventory", "projectiles", "partial-producers", "same-epoch-create", "snapshot-empty", "snapshot-batches",
     "kill-current", "kill-unknown", "kill-invalid-number", "kill-invalid-tag", "kill-invalid-node",
 ])
 def test_replica_controls(case):
@@ -190,12 +191,22 @@ def test_replica_controls(case):
     assert status == 0, output
 
 
-@pytest.mark.parametrize("case", ["inventory-orphan", "inventory-other-owner"])
+@pytest.mark.parametrize("case", ["inventory-orphan", "inventory-other-owner", "inventory-readied-orphan"])
 def test_inventory_attachment_negative_control(case):
     files = generated((
-        "if (wanted_index == NONE || (weapon && weapon->object.parent_object_index == inventory->unit_index))",
-        "if (weapon || wanted_index == NONE)"))
+        "weapon->object.parent_object_index == inventory->unit_index ||",
+        "TRUE ||"))
     status, output = run(build("coop_checkpoint_recovery", files), case)
+    assert status == 1, output
+
+
+@pytest.mark.parametrize("before,after,case", [
+    ("weapon_slot != unit->unit.current_weapon_index &&", "TRUE &&", "inventory-readied-orphan"),
+    ("weapon->object.owner_player_index == unit->unit.player_index", "TRUE", "inventory-stowed-transfer"),
+    ("!TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit) &&", "TRUE &&", "inventory-stowed-ground"),
+])
+def test_stowed_ownership_negative_control(before, after, case):
+    status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
     assert status == 1, output
 
 

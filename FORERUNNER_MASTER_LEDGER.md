@@ -3,6 +3,18 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Native stowed-refresh integration (base `638dd8b1d9`): repeated host inventories
+no longer forget/re-add a healthy holstered player weapon with native item flags,
+full player owner and no world connection. The old helper reproduces a lost
+pending weapon choice and cleared use history. The repair preserves both while
+still applying authoritative ammo. Readied orphans, wrong-owner/ground items and
+ambiguous NPC slots still use the existing repair. Twenty-three related replica
+cases, six fault controls and Windows64 compilation pass. Actual native two-peer
+switching passes player/item checks; rifle/pistol captures prove normal switching,
+not a native injected pending-state fault. No packet or persistence format change.
+The existing authenticated Delta overlay/binding prerequisite remains unchanged;
+a test issuer alone does not enable remote banking on a plain LAN session.
+
 Native local results milestone (base `e370889f4e`): Extraction's bank report now
 renders its full stash totals and next-run instruction. Native HUD records hold
 only 62 characters plus NUL; local notices retain the existing record/save layout

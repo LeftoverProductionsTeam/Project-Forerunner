@@ -12,6 +12,33 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, stowed inventory refresh (base `638dd8b1d9`): the actual old
+`distributed_client_apply_inventory` forgets/re-adds a legitimately parentless
+holstered player item, resetting pending desired weapon and last-use time. The
+new connected real-helper case reproduces that failure before the source fix.
+The fast path now admits only a non-readied slot with native attached/player
+flags, the full player owner and no world connection. Readied orphans, changed
+owners, ground objects and nonplayer ambiguity retain their existing repair;
+ammunition synchronization still runs. Twenty-three distinct related replica/
+checkpoint/Flood cases pass across the focused runs. Three new owner/slot/ground
+fault controls and the three existing orphan/transfer controls detect bypasses.
+No duplicate ownership manager, object, protocol or storage format was added.
+Windows64 builds incrementally (`build/native-stowed-refresh-build.log`), SHA-256
+`9144a81aa93ec173613a6f5ad680b2d6975373091a76487e5dc6db20a2c392b9`.
+
+`build/native-stowed-refresh-switches`: existing isolated native co-op driver
+requests 14 ordinary keyboard switches per player at independent offsets, without
+deploying the authored encounters or enabling Extraction. Actual rifle/pistol
+captures are retained. Player comparison passes 37 seconds, mean/max separation
+0.013/0.086, no mismatched seconds, 2/370 divergent prediction ticks, mean/max
+drift 0.000001/0.000222 and zero corrections. Unchanged item check passes 41
+snapshots, zero items out of step, 2/2 new items seen. This is native switching/
+ownership regression coverage; the exact pending-choice/history fault is proven
+in the source-coupled fixture, not injected into the native client. Other platforms,
+larger squads and complete authenticated multiplayer banking remain unaccepted.
+Owned peers/staging are disposed by the existing runner; bulky BMPs are removed,
+with compact native logs and lossless rifle/pistol captures retained.
+
 15 November, native local results UI (base `e370889f4e`):
 `source/interface/hud_messaging.c` now measures and wraps plain transient text
 inside the existing physical row budget. Short-line spacing and item/icon paths

@@ -4311,8 +4311,17 @@ static void distributed_client_apply_inventory(
 		{
 			struct weapon_datum *weapon = wanted_index != NONE ? weapon_try_and_get(wanted_index) : NULL;
 			/* A remembered slot alone is not ownership: an object update or
-			 * transfer may have detached this exact item in the meantime. */
-			if (wanted_index == NONE || (weapon && weapon->object.parent_object_index == inventory->unit_index))
+			 * transfer may have detached this exact item in the meantime.
+			 * Native holstered player weapons can legitimately have no model
+			 * parent. Preserve their choice/history only with full player item
+			 * ownership; a detached readied weapon still needs repair. */
+			if (wanted_index == NONE || (weapon && (weapon->object.parent_object_index == inventory->unit_index ||
+				(weapon_slot != unit->unit.current_weapon_index && unit->unit.player_index != NONE &&
+				 weapon->object.parent_object_index == NONE &&
+				 TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit) &&
+				 TEST_FLAG(weapon->item.flags, _item_belongs_to_player_bit) &&
+				 !TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit) &&
+				 weapon->object.owner_player_index == unit->unit.player_index))))
 				continue;
 		}
 		/* (not here yet: as it is, until it is) */
