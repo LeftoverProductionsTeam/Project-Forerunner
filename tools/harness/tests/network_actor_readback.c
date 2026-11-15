@@ -6,6 +6,7 @@
 #define _game_connection_network_server 1
 #define _game_connection_network_client 2
 #define _object_mask_unit 1
+#define _object_mask_biped 1
 #define _object_dead_bit 0
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define PIN(a,b,c) ((a)<(b)?(b):((a)>(c)?(c):(a)))
@@ -14,7 +15,7 @@ struct unit_datum
 {
 	long definition_index;
 	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags;long parent_object_index;} object;
-	struct {long player_index;short parent_seat_index;} unit;
+	struct {long player_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
 };
 static struct unit_datum world[8];
 static long world_ids[8];
@@ -27,6 +28,20 @@ static long now=30;
 static char output[8192];
 static size_t used;
 static int summaries;
+/* The existing shared diagnostic also observes terminals/player actions.
+   This actor-only world has none; keep those iteration boundaries explicit. */
+#define _object_mask_control 2
+struct object_iterator {long index;};
+struct data_iterator {long datum_index;};
+struct player_datum {short local_player_index,action_result;long action_object_index;};
+struct object_datum {struct {short name_index;real_point3d bounding_sphere_center;real bounding_sphere_radius;} object;};
+static int player_data;
+static void object_iterator_new(struct object_iterator *i,int mask,int flags) {(void)i;(void)mask;(void)flags;}
+static int object_iterator_next(struct object_iterator *i) {(void)i;return FALSE;}
+static struct object_datum *object_get(long index) {(void)index;CHECK(FALSE,"no terminals in actor world");return NULL;}
+static int device_can_change_position(long index) {(void)index;return FALSE;}
+static void data_iterator_new(struct data_iterator *i,int data) {(void)i;(void)data;}
+static void *data_iterator_next(struct data_iterator *i) {(void)i;return NULL;}
 static int game_connection(void){return connection;}
 static long game_time_get(void){return now;}
 static int cinematic_in_progress(void){return cinematic;}
@@ -129,6 +144,14 @@ int main(int argc,char **argv)
 		network_test.actors_logged_time=NONE;network_test.actors_interval=.00001f;network_test_log_actors();network_test_log_actors();CHECK(summaries==1,"multiple snapshots in one tick");
 		now++;network_test_log_actors();CHECK(summaries==2,"subtick interval missed next tick");
 		network_test.actors_interval=1e30f;now+=108000;network_test_log_actors();CHECK(summaries==3,"huge interval overflowed or exceeded bound");
+	}
+	else CASE("cadence-delayed")
+	{
+		network_test.actors_logged_time=NONE;network_test.actors_interval=1;network_test_log_actors();
+		now=64;network_test_log_actors();CHECK(summaries==2,"delayed snapshot missing");expect("actors 64 host");
+		now=90;network_test_log_actors();CHECK(summaries==3,"delayed frame shifted future sample boundaries");expect("actors 90 host");
+		now=95;network_test_log_actors();CHECK(summaries==3,"multiple samples in one interval");
+		now=120;network_test_log_actors();CHECK(summaries==4,"cadence did not recover");
 	}
 	else CHECK(FALSE,"unknown case");
 	return 0;

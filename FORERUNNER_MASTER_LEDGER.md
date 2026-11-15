@@ -3,6 +3,31 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Owner's current acceptance order: A, two independent clients using verified Delta
+identities extract/bank, disconnect, restart and redeploy without duplication or
+loss; B, Spark's delivered CE609 Black Echo and real mission outcomes; C, actual
+UNSC/Covenant selection, compatible equipment/allegiances/objectives, Pelican/
+Spirit insertion, physical boarding/departure, fly-out, recovered gear/casualties
+and next deployment; D, independent six-member squads, separate outcomes and
+opposing PvPvE, then connected MegaWorld/larger targets. The regression fixture
+is not the finished mission. The owner authorizes Chupathingy's existing Delta
+account/Steam setup for testing. Its key/certificate files and original-runtime
+signed-in/Steam-linked log entries are present; Forerunner authenticated banking
+has not yet been verified with them. Preserve originals and ownership safeguards.
+
+Six independent instances (base `4564360a48`): one host/five clients pass the
+native movement/switch/item smoke. Full authored fixture combat reaches rescue,
+collection, Flood containment, defense and extraction availability. It exposed
+CE unload freeing an absent bitmap-copy table through Halo's non-null allocator;
+the guarded release now passes empty/populated/repeated/reloaded cleanup and
+native host-disconnect/menu return. Actor readback now keeps shared tick intervals
+after delayed frames while retaining actual timestamps; eleven focused cases
+pass. Final native run passes player and AI checks on all five clients, but item
+checks FAIL for client 2's rifle 42: at ticks 1470/1500 it lies on the ground while
+the host still holds it on NPC 41, before the host drops it at 1530. Do not relax
+the check or claim the full six-client operation accepted. Evidence:
+`build/native-six-{instances,operation,operation-unload,operation-cadence}`.
+
 Larger native combat repair (base `c7f7a61ce4`): reserve-ammo settling is now
 independent of loaded shots, so sustained fire no longer hides host pickups.
 Reload protection, absolute host counts and existing packets remain. Replica

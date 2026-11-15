@@ -683,6 +683,14 @@ def test_wide_format(tmp_path):
 
 
 
+def test_model_cleanup_accepts_empty_and_repeated_unload():
+    """Use Halo's non-null free contract, including maps with no dual-use bitmaps."""
+    from tools.harness import build, function, read, run
+    code = function(read("port/linux/game/ce_models.c"), "ce_models_tags_unloaded")
+    status, output = run(build("ce_models_cleanup", (("under_test.inc", code),)), "cleanup")
+    assert status == 0, output
+
+
 MODEL_DATA_TEST = r"""
 #include "cseries.h"
 #include "ce_map_checks.h"

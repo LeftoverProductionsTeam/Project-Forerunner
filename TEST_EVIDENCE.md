@@ -12,6 +12,41 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, independent native peers and CE unload (base `4564360a48`):
+`build/native-six-instances` runs one host and five distinct clients, one local
+player each, on isolated loopback endpoints. All five pass unchanged player
+comparison for 41 seconds and item comparison for 45 snapshots, zero out of step,
+10/10 new items seen; each process has 41 snapshots of six living equipped bodies.
+`build/native-six-operation` reaches extraction availability after real authored
+combat/rescue/collection/Flood/defense, with all five player/item comparisons
+passing. Clients 4/5 then halt on host-disconnect map unload: `ce_models.c:929`
+passes NULL to Halo's debug allocator when no dual-use bitmap copies exist.
+Original source reproduces in the existing native harness; the guarded release
+passes empty, populated, repeated and later-map cleanup, releasing all nine
+fixture allocations exactly once. Windows64 incremental compilation passes.
+
+`build/native-six-operation-unload` removes the assertion and all five clients
+return to the native menu. Player/item checks pass, but AI checks fail on host
+readback ticks 3304/3335 versus client 3300/3330: interval scheduling accumulates
+late-frame offsets. The real-code delayed-frame case reproduces that defect.
+`network_test_log_actors` now anchors intervals to simulation tick buckets and
+still logs actual observed ticks. Eleven existing native diagnostic cases pass;
+its stale harness boundaries are updated for existing weapon/control readback.
+Neither gameplay nor comparator tolerances changed. Final binary SHA-256
+`bec5db33f28371a98b73a352ad76a445e36952202652fa1fbafc02a676c87582`.
+
+`build/native-six-operation-cadence` reaches the same authored extraction-ready
+stage and passes player/AI checks against every client: 111 compared player
+seconds, maximum separation 0.1205; AI 116 snapshots/1007 unit comparisons per
+client. No native unload exception remains. Item checks pass for four clients,
+but FAIL for client 2: rifle 42 is already detached at 1470 and 1500 while host
+NPC 41 retains it until its death/drop delay ends by 1530. Host/client AI death
+states agree; the earlier weapon detachment is still a real ownership/presentation
+finding. All peers see 37/39 new items across 115 snapshots. Keep the failed run
+and strict check; this is not accepted complete six-client gameplay, authenticated
+banking, Spark Black Echo, independent squads, dropship or cross-machine acceptance.
+All owned peers/staging are removed; compact logs and lossless captures remain.
+
 15 November, combat reserve/death-loot repair (base `c7f7a61ce4`): the existing
 per-local-player inventory record now tracks reserve changes/reloads separately
 from loaded shots. The host's absolute reserve updates can arrive during sustained

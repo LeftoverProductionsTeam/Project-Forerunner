@@ -11,7 +11,7 @@ ACTORS = 'port/linux/game/network_actors.c'
 TEST = 'port/linux/game/network_test.c'
 CASES = ['host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
-         'cadence-rewind', 'interval-bounds']
+         'cadence-rewind', 'cadence-delayed', 'interval-bounds']
 CONTROLS = {
     'stale-position': ('unit->object.position.x,', '0.0,', 'host-world'),
     'wrong-table': ('boolean host = game_connection() == _game_connection_network_server;',
@@ -22,8 +22,10 @@ CONTROLS = {
     'reduced-capacity': ('*count >= MAXIMUM_NETWORK_ACTORS', '*count >= MAXIMUM_NETWORK_ACTORS - 1', 'capacity-priority'),
     'stale-map': ('logged_actor_count = 0;', '/* no reset */', 'local-reset'),
     'default-enabled': ('if (!(network_test.actors_interval > 0.0f))', 'if (FALSE)', 'disabled'),
-    'no-cadence': ('now - network_test.actors_logged_time < interval',
-                   '(now - network_test.actors_logged_time < interval && FALSE)', 'cadence-rewind'),
+    'no-cadence': ('now / interval == network_test.actors_logged_time / interval',
+                   '(now / interval == network_test.actors_logged_time / interval && FALSE)', 'cadence-rewind'),
+    'shifted-cadence': ('now / interval == network_test.actors_logged_time / interval',
+                        'now - network_test.actors_logged_time < interval', 'cadence-delayed'),
 }
 
 

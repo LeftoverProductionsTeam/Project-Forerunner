@@ -1568,8 +1568,10 @@ static void network_test_log_actors(
 	if (!(network_test.actors_interval > 0.0f))
 		return;
 	interval = MAX(1, (long)(PIN(network_test.actors_interval, 0.0f, 3600.0f) * TICKS_PER_SECOND));
+	/* Keep shared tick boundaries after a delayed frame; record the actual
+	 * observed tick rather than shifting every later sample by that delay. */
 	if (network_test.actors_logged_time != NONE && now >= network_test.actors_logged_time &&
-		now - network_test.actors_logged_time < interval)
+		now / interval == network_test.actors_logged_time / interval)
 	{
 		return;
 	}

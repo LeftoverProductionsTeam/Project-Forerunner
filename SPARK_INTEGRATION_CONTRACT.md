@@ -767,6 +767,10 @@ cache and its native resource banks for that existing startup path, or review
 the existing MCC launch path separately; do not advertise format compatibility
 from the disposable CE fixture alone.
 This supersedes the older statement that Black Echo authoring was absent.
+Read-only refresh at Spark `b9463f708f71c7daf079949a297f3bfa0c5ca645`
+also records native firing-position/tactical editing and compiled readback in a
+separately imported fixture. It does not establish delivery or gameplay acceptance
+of Black Echo; its current checkpoint still leaves settlement callbacks 4/7 open.
 Technology objective 4 and extraction objective 7 still use manual setters
 `gs_complete_4` / `gs_complete_7`; their volumes alone do not collect technology
 or bank equipment. Spark must connect real native ownership to objective 4 and
@@ -803,8 +807,12 @@ pickups independently of predicted loaded rounds; `units.c::unit_drop_grenades`
 and `mcc_grenades.c::mcc_grenades_drop_extra` create death loot only on the host.
 Spark needs no replacement inventory writer or loot-spawning script. This adds
 no discovery capability or independent squad quest interface. Split-screen HUD,
-six separate clients and authenticated remote banking remain unaccepted; precise
-native evidence and earlier failures are in `TEST_EVIDENCE.md`.
+authenticated remote banking and independent squads remain unaccepted. A later
+one-host/five-independent-client native run passes player/AI comparison but retains
+one NPC rifle ownership mismatch, so full larger-client acceptance is still open.
+`ce_models.c::ce_models_tags_unloaded` now handles a map with no temporary bitmap
+copies during native disconnect/menu return. Precise native evidence and earlier
+failures are in `TEST_EVIDENCE.md`.
 `game_modes.c::game_modes_inventory_capture` now honors native stowed-item/player
 ownership; Spark must not invent a separate writer or attach holstered models
 just to satisfy persistence. `menu_functions.c::pc_menu_start_map_update` permits
