@@ -82,6 +82,7 @@ symbols in this file:
 #include "mcc_game_speed.h" /* port: port/linux/game/mcc_game_speed.c */
 /* port/linux/game/network_distributed.c's */
 void network_distributed_tick(void);
+long distributed_host_tick_limit(real ticks_per_second);
 /* port/linux/game/determinism_check.c's */
 void determinism_check_tick_end(void);
 
@@ -545,6 +546,16 @@ void game_time_update(
 					long extra_ticks = MIN(ticks_elapsed, ticks_behind - ticks_elapsed);
 					if (extra_ticks > 0)
 						ticks_elapsed += MIN(extra_ticks, TICKS_PER_SECOND - ticks_elapsed);
+				}
+				/* Hold an ahead client until the host catches up. Spend no saved
+				 * whole-frame time on release; keep the fractional remainder and
+				 * normal frame cap. Host, local and menu clocks remain native. */
+				if (network_game_distributed_client() && !game_time_held() &&
+					!game_time_menu_scene() && game_time_globals->local_time >= 0)
+				{
+					long limit = distributed_host_tick_limit(ticks_per_second);
+					if (limit != NONE)
+						ticks_elapsed = MIN(ticks_elapsed, MAX(0, limit - game_time_globals->local_time));
 				}
 
 				final_local_time = game_time_globals->local_time + ticks_elapsed;

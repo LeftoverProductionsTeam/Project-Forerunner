@@ -12,8 +12,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure  # noqa: E402
 
-CASES = ['local-blends', 'held-stays', 'released-blends']
+CASES = ['local-blends', 'held-stays', 'released-blends', 'ahead-holds', 'ahead-recovers',
+         'clock-latency', 'clock-stale', 'clock-wrap', 'clock-contexts', 'behind-catches']
 CONTROLS = {
+    'ahead-free': ('long limit = distributed_host_tick_limit(ticks_per_second);',
+                   'long limit = NONE;', 'ahead-holds'),
     # the fraction runs on toward a tick that never comes (the judder)
     'no-wait': ('\tif (game_time_ticks_waiting)\n\t\treturn 1.0f;\n', '', 'held-stays'),
     # the wait never ends once it started
@@ -25,6 +28,7 @@ CONTROLS = {
 
 def generated(control=None):
     source = read('source/game/game_time.c')
+    network = read('port/linux/game/network_distributed.c')
     connections = enum_with(read('source/game/game.h'), '_game_connection_local')
     waiting = re.search(r"^static boolean game_time_ticks_waiting = FALSE;", source, re.M).group(0)
     # (port, this fork: a reliable host update's time, which a client ticks toward)
@@ -41,7 +45,10 @@ def generated(control=None):
     if control:
         before, after = CONTROLS[control][:2]
         code = mutated(code, before, after)
-    return (('connections.inc', connections), ('under_test.inc', code))
+    clock = '\n'.join('#define %s %d' % (name, constant(network, name)) for name in
+                      ['CLIENT_CLOCK_WINDOW_MILLISECONDS', 'CLIENT_CLOCK_AHEAD_TICKS'])
+    clock += '\n' + function(network, 'distributed_host_tick_limit')
+    return (('connections.inc', connections), ('clock.inc', clock), ('under_test.inc', code))
 
 
 @pytest.mark.parametrize('case', CASES)
@@ -54,3 +61,10 @@ def test_case(case):
 def test_negative_control(control):
     status, output = run(build('tick_fraction_held', generated(control)), CONTROLS[control][2])
     assert status == CHECK_FAILED, f'{control} was not caught: {output}'
+
+
+def test_stale_host_clock_negative_control():
+    files = tuple((name, mutated(text, 'if (age >= CLIENT_CLOCK_WINDOW_MILLISECONDS) return NONE;', ''))
+                  if name == 'clock.inc' else (name, text) for name, text in generated())
+    status, output = run(build('tick_fraction_held', files), 'clock-stale')
+    assert status == CHECK_FAILED, output

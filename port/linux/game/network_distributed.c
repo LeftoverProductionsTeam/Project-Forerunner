@@ -1842,6 +1842,24 @@ long distributed_latest_host_time(
 	return distributed_host_time;
 }
 
+/* A host render hitch can discard elapsed time under the native frame cap,
+ * leaving clients permanently ahead. Bound their next ticks from the existing
+ * validated host sample, its receipt age and measured round trip. No clock is
+ * rewound and stale/missing evidence must not hold a client indefinitely. */
+long distributed_host_tick_limit(real ticks_per_second)
+{
+	unsigned long age;
+	long allowance = 2;
+	if (game_connection() != _game_connection_network_client || distributed_host_time == NONE ||
+		!(ticks_per_second >= 0.f && ticks_per_second <= 100.f * TICKS_PER_SECOND)) return NONE;
+	age = system_milliseconds() - distributed_host_time_received;
+	if (age >= CLIENT_CLOCK_WINDOW_MILLISECONDS) return NONE;
+	if (distributed_own_round_trip > 2.f)
+		allowance = distributed_own_round_trip >= CLIENT_CLOCK_AHEAD_TICKS ? CLIENT_CLOCK_AHEAD_TICKS :
+			(long)distributed_own_round_trip + 1;
+	return distributed_host_time + (long)((real)age * ticks_per_second / 1000.f) + allowance;
+}
+
 real distributed_own_round_trip_ticks(
 	void)
 {

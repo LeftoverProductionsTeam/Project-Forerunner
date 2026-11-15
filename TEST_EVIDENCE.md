@@ -12,6 +12,56 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
+15 November, rendered co-op host-hitch recovery (base `633b5ea92f`): the existing
+`tick_fraction_held` harness compiles actual clock/pacing functions with MSVC
+x86 `/O2 /W3 /WX`. Ten cases pass: local interpolation, held/released frames,
+ahead hold/recovery, latency bounds/invalid values, stale evidence, receipt-time
+wrap, local/host/menu isolation and existing behind-client catch-up. Four broken
+controls detect missing pacing, stale-host freezing and both original frame
+interpolation faults. Native source is used; socket/time adapters are fixtures.
+
+Root cause: the existing native frame cap discards excess elapsed time after a
+host stall; joining clients had behind-clock recovery but no ahead-clock pacing.
+The opt-in native logger now includes the already validated host tick, without
+changing position sampling, comparison pairing or limits. Fresh host evidence
+paces client ticks, never rewinds them. Existing two-second freshness and
+15-tick latency bounds are reused. No new packet, version, save or setting.
+
+`build/native-render-clock-diagnostic` passes an unforced hidden OpenGL A30
+session before the fix; this timing-sensitive pass is not a repair claim.
+Two attempted pause monitors (`native-render-clock-hitch-before` and
+`native-render-clock-hitch-before-applied`) failed to apply the stimulus because
+of the log expression and then an incorrect staged executable path. Both are
+monitor ERRORs, not controlled-hitch passes. Inspection of the existing runner
+established its actual `A/bin/halo.exe` path before the valid comparison.
+
+Existing `net_compare.py --window`: A30/co-op, seconds 35, skip 5, start 8,
+timeout 100, OpenGL both peers, XR false, Extraction false. A bounded watcher
+suspends only the exact owned staged host process after logged tick 180, resumes
+it in `finally`, and records `hitch.json`; no engine hitch hook or test framework
+was added. Same comparator, settings and camera/input script before and after:
+
+- `build/native-render-clock-hitch-control/results.json`: **FAIL**, applied
+  2.188-second pause, 36 compared seconds, mean/max separation 1.230/2.823 world
+  units. The client stays 39 ticks ahead for the remaining session; original
+  position/ammunition mismatches and result remain intact.
+- `build/native-render-clock-hitch-fixed/results.json`: **PASS**, applied
+  2.203-second pause, 36 compared seconds, mean/max separation 0.044519/0.115970,
+  maximum aim difference 1 degree. The client returns to two ticks ahead instead
+  of retaining its stall lead. Drift 52/827 samples, mean 0.000063486, maximum
+  0.008118 world units. One transient round and grenade mismatch remains within
+  unchanged limits. Both recorded resume statuses are zero; owned jobs exited.
+
+Windows64 compiles in the existing non-LTO/bgfx/OpenXR cache:
+`build/native-render-clock-fix-build.log`, executable SHA-256
+`e53db69f4da8f62f2de8c35f6855b0a1c121b5df0b3298a4387b7a9d345125a9`.
+Known Expat import warnings remain unrelated. Native logs sample actual object
+positions; no tolerance, camera interpolation or judge changes were made. This
+is bounded rendered desktop co-op/hitch proof, not WAN/loss, long-session,
+large-squad, other-platform or VR hardware acceptance. Original map hashes match
+`build/native-gameplay-inputs.json`; copied maps/A/B folders and compile scratch
+are removed. Compact evidence and one pre-change binary remain for recovery.
+
 15 November, OpenH1 dominant-hand source integration (base `4bde81ed08`):
 existing `openxr_input` harness passes 14 MSVC x86 `/O2 /W3 /WX` cases, including
 the actual controller roles, native facing/convergence, selected-hand model

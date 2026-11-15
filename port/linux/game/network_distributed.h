@@ -332,6 +332,9 @@ ticks (and its jitter), as its players' input messages tell */
 real distributed_machine_round_trip_ticks(long machine_index);
 /* (a client) the host's latest tick it has had a message of, NONE for none */
 long distributed_latest_host_time(void);
+/* Fresh host clock + elapsed receipt time + bounded measured latency; NONE
+ * without recent evidence. For client pacing, never a clock rewrite. */
+long distributed_host_tick_limit(real ticks_per_second);
 /* (a client) how long the host takes to have this machine's players and
 tell it back, in ticks (0 before it is measured) */
 real distributed_own_round_trip_ticks(void);

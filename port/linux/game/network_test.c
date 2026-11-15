@@ -192,6 +192,7 @@ void damage_kill_object_for_player(long object_index, long player_index);
 /* network_distributed.c's */
 void network_distributed_statistics(long *sent, long *received, long *corrections);
 void network_distributed_divergence(long *samples, long *apart, real *mean, real *largest);
+long distributed_latest_host_time(void);
 void network_distributed_item_statistics(long *creates, long *deletes, long *failures, long *removed);
 void network_damage_statistics(long *sent_reports, long *dealt_reports, long *rejected_reports, long *replayed_events);
 long network_damage_line_of_sight_refusals(void);
@@ -778,7 +779,7 @@ static void network_test_log_players(
 
 		platform_log("network test: tick %ld%s | items %ld (+%ld -%ld !%ld x%ld) | %s to %ld | sent %ld received %ld corrected %ld"
 			" | hits %ld dealt %ld rejected %ld replayed %ld | local %ld camera (%.1f %.1f %.1f) respawn %ld | sight %ld"
-			" | drift %ld %ld %.6f %.6f",
+			" | drift %ld %ld %.6f %.6f | host_tick %ld",
 			game_time_get(), line, ground_items, creates, deletes, failures, removed,
 			game_engine_can_score() ? "playing" : "game over",
 			game_engine_running() ? (long)game_engine_get_variant()->universal_variant.score_to_win : 0L,
@@ -788,7 +789,7 @@ static void network_test_log_players(
 			camera ? camera->position.x : 0.0f, camera ? camera->position.y : 0.0f, camera ? camera->position.z : 0.0f,
 			local_player_index == NONE ? 0L : (long)player_get(local_player_index)->respawn_timer,
 			network_damage_line_of_sight_refusals(),
-			divergence_samples, divergence_apart, divergence_mean, divergence_largest);
+			divergence_samples, divergence_apart, divergence_mean, divergence_largest, distributed_latest_host_time());
 	}
 }
 

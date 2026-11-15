@@ -3,19 +3,31 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current multiplayer repair: a capped host frame could discard elapsed time while
+clients kept advancing, leaving them permanently ahead. Client pacing now uses
+the existing validated host tick, receipt age and bounded measured latency. No
+clock rewind, wire change or second synchronization owner; stale evidence stops
+holding the client, and host/local/menu clocks retain their behavior. Ten actual
+clock workflows and four broken controls pass; Windows64 compiles incrementally.
+An isolated hidden OpenGL A30 session with a forced 2.203-second host pause passes
+36 compared seconds at unchanged limits (maximum separation 0.116 world units).
+The same controlled pre-fix pause fails and leaves the client 39 ticks ahead;
+the fix returns it to two ticks. Failed results remain intact. Native Linux,
+WAN/loss, longer sessions, larger squads and hardware VR remain unverified.
+Owned maps/peer copies/scratch are removed; compact logs and one baseline binary
+remain. This resolves the diagnosed rendered co-op clock defect, not complete
+multiplayer acceptance. Resume the highest-value independent gameplay slice.
+
 Current VR gameplay source: OpenH1 dominant-hand reuse now connects controller
 aim/fire/grips, optional move/turn stick roles, model camera/reflected native
 nodes, scoped OpenGL/bgfx winding and rumble. Physical buttons/PTT and native
 menu/gamepad behavior stay consistent; live role changes require neutral input.
 Fourteen connected checks and three negative controls pass; Windows64 compiles.
 Headset, mirrored GPU output, rumble and full VR gameplay remain unverified.
-New acceptance finding: hidden OpenGL A30 player-state agreement FAILs both
-the handedness build and unmodified `4bde81ed08` baseline. The logger samples
-native object positions; the cause is not established. Next priority is that
-rendered co-op synchronization defect, before more dependent feature expansion.
-Both failed results remain intact at unchanged limits; no gameplay pass claimed.
-Owned maps/peer copies/scratch are removed; one baseline executable is retained
-for that investigation, alongside the existing reusable build cache.
+Hidden OpenGL A30 player-state agreement initially failed both the handedness
+build and unmodified `4bde81ed08` baseline. The clock defect above reproduces and
+repairs that failure class; original failures remain intact. This is desktop
+co-op evidence with XR disabled, not VR hardware acceptance.
 
 Current Survival recovery: the built-in encounter now reuses native Extraction
 activation/return controls, escrow and hub redeployment. An individual can recover
