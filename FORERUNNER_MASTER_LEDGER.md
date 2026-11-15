@@ -42,6 +42,9 @@ death-looting acceptance, physical VR or complete multiplayer operations proof.
 
 Current postprocessing: bgfx now reuses the OpenGL FXAA source through the
 existing pre-HUD hook, compiler queue/cache, fullscreen quad and copy helper.
+The native AA reader's old FXAA-to-MSAA remap was still disconnecting that pass;
+the connected saved-setting regression reproduced it, and the remap now covers
+only unsupported SMAA/SSAA. Ten real settings/pass/lifecycle cases compile/pass.
 One source texture is reused across ordered windows/eyes; copying and filtering
 are clipped to each view, native destination alpha is preserved, and resize or
 disable retires the old copy. Pending/failed shaders and unavailable resources
@@ -59,7 +62,9 @@ bgfx's resolve/copy pass into single-sample runtime images; size/format changes
 retire their framebuffers. Unsupported capabilities, missing programs and failed
 allocations retain single-sample rendering without allocating every frame. Menu
 canvases remain single-sample, and disabling MSAA releases the owned targets.
-Shader preparation uses the known headset format. Nine actual-source lifecycle
+Shader preparation uses the known headset format. Material target lookups now
+select the same owned eye target as draws; a connected regression caught the old
+lookup returning the unresolved runtime image. Nine actual-source lifecycle
 cases compile/pass on MSVC x64, three broken controls are detected, nine FXAA
 regressions and five format checks pass. GPU calls are fixtures: actual Vulkan
 shader compilation, hardware stereo, image encoding and GPU cost remain open.

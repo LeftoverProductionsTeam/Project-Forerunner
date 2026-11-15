@@ -322,10 +322,9 @@ static void anti_aliasing_read(void)
 	{
 	}
 #ifdef HALO_BGFX
-	/* the bgfx test backend has multisampling only: FXAA, SMAA and
-	supersampling become 2x MSAA, said once */
-	if (xgpu_bgfx && (anti_aliasing_values[value].mode == _anti_aliasing_fxaa ||
-		anti_aliasing_values[value].mode == _anti_aliasing_smaa ||
+	/* bgfx has its own pre-HUD FXAA pass. Only the still unsupported SMAA
+	and supersampling choices become 2x MSAA, said once. */
+	if (xgpu_bgfx && (anti_aliasing_values[value].mode == _anti_aliasing_smaa ||
 		anti_aliasing_values[value].mode == _anti_aliasing_ssaa))
 	{
 		static BOOL said;

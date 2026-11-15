@@ -54,6 +54,25 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Connected AA regression repairs, base `861a6497ce`:
+
+- The previous FXAA fixture injected a mode and missed the native reader's old
+  FXAA-to-MSAA remap. The fixture now compiles the actual native choice table,
+  reader, selector and bgfx pass together. Saved FXAA fails before the production
+  repair and passes after it. **10 MSVC x86 workflows pass**, including switching
+  FXAA/MSAA/off, unchanged SMAA/SSAA fallback, preserved stored preferences,
+  OpenGL SMAA/SSAA and returning to cached FXAA shaders.
+- The OpenXR pipeline fixture now also compiles `bg_target_find`. It reproduces
+  material reads bypassing the owned MSAA eye target before the repair. After
+  routing reads to the active draw target, **9 MSVC x64 workflows pass**, retaining
+  existing eye, sample, resource failure and queue/release checks. The two defects
+  are preserved as negative controls. Installed MSVC 14.52.37025 / SDK 10.0.26100.0,
+  `/O2 /W3 /WX`; all disposable repository-local output removed.
+- These strengthen compiled source evidence; GPU/runtime calls remain fixtures.
+  No actual driver compilation, rendered comparison, headset, timing, full-engine
+  build, gameplay acceptance, user assets/save mutation, external staging or push.
+  The earlier isolated pass tests did not prove these settings/material paths.
+
 Inherited model Light effects on bgfx, base `1a1dfcac9b`:
 
 - Installed MSVC 14.52.37025 x64 / SDK 10.0.26100.0, `/O2 /W3 /WX`

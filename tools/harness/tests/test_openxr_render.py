@@ -21,7 +21,7 @@ def generated(fault=None):
     start = source.index('static struct\n{\n\tstruct bg_openxr_image *images')
     state = source[start:source.index('} bg_openxr;', start) + len('} bg_openxr;')]
     code = '\n'.join(function(source, name) for name in [
-        'bg_view_set', 'bg_screen_samples', 'bg_samples_flags', 'bg_target_bucket', 'bg_target_get',
+        'bg_view_set', 'bg_screen_samples', 'bg_samples_flags', 'bg_target_bucket', 'bg_target_get', 'bg_target_find',
         'bg_framebuffer_get', 'bg_openxr_msaa_release', 'bg_openxr_msaa_target', 'bg_composite_copy',
         'xgpu_openxr_frame_begin', 'xgpu_openxr_eye_begin', 'xgpu_openxr_eye_end', 'bg_openxr_frame_submitted'])
     code += '\n' + function(read('port/linux/src/d3d8_shader_prep.inl'), 'prep_screen_samples')
@@ -39,6 +39,8 @@ def test_eye_lifecycle(case):
 
 @pytest.mark.parametrize('fault,case', [
     (('samples = bg_openxr.draw_target ? bg_openxr.draw_target->samples : 0;', 'samples = 0;'), 'pipeline'),
+    (('if (bg_openxr.current && data == bg_openxr.current->target.data)\n\t\treturn bg_openxr.draw_target;',
+      'if (bg_openxr.current && data == bg_openxr.current->target.data)\n\t\treturn &bg_openxr.current->target;'), 'pipeline'),
     (('if (bg_openxr.draw_target != &bg_openxr.current->target)', 'if (FALSE)'), 'pipeline'),
     (('target->samples != samples || target->pixel_width != image->target.pixel_width ||',
       'TRUE || target->samples != samples || target->pixel_width != image->target.pixel_width ||'), 'reuse-resize'),

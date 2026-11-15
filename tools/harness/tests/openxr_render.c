@@ -113,6 +113,7 @@ int main(int argc,char **argv)
   for(int eye=0;eye<2;eye++){
    CHECK(xgpu_openxr_eye_begin(eye),"eye failed");CHECK(bg_openxr.draw_target==&bg_openxr.msaa[eye]&&bg_openxr.draw_target->samples==4,"requested samples ignored");
    CHECK(bg_target_get(&device.back_buffer)==bg_openxr.draw_target,"draws bypassed MSAA target");
+   CHECK(bg_target_find(device.back_buffer.Data)==bg_openxr.draw_target,"material reads bypassed the active MSAA target");
    struct bg_target *z=bg_target_get(&depth),*color=bg_target_get(&secondary);
    CHECK(z&&color&&z->samples==4&&color->samples==4&&z->pixel_height==images[eye].height,"depth/intermediate samples or pixels disagree");
    CHECK(BGFX_HANDLE_IS_VALID(bg_framebuffer_get(bg_openxr.draw_target,z)),"mixed attachment failed");

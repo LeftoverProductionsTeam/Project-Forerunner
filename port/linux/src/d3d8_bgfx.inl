@@ -2335,7 +2335,7 @@ static struct bg_target *bg_target_find(DWORD data)
 
 #ifdef HALO_OPENXR
 	if (bg_openxr.current && data == bg_openxr.current->target.data)
-		return &bg_openxr.current->target;
+		return bg_openxr.draw_target;
 #endif
 	for (entry = *bg_target_bucket(data); entry; entry = entry->next)
 	{

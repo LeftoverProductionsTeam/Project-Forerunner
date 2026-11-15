@@ -1,6 +1,7 @@
 #include "harness.h"
 #include <stdint.h>
 #include <stdbool.h>
+#define HALO_BGFX
 
 typedef int BOOL;
 typedef int GLint;
@@ -26,13 +27,17 @@ static struct {int back_buffer;} device;
 static struct bg_target target;
 struct bg_shader {BOOL ready;};
 static struct bg_shader vertex={TRUE},fragment={TRUE};
-static int mode=_anti_aliasing_fxaa,texture_attempts,texture_frees,framebuffer_frees,copy_count,fxaa_count;
+static int texture_attempts,texture_frees,framebuffer_frees,copy_count,fxaa_count;
+static int anti_aliasing_value=-1,xgpu_bgfx=TRUE,prepare_calls;
+static const char *saved_aa="fxaa";
 static int fail_texture,fail_framebuffer,fail_link,phase,shader_requests;
 static unsigned short next_texture=20,bound_framebuffer,bound_texture,scissor[4];
 static unsigned short copy_scissor[4];
 static unsigned long long draw_state;
 static float metrics[4],bounds[4];
-static int anti_aliasing(void){return mode;}
+static const char *config_string(const char *name){CHECK(!strcmp(name,"display.anti_aliasing"),"unexpected setting");return saved_aa;}
+static void anti_aliasing_prepare(void){prepare_calls++;}
+static void platform_log(const char *text,...){(void)text;}
 static struct bg_target *bg_target_get(const void *surface){(void)surface;return &target;}
 static void bg_log_once(const char *text){(void)text;}
 static void bgfx_destroy_frame_buffer(bgfx_frame_buffer_handle_t handle){CHECK(BGFX_HANDLE_IS_VALID(handle),"invalid framebuffer freed");framebuffer_frees++;}
@@ -81,6 +86,7 @@ static void bgfx_submit(unsigned short view,bgfx_program_handle_t program,int de
  }
 }
 #include "under_test.inc"
+static void choose(const char *name){saved_aa=name;anti_aliasing_read();}
 int main(int argc,char **argv)
 {
  const char *case_name=argc>1?argv[1]:"";
@@ -106,8 +112,8 @@ int main(int argc,char **argv)
   CHECK(texture_attempts==2&&texture_frees==1&&framebuffer_frees==1&&fxaa_count==3,"resize did not retire old resources");
   CHECK(shader_requests==2,"each pass repeated shader translation/hash lookup");
  } else CASE("off") {
-  mode=_anti_aliasing_off;bg_screen_anti_alias(0,0,640,480);CHECK(!texture_attempts&&!copy_count&&!fxaa_count,"off did work");
-  mode=_anti_aliasing_fxaa;bg_screen_anti_alias(0,0,640,480);mode=_anti_aliasing_off;bg_screen_anti_alias(0,0,640,480);
+  choose("off");bg_screen_anti_alias(0,0,640,480);CHECK(!texture_attempts&&!copy_count&&!fxaa_count,"off did work");
+  choose("fxaa");bg_screen_anti_alias(0,0,640,480);choose("off");bg_screen_anti_alias(0,0,640,480);
   CHECK(texture_frees==1&&framebuffer_frees==1&&!bg.post_width,"off retained source copy");
  } else CASE("shader-pending") {
   vertex.ready=FALSE;bg_screen_anti_alias(0,0,640,480);CHECK(!texture_attempts&&!copy_count,"pending vertex changed picture");
@@ -125,6 +131,15 @@ int main(int argc,char **argv)
   bg.view=BG_MAXIMUM_VIEWS-5;bg_screen_anti_alias(0,0,640,480);CHECK(!copy_count&&!texture_attempts,"exhausted view list admitted pass");
   bg.view=0;bg.fxaa_sampler=(bgfx_texture_handle_t)BGFX_INVALID_HANDLE;bg_screen_anti_alias(0,0,640,480);CHECK(!texture_attempts,"invalid uniform admitted pass");
   bg.fxaa_sampler.idx=8;target.pixel_width=65536;bg_screen_anti_alias(0,0,640,480);CHECK(!texture_attempts,"oversized target admitted");
+ } else CASE("saved-settings") {
+  bg_screen_anti_alias(0,0,640,480);CHECK(anti_aliasing()==_anti_aliasing_fxaa&&fxaa_count==1&&prepare_calls==1,"saved FXAA never reached its pass");
+  choose("msaa4x");bg_screen_anti_alias(0,0,640,480);CHECK(anti_aliasing()==_anti_aliasing_msaa&&anti_aliasing_values[anti_aliasing_value].samples==4&&fxaa_count==1&&texture_frees==1,"MSAA selection or old FXAA retirement wrong");
+  choose("smaa");CHECK(anti_aliasing()==_anti_aliasing_msaa&&anti_aliasing_values[anti_aliasing_value].samples==2&&!strcmp(saved_aa,"smaa"),"unsupported SMAA fallback changed saved preference");
+  choose("ssaa2x");CHECK(anti_aliasing()==_anti_aliasing_msaa&&anti_aliasing_values[anti_aliasing_value].samples==2,"unsupported SSAA fallback changed");
+  xgpu_bgfx=FALSE;choose("smaa");CHECK(anti_aliasing()==_anti_aliasing_smaa,"OpenGL lost native SMAA");
+  choose("ssaa2x");CHECK(anti_aliasing()==_anti_aliasing_ssaa,"OpenGL lost native supersampling");
+  xgpu_bgfx=TRUE;choose("unknown");bg_screen_anti_alias(0,0,640,480);CHECK(anti_aliasing()==_anti_aliasing_off&&fxaa_count==1,"unknown setting drew FXAA");
+  choose("fxaa");bg_screen_anti_alias(0,0,640,480);CHECK(fxaa_count==2&&shader_requests==2,"return to FXAA did not reuse cached shaders");
  } else return 2;
  return 0;
 }

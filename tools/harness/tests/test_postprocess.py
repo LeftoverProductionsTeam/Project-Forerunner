@@ -8,14 +8,15 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
+from harness import CHECK_FAILED, build, constant, enum_with, function, macro, mutated, read, run, structure
 
 
 def generated(fault=None):
     backend = read('port/linux/src/d3d8_bgfx.inl')
     device = read('port/linux/src/d3d8_gl.c')
     post = read('port/linux/src/xgpu_post.c')
-    code = '\n'.join(function(backend, name) for name in (
+    code = '\n'.join(function(device, name) for name in ('anti_aliasing_read', 'anti_aliasing')) + '\n'
+    code += '\n'.join(function(backend, name) for name in (
         'bg_post_release', 'bg_fxaa_rectangle', 'bg_view_set', 'bg_composite_copy', 'bg_screen_anti_alias'))
     if fault:
         code = mutated(code, *fault)
@@ -24,13 +25,16 @@ def generated(fault=None):
         start = source.index('static const char ' + name + '[] =')
         shader += source[start:source.index(';\n', start) + 2] + '\n'
     shader += function(post, 'xgpu_post_fxaa_glsl') + '\n' + function(device, 'scaled_pixel')
+    at = device.index('} anti_aliasing_values[] =')
+    start = device.rfind('static const struct', 0, at)
+    shader += '\n' + device[start:device.index('};', at) + 2] + '\n' + macro(device, 'NUMBER_OF_ANTI_ALIASING_VALUES')
     types = (structure(backend, 'bg_target') + '\n' + enum_with(device, '_anti_aliasing_off,') + '\n' +
              '#define BG_MAXIMUM_VIEWS %d\n' % constant(backend, 'BG_MAXIMUM_VIEWS'))
     return (('types.inc', types), ('shader.inc', shader), ('under_test.inc', code))
 
 
 @pytest.mark.parametrize('case', ['rectangle', 'split', 'reuse-resize', 'off', 'shader-pending',
-                                 'failed-link', 'allocation-failure', 'framebuffer-failure', 'limits'])
+                                 'failed-link', 'allocation-failure', 'framebuffer-failure', 'limits', 'saved-settings'])
 def test_fxaa_pass(case):
     status, output = run(build('postprocess', generated()), case)
     assert status == 0, output
@@ -42,6 +46,8 @@ def test_fxaa_pass(case):
     (('bg_post_release();\n\t\tbg.post_width = target->pixel_width;',
       'bg.post_width = target->pixel_width;'), 'reuse-resize'),
     (('bounds[axis] = ((float)corners[axis] + 0.5f) / (float)size;', 'bounds[axis] = 0.0f;'), 'rectangle'),
+    (('if (xgpu_bgfx && (anti_aliasing_values[value].mode == _anti_aliasing_smaa ||',
+      'if (xgpu_bgfx && (anti_aliasing_values[value].mode == _anti_aliasing_fxaa || anti_aliasing_values[value].mode == _anti_aliasing_smaa ||'), 'saved-settings'),
 ])
 def test_negative_control(fault, case):
     status, output = run(build('postprocess', generated(fault)), case)
