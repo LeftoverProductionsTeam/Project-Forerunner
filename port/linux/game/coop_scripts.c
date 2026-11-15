@@ -42,6 +42,7 @@ fires for whoever walks into it, and what it starts is sent to the clients
 
 #include "coop_scripts.h"
 #include "network_coop.h"
+#include "../src/port_config.h"
 
 #include <string.h>
 
@@ -50,12 +51,22 @@ fires for whoever walks into it, and what it starts is sent to the clients
 /* players the scripts name: player0 and player1 */
 #define NAMED_PLAYERS 2
 
+static boolean coop_scripts_adaptations = TRUE;
+
 /* ---------- private code */
 
 static boolean coop_scripts_host(
 	void)
 {
 	return game_connection() == _game_connection_network_server && network_coop_active();
+}
+
+/* Legacy campaign conveniences are separate from host script authority and
+ * explicit teleport placement. Authored operations can retain exact player
+ * lists, individual actions and the native safe-to-save condition. */
+static boolean coop_scripts_adaptations_active(void)
+{
+	return coop_scripts_host() && coop_scripts_adaptations;
 }
 
 /* the seat label to look for when boarding a follower: player0's own up to
@@ -83,6 +94,12 @@ static void follower_seat_name(
 
 /* ---------- public code */
 
+void coop_scripts_new_game(void)
+{
+	/* Do not change follower policy between a cutscene's suspend/resume. */
+	coop_scripts_adaptations = config_boolean("network.coop_script_adaptations");
+}
+
 boolean coop_scripts_any_player_will_do(
 	long object_list_index)
 {
@@ -90,7 +107,7 @@ boolean coop_scripts_any_player_will_do(
 	long object_index;
 	boolean any = FALSE;
 
-	if (!coop_scripts_host())
+	if (!coop_scripts_adaptations_active())
 		return FALSE;
 	for (object_index = object_list_get_first(object_list_index, &reference_index);
 		object_index != NONE;
@@ -124,7 +141,7 @@ static short players_following(
 	short position;
 	short count = 0;
 
-	if (unit_index == NONE || !coop_scripts_host())
+	if (unit_index == NONE || !coop_scripts_adaptations_active())
 		return 0;
 	/* (in the order (players) lists them: hs_players adds each unit at the
 	head of its list, so player0 is the last player with a unit in datum
@@ -246,7 +263,7 @@ void coop_scripts_gather_in_volume(
 	long inside_index = NONE;
 	real_point3d destination;
 
-	if (!coop_scripts_host())
+	if (!coop_scripts_adaptations_active())
 		return;
 	for (object_index = object_list_get_first(object_list_index, &reference_index);
 		object_index != NONE;
@@ -464,7 +481,7 @@ boolean coop_scripts_safe_to_save(
 
 	if (game_safe_to_save())
 		return TRUE;
-	if (!coop_scripts_host())
+	if (!coop_scripts_adaptations_active())
 		return FALSE;
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)

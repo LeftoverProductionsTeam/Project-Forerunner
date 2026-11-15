@@ -12,6 +12,12 @@ Campaign scripts made to work for every player in network co-op
 
 /* ---------- prototypes */
 
+/* Host network.coop_script_adaptations defaults on for legacy campaigns.
+ * Off preserves authored lists/actions and native save safety. Empty-player
+ * wait protection, explicit teleports and co-op replication remain enabled.
+ * Changes apply at the next map start, not during a cutscene or checkpoint. */
+void coop_scripts_new_game(void);
+
 /* hs_library_external.c's volume_test_objects_all: whether to count the
 list as inside once any of it is, because every object in it is a player */
 boolean coop_scripts_any_player_will_do(

@@ -124,6 +124,7 @@ index and tag, since the map placed them at the same index everywhere.
 #include "coop_vehicles.h"
 #include "coop_spectate.h"
 #include "coop_sound_sync.h"
+#include "coop_scripts.h"
 #include "network_coop.h"
 #include "vehicle_riding.h"
 #include "network_distributed.h"
@@ -2272,6 +2273,7 @@ void network_coop_new_game(
 	host_looping_sound_count = 0;
 	client_looping_sounds.count = 0;
 	coop_sound_sync_reset();
+	coop_scripts_new_game();
 	host_hud_state.objective = NONE;
 	host_hud_state.nav_point_count = 0;
 	skip_vote_clear();

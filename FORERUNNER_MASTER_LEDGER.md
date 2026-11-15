@@ -3,6 +3,18 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current authored co-op handoff: optional host `network.coop_script_adaptations`
+defaults true for legacy campaigns. False preserves exact authored player lists,
+ALL/visibility tests, individual transport/equipment actions and native script
+save safety. Existing host execution, replication, explicit teleports and empty
+player wait protection remain. Policy is captured at map start so live setting
+changes cannot split a cutscene's suspend/resume. Twenty-seven connected cases
+and two ignored-policy controls pass; Windows64 builds. Final native A30 co-op
+with only the host setting false passes 37 compared seconds at unchanged limits.
+Maps/peer copies/scratch are removed; originals retain their hashes. The existing
+Spark contract names the launch option. Authored operations, independent squads,
+Black Echo objectives, cutscene acceptance and other platforms remain unfinished.
+
 Current Extraction repair: failed native equipment grants retain their refund
 policy through disconnect, player-slot reuse and map exit. Actual deployed
 departures still lose gear. Native weapon admission now matches distributed

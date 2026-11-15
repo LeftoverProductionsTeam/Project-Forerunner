@@ -29,6 +29,8 @@ static void *player_data;
 static long data_next_index(void *data,long previous){return previous+1<player_count?previous+1:NONE;}
 static struct player_datum *player_get(long i){CHECK(i>=0&&i<player_count,"invalid player");return &people[i];}
 static boolean coop_scripts_host(void){return host;}
+static boolean adaptations=TRUE;
+static boolean config_boolean(char const *name){CHECK(!strcmp(name,"network.coop_script_adaptations"),"unknown policy");return adaptations;}
 static long player_index_from_unit_index(long index){int i;for(i=0;i<player_count;i++)if(people[i].unit_index==index)return i;return NONE;}
 static real_point3d *object_get_origin(long i,real_point3d *p){*p=objects[i].position;return p;}
 static void object_set_position(long i,real_point3d const *p,void *forward,void *up){objects[i].position=*p;rollbacks++;}
@@ -56,18 +58,58 @@ empty list; provenance must preserve that behavior for AI lists. */
 #define error(...) ((void)0)
 #include "volume.inc"
 #include "gate.inc"
-static void reset(int count){int i;memset(used,0,sizeof(used));memset(headers,0,sizeof(headers));memset(objects,0,sizeof(objects));references=0;fail_allocate=0;host=waiting=TRUE;ignore_players=teleports=rollbacks=failures=bad_place=crowded=side_effects=0;player_count=count;for(i=0;i<count;i++){people[i].unit_index=i;objects[i].position.x=i?1:15;}}
+static long viewer=NONE;
+static void data_iterator_new(struct data_iterator *it,void *data){it->index=NONE;}
+static struct player_datum *data_iterator_next(struct data_iterator *it){it->index++;return it->index<player_count?&people[it->index]:NULL;}
+static void *unit_try_and_get(long unit){return player_index_from_unit_index(unit)!=NONE?&objects[unit]:NULL;}
+static boolean hs_unit_can_see_object(long unit,long object,real degrees){return unit==viewer;}
+static boolean hs_unit_can_see_flag(long unit,short flag,real degrees){return unit==viewer;}
+#include "vision.inc"
+static void reset(int count){int i;memset(used,0,sizeof(used));memset(headers,0,sizeof(headers));memset(objects,0,sizeof(objects));references=0;fail_allocate=0;host=waiting=TRUE;ignore_players=teleports=rollbacks=failures=bad_place=crowded=side_effects=0;player_count=count;for(i=0;i<count;i++){people[i].unit_index=i;objects[i].position.x=i?1.f:15.f;}coop_scripts_new_game();}
 static boolean gate(long list){boolean r=hs_trigger_volume_test_objects_all(107,list);CHECK(!ignore_players,"collision override leaked");return r;}
 static int all_inside(void){int i;for(i=0;i<player_count;i++)if(people[i].unit_index!=NONE&&!scenario_trigger_volume_test_object(107,people[i].unit_index))return FALSE;return TRUE;}
 int main(int argc,char **argv){char const *name=argc>1?argv[1]:"";long list;int n;
  CHECK(sizeof(struct object_list_header_datum)==12,"checkpoint ABI changed");
- if(!strcmp(name,"crowds")||!strcmp(name,"refused")||!strcmp(name,"outside")||!strcmp(name,"bsp-result")){
+ if(!strcmp(name,"map-policy")){
+  reset(6);long selected=object_list_new();object_list_add(selected,0);viewer=5;
+  adaptations=FALSE;
+  CHECK(hs_objects_can_see_flag(selected,1,45),"live config change interrupted legacy cutscene policy");
+  coop_scripts_new_game();
+  CHECK(!hs_objects_can_see_flag(selected,1,45),"new map did not select authored script semantics");
+  adaptations=TRUE;
+  CHECK(!hs_objects_can_see_flag(selected,1,45),"live config change broadened an authored objective");
+  coop_scripts_new_game();
+  CHECK(hs_objects_can_see_flag(selected,1,45),"next map did not restore campaign policy");
+ }else if(!strcmp(name,"crowds")||!strcmp(name,"refused")||!strcmp(name,"outside")||!strcmp(name,"bsp-result")){
   for(n=2;n<=128;n*=2){reset(n);list=hs_players();failures=!strcmp(name,"refused");bad_place=!strcmp(name,"outside")?1:!strcmp(name,"bsp-result")?2:0;crowded=!strcmp(name,"crowds");side_effects=TRUE;
    CHECK(gate(list)==(!failures&&!bad_place),"unsafe result for %d players",n);
    CHECK(all_inside()==(!failures&&!bad_place),"incorrect final positions");
    CHECK(teleports<=2*(n-1),"unbounded placement search");
    if(failures||bad_place){for(int i=1;i<n;i++)CHECK(objects[i].position.x==1&&objects[i].position.y==0,"bad placement not rolled back");CHECK(rollbacks==2*(n-1),"missing rollback");failures=bad_place=0;CHECK(gate(list)&&all_inside(),"failed gate did not retry");}
   }
+ }else if(!strcmp(name,"native-visibility")){
+  reset(6);long selected=object_list_new();object_list_add(selected,0);viewer=5;
+  CHECK(hs_objects_can_see_object(selected,MAX_PLAYERS,45)&&hs_objects_can_see_flag(selected,1,45),"legacy tutorial any-player visibility changed");
+  adaptations=FALSE;
+  coop_scripts_new_game();
+  CHECK(!hs_objects_can_see_object(selected,MAX_PLAYERS,45)&&!hs_objects_can_see_flag(selected,1,45),"unselected player completed authored visibility objective");
+  viewer=0;
+  CHECK(hs_objects_can_see_object(selected,MAX_PLAYERS,45)&&hs_objects_can_see_flag(selected,1,45),"selected player's native visibility failed");
+ }else if(!strcmp(name,"native-lists")){
+  adaptations=FALSE;reset(6);list=hs_players();
+  CHECK(!gate(list)&&!teleports,"authored ALL gathered players or passed early");
+  waiting=FALSE;CHECK(!gate(list)&&!teleports,"authored conditional ALL became ANY");
+  long squad=object_list_new();object_list_add(squad,0);object_list_add(squad,1);
+  objects[1].position.x=15;
+  CHECK(gate(squad)&&!gate(list)&&!teleports,"authored subset changed unrelated players or global completion");
+  waiting=TRUE;objects[1].position.x=1;
+  coop_scripts_gather_in_volume(107,list);
+  CHECK(!teleports&&objects[1].position.x==1,"native mode allowed an automatic gather");
+  for(n=0;n<6;n++)objects[n].position.x=15;
+  CHECK(gate(list)&&!teleports,"authored ALL failed after actual arrival");
+  for(n=0;n<6;n++)people[n].unit_index=NONE;
+  long empty=hs_players();CHECK(!gate(empty),"native mode lost empty-player wait protection");
+  adaptations=TRUE;reset(6);list=hs_players();CHECK(gate(list)&&all_inside(),"legacy gathering did not resume");
  }else if(!strcmp(name,"one-player")){
   reset(1);list=hs_players();CHECK(gate(list)&&!teleports,"one-player host changed");objects[0].position.x=1;CHECK(!gate(list)&&!teleports,"one player outside passed gate");
  }else if(!strcmp(name,"empty")){

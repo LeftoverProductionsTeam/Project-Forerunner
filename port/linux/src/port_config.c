@@ -1916,6 +1916,15 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "network.coop_player_collisions", _config_boolean, "true", "HALO_NET_COOP_PLAYER_COLLISIONS", _environment_value,
 		_platform_all,
 		"Players bump into each other in online co-op." },
+	{ "network.coop_script_adaptations", _config_boolean, "true", "HALO_NET_COOP_SCRIPT_ADAPTATIONS", _environment_value,
+		_platform_all,
+		"Host: adapt legacy campaign scripts for extra co-op players. Default\n"
+		"on: player0's actions include followers, gates gather players and\n"
+		"visibility/save tests may accept any player. Turn off for authored\n"
+		"operations using exact player lists and individual actions. Native\n"
+		"script authority, replication, explicit teleports and empty-player\n"
+		"wait protection remain. Changes apply at the next map start.\n"
+		"This does not implement squad objectives." },
 	{ "network.vehicle_riding", _config_boolean, "false", "HALO_NET_VEHICLE_RIDING", _environment_value, _platform_all,
 		"Host: the base setting: players standing on a moving vehicle are\n"
 		"carried by it (co-op's options in Server Setup set it). In\n"

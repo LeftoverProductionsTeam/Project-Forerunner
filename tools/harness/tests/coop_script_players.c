@@ -39,6 +39,12 @@ static boolean coop_scripts_host(void)
 {
 	return host;
 }
+static boolean adaptations = TRUE;
+static boolean config_boolean(char const *name)
+{
+	CHECK(!strcmp(name, "network.coop_script_adaptations"), "unknown policy");
+	return adaptations;
+}
 static void reference_list_port_full(struct data_array *data)
 {
 	CHECK(FALSE, "fixture full");
@@ -96,13 +102,16 @@ static void unit_scripting_suspended(long unit, boolean value)
 {
 	calls[player_index_from_unit_index(unit)]++;
 }
-static struct
+struct biped_datum
 {
 	struct
 	{
 		long parent_object_index;
+		unsigned long damage_flags;
 	} object;
-} objects[128];
+	struct { unsigned long flags; } biped;
+};
+static struct biped_datum objects[128];
 #define object_get(unit) (&objects[player_index_from_unit_index(unit)])
 static void unit_scripting_exit_vehicle(long unit)
 {
@@ -128,6 +137,15 @@ static void player_add_equipment(long unit, short profile, boolean reset)
 {
 	calls[player_index_from_unit_index(unit)]++;
 }
+enum { _object_dead_bit=0, _biped_airborne_bit=0 };
+static boolean native_safe;
+static boolean game_safe_to_save(void) { return native_safe; }
+static struct biped_datum *biped_try_and_get(long unit)
+{
+	long player=player_index_from_unit_index(unit);
+	return player==NONE ? NULL : &objects[player];
+}
+static boolean ai_port_enemies_can_see_unit(long unit) { return FALSE; }
 #include "actions.inc"
 static int script_units(long *units)
 {
@@ -165,6 +183,7 @@ static void reset(int count)
 	memset(occupied, 0, sizeof(occupied));
 	memset(calls, 0, sizeof(calls));
 	host = TRUE;
+	coop_scripts_new_game();
 	for (i = 0; i < count; i++)
 	{
 		occupied[i] = 1;
@@ -231,6 +250,35 @@ int main(int argc, char **argv)
 		n = script_units(units);
 		host = FALSE;
 		CHECK(!players_following(units[0], out, 128), "nonhost followers");
+	}
+	else if (!strcmp(name, "native-save"))
+	{
+		reset(6);
+		CHECK(coop_scripts_safe_to_save(), "legacy one-safe-player cutscene policy changed");
+		adaptations = FALSE;
+		coop_scripts_new_game();
+		CHECK(!coop_scripts_safe_to_save(), "authored native save safety was weakened");
+		native_safe = TRUE;
+		CHECK(coop_scripts_safe_to_save(), "native safe condition failed in authored mode");
+	}
+	else if (!strcmp(name, "native-actions"))
+	{
+		reset(6);
+		n = script_units(units);
+		adaptations = FALSE;
+		coop_scripts_new_game();
+		CHECK(!players_following(units[0], out, 128), "authored player0 acquired unrelated followers");
+		coop_scripts_teleport_followers(units[0], &destination);
+		coop_scripts_suspend_followers(units[0], TRUE);
+		coop_scripts_exit_followers(units[0], 555);
+		coop_scripts_board_followers(units[0], 555, "P-RiderLF");
+		coop_scripts_player_add_equipment(units[0], 2, TRUE);
+		for (i = 0; i < n; i++)
+			CHECK(calls[player_index_from_unit_index(units[i])] == (i == 0),
+				"authored action affected an unselected player or omitted its actual recipient");
+		adaptations = TRUE;
+		coop_scripts_new_game();
+		CHECK(players_following(units[0], out, 128) == n - 2, "legacy followers did not resume");
 	}
 	else
 	{

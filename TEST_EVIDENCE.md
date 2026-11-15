@@ -12,6 +12,31 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
+15 November, authored co-op script policy: existing `coop_gate` and
+`coop_script_players` fixtures pass 15 + 12 cases with MSVC `/O2 /W3 /WX`.
+Six-player fixtures exercise exact ALL/subset gates without gathering, scoped
+object/flag visibility, individual teleport/suspend/exit/board/equipment actions,
+native save safety and map-latched policy changes. Default campaign gate/action
+coverage also passes. Ignoring the option makes `native-lists` and `native-actions`
+fail. Existing explicit teleport placement retains its host-only authority;
+empty-player wait protection is exercised with adaptations disabled.
+
+Final Windows64 build: `build/native-script-policy-latched-build.log`; SHA-256
+`545415731e599d1d6bf5785fe398bade4b59caedbcee42695d573bc8f3c42dad`.
+Existing non-LTO bgfx/OpenXR environment/dependencies reused. Actual engine smoke:
+existing `tools/net_compare.py`, A30/co-op, 35 seconds, skip 5, start 8, timeout
+100, existing actor snapshots; `HALO_EXTRACTION=false` on both peers and
+`HALO_NET_COOP_SCRIPT_ADAPTATIONS=false` only on A/host. B retains the default.
+`build/native-script-policy-latched-smoke/results.json`: PASS, 37 seconds compared,
+position mean/max 0.015/0.068513, aim max 1 degree, drift max 0.026215; five
+nonpersistent grenade mismatches stay within the existing unchanged judge.
+The prior pre-latch run is retained in `build/native-authored-script-policy-smoke`
+(PASS/37 seconds); lifecycle review justified the final run. No simulation,
+transport or comparison limits changed. Original three input hashes match;
+staging and A/B copies plus fixture scratch are removed, compact logs remain.
+This proves bounded native co-op with the option, not authored independent-squad
+quests, a complete campaign, cutscene/restore acceptance, Linux or other targets.
+
 15 November, Extraction departure/ammo handoff: the existing connected C harness
 passes MSVC `/O2 /W3 /WX`: `initial-ammo`, `refund-disconnect`, `refund-recycled`,
 `refund-map-exit`, `refund-retry`, `loop`, `transfer`, `disconnect`, `grant-failure`,
