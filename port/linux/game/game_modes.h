@@ -111,6 +111,9 @@ boolean game_modes_inventory_capture(long player_index, struct game_modes_invent
  * Existing carried weapons are dropped, not destroyed. Failed staged grants
  * leave no recovered objects behind; the caller can cancel its reservation. */
 boolean game_modes_inventory_grenade_room(long player_index, short room[2]);
+/* Checks an already loaded weapon definition and exact carried quantities;
+ * no tag import, ownership claim or grant. The current map owns its behavior. */
+boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapon const *item);
 boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *inventory);
 boolean game_modes_inventory_apply(long player_index, struct game_modes_inventory const *inventory,
 	long created[GAME_MODES_INVENTORY_WEAPONS]);

@@ -145,10 +145,38 @@ boolean game_modes_inventory_grenade_room(long player_index, short room[2])
 	return TRUE;
 }
 
+boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapon const *item)
+{
+	struct weapon_definition *definition;
+	long tag;
+	short magazine;
+	if (!item || !VALID_INDEX(item->slot, GAME_MODES_INVENTORY_WEAPONS) || !item->tag_path[0] ||
+		!memchr(item->tag_path, 0, sizeof(item->tag_path)) || !(item->age >= 0.f && item->age <= 1.f)) return FALSE;
+	tag = tag_loaded(WEAPON_DEFINITION_TAG, item->tag_path);
+	if (tag == NONE) return FALSE;
+	definition = weapon_definition_get(tag);
+	/* Native weapon_is_flag uses this same authored flag. Mission items never
+	 * become personal gear, including a changed definition in another cache. */
+	if (TEST_FLAG(definition->weapon.flags, _weapon_must_be_readied_bit) ||
+		definition->weapon.magazines.count < 0 || definition->weapon.magazines.count > NUMBEROF(item->rounds_loaded)) return FALSE;
+	for (magazine = 0; magazine < NUMBEROF(item->rounds_loaded); magazine++)
+	{
+		if (item->rounds_loaded[magazine] < 0 || item->rounds_reserve[magazine] < 0) return FALSE;
+		if (magazine < definition->weapon.magazines.count)
+		{
+			struct weapon_magazine_definition *capacity = TAG_BLOCK_GET_ELEMENT(&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
+			if (item->rounds_loaded[magazine] > capacity->rounds_loaded_maximum ||
+				item->rounds_reserve[magazine] > capacity->rounds_total_maximum) return FALSE;
+		}
+		else if (item->rounds_loaded[magazine] || item->rounds_reserve[magazine]) return FALSE;
+	}
+	return TRUE;
+}
+
 boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *inventory)
 {
 	char const *map = cache_file_loaded_map_name();
-	short index, magazine;
+	short index;
 
 	if (!inventory || !map || !memchr(inventory->map_name, 0, sizeof(inventory->map_name)) ||
 		strcmp(map, inventory->map_name) || inventory->map_checksum != cache_files_get_checksum() ||
@@ -159,26 +187,7 @@ boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *in
 	for (index = 0; index < inventory->weapon_count; index++)
 	{
 		struct game_modes_inventory_weapon const *item = &inventory->weapons[index];
-		struct weapon_definition *definition;
-		long tag;
-
-		if (item->slot != index || !item->tag_path[0] || !memchr(item->tag_path, 0, sizeof(item->tag_path)) ||
-			!(item->age >= 0.f && item->age <= 1.f)) return FALSE;
-		tag = tag_loaded(WEAPON_DEFINITION_TAG, item->tag_path);
-		if (tag == NONE) return FALSE;
-		definition = weapon_definition_get(tag);
-		if (definition->weapon.magazines.count < 0 || definition->weapon.magazines.count > NUMBEROF(item->rounds_loaded)) return FALSE;
-		for (magazine = 0; magazine < NUMBEROF(item->rounds_loaded); magazine++)
-		{
-			if (item->rounds_loaded[magazine] < 0 || item->rounds_reserve[magazine] < 0) return FALSE;
-			if (magazine < definition->weapon.magazines.count)
-			{
-				struct weapon_magazine_definition *capacity = TAG_BLOCK_GET_ELEMENT(&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
-				if (item->rounds_loaded[magazine] > capacity->rounds_loaded_maximum ||
-					item->rounds_reserve[magazine] > capacity->rounds_total_maximum) return FALSE;
-			}
-			else if (item->rounds_loaded[magazine] || item->rounds_reserve[magazine]) return FALSE;
-		}
+		if (item->slot != index || !game_modes_inventory_weapon_compatible(item)) return FALSE;
 	}
 	return TRUE;
 }

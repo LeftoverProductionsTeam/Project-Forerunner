@@ -558,20 +558,32 @@ only at-risk reservations. Saved escape escrow rolls forward once on reopen;
 published-but-uncertain writes retry the same intent rather than minting rewards.
 These are implementation/automated checks, not power-loss or gameplay acceptance.
 
-`game_modes.c::{game_modes_inventory_grenade_room,game_modes_inventory_loadout_valid,
+`game_modes.c::{game_modes_inventory_grenade_room,game_modes_inventory_weapon_compatible,game_modes_inventory_loadout_valid,
 game_modes_inventory_apply,game_modes_inventory_consume}` reuse native tag lookup,
 object creation, weapon drop/attach/delete and actual owned snapshots. Old carried
 weapons are dropped as loot, not erased. Capacity is 32 stored weapons and two
-selected deployment weapons; grenades withdraw only into native capacity. Exact
-cache name/checksum admission currently prevents unsafe cross-cache tag reuse.
-Compatible same-cache cross-mode gear uses the same foundation; rarity, armor,
-equipment upgrades and general cross-cache equivalence remain open.
+selected deployment weapons; grenades withdraw only into native capacity.
+Exact source cache name/checksum remains the default admission policy. Optional
+host `game.shared_gear=true` / `HALO_SHARED_GEAR=true` lets
+`gear.c::gear_item_available` select stored weapons from other maps or rebuilt
+caches through the same native `game_modes_inventory_weapon_compatible` check.
+Spark must compile the matching weapon paths into the target map with magazine
+limits that accept the exact saved ammunition; absent tags, native objective
+flags or incompatible quantities leave items safely stored. No tag import, save
+version change, editor inventory format or new discovery operation. The current
+target definition owns weapon behavior: matching paths do not prove identical
+mod assets, damage, effects or upgrade semantics. Compatible choice, discard,
+reserve/refund and recovered identity use the existing owner bank. Connected
+source checks and Windows64 compilation pass; actual authored cross-map
+deployment/recovery/Survival acceptance remains unverified. Rarity, armor,
+equipment upgrades and arbitrary cross-cache asset equivalence remain open.
 
 Spark may optionally add a powered touched-by-player `extraction_loadout` control
 inside the return hub, outside activation. It cycles compatible stored weapons
-through native player notices. The host now saves the choice by ordering only
-that cache's items through `gear.c::gear_cycle_loadout` and its existing locked,
-atomic version-1 record. Reopening and same-cache Survival reuse the choice;
+through native player notices. The host saves the choice by ordering only
+available items through `gear.c::gear_cycle_loadout` and its existing locked,
+atomic version-1 record: the exact-cache subsequence by default, or the native-
+compatible subsequence when shared gear is enabled. Reopening and Survival reuse the choice;
 failed grants restore it and returned carried gear stays ready for redeployment.
 An uncertain published choice is flushed on retry rather than cycled again.
 The same optional control now supports bounded stash management: crouch-use

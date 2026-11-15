@@ -14,6 +14,7 @@
 #include "../src/identity.h"
 #include "../src/port_folders.h"
 #include "../src/posix.h"
+#include "../src/port_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -314,18 +315,24 @@ failed:
 	return FALSE;
 }
 
-/* Exact native cache provenance until a content-equivalence interface exists.
- * Cross-mode use on the same cache works; unrelated cache tags are never imported. */
-static short gear_selected(struct gear_session const *session, short indices[GEAR_LOADOUT_WEAPONS])
+/* Exact-cache defaults remain available. Shared gear resolves only definitions
+ * already in the target map; it never imports content or changes stored items. */
+static boolean gear_item_available(struct gear_item const *item)
 {
 	char const *map = cache_file_loaded_map_name();
-	unsigned long checksum = cache_files_get_checksum();
+	if (!map) return FALSE;
+	if (config_boolean("game.shared_gear"))
+		return game_modes_inventory_weapon_compatible(&item->equipment);
+	return item->map_checksum == cache_files_get_checksum() && !strcmp(item->map_name, map);
+}
+
+static short gear_selected(struct gear_session const *session, short indices[GEAR_LOADOUT_WEAPONS])
+{
 	short count = 0, index;
 
-	if (!map) return 0;
 	for (index = 0; index < session->record.count && count < GEAR_LOADOUT_WEAPONS; index++)
 	{
-		if (session->record.items[index].map_checksum == checksum && !strcmp(session->record.items[index].map_name, map))
+		if (gear_item_available(&session->record.items[index]))
 			indices[count++] = index;
 	}
 	return count;
@@ -336,20 +343,18 @@ boolean gear_cycle_loadout(struct gear_session *session)
 	struct gear_record next;
 	short indices[GEAR_CAPACITY], count = 0, index;
 	boolean pending = session->pending;
-	char const *map = cache_file_loaded_map_name();
-	unsigned long checksum = cache_files_get_checksum();
 
 	if (!gear_flush(session) || session->record.phase != _gear_idle) return FALSE;
 	/* An uncertain published selection is retried, not advanced twice. */
-	if (pending || !map) return TRUE;
+	if (pending) return TRUE;
 	for (index = 0; index < session->record.count; index++)
 	{
-		if (session->record.items[index].map_checksum == checksum && !strcmp(session->record.items[index].map_name, map))
+		if (gear_item_available(&session->record.items[index]))
 			indices[count++] = index;
 	}
 	if (count < 2) return TRUE;
-	/* Rotate only this native cache's subsequence. A choice made on another
-	 * map must not change the first compatible weapon saved for this one. */
+	/* Rotate only available gear. Strict mode retains per-cache choices;
+	 * shared mode selects across the native-compatible stash without imports. */
 	next = session->record;
 	for (index = 0; index < count; index++)
 		next.items[indices[index]] = session->record.items[indices[(index + 1) % count]];
@@ -367,10 +372,8 @@ boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES],
 {
 	struct gear_record next;
 	short index;
-	char const *map = cache_file_loaded_map_name();
-	unsigned long checksum = cache_files_get_checksum();
 
-	if (!gear_flush(session) || session->record.phase != _gear_idle || !gear_nonzero(id) || !map ||
+	if (!gear_flush(session) || session->record.phase != _gear_idle || !gear_nonzero(id) ||
 		generation == 0xffffffffUL) return FALSE;
 	if (session->record.generation != generation)
 		return session->record.generation == generation + 1 && !gear_has(session->record.items, session->record.count, id);
@@ -378,7 +381,7 @@ boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES],
 	{
 		struct gear_item const *item = &session->record.items[index];
 		if (memcmp(item->id, id, GEAR_ID_BYTES)) continue;
-		if (item->map_checksum != checksum || strcmp(item->map_name, map)) return FALSE;
+		if (!gear_item_available(item)) return FALSE;
 		next = session->record;
 		memmove(next.items + index, next.items + index + 1, (next.count - index - 1) * sizeof(next.items[0]));
 		next.count--;

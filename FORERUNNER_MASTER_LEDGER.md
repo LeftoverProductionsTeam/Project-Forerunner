@@ -3,6 +3,19 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current shared equipment: optional host `game.shared_gear` enables compatible
+weapons across Extraction/Survival maps and rebuilt caches. Selection, confirmed
+discard, reservation/refund and recovery reuse the existing version-1 owner bank.
+One native admission function checks loaded paths, objective flags and exact
+ammo/battery bounds; unavailable items stay stored. Target-map weapon behavior
+is authoritative; this does not import tags or prove mod-content equivalence.
+Default off preserves per-cache choices. Fifteen gear and twelve connected source
+workflows pass, including cross-cache Survival reuse and preserved item identity;
+native-admission and uncertain-choice negative controls are detected. Windows64
+bgfx/OpenXR compiles incrementally in the retained non-LTO environment. Actual
+authored cross-map gameplay remains unverified; no repeat of the unchanged map
+handoff blocker or earlier native protocol/revival investigations was needed.
+
 Current gameplay handoff: accepted Extraction deployment and activation now use
 the native control-group transition and effects, allowing authored HaloScript to
 observe them. Refused/storage actions stay consumed; the host rechecks native
@@ -189,8 +202,9 @@ do not reserve gear without an authored recovery path. Existing shared lives and
 script ownership are unchanged. Windows64/OpenXR compiles and 37 focused checks
 pass. Private x64/x86 co-op reaches director preparation and passes comparison,
 but no native winner bank or successful Survival session is proven.
-Armor/equipment, rarity/upgrades,
-general cross-cache gear and the original full hub/menu remain unfinished.
+Armor/equipment, rarity/upgrades, arbitrary cross-cache asset equivalence and the
+original full hub/menu remain unfinished. Optional native-compatible cross-cache
+weapon reuse is source-implemented above; it does not make missing tags usable.
 No personal inventories, original maps, Spark source or remote configuration
 were modified. This cycle delivered runtime gameplay source and necessary
 durability/ownership fixes, not a new editor or coordination framework.

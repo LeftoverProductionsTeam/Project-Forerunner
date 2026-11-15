@@ -39,7 +39,7 @@ struct control_datum { long definition_index; struct object_fields object;
 struct device_group_datum {real actual_value;unsigned short flags;};
 struct player_datum { long unit_index; short local_player_index; boolean quit_out_of_game;
  struct { short controller_index; } network_player_data; };
-struct weapon_definition { struct { struct tag_block magazines; } weapon; };
+struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum; };
 struct game_globals_grenade { short maximum_count; };
 struct game_globals { struct tag_block grenades; };
@@ -71,7 +71,8 @@ static struct data_array *device_groups_data=&device_group_table;
 static int control_updates[3],control_effects[3];
 #include "controls_types.inc"
 static struct weapon_magazine_definition magazine = { 20, 200 };
-static struct weapon_definition weapon_tag = { { { 1, &magazine } } };
+static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
+static long missing_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
 static struct game_globals globals = { { 2, grenades } };
 static struct scenario_object_name names[3] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"} };
@@ -90,7 +91,8 @@ static byte remote_account[16] = {1};
 static int local_notices, remote_notices, respawns;
 
 static boolean config_boolean(char const *name)
-{ return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting : director; }
+{ return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
+  !strcmp(name,"game.shared_gear") ? shared_cache : director; }
 static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
 static boolean network_coop_active(void) { return TRUE; }
 static struct { boolean enabled, gear, victory; short phase; } firefight;
@@ -125,7 +127,8 @@ static boolean weapon_is_flag(long h)
 { short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) return weapons[i].flag; return FALSE; }
 static char const *tag_get_name(long tag) { return tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
 static long tag_loaded(long group,char const *path)
-{ return !strcmp(path,tag_get_name(1)) ? 1 : !strcmp(path,tag_get_name(2)) ? 2 : NONE; }
+{ long tag=!strcmp(path,tag_get_name(1)) ? 1 : !strcmp(path,tag_get_name(2)) ? 2 : NONE;
+ return tag==missing_tag ? NONE : tag; }
 static struct weapon_definition *weapon_definition_get(long tag) { return &weapon_tag; }
 static struct game_globals *scenario_get_game_globals(void) { return &globals; }
 static void object_placement_data_new(struct object_placement_data *p,long tag,long owner) { memset(p,0,sizeof(*p)); p->definition_index=tag; }
@@ -186,6 +189,7 @@ static void players_respawn_at_start(void) { respawns++; }
 static void data_iterator_new(struct data_iterator *i,void *data) { i->next=0; }
 static void *data_iterator_next(struct data_iterator *i) { if(i->next>=2) return NULL; i->datum_index=player_handles[i->next]; return &players[i->next++]; }
 
+#include "equipment_flags.inc"
 #include "equipment.inc"
 #include "extraction.inc"
 #include "controls.inc"
@@ -239,6 +243,63 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strcmp(case_name,"shared-cache")||!strcmp(case_name,"shared-cache-reject")||!strcmp(case_name,"shared-cache-discard")) {
+  struct game_modes_inventory chosen,stale;
+  byte original[GEAR_ID_BYTES];unsigned long generation;
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);
+  CHECK(gear_loadout(&run(0)->gear,&stale)&&stale.weapon_count==2,"source loadout missing");
+  memcpy(original,run(0)->gear.record.items[1].id,sizeof(original));
+  extraction_reset();map="survival@ce";checksum++;advance(1);touch(2,0);
+  CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count&&run(0)->gear.record.count==2,
+   "default cache isolation changed");
+  CHECK(!game_modes_inventory_loadout_valid(&stale),"stale snapshot bypassed native cache admission");
+  shared_cache=TRUE;
+  if(!strcmp(case_name,"shared-cache-reject")) {
+   generation=run(0)->gear.record.generation;missing_tag=1;touch(2,0);
+   CHECK(gear_loadout(&run(0)->gear,&chosen)&&chosen.weapon_count==1&&
+    !strcmp(chosen.weapons[0].tag_path,tag_get_name(2)),"missing native tag was granted or hid compatible gear");
+   missing_tag=NONE;weapon_tag.weapon.flags=FLAG(_weapon_must_be_readied_bit);
+   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"target objective definition became personal loot");
+   weapon_tag.weapon.flags=0;weapon_tag.weapon.magazines.count=0;
+   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"absent magazines discarded stored ammunition");
+   weapon_tag.weapon.magazines.count=1;magazine.rounds_loaded_maximum=6;
+   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"target magazine silently clipped recovered rounds");
+   magazine.rounds_loaded_maximum=20;magazine.rounds_total_maximum=62;
+   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"target reserve silently clipped recovered ammunition");
+   CHECK(run(0)->gear.record.count==2&&run(0)->gear.record.generation==generation&&
+    run(0)->gear.record.items[0].equipment.rounds_loaded[0]==7,
+    "incompatible native definitions changed the owned stash");
+  } else {
+   touch(2,0);
+   CHECK(gear_loadout(&run(0)->gear,&chosen)&&chosen.weapon_count==2&&chosen.map_checksum==checksum&&
+    !strcmp(chosen.map_name,map)&&!strcmp(chosen.weapons[0].tag_path,tag_get_name(2))&&
+    !strcmp(run(0)->gear.record.items[0].map_name,"candidate@ce"),"shared terminal lost target admission or origin provenance");
+   if(!strcmp(case_name,"shared-cache-discard")) {
+    units[0].unit.control_flags=FLAG(_unit_control_crouch_modifier_bit);touch(2,0);advance(30);touch(2,0);
+    CHECK(run(0)->gear.record.count==1&&!gear_has(run(0)->gear.record.items,run(0)->gear.record.count,original),
+     "confirmed foreign-cache discard failed or removed another weapon");
+   } else {
+    touch(0,0);a=units[0].unit.weapon_object_indices[0];
+    CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.reserved_count==2&&
+     !run(0)->gear.record.count&&weapon_get(a)->definition_index==2&&weapon_get(a)->weapon.magazines[0].rounds_loaded==7,
+     "shared deployment changed selection, quantities or reservation");
+    weapon_get(a)->weapon.magazines[0].rounds_loaded=3;weapon_get(a)->weapon.age=.5f;escape(0);
+    CHECK(run(0)->gear.record.count==2&&!memcmp(original,run(0)->gear.record.items[0].id,sizeof(original))&&
+     !strcmp(run(0)->gear.record.items[0].map_name,map)&&run(0)->gear.record.items[0].map_checksum==checksum,
+     "target recovery duplicated identity or retained the old cache provenance");
+    extraction_reset();map="zombies@ce";checksum++;enabled=FALSE;director=TRUE;
+    firefight.enabled=firefight.gear=TRUE;firefight.phase=1;advance(1);
+    a=units[0].unit.weapon_object_indices[0];
+    CHECK(run(0)->phase==_extraction_deployed&&weapon_get(a)->definition_index==2&&
+     weapon_get(a)->weapon.magazines[0].rounds_loaded==3&&weapon_get(a)->weapon.age==.5f&&
+     !memcmp(original,run(0)->gear.record.reserved[0].id,sizeof(original)),"different-cache Survival lost recovered gear or identity");
+    firefight.phase=4;firefight.victory=TRUE;advance(1);
+    CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==2&&!weapon_try_and_get(a),
+     "shared Survival victory did not consume and bank gear exactly once");
+   }
+  }
+  extraction_reset();return 0;
+ }
  if(!strcmp(case_name,"native-controls")) {
   device_groups[3].actual_value=0.f;touch(0,0);
   CHECK(run(0)->phase==_extraction_hub&&!file_count&&!control_updates[0],"unpowered deployment changed gear or signaled scripts");
@@ -492,8 +553,12 @@ int main(int argc,char **argv)
   players[1].quit_out_of_game=FALSE; advance(1); touch(2,1);
   CHECK(run(1)->player==0x20001 && run(1)->phase==_extraction_hub &&
    !run(1)->gear.record.count && !run(1)->gear.record.reserved_count,"recycled player inherited abandoned rewards");
- } else if(!strcmp(case_name,"grant-failure")) {
-  touch(0,0); pickup(0,1); pickup(0,2); escape(0); a=pickup(0,1); before=weapon_count;
+ } else if(!strcmp(case_name,"grant-failure")||!strcmp(case_name,"shared-cache-failure")) {
+  touch(0,0); pickup(0,1); pickup(0,2); escape(0);
+  if(!strcmp(case_name,"shared-cache-failure")) {
+   extraction_reset();map="rebuilt@ce";checksum++;shared_cache=TRUE;advance(1);
+  }
+  a=pickup(0,1); before=weapon_count;
   fail_allocate=2; touch(0,0);
   CHECK(run(0)->gear.record.count==2 && !run(0)->gear.record.reserved_count && units[0].unit.weapon_object_indices[0]==a,"allocation failure lost stash or carried gear");
   CHECK(!weapon_try_and_get(0x10020+before),"partial allocation survived refund");

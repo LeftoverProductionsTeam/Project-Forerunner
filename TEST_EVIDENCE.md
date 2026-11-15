@@ -54,6 +54,29 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Shared native-cache equipment, base `8f315791c1`, 15 November:
+
+- Optional default-off `game.shared_gear` reuses native loaded-weapon admission
+  for selected/discarded cross-cache gear. The existing loadout validator shares
+  that same implementation; target map/checksum validation of snapshots remains.
+  Version-1 codec, file backend, ownership, escrow and wire formats are unchanged.
+- **15 gear-source and 12 connected Extraction/Survival workflows pass**, MSVC
+  14.52.37025 x86 `/O2 /W3 /WX`. Coverage includes rebuilt-cache opt-in, strict
+  default/per-cache choice preservation, target loaded-tag/flag/magazine rejection
+  without stash mutation, exact ammo/age and persistent item identity, cross-map
+  native grants/refunds, confirmed foreign-cache discard, escape and finite-
+  Survival recovery. Bypassing native admission is detected; the existing
+  uncertain-choice negative control is updated and still detects its regression.
+  These use bounded world/filesystem adapters, not played maps or real save files.
+- `ninja windows64 -j6`: **PASS** with existing non-LTO/bgfx/OpenXR configuration
+  and cached dependencies. Logs: `build/native-shared-gear-build.log` and
+  `build/native-shared-gear-final-build.log`. Only dependent native units/link
+  rebuild; no new dependency preparation or renderer changes. Source scratch is
+  removed. Actual shared-cache gameplay, Linux/other-target execution and hardware
+  acceptance remain open. The preceding A30 native result belongs to its earlier
+  executable; it is not new-feature acceptance. Existing missing authored-hub
+  acceptance and protocol/revival evidence are not investigated again here.
+
 Native Extraction control handoff, base `6c702d327d`, 15 November:
 
 - `extraction_control_touched` now preserves native control state/effects only

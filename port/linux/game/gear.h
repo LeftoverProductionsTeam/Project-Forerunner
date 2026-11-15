@@ -48,8 +48,9 @@ void gear_profile_owner(char const *profile_directory, byte owner[GEAR_ID_BYTES]
 void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BYTES]);
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES]);
 void gear_close(struct gear_session *session);
-/* Read selected native-cache gear before reserving it. Missing/incompatible
- * caches must be refused before the stash is changed. */
+/* Read selected gear before reserving it. Default is exact-cache admission;
+ * optional game.shared_gear resolves compatible paths/quantities against the
+ * current native cache. Missing/incompatible items stay safely in the stash. */
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory);
 /* Rotate the next compatible lead weapon to the front through the existing
  * atomic record. Stash order is the durable choice, shared by both modes. */

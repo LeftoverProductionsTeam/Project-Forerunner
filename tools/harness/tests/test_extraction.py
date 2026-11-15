@@ -13,11 +13,12 @@ from harness.tests.test_gear import generated as gear_generated
 def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
     inventory = read('port/linux/game/game_modes.c')
-    names = ('capture', 'grenade_room', 'loadout_valid', 'apply', 'consume')
+    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'apply', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
     if fault:
         equipment = mutated(equipment, *fault)
     files.append(('equipment.inc', equipment))
+    files.append(('equipment_flags.inc', enum_with(read('source/items/weapon_definitions.h'), '_weapon_must_be_readied_bit')))
     director = read('port/linux/game/coop_enemies.c')
     survival = '\n'.join(function(director, name) for name in (
         'coop_enemies_host', 'coop_enemies_firefight_active',
@@ -41,6 +42,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
                                  'transfer', 'grant-failure', 'authority', 'native-controls',
+                                 'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
                                  'restore', 'pending', 'binding', 'disconnect',
                                  'survival-win', 'survival-loss', 'survival-retry',
                                  'survival-restore', 'survival-respawn',
@@ -64,6 +66,15 @@ def test_native_deployment_signal_negative_control():
         'extraction_deploy(run, player); return TRUE;'))
         if name == 'extraction.inc' else (name, text) for name, text in generated())
     status, output = run(build('extraction', files), 'native-controls')
+    assert status == CHECK_FAILED, output
+
+
+def test_shared_cache_native_admission_negative_control():
+    files = tuple((name, mutated(text,
+        'return game_modes_inventory_weapon_compatible(&item->equipment);',
+        'return TRUE;')) if name == 'under_test.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), 'shared-cache-reject')
     assert status == CHECK_FAILED, output
 
 

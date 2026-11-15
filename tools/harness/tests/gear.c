@@ -11,7 +11,7 @@ typedef unsigned long posix_ulong;
 #include "types.inc"
 
 static struct { char path[1024]; byte data[65536]; posix_ulong size; boolean present, locked; } files[4];
-static boolean client, playing = TRUE, fail_write, publish_failure;
+static boolean client, playing = TRUE, fail_write, publish_failure, shared_cache;
 static int connection = _game_connection_local, folder_calls, file_count;
 static char const *map = "candidate@ce";
 static unsigned long checksum = 42;
@@ -58,9 +58,16 @@ static int posix_gear_replace(char const *path, void const *buffer, posix_ulong 
  return !publish_failure;
 }
 #include "sha.inc"
+#define config_boolean(name) shared_cache
 #include "under_test.inc"
+#undef config_boolean
 
 #ifndef GEAR_FIXTURE_ONLY
+/* Native tag admission is a boundary adapter here; the connected Extraction
+ * fixture compiles and exercises its actual implementation. */
+static boolean native_compatible = TRUE;
+boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapon const *item)
+{ return native_compatible; }
 static struct gear_session session, reopened;
 static byte owner[GEAR_ID_BYTES];
 static struct game_modes_inventory inventory;
@@ -225,6 +232,19 @@ int main(int argc, char **argv)
   gear_close(&session); files[0].data[100] ^= 1;
   CHECK(!gear_open(&session, owner), "corrupted stash overwritten or accepted");
   CHECK(files[0].data[100] == (byte)(data[100] ^ 1), "corrupt source was overwritten");
+ } else if (!strcmp(case_name, "shared-cache")) {
+  earn(2);checksum++;shared_cache=TRUE;native_compatible=FALSE;
+  CHECK(gear_loadout(&session,&loadout)&&!loadout.weapon_count&&!gear_loadout_choice(&session),
+   "shared cache bypassed native admission");
+  native_compatible=TRUE;
+  CHECK(gear_loadout(&session,&loadout)&&loadout.weapon_count==2&&loadout.map_checksum==checksum&&
+   loadout.weapons[0].rounds_loaded[0]==5&&session.record.items[0].map_checksum==checksum-1,
+   "shared loadout lost native quantities or overwrote origin provenance");
+  CHECK(gear_cycle_loadout(&session)&&gear_reserve(&session)&&gear_loadout(&session,&loadout)&&
+   loadout.weapons[0].rounds_loaded[0]==6&&!session.record.count&&session.record.reserved_count==2,
+   "shared selection/reservation did not use the selected items");
+  CHECK(gear_cancel_reservation(&session)&&session.record.count==2&&session.record.items[0].map_checksum==checksum-1,
+   "shared grant cancellation changed stored origin or lost gear");
  } else if (!strcmp(case_name, "cache")) {
   earn(2); checksum++;
   CHECK(gear_loadout(&session, &loadout) && !loadout.weapon_count, "different cache admitted recovered tags");

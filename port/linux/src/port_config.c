@@ -1413,6 +1413,13 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Local saved profiles and verified co-op identities own separate gear.\n"
 		"Disable the built-in Firefight director; native AI scripts may run.\n"
 		"Rarity/upgrades and the full hub UI remain unfinished." },
+	{ "game.shared_gear", _config_boolean, "false", "HALO_SHARED_GEAR", _environment_value, _platform_desktop,
+		"Allow compatible stored weapons to deploy across Extraction/Survival\n"
+		"maps or a rebuilt cache. Uses the current map's loaded weapon paths\n"
+		"and behavior; exact ammunition/battery values must fit its native\n"
+		"definitions. Missing tags, objective weapons and incompatible gear\n"
+		"stay in the stash. No tag imports or save conversion. Host-owned;\n"
+		"default off preserves exact-cache choices. Gameplay unverified." },
 	{ "game.start_map", _config_string, "\"\"", "HALO_START_MAP", _environment_value, _platform_desktop,
 		"Once the main menu is ready, start this installed CE solo map fresh,\n"
 		"for example 'gs_firefight@ce', using the current difficulty and a\n"
