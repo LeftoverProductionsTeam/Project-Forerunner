@@ -223,6 +223,13 @@ static const char fxaa_source[] =
 	"\tresult = vec4(color_at(position + max(varies ? pixel_offset : 0.0, subpixel) * across), 1.0);\n"
 	"}\n";
 
+/* Both device backends compile the same FXAA source. The backend owns
+ * its shader cache, input copy and viewport; no OpenGL calls are needed. */
+const char *xgpu_post_fxaa_glsl(void)
+{
+	return fxaa_source;
+}
+
 /* display.hdr's tone mapping. "neutral" leaves the picture as it is drawn
 up to KNEE of the peak and rolls off only what is brighter, by the largest
 channel (so that a colour keeps its hue and saturation), along an extended
@@ -487,7 +494,7 @@ static GLuint program_build(int which)
 	shader_header(&text);
 	if (which == _post_program_fxaa)
 	{
-		xgpu_text_append(&text, "%s", fxaa_source);
+		xgpu_text_append(&text, "%s", xgpu_post_fxaa_glsl());
 	}
 	else if (which == _post_program_tone_map)
 	{

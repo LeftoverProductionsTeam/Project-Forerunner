@@ -365,6 +365,13 @@ static struct
 	struct bg_composite *composites;
 	bgfx_program_handle_t blit, crt, copy;
 	bgfx_uniform_handle_t crt_parameters[3];
+	/* One source copy, shared in view order across windows/eyes. Resizing
+	 * retires the old handles through bgfx, rather than growing a cache. */
+	bgfx_texture_handle_t post_texture;
+	bgfx_frame_buffer_handle_t post_framebuffer;
+	unsigned long post_width, post_height;
+	bgfx_uniform_handle_t fxaa_metrics, fxaa_bounds, fxaa_sampler;
+	struct bg_shader *fxaa_vertex, *fxaa_fragment;
 	/* the quads that are drawn every frame, kept out of the frame's transient
 	vertices: when a busy view used those up, the present drew only its
 	clear, and the whole window went black (#1047). The present's is the
@@ -2147,7 +2154,8 @@ the resolved pixels. Every target at the screen's size is multisampled, the
 back buffer, its depth buffer and what is drawn with them (a frame
 buffer's attachments have the same samples). A change of the setting
 between frames makes new targets (bg_target_get's key), cleared once as
-any new one. FXAA, SMAA and supersampling are the OpenGL path's only. */
+any new one. FXAA is a separate pre-HUD pass; SMAA and supersampling
+remain OpenGL-only. */
 static int bg_screen_samples(void)
 {
 	static int unsupported;
@@ -2618,7 +2626,7 @@ the pixels' centers: at half the source's size, the box filter), in a view
 of its own, the draw's state untouched (nothing of it is set yet); FALSE if
 bgfx has no room for it */
 static BOOL bg_composite_copy(bgfx_frame_buffer_handle_t framebuffer, unsigned long width, unsigned long height,
-	bgfx_texture_handle_t source)
+	bgfx_texture_handle_t source, const unsigned short *rect)
 {
 	if (!BGFX_HANDLE_IS_VALID(bg.copy) || !BGFX_HANDLE_IS_VALID(bg.full_quad) || !BGFX_HANDLE_IS_VALID(framebuffer) ||
 		!BGFX_HANDLE_IS_VALID(source))
@@ -2639,6 +2647,7 @@ static BOOL bg_composite_copy(bgfx_frame_buffer_handle_t framebuffer, unsigned l
 	bgfx_set_view_rect(bg.view, 0, 0, (uint16_t)width, (uint16_t)height, 0.0f, 1.0f);
 	/* (the next draw's view is a new one: bg_view_set) */
 	bg.view_framebuffer = framebuffer;
+	if (rect) bgfx_set_scissor(rect[0], rect[1], rect[2], rect[3]);
 	bgfx_set_vertex_buffer(0, bg.full_quad, 0, 4);
 	bgfx_set_texture(0, bg.samplers[0], source, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
 	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A | BGFX_STATE_PT_TRISTRIP, 0);
@@ -2675,7 +2684,7 @@ static bgfx_texture_handle_t bg_composite_scratch(struct bg_composite *composite
 		if (BGFX_HANDLE_IS_VALID(composite->scratch[level]))
 			composite->scratch_framebuffer[level] = bgfx_create_frame_buffer_from_handles(1, &composite->scratch[level], false);
 	}
-	if (!bg_composite_copy(composite->scratch_framebuffer[level], width, height, above))
+	if (!bg_composite_copy(composite->scratch_framebuffer[level], width, height, above, NULL))
 		return (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
 	return composite->scratch[level];
 }
@@ -2724,7 +2733,7 @@ static void bg_composite_fill(const struct xgpu_texture_description *description
 			source = bg_composite_scratch(composite, level,
 				level - 1 < rendered ? targets[level - 1]->texture : composite->scratch[level - 1]);
 		}
-		if (!bg_composite_copy(bg_composite_level_framebuffer(composite, level), width, height, source))
+		if (!bg_composite_copy(bg_composite_level_framebuffer(composite, level), width, height, source, NULL))
 			return;
 	}
 	composite->filled = TRUE;
@@ -4257,6 +4266,107 @@ static const char bg_copy_fragment_source[] =
 	"\tfragment_color = texture(tex0, xT0.xy);\n"
 	"}\n";
 
+static void bg_post_release(void)
+{
+	if (BGFX_HANDLE_IS_VALID(bg.post_framebuffer)) bgfx_destroy_frame_buffer(bg.post_framebuffer);
+	if (BGFX_HANDLE_IS_VALID(bg.post_texture)) bgfx_destroy_texture(bg.post_texture);
+	bg.post_framebuffer = (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE;
+	bg.post_texture = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+	bg.post_width = bg.post_height = 0;
+}
+
+static BOOL bg_fxaa_rectangle(const struct bg_target *target, short x0, short y0, short x1, short y1,
+	unsigned short rect[4], float metrics[4], float bounds[4])
+{
+	long corners[4];
+	int axis;
+	if (!target->pixel_width || !target->pixel_height || target->pixel_width > UINT16_MAX ||
+		target->pixel_height > UINT16_MAX || !(target->scale[0] > 0.0f && target->scale[0] <= UINT16_MAX) ||
+		!(target->scale[1] > 0.0f && target->scale[1] <= UINT16_MAX)) return FALSE;
+	corners[0] = scaled_pixel(x0, target->scale[0]); corners[1] = scaled_pixel(y0, target->scale[1]);
+	corners[2] = scaled_pixel(x1, target->scale[0]); corners[3] = scaled_pixel(y1, target->scale[1]);
+	for (axis = 0; axis < 2; axis++)
+	{
+		long size = (long)(axis ? target->pixel_height : target->pixel_width);
+		if (corners[axis] < 0) corners[axis] = 0;
+		else if (corners[axis] > size) corners[axis] = size;
+		if (corners[axis + 2] < 0) corners[axis + 2] = 0;
+		else if (corners[axis + 2] > size) corners[axis + 2] = size;
+		if (corners[axis + 2] <= corners[axis]) return FALSE;
+		rect[axis] = (unsigned short)corners[axis];
+		rect[axis + 2] = (unsigned short)(corners[axis + 2] - corners[axis]);
+		metrics[axis] = 1.0f / (float)size; metrics[axis + 2] = (float)size;
+		bounds[axis] = ((float)corners[axis] + 0.5f) / (float)size;
+		bounds[axis + 2] = ((float)corners[axis + 2] - 0.5f) / (float)size;
+	}
+	return TRUE;
+}
+
+static void bg_screen_anti_alias(short x0, short y0, short x1, short y1)
+{
+	struct bg_target *target;
+	struct bg_shader *vertex, *fragment;
+	bgfx_program_handle_t program;
+	bgfx_frame_buffer_handle_t destination;
+	unsigned short rect[4], viewport[4];
+	float metrics[4], bounds[4];
+	int mode = anti_aliasing();
+
+	if (!bg.ready) return;
+	if (mode != _anti_aliasing_fxaa)
+	{
+		bg_post_release();
+		return;
+	}
+	target = bg_target_get(&device.back_buffer);
+	if (!target || !bg_fxaa_rectangle(target, x0, y0, x1, y1, rect, metrics, bounds)) return;
+	if (bg.view + 5 >= BG_MAXIMUM_VIEWS || !BGFX_HANDLE_IS_VALID(bg.full_quad) ||
+		!BGFX_HANDLE_IS_VALID(bg.fxaa_metrics) || !BGFX_HANDLE_IS_VALID(bg.fxaa_bounds) ||
+		!BGFX_HANDLE_IS_VALID(bg.fxaa_sampler))
+	{
+		bg_log_once("FXAA view/uniform resources unavailable; the native picture is kept");
+		return;
+	}
+	/* The existing compiler queue/cache owns these. Until ready (or if
+	 * rejected), leave the original picture intact, without waiting. */
+	if (!bg.fxaa_vertex) bg.fxaa_vertex = bg_shader_get(bg_blit_vertex_source, FALSE, 0, "FXAA vertex", FALSE);
+	if (!bg.fxaa_fragment) bg.fxaa_fragment = bg_shader_get(xgpu_post_fxaa_glsl(), TRUE, 0, "FXAA pixel", FALSE);
+	vertex = bg.fxaa_vertex; fragment = bg.fxaa_fragment;
+	if (!bg_shader_ready(vertex) || !bg_shader_ready(fragment)) return;
+	program = bg_program_get(vertex, fragment);
+	if (!BGFX_HANDLE_IS_VALID(program)) return;
+	destination = bg_framebuffer_get(target, NULL);
+	if (!BGFX_HANDLE_IS_VALID(destination)) return;
+	if (bg.post_width != target->pixel_width || bg.post_height != target->pixel_height)
+	{
+		bg_post_release();
+		bg.post_width = target->pixel_width; bg.post_height = target->pixel_height;
+		bg.post_texture = bgfx_create_texture_2d((uint16_t)bg.post_width, (uint16_t)bg.post_height, false, 1,
+			BGFX_TEXTURE_FORMAT_BGRA8, BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP, NULL, 0);
+		if (BGFX_HANDLE_IS_VALID(bg.post_texture))
+			bg.post_framebuffer = bgfx_create_frame_buffer_from_handles(1, &bg.post_texture, false);
+		if (!BGFX_HANDLE_IS_VALID(bg.post_framebuffer) && BGFX_HANDLE_IS_VALID(bg.post_texture))
+		{
+			bgfx_destroy_texture(bg.post_texture);
+			bg.post_texture = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+		}
+	}
+	if (!bg_composite_copy(bg.post_framebuffer, bg.post_width, bg.post_height, target->texture, rect)) return;
+	viewport[0] = viewport[1] = 0;
+	viewport[2] = (unsigned short)target->pixel_width; viewport[3] = (unsigned short)target->pixel_height;
+	bg_view_set(destination, viewport, TRUE);
+	bgfx_set_scissor(rect[0], rect[1], rect[2], rect[3]);
+	bgfx_set_uniform(bg.fxaa_metrics, metrics, 1); bgfx_set_uniform(bg.fxaa_bounds, bounds, 1);
+	bgfx_set_vertex_buffer(0, bg.full_quad, 0, 4);
+	bgfx_set_texture(0, bg.fxaa_sampler, bg.post_texture, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+	/* Native destination alpha has game-owned values. Match the GL pass:
+	 * write RGB only; discarded non-edge pixels keep the native picture. */
+	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_PT_TRISTRIP, 0);
+	bgfx_submit(bg.view, program, 0, BGFX_DISCARD_ALL);
+	bg.view_used = TRUE;
+	target->written = ++bg.write_serial;
+}
+
 /* display.crt_filter: a CRT look over the final picture (scanlines,
 curvature, phosphor mask, vignette, bloom, flicker, color bleed), off by
 default. The CRT filter is from Theseus by Milenko (fs_crt.sc, with its
@@ -5745,6 +5855,8 @@ static BOOL bg_initialize(void)
 	bg.blit = (bgfx_program_handle_t)BGFX_INVALID_HANDLE;
 	bg.copy = (bgfx_program_handle_t)BGFX_INVALID_HANDLE;
 	bg.crt = (bgfx_program_handle_t)BGFX_INVALID_HANDLE;
+	bg.post_texture = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+	bg.post_framebuffer = (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE;
 	bg.present_quad = (bgfx_dynamic_vertex_buffer_handle_t)BGFX_INVALID_HANDLE;
 	bg.full_quad = (bgfx_vertex_buffer_handle_t)BGFX_INVALID_HANDLE;
 	bg.overlay = (bgfx_program_handle_t)BGFX_INVALID_HANDLE;
@@ -5863,6 +5975,9 @@ static BOOL bg_initialize(void)
 		fragment = bg_shader_get(bg_copy_fragment_source, TRUE, 0, "copy pixel", TRUE);
 		if (!vertex->failed && !fragment->failed)
 			bg.copy = bgfx_create_program(vertex->shader, fragment->shader, false);
+		bg.fxaa_metrics = bgfx_create_uniform("metrics", BGFX_UNIFORM_TYPE_VEC4, 1);
+		bg.fxaa_bounds = bgfx_create_uniform("bounds", BGFX_UNIFORM_TYPE_VEC4, 1);
+		bg.fxaa_sampler = bgfx_create_uniform("color_texture", BGFX_UNIFORM_TYPE_SAMPLER, 1);
 		for (index = 0; index < 3; index++)
 		{
 			char name[24];

@@ -735,8 +735,11 @@ settings writer and Cancel discards the preview. There is no separate preset
 file or simulation change. Resolution, FOV and timing remain individual choices.
 Enhanced uses native per-pixel model lighting on OpenGL or bgfx; a pending or
 failed bgfx shader falls back to the native vertex-lit form. OpenGL currently
-owns HDR, Light effects and FXAA/SMAA/SSAA; bgfx retains SDR and MSAA. The Video
-help explains those limits. OpenH1 World/ray-query AO is not yet a supported
+owns HDR, Light effects and SMAA/SSAA; bgfx retains SDR and now shares FXAA,
+alongside flat-screen MSAA. Acquired headset images currently have no MSAA.
+FXAA reuses one source copy, is clipped to each view before the HUD, preserves
+native destination alpha and skips unavailable shaders/resources. The Video
+help explains the remaining limits. OpenH1 World/ray-query AO is not yet a supported
 option. Actual driver/UI/gameplay and individual target acceptance remain open.
 
 When a version changes the default of settings that a `config.toml` has

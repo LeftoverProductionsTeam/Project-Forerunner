@@ -40,6 +40,18 @@ Missing optional scripted damage resources now no-op instead of asserting.
 The probe pauses AI and sets up the injury; it is not Black Echo, human play,
 death-looting acceptance, physical VR or complete multiplayer operations proof.
 
+Current postprocessing: bgfx now reuses the OpenGL FXAA source through the
+existing pre-HUD hook, compiler queue/cache, fullscreen quad and copy helper.
+One source texture is reused across ordered windows/eyes; copying and filtering
+are clipped to each view, native destination alpha is preserved, and resize or
+disable retires the old copy. Pending/failed shaders and unavailable resources
+leave the native picture intact. Nine real pass/lifecycle cases and three
+backend shader-source rewrites compile/pass; broken alpha, resize retirement
+and texel-bound controls are detected. Driver compilation, real captures, GPU
+cost and hardware stereo remain unverified. No simulation, packets or assets
+changed. SMAA/SSAA, HDR and enhanced Light effects still need bgfx adapters;
+headset MSAA remains unavailable and is explained in the native Video help.
+
 Current graphics integration: the existing native Video screen now previews
 Classic/Enhanced shading, shadows, model detail and filtering, with Custom for
 manual combinations. OK uses the individual settings' existing writer; Cancel
@@ -50,7 +62,7 @@ shader preparation. Its missing MCC bump-material key is also connected.
 Ten graphics-source cases, five native-menu workflows and the MCC combiner
 compile/pass; four deliberately broken controls are detected. Windows/Linux/
 Metal driver compilation, actual UI/gameplay, GPU timing and VR remain unverified.
-Video help now states bgfx's outstanding HDR, Light effects and post-AA limits.
+Video help states bgfx's outstanding HDR, Light effects and SMAA/SSAA limits.
 The owner's Universal Halo Graphics directive explicitly authorizes adapting
 OpenH1's World/ray-query AO in the existing renderer. No approval remains pending
 for that work, but no AO implementation or working AO option is claimed yet.

@@ -99,6 +99,7 @@ static BOOL bg_visibility_end(DWORD index, unsigned long number);
 static UINT bg_visibility_result(DWORD index, unsigned long *number);
 static BOOL bg_back_buffer_size(int *width, int *height, int *pixel_width, int *pixel_height);
 static const char *bg_renderer_name(void);
+static void bg_screen_anti_alias(short x0, short y0, short x1, short y1);
 #endif
 #ifdef HALO_VULKAN
 /* the Android app's Vulkan backend in place of OpenGL ES (display.renderer =
@@ -9160,6 +9161,13 @@ void halo_screen_anti_alias(short x0, short y0, short x1, short y1)
 	GLint corners[4];
 	int mode = anti_aliasing();
 
+#ifdef HALO_BGFX
+	if (bg_active())
+	{
+		bg_screen_anti_alias(x0, y0, x1, y1);
+		return;
+	}
+#endif
 	if (!device.gl_ready || (mode != _anti_aliasing_fxaa && mode != _anti_aliasing_smaa))
 		return;
 	/* (the primary target's view: the back buffer's) */

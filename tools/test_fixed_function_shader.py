@@ -264,6 +264,9 @@ enum {_bg_shader_depth_bias=1};
 '''
     for name in ("bg_replace_all", "bg_constants_used", "bg_vulkan_glsl"):
         code += function(backend, name) + "\n"
+    post = (SRC / "xgpu_post.c").read_text()
+    start = post.index("static const char fxaa_source[] =")
+    code += post[start:post.index(";\n", start) + 2] + "\n" + function(post, "xgpu_post_fxaa_glsl") + "\n"
     code += r'''
 struct bg_shader {int lit, ready;};
 struct bg_program {int program;};
@@ -386,6 +389,12 @@ int main(int argc,char **argv)
         (object.lighting.lights==2 || bg_d3d11));
     CHECK(strstr(rewritten,"model_lights[11].xyz") && size>=12*16);
     CHECK(!strstr(rewritten,"plasma_model_slots"));
+    free(rewritten);
+    rewritten=bg_vulkan_glsl(xgpu_post_fxaa_glsl(),TRUE,0,&size);
+    CHECK(rewritten && strstr(rewritten,"vec4 metrics;") && strstr(rewritten,"vec4 bounds;"));
+    CHECK(strstr(rewritten,"gl_FragCoord.xy * metrics.xy") && strstr(rewritten,"clamp(position, bounds.xy, bounds.zw)"));
+    CHECK(strstr(rewritten,bg_vulkan ? "binding = 2) uniform texture2D color_texture_texture" : "binding = 0) uniform sampler2D color_texture"));
+    CHECK(size>=32);
     free(rewritten);free(text.buffer);verify_light_upload();
     return 0;
 }

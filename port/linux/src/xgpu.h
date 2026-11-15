@@ -435,6 +435,8 @@ device's (d3d8_gl.c). */
 /* the programs and textures of FXAA, or of SMAA, made now; FALSE if they
 cannot be (once FALSE, it stays so) */
 BOOL xgpu_post_prepare(BOOL smaa);
+/* Shared FXAA fragment source, without a context/version header. */
+const char *xgpu_post_fxaa_glsl(void);
 
 /* FXAA, or SMAA, on the corners x0, y0 to x1, y1 (from row 0) of a render
 target's framebuffer, width by height, of that internal format (GL_RGBA8, or

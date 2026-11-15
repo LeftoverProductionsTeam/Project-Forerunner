@@ -54,6 +54,31 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Shared pre-HUD FXAA, base `f84773a792`:
+
+- Installed MSVC 14.52.37025 x86 / SDK 10.0.26100.0, `/O2 /W3 /WX` compile
+  the actual bgfx pass, view/copy helpers, target rectangle and release code
+  through the existing source-extracting harness. **9 cases pass**: clipping,
+  split/eye view ordering, same-size reuse/resize retirement, off, pending
+  shaders, failed link, texture/framebuffer allocation failures and view/uniform/
+  target limits. The source copy and filter share the window scissor; GPU API
+  calls are a fixture, not a driver or headset. An initial fixture compile lacked
+  DWORD/C boolean declarations; correcting that fixture resolved it.
+- Three source mutations are detected: writing destination alpha, dropping
+  resize retirement and breaking outer texel-centre clamping. Shader pointers
+  are cached after their first request; repeated passes/resizes do not rewrite
+  or hash their source again. Allocation failures do not loop every frame.
+- The existing shader-rewrite fixture compiles/passes for Vulkan, Metal and
+  D3D11 with the actual shared FXAA source, metrics/bounds and sampler binding.
+  OpenGL's program builder calls the same source getter. Native hook ordering
+  remains before HUD and after tone mapping, inside the primary view.
+- These are direct compiled fixtures, not a pytest suite, GPU shader compile,
+  full engine build or rendered acceptance. Current root checkout still lacks
+  a usable full native toolchain/dependency cache and runtime data. Visual
+  parity, real stereo/linear encoding, map/resize transitions and GPU costs
+  remain OPEN. No external staging, nested repository, game launch, asset/save
+  mutation or push. All `.pytest_cache/gear-check-*` scratch was removed.
+
 Shared graphics lighting and native presets, base `32e88a25f7`:
 
 - Installed MSVC 14.52.37025 x86, SDK 10.0.26100.0, `/O2 /W3 /WX` compile
