@@ -75,6 +75,7 @@ static void graphics_open(void)
   memset(w,0,sizeof(*w));memset(s,0,sizeof(*s));w->type=2;w->definition_tag_index=200+i;w->parent=&graphics_screen;
   w->parameters.list.number_of_items=2;w->next=i+1<NUMBEROF(graphics_presets)?&graphics_widgets[i+1]:NULL;
   s->setting=graphics_presets[i].name;s->value_count=2;s->values[0]=graphics_presets[i].classic;s->values[1]=graphics_presets[i].enhanced;
+  if(!strcmp(s->setting,"display.light_effects")){s->value_count=3;s->values[2]="custom";w->parameters.list.number_of_items=3;}
   CHECK(setting_load(w),"graphics option did not load");
  }
  CHECK(setting_load(&graphics_spinner),"preset did not load");
@@ -83,6 +84,16 @@ static void graphics_case(char const *case_name)
 {
  for(short i=0;i<NUMBEROF(graphics_presets);i++)snprintf(graphics_values[i],sizeof(graphics_values[i]),"%s",graphics_presets[i].classic);
  config_writes=0;graphics_open();CHECK(graphics_spinner.parameters.list.selected_index==0,"classic not recognized");
+ if(!strcmp(case_name,"graphics-light-custom")){
+  short light=NONE;
+  for(short i=0;i<NUMBEROF(graphics_presets);i++)if(!strcmp(graphics_presets[i].name,"display.light_effects"))light=i;
+  CHECK(light!=NONE,"Light effects row absent");graphics_widgets[light].parameters.list.selected_index=2;
+  graphics_preset_show(&graphics_screen);CHECK(graphics_spinner.parameters.list.selected_index==2&&!config_writes,"custom light preview wrote settings");
+  graphics_open();CHECK(graphics_spinner.parameters.list.selected_index==0&&!config_writes,"custom light preview survived Cancel");
+  graphics_widgets[light].parameters.list.selected_index=2;graphics_preset_show(&graphics_screen);
+  settings_each(&graphics_screen,setting_changed_save);CHECK(config_writes==1&&!strcmp(graphics_values[light],"custom"),"custom mode not saved through existing writer");
+  graphics_open();CHECK(graphics_spinner.parameters.list.selected_index==2&&graphics_widgets[light].parameters.list.selected_index==2,"reopen lost custom mode");return;
+ }
  graphics_spinner.parameters.list.selected_index=1;graphics_preset_show(&graphics_screen);
  for(short i=0;i<NUMBEROF(graphics_presets);i++)CHECK(!strcmp(graphics_rows[i].values[graphics_widgets[i].parameters.list.selected_index],
   graphics_presets[i].enhanced),"enhanced did not preview a row");

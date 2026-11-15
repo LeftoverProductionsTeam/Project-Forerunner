@@ -120,7 +120,7 @@ the cellwall with Dashboard Green, the shade with the others) */
 static const char *const background_choices[] = { "auto", "plain", "cellwall", NULL };
 static const char *const background_names[] = { "AUTO", "PLAIN", "CELLWALL", NULL };
 /* display.light_effects' (port/linux/game/lighting_config.c) */
-static const char *const light_effects_choices[] = { "auto", "high", "low", "off", NULL };
+static const char *const light_effects_choices[] = { "auto", "high", "low", "off", "custom", NULL };
 static const char *const theme_names[] = { "HALO BLUE", "DASHBOARD GREEN", "VISOR ORANGE", "LIVE ORANGE", "CHUPATHINGY RED", NULL };
 
 static const struct settings_row settings_rows[] =

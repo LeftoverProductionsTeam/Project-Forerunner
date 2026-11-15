@@ -23,7 +23,8 @@ def generated(fault=None):
     return (('under_test_types.inc', structure(source, 'pc_menu_setting')), ('under_test.inc', code))
 
 
-@pytest.mark.parametrize('case', ['chosen_already', 'chosen', 'graphics-preview', 'graphics-custom', 'graphics-save'])
+@pytest.mark.parametrize('case', ['chosen_already', 'chosen', 'graphics-preview', 'graphics-custom', 'graphics-save',
+                                 'graphics-light-custom'])
 def test_case(case):
     status, output = run(build('link_action_menu', generated()), case)
     assert status == 0, output

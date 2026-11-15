@@ -214,8 +214,8 @@ SCREENS = {
                 ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
                  "Light models per pixel on OpenGL or bgfx.\nOff keeps the Xbox's vertex lighting.", None),
                 ("LIGHT EFFECTS:", "display.light_effects",
-                 [("AUTO", "auto"), ("HIGH", "high"), ("LOW", "low"), ("OFF", "off")],
-                 "Light from shots and glowing things. OpenGL only.\nOff keeps Xbox lighting; bgfx support is unfinished.",
+                 [("AUTO", "auto"), ("HIGH", "high"), ("LOW", "low"), ("OFF", "off"), ("CUSTOM", "custom")],
+                 "OpenGL only; bgfx support is unfinished.\nCustom uses your choices under CUSTOM LIGHT EFFECTS.",
                  "desktop"),
                 ("DOORS BLOCK LIGHT:", "display.doors_block_light", ON_OFF,
                  "A closed door stops light from the other side.\nOff lets it through, as on the Xbox.", None),
@@ -232,6 +232,25 @@ SCREENS = {
                  [("1024 (XBOX)", "1024"), ("2048", "2048"), ("4096", "4096"), ("8192", "8192"), ("10000", "10000")],
                  "How far the world is drawn.", None),
             ]),
+            ("custom_light_effects", "CUSTOM LIGHT EFFECTS",
+             "Used when Advanced > Light effects is Custom.\nOpenGL only; bgfx support is unfinished.", [
+                (label + ":", "display." + key, ON_OFF,
+                 help_text + "\nUsed with Light effects: Custom. OpenGL only.", "desktop")
+                for label, key, help_text in [
+                    ("PROJECTILE LIGHT", "plasma_lighting", "Soft illumination from shots in flight."),
+                    ("MUZZLE LIGHT", "muzzle_lighting", "Soft muzzle illumination with a fading trail."),
+                    ("WALL OCCLUSION", "plasma_occlusion", "Walls block enhanced lights. This is not AO or RT."),
+                    ("AMMO COUNTER LIGHT", "ammo_counter_lighting", "Blue illumination from held Assault Rifle counters."),
+                    ("NEEDLER LIGHT", "needler_lighting", "Illumination from held Needler crystals."),
+                    ("JACKAL SHIELD LIGHT", "jackal_shield_lighting", "Illumination from visible Jackal shields."),
+                    ("COVENANT SHIELD LIGHT", "covenant_shield_lighting", "Illumination from stationary Covenant shields."),
+                    ("FUEL ROD LIGHT", "fuel_rod_lighting", "Illumination from exposed Grunt and Hunter fuel rods."),
+                    ("WEAPON GLOW", "weapon_glow", "Soft illumination from held energy weapons."),
+                    ("PLASMA PRONG LIGHT", "plasma_prong_lighting", "Forward spill from plasma-weapon prongs."),
+                    ("VEHICLE LIGHT", "vehicle_lighting", "Illumination from engines and headlights."),
+                    ("WORLD LIGHT", "world_lighting", "Illumination from visible powerups and teleporters."),
+                ]
+            ], "desktop"),
             # (the first person's: port/linux/game/view_fov.c and the rest)
             ("viewmodels", "VIEWMODELS", "Your weapon, arms and legs in first person.", [
                 ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,

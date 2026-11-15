@@ -162,13 +162,20 @@ second checkout. OpenCE `1519c65f` declares 62 `display.*` settings and Fractum
 declares 93; its three differently named FOV/reticle controls require semantic
 mapping, not blind aliases. OpenH1 `baed7757` declares 83, of which 36 names are
 absent locally; their capabilities are classified below. Declaration counts
-include UI options and prove no renderer behavior. Local source now declares 128
+include UI options and prove no renderer behavior. Local source now declares 140
 display settings; `graphics.preset` is a computed menu action, not another one.
-The full Faber, GulchCE and OpenCE-Forge snapshots are not currently available
-as local Git objects. Their earlier pinned findings remain historical; do not
-claim a fresh complete option/consumer audit of those trees. A provenance-history
-query started a lazy request for missing objects and its owned processes were
-stopped; no upstream source repository was edited or new checkout created.
+Their `port_config.c` files were also read through GitHub at the existing pins:
+Faber `e4ffe0fe` (blob `b30f66dd0a73b5888723021d48ccdfabee019c9d`),
+OpenCE-Forge `91099ce3` (`163da52b5e9c991ba9494340a7250f94b6c638fb`),
+and GulchCE `66b4df0b` (`ff81603972d3dae67ed8486a28fc5b99b58ea816`).
+They declare 64, 62 and 86 distinct display names respectively. All Forge
+names and 63 Faber names exist locally; Faber's `xbox_buttons` is addressed
+below. Twelve GulchCE effect names now connect to the inherited effects through
+Custom; its fourteen remaining absent names are classified below. Same-name
+presence does not establish full consumer/default parity. Their old boolean
+`match_timer` differs from Forerunner's string-valued clock selection.
+No checkout or upstream/Spark file was created/changed. Earlier provenance-query
+lazy fetch attempts were stopped; these reads did not fetch local Git objects.
 
 Implemented means a connected source consumer; verification remains a separate
 column. Partially implemented identifies actual backend/semantic gaps. Missing
@@ -179,7 +186,7 @@ backend. Unverified means the required current source or execution is unavailabl
 | --- | --- | --- |
 | Classic/Enhanced/Custom (`OpenH1 display.graphics`) | Implemented as native `graphics.preset`, `menu_functions.c::graphics_preset_*`, existing generated Video controls/writer. Groups AA, model lighting, light effects, shadows/budget, door light blocking, LOD, filtering, far clip and HDR-off. Resolution, FOV, timing and simulation remain individual choices. | Source menu preview/Cancel/Custom/save/reopen pass; actual native UI and identical-camera comparisons open. This is not an alias for OpenH1's broader simulation-inclusive preset. |
 | Per-pixel model lighting | Implemented on inherited OpenGL and now shared bgfx via `bg_model_program`, twelve native light-register uniforms and existing NV2A translators. Prepared variants match draws, asynchronous/failed programs fall back together. | Focused C/shader-source checks pass; Vulkan, Metal, D3D11, stereo and real model appearance unverified. Android direct Vulkan still lacks this connection. |
-| Enhanced shots/plasma/muzzle/emitters (`OpenH1 display.dynamic_lights`) | Partially implemented: inherited GulchCE-derived `lighting_config`, `plasma_lighting`, `*_emitter_lighting`, `plasma_model_shader` and native OpenGL light paths. `display.light_effects` selects off/low/high/auto. | OpenH1's newer world-light-list/normal-map shader path is not equivalent. bgfx Light effects/occlusion remain unsupported and are explained in Video help. |
+| Enhanced shots/plasma/muzzle/emitters (`OpenH1 display.dynamic_lights`) | Partially implemented: inherited GulchCE-derived `lighting_config`, `plasma_lighting`, `*_emitter_lighting`, `plasma_model_shader` and native OpenGL paths. `display.light_effects` selects off/low/high/auto/custom. Custom reuses twelve individual GulchCE setting names and the same selection table, cached until settings/device-quality changes. Both native Video styles expose their switches. | Five actual-source choice/cache/reload workflows, three unsupported-target guards and six native-menu workflows compile/pass. Rendered UI/effects unverified. OpenH1's newer world-light-list/normal-map shader path is not equivalent. bgfx Light effects/occlusion remain unsupported and are explained in Video help. |
 | Dynamic/specular-light quality/budgets | Implemented source `display.dynamic_light_limit`, `specular_light_limit`, `light_effects`, native ranking/culling. | Existing limits are reused; dense Firefight/MegaWorld profiling and platform parity unverified. |
 | World-space and hardware ray-query AO (`display.ambient_occlusion`) | Missing runtime integration. OpenH1 `world_ao`, `world_scene`, `world_sdf`, `world_proxies`, `world_rt` and `xgpu_vulkan_rt` were reviewed at the retained pin. No inert setting/menu switch added. | Requires ambient-only shader slot, scene/geometry upload, bounded cancellable SDF resources, collision BLAS/TLAS, Vulkan capability/descriptor/barrier/retirement adapters. Must preserve baked BSP self-occlusion and fallback. No RT GI claim. |
 | HDR/exposure/tone curves/output | Partially implemented: OpenGL `hdr_read`/`halo_screen_tone_map`, `xgpu_post_tone_map`, existing calibration. Current GT7/neutral/ACES/Reinhard curves and exposure are retained. | bgfx renders SDR; Video help now says so. Real HDR displays, calibration and targets unverified. |
@@ -207,7 +214,14 @@ backend. Unverified means the required current source or execution is unavailabl
 | OpenH1 `frame_style`, `picture_shape`, `picture_position`, `orientation` | Missing those picture-frame/mobile-orientation policies. Existing widescreen/round-screen/window sizing are not exact equivalents. | Target-specific; no authoring or gameplay capability implied. |
 | OpenH1 `overshield_layer_color` | Partially implemented related shield color/glow/overshield controls; separate newer layer-color semantics unverified. | Preserve existing option meaning and licensing. |
 | OpenH1 `spartan_link` | Missing that presentation option; unrelated to Spark capability discovery. | Requires actual HUD behavior review before adoption. |
-| Faber/GulchCE/OpenCE-Forge additional options | Unverified against current unavailable full snapshots; credited Faber shadow and inherited GulchCE lighting code remain present. | Refresh exact sources read-only when available; no unsupported claim of total parity. |
+| Faber `xbox_buttons` | Partially implemented intent through existing per-controller `hud_button_style_*` and `menu_button_glyphs`/button appearance workflow. No blind boolean alias. | Exact all-prompt console override semantics remain unverified. Existing controller assets/attribution retained. |
+| Faber/Forge/GulchCE `match_timer` | Partially equivalent: existing Forerunner string-valued clock selection also supports off. Upstream booleans are not drop-in config values. | Preserve local menu/writer behavior; no automatic rewrite of user configs or silent type alias. |
+| GulchCE `third_person`, `third_person_smooth`, `third_person_left_shoulder`, `third_person_distance`, `third_person_height`, `third_person_offset`, `third_person_crosshair_smooth`, `third_person_crosshair_size` | Missing connected shoulder-camera/cover-aware reticle workflow. Passenger third person and VR cameras are different responsibilities. | Requires camera/aim/zoom alignment, host permission and native/stereo proof; no speculative settings added. |
+| GulchCE `shield_look` | Partially implemented related shield color/glow/arm/overshield controls; missing its classic-with-sprinkles, honeycomb and CMT shield profiles. | Custom assets require individual license/ownership review. No CMT assets or copied shader look claimed. |
+| GulchCE `shader_prepare` | Partially equivalent to inherited `display.prepare_shaders`, `render_enumerate.c`, shader-key preparation/cache. | Its observed/bounded material recipe policy is not established as identical; no second preparation/cache manager. |
+| GulchCE `texture_prepare_mb` | Missing general Xbox/CE texture preparation budget; existing `mcc_texture_prepare_mb` applies only to MCC. | Keep separate map-family/resource limits; do not alias MCC preparation to native caches. |
+| GulchCE `dynamic_lighting_reset` | Unsupported migration marker, rather than a visual feature. Custom reuses effect names without importing its one-time reset. | Existing saved preferences are not reset or overwritten. |
+| GulchCE `changelog`, `menu_frontend` | Missing those optional presentation workflows; existing menus remain authoritative. | No second frontend or changelog subsystem added. |
 
 The existing bgfx Vulkan XR patch exposes queue/image handoff, not OpenH1's
 ray-query device features, acceleration-structure descriptors, early build

@@ -64,6 +64,18 @@ regressions and five format checks pass. GPU calls are fixtures: actual Vulkan
 shader compilation, hardware stereo, image encoding and GPU cost remain open.
 No headset, map, original asset or network packet was touched.
 
+Current custom lighting: the twelve inherited GulchCE effects now have individual
+saved switches under Video's Custom Light Effects view in both existing menu
+styles. Advanced > Light Effects > Custom uses them; Auto/Low/High/Off keep their
+previous behavior. Classic still turns enhanced lights off, and per-effect
+choices survive preset changes. The existing selector caches the mask instead
+of rereading twelve settings per draw. Five actual-source choice/reload/cache
+cases, three unsupported-target guards and six native menu cases compile/pass;
+rendered UI, visual effects, driver/hardware and dense-encounter cost are open.
+These are OpenGL effects; bgfx remains explicitly unsupported. The source audit
+now includes pinned Faber, OpenCE-Forge and GulchCE setting declarations and their
+remaining semantic gaps. No second effect, renderer, menu engine or writer.
+
 Current graphics integration: the existing native Video screen now previews
 Classic/Enhanced shading, shadows, model detail and filtering, with Custom for
 manual combinations. OK uses the individual settings' existing writer; Cancel

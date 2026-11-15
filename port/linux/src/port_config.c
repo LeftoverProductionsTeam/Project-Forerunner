@@ -829,8 +829,37 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"weapons, with soft falloff, and blocked by walls. \"high\" is all of\n"
 		"it, \"low\" only the shots and muzzle flashes, \"off\" the game's own\n"
 		"lighting, as on the Xbox. \"auto\" is \"high\", or \"off\" on a software\n"
-		"renderer. It changes only what is drawn, and players are lit by it\n"
+		"renderer. \"custom\" uses the individual light-effect switches.\n"
+		"It changes only what is drawn, and players are lit by it\n"
 		"only a little. Based on chester's dynamic lighting in GulchCE." },
+	/* GulchCE's individual effect names, consumed by the existing shared
+	 * lighting_config table only with display.light_effects = "custom".
+	 * Auto/Low/High/Off retain their existing meanings and defaults. */
+	{ "display.plasma_lighting", _config_boolean, "false", "HALO_PLASMA_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: soft projectile-flight illumination." },
+	{ "display.muzzle_lighting", _config_boolean, "false", "HALO_MUZZLE_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: soft, fading muzzle illumination." },
+	{ "display.plasma_occlusion", _config_boolean, "false", "HALO_PLASMA_OCCLUSION", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: collision-filter enhanced lights.\n"
+		"This is light visibility, not ambient occlusion or ray tracing." },
+	{ "display.ammo_counter_lighting", _config_boolean, "false", "HALO_AMMO_COUNTER_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: held Assault Rifle counter illumination." },
+	{ "display.needler_lighting", _config_boolean, "false", "HALO_NEEDLER_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: held Needler crystal illumination." },
+	{ "display.jackal_shield_lighting", _config_boolean, "false", "HALO_JACKAL_SHIELD_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: visible Jackal shield illumination." },
+	{ "display.covenant_shield_lighting", _config_boolean, "false", "HALO_COVENANT_SHIELD_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: stationary Covenant shield illumination." },
+	{ "display.fuel_rod_lighting", _config_boolean, "false", "HALO_FUEL_ROD_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: exposed Grunt/Hunter fuel-rod illumination." },
+	{ "display.weapon_glow", _config_boolean, "false", "HALO_WEAPON_GLOW", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: held energy-weapon illumination." },
+	{ "display.plasma_prong_lighting", _config_boolean, "false", "HALO_PLASMA_PRONG_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: forward spill from plasma-weapon prongs." },
+	{ "display.vehicle_lighting", _config_boolean, "false", "HALO_VEHICLE_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: vehicle engine/headlight illumination." },
+	{ "display.world_lighting", _config_boolean, "false", "HALO_WORLD_LIGHTING", _environment_value, _platform_desktop,
+		"Custom Light effects, OpenGL: visible powerup/teleporter illumination." },
 	{ "display.doors_block_light", _config_boolean, "true", "HALO_DOORS_BLOCK_LIGHT", _environment_value,
 		_platform_all,
 		"A closed door stops a light behind it from lighting your side, such as\n"

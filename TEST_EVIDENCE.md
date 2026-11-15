@@ -54,6 +54,27 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Individual inherited Light effects, base `485fa43a12`:
+
+- MSVC 14.52.37025 x64 / SDK 10.0.26100.0, `/O2 /W3 /WX` compiles the
+  actual `lighting_config.c` through the existing harness. **5 workflows pass**:
+  unchanged Off/Low/High/Auto and software/weak-device policy, each custom part
+  independently, saved-choice reload across mode switches, no per-frame setting
+  rereads, and unknown-mode/unrelated-setting fallback. Three additional
+  compilations with Android, GL ES and server guards keep Custom disabled.
+- MSVC x86 compiles/passes **6 native-menu workflows**, including custom Light
+  effects preview, Cancel, existing writer save and reopen. Both generated Video
+  styles parse; all twelve desktop-only rows match registered boolean settings
+  and existing effect consumers. Changed Python syntax passes. No new writer,
+  storage format, gameplay packet or visual implementation is introduced.
+- Pinned Faber/Forge/GulchCE settings files were inspected read-only through
+  GitHub, without creating a checkout. Exact pins/blob identities and remaining
+  options are in `UPSTREAM_FEATURE_MATRIX.md`. These are declaration/consumer
+  comparisons and compiled fixtures, not proof of rendered visual parity.
+  Real menu navigation/effects, stereo and dense-encounter cost remain OPEN.
+  No live GPU, game, microphone/headset, original saves/assets or other repository
+  was touched. All repository-local compile scratch was removed.
+
 OpenXR MSAA through the existing renderer, base `6465f3b2a4`:
 
 - Installed MSVC 14.52.37025 x64 / SDK 10.0.26100.0, `/O2 /W3 /WX`

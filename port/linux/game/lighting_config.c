@@ -4,7 +4,8 @@ level turns on. "auto" is "high" where the machine can draw it, "low" on an olde
 part and "off" on a software renderer or the older drivers' OpenGL 3.3 path. OpenGL ES, Android, the consoles and the server never draw
 them. "low" keeps the projectile and muzzle-flash lights (with their walls),
 "high" adds the emitters and the held weapons' glow. The parts' names are
-chester's from GulchCE, where each was a setting of its own.
+chester's from GulchCE, where each was a setting of its own. "custom" reuses
+those names and the same implementations, with independent saved choices.
 
 The level is read again only when a setting changes (config_changes): a light
 or a draw asks for its parts many times a frame. */
@@ -24,6 +25,7 @@ enum
 	_level_off,
 	_level_low,
 	_level_high,
+	_level_custom,
 };
 
 static const struct
@@ -45,6 +47,8 @@ static const struct
 	{ "display.world_lighting", _level_high },
 };
 
+static unsigned int parts_enabled;
+
 static int level_read(void)
 {
 #if defined(HALO_GL_ES) || defined(HALO_ANDROID) || defined(HALO_CONSOLE) || defined(HALO_XBOX_CONSOLE) || \
@@ -53,6 +57,8 @@ static int level_read(void)
 #else
 	const char *level = config_string("display.light_effects");
 
+	if (!strcmp(level, "custom"))
+		return _level_custom;
 	if (!strcmp(level, "high"))
 		return _level_high;
 	if (!strcmp(level, "low"))
@@ -71,23 +77,32 @@ int lighting_config_level(void)
 
 	if (!ready || changes != config_changes() || software != xgpu_software_renderer * 2 + xgpu_weak_renderer)
 	{
+		unsigned int i;
 		changes = config_changes();
 		software = xgpu_software_renderer * 2 + xgpu_weak_renderer;
 		level = level_read();
+		parts_enabled = 0;
+		for (i = 0; i < sizeof(parts) / sizeof(parts[0]); i++)
+		{
+			if (level == _level_custom ? config_boolean(parts[i].name) :
+				level != _level_off && level >= parts[i].level)
+				parts_enabled |= 1u << i;
+		}
 		ready = 1;
 	}
-	return level;
+	/* Keep the public quality range: custom can include high-level parts. */
+	return level == _level_custom ? _level_high : level;
 }
 
 int lighting_config_boolean(const char *name)
 {
-	int level = lighting_config_level();
 	unsigned int i;
+	lighting_config_level();
 
 	for (i = 0; i < sizeof(parts) / sizeof(parts[0]); i++)
 	{
 		if (!strcmp(name, parts[i].name))
-			return level != _level_off && level >= parts[i].level;
+			return (parts_enabled & (1u << i)) != 0;
 	}
 	return config_boolean(name);
 }
