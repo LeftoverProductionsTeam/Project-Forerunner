@@ -240,6 +240,7 @@ symbols in this file:
 #include "devices/devices.h"
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "coop_enemies.h" /* port: Firefight life accounting and respawn gate */
+#include "extraction.h" /* port: Extraction respawns at authored hub starts */
 #include "bots.h" /* port: port/linux/game/bots.c */
 #include "server_team_switch.h" /* port: port/linux/game/server_team_switch.c */
 #include "cutscene/cinematics.h" /* port: network co-op's first spawns */
@@ -2982,6 +2983,22 @@ static boolean players_respawn_network_coop(
 	struct player_datum *player;
 	long safe_unit_index;
 	boolean result = TRUE;
+
+	/* port: an admitted Extraction map places every native start in its hub.
+	   Return dead and late-joining players there, keeping live field players
+	   and their world state intact. No checkpoint or teammate relocation. */
+	if (extraction_owns_map())
+	{
+		if (game_time_get() % COOP_RESPAWN_CHECK_TICKS != 0)
+			return FALSE;
+		players_coop_spawn_beside_index = NONE;
+		players_respawn_at_start();
+		data_iterator_new(&iterator, player_data);
+		while ((player = data_iterator_next(&iterator)) != NULL)
+			if (!player->quit_out_of_game && player->unit_index == NONE)
+				result = FALSE;
+		return result;
+	}
 
 	if (!players_coop_state.respawn_wait_since)
 		players_coop_state.respawn_wait_since = game_time_get() + 1;

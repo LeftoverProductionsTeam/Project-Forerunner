@@ -34,6 +34,58 @@ All local evidence below is in the external owned directory
 
 ## Candidate compilation and native smoke checks
 
+Connected Extraction/shared gear, base `143c02c40` plus the owner-approved record
+implementation and connected gameplay source:
+
+- One per-owner version-1 record uses native stable-file exclusion and flushed
+  atomic replacement. Existing pytest/asset-free harnesses are reused. No database,
+  extra launcher, inventory wire messages, new framework or Spark dependency.
+- `extraction-workflow-checks.log`: **29 passed**. Nine connected Extraction checks
+  execute the actual mode, gear codec/transactions and native equipment helpers
+  against bounded world/identity/file adapters. They cover separate local/remote
+  stashes, preserved ammo/battery/grenades, transferred recovered-item identity,
+  stale-owner refusal, death/disconnect/recycled-handle loss, failed native grant
+  cleanup/refund, timerless ready state, optional markers, restore quarantine and
+  published-but-uncertain escrow retry. Removing native parent ownership makes
+  the transfer negative control fail. Seven gear checks include failed-run and
+  codec/corruption recovery; nine existing co-op wipe checks remain passing.
+- Four of those 29 checks compile/run the real Windows native file backend:
+  bounded binary reads/replacement, competing process exclusion, lock release on
+  killed owned process, abandoned staging recovery and hard-link refusal before
+  truncation. They do not establish sudden power-loss durability or game-network
+  identity correctness. POSIX source is implemented but not compiled/run here.
+- Incremental existing Windows64 OpenXR/bgfx build succeeds with all connected
+  runtime code. Final export snapshot
+  `c01ee9a8054f663c0f9a7833ef587645a2c4c45e8fc23ba76d34cfcf9d5494a6`,
+  binary `62695b1188cf70900c6865e2a064231e8ae740af69fe6e49ec827bf583ef1f64`;
+  log `frn-verify-002/compile-openxr-extraction-workflow.log` (sibling of the
+  evidence root). No unrelated engine rebuilds. The earlier functional build
+  used for native smoke has snapshot
+  `1fe6d85185dfb0cd8be99603e9088a36d9d57ac7c585184de8a3c124b71ee102`,
+  binary `ef09e200c08a35b456145db18d1791586577e0e65a71a02eda2ba5b4b23d2505`.
+  Subsequent runtime changes only update setting help/header comments; fixture
+  additions and milestone documentation do not change gameplay behavior.
+- `verification-87521711b-001/native-extraction-compatibility`: private loopback
+  B40 co-op, new x64 host versus retained x86 peer, disposable maps/config/saves,
+  microphones/public networking/downloads/updates off. **PASS**, 34 matched seconds,
+  tick offset 0; mean/max sampled position 0.040/1.350 units; one isolated position
+  mismatch at tick 960, identical weapons/ammo/health there. Predicted local-player
+  error 63/360 ticks, mean 0.000431/max 0.006691 units. Existing scripted hits run
+  every four seconds after the host sample, so that boundary is a plausible cause
+  of the isolated mismatch, not a proven simulation defect. No tolerance changed.
+  The prior `native-extraction-gate` run was **insufficient**, despite zero sampled
+  differences: campaign transport/death supplied only 231 required on-foot ticks.
+  Both outcomes/logs remain retained. No `.gear` records were created on this
+  non-Extraction stock map with Extraction requested on the host.
+- This is compiled/automated implementation plus bounded native compatibility,
+  NOT a native multiplayer Extraction, Survival, headset or gameplay acceptance
+  claim. Real authored hub/terminal use, late-join/death placement, native gear
+  transfer/escape/reopen/redeployment and host-bound identity still require an
+  isolated compiled-map session. Spark read-only review at `e472e79` confirms all
+  hub starts are checked, but its current runtime pin/cache deployment needs the
+  handoff described in `SPARK_INTEGRATION_CONTRACT.md`. No original assets,
+  personal profile/identity/save data, Spark files or remote state were changed.
+
 Windows64 OpenXR/Vulkan integration, base `3d5f28dcc` plus tracked repairs:
 
 - Existing configure/Ninja path built with `--with-openxr`, bgfx enabled, optional

@@ -26,7 +26,27 @@ none of its unaccepted requirements is superseded by this checkpoint.
 
 ## Current engineering gate
 
-Current runtime milestone: Windows64 now compiles with the existing optional
+Current primary milestone: the connected host/local Extraction weapon/grenade
+loop is implemented using native pickup ownership, a shared owner gear record,
+hub loadout selection, reserve-before-grant deployment, physical escape,
+consume-before-bank settlement, loss, hub respawn and redeployment. The owner
+explicitly approved native gear records and locking. Verified remote account
+proof is inherited from Delta; clients never submit stash inventories. Interrupted
+deployed reservations lose only at-risk gear; saved escape escrow rolls forward
+once. Checkpoint/core restores quarantine banking until a fresh map.
+Windows64/OpenXR compiles; 29 focused checks pass, including real Windows file
+locking/process death and connected source workflows. A private x64/x86 B40
+compatibility smoke passes; it has no Extraction markers and creates no gear
+records. This does NOT prove native multiplayer Extraction. Spark must supply
+the compiled authored hub/cache through its existing handoff and adopt a reviewed
+current runtime identity. Its optional loadout control/readback is specified in
+the existing contract. Survival settlement, armor/equipment, rarity/upgrades,
+general cross-cache gear and the original full hub/menu remain unfinished.
+No personal inventories, original maps, Spark source or remote configuration
+were modified. This cycle delivered runtime gameplay source and necessary
+durability/ownership fixes, not a new editor or coordination framework.
+
+Previous runtime milestone: Windows64 compiles with the existing optional
 OpenXR/bgfx Vulkan path enabled, after repairing native script-string conversion
 and missing declarations. With VR requested and its loader unavailable, it renders
 native desktop gameplay and completes a 32-second private comparison with the x86
@@ -40,8 +60,9 @@ and shield differences occur across scripted-hit boundaries; no tolerance change
 Inventory retry/resupply ownership repairs in `c6f9255c2` and `3d5f28dcc` remain
 compiled and covered by focused/native checks. Historical results, exact build
 identities and limitations stay in `TEST_EVIDENCE.md`; only redundant current-status
-prose is consolidated here. Durable reservations/settlement, authenticated remote
-owners and failed-run reward protection remain unfinished.
+prose is consolidated here. Durable reservation/settlement, verified owner
+admission and failed-run reward protection now have connected source coverage;
+native authored-map multiplayer and crash/gameplay acceptance remain open.
 
 Initial CI audit: local `master` tracks `origin/main`; no branch/remote was changed.
 Inherited `build.yml` main pushes can publish/prune releases; `web.yml` main runs

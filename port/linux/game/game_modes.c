@@ -29,11 +29,15 @@ of their own (menu_functions.c's OPENCE).
 #include "game/game.h"
 #include "game/game_engine.h"
 #include "game/game_engine_playlist.h"
+#include "game/game_globals.h"
 #include "game/players.h"
 #include "items/weapons.h"
+#include "items/weapon_definitions.h"
 #include "networking/network_game_globals.h"
 #include "objects/objects.h"
 #include "tag_files/tag_files.h"
+#include "tag_files/tag_groups.h"
+#include "scenario/scenario.h"
 #include "text/unicode.h"
 #include "units/units.h"
 #include "game_modes.h"
@@ -119,6 +123,148 @@ boolean game_modes_inventory_capture(long player_index, struct game_modes_invent
 			captured.selected_slot = slot;
 	}
 	*inventory = captured;
+	return TRUE;
+}
+
+boolean game_modes_inventory_grenade_room(long player_index, short room[2])
+{
+	struct game_modes_inventory current;
+	struct game_globals *globals;
+	short index;
+
+	if (!game_modes_inventory_capture(player_index, &current)) return FALSE;
+	globals = scenario_get_game_globals();
+	if (!globals || globals->grenades.count < NUMBEROF(current.grenades)) return FALSE;
+	for (index = 0; index < NUMBEROF(current.grenades); index++)
+	{
+		struct game_globals_grenade *definition = TAG_BLOCK_GET_ELEMENT(&globals->grenades, index, struct game_globals_grenade);
+		if (definition->maximum_count < 0 || definition->maximum_count > 127 ||
+			current.grenades[index] > definition->maximum_count) return FALSE;
+		room[index] = definition->maximum_count - current.grenades[index];
+	}
+	return TRUE;
+}
+
+boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *inventory)
+{
+	char const *map = cache_file_loaded_map_name();
+	short index, magazine;
+
+	if (!inventory || !map || !memchr(inventory->map_name, 0, sizeof(inventory->map_name)) ||
+		strcmp(map, inventory->map_name) || inventory->map_checksum != cache_files_get_checksum() ||
+		inventory->weapon_count < 0 || inventory->weapon_count > GAME_MODES_INVENTORY_WEAPONS ||
+		(inventory->selected_slot != NONE && !VALID_INDEX(inventory->selected_slot, inventory->weapon_count))) return FALSE;
+	for (index = 0; index < NUMBEROF(inventory->grenades); index++)
+		if (inventory->grenades[index] < 0 || inventory->grenades[index] > 127) return FALSE;
+	for (index = 0; index < inventory->weapon_count; index++)
+	{
+		struct game_modes_inventory_weapon const *item = &inventory->weapons[index];
+		struct weapon_definition *definition;
+		long tag;
+
+		if (item->slot != index || !item->tag_path[0] || !memchr(item->tag_path, 0, sizeof(item->tag_path)) ||
+			!(item->age >= 0.f && item->age <= 1.f)) return FALSE;
+		tag = tag_loaded(WEAPON_DEFINITION_TAG, item->tag_path);
+		if (tag == NONE) return FALSE;
+		definition = weapon_definition_get(tag);
+		if (definition->weapon.magazines.count < 0 || definition->weapon.magazines.count > NUMBEROF(item->rounds_loaded)) return FALSE;
+		for (magazine = 0; magazine < NUMBEROF(item->rounds_loaded); magazine++)
+		{
+			if (item->rounds_loaded[magazine] < 0 || item->rounds_reserve[magazine] < 0) return FALSE;
+			if (magazine < definition->weapon.magazines.count)
+			{
+				struct weapon_magazine_definition *capacity = TAG_BLOCK_GET_ELEMENT(&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
+				if (item->rounds_loaded[magazine] > capacity->rounds_loaded_maximum ||
+					item->rounds_reserve[magazine] > capacity->rounds_total_maximum) return FALSE;
+			}
+			else if (item->rounds_loaded[magazine] || item->rounds_reserve[magazine]) return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+boolean game_modes_inventory_apply(long player_index, struct game_modes_inventory const *inventory,
+	long created[GAME_MODES_INVENTORY_WEAPONS])
+{
+	struct game_modes_inventory previous;
+	struct player_datum *player;
+	struct unit_datum *unit;
+	struct object_placement_data placement;
+	short room[2], index, magazine;
+
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++) created[index] = NONE;
+	if (!game_modes_inventory_loadout_valid(inventory) || !game_modes_inventory_capture(player_index, &previous) ||
+		!game_modes_inventory_grenade_room(player_index, room)) return FALSE;
+	player = player_get(player_index);
+	unit = unit_get(player->unit_index);
+	if (unit->unit.grenade_throw_state != _unit_grenade_throw_idle) return FALSE;
+	for (index = 0; index < NUMBEROF(room); index++)
+		if (inventory->grenades[index] > room[index]) return FALSE;
+	for (index = 0; index < MAXIMUM_WEAPONS_PER_UNIT; index++)
+		if (unit->unit.weapon_object_indices[index] != NONE && weapon_is_flag(unit->unit.weapon_object_indices[index])) return FALSE;
+	/* Allocate all recovered objects before releasing any existing equipment. */
+	for (index = 0; index < inventory->weapon_count; index++)
+	{
+		struct weapon_datum *weapon;
+		object_placement_data_new(&placement, tag_loaded(WEAPON_DEFINITION_TAG, inventory->weapons[index].tag_path), NONE);
+		placement.position = unit->object.position;
+		created[index] = object_new(&placement);
+		if (created[index] == NONE || weapon_is_flag(created[index])) goto failed;
+		weapon = weapon_get(created[index]);
+		weapon->weapon.age = inventory->weapons[index].age;
+		for (magazine = 0; magazine < NUMBEROF(weapon->weapon.magazines); magazine++)
+		{
+			weapon->weapon.magazines[magazine].rounds_loaded = inventory->weapons[index].rounds_loaded[magazine];
+			weapon->weapon.magazines[magazine].rounds_total = inventory->weapons[index].rounds_reserve[magazine];
+		}
+	}
+	if (inventory->weapon_count)
+		for (index = 0; index < MAXIMUM_WEAPONS_PER_UNIT; index++)
+		{
+			long old = unit->unit.weapon_object_indices[index];
+			if (old != NONE && !unit_drop_weapon(player->unit_index, old)) goto failed;
+		}
+	for (index = 0; index < inventory->weapon_count; index++)
+		if (!unit_add_weapon_to_inventory(player->unit_index, created[index], _unit_add_weapon_starting)) goto failed;
+	for (index = 0; index < NUMBEROF(room); index++) unit->unit.grenade_counts[index] += inventory->grenades[index];
+	if (inventory->selected_slot != NONE) unit->unit.desired_weapon_index = inventory->selected_slot;
+	return TRUE;
+failed:
+	/* A partial grant cannot survive a reservation cancellation. Old carried
+	 * weapons already dropped remain real world loot, never silently deleted. */
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)
+	{
+		struct weapon_datum *weapon = weapon_try_and_get(created[index]);
+		if (weapon)
+		{
+			if (weapon->object.parent_object_index == player->unit_index) unit_drop_weapon(player->unit_index, created[index]);
+			object_delete(created[index]);
+		}
+		created[index] = NONE;
+	}
+	return FALSE;
+}
+
+boolean game_modes_inventory_consume(long player_index, struct game_modes_inventory const *inventory,
+	long const objects[GAME_MODES_INVENTORY_WEAPONS])
+{
+	struct game_modes_inventory current;
+	struct player_datum *player;
+	struct unit_datum *unit;
+	short index;
+
+	if (!game_modes_inventory_capture(player_index, &current) || memcmp(&current, inventory, sizeof(current))) return FALSE;
+	player = player_get(player_index); unit = unit_get(player->unit_index);
+	if (unit->unit.grenade_throw_state != _unit_grenade_throw_idle) return FALSE;
+	for (index = 0; index < inventory->weapon_count; index++)
+		if (unit->unit.weapon_object_indices[inventory->weapons[index].slot] != objects[inventory->weapons[index].slot]) return FALSE;
+	for (index = 0; index < inventory->weapon_count; index++)
+	{
+		long object_index = objects[inventory->weapons[index].slot];
+		if (!unit_drop_weapon(player->unit_index, object_index)) return FALSE;
+		object_delete(object_index);
+	}
+	for (index = 0; index < NUMBEROF(current.grenades); index++) unit->unit.grenade_counts[index] = 0;
 	return TRUE;
 }
 

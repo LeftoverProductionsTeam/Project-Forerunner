@@ -49,6 +49,15 @@ struct posix_file_information
 int posix_stat(const char *path, struct posix_file_information *information);
 int posix_fstat(int descriptor, struct posix_file_information *information);
 
+/* Shared native gear records. Hold the separate, stable lock file across
+ * read/reserve/settle; replacing the record must not replace its lock inode.
+ * Reads: 1 whole regular file, 0 absent, -1 error. Writes return 1 only after
+ * flush and atomic replacement. Paths are in the engine's private gear folder. */
+int posix_gear_lock(const char *path);
+void posix_gear_unlock(int descriptor);
+int posix_gear_read(const char *path, void *buffer, posix_ulong capacity, posix_ulong *size);
+int posix_gear_replace(const char *path, const void *buffer, posix_ulong size);
+
 /* set access and modification times; a zero seconds value leaves it alone */
 int posix_set_file_times(const char *path,
 	posix_ulong access_seconds, posix_ulong access_nanoseconds,

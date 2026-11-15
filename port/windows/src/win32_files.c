@@ -10,7 +10,9 @@ turn into Xbox error codes.
 
 #include <windows.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <io.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +55,103 @@ static int fail(void)
 		break;
 	}
 	return -1;
+}
+
+static int gear_file_regular(HANDLE file)
+{
+	BY_HANDLE_FILE_INFORMATION information;
+
+	return GetFileType(file) == FILE_TYPE_DISK && GetFileInformationByHandle(file, &information) &&
+		!(information.dwFileAttributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) &&
+		information.nNumberOfLinks == 1;
+}
+
+int posix_gear_lock(const char *path)
+{
+	HANDLE file = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+	int descriptor;
+
+	if (file == INVALID_HANDLE_VALUE)
+		return fail();
+	if (!gear_file_regular(file))
+	{
+		CloseHandle(file);
+		errno = EACCES;
+		return -1;
+	}
+	descriptor = _open_osfhandle((intptr_t)file, _O_RDWR | _O_BINARY | _O_NOINHERIT);
+	if (descriptor < 0)
+		CloseHandle(file);
+	return descriptor;
+}
+
+void posix_gear_unlock(int descriptor)
+{
+	if (descriptor >= 0)
+		_close(descriptor);
+}
+
+int posix_gear_read(const char *path, void *buffer, posix_ulong capacity, posix_ulong *size)
+{
+	HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+	LARGE_INTEGER length;
+	DWORD done = 0, count;
+
+	*size = 0;
+	if (file == INVALID_HANDLE_VALUE)
+		return GetLastError() == ERROR_FILE_NOT_FOUND ? 0 : fail();
+	if (!gear_file_regular(file) || !GetFileSizeEx(file, &length) || length.QuadPart < 0 ||
+		(unsigned long long)length.QuadPart > capacity)
+		goto failed;
+	while (done < (DWORD)length.QuadPart)
+	{
+		if (!ReadFile(file, (char *)buffer + done, (DWORD)length.QuadPart - done, &count, NULL) || !count)
+			goto failed;
+		done += count;
+	}
+	if (!CloseHandle(file))
+		return fail();
+	*size = done;
+	return 1;
+failed:
+	CloseHandle(file);
+	errno = EIO;
+	return -1;
+}
+
+int posix_gear_replace(const char *path, const void *buffer, posix_ulong size)
+{
+	char temporary[1100];
+	HANDLE file;
+	LARGE_INTEGER zero;
+	DWORD done = 0, count;
+	int written;
+
+	if (snprintf(temporary, sizeof(temporary), "%s.new", path) >= (int)sizeof(temporary))
+		return 0;
+	file = CreateFileA(temporary, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+	if (file == INVALID_HANDLE_VALUE)
+		return 0;
+	zero.QuadPart = 0;
+	if (!gear_file_regular(file) || !SetFilePointerEx(file, zero, NULL, FILE_BEGIN) || !SetEndOfFile(file))
+		goto failed;
+	while (done < size)
+	{
+		if (!WriteFile(file, (const char *)buffer + done, size - done, &count, NULL) || !count)
+			goto failed;
+		done += count;
+	}
+	written = FlushFileBuffers(file) != 0;
+	written = CloseHandle(file) && written;
+	/* Reuse the native settings/key replacement policy, with explicit flush
+	 * and write-through. No in-place overwrite or delete-then-rename fallback. */
+	return written && MoveFileExA(temporary, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+failed:
+	CloseHandle(file);
+	return 0;
 }
 
 static void split64(unsigned long long value, posix_ulong *low, posix_ulong *high)

@@ -214,7 +214,7 @@ static game_state_before_load_proc before_load_procs[] =
 	main_script_map_name_clear, /* port: discard pending map_name on every restore. */
 	/* port: run/result handles are outside the saved image. Invalidate them
 	   for every checkpoint/disk/core load, even if the clock does not rewind. */
-	extraction_reset,
+	extraction_restored,
 #ifdef HALO_OPENXR
 	vr_render_reset_aim, /* port: do not reuse tracked unit handles after a restore. */
 #endif

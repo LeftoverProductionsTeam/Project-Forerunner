@@ -416,8 +416,10 @@ escape, loss, persistent rewards, report and redeployment. No mandatory raid
 timer; an activation countdown is permitted. Spark owns the map/source/UX
 authoring; Forerunner owns authoritative gameplay and durable result settlement.
 
-The first UNVERIFIED local desktop source slice is `game.extraction` (off by
-default), reached through the existing native solo-map path. A candidate needs
+`game.extraction` remains off by default and uses the existing native solo-map
+path, locally or on the native co-op host. Its connected implementation compiles
+and passes bounded source/OS checks; native Extraction gameplay remains UNVERIFIED.
+A candidate needs
 live scenario **control** objects named `extraction_deploy` and
 `extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named
 `extraction_zone` and `extraction_return`. Controls must be powered, usable and
@@ -428,34 +430,39 @@ the safe hub's return volume and outside the activation zone. Supply the normal
 native starting-equipment profiles; Forerunner does not invent a replacement
 loadout or inject missing tags. `players.c::players_respawn_at_start` shares
 native player creation/equipment with checkpoint respawn but skips checkpoint
-and teammate relocation. `extraction.c::extraction_respawn_after_loss`, called
-from `main.c::main_lost_map_private`, discards the failed equipment result and
-uses that path after a real local team wipe, without world/save rewind.
+and teammate relocation. `players.c::players_respawn_network_coop` uses those hub
+starts for individual deaths and late joins, leaving live field players alone.
+`extraction.c::extraction_respawn_after_loss`, called from
+`main.c::main_lost_map_private`, settles failed deployed reservations and
+uses that path after a real team wipe, without world/save rewind.
 Allocation failure retries through the existing native loss timer. Scripted
 failure with live players retains campaign handling. Finite Firefight keeps
 its existing death owner; combined finite-director outcomes remain unfinished.
-This unverified local recovery is not per-player multiplayer loss, durable
-settlement or a safe-hub placement acceptance claim. Spark must supply and
+This is not native multiplayer Extraction or safe-hub placement acceptance.
+Spark must supply and
 eventually validate its native starts, collision clearance and equipment.
 Native use begins a run or a cancellable ten-second signal activation. Leaving
 cancels it; death/replaced player handles, a different local saved profile or
-any checkpoint/disk/core restore invalidate the run. The restore callback clears
-run state even when native load paths preserve the clock. After activation the
+any checkpoint/disk/core restore invalidate the run. The restore callback also
+disables banking until a fresh map, even when native load paths preserve the
+clock: restored objects must not recover already banked gear. After activation the
 same live player must physically reach the return
 volume outside the activation zone. Keep a real bidirectional player/vehicle
 route and native safe-hub geometry; the engine adds no teleport or map switch.
 Arrival must successfully capture actually owned native equipment before a
 return can complete; failure leaves it pending without publishing a result.
-A valid return shows a post-run summary; use the deploy
-control again to retain the same live inventory and begin another run. Native
+A valid return persists escape escrow before consuming the exact native weapons
+and grenades, banks it once, and shows a post-run summary. Use the deploy control
+again to reserve a compatible native-cache loadout before restoring its original
+ammo/battery quantities. Native
 campaign `game_won` calls do not leave an admitted Extraction map:
 `extraction.c::extraction_owns_map` gates both `main.c::main_won_map` and its
 deferred transition. This includes wins scheduled by first-tick scripts before
 control binding. Unrelated HaloScript updates remain enabled; missing/invalid
 bindings and ordinary campaign maps retain native completion. This is
-UNVERIFIED source, not a durable award: stash/loadout selection, rarity/upgrades,
-persistent rewards and full hub UI remain unfinished, with no multiplayer
-admission or new discovery capability. Spark must not
+not complete gameplay acceptance: rarity/upgrades, armor/equipment, full hub UI
+and native multiplayer Extraction validation remain unfinished. There is no new
+discovery capability. Spark must not
 advertise playable Extraction from these bindings alone. Retain native AI,
 collision, encounter and equipment source; the engine does not import authoring
 JSON or run a second Firefight director for native scripted encounters.
@@ -494,37 +501,68 @@ Firefight may bank at defined milestones or evacuation; Extraction banks only
 after successful escape and has no mandatory raid timer. Compatible recovered
 equipment can cross modes. Spark authors discoverable loot and mode rules using
 supported native tags; it must not write player stashes, invent awarded gear or
-advertise a persistence endpoint that Forerunner has not implemented. Current
-interaction source does not grant or persist loot.
+advertise a persistence endpoint that Forerunner has not implemented. Extraction
+now consumes the shared weapon/grenade bank below; Survival milestone/evacuation
+settlement remains unfinished and must not award gear for a failed survival run.
 
 The shared native gear reader in `game_modes.c` now feeds both Extraction return
 reports and Firefight wave-clear reports before optional resupply. It reads real
 host/local ownership, tag paths, slot selection, loaded/reserve magazines, battery
 age and grenades; it refuses duplicate object references and excludes objective
 weapons. Map name/checksum are provenance, not cross-cache content admission.
-These snapshots are not a new sidecar, disk format, client claim or durable stash.
+These snapshots are not a sidecar, disk format or client claim.
 
 Persistence reuse review: pinned Faber `e4ffe0fe` has per-profile statistics in
 `port/linux/game/firefight_stats.c::{get_active_profile_index, save_profile_records}`.
 Its `write_xbox_text_file` uses an in-place Win32 `CREATE_ALWAYS` write; the record
 tracks stats, not owned item reservations/settlement. Reuse the existing native
 saved-profile boundary, not that writer as a crash-safe cross-platform stash.
-Forerunner now binds a local run to `player_ui_get_active_player_profile_index`
+Forerunner binds a local run to `player_ui_get_active_player_profile_index`
 and the native enclosing directory returned by
 `player_ui_get_path_to_local_player_profile_directory`. The index is an
 enumeration slot (`saved_game_files.c`), so `extraction.c` also compares that
 directory before publishing a return. Deployment needs an available saved
-profile; an unavailable return lookup stays pending with bounded one-second
-retries, while a different directory discards the result. These checks do not
-establish a durable UUID or authenticated multiplayer identity.
+profile; losing/changing that identity settles the deployed run as lost. Remote
+players require the inherited `delta_peer_game_player_identity(machine,controller)`
+with verified host-bound proof (`identity.bound`), not player names or self-reported
+account claims. It already exists in `delta_peer_game.c`; the declaration is now
+shared through `delta_peer.h`. Local profile and verified account owner domains
+are distinct; this does not promise portable client-managed or cross-host stashes.
 `xbox_files.c::CreateFileA` currently ignores `share_mode`; Faber's sharing-zero
 open therefore supplies no process exclusivity here. `port_config.c` now checks
 flush failure before its existing atomic replacement, but settings replacement
-does not provide item reservations or competing-runtime ownership. Stable item/
-run identity, exclusive ownership and exactly-once settlement remain required
-before a durable shared gear writer is introduced. No new stash format or
-discovery interface was added, and Spark must not export personal profile paths.
-No personal inventory file has been created or changed by these source edits.
+does not provide item reservations or competing-runtime ownership.
+
+The owner approved native gear records and locking. `gear.c`/`gear.h` now provide
+one bounded version-1 binary record per owner under the existing private save
+folder (`private/gear/<owner-hash>.gear`), a stable separate OS lock, explicit
+little-endian codec and SHA-256 integrity check. `posix_files.c` and
+`win32_files.c` flush staging data and atomically replace the record; linked or
+nonregular staging files are refused before truncation. No database, second
+inventory network protocol, profile-path export or personal save migration.
+Reservations precede native grants; a failed staged grant removes only the new
+objects and returns reserved items. Death/disconnect/abandoned deployment loses
+only at-risk reservations. Saved escape escrow rolls forward once on reopen;
+published-but-uncertain writes retry the same intent rather than minting rewards.
+These are implementation/automated checks, not power-loss or gameplay acceptance.
+
+`game_modes.c::{game_modes_inventory_grenade_room,game_modes_inventory_loadout_valid,
+game_modes_inventory_apply,game_modes_inventory_consume}` reuse native tag lookup,
+object creation, weapon drop/attach/delete and actual owned snapshots. Old carried
+weapons are dropped as loot, not erased. Capacity is 32 stored weapons and two
+selected deployment weapons; grenades withdraw only into native capacity. Exact
+cache name/checksum admission currently prevents unsafe cross-cache tag reuse.
+Compatible same-cache cross-mode gear uses the same foundation; rarity, armor,
+equipment upgrades and general cross-cache equivalence remain open.
+
+Spark may optionally add a powered touched-by-player `extraction_loadout` control
+inside the return hub, outside activation. It cycles compatible stored weapons
+through native player notices; existing four-marker maps use the first compatible
+pair without requiring that optional control. Spark must include its native
+`triggers_when` readback alongside deploy/activate, preserve all hub starts and
+hand off a compiled native solo cache plus required resource caches. Do not import
+personal stash records, synthesize grants, require a raid timer or run the built-in
+Firefight director over authored encounters.
 
 ## Current code-reuse and ownership checkpoint
 
@@ -551,7 +589,7 @@ OpenH1 `baed7757`, and Mota's initially inspected `2467e708` sidecar source
 | --- | --- |
 | Native Firefight | Spark `crates/spark-core/src/firefight.rs::{native_round_plan, verify_native_round}` authors/checks encounters, profiles and the three `gs_*` scripts above. Forerunner's existing `source/hs/hs.c::hs_update` executes native scripts; `source/game/game.c::game_tick` no longer suppresses them during finite Firefight. `coop_enemies.c::firefight_update` disables its optional director once it finds any of those compiled bindings. The finite director's terminal-result gate prevents unrelated campaign wins from skipping its waves/result notice; native-script-owned rounds retain normal mission results. Other controllers still require the finite setting OFF. |
 | Loadouts and shared equipment | Spark `firefight.rs::{native_player_profile_arguments, verify_native_player_profile}` emits/checks standard native starting profiles. Forerunner uses native inventories and `game_modes.c::game_modes_inventory_capture` for both mode reports. Reuse that boundary; do not import Spark's preview director or turn a starting profile into a persistent stash. Durable owner-bound reservations/settlement, rarity/upgrades and full inventory UI remain open. |
-| Extraction | Forerunner `extraction.c` owns local native control/volume state. Spark now authors the four names through `src/nativeLogic.ts::extractionLayout` and `crates/spark-core/src/native_logic.rs::{scenario_commands,compile}`. The runtime requires unique markers and distinct native touched-by-player terminals. Complete the safe-hub starts, physical route and compiled handoff specified above; no editor or launcher is duplicated. Native pickups/AI remain native; no authored JSON import or multiplayer/reward acceptance is implied. |
+| Extraction | Forerunner `extraction.c` owns per-player host/local control/volume state and consumes `gear.c` reservations/settlement through native equipment helpers. Spark authors the four required names through `src/nativeLogic.ts::extractionLayout` and `crates/spark-core/src/native_logic.rs::{scenario_commands,compile}`. Optional `extraction_loadout` cycles a compatible pair. Supply all hub starts, powered touched-by-player terminals, continuous physical route and compiled cache handoff; no editor or launcher is duplicated. Native pickups/AI and inherited co-op replication remain owners. Compiled/automated source behavior is not native multiplayer Extraction acceptance. |
 | MegaWorld and baked content | Spark `megaworld.rs`/`megaworld_build.rs` own source identities, assembly and native output. The earlier inspected `gpuLightmap.ts::bakeGpuLightmapDraft` produces a direct-light draft, not native lightmap tags; that historical finding is not current native-lightmap acceptance. Forerunner keeps its native BSP/cache/collision/renderer/resource paths; simultaneous bounded multi-region residency is unfinished. A preview/GPU draft is not a new accepted engine format or proof of 19-region traversal. |
 | VR, voice and Forge | Continue the existing OpenXR/bgfx renderer adapter using pinned OpenH1 transforms/interactions, the inherited Delta/Opus/Halo sound path, and compatible Faber/Mota placement behavior. Do not remove OpenCE browser/guest voice paths as duplicates of native Delta voice: they still have distinct callers/build gates. No second renderer, VOIP stack, sidecar format or cross-repository build dependency was added. |
 
@@ -671,20 +709,24 @@ if a later reviewed source adaptation is made; do not publish or push it.
 
 ## Native formats and extended data
 
-Read-only Spark source refresh at `f8213a5b40759ba78b0ad4c56fc1169a1fc0476f`
-found an existing Extraction authoring path: `src/nativeLogic.ts::extractionLayout`
-checks named controls/volumes, startup power, relative placement and a hub start;
+Read-only Spark source refresh at `e472e79` found its existing Extraction authoring
+path now checks **every** authored hub start (including other-mode/hidden starts),
+fixing the earlier `f8213a5b` any-one-start gap.
+`src/nativeLogic.ts::extractionLayout` also checks named controls/volumes, startup
+power and relative placement;
 `native_logic.rs::scenario_commands` writes ordinary rotational trigger volumes,
 and `compile` reads back named Extraction controls' touched-by-player tag mode.
 `verify_compiled` checks required scripts, not complete playable Extraction.
 Forerunner `extraction.c::extraction_bind` now refuses duplicate names, oversized
 short-index blocks, aliased terminals and incompatible native control modes
-before taking map outcome ownership. These are UNVERIFIED source safeguards.
-Spark's next source requirement is to check **every selectable** solo start in
-the hub/outside activation: its current `extractionLayout` accepts any one match.
-Then hand off one compiled solo cache with matching native dependencies, authored
-controls/volumes/loadout and a bidirectional route. Compilation, native use,
-death recovery and redeployment still need later authorized gameplay evidence.
+before taking map outcome ownership. Spark's next work is optional loadout-control
+authoring/readback and the compiled solo cache handoff with matching native
+dependencies, controls/volumes/loadout and a bidirectional route. Its
+`crates/spark-core/src/runtime.rs` still pins Forerunner `firefight-build-002` /
+`21a809b0`; current-project cache deployment/Live Rebuild are not completed there.
+Adopt a reviewed current runtime identity through that existing path, not a new
+launcher. Native terminal use, cross-client transfers, death/hub respawn, escape,
+reopen and redeployment still need the authored-map integration acceptance.
 Neither repository's source is a build dependency of the other; Spark was not
 modified and no editor metadata, source file or personal gear was imported.
 

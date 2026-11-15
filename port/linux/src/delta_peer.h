@@ -1361,6 +1361,9 @@ int delta_peer_game_machine_legacy_version(int machine_index);
 /* a player's machine's profile claim, while the machine has that one player
 alone: its player ID (DELTA_WIRE_PLAYER_ID_SIZE bytes) */
 int delta_peer_player_profile(int player_index, unsigned char *player_id);
+/* The already verified, host-bound per-controller proof (delta_peer_game.c).
+ * Display/profile claims above are not persistent-gear authorization. */
+int delta_peer_game_player_identity(int machine_index, int local_player, struct delta_peer_identity *identity);
 /* the game's room: delta_peer_room_has and _room_limit of the session */
 int delta_peer_game_room_has(int capability);
 int delta_peer_game_room_limit(int limit);

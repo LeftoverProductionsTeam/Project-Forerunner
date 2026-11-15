@@ -1343,14 +1343,17 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 
 	/* ---- game */
 	{ "game.extraction", _config_boolean, "false", "HALO_EXTRACTION", _environment_value, _platform_desktop,
-		"Unverified local Extraction interaction source. Requires a solo map\n"
+		"Extraction gameplay remains unverified. Requires a native solo map\n"
 		"with extraction_deploy/extraction_activate controls, extraction_zone\n"
 		"and extraction_return. No raid timer; activate a ten-second signal\n"
-		"then physically return alive for an equipment report and redeployment.\n"
-		"Native player starts must be inside the safe hub. A real team wipe\n"
-		"respawns at those starts without rewinding the world or restoring loot.\n"
-		"Stash/loadouts, upgrades, durable rewards and hub UI are unfinished.\n"
-		"Does not enable Extraction multiplayer." },
+		"then physically return alive to bank owned weapons/ammo and redeploy.\n"
+		"Optional extraction_loadout control cycles compatible stashed weapons.\n"
+		"All native player starts must be inside the safe hub. Dead/late players\n"
+		"respawn there without world rewind. Deployed gear is lost on death or\n"
+		"disconnect; saved escape settlement recovers after interruption.\n"
+		"Local saved profiles and verified co-op identities own separate gear.\n"
+		"Disable the built-in Firefight director; native AI scripts may run.\n"
+		"Rarity/upgrades and the full hub UI remain unfinished." },
 	{ "game.start_map", _config_string, "\"\"", "HALO_START_MAP", _environment_value, _platform_desktop,
 		"Once the main menu is ready, start this installed CE solo map fresh,\n"
 		"for example 'gs_firefight@ce', using the current difficulty and a\n"

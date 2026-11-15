@@ -6,16 +6,125 @@ the host ABI and _FILE_OFFSET_BITS=64.
 */
 
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #include "posix.h"
+
+/* An advisory lock held on its own file survives atomic record replacement.
+ * No other gear writer may bypass it. Never unlink the lock while in use. */
+int posix_gear_lock(const char *path)
+{
+	struct stat status;
+	int descriptor = open(path, O_RDWR | O_CREAT | O_CLOEXEC | O_NOFOLLOW, 0600);
+
+	if (descriptor < 0)
+		return -1;
+	if (fstat(descriptor, &status) != 0 || !S_ISREG(status.st_mode) || status.st_nlink != 1 ||
+		status.st_uid != getuid() || flock(descriptor, LOCK_EX | LOCK_NB) != 0)
+	{
+		close(descriptor);
+		return -1;
+	}
+	return descriptor;
+}
+
+void posix_gear_unlock(int descriptor)
+{
+	if (descriptor >= 0)
+		close(descriptor);
+}
+
+int posix_gear_read(const char *path, void *buffer, posix_ulong capacity, posix_ulong *size)
+{
+	struct stat status;
+	int descriptor;
+	size_t done = 0;
+	ssize_t count;
+
+	*size = 0;
+	descriptor = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
+	if (descriptor < 0)
+		return errno == ENOENT ? 0 : -1;
+	if (fstat(descriptor, &status) != 0 || !S_ISREG(status.st_mode) || status.st_nlink != 1 ||
+		status.st_uid != getuid() || status.st_size < 0 || (unsigned long long)status.st_size > capacity)
+		goto failed;
+	while (done < (size_t)status.st_size)
+	{
+		count = read(descriptor, (char *)buffer + done, (size_t)status.st_size - done);
+		if (count < 0 && errno == EINTR)
+			continue;
+		if (count <= 0)
+			goto failed;
+		done += (size_t)count;
+	}
+	if (close(descriptor) != 0)
+		return -1;
+	*size = (posix_ulong)done;
+	return 1;
+failed:
+	close(descriptor);
+	return -1;
+}
+
+int posix_gear_replace(const char *path, const void *buffer, posix_ulong size)
+{
+	char temporary[1100], parent[1100], *slash;
+	struct stat status;
+	int descriptor, directory, written;
+	size_t done = 0;
+	ssize_t count;
+
+	if (snprintf(temporary, sizeof(temporary), "%s.new", path) >= (int)sizeof(temporary) ||
+		snprintf(parent, sizeof(parent), "%s", path) >= (int)sizeof(parent))
+		return 0;
+	slash = strrchr(parent, '/');
+	if (!slash || slash == parent)
+		return 0;
+	*slash = 0;
+	directory = open(parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
+	if (directory < 0)
+		return 0;
+	/* Validate before truncating: a hard link must never damage another file. */
+	descriptor = open(temporary, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK, 0600);
+	if (descriptor < 0)
+	{
+		close(directory);
+		return 0;
+	}
+	if (fstat(descriptor, &status) != 0 || !S_ISREG(status.st_mode) || status.st_nlink != 1 ||
+		status.st_uid != getuid() || ftruncate(descriptor, 0) != 0)
+		goto failed;
+	while (done < size)
+	{
+		count = write(descriptor, (const char *)buffer + done, size - done);
+		if (count < 0 && errno == EINTR)
+			continue;
+		if (count <= 0)
+			goto failed;
+		done += (size_t)count;
+	}
+	written = fsync(descriptor) == 0;
+	written = close(descriptor) == 0 && written;
+	/* A failed or interrupted staging file is retained; the old record is
+	 * authoritative. The next locked write may replace only this staging file. */
+	if (written)
+		written = rename(temporary, path) == 0 && fsync(directory) == 0;
+	close(directory);
+	return written;
+failed:
+	close(descriptor);
+	close(directory);
+	return 0;
+}
 
 static void split64(unsigned long long value, posix_ulong *low, posix_ulong *high)
 {

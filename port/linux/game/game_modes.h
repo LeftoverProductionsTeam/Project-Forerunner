@@ -107,5 +107,16 @@ struct game_modes_inventory
 /* Host/local authority only; captures a living player's actually owned gear.
    No grants, mutations, stash writes or client-submitted item descriptions. */
 boolean game_modes_inventory_capture(long player_index, struct game_modes_inventory *inventory);
+/* Native-cache admission and quantity-preserving host loadout application.
+ * Existing carried weapons are dropped, not destroyed. Failed staged grants
+ * leave no recovered objects behind; the caller can cancel its reservation. */
+boolean game_modes_inventory_grenade_room(long player_index, short room[2]);
+boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *inventory);
+boolean game_modes_inventory_apply(long player_index, struct game_modes_inventory const *inventory,
+	long created[GAME_MODES_INVENTORY_WEAPONS]);
+/* Consume only the exact captured native gear after durable escape escrow.
+ * Objective weapons remain mission state. Never accepts a client inventory. */
+boolean game_modes_inventory_consume(long player_index, struct game_modes_inventory const *inventory,
+	long const objects[GAME_MODES_INVENTORY_WEAPONS]);
 
 #endif
