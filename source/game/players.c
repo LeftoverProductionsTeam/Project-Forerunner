@@ -2614,7 +2614,10 @@ been free on foot for a while (players_coop_room_to_spawn). */
 static boolean players_coop_extras_held(
 	void)
 {
-	return game_time_get() < COOP_LEVEL_START_TICKS || cinematic_in_progress() || !players_coop_room_to_spawn();
+	/* port: an admitted Extraction hub supplies validated native starts;
+	 * spawning there does not need room beside a field teammate. */
+	return game_time_get() < COOP_LEVEL_START_TICKS || cinematic_in_progress() ||
+		(!extraction_owns_map() && !players_coop_room_to_spawn());
 }
 
 /* Co-op host: TRUE if a player who hasn't spawned on this level yet may
@@ -5123,7 +5126,11 @@ void players_update_before_game(
 						else if (players_coop_may_spawn())
 						{
 							player_spawn(iterator.datum_index);
-							player_place_beside_teammate(iterator.datum_index);
+							/* port: late joiners deploy from Extraction's authored hub,
+							 * just as its death/wipe respawns do. Do not move them
+							 * into a teammate's field operation before deployment. */
+							if (!extraction_owns_map())
+								player_place_beside_teammate(iterator.datum_index);
 						}
 						else if (players_coop_use_majority() && !cinematic_in_progress() &&
 							players_checkpoint.valid)

@@ -12,6 +12,34 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, Extraction live rejoin (base `37bdd12f3a`):
+`build/native-delta-live-reconnect` proves hub-disconnect bank preservation and
+authenticated live rejoin, but its movement driver is blocked by the host's body.
+Moving the host aside in `build/native-delta-live-return` exposes the actual
+first-life spawn defect: the returning client appears beside the field host at
+y=-91, away from the authored hub/terminal at y=-87.472. Death/wipe hub handling
+already exists; the first-spawn path was still applying campaign relocation.
+`players.c` now retains authored Extraction starts and exempts an admitted hub
+from teammate-room waiting, while preserving intro/cinematic and ordinary campaign
+gates. The added behavior case in existing `tools/test_death_timing.py` fails on
+the old helper. The repaired suite passes its 15–1,000 FPS timing/camera/respawn
+checks plus hub/campaign/cinematic policy. Incremental Windows64 passes
+(`build/native-hub-rejoin-build.log`), executable SHA-256
+`17828536829ce3f42731b8c926da674e8700c834e6f25f5f09bf67b9dfa0bab1`.
+
+`build/native-delta-hub-reconnect/result.json` passes the real two-account live
+continuation with previously banked native records copied into disposable saves.
+The same host advances from tick 210 to 1950 without restart: hub departure keeps
+both records byte-identical; rejoin places the client at 48.845,-87.472,0.078 while
+the host remains at 48.444,-91.270,0.426; deployment preserves the saved pair's
+item bytes; departing while deployed settles phase idle/counts 0/0/0/outcome lost;
+a third signed-in connection grants no refund and preserves the host's stash.
+There are three fresh bound test-account proofs, two equipped living players in
+both final native views, no native halt, and unchanged original identity files.
+Owned processes/runtime/map copies are disposed. This is live reconnect/loss and
+authored-start verification, not a new escape/bank run, true-death proof, Spark map
+acceptance, Linux/VR verification or a general reconnect certification.
+
 15 November, authenticated host ownership (base `25767db94e`): original
 `extraction_owner` selects a local-profile stash even for a verified Delta host,
 while that same account joining remotely selects an account stash. The connected

@@ -47,6 +47,7 @@ static long main_loss_last_tick,main_respawn_last_tick;
 static long tick;
 static int paused,cinematic,reverts,attempts,spawns,teleports,player_count=2;
 static int projectiles,enemies,airborne,vehicle_moving,spawn_failed,teleport_failed,multiplayer;
+static int owned_hub,spawn_room;
 static struct {int respawn_failure,respawn_failed;} players_state,*players_globals=&players_state;
 struct player_datum {long unit_index,team_index;};
 static struct player_datum players[4];
@@ -102,6 +103,8 @@ static int player_teleport(long i,long target,const real_point3d *p) {
 static long game_time_get(void) {return tick;}
 static int game_time_get_paused(void) {return paused;}
 static int cinematic_in_progress(void) {return cinematic;}
+static boolean extraction_owns_map(void) {return owned_hub;}
+static boolean players_coop_room_to_spawn(void) {return spawn_room;}
 static int game_engine_running(void) {return multiplayer;}
 static void game_state_revert(void) {reverts++;}
 static real_vector3d zero_vector,*global_zero_vector3d=&zero_vector;
@@ -121,6 +124,7 @@ static void reset(int count) {
     paused=cinematic=reverts=attempts=spawns=teleports=0;
     spectator_mode=0;
     projectiles=enemies=airborne=vehicle_moving=spawn_failed=teleport_failed=multiplayer=0;
+    owned_hub=0;spawn_room=1;
     player_count=count;
     for(i=0;i<count;i++) {players[i].unit_index=i?NONE:100;players[i].team_index=0;objects[i].object.bounding_sphere_center.x=100+i;}
 }
@@ -224,10 +228,20 @@ static void cameras(void) {
     spectator_mode=1;c.unit_index=101;c.switch_timer=0;
     dead_camera_update(&c,&control,&command);assert(c.unit_index==101);
 }
+static void authored_hub_spawns(void) {
+    reset(2);tick=COOP_LEVEL_START_TICKS;spawn_room=0;
+    assert(players_coop_extras_held()); /* Campaign waits for a safe teammate. */
+    owned_hub=1;
+    assert(!players_coop_extras_held()); /* An admitted hub has its own starts. */
+    cinematic=1;assert(players_coop_extras_held());
+    cinematic=0;tick=0;assert(players_coop_extras_held());
+    owned_hub=0;spawn_room=1;tick=COOP_LEVEL_START_TICKS;
+    assert(!players_coop_extras_held());
+}
 int main(void) {
-    rates();clock_and_lifecycle();coop_blocked();cameras();
+    rates();clock_and_lifecycle();coop_blocked();cameras();authored_hub_spawns();
     puts("PASS: fixed-tick delays, render-only/catch-up frames, pause/cinematics, clock reset,");
-    puts("      2-4 player co-op, blocked retry/overflow, immediate retry and dead-camera fallback");
+    puts("      2-4 player co-op, blocked retry/overflow, dead-camera fallback and authored hub spawn policy");
     return 0;
 }
 '''
@@ -248,6 +262,9 @@ def main():
     camera_header = (ROOT / 'source/camera/dead_camera.h').read_text()
     players_source = (ROOT / 'source/game/players.c').read_text()
     unit = PRELUDE
+    unit += '\n#define TICKS_PER_SECOND 30\n'
+    unit += re.search(r'^#define COOP_LEVEL_START_TICKS[^\n]*', players_source, re.M).group(0) + '\n'
+    unit += function(players_source, 'players_coop_extras_held')
     for name in ('camera_control', 'dead_camera_command'):
         unit += structure(camera_source, name)
     unit += structure(camera_header, 'dead_camera')

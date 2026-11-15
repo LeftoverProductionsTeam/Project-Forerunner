@@ -31,8 +31,21 @@ confirmation write safely refunds/retries; the final host generation is 8, clien
 6, with the same four serialized items and no extra stash/reservation. Ordinary
 starter-weapon ammo pickups after deployment are distinct from saved quantities.
 Both authenticated combat runs pass existing player/AI/item checks. This is the
-owned CE regression fixture, not Spark's finished Black Echo. Full
-death/reconnect/crash acceptance and faction dropship operations remain open.
+owned CE regression fixture, not Spark's finished Black Echo. Actual-death/crash,
+broader reconnect and faction dropship acceptance remain open.
+
+Live reconnect (base `37bdd12f3a`): the first-life co-op path still relocated new
+players beside field teammates despite Extraction's existing hub death/wipe path.
+It now retains authored hub starts and does not wait for room beside teammates;
+level-opening and cinematic waits remain. Existing death-timing/spawn-policy checks
+and incremental Windows64 pass. `build/native-delta-hub-reconnect` verifies a
+private live host with two actual Delta accounts: hub disconnect preserves both
+seeded native bank records; rejoin spawns at the hub while the host stays in the
+field; deployment uses the same saved item bytes; deployed disconnect settles an
+explicit lost outcome; another rejoin refunds nothing and leaves the host's stash
+unchanged. This uses previous owned native bank records as fixtures, not a new
+mission completion. Original identity files remain unchanged and scratch runtimes/
+maps are removed. Spark mission, actual death and cross-platform acceptance remain open.
 
 Six independent instances: the NPC drop repair now passes the unchanged native
 player/AI/item comparisons on all five clients in
