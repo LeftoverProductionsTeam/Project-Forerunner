@@ -54,6 +54,43 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Firefight pursuit ownership/allegiance, base `b80ee6b437`, 15 November:
+
+- Actual `firefight_pursue` now filters by native actor hostility, live owned
+  player handle and quit state before applying Faber's enemy/sight/path effects.
+  Native allegiance/prop handlers still own team changes. **10 MSVC x86 focused
+  cases pass**, including ally-nearest, all-allied, native team change, stale
+  full-handle ownership, departure, missing/dead body, swarm and inactive actor.
+  Removing hostility or ownership protection fails the corresponding regression.
+  These adapters do not prove native alliance-change behavior.
+- Windows64/bgfx/OpenXR **compiles**, existing non-LTO cache, only dependent
+  objects/link (`build/native-firefight-pursuit-build.log`). Binary SHA-256:
+  `b2abdb2b892503617c2cda5e2e046b786ed60bd047c563f5b2056bc7ca2260cf`.
+- Existing private `net_compare.py` B40/co-op runner, one finite wave/one initial
+  enemy, normal aiming/fire input, native actor readback once a second. The first
+  35-second run passes synchronization but stops at preparation and is not pursuit
+  acceptance. The longer run reaches a genuine **wave clear, 100 points, victory,
+  postgame and pregame on both peers**. Tracked handle `e4c900e7` has three live
+  samples per peer, horizontal movement **1.301527 host / 1.344849 client** world
+  units, observed normal damage and death on both. No scripted damage/kill, new
+  comparison tolerance, rendered capture or hardware claim. Gear/medical policies
+  remain off; this does not reopen their existing acceptance investigations.
+- Existing `forerunner_actor_check.py --require-damage`: **PASS**, 22 snapshots /
+  153 unit comparisons, maximum position difference 0.095915, nine common movers,
+  three damaged units and one common death. Existing corpse-body normalization
+  stays unchanged, with raw differences retained in its JSON. Player comparison
+  records 49 matched seconds with no persistent divergence, mean/max position
+  0.053/1.272, drift max 0.045668. **The original timed-run verdict is ERROR**:
+  the completed encounter supplies 50 seconds against the requested 90; it does
+  not meet that run's duration/sample requirement. No threshold was relaxed and
+  no follow-up run was manufactured to replace that result.
+- Evidence: `build/native-firefight-pursuit-wave/` (raw logs, original result and
+  `actor-agreement.json`), preparation-only `build/native-firefight-pursuit-smoke/`,
+  input provenance `build/native-firefight-pursuit-inputs.json`. Authorized source
+  hashes are unchanged; both attempts' copied maps, saves and peer runtimes are
+  removed. Native ally/faction-change scenarios, defeated/lives paths, authored
+  Zombie candidate, VR, rendering and non-Windows play remain unaccepted.
+
 Shared native-cache equipment, base `8f315791c1`, 15 November:
 
 - Optional default-off `game.shared_gear` reuses native loaded-weapon admission

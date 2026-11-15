@@ -3,6 +3,18 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current Firefight AI repair: Faber-derived pursuit now respects the actor's native
+hostility table and current live player ownership. It stops reclassifying allies
+as enemies and ignores departed/recycled bodies. Ten focused cases and two
+negative controls pass; Windows64 builds incrementally. A private B40 one-wave
+run observes the tracked enemy alive, moving, damaged and dead on both peers,
+100 team points, victory and lobby return. Existing AI comparison passes at
+unchanged limits. The generic 90-second duration gate reports ERROR because the
+finite encounter ends after 50 seconds; its result is retained, not relabeled.
+Native alliance-change, creator-map, defeat/lives and other-platform acceptance
+remain open. Copied maps and peer runtimes are removed; compact evidence is in
+TEST_EVIDENCE.md. No new director, target-state owner or wire format.
+
 Current shared equipment: optional host `game.shared_gear` enables compatible
 weapons across Extraction/Survival maps and rebuilt caches. Selection, confirmed
 discard, reservation/refund and recovery reuse the existing version-1 owner bank.

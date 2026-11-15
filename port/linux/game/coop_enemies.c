@@ -870,7 +870,12 @@ static void firefight_pursue(long unit_index)
 		struct unit_datum *candidate = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		real distance;
 
-		if (!candidate || TEST_FLAG(candidate->object.damage_flags, _object_dead_bit))
+		/* Native prop/allegiance updates own faction changes. Do not turn an
+		 * ally back into an enemy through Faber's forced pursuit, or follow a
+		 * departed player's body after its ownership has changed. */
+		if (player->quit_out_of_game || !candidate || candidate->unit.player_index != iterator.datum_index ||
+			TEST_FLAG(candidate->object.damage_flags, _object_dead_bit) ||
+			!game_team_is_enemy(actor->meta.team_index, candidate->object.owner_team_index))
 			continue;
 		distance = distance_squared3d(&unit->object.position, &candidate->object.position);
 		if (target == NONE || distance < nearest)
