@@ -421,11 +421,67 @@ static boolean profile_setting_boolean(short field)
 	return field != 0 && field != 4 && field != 5;
 }
 
+/* OpenH1/GOAT H1 baed7757's graphics_preset_choose/row_show pattern,
+ * adapted to this build's existing, single-screen settings. AGPL-3.0-or-later.
+ * Only drawing options are grouped; no simulation or multiplayer rule changes.
+ * The row is computed from the individual settings, not another saved state. */
+static const struct
+{
+	char const *name, *classic, *enhanced;
+} graphics_presets[] = {
+	{ "display.anti_aliasing", "off", "msaa2x" },
+	{ "display.per_pixel_lighting", "false", "true" },
+	{ "display.light_effects", "off", "auto" },
+	{ "display.shadow_resolution", "128", "512" },
+	{ "display.shadow_limit", "0", "0" },
+	{ "display.doors_block_light", "false", "true" },
+	{ "display.full_model_detail", "false", "false" },
+	{ "display.model_detail", "stock", "native" },
+	{ "display.anisotropic_filtering", "0", "16" },
+	{ "display.far_clip_distance", "1024", "1024" },
+	{ "display.hdr", "false", "false" },
+};
+
+static struct
+{
+	struct widget_instance *spinner;
+	short shown;
+} graphics_preset = { NULL, NONE };
+
+static char const *graphics_preset_value(char const *preset, char const *name)
+{
+	short index;
+	if (strcmp(preset, "classic") && strcmp(preset, "enhanced")) return NULL;
+	for (index = 0; index < NUMBEROF(graphics_presets); index++)
+		if (!strcmp(name, graphics_presets[index].name))
+			return !strcmp(preset, "classic") ? graphics_presets[index].classic : graphics_presets[index].enhanced;
+	return NULL;
+}
+
+static char const *graphics_preset_current(void)
+{
+	boolean classic = TRUE, enhanced = TRUE;
+	short index;
+	char text[300];
+	for (index = 0; index < NUMBEROF(graphics_presets); index++)
+	{
+		if (!config_text(graphics_presets[index].name, text, sizeof(text))) return "custom";
+		classic = classic && !strcmp(text, graphics_presets[index].classic);
+		enhanced = enhanced && !strcmp(text, graphics_presets[index].enhanced);
+	}
+	return classic ? "classic" : enhanced ? "enhanced" : "custom";
+}
+
 /* a setting's value as text, or (default_value) its default: config.toml's,
 or the profile's */
 static boolean setting_text(char const *name, char *text, unsigned int size, boolean default_value)
 {
 	short index;
+	if (!strcmp(name, "graphics.preset"))
+	{
+		snprintf(text, size, "%s", default_value ? "custom" : graphics_preset_current());
+		return TRUE;
+	}
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_CONSOLE_NO_DELTA_PROFILE)
 	/* (Delta Profile's site settings: the profile's own, on the site, while
@@ -514,6 +570,8 @@ static boolean setting_text(char const *name, char *text, unsigned int size, boo
 static boolean setting_write(char const *name, char const *value)
 {
 	short index;
+	/* The preset's real rows are saved normally. Cancel writes neither. */
+	if (!strcmp(name, "graphics.preset")) return TRUE;
 
 	/* (DISCORD ACCOUNT's LINK: done, not written: the master's page opened
 	in the browser, or the account forgotten, player_link.c) */
@@ -575,6 +633,11 @@ static boolean setting_load(struct widget_instance *widget)
 	setting->loaded_index = setting_value_index(setting, current);
 	if (setting->loaded_index < (short)widget->parameters.list.number_of_items)
 		widget->parameters.list.selected_index = setting->loaded_index;
+	if (!strcmp(setting->setting, "graphics.preset"))
+	{
+		graphics_preset.spinner = widget;
+		graphics_preset.shown = widget->parameters.list.selected_index;
+	}
 	/* (DISCORD ACCOUNT's LINK: an action, loaded as no change, so OK does
 	the master chosen already, setting_text's) */
 	if (!strcmp(setting->setting, "link.action"))
@@ -591,6 +654,7 @@ static boolean setting_save(struct widget_instance *widget)
 	if (!setting || setting->loaded_index == NONE || widget->parameters.list.selected_index < 0 ||
 		widget->parameters.list.selected_index >= setting->value_count)
 		return FALSE;
+	if (!strcmp(setting->setting, "graphics.preset")) return TRUE;
 	if (widget->parameters.list.selected_index == setting->loaded_index)
 		return TRUE;
 	if (!config_write(setting->setting, setting->values[widget->parameters.list.selected_index]))
@@ -2461,6 +2525,47 @@ static struct widget_instance *screen_of(struct widget_instance *widget)
 	return widget;
 }
 
+static char const *graphics_preset_choice;
+static boolean graphics_preset_matches;
+
+static boolean graphics_preset_row_show(struct widget_instance *spinner, struct pc_menu_setting *setting)
+{
+	char const *value = graphics_preset_value(graphics_preset_choice, setting->setting);
+	if (value) spinner->parameters.list.selected_index = setting_value_index(setting, value);
+	return TRUE;
+}
+
+static boolean graphics_preset_row_check(struct widget_instance *spinner, struct pc_menu_setting *setting)
+{
+	char const *value = graphics_preset_value(graphics_preset_choice, setting->setting);
+	short index = spinner->parameters.list.selected_index;
+	if (value && (index < 0 || index >= setting->value_count || strcmp(value, setting->values[index])))
+		graphics_preset_matches = FALSE;
+	return TRUE;
+}
+
+static void graphics_preset_show(struct widget_instance *list)
+{
+	struct widget_instance *screen = screen_of(list);
+	struct widget_instance *spinner = named(screen, "graphics_preset_spinner", 0);
+	struct pc_menu_setting *setting = spinner ? pc_menu_setting_get(spinner->definition_tag_index) : NULL;
+	short index;
+	if (!setting || spinner != graphics_preset.spinner) return;
+	index = spinner->parameters.list.selected_index;
+	if (index < 0 || index >= setting->value_count) return;
+	graphics_preset_choice = setting->values[index];
+	if (index != graphics_preset.shown && strcmp(graphics_preset_choice, "custom"))
+		settings_each(screen, graphics_preset_row_show);
+	if (strcmp(graphics_preset_choice, "custom"))
+	{
+		graphics_preset_matches = TRUE;
+		settings_each(screen, graphics_preset_row_check);
+		if (!graphics_preset_matches)
+			spinner->parameters.list.selected_index = setting_value_index(setting, "custom");
+	}
+	graphics_preset.shown = spinner->parameters.list.selected_index;
+}
+
 /* "port settings save" (OK): those changed written, and applied */
 static boolean setting_changed_save(struct widget_instance *spinner, struct pc_menu_setting *setting)
 {
@@ -2937,6 +3042,7 @@ static boolean settings_accept(struct widget_instance *list, short controller, b
 	if (list->focused_child && !strcmp(list->focused_child->name, "op_install_update"))
 		return install_update_begin(list->focused_child);
 #endif
+	graphics_preset_show(list);
 	settings_each(screen_of(list), setting_changed_save);
 	platform_display_apply();
 	ui_play_audio_feedback_sound(SOUND_FORWARD);
@@ -13947,6 +14053,7 @@ boolean pc_menu_event_function_invoke(
 #endif
 		else if (!strcmp(name, "port settings save"))
 		{
+			graphics_preset_show(widget);
 			settings_each(screen_of(widget), setting_changed_save);
 			platform_display_apply();
 		}
@@ -14275,6 +14382,7 @@ void pc_menu_game_data_function_invoke(
 		join4_update(widget);
 	else if (!strcmp(name, "port settings help"))
 	{
+		graphics_preset_show(widget);
 		/* (a screen of nested lists: the one open's rows; Resolution and
 		Window Size are the screen's own, BUTTON STYLE INTERFACE's) */
 		if (views_list(widget) == widget)

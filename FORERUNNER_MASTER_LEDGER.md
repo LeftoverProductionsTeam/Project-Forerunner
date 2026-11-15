@@ -40,7 +40,24 @@ Missing optional scripted damage resources now no-op instead of asserting.
 The probe pauses AI and sets up the injury; it is not Black Echo, human play,
 death-looting acceptance, physical VR or complete multiplayer operations proof.
 
-Current graphics slice: Faber's optional soft shadow budget is connected through
+Current graphics integration: the existing native Video screen now previews
+Classic/Enhanced shading, shadows, model detail and filtering, with Custom for
+manual combinations. OK uses the individual settings' existing writer; Cancel
+writes nothing. No preset file or second settings system was introduced.
+The shared bgfx path now connects inherited per-pixel model lighting, native
+light registers, matched shader pairs, async/failed-link Classic fallback and
+shader preparation. Its missing MCC bump-material key is also connected.
+Ten graphics-source cases, five native-menu workflows and the MCC combiner
+compile/pass; four deliberately broken controls are detected. Windows/Linux/
+Metal driver compilation, actual UI/gameplay, GPU timing and VR remain unverified.
+Video help now states bgfx's outstanding HDR, Light effects and post-AA limits.
+The owner's Universal Halo Graphics directive explicitly authorizes adapting
+OpenH1's World/ray-query AO in the existing renderer. No approval remains pending
+for that work, but no AO implementation or working AO option is claimed yet.
+Exact option classifications and renderer requirements are in the existing
+UPSTREAM_FEATURE_MATRIX.md; native baked lightmaps must not be darkened twice.
+
+Previous graphics milestone: Faber's optional soft shadow budget is connected through
 the native renderer, setting persistence and generated Video/Advanced menus.
 Default zero preserves stock selection/fade arithmetic. Bounded per-window
 history resets on map load; repeated passes in the same native frame share one
@@ -49,8 +66,7 @@ shadow/menu checks pass. Hidden Vulkan gameplay frames were inspected, but the
 native comparison is INCOMPLETE: 288 on-foot drift samples fall short of the
 existing 300-sample minimum. Keep that result open; do not relax the judge.
 GPU savings, dense-crowd appearance, Linux execution and hardware stereo are
-unverified. OpenH1 AO/enhanced graphics parity remains unfinished; the proposed
-shared-renderer ray-query extension is awaiting the owner's explicit decision.
+unverified. OpenH1 AO/enhanced graphics parity remains unfinished.
 Latest scope: further work/files remain only in this root repository on master;
 do not access external staging or other repositories without renewed direction.
 The [complete directive](docs/forerunner/MASTER_DIRECTIVE_2026-11-14.md) is retained;

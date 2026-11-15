@@ -917,7 +917,7 @@ struct vertex_shader_object
 	unsigned char plasma_tried;
 #ifdef HALO_BGFX
 	/* as shader[], the bgfx backend's (d3d8_bgfx.inl) */
-	void *bg_shader[2];
+	void *bg_shader[4]; /* immediate/streamed, then their per-pixel forms */
 #endif
 #ifdef HALO_VULKAN
 	/* the Vulkan backend's name for its program: a hash of its instructions

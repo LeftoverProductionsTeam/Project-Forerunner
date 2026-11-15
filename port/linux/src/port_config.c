@@ -389,6 +389,7 @@ static const struct config_setting config_settings[] =
 		"480 lines tall, at any resolution), or \"off\" for the system's pointer." },
 	{ "display.anti_aliasing", _config_string, DEFAULT_ANTI_ALIASING, "HALO_ANTI_ALIASING", _environment_value,
 		_platform_all,
+		"bgfx supports MSAA; FXAA, SMAA and SSAA require OpenGL.\n"
 		"Smooth jagged edges: \"off\", \"fxaa\", \"smaa\", \"ssaa2x\", \"msaa2x\",\n"
 		"\"msaa4x\" or \"msaa8x\". Android has \"off\", \"fxaa\", \"msaa2x\" and\n"
 		"\"msaa4x\". The default is \"msaa2x\" on 64-bit computers. It is \"off\"\n"
@@ -765,7 +766,8 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Draw every model at full detail at any distance." },
 	{ "display.per_pixel_lighting", _config_boolean, "false", "HALO_PER_PIXEL_LIGHTING", _environment_value,
 		_platform_all,
-		"Light models for each pixel instead of each vertex." },
+		"Light models for each pixel instead of each vertex, on OpenGL or bgfx.\n"
+		"A pending or failed bgfx enhanced shader keeps vertex lighting." },
 	{ "display.structure_culling", _config_integer, "31", "HALO_STRUCTURE_CULLING", _environment_value,
 		_platform_all,
 		"Which tests skip the level's triangles the camera cannot see, as bits\n"
@@ -786,6 +788,7 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"through each other. false: 24 bits, as the Xbox's. Taken up when the\n"
 		"game starts." },
 	{ "display.hdr", _config_boolean, "false", "HALO_HDR", _environment_value, _platform_all,
+		"OpenGL only; bgfx currently renders SDR.\n"
 		"Draw the 3D view into a floating-point back buffer, which keeps what\n"
 		"the game's additive effects (explosions, plasma, lights, the sun's\n"
 		"glare) add past white, and tone map it before the HUD is drawn:\n"
@@ -819,6 +822,7 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 
 	{ "display.light_effects", _config_string, "\"auto\"", "HALO_LIGHT_EFFECTS", _environment_value,
 		_platform_desktop,
+		"OpenGL only; bgfx's Light effects integration remains unfinished.\n"
 		"Light from projectiles, muzzle flashes, glowing emitters and held\n"
 		"weapons, with soft falloff, and blocked by walls. \"high\" is all of\n"
 		"it, \"low\" only the shots and muzzle flashes, \"off\" the game's own\n"

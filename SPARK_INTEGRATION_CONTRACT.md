@@ -656,6 +656,11 @@ content and its target limits. Forerunner's reused Faber `display.shadow_limit`
 changes only native runtime shadow selection; it requires no new authoring field
 or cache conversion. OpenH1's reviewed ray-query/world-space AO and enhanced
 lighting remain pending runtime integration, not advertised Spark capabilities.
+The owner has explicitly authorized that adaptation in the existing renderer.
+The current native Video presets and shared per-pixel model-lighting connection
+require no new Spark schema, compiled-map handoff or lighting asset. They have
+focused compiled-source evidence, not native map/stereo/target acceptance.
+bgfx still lacks HDR and enhanced Light effects; its Video help states the limits.
 Its ambient-only AO must preserve baked self-occlusion rather than darken native
 lightmaps twice. No new editor, lighting asset format or dependency on an upstream
 checkout was introduced. See `UPSTREAM_FEATURE_MATRIX.md` and `TEST_EVIDENCE.md`.

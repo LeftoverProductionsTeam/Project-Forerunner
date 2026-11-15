@@ -408,10 +408,12 @@ static BOOL prep_start(const struct xgpu_program_key *recorded)
 		int flags = recorded->flags & _xgpu_key_depth_bias_bit ? _bg_shader_depth_bias : 0;
 		struct bg_shader *vertex, *fragment;
 
-		/* (bgfx lights each vertex, without the Light effects) */
-		key.per_pixel_lighting = 0;
+		/* Reuse the model-lighting translators; Light effects' occlusion
+		 * buffers still require a separate backend connection. */
+		key.per_pixel_lighting = lit && object->lighting.lights && !object->lighting_failed && per_pixel_lighting() ?
+			(unsigned char)object->lighting.lights : 0;
 		key.plasma_model = 0;
-		vertex = bg_vertex_shader(object, immediate);
+		vertex = bg_vertex_shader(object, immediate, key.per_pixel_lighting != 0);
 		fragment = bg_fragment_shader(&key, flags);
 		if (vertex && fragment)
 		{
@@ -471,7 +473,8 @@ static void prep_collect(double deadline, BOOL wait)
 #ifdef HALO_BGFX
 		if (pending->object)
 		{
-			struct bg_shader *vertex = wait ? NULL : bg_vertex_shader(pending->object, pending->immediate);
+			struct bg_shader *vertex = wait ? NULL : bg_vertex_shader(pending->object, pending->immediate,
+				pending->key.per_pixel_lighting != 0);
 			struct bg_shader *fragment = wait ? NULL : bg_fragment_shader(&pending->key, pending->flags);
 
 			if (vertex && fragment)

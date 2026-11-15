@@ -144,6 +144,8 @@ static struct draw_uniforms bg_uniforms;
 /* the viewport's depth range (x MinZ, y MaxZ - MinZ), and a biased draw's
 offset (x slope factor, y constant in depth units) */
 static float bg_depth_range[4], bg_depth_bias[4];
+/* The same native light registers prepare_draw uploads for OpenGL. */
+static float bg_model_lights[XGPU_MODEL_LIGHT_COUNT][4];
 
 static const struct
 {
@@ -171,6 +173,7 @@ static const struct
 	{ "texture_lod_bias", bg_uniforms.texture_lod_bias, 1, 4 },
 	{ "depth_range", bg_depth_range, 1, 4 },
 	{ "depth_bias", bg_depth_bias, 1, 4 },
+	{ "model_lights", &bg_model_lights[0][0], XGPU_MODEL_LIGHT_COUNT, 4 },
 };
 #define BG_UNIFORM_COUNT (sizeof(bg_uniform_sources) / sizeof(bg_uniform_sources[0]))
 
@@ -1729,14 +1732,15 @@ static struct bg_shader *bg_shader_get(const char *glsl, BOOL fragment, int flag
 	return shader;
 }
 
-static struct bg_shader *bg_vertex_shader(struct vertex_shader_object *program, BOOL immediate)
+static struct bg_shader *bg_vertex_shader(struct vertex_shader_object *program, BOOL immediate, BOOL lit)
 {
-	void **slot = &program->bg_shader[immediate ? 1 : 0];
+	void **slot = &program->bg_shader[(immediate ? 1 : 0) + (lit ? 2 : 0)];
 
 	if (!*slot)
 	{
 		/* (packed normals are unpacked as they are staged: bg_vertex_element) */
-		char *glsl = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count, 0, NULL, FALSE);
+		char *glsl = nv2a_vertex_shader_to_glsl(program->instructions, program->instruction_count, 0,
+			lit ? &program->lighting : NULL, FALSE);
 
 		*slot = bg_shader_get(glsl, FALSE, 0, "vertex", FALSE);
 		free(glsl);
@@ -1955,6 +1959,28 @@ static struct bg_program *bg_program_entry(struct bg_shader *vertex, struct bg_s
 	entry->next = *bucket;
 	*bucket = entry;
 	bg_pair_record(vertex->hash, fragment->hash);
+	return entry;
+}
+
+/* Select both stages together. An enhanced compiler job or failed link
+ * must never pair a lit vertex shader with an unlit pixel shader. */
+static struct bg_program *bg_model_program(struct vertex_shader_object *program, BOOL immediate,
+	struct nv2a_pixel_shader_key *key, int flags, struct bg_shader **vertex, struct bg_shader **fragment)
+{
+	struct bg_program *entry;
+
+	key->per_pixel_lighting = program->lighting.lights && !program->lighting_failed && per_pixel_lighting() ?
+		(unsigned char)program->lighting.lights : 0;
+	*vertex = bg_vertex_shader(program, immediate, key->per_pixel_lighting != 0);
+	*fragment = bg_fragment_shader(key, flags);
+	entry = *vertex && *fragment ? bg_program_entry(*vertex, *fragment) : NULL;
+	if ((!entry || !BGFX_HANDLE_IS_VALID(entry->program)) && key->per_pixel_lighting)
+	{
+		key->per_pixel_lighting = 0;
+		*vertex = bg_vertex_shader(program, immediate, FALSE);
+		*fragment = bg_fragment_shader(key, flags);
+		entry = *vertex && *fragment ? bg_program_entry(*vertex, *fragment) : NULL;
+	}
 	return entry;
 }
 
@@ -3336,7 +3362,7 @@ void xgpu_bgfx_texture_delete(unsigned int name)
 
 /* ---------- the draw's uniforms (prepare_draw's) */
 
-static void bg_uniforms_update(float texture_scale[4][4])
+static void bg_uniforms_update(float texture_scale[4][4], BOOL lit)
 {
 	struct draw_uniforms *converted = &bg_uniforms;
 	unsigned long index;
@@ -3373,6 +3399,8 @@ static void bg_uniforms_update(float texture_scale[4][4])
 		converted->texture_lod_bias[stage] = dword_to_float(state[D3DTSS_MIPMAPLODBIAS]);
 	}
 	converted->screen_offset = (float)UI_OFFSET;
+	for (index = 0; lit && index < XGPU_MODEL_LIGHT_COUNT; index++)
+		memcpy(bg_model_lights[index], device.constants[model_light_register((int)index)], sizeof(bg_model_lights[0]));
 	bg_depth_range[0] = device.viewport.MinZ;
 	bg_depth_range[1] = device.viewport.MaxZ - device.viewport.MinZ;
 	bg_depth_range[2] = bg_depth_range[3] = 0.0f;
@@ -3385,6 +3413,8 @@ static void bg_uniforms_update(float texture_scale[4][4])
 	bg_depth_bias[2] = bg_depth_bias[3] = 0.0f;
 	for (index = 0; index < BG_UNIFORM_COUNT; index++)
 	{
+		if (!lit && bg_uniform_sources[index].source == &bg_model_lights[0][0])
+			continue;
 		if (bg_uniform_sources[index].components == 1)
 		{
 			float value[4] = { *bg_uniform_sources[index].source, 0.0f, 0.0f, 0.0f };
@@ -3837,6 +3867,7 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 	key.combiner_state[D3DRS_PSFINALCOMBINERCONSTANT0] = 0;
 	key.combiner_state[D3DRS_PSFINALCOMBINERCONSTANT1] = 0;
 	key.texture_modes = D3D__RenderState[D3DRS_PSTEXTUREMODES];
+	key.mcc_bump_attenuation = mcc_environment_shader_active();
 	bg_bind_textures(&key, texture_scale);
 	if (!bg_bind_targets(&has_depth) ||
 		!bg_target_rect((float)device.viewport.X, (float)device.viewport.Y, (float)device.viewport.Width,
@@ -3863,18 +3894,16 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 	key.fog_enable = D3D__RenderState[D3DRS_FOGENABLE] != 0;
 	key.fog_table_mode = (unsigned char)D3D__RenderState[D3DRS_FOGTABLEMODE];
 
-	vertex_shader = bg_vertex_shader(program, immediate);
-	fragment_shader = bg_fragment_shader(&key, has_depth && D3D__RenderState[D3DRS_SOLIDOFFSETENABLE] ?
-		_bg_shader_depth_bias : 0);
 	{
-		struct bg_program *entry = vertex_shader && fragment_shader ? bg_program_entry(vertex_shader, fragment_shader) :
-			NULL;
+		struct bg_program *entry = bg_model_program(program, immediate, &key,
+			has_depth && D3D__RenderState[D3DRS_SOLIDOFFSETENABLE] ? _bg_shader_depth_bias : 0,
+			&vertex_shader, &fragment_shader);
 
 		handle = entry ? entry->program : (bgfx_program_handle_t)BGFX_INVALID_HANDLE;
 #ifdef HALO_SHADER_PREP
 		if (entry && entry->noted != shader_prep_serial)
 		{
-			prep_note(&entry->noted, program, immediate, FALSE, FALSE,
+			prep_note(&entry->noted, program, immediate, key.per_pixel_lighting != 0, FALSE,
 				has_depth && D3D__RenderState[D3DRS_SOLIDOFFSETENABLE], declaration->packed_mask, &key);
 		}
 #endif
@@ -3952,7 +3981,7 @@ static void bg_draw(D3DPRIMITIVETYPE type, BOOL immediate, unsigned long first, 
 		bgfx_set_transient_index_buffer(&generated_indices, 0, (uint32_t)generated);
 	}
 
-	bg_uniforms_update(texture_scale);
+	bg_uniforms_update(texture_scale, key.per_pixel_lighting != 0);
 	state = bg_state(has_depth, &stencil, &back_stencil, &rgba) | bg_topology(type);
 	bgfx_set_state(state, rgba);
 	bgfx_set_stencil(stencil, back_stencil);

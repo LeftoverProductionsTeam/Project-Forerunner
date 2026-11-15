@@ -142,8 +142,8 @@ actual Vulkan ray-query AO (`xgpu_vulkan_rt.c`), world SDF/object-proxy occlusio
 enhanced dynamic lights, per-pixel lighting, HDR controls and projection/view
 options. Its ray-traced mode covers ambient occlusion; full path-traced global
 illumination is not established. These paths are NOT imported merely by recording
-them. Native GPU/device/shader ownership in the existing renderer needs an
-approved extension; no second OpenH1 renderer is authorized by this review.
+them. The owner's subsequent Universal Halo Graphics directive authorizes the
+shared-renderer AO extension. A second OpenH1 renderer remains outside that scope.
 
 Faber shadow-budget reuse adapts SutlabSol/OpenCE-Faber commit
 `d67d7922a96e9a24e16cbbe4015c3fe8abc1473f`,
@@ -153,3 +153,67 @@ path, with stock-off default, bounded history, map reset and one shared
 per-window threshold per frame for stereo passes. Existing generated graphics
 menus expose it. Focused/native evidence is in TEST_EVIDENCE.md; this is not
 measured large-horde performance or physical VR acceptance.
+
+## Universal graphics source audit, 15 November 2026
+
+Current local source and retained Git objects were read directly, without a
+second checkout. OpenCE `1519c65f` declares 62 `display.*` settings and Fractum
+`eae91445` 127: every declaration is present locally. Chupathingy `78d28a70`
+declares 93; its three differently named FOV/reticle controls require semantic
+mapping, not blind aliases. OpenH1 `baed7757` declares 83, of which 36 names are
+absent locally; their capabilities are classified below. Declaration counts
+include UI options and prove no renderer behavior. Local source now declares 128
+display settings; `graphics.preset` is a computed menu action, not another one.
+The full Faber, GulchCE and OpenCE-Forge snapshots are not currently available
+as local Git objects. Their earlier pinned findings remain historical; do not
+claim a fresh complete option/consumer audit of those trees. A provenance-history
+query started a lazy request for missing objects and its owned processes were
+stopped; no upstream source repository was edited or new checkout created.
+
+Implemented means a connected source consumer; verification remains a separate
+column. Partially implemented identifies actual backend/semantic gaps. Missing
+means no connected equivalent. Unsupported means unavailable on the named current
+backend. Unverified means the required current source or execution is unavailable.
+
+| Graphics capability/options | Source classification and current consumer | Verification/remaining work |
+| --- | --- | --- |
+| Classic/Enhanced/Custom (`OpenH1 display.graphics`) | Implemented as native `graphics.preset`, `menu_functions.c::graphics_preset_*`, existing generated Video controls/writer. Groups AA, model lighting, light effects, shadows/budget, door light blocking, LOD, filtering, far clip and HDR-off. Resolution, FOV, timing and simulation remain individual choices. | Source menu preview/Cancel/Custom/save/reopen pass; actual native UI and identical-camera comparisons open. This is not an alias for OpenH1's broader simulation-inclusive preset. |
+| Per-pixel model lighting | Implemented on inherited OpenGL and now shared bgfx via `bg_model_program`, twelve native light-register uniforms and existing NV2A translators. Prepared variants match draws, asynchronous/failed programs fall back together. | Focused C/shader-source checks pass; Vulkan, Metal, D3D11, stereo and real model appearance unverified. Android direct Vulkan still lacks this connection. |
+| Enhanced shots/plasma/muzzle/emitters (`OpenH1 display.dynamic_lights`) | Partially implemented: inherited GulchCE-derived `lighting_config`, `plasma_lighting`, `*_emitter_lighting`, `plasma_model_shader` and native OpenGL light paths. `display.light_effects` selects off/low/high/auto. | OpenH1's newer world-light-list/normal-map shader path is not equivalent. bgfx Light effects/occlusion remain unsupported and are explained in Video help. |
+| Dynamic/specular-light quality/budgets | Implemented source `display.dynamic_light_limit`, `specular_light_limit`, `light_effects`, native ranking/culling. | Existing limits are reused; dense Firefight/MegaWorld profiling and platform parity unverified. |
+| World-space and hardware ray-query AO (`display.ambient_occlusion`) | Missing runtime integration. OpenH1 `world_ao`, `world_scene`, `world_sdf`, `world_proxies`, `world_rt` and `xgpu_vulkan_rt` were reviewed at the retained pin. No inert setting/menu switch added. | Requires ambient-only shader slot, scene/geometry upload, bounded cancellable SDF resources, collision BLAS/TLAS, Vulkan capability/descriptor/barrier/retirement adapters. Must preserve baked BSP self-occlusion and fallback. No RT GI claim. |
+| HDR/exposure/tone curves/output | Partially implemented: OpenGL `hdr_read`/`halo_screen_tone_map`, `xgpu_post_tone_map`, existing calibration. Current GT7/neutral/ACES/Reinhard curves and exposure are retained. | bgfx renders SDR; Video help now says so. Real HDR displays, calibration and targets unverified. |
+| OpenH1 `hdr_mode` | Partially implemented intent through existing exposure/tone curves, without an asserted faithful/punchy equivalent. | No silent rename; OpenH1 transforms still need shader comparison. |
+| OpenH1 `hdr_paper_white_nits` | Implemented equivalent control `display.hdr_paper_white` on the OpenGL HDR path. | Actual output/calibration unverified for this change. |
+| OpenH1 `hdr_ui_nits` and `gamma` | Missing separate UI-nit control and configurable final SDR gamma path. | Must preserve HUD brightness, output encoding and VR exclusions. |
+| Shadow quality/budget | Implemented native shadow resolution and Faber-derived soft `shadow_limit`; shared selection per native frame/window. | Prior source/build/render evidence retained; sample shortfall and dense/stereo performance remain open. |
+| MSAA | Implemented OpenGL/bgfx target/sample selection with device limits. | Real device compatibility/quality and stereo acceptance open. |
+| FXAA/SMAA/SSAA | Partially implemented: OpenGL `halo_screen_anti_alias` and existing postprocess; unsupported on bgfx, now explicitly explained. | Retain pre-HUD ordering, split-screen bounds and real GPU validation when adapted. |
+| OpenH1 `supersampling`, `render_scale` | Partially implemented through existing SSAA2x, `resolution_scaling`, `resolution_limit`, `dynamic_resolution`. Arbitrary supersampling and OpenH1's mobile fractional policy are missing. | Different units/target policy; do not alias silently. |
+| Texture filtering/detail/transcoding | Implemented anisotropy, native mip/LOD and existing decode controls. OpenH1 `astc_textures` is only partially equivalent to `dxt1_astc`/current decoding. | No invented texture-quality setting or altered assets; full compressed-format/target comparison open. |
+| Model LOD, particles, visibility | Implemented native `model_detail`, `full_model_detail`, `particle_limit`, `particle_ticks`, far clip, performance controls and structure culling. | No measured huge-horde/19-region performance claim. |
+| Widescreen/ultrawide/FOV (`draw_distance`) | Implemented source with existing aspect/FOV/reticle and `far_clip_distance` consumers. | Preserve Forerunner's 16:9 degrees; Chupathingy's `field_of_view`, `viewmodel_field_of_view`, `reticle_scales_with_fov` are partial semantic mappings. |
+| OpenH1 `vehicle_fov`, `scale_scoped_fov` | Missing independent vehicle/scoped projection controls. Existing FOV is not an equivalent. | Native seats, zoom transitions, cinematics and VR require separate proof. |
+| OpenH1 `panini`, `panini_vertical` | Missing connected projection/postprocess and reticle/viewmodel compensation. | Needs reuse in existing postprocess; off/HUD/stereo behavior must be preserved. |
+| OpenH1 `viewmodel_offset_x/y/z`, `viewmodel_pitch/yaw/roll` | Missing configurable six-axis flat-screen viewmodel adjustments. Native/VR weapon pose is not an equivalent setting. | Preserve authored animations and physical VR ownership. |
+| OpenH1 `lowered_reticle`, `lowered_reticle_amount` | Missing configurable lowered flat-screen reticle/projection pairing. Existing FOV reticle scale does not implement lowering. | Requires aim/projection alignment; never move gameplay aim just to change the HUD. |
+| Frame interpolation/V-Sync/VRR/limits | Implemented source through current interpolation, pacing, direct camera and frames-in-flight settings. | Native determinism remains separate; display/VR/backend timing needs target-specific validation. |
+| OpenH1 `low_latency`, `vrr_cap_margin` | Partially implemented intent, missing its just-in-time pacing and configurable VRR margin. | Not equivalent to turning V-Sync off or changing packet/simulation rates. |
+| OpenH1 `battery_saver` | Missing automatic power-aware preset/pacing policy. Existing performance mode is partial manual control. | No headset throttling policy imported. |
+| Lens flares/plasma effects/CRT | Native lens-flare tests, inherited plasma paths and existing CRT option retained. | Backend-specific light effects and resource pressure remain unverified. |
+| OpenH1 `show_frame_rate` | Implemented equivalent reporting through `display.show_fps`, `frame_rate`, existing stats. | Does not prove GPU cost measurements or a performance increase. |
+| OpenH1 `movies`, `menu_pictures`, `menu_engine`, `menu_fade` | Partially implemented presentation intent through current movie/loading/menu systems; newer OpenH1 menu engine/pictures/fade are absent. | No additional menu engine or upstream art copied. |
+| OpenH1 `frame_style`, `picture_shape`, `picture_position`, `orientation` | Missing those picture-frame/mobile-orientation policies. Existing widescreen/round-screen/window sizing are not exact equivalents. | Target-specific; no authoring or gameplay capability implied. |
+| OpenH1 `overshield_layer_color` | Partially implemented related shield color/glow/overshield controls; separate newer layer-color semantics unverified. | Preserve existing option meaning and licensing. |
+| OpenH1 `spartan_link` | Missing that presentation option; unrelated to Spark capability discovery. | Requires actual HUD behavior review before adoption. |
+| Faber/GulchCE/OpenCE-Forge additional options | Unverified against current unavailable full snapshots; credited Faber shadow and inherited GulchCE lighting code remain present. | Refresh exact sources read-only when available; no unsupported claim of total parity. |
+
+The existing bgfx Vulkan XR patch exposes queue/image handoff, not OpenH1's
+ray-query device features, acceleration-structure descriptors, early build
+commands or safe frame-serial resource retirement. Those must be extended in the
+current backend, not replaced with OpenH1's guest/host renderer. AO must affect
+ambient light alone, keep authored/baked BSP lighting intact, exclude first-person
+weapons/transparents as upstream does, share scene preparation across eyes and
+reset/cancel safely at BSP/map/device transitions. Actual World/Ray Traced fallback,
+hardware execution, screenshots, GPU costs and individual target acceptance stay
+open. No graphics change in this checkpoint changes network data or simulation.

@@ -54,6 +54,36 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Shared graphics lighting and native presets, base `32e88a25f7`:
+
+- Installed MSVC 14.52.37025 x86, SDK 10.0.26100.0, `/O2 /W3 /WX` compile
+  real-source functions extracted by the existing fixtures. **10 graphics
+  cases pass**: Classic, point/distant lights, unrecognized programs, compiler
+  readiness in either stage, failed link, immediate/streamed cache separation
+  and GLSL rewrites for Vulkan/Metal/D3D11. The real native light-register
+  uploader supplies all twelve registers and skips extra uploads for Classic.
+- **5 native-menu workflows pass**: prior account-action cases plus graphics
+  preview/Cancel, manual Custom and OK/reopen. The existing source combiner's
+  MCC/legacy test passes. Disabling lighting, removing shader fallback, writing
+  during preview and suppressing Custom reporting each fail their controls.
+- Existing Video generators produced CE XML and the Xbox-style page's shared
+  preset row. XML parsing, generator equality and Python syntax pass. A fixture
+  lookup initially assumed an unsized array, then omitted a required constant;
+  both fixture issues were corrected without changing engine behavior. The
+  Xbox-style page references CE help/widgets rather than repeating their text;
+  verification follows those references. No substitute test framework was added.
+- This is direct fixture compilation/execution, not a pytest run, full engine
+  build, GPU shader compilation or rendered acceptance. Metal/D3D11 here describe
+  rewritten shader source, not execution on those APIs. No owned usable engine
+  build, toolchain/dependency cache or map data remains inside this checkout for
+  the required native smoke/screenshots. Do not revive the removed external
+  staging or create a nested project/repository copy to work around that gap.
+- World/ray-query AO, compatible-GPU execution, unsupported-GPU fallback,
+  map transitions, stereo effects, identical-camera Classic/Enhanced captures,
+  dense encounter GPU costs and target-specific acceptance remain OPEN. The old
+  shadow comparison's sample shortfall is unchanged. Scratch was local and removed;
+  no maps, saves or other repository files were modified, and nothing was pushed.
+
 Confirmed stash discard, base `e08f85816`:
 
 - Existing actual-source gear fixture: **14 cases pass**, including a full

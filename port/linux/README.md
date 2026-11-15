@@ -728,6 +728,17 @@ value is taken out (with the comment the older version wrote above it) only
 when the player answers "Use the new settings" to the question below; "Keep
 mine" leaves it, and a value that is no default stays in either case.
 
+Video Settings' Graphics row previews Classic or Enhanced shading, shadows,
+model detail and texture filtering. Custom keeps manual combinations. The row
+is computed from the individual options: OK saves those with the existing
+settings writer and Cancel discards the preview. There is no separate preset
+file or simulation change. Resolution, FOV and timing remain individual choices.
+Enhanced uses native per-pixel model lighting on OpenGL or bgfx; a pending or
+failed bgfx shader falls back to the native vertex-lit form. OpenGL currently
+owns HDR, Light effects and FXAA/SMAA/SSAA; bgfx retains SDR and MSAA. The Video
+help explains those limits. OpenH1 World/ray-query AO is not yet a supported
+option. Actual driver/UI/gameplay and individual target acceptance remain open.
+
 When a version changes the default of settings that a `config.toml` has
 untouched (commented out, or not there), the game asks once, before the
 window opens, in a message box on the desktop and on Android: "Use the new
