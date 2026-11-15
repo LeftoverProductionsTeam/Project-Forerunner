@@ -117,6 +117,10 @@ boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapo
 boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *inventory);
 boolean game_modes_inventory_apply(long player_index, struct game_modes_inventory const *inventory,
 	long created[GAME_MODES_INVENTORY_WEAPONS]);
+/* Same game-thread grant only: remove its exact provisional objects and, when
+ * non-NULL, only its newly added grenades. No input may run before this rollback. */
+void game_modes_inventory_revoke(long unit_index, struct game_modes_inventory const *granted,
+	long created[GAME_MODES_INVENTORY_WEAPONS]);
 /* Consume only the exact captured native gear after durable escape escrow.
  * Objective weapons remain mission state. Never accepts a client inventory. */
 boolean game_modes_inventory_consume(long player_index, struct game_modes_inventory const *inventory,

@@ -7,7 +7,11 @@
 #define NUMBEROF(a) ((long)(sizeof(a)/sizeof((a)[0])))
 #define VALID_INDEX(i,n) ((i)>=0&&(i)<(n))
 #define SHORT_MAX 32767
+#ifdef GEAR_NATIVE_FILES
+#include "posix.h"
+#else
 typedef unsigned long posix_ulong;
+#endif
 #include "types.inc"
 
 static struct { char path[1024]; byte data[65536]; posix_ulong size; boolean present, locked; } files[4];
@@ -15,12 +19,14 @@ static boolean client, playing = TRUE, fail_write, publish_failure, shared_cache
 static int connection = _game_connection_local, folder_calls, file_count;
 static char const *map = "candidate@ce";
 static unsigned long checksum = 42;
+static char const *native_folder;
 static boolean game_in_progress(void) { return playing; }
 static boolean network_game_distributed_client(void) { return client; }
 static int game_connection(void) { return connection; }
 static char const *cache_file_loaded_map_name(void) { return map; }
 static unsigned long cache_files_get_checksum(void) { return checksum; }
-char const *platform_folder(enum port_folder folder) { folder_calls++; return "owned/private"; }
+char const *platform_folder(enum port_folder folder) { folder_calls++; return native_folder ? native_folder : "owned/private"; }
+#ifndef GEAR_NATIVE_FILES
 static int posix_is_link(char const *path) { return 0; }
 static int posix_make_directory(char const *path) { return 0; }
 static int posix_stat(char const *path, struct posix_file_information *information)
@@ -57,6 +63,7 @@ static int posix_gear_replace(char const *path, void const *buffer, posix_ulong 
  memcpy(files[index].data, buffer, size); files[index].size = size; files[index].present = TRUE;
  return !publish_failure;
 }
+#endif
 #include "sha.inc"
 #define config_boolean(name) shared_cache
 #include "under_test.inc"
@@ -91,7 +98,7 @@ static void capture(short count)
 
 static void earn(short count)
 {
- CHECK(gear_reserve(&session), "initial deployment failed");
+ CHECK(gear_reserve(&session) && gear_confirm_deployment(&session), "initial deployment failed");
  capture(count);
  CHECK(gear_prepare_escape(&session, &inventory, objects), "escape escrow failed");
  CHECK(gear_finish_escape(&session), "escape settlement failed");
@@ -104,6 +111,10 @@ int main(int argc, char **argv)
  byte data[GEAR_RECORD_BYTES], other[GEAR_ID_BYTES];
  struct gear_record decoded;
  posix_ulong size;
+#ifdef GEAR_NATIVE_FILES
+ if(argc!=3||strncmp(case_name,"native-",7))return 2;
+ native_folder=argv[2];
+#endif
  gear_profile_owner("u:\\saved\\profile-one", owner);
  CHECK(gear_nonzero(owner), "profile owner missing");
  if (!strcmp(case_name, "authority")) {
@@ -114,8 +125,21 @@ int main(int argc, char **argv)
  }
  CHECK(gear_open(&session, owner), "owner record did not open");
  CHECK(!gear_open(&reopened, owner), "same owner admitted twice");
- if (!strcmp(case_name, "escape-reopen")) {
-  CHECK(gear_reserve(&session), "deployment failed"); capture(2);
+ if (!strcmp(case_name,"native-prepared")||!strcmp(case_name,"native-issued")) {
+  earn(2);session.grenade_room[0]=session.grenade_room[1]=4;
+  CHECK(gear_reserve(&session),"native preparation failed");
+  if(!strcmp(case_name,"native-issued"))CHECK(gear_confirm_deployment(&session),"native issue confirmation failed");
+  puts("ready");fflush(stdout);getchar(); /* Parent kills this owned process without gear_close. */
+ } else if(!strcmp(case_name,"native-refund")) {
+  CHECK(session.record.count==2&&!session.record.reserved_count&&session.record.phase==_gear_idle&&
+   session.record.grenades[0]==2&&session.record.grenades[1]==1,"native process death lost unissued gear");
+  CHECK(gear_loadout(&session,&loadout)&&loadout.weapon_count==2&&loadout.weapons[0].rounds_loaded[0]==5&&
+   loadout.weapons[1].rounds_reserve[0]==51,"native preparation refund changed equipment");
+ } else if(!strcmp(case_name,"native-loss")) {
+  CHECK(session.record.phase==_gear_idle&&!session.record.count&&!session.record.reserved_count&&
+   !session.record.grenades[0]&&!session.record.grenades[1],"native process death refunded issued gear");
+ } else if (!strcmp(case_name, "escape-reopen")) {
+  CHECK(gear_reserve(&session) && gear_confirm_deployment(&session), "deployment failed"); capture(2);
   CHECK(gear_prepare_escape(&session, &inventory, objects), "escrow failed");
   gear_close(&session);
   CHECK(gear_open(&reopened, owner) && reopened.record.count == 2, "saved escape not recovered");
@@ -151,6 +175,7 @@ int main(int argc, char **argv)
    "failed grant silently switched the saved pair");
  } else if (!strcmp(case_name, "choice-recovery")) {
   earn(3); CHECK(gear_cycle_loadout(&session) && gear_reserve(&session) && gear_loadout(&session,&inventory),"chosen deployment failed");
+  CHECK(gear_confirm_deployment(&session),"chosen native grant was not confirmed");
   objects[0]=0x20001;objects[1]=0x20002;gear_track_reserved(&session,objects);
   inventory.weapons[0].rounds_loaded[0]=2;
   CHECK(gear_prepare_escape(&session,&inventory,objects) && gear_finish_escape(&session),"chosen return failed");
@@ -208,13 +233,14 @@ int main(int argc, char **argv)
  } else if (!strcmp(case_name, "loss")) {
   earn(3);
   CHECK(gear_reserve(&session) && session.record.count == 1 && session.record.reserved_count == 2, "wrong risk reservation");
+  CHECK(gear_confirm_deployment(&session),"issued loadout was not recorded");
   CHECK(gear_lose(&session) && session.record.phase == _gear_idle && session.record.count == 1 && !session.record.reserved_count,
    "failed run awarded or restored at-risk gear");
   gear_close(&session); CHECK(gear_open(&session, owner) && session.record.count == 1, "loss damaged the rest of the stash");
-  CHECK(gear_reserve(&session), "next run failed"); gear_close(&session);
+  CHECK(gear_reserve(&session) && gear_confirm_deployment(&session), "next run failed"); gear_close(&session);
   CHECK(gear_open(&session, owner) && session.record.count == 0 && session.record.phase == _gear_idle, "abandoned run refunded gear");
  } else if (!strcmp(case_name, "uncertain")) {
-  CHECK(gear_reserve(&session), "deployment failed"); capture(2);
+  CHECK(gear_reserve(&session) && gear_confirm_deployment(&session), "deployment failed"); capture(2);
   fail_write = TRUE;
   CHECK(!gear_prepare_escape(&session, &inventory, objects) && session.record.phase == _gear_deployed, "failed write changed ownership");
   fail_write = FALSE; publish_failure = TRUE;
@@ -224,6 +250,36 @@ int main(int argc, char **argv)
   publish_failure = FALSE;
   CHECK(gear_finish_escape(&session) && session.record.count == 2, "pending settlement could not recover");
   CHECK(gear_finish_escape(&session) && session.record.count == 2, "retry awarded twice");
+ } else if (!strcmp(case_name,"reserve-reopen")) {
+  byte ids[2][GEAR_ID_BYTES];unsigned long generation;short i;
+  earn(2);for(i=0;i<2;i++)memcpy(ids[i],session.record.items[i].id,GEAR_ID_BYTES);
+  session.grenade_room[0]=session.grenade_room[1]=4;
+  CHECK(gear_reserve(&session)&&session.record.phase==_gear_reserved,"preparation was marked issued");
+  generation=session.record.generation;
+  CHECK(gear_reserve(&session)&&session.record.generation==generation,"preparation retry reserved twice");
+  capture(2);CHECK(!gear_prepare_escape(&session,&inventory,objects),"unissued preparation earned escape rewards");
+  fail_write=TRUE;CHECK(!gear_cancel_reservation(&session),"fixture outage did not block refund");gear_close(&session);
+  CHECK(!gear_open(&session,owner),"unwritable refund opened an unsafe stash");
+  fail_write=FALSE;CHECK(gear_open(&session,owner)&&session.record.count==2&&!session.record.reserved_count&&
+   session.record.grenades[0]==2&&session.record.grenades[1]==1,"unissued crash reservation lost owned gear");
+  for(i=0;i<2;i++)CHECK(!memcmp(ids[i],session.record.items[i].id,GEAR_ID_BYTES),"refund changed item identity");
+ } else if (!strcmp(case_name,"confirm-failure")) {
+  earn(2);CHECK(gear_reserve(&session),"preparation failed");fail_write=TRUE;
+  CHECK(!gear_confirm_deployment(&session)&&session.record.phase==_gear_reserved,"failed confirmation became issued");
+  fail_write=FALSE;CHECK(gear_confirm_deployment(&session)&&session.record.phase==_gear_deployed,"native grant could not confirm");
+  CHECK(!gear_cancel_reservation(&session)&&!gear_reserve(&session),"issued gear could refund or reserve twice");
+  CHECK(gear_lose(&session)&&!session.record.count,"confirmed failed run refunded gear");
+ } else if (!strcmp(case_name,"confirm-uncertain")) {
+  unsigned long generation;
+  earn(2);CHECK(gear_reserve(&session),"preparation failed");publish_failure=TRUE;
+  CHECK(gear_confirm_deployment(&session)&&session.pending&&session.record.phase==_gear_deployed,
+   "published native grant was revoked after a flush error");
+  generation=session.record.generation;
+  CHECK(gear_confirm_deployment(&session)&&session.record.generation==generation,
+   "published confirmation retry revoked gear or committed twice");
+  client=TRUE;CHECK(!gear_confirm_deployment(&session),"client confirmed a host-owned deployment");client=FALSE;
+  gear_close(&session);publish_failure=FALSE;
+  CHECK(gear_open(&session,owner)&&!session.record.count&&!session.record.reserved_count,"issued crash reservation was refunded");
  } else if (!strcmp(case_name, "corrupt")) {
   earn(2); size = gear_encode(&session.record, data);
   CHECK(size == GEAR_HEADER_BYTES + 2 * GEAR_ITEM_BYTES + 32 && gear_decode(data, size, owner, &decoded), "codec layout mismatch");

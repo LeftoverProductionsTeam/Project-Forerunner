@@ -13,7 +13,7 @@ from harness.tests.test_gear import generated as gear_generated
 def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
     inventory = read('port/linux/game/game_modes.c')
-    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'apply', 'consume')
+    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
     if fault:
         equipment = mutated(equipment, *fault)
@@ -48,6 +48,9 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
                                  'biped-first', 'biped-second', 'biped-survival',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
+                                 'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
+                                 'confirmation-outage', 'confirmation-published',
+                                 'reservation-published',
                                  'transfer', 'grant-failure', 'authority', 'native-controls',
                                  'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
                                  'restore', 'pending', 'binding', 'disconnect',
@@ -75,6 +78,21 @@ def test_biped_admission_negative_control():
     status, output = run(build('extraction', generated((
         '!unit_can_use_weapon(player->unit_index, created[index])',
         'FALSE'))), 'biped-second')
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('file,before,after,case', [
+    ('under_test.inc', 'if (session->record.phase == _gear_reserved && !gear_cancel_reservation(session)) goto failed;',
+     '', 'refund-disconnect-outage'),
+    ('extraction.inc', 'game_modes_inventory_revoke(player->unit_index, &loadout, created);',
+     '', 'confirmation-outage'),
+    ('under_test.inc', 'return session->record.phase == _gear_deployed;',
+     'return !session->pending && session->record.phase == _gear_deployed;', 'confirmation-published'),
+])
+def test_native_confirmation_negative_control(file, before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == file else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
     assert status == CHECK_FAILED, output
 
 

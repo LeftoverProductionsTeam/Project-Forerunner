@@ -144,7 +144,7 @@ static boolean gear_items_valid(struct gear_item const *items, short count)
 static boolean gear_record_valid(struct gear_record const *record)
 {
 	short index;
-	if (!gear_nonzero(record->owner) || record->phase < _gear_idle || record->phase > _gear_escrow ||
+	if (!gear_nonzero(record->owner) || record->phase < _gear_idle || record->phase > _gear_reserved ||
 		record->outcome < _gear_no_outcome || record->outcome > _gear_lost ||
 		record->count < 0 || record->count > GEAR_CAPACITY ||
 		record->reserved_count < 0 || record->reserved_count > GAME_MODES_INVENTORY_WEAPONS ||
@@ -158,9 +158,9 @@ static boolean gear_record_valid(struct gear_record const *record)
 		if (record->grenades[index] < 0 || record->reserved_grenades[index] < 0 || record->escrow_grenades[index] < 0 ||
 			record->grenades[index] > SHORT_MAX - record->escrow_grenades[index] ||
 			(record->phase == _gear_idle && (record->reserved_grenades[index] || record->escrow_grenades[index])) ||
-			(record->phase == _gear_deployed && record->escrow_grenades[index])) return FALSE;
+			(record->phase != _gear_escrow && record->escrow_grenades[index])) return FALSE;
 	if ((record->phase == _gear_idle && gear_nonzero(record->run)) ||
-		(record->phase == _gear_deployed && record->escrow_count)) return FALSE;
+		((record->phase == _gear_deployed || record->phase == _gear_reserved) && record->escrow_count)) return FALSE;
 	for (index = 0; index < record->reserved_count; index++)
 		if (gear_has(record->items, record->count, record->reserved[index].id)) return FALSE;
 	for (index = 0; index < record->escrow_count; index++)
@@ -228,12 +228,17 @@ static boolean gear_decode(byte const *buffer, posix_ulong size, byte const owne
 	return gear_record_valid(record);
 }
 
+static boolean gear_host(void)
+{
+	return game_in_progress() && !network_game_distributed_client() &&
+		(game_connection() == _game_connection_local || game_connection() == _game_connection_network_server);
+}
+
 static boolean gear_flush(struct gear_session *session)
 {
 	byte buffer[GEAR_RECORD_BYTES];
 	posix_ulong size;
-	if (!session->opened || !game_in_progress() || network_game_distributed_client() ||
-		(game_connection() != _game_connection_local && game_connection() != _game_connection_network_server)) return FALSE;
+	if (!session->opened || !gear_host()) return FALSE;
 	if (!session->pending) return TRUE;
 	size = gear_encode(&session->record, buffer);
 	if (!posix_gear_replace(session->path, buffer, size)) return FALSE;
@@ -279,8 +284,7 @@ boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
 	short index;
 	int read;
 
-	if (session->opened || !game_in_progress() || network_game_distributed_client() ||
-		(game_connection() != _game_connection_local && game_connection() != _game_connection_network_server)) return FALSE;
+	if (session->opened || !gear_host()) return FALSE;
 	root = platform_folder(_port_folder_private);
 	if (!root || !gear_nonzero(owner) ||
 		snprintf(folder, sizeof(folder), "%s/gear", root) >= (int)sizeof(folder) || posix_is_link(folder)) return FALSE;
@@ -301,7 +305,10 @@ boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
 		session->pending = TRUE;
 		if (!gear_flush(session)) goto failed;
 	}
-	/* Stash survives a failed run. Reserved gear is at risk from deployment;
+	/* No usable native grant was confirmed: refund the saved preparation even
+	 * when the failed grant's refund could not be written before disconnect. */
+	if (session->record.phase == _gear_reserved && !gear_cancel_reservation(session)) goto failed;
+	/* Stash survives a failed run. Issued gear is at risk from deployment;
 	 * only a captured, saved escape escrow can recover rewards after a crash. */
 	if (session->record.phase == _gear_deployed && !gear_lose(session)) goto failed;
 	if (session->record.phase == _gear_escrow)
@@ -399,7 +406,7 @@ boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *
 	if (!gear_flush(session) || !map || strlen(map) >= sizeof(inventory->map_name)) return FALSE;
 	strcpy(inventory->map_name, map);
 	inventory->map_checksum = cache_files_get_checksum();
-	if (session->record.phase == _gear_deployed)
+	if (session->record.phase == _gear_deployed || session->record.phase == _gear_reserved)
 	{
 		for (index = 0; index < session->record.reserved_count; index++)
 			inventory->weapons[inventory->weapon_count++] = session->record.reserved[index].equipment;
@@ -426,7 +433,7 @@ boolean gear_reserve(struct gear_session *session)
 	short count, index, kept, indices[GEAR_LOADOUT_WEAPONS];
 
 	if (!gear_flush(session)) return FALSE;
-	if (session->record.phase == _gear_deployed)
+	if (session->record.phase == _gear_reserved)
 		return !memcmp(session->record.run, session->run, GEAR_ID_BYTES);
 	if (session->record.phase != _gear_idle) return FALSE;
 	next = session->record;
@@ -447,8 +454,25 @@ boolean gear_reserve(struct gear_session *session)
 		next.reserved_grenades[index] = MIN(PIN(session->grenade_room[index], 0, 127), next.grenades[index]);
 		next.grenades[index] -= next.reserved_grenades[index];
 	}
-	next.phase = _gear_deployed;
+	next.phase = _gear_reserved;
 	return gear_commit(session, &next);
+}
+
+boolean gear_confirm_deployment(struct gear_session *session)
+{
+	struct gear_record next;
+	if (!session->opened || !gear_host() || memcmp(session->record.run, session->run, GEAR_ID_BYTES)) return FALSE;
+	if (session->record.phase == _gear_deployed)
+	{
+		gear_flush(session);
+		return TRUE; /* Retrying a published confirmation cannot revoke it. */
+	}
+	if (!gear_flush(session) || session->record.phase != _gear_reserved) return FALSE;
+	next = session->record; next.phase = _gear_deployed;
+	gear_commit(session, &next);
+	/* Once published, never cancel issued gear because a directory flush
+	 * failed. Existing pending-write handling retries without a second grant. */
+	return session->record.phase == _gear_deployed;
 }
 
 static void gear_run_clear(struct gear_record *record, short outcome)
@@ -469,7 +493,7 @@ boolean gear_cancel_reservation(struct gear_session *session)
 	short index;
 	if (!gear_flush(session)) return FALSE;
 	if (session->record.phase == _gear_idle) return TRUE;
-	if (session->record.phase != _gear_deployed ||
+	if (session->record.phase != _gear_reserved ||
 		session->record.count + session->record.reserved_count > GEAR_CAPACITY) return FALSE;
 	next = session->record;
 	/* A failed native grant restores the chosen pair ahead of the rest. */
@@ -489,6 +513,7 @@ boolean gear_lose(struct gear_session *session)
 {
 	struct gear_record next;
 	if (!gear_flush(session)) return FALSE;
+	if (session->record.phase == _gear_reserved) return gear_cancel_reservation(session);
 	if (session->record.phase == _gear_escrow) return gear_finish_escape(session);
 	if (session->record.phase == _gear_idle) return TRUE;
 	next = session->record; gear_run_clear(&next, _gear_lost);
@@ -555,6 +580,7 @@ boolean gear_finish_escape(struct gear_session *session)
 void gear_track_reserved(struct gear_session const *session, long const object_indices[GAME_MODES_INVENTORY_WEAPONS])
 {
 	short index;
+	if (session->record.phase != _gear_deployed) return;
 	for (index = 0; index < session->record.reserved_count; index++)
 	{
 		long object_index = object_indices[index];
@@ -583,6 +609,7 @@ boolean gear_cycle_loadout(struct gear_session *session) { return FALSE; }
 struct gear_item const *gear_loadout_choice(struct gear_session *session) { return NULL; }
 boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation) { return FALSE; }
 boolean gear_reserve(struct gear_session *session) { return FALSE; }
+boolean gear_confirm_deployment(struct gear_session *session) { return FALSE; }
 boolean gear_cancel_reservation(struct gear_session *session) { return FALSE; }
 boolean gear_lose(struct gear_session *session) { return FALSE; }
 boolean gear_prepare_escape(struct gear_session *session, struct game_modes_inventory const *inventory,

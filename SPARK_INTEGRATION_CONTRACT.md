@@ -553,9 +553,16 @@ little-endian codec and SHA-256 integrity check. `posix_files.c` and
 `win32_files.c` flush staging data and atomically replace the record; linked or
 nonregular staging files are refused before truncation. No database, second
 inventory network protocol, profile-path export or personal save migration.
-Reservations precede native grants; a failed staged grant removes only the new
-objects and returns reserved items. Death/disconnect/abandoned deployment loses
-only at-risk reservations. Saved escape escrow rolls forward once on reopen;
+`gear_reserve` now saves unissued phase 3 before native application;
+`gear_confirm_deployment` records phase 1 after the grant, before any tick/input
+can use it. Failed confirmation reuses `game_modes_inventory_revoke` to remove
+only that grant's objects/grenades before refund. An unissued preparation refunds
+on reopen even after an outage survives disconnect; a confirmed deployment
+retains death/disconnect/abandonment loss. The version-1 layout and existing phase
+0/1/2 values are unchanged; older readers reject phase 3 safely, so pending
+preparations require the updated runtime. Legacy deployed records retain their
+old loss policy. Spark never edits these private records. Saved escape escrow
+rolls forward once on reopen;
 published-but-uncertain writes retry the same intent rather than minting rewards.
 These are implementation/automated checks, not power-loss or gameplay acceptance.
 

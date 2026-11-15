@@ -3,6 +3,23 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current inventory repair: unissued loadouts now have a prepared reservation,
+distinct from confirmed native deployments. If grant/confirmation fails, only
+its new objects and added grenades are revoked; a prepared record refunds on
+reopen even when the outage lasted through disconnect, slot reuse or map exit.
+Published confirmations remain authoritative while their flush retries, and
+issued gear retains normal death/disconnect/crash loss. The actual prior source
+reproduces ungranted departure loss; 45 connected workflows, 18 record cases and
+three broken controls pass. Windows64 compiles. Two real Windows-backend process
+termination cases prove prepared refund versus confirmed loss, lock exclusion
+and repeated recovery without duplication. No user stash or game map was opened.
+Version-1 fields and phase 0/1/2 values remain; old readers safely reject new
+in-flight phase 3, which needs this updated runtime to recover. Legacy deployed
+records keep their old conservative loss policy. Native authored-map grants,
+physical power loss and other-platform execution remain unverified. Existing
+carried drops retain the prior rollback behavior. Scratch/child records are
+removed; one writer/lock and the existing native file harness are reused.
+
 Current revival guidance: the existing medical state now drives the native HUD's
 four nearest friendly casualty arrows, without consuming scripted mission-marker
 slots. Native occlusion/off-screen/distance drawing and render interpolation are
@@ -94,9 +111,9 @@ departures still lose gear. Native weapon admission now matches distributed
 inventory's authored starting-ammo limit. Eighteen connected workflows and two
 original-defect controls pass; Windows64 compiles incrementally. The existing
 fixture checks identities, grenades, cleanup, redeployment and recovery; authored
-native-map acceptance remains open. A storage outage lasting through session
-close still cannot guarantee a refund; its failure is logged. Abrupt-crash loss
-policy is unchanged. No save format, protocol or subsystem was added, and owned
+native-map acceptance remains open. The earlier close-time refund outage is
+resolved by prepared-grant recovery above; confirmed deployments retain their
+normal interrupted-run loss policy. No new writer, protocol or subsystem was added, and owned
 compile scratch is removed. Details are in TEST_EVIDENCE.md.
 
 Current co-op voice repair: native co-op has no multiplayer engine, so the old

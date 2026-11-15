@@ -12,6 +12,46 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, prepared native grant recovery (base `614d2db342`): compilation of
+the actual prior committed `gear.c`, `extraction.c` and `game_modes.c` in the
+existing connected fixture reproduces lost ungranted equipment after a refund
+outage survives disconnect. No old checkout or full baseline build was needed.
+The current production functions pass 45 connected inventory workflows and 18
+direct record cases with MSVC x86 `/O2 /W3 /WX`. Added cases cover outage through
+disconnect/recycled slot/map exit, uncertain preparation publication, failure
+after native application, rollback of only new grenades/objects, compatible
+retry, confirmed loss, crash reopen, exact item identities and published-confirm
+retry without a second commit. Three broken integrations detect missing reopen
+refund, missing native rollback and wrongful revocation after published intent.
+Game/identity/OS-failure adapters in these checks are fixtures.
+
+The existing native-file test now also compiles the actual gear codec/state
+machine with the existing Windows file backend. The exact process-death test
+body from `tools/test_gear_files.py` runs against that MSVC x86 driver:
+
+- Kill the owned process after durable prepared phase 3: a second opener is
+  refused while the lock is held; after termination, the same two weapons,
+  quantities and grenades return to the stash. Reopening again preserves them.
+- Kill after confirmed phase 1: the same exclusion holds, but reopening loses
+  issued gear and awards nothing. Repeated reopening cannot refund it.
+
+These are actual Windows files, locking, atomic replacement and process
+termination; gameplay/tag lookup still uses bounded adapters. They do not prove
+physical power loss or native authored-map deployment. No actual Halo map, user
+profile or saved inventory was opened. Prepared rollback may leave previous
+carried equipment as existing native world drops, as on the old grant-failure
+path; it does not promise an atomic swap of every preexisting carried object.
+
+Windows64 final incremental build: `build/native-prepared-grant-final-build.log`,
+SHA-256 `c85193fe30fb7e39b0c7033dc2f07a151dc3f444504edf7c33b848f7713b4d41`.
+Version-1 binary layout is unchanged; phase 3 is additive. Older readers reject
+an in-flight prepared record without modifying it; this updated runtime must
+finish/refund it. Existing phase-1 records retain their prior loss semantics,
+so this is not a retrospective refund of ambiguous legacy runs. Protocol and
+native saved-world layouts are unchanged. Child processes, test records and
+compile scratch are removed. Other platforms and full native gear acceptance
+remain open; unrelated gameplay/hardware checks were not repeated.
+
 15 November, connected native revival guidance (base `6a0d131f7e`): the existing
 Extraction C harness compiles/passes 35 workflows with MSVC x86 `/O2 /W3 /WX`.
 New cases exercise the actual medical eligibility and native HUD selection/draw

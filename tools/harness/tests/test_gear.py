@@ -21,8 +21,8 @@ def generated(fault=None):
         without_includes(read('port/linux/game/gear.h')),
         enum_with(read('port/linux/src/port_folders.h'), '_port_folder_private,'),
         enum_with(read('source/game/game.h'), '_game_connection_local'),
-        enum_with(read('port/linux/src/posix.h'), '_posix_file_is_directory'),
-        structure(read('port/linux/src/posix.h'), 'posix_file_information'),
+        '#ifndef GEAR_NATIVE_FILES\n' + enum_with(read('port/linux/src/posix.h'), '_posix_file_is_directory') +
+        '\n' + structure(read('port/linux/src/posix.h'), 'posix_file_information') + '\n#endif',
         '#define MAXIMUM_OBJECTS_PER_MAP %d' % constant(read('source/objects/objects.h'), 'MAXIMUM_OBJECTS_PER_MAP'),
     ])
     if fault:
@@ -31,6 +31,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', ['authority', 'escape-reopen', 'loss', 'uncertain', 'corrupt', 'cache',
+                                'reserve-reopen', 'confirm-failure', 'confirm-uncertain',
                                 'choice-reopen', 'choice-failure', 'choice-cancel', 'choice-recovery', 'choice-cache',
                                 'discard', 'discard-uncertain', 'discard-state', 'shared-cache'])
 def test_transactions(case):
@@ -41,6 +42,13 @@ def test_transactions(case):
 def test_loss_negative_control():
     status, output = run(build('gear', generated((
         'next = session->record; gear_run_clear(&next, _gear_lost);', 'next = session->record;'))), 'loss')
+    assert status == CHECK_FAILED, output
+
+
+def test_prepared_recovery_negative_control():
+    status, output = run(build('gear', generated((
+        'if (session->record.phase == _gear_reserved && !gear_cancel_reservation(session)) goto failed;',
+        '/* Missing prepared recovery. */'))), 'reserve-reopen')
     assert status == CHECK_FAILED, output
 
 

@@ -247,17 +247,27 @@ boolean game_modes_inventory_apply(long player_index, struct game_modes_inventor
 failed:
 	/* A partial grant cannot survive a reservation cancellation. Old carried
 	 * weapons already dropped remain real world loot, never silently deleted. */
+	game_modes_inventory_revoke(player->unit_index, NULL, created);
+	return FALSE;
+}
+
+void game_modes_inventory_revoke(long unit_index, struct game_modes_inventory const *granted,
+	long created[GAME_MODES_INVENTORY_WEAPONS])
+{
+	short index;
+	struct unit_datum *unit = unit_get(unit_index);
 	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)
 	{
 		struct weapon_datum *weapon = weapon_try_and_get(created[index]);
 		if (weapon)
 		{
-			if (weapon->object.parent_object_index == player->unit_index) unit_drop_weapon(player->unit_index, created[index]);
+			if (weapon->object.parent_object_index == unit_index) unit_drop_weapon(unit_index, created[index]);
 			object_delete(created[index]);
 		}
 		created[index] = NONE;
 	}
-	return FALSE;
+	if (granted)
+		for (index = 0; index < NUMBEROF(granted->grenades); index++) unit->unit.grenade_counts[index] -= granted->grenades[index];
 }
 
 boolean game_modes_inventory_consume(long player_index, struct game_modes_inventory const *inventory,

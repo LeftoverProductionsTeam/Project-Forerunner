@@ -416,6 +416,16 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		run->retry_tick = game_time_get();
 		extraction_block(run, "DEPLOYMENT BLOCKED | Native loadout could not be placed; reserved gear is returning to the stash."); return FALSE;
 	}
+	if (!gear_confirm_deployment(&run->gear))
+	{
+		/* No tick/input occurs between grant and confirmation. Remove only
+		 * this grant before refunding; never leave usable unissued equipment. */
+		game_modes_inventory_revoke(player->unit_index, &loadout, created);
+		if (!gear_cancel_reservation(&run->gear)) run->phase = _extraction_cancelling;
+		run->retry_tick = game_time_get();
+		extraction_block(run, "DEPLOYMENT PENDING | Equipment returned; stash confirmation failed. Retry after storage recovers.");
+		return FALSE;
+	}
 	gear_track_reserved(&run->gear, created);
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;

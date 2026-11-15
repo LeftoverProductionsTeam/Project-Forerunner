@@ -10,7 +10,9 @@
 #define GEAR_LOADOUT_WEAPONS 2
 #define GEAR_ID_BYTES 16
 
-enum gear_phase { _gear_idle, _gear_deployed, _gear_escrow };
+/* Append phases: existing idle/deployed/escrow records retain their values and
+ * layout. Older readers safely reject an in-flight prepared reservation. */
+enum gear_phase { _gear_idle, _gear_deployed, _gear_escrow, _gear_reserved };
 enum gear_outcome { _gear_no_outcome, _gear_escaped, _gear_lost };
 
 struct gear_item
@@ -60,7 +62,12 @@ struct gear_item const *gear_loadout_choice(struct gear_session *session);
 /* Discard only the confirmed idle-stash item at the previewed generation.
  * Retrying a published deletion confirms it without removing another item. */
 boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation);
+/* Prepare the chosen pair before any grant. This unissued phase refunds on
+ * reopen; only confirmed native deployments acquire the normal loss policy. */
 boolean gear_reserve(struct gear_session *session);
+/* Confirm after the native grant, before any input/simulation can use it.
+ * A published intent is authoritative even if its flush still needs retry. */
+boolean gear_confirm_deployment(struct gear_session *session);
 boolean gear_cancel_reservation(struct gear_session *session);
 boolean gear_lose(struct gear_session *session);
 /* Persist the live return in escrow before consuming its world objects;

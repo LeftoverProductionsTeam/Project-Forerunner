@@ -70,7 +70,7 @@ static struct unit_datum units[8];
 static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
-static boolean fail_refund;
+static boolean fail_refund, fail_confirm, publish_confirm;
 static struct control_datum controls[3];
 static long control_handles[3] = { 0x10003, 0x10004, 0x10005 };
 static struct control_definition control_tag;
@@ -167,7 +167,8 @@ static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
  if(fail_attach && !--fail_attach) { if(fail_refund) fail_write=TRUE; return FALSE; }
  if(!unit_can_use_weapon(u,w)) return FALSE;
  if(weapon->object.parent_object_index!=NONE) return FALSE;
- for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==NONE) { unit->unit.weapon_object_indices[i]=w; weapon->object.parent_object_index=u; return TRUE; }
+ for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==NONE) { unit->unit.weapon_object_indices[i]=w; weapon->object.parent_object_index=u;
+  if(fail_confirm)fail_write=TRUE;if(publish_confirm)publish_failure=TRUE;return TRUE; }
  return FALSE;
 }
 static short local_player_get_next(short index) { return index==NONE ? 0 : NONE; }
@@ -341,19 +342,19 @@ int main(int argc,char **argv)
   CHECK(run(1)->phase==_extraction_cancelling&&run(1)->gear.record.reserved_count==2&&
    !run(1)->gear.record.count,"failed refund was not pending");
   CHECK(!weapon_try_and_get(0x10020+before)&&!weapon_try_and_get(0x10021+before),"ungranted equipment survived refund");
-  fail_write=fail_refund=FALSE;
-  if(!strcmp(case_name,"refund-disconnect")) {
+  fail_refund=FALSE;if(!strstr(case_name,"outage"))fail_write=FALSE;
+  if(!strcmp(case_name,"refund-disconnect")||!strcmp(case_name,"refund-disconnect-outage")) {
    players[1].quit_out_of_game=TRUE;advance(1);
    CHECK(!run(1)->gear.opened,"disconnected refund retained bank lock");
    players[1].quit_out_of_game=FALSE;advance(1);
-  } else if(!strcmp(case_name,"refund-recycled")) {
+  } else if(!strcmp(case_name,"refund-recycled")||!strcmp(case_name,"refund-recycled-outage")) {
    player_handles[1]+=0x10000;units[1].unit.player_index=player_handles[1];advance(1);
-  } else if(!strcmp(case_name,"refund-map-exit")) {
+  } else if(!strcmp(case_name,"refund-map-exit")||!strcmp(case_name,"refund-map-outage")) {
    extraction_reset();advance(1);
   } else if(!strcmp(case_name,"refund-retry")) {
    advance(30);
   } else return 2;
-  touch(2,1);
+  fail_write=FALSE;touch(2,1);
   CHECK(run(1)->gear.record.count==2&&!run(1)->gear.record.reserved_count&&
    run(1)->gear.record.grenades[0]==1,"ungranted reservation became departure loss or lost grenades");
   for(index=0;index<2;index++) CHECK(gear_has(run(1)->gear.record.items,2,ids[index]),"refund changed owned item identity");
@@ -363,6 +364,49 @@ int main(int argc,char **argv)
   escape(1);
   CHECK(run(1)->gear.record.count==2&&!run(1)->gear.record.reserved_count,
    "redeployed refund did not settle exactly once");
+  extraction_reset();return 0;
+ }
+ if(!strcmp(case_name,"reservation-published")) {
+  byte ids[2][GEAR_ID_BYTES];short i;
+  touch(0,1);pickup(1,1);pickup(1,2);escape(1);
+  for(i=0;i<2;i++)memcpy(ids[i],run(1)->gear.record.items[i].id,GEAR_ID_BYTES);
+  before=weapon_count;publish_failure=TRUE;touch(0,1);
+  CHECK(run(1)->phase==_extraction_returned&&run(1)->gear.pending&&run(1)->gear.record.phase==_gear_reserved&&weapon_count==before,
+   "unflushed preparation granted native equipment");
+  players[1].quit_out_of_game=TRUE;advance(1);CHECK(!run(1)->gear.opened,"unissued preparation retained owner lock");
+  publish_failure=FALSE;players[1].quit_out_of_game=FALSE;advance(1);touch(2,1);
+  CHECK(run(1)->gear.record.count==2&&!run(1)->gear.record.reserved_count,"unissued published preparation lost owned equipment");
+  for(i=0;i<2;i++)CHECK(!memcmp(ids[i],run(1)->gear.record.items[i].id,GEAR_ID_BYTES),"unissued preparation changed saved identity");
+  extraction_reset();return 0;
+ }
+ if(!strcmp(case_name,"confirmation-outage")||!strcmp(case_name,"confirmation-published")) {
+  byte ids[2][GEAR_ID_BYTES];short i;
+  touch(0,1);pickup(1,1);pickup(1,2);escape(1);
+  for(i=0;i<2;i++)memcpy(ids[i],run(1)->gear.record.items[i].id,GEAR_ID_BYTES);
+  units[1].unit.grenade_counts[0]=1;before=weapon_count;
+  if(!strcmp(case_name,"confirmation-outage"))fail_confirm=TRUE;else publish_confirm=TRUE;
+  touch(0,1);
+  if(fail_confirm) {
+   CHECK(run(1)->phase==_extraction_cancelling&&run(1)->gear.record.phase==_gear_reserved,
+    "unpublished native confirmation became an issued deployment");
+   CHECK(units[1].unit.grenade_counts[0]==1,"confirmation rollback lost or duplicated preexisting grenades");
+   for(i=before;i<weapon_count;i++)CHECK(weapons[i].handle==NONE,"unissued confirmation left usable recovered equipment");
+   players[1].quit_out_of_game=TRUE;advance(1);CHECK(!run(1)->gear.opened,"outage disconnect retained owner lock");
+   fail_confirm=fail_write=FALSE;players[1].quit_out_of_game=FALSE;advance(1);touch(2,1);
+   CHECK(run(1)->gear.record.count==2&&!run(1)->gear.record.reserved_count,
+    "unissued confirmation lost saved equipment after reconnect");
+   touch(0,1);
+  } else {
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.pending&&run(1)->gear.record.phase==_gear_deployed,
+    "published confirmation revoked the issued loadout");
+   for(i=before;i<weapon_count;i++)CHECK(weapons[i].handle!=NONE&&weapons[i].datum.object.parent_object_index==unit_handles[1],
+    "published native deployment lost its owned equipment");
+   publish_confirm=publish_failure=FALSE;
+  }
+  CHECK(run(1)->phase==_extraction_deployed,"confirmed retry failed to deploy");escape(1);
+  CHECK(run(1)->gear.record.count==2&&run(1)->gear.record.grenades[0]==2,
+   "confirmed recovery duplicated or lost weapons/grenades");
+  for(i=0;i<2;i++)CHECK(!memcmp(ids[i],run(1)->gear.record.items[i].id,GEAR_ID_BYTES),"native confirmation changed recovered item identity");
   extraction_reset();return 0;
  }
  if(!strcmp(case_name,"shared-cache")||!strcmp(case_name,"shared-cache-reject")||!strcmp(case_name,"shared-cache-discard")) {
