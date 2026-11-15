@@ -12,6 +12,48 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, Flood feigned-death replication (base `761de4e44f`): existing
+`network_objects.c` object states add an optional feigned bit; only for a dead
+nonplayer biped with a positive native feign timer/body, `time` holds the existing
+16-bit packed vitality. Vehicle prediction and player bodies keep their original
+semantics. The client reuses quiet native death, retains the host's vitality and
+clears its own wake timer; existing living actor states still resurrect it. A
+later ordinary dead state removes positive feigned vitality. Layout remains
+0x2C bytes; no advertised version, actor packet or checker tolerance changes.
+Eighteen connected replica/legacy/player/vehicle/invalid/checkpoint/damage cases
+pass, as do three deliberately broken encoding/restore/player-guard controls.
+The actual previous receiver helper ignores the new optional bit/time and keeps
+its grace period; it fails the new feigned-state expectation. This is a source-
+coupled legacy check, not mixed-fork native acceptance. Windows64 compiles in
+`build/native-flood-feign-build.log`, SHA-256
+`5563ddc136eee88a6c61a640ac3b2f77afcbd15a2c466a917f034871af730421`.
+
+`build/native-flood-feign-repair`: actual two-player native mission reaches
+extraction availability, passing 102 compared seconds, mean/max player separation
+0.019/0.057, zero/3060 divergent prediction ticks and 109 corrections. Unchanged
+AI checker passes 107 snapshots/364 comparisons, maximum position difference
+0.089222. Full item check passes 106 snapshots, zero out-of-step items and 13/13
+new items seen. This run had no sampled positive corpse and alone does NOT prove
+the feigned lifecycle. Two short attempts are retained: the first shot hits the
+teammate; unobstructed shots then damage Flood, but native 40% spawn eligibility
+does not exercise feigning. Their player checker ERRORs on insufficient on-foot
+prediction samples; do not present either as synchronization acceptance.
+
+`build/native-flood-feign-controlled/receipt.json` records a separate owned CE
+cache with ONLY `characters/floodcombat_human/floodcombat_human.biped` feign chance
+changed 0.4 to 1.0; threshold 0.3, native time 2.5s, damage and original accepted
+cache remain unchanged. Ordinary sidestep/pistol/two clicks then no fire produce
+two actual positive corpses at 0.625 on BOTH peers, with identical sampled wakes
+at ticks 420 and 480 (`native-reanimation.json`). Unchanged AI checker passes
+32 snapshots/50 comparisons, maximum difference 0.102736; no corpse normalization
+is used. Full items pass 31 snapshots, zero out of step, 6/6 new items seen.
+Player comparison passes 27 seconds, mean/max separation 0.015/0.041, 28/810
+divergent prediction ticks, mean/max drift 0.000345/0.020852 and six corrections.
+This targeted native repair is proven; mission completion/banking, human visual,
+mixed-fork, other-platform and stress acceptance are distinct. All owned processes
+are terminal before disposal of controlled cache/tags, peer payloads and bulk BMPs;
+compact original failures, receipts, native logs and lossless captures remain.
+
 15 November, native local operation/gear milestone (base `f036b81913`):
 `game_modes_inventory_capture` previously refused a legitimate stowed weapon
 whose native model parent is NONE. It now accepts that state only with native
@@ -56,9 +98,10 @@ item check passes 106 snapshots, zero out-of-step items, 16/18 new items seen.
 However unchanged `actors.json` is FAIL: tick 2280, Flood full handle e3470012,
 host dead body 0.625 versus client dead body -1.9375. Both are alive at tick 2310
 with matching 0.625 health. Native `units.c` feigns death with positive vitality;
-`network_damage.c` replays a kill, while `network_actors.c` sends living control
-states and later resurrects it. No checker weakening, packet or gameplay replay
-patch is included. Preserve this exact failure for the next AI integration cycle.
+the existing object-state fallback quiet-kills the client, while `network_actors.c`
+sends living control states and later resurrects it. No checker weakening, packet
+or gameplay replay patch was included at that checkpoint. The repair above keeps
+this original failure and adds direct native positive-corpse/reanimation evidence.
 The earlier bad Flood spawn fell outside the world; the owned fixture now uses
 the proven Covenant XY, z=1, and encounter-scoped force-active/no-dormancy commands.
 Compiled fixture provenance remains in its existing `receipt.json`; no original

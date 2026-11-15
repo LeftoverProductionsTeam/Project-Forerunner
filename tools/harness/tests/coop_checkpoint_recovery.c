@@ -54,6 +54,7 @@ struct object_datum {
     struct {
         short type, owner_team_index, forced_shader_permutation_index;
         unsigned flags, damage_flags;
+        real body_vitality;
         long owner_player_index, parent_object_index, first_child_object_index, next_object_index;
         real_point3d position;
         real_vector3d forward, up, translational_velocity, angular_velocity;
@@ -64,6 +65,7 @@ struct object_datum {
         long player_index, driver_object_index, weapon_object_indices[MAXIMUM_WEAPONS_PER_UNIT];
         long weapon_last_used_at_game_time[MAXIMUM_WEAPONS_PER_UNIT];
         short parent_seat_index,current_weapon_index,desired_weapon_index;
+        short feign_death_timer;
         short grenade_throw_state,current_grenade_index,desired_grenade_index;
         char grenade_counts[NUMBER_OF_UNIT_GRENADE_TYPES];
         unsigned flags;
@@ -127,6 +129,8 @@ static int objects_client_ask_again,objects_client_synchronized=1;
 static int objects_client_new_object_count,objects_client_check_all;
 static struct { int creates,deletes,create_failures; } objects_statistics;
 static int client=1,coop=1,now=1000,constructed,deleted,controls_changed;
+static int damage_updates;
+static struct { long object_index,time; } objects_client_dead[MAXIMUM_TRACKED_OBJECTS];
 static unsigned long distributed_checkpoint_epoch=1;
 static boolean distributed_checkpoint_synchronized;
 static boolean distributed_handling_batch,distributed_handling_stream_message;
@@ -267,6 +271,7 @@ static void object_damage_update(long index) {
     CHECK(o->object.damage_flags&(FLAG(_object_die_act_of_god_bit)|FLAG(_object_die_act_of_god_silent_bit)|
         FLAG(_object_die_act_of_god_no_statistics_bit)),"damage update requires a real kill request");
     SET_FLAG(o->object.damage_flags,_object_dead_bit,TRUE);
+    o->object.body_vitality=0.f;damage_updates++;
 }
 static void object_delete_immediately(long index) {
     CHECK(objects_client_deleting || (client&&object_get(index)->object.type==_object_type_projectile),
@@ -311,7 +316,6 @@ static void distributed_object_move(long index,real_point3d const *position,real
 }
 static boolean mcc_script_effects_preserve_body(void) {return FALSE;}
 static void network_objects_set_seat(long index,long vehicle,short seat) {(void)index;CHECK(vehicle==NONE&&seat==NONE,"no seat fixture");}
-static real distributed_vitality_unpack(word v) {return v/16384.0f;}
 static real distributed_own_round_trip_ticks(void) {return 0;}
 static void damage_set_network_state(long index,struct damage_network_state const *state) {(void)index;CHECK(state->body_vitality==1.0f,"host vitality");}
 static void distributed_correct_own_unit(struct player_datum *p,long index,struct distributed_unit_state const *s) {(void)p;(void)index;(void)s;CHECK(0,"movement outside fixture");}
@@ -558,6 +562,50 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strncmp(name,"feign-",6)) {
+        struct distributed_object_state snapshot;
+        CHECK(sizeof(snapshot)==0x2C,"legacy object state packet size changed");
+        corpse->object.body_vitality=.625f;corpse->unit.feign_death_timer=60;
+        corpse->object.damage_flags=FLAG(_object_dead_bit);
+        distributed_state_from_object(index,&snapshot);
+        CHECK(TEST_FLAG(snapshot.flags,_distributed_object_feigned_bit)&&(word)snapshot.time==10240,
+            "host did not encode native feigned vitality");
+        corpse->object.damage_flags=0;corpse->object.body_vitality=1.f;
+        if(!strcmp(name,"feign-state")) {
+            distributed_client_dead_biped(&snapshot);
+            CHECK(TEST_FLAG(corpse->object.damage_flags,_object_dead_bit)&&corpse->object.body_vitality==.625f&&
+                !corpse->unit.feign_death_timer,"feigned body was killed for real or given an independent wake timer");
+            constructed_before=damage_updates;distributed_client_dead_biped(&snapshot);
+            CHECK(damage_updates==constructed_before&&corpse->object.body_vitality==.625f,"repeat feign replayed death");
+            SET_FLAG(snapshot.flags,_distributed_object_feigned_bit,FALSE);
+            distributed_client_dead_biped(&snapshot);
+            CHECK(corpse->object.body_vitality==0.f&&TEST_FLAG(corpse->object.damage_flags,_object_dead_bit),
+                "final death retained feigned health or resurrected the corpse");
+        } else if(!strcmp(name,"feign-player")) {
+            corpse->unit.player_index=player_index;
+            distributed_client_dead_biped(&snapshot);
+            CHECK(!damage_updates&&!corpse->object.damage_flags&&corpse->object.body_vitality==1.f,
+                "AI feign snapshot changed a player");
+            corpse->object.damage_flags=FLAG(_object_dead_bit);
+            distributed_state_from_object(index,&snapshot);
+            CHECK(!TEST_FLAG(snapshot.flags,_distributed_object_feigned_bit)&&!snapshot.time,"host encoded player feign");
+            corpse->unit.player_index=NONE;corpse->object.type=_object_type_vehicle;
+            distributed_state_from_object(index,&snapshot);
+            CHECK(!TEST_FLAG(snapshot.flags,_distributed_object_feigned_bit)&&!snapshot.time,"AI vitality replaced vehicle prediction time");
+            distributed_client_dead_biped(&snapshot);CHECK(!damage_updates,"biped replay killed a vehicle");
+        } else {
+            if(!strcmp(name,"feign-legacy"))SET_FLAG(snapshot.flags,_distributed_object_feigned_bit,FALSE);
+            else if(!strcmp(name,"feign-invalid"))snapshot.time=0;
+            else {CHECK(!strcmp(name,"feign-predicted"),"unknown feign case");SET_FLAG(snapshot.flags,_distributed_object_predicted_bit,TRUE);}
+            distributed_client_dead_biped(&snapshot);CHECK(!damage_updates,"legacy/invalid state bypassed the death grace period");
+            now+=DEAD_BIPED_FALLBACK_TICKS-1;distributed_client_dead_biped(&snapshot);
+            CHECK(!damage_updates,"fallback killed too early");
+            now++;distributed_client_dead_biped(&snapshot);
+            CHECK(damage_updates==1&&TEST_FLAG(corpse->object.damage_flags,_object_dead_bit)&&
+                corpse->object.body_vitality==0.f,"legacy/invalid state granted positive vitality");
+        }
+        return 0;
+    }
     if(!strcmp(name,"inventory-orphan")||!strcmp(name,"inventory-other-owner")){
         weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
         distributed_client_apply_inventory(&inventory);

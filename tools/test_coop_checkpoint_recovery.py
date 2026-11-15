@@ -44,7 +44,7 @@ def generated(fault=None):
                    "DEFAULT_OWN_ROUND_TRIP_TICKS", "MAXIMUM_OWN_ROUND_TRIP_TICKS", "AGE_SCALE",
                    "OBJECT_WORLD_BOUND", "HOST_OBJECTS_RESEND_TICKS", "CLIENT_RETRY_TICKS",
                    "CLIENT_RETRY_MAXIMUM_TICKS", "CLIENT_READY_MAXIMUM_INTERVAL_TICKS", "MAXIMUM_CLIENT_NEW_OBJECTS",
-                   "CTF_FLAG_TEAMS", "ODDBALL_TEAMS", "NETWORKED_OBJECT_TYPES")),
+                   "CTF_FLAG_TEAMS", "ODDBALL_TEAMS", "NETWORKED_OBJECT_TYPES", "DEAD_BIPED_FALLBACK_TICKS")),
         (distributed, ("DEATH_BLOW_WAIT_TICKS", "SEAT_DISAGREEMENT_TICKS", "SEAT_DISAGREEMENT_SLACK_TICKS")),
         (distributed_h, ("REMOTE_CORRECTION_TOLERANCE", "REMOTE_BLEND_DISTANCE", "NO_PLAYER")),
         (damage, ("REPORT_WORLD_BOUND", "REPORT_IMPACT_TOLERANCE", "TARGET_HISTORY_TICKS",
@@ -54,6 +54,9 @@ def generated(fault=None):
     ):
         config.extend(define_value(source, name) for name in names)
     config.append(define_value(distributed_h, 'DISTRIBUTED_UNIT_SCALE'))
+    config.extend(define_value(distributed_h, name) for name in (
+        'DISTRIBUTED_VELOCITY_SCALE', 'DISTRIBUTED_ANGULAR_VELOCITY_SCALE'))
+    config.append(define_value(distributed, 'VITALITY_SCALE'))
     # (port, this fork: static shields' version and the desktop's object count, which the
     # fork's damage events take an unknown index's nearest static target by)
     config.append(define_value(read("port/linux/game/network_rules.h"), "NETWORK_RULES_STATIC_SHIELDS_VERSION"))
@@ -89,6 +92,7 @@ def generated(fault=None):
         enum_with(distributed, "_distributed_pose_facing,"),
         structure(distributed_h, "distributed_vector"),
         structure(objects, "distributed_object_change"),
+        structure(objects, "distributed_object_state"),
         structure(objects, "distributed_inventory"),
         structure(objects, "distributed_object_change_message"),
         structure(objects, "distributed_inventory_message"),
@@ -131,13 +135,16 @@ def generated(fault=None):
         "network_objects_handle_changes", "network_objects_handle_synchronized",
         "network_objects_discard_client_effects"))
     code += "\n" + "\n".join(function(distributed, name) for name in (
-        "distributed_vector_unpack", "distributed_unit_vector_unpack",
+        "distributed_vector_pack", "distributed_vector_unpack", "distributed_unit_vector_unpack",
+        "distributed_vitality_pack", "distributed_vitality_unpack",
         "distributed_scripted_pose_apply", "distributed_unit_release_others", "distributed_handle_unit_state"))
     code += "\n" + "\n".join(function(objects, name) for name in (
         "distributed_client_note_own_inventory", "distributed_client_own_settled",
         "distributed_client_weapon_here", "distributed_client_inventory_whole",
         "distributed_client_retry_inventory", "distributed_client_forget_retried_inventory",
         "distributed_client_apply_inventory", "distributed_client_apply_retried_inventories"))
+    code += "\n" + "\n".join(function(objects, name) for name in (
+        "distributed_state_from_object", "distributed_client_dead_biped"))
     code += "\n" + "\n".join(function(damage, name) for name in (
         "distributed_damage_to_data", "distributed_damage_indices_valid",
         "distributed_damage_numbers_valid", "network_damage_handle_events", "damage_host_tables_reset",
@@ -175,7 +182,7 @@ def test_reconstructed_unit_rejects_old_life_kill():
     "live", "host-dead", "host-kills-live", "bound-corpse", "different-handle", "unknown", "unknown-player", "stale-delete",
     "invalid-tag", "invalid-team", "invalid-color", "invalid-position", "invalid-axes",
     "invalid-identifier", "outside-pool", "allocation-failure", "repeat", "retry",
-    "inventory", "inventory-orphan", "inventory-other-owner", "hierarchy", "late-inventory", "projectiles", "partial-producers", "same-epoch-create", "snapshot-empty", "snapshot-batches",
+    "inventory", "inventory-orphan", "inventory-other-owner", "feign-state", "feign-legacy", "feign-player", "feign-invalid", "feign-predicted", "hierarchy", "late-inventory", "projectiles", "partial-producers", "same-epoch-create", "snapshot-empty", "snapshot-batches",
     "kill-current", "kill-unknown", "kill-invalid-number", "kill-invalid-tag", "kill-invalid-node",
 ])
 def test_replica_controls(case):
@@ -189,6 +196,18 @@ def test_inventory_attachment_negative_control(case):
         "if (wanted_index == NONE || (weapon && weapon->object.parent_object_index == inventory->unit_index))",
         "if (weapon || wanted_index == NONE)"))
     status, output = run(build("coop_checkpoint_recovery", files), case)
+    assert status == 1, output
+
+
+@pytest.mark.parametrize("before,after,case", [
+    ("SET_FLAG(state->flags, _distributed_object_feigned_bit, TRUE);",
+     "SET_FLAG(state->flags, _distributed_object_feigned_bit, FALSE);", "feign-state"),
+    ("if (feigned && unit && TEST_FLAG(unit->object.damage_flags, _object_dead_bit))",
+     "if (FALSE && unit && TEST_FLAG(unit->object.damage_flags, _object_dead_bit))", "feign-state"),
+    ("if (!unit || unit->unit.player_index != NONE)", "if (!unit)", "feign-player"),
+])
+def test_feigned_state_negative_control(before, after, case):
+    status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
     assert status == 1, output
 
 

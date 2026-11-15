@@ -3,6 +3,21 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Native Flood feigned-death repair (base `761de4e44f`): the existing object-state
+format now distinguishes a nonplayer biped feigning death and carries its packed
+positive vitality in the field used for vehicle prediction time on vehicles.
+Packet size/version stay unchanged; players and vehicle prediction are excluded.
+Client corpses retain authoritative health without an independent wake timer;
+later living actor states still own reanimation. Eighteen focused replica cases,
+three fault controls, actual old-receiver helper comparison and Windows64 build
+pass. The default two-player mission reaches extraction availability and passes
+unchanged player/AI/item checks. A separate controlled native cache changes only
+Flood feign eligibility from 40% to 100%: real pistol hits produce two matching
+positive-health corpses and reanimations at the same ticks on both peers. Its
+unchanged AI/item/player checks pass. Original mission cache is unchanged; the
+earlier failed and non-exercising runs remain evidence. Full mixed-fork native,
+cross-platform and large-horde acceptance are still open.
+
 Native local operation milestone (base `f036b81913` plus this change): a genuine
 native Settings profile now completes the owned CE fixture through deployment,
 Covenant combat, physical Marine rescue, technology-placeholder pickup, Flood
@@ -21,10 +36,11 @@ use native encounter activation and one-tick spawn observation.
 
 The two-player authored mission reaches extraction availability (102 compared
 seconds, zero divergent prediction ticks; full item check passes). Its strict AI
-check FAILS on a Flood feigned-death body value: both bodies are dead, host health
+check initially FAILED on a Flood feigned-death body value: both bodies are dead, host health
 is positive and the client's kill replay is negative; both later reanimate with
-matching health. Keep that failure and native replay requirement open; no checker
-tolerance or protocol was changed. Remote banking still needs verified host-bound
+matching health. That original failure is retained; the bounded native repair
+above now passes without changing checker tolerances or packet layout/version.
+Remote banking still needs verified host-bound
 Delta identities. Readable HUD report, revive-with-banking, larger squads, actual
 Spark content, VR and connected-world acceptance remain separate unfinished gates.
 
@@ -72,8 +88,9 @@ the existing CE609 startup path by renaming. Exact next handoff, manual objectiv
 contract. Keep Spark read-only. Original UI/carousel/SDK hashes are unchanged;
 owned peer/map staging, SDK subset and bulk captures are removed. One 106 MB
 compiled fixture, its authored scenario and compact evidence remain for reuse.
-Next: resolve native Flood feigned-death replay/readback and provide verified
-remote identities for two-player banking. Revisit the earlier intermittent rifle
+Next: verified remote identities for two-player banking, then the connected
+revival/banking and readable native results workflows. Advance independent source
+work if that identity prerequisite is unavailable. Revisit the earlier intermittent rifle
 failure with its retained evidence if it recurs; do not repeat unchanged audits.
 
 Current co-op spectator repair: next-player cycling keeps the sole survivor

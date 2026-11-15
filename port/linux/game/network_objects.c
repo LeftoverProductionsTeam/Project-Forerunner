@@ -298,6 +298,9 @@ enum
 	the host sent it at all: older builds leave both 0, which is not "off" */
 	_distributed_object_light_sent_bit,
 	_distributed_object_light_on_bit,
+	/* Nonplayer biped feigning death: state.time carries packed vitality.
+	 * Older receivers ignore this bit and retain their dead-body fallback. */
+	_distributed_object_feigned_bit,
 };
 
 struct distributed_object_change
@@ -329,7 +332,8 @@ struct distributed_object_state
 	byte flags;
 	byte pad;
 	/* the client's tick, its low 16 bits: a vehicle prediction's, and
-	(_distributed_object_predicted_bit) the one the host has it at */
+	(_distributed_object_predicted_bit) the one the host has it at.
+	For a feigned nonplayer biped instead, its packed positive body vitality. */
 	short time;
 	real_point3d position;
 	struct distributed_vector forward;
@@ -1084,6 +1088,13 @@ static void distributed_state_from_object(
 		SET_FLAG(state->flags, _distributed_object_light_sent_bit, TRUE);
 		SET_FLAG(state->flags, _distributed_object_light_on_bit,
 			TEST_FLAG(unit_get(object_index)->unit.flags, _unit_integrated_light_on_bit));
+	}
+	if (object->object.type == _object_type_biped && TEST_FLAG(state->flags, _distributed_object_dead_bit) &&
+		unit_get(object_index)->unit.player_index == NONE && unit_get(object_index)->unit.feign_death_timer > 0 &&
+		object->object.body_vitality > 0.f)
+	{
+		SET_FLAG(state->flags, _distributed_object_feigned_bit, TRUE);
+		state->time = (short)MAX(1, distributed_vitality_pack(object->object.body_vitality));
 	}
 	state->position = object->object.position;
 	distributed_vector_pack(&object->object.forward, DISTRIBUTED_UNIT_SCALE, &state->forward);
@@ -3758,28 +3769,50 @@ static boolean distributed_client_correct_own_vehicle(
 }
 
 /* (a client) a biped, no player's (a player's the units' states kill), the
-host says is dead, alive here: its killing blow, unreliable, kills it; lost,
-nothing else would. Killed with nothing to show or count of it once the host
-has said so for a while. */
+host says is dead. Normal deaths retain the grace period for their killing
+blow. Feigned bodies fall quietly but keep the host's positive vitality;
+only a later living actor state owns their resurrection. */
 static void distributed_client_dead_biped(
-	long object_index)
+	struct distributed_object_state const *state)
 {
+	long object_index = state->object_index;
 	long absolute_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index);
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(object_index,
 		_object_mask_biped);
+	boolean feigned = TEST_FLAG(state->flags, _distributed_object_feigned_bit) &&
+		!TEST_FLAG(state->flags, _distributed_object_predicted_bit) && (word)state->time > 0;
 
-	if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->unit.player_index != NONE)
+	if (!unit || unit->unit.player_index != NONE)
 		return;
+	if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+	{
+		/* A feigned corpse is still dead. Only a later living actor state
+		 * may get it up; never run a second client-side resurrection timer. */
+		if (feigned)
+		{
+			unit->object.body_vitality = distributed_vitality_unpack((word)state->time);
+			unit->unit.feign_death_timer = 0;
+		}
+		else if (unit->object.body_vitality > 0.f)
+			unit->object.body_vitality = 0.f;
+		return;
+	}
 	if (objects_client_dead[absolute_index].object_index != object_index)
 	{
 		objects_client_dead[absolute_index].object_index = object_index;
 		objects_client_dead[absolute_index].time = game_time_get();
 	}
-	else if (game_time_get() - objects_client_dead[absolute_index].time >= DEAD_BIPED_FALLBACK_TICKS)
+	if (feigned || game_time_get() - objects_client_dead[absolute_index].time >= DEAD_BIPED_FALLBACK_TICKS)
 	{
 		unit_kill_silent(object_index);
 		unit_kill_no_statistics(object_index);
 		object_damage_update(object_index);
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(object_index, _object_mask_biped);
+		if (feigned && unit && TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		{
+			unit->object.body_vitality = distributed_vitality_unpack((word)state->time);
+			unit->unit.feign_death_timer = 0;
+		}
 	}
 }
 
@@ -3968,7 +4001,7 @@ void network_objects_handle_states(
 		}
 		if (TEST_FLAG(state->flags, _distributed_object_dead_bit))
 		{
-			distributed_client_dead_biped(state->object_index);
+			distributed_client_dead_biped(state);
 			distributed_client_dead_vehicle(state->object_index);
 			/* (a body its tag destroys at once is gone) */
 			if (!object_try_and_get_and_verify_type(state->object_index, _object_mask_all))

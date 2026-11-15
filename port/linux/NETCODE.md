@@ -1491,6 +1491,13 @@ validation gates; native results do not establish browser compatibility.
      body the host says is dead (the objects' states say so of an actor's,
      the units' states of a player's) that is still alive half a second on
      is killed with nothing to show.
+     For a nonplayer biped feigning death, the optional object-state flag
+     `_distributed_object_feigned_bit` instead marks its positive body vitality
+     packed into `time` (which only vehicles use for prediction). The client
+     keeps the corpse dead with that vitality and no local wake timer; a later
+     living actor state owns resurrection. Ordinary final death clears retained
+     feigned health. The object state remains 0x2C bytes; older receivers ignore
+     the optional bit/time and keep their original fallback.
    - A client's own projectiles respond to what they hit as the game has
      them: the host's shields and health, which the client has, say
      whether the shield or the body took the hit, and how much is left of

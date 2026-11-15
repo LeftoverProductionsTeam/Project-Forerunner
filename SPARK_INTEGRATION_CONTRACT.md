@@ -799,9 +799,12 @@ For an authored outbreak, use native `ai_force_active` / `ai_allow_dormant` wher
 activation PVS would otherwise sleep the encounter, then release those overrides.
 Keep spawn geometry inside valid collision/navigation. Observe initial spawn
 counts every tick if fast combat could kill the entire wave between polls.
-Two-player combat/item evidence reaches extraction availability, but the strict
-AI check retains a Flood feigned-death body discrepancy; remote banking, readable
-results UX and the complete multiplayer operation remain unaccepted.
+Two-player combat/AI/item evidence now reaches extraction availability with the
+strict checks passing. `network_objects.c` distinguishes native feigned corpses
+without changing object-state packet size/version; a controlled owned native
+encounter also proves matching positive corpse vitality and later reanimation.
+Spark needs no replacement AI director or new interface for this repair. Remote
+banking, readable results UX and the complete multiplayer operation remain unaccepted.
 Spark's next handoff must identify the compiled native map/resources/content
 identity, rescue/escort actors, technology objects, trigger/terminal bindings,
 spawn/region identifiers and mission/audio source; supply reviewed objective IDs,
