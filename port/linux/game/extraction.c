@@ -103,8 +103,8 @@ static void extraction_local_notice(short local, char const *text)
 
 static void extraction_notice(char const *text)
 {
-	long local, machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
-	short index, count;
+	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+	short local, index, count;
 	for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
 		extraction_local_notice((short)local, text);
 	if (game_connection() == _game_connection_network_server)
@@ -365,7 +365,8 @@ static void extraction_loadout_notice(struct extraction_run *run)
 	{
 		extraction_block(run, "LOADOUT PENDING | Native equipment or stash unavailable. Retry at the terminal."); return;
 	}
-	snprintf(text, sizeof(text), "STASH %d/%d | Loadout: %.24s / %.24s | +%d frag +%d plasma. Use again to cycle.",
+	run->blocked = FALSE;
+	snprintf(text, sizeof(text), "SAVED LOADOUT %d/%d | %.24s / %.24s | +%d frag +%d plasma. Use again to change.",
 		(int)run->gear.record.count, GEAR_CAPACITY,
 		loadout.weapon_count > 0 ? extraction_item_name(loadout.weapons[0].tag_path) : "carried gear",
 		loadout.weapon_count > 1 ? extraction_item_name(loadout.weapons[1].tag_path) : "-",
@@ -429,7 +430,11 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		if (extraction_open_gear(run, player))
 		{
-			if (run->loadout_seen && run->gear.record.count) run->gear.selection = (run->gear.selection + 1) % run->gear.record.count;
+			if (run->loadout_seen && !gear_cycle_loadout(&run->gear))
+			{
+				extraction_block(run, "LOADOUT CHOICE PENDING | Retry this terminal to confirm the saved choice before deploying.");
+				return TRUE;
+			}
 			run->loadout_seen = TRUE;
 			extraction_loadout_notice(run);
 		}

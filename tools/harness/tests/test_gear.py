@@ -30,7 +30,8 @@ def generated(fault=None):
     return (('types.inc', types), ('sha.inc', sha), ('under_test.inc', source))
 
 
-@pytest.mark.parametrize('case', ['authority', 'escape-reopen', 'loss', 'uncertain', 'corrupt', 'cache'])
+@pytest.mark.parametrize('case', ['authority', 'escape-reopen', 'loss', 'uncertain', 'corrupt', 'cache',
+                                'choice-reopen', 'choice-failure', 'choice-cancel', 'choice-recovery', 'choice-cache'])
 def test_transactions(case):
     status, output = run(build('gear', generated()), case)
     assert status == 0, output
@@ -39,4 +40,10 @@ def test_transactions(case):
 def test_loss_negative_control():
     status, output = run(build('gear', generated((
         'next = session->record; gear_run_clear(&next, _gear_lost);', 'next = session->record;'))), 'loss')
+    assert status == CHECK_FAILED, output
+
+
+def test_choice_retry_negative_control():
+    status, output = run(build('gear', generated((
+        'if (pending || !map) return TRUE;', 'if ((pending && FALSE) || !map) return TRUE;'))), 'choice-failure')
     assert status == CHECK_FAILED, output

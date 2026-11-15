@@ -339,6 +339,31 @@ int main(int argc,char **argv)
   touch(0,0); touch(0,1); CHECK(!file_count,"unidentified player opened storage");
   verified=TRUE; touch(0,1); CHECK(run(1)->phase==_extraction_deployed,"verified owner refused");
   remote_account[0]++; advance(1); CHECK(run(1)->phase==_extraction_lost,"changed identity retained run");
+ } else if(!strcmp(case_name,"loadout-choice")) {
+  struct game_modes_inventory chosen;
+  unsigned long generation;
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);
+  touch(2,0);generation=run(0)->gear.record.generation;publish_failure=TRUE;touch(2,0);
+  CHECK(run(0)->gear.pending && run(0)->blocked && run(0)->gear.record.generation==generation+1,
+   "terminal forgot an uncertain saved choice");
+  publish_failure=FALSE;touch(2,0);
+  CHECK(!run(0)->gear.pending && !run(0)->blocked && run(0)->gear.record.generation==generation+1,
+   "terminal retry advanced the pair again or retained its error");
+  extraction_reset();advance(1);touch(2,0);
+  CHECK(gear_loadout(&run(0)->gear,&chosen) && chosen.weapon_count==2 &&
+   !strcmp(chosen.weapons[0].tag_path,"weapons\\pistol\\pistol"),"reopened hub lost selected primary");
+  touch(0,0);a=units[0].unit.weapon_object_indices[0];
+  CHECK(weapon_get(a)->definition_index==2,"deployment ignored the saved primary");
+  weapon_get(a)->weapon.magazines[0].rounds_loaded=3;escape(0);extraction_reset();advance(1);touch(0,0);
+  CHECK(weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==2 &&
+   weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_loaded==3,
+   "recovery/redeployment changed chosen primary or ammunition");
+  escape(0);extraction_reset();enabled=FALSE;director=TRUE;
+  firefight.enabled=firefight.gear=TRUE;firefight.phase=1;advance(1);
+  CHECK(run(0)->phase==_extraction_deployed &&
+   weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==2 &&
+   weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_loaded==3,
+   "finite Survival did not reuse the same owner's saved Extraction choice");
  } else if(!strcmp(case_name,"loop")) {
   touch(0,0); touch(0,1); CHECK(run(0)->phase==_extraction_deployed && run(1)->phase==_extraction_deployed,"players not deployed");
   a=pickup(0,1); pickup(1,2); units[0].unit.grenade_counts[1]=2; escape(0); escape(1);

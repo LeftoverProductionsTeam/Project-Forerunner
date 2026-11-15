@@ -3,6 +3,21 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current inventory slice: hub loadout choices now persist through the existing
+locked version-1 gear record. Compatible item order stores the choice; no new
+save fields, writer or packet is needed. Each native cache's order rotates
+independently, uncertain published choices retry without cycling twice, failed
+native grants restore the selected pair, and successful recovery leaves returned
+gear ready for the next deployment. The existing terminal reports saved choices
+and clears a recovered save error. Eleven real gear-source cases and 21 connected
+Extraction/Survival/medical workflows compile and pass with installed 32-bit
+MSVC; the saved-choice flow also crosses into finite Survival with recovered
+ammunition unchanged. A broken uncertain-retry control is detected. This is
+focused harness evidence, not a full engine build or native gameplay acceptance.
+Only tiny repository-local scratch was used and removed; original saves/assets
+and other repositories were untouched. Rarity, upgrades, armor/equipment and the
+full stash/hub interface remain unfinished.
+
 Current medical milestone: optional native living incapacitation, continuous
 held-Action biofoam and negotiated client input suppression are implemented.
 Windows64/OpenXR compiles; 45 connected medical/gear/resupply/co-op checks and

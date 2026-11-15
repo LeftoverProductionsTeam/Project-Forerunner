@@ -54,6 +54,34 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Durable native loadout choice, base `2ecf1877d`:
+
+- Installed MSVC **14.52.37025**, Windows SDK **10.0.26100.0**, x86 C11 `/O2 /W3
+  /WX` compile the existing actual-source gear and connected Extraction fixtures.
+  Generated includes came from the existing harness generators; no engine copy,
+  replacement harness or new toolchain was created. Pytest itself remains absent;
+  these are direct compiled fixture executions, not a claimed pytest run.
+- **11 gear cases pass**: existing authority, escape/reopen, loss, uncertain
+  write, corruption and cache protections; durable choices across reopening,
+  failed/unconfirmed writes, failed-grant refunds, recovery/ammo and independent
+  cache preferences. Disabling the pending-choice guard fails `choice-failure`
+  as expected. The disk codec/version/size, item identities and writer are kept.
+- **21 connected source workflows pass**, including the new terminal choice,
+  prior Extraction/shared-loot/death/restore/pending cases, finite Survival and
+  medical cases. The saved-choice case exercises an uncertain terminal write,
+  retry without a second cycle, record reopen, native equipment grant, recovery,
+  redeployment and finite-Survival reuse of the same chosen primary with three
+  recovered rounds. Its final cross-mode extension was recompiled and passed.
+- The first connected MSVC compile caught an inherited long-to-short local-player
+  iterator conversion; its local variable now matches the native short API.
+  Warnings remain errors. No comparison tolerance or acceptance gate changed.
+- Generated headers, objects and test executables stayed in one tiny disposable
+  `.pytest_cache/gear-check-*` area inside Forerunner and were removed afterward.
+  No original saves, game data, Spark files, headset devices or external staging
+  were accessed. Existing native OS-lock/atomic-replacement code is unchanged and
+  not re-proven by its fake filesystem. A full engine build, actual terminal
+  gameplay, native multiplayer persistence and Linux/VR execution remain open.
+
 Faber shadow-budget graphics reuse, base `d13303555`:
 
 - `verification-87521711b-001/graphics-shadow-menu-final-configured.log`:

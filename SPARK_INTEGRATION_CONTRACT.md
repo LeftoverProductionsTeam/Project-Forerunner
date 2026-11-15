@@ -559,8 +559,17 @@ equipment upgrades and general cross-cache equivalence remain open.
 
 Spark may optionally add a powered touched-by-player `extraction_loadout` control
 inside the return hub, outside activation. It cycles compatible stored weapons
-through native player notices; existing four-marker maps use the first compatible
-pair without requiring that optional control. Spark must include its native
+through native player notices. The host now saves the choice by ordering only
+that cache's items through `gear.c::gear_cycle_loadout` and its existing locked,
+atomic version-1 record. Reopening and same-cache Survival reuse the choice;
+failed grants restore it and returned carried gear stays ready for redeployment.
+An uncertain published choice is flushed on retry rather than cycled again.
+`extraction.c::extraction_control_touched` / `extraction_loadout_notice` own the
+terminal interaction and error/readback. Existing four-marker maps use the saved
+compatible order, or the first pair for a new record, without requiring that
+optional control. No new cache/schema field, inventory packet or Spark discovery
+capability was added. Focused source compilation/workflows pass; native gameplay
+acceptance remains open. Spark must include its native
 `triggers_when` readback alongside deploy/activate, preserve all hub starts and
 hand off a compiled native solo cache plus required resource caches. Do not import
 personal stash records, synthesize grants, require a raid timer or run the built-in

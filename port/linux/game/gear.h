@@ -36,7 +36,6 @@ struct gear_session
 {
 	int descriptor;
 	boolean opened, pending;
-	short selection;
 	short grenade_room[2]; /* native capacity minus the currently carried count */
 	char path[1024];
 	byte run[GEAR_ID_BYTES];
@@ -52,6 +51,9 @@ void gear_close(struct gear_session *session);
 /* Read selected native-cache gear before reserving it. Missing/incompatible
  * caches must be refused before the stash is changed. */
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory);
+/* Rotate the next compatible lead weapon to the front through the existing
+ * atomic record. Stash order is the durable choice, shared by both modes. */
+boolean gear_cycle_loadout(struct gear_session *session);
 boolean gear_reserve(struct gear_session *session);
 boolean gear_cancel_reservation(struct gear_session *session);
 boolean gear_lose(struct gear_session *session);

@@ -117,6 +117,56 @@ int main(int argc, char **argv)
   CHECK(gear_loadout(&reopened, &loadout) && loadout.weapon_count == 2 && loadout.weapons[0].rounds_loaded[0] == 5 &&
    loadout.weapons[1].rounds_reserve[0] == 51 && loadout.weapons[0].age == .25f, "native equipment changed on reopen");
   CHECK(gear_cancel_reservation(&reopened) && reopened.record.count == 2, "failed grant did not return reserved gear");
+ } else if (!strcmp(case_name, "choice-reopen")) {
+  earn(3); CHECK(gear_cycle_loadout(&session), "loadout cycle failed");
+  CHECK(gear_loadout(&session,&loadout) && loadout.weapon_count==2 && loadout.weapons[0].rounds_loaded[0]==6 &&
+   loadout.weapons[1].rounds_loaded[0]==7, "chosen pair did not preserve the existing native selection order");
+  gear_close(&session); CHECK(gear_open(&session,owner),"chosen loadout did not reopen");
+  CHECK(gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==6,"reconnect lost chosen primary");
+  CHECK(gear_cycle_loadout(&session) && gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==7,
+   "owned same-tag weapon identities could not be selected independently");
+ } else if (!strcmp(case_name, "choice-failure")) {
+  unsigned long generation;
+  earn(3); generation=session.record.generation; fail_write=TRUE;
+  CHECK(!gear_cycle_loadout(&session) && session.record.generation==generation,"failed choice advanced the record");
+  fail_write=FALSE; publish_failure=TRUE;
+  CHECK(!gear_cycle_loadout(&session) && session.pending,"uncertain published choice forgotten");
+  generation=session.record.generation; publish_failure=FALSE;
+  CHECK(gear_cycle_loadout(&session) && !session.pending && session.record.generation==generation,
+   "choice retry cycled again instead of confirming its published intent");
+  CHECK(gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==6,"choice retry selected another item");
+ } else if (!strcmp(case_name, "choice-cancel")) {
+  earn(3); CHECK(gear_cycle_loadout(&session) && gear_reserve(&session),"chosen deployment failed");
+  CHECK(!gear_cycle_loadout(&session),"deployed player changed stash choice");
+  CHECK(gear_cancel_reservation(&session),"failed grant refund failed");
+  gear_close(&session);CHECK(gear_open(&session,owner) && gear_loadout(&session,&loadout) &&
+   loadout.weapons[0].rounds_loaded[0]==6 && loadout.weapons[1].rounds_loaded[0]==7,
+   "failed grant silently switched the saved pair");
+ } else if (!strcmp(case_name, "choice-recovery")) {
+  earn(3); CHECK(gear_cycle_loadout(&session) && gear_reserve(&session) && gear_loadout(&session,&inventory),"chosen deployment failed");
+  objects[0]=0x20001;objects[1]=0x20002;gear_track_reserved(&session,objects);
+  inventory.weapons[0].rounds_loaded[0]=2;
+  CHECK(gear_prepare_escape(&session,&inventory,objects) && gear_finish_escape(&session),"chosen return failed");
+  gear_close(&session);CHECK(gear_open(&session,owner) && gear_loadout(&session,&loadout) && loadout.weapon_count==2 &&
+   loadout.weapons[0].rounds_loaded[0]==2 && loadout.weapons[1].rounds_loaded[0]==7,
+   "recovered primary/ammo were not retained for redeployment");
+ } else if (!strcmp(case_name, "choice-cache")) {
+  unsigned long generation;
+  struct gear_record mixed;
+  earn(3);mixed=session.record;
+  strcpy(mixed.items[1].map_name,"other@ce");mixed.items[1].map_checksum=checksum+1;
+  mixed.items[3]=mixed.items[0];mixed.items[3].id[0]^=0x80;
+  strcpy(mixed.items[3].map_name,"other@ce");mixed.items[3].map_checksum=checksum+1;mixed.count=4;
+  CHECK(gear_commit(&session,&mixed) && gear_cycle_loadout(&session),"mixed-cache choice failed");
+  map="other@ce";checksum++;
+  CHECK(gear_cycle_loadout(&session) && gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==5,
+   "second cache could not choose its own primary");
+  map="candidate@ce";checksum--;
+  CHECK(gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==7,"another cache changed the saved primary");
+  generation=session.record.generation;checksum+=2;
+  CHECK(gear_cycle_loadout(&session) && session.record.generation==generation,"unrelated cache moved the saved choice");
+  checksum-=2;client=TRUE;
+  CHECK(!gear_cycle_loadout(&session) && session.record.generation==generation,"client changed durable gear choice");client=FALSE;
  } else if (!strcmp(case_name, "loss")) {
   earn(3);
   CHECK(gear_reserve(&session) && session.record.count == 1 && session.record.reserved_count == 2, "wrong risk reservation");

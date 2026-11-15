@@ -320,16 +320,40 @@ static short gear_selected(struct gear_session const *session, short indices[GEA
 {
 	char const *map = cache_file_loaded_map_name();
 	unsigned long checksum = cache_files_get_checksum();
-	short step, count = 0, index;
+	short count = 0, index;
 
-	if (!map || session->selection < 0) return 0;
-	for (step = 0; step < session->record.count && count < GEAR_LOADOUT_WEAPONS; step++)
+	if (!map) return 0;
+	for (index = 0; index < session->record.count && count < GEAR_LOADOUT_WEAPONS; index++)
 	{
-		index = (session->selection + step) % session->record.count;
 		if (session->record.items[index].map_checksum == checksum && !strcmp(session->record.items[index].map_name, map))
 			indices[count++] = index;
 	}
 	return count;
+}
+
+boolean gear_cycle_loadout(struct gear_session *session)
+{
+	struct gear_record next;
+	short indices[GEAR_CAPACITY], count = 0, index;
+	boolean pending = session->pending;
+	char const *map = cache_file_loaded_map_name();
+	unsigned long checksum = cache_files_get_checksum();
+
+	if (!gear_flush(session) || session->record.phase != _gear_idle) return FALSE;
+	/* An uncertain published selection is retried, not advanced twice. */
+	if (pending || !map) return TRUE;
+	for (index = 0; index < session->record.count; index++)
+	{
+		if (session->record.items[index].map_checksum == checksum && !strcmp(session->record.items[index].map_name, map))
+			indices[count++] = index;
+	}
+	if (count < 2) return TRUE;
+	/* Rotate only this native cache's subsequence. A choice made on another
+	 * map must not change the first compatible weapon saved for this one. */
+	next = session->record;
+	for (index = 0; index < count; index++)
+		next.items[indices[index]] = session->record.items[indices[(index + 1) % count]];
+	return gear_commit(session, &next);
 }
 
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory)
@@ -414,7 +438,10 @@ boolean gear_cancel_reservation(struct gear_session *session)
 	if (session->record.phase != _gear_deployed ||
 		session->record.count + session->record.reserved_count > GEAR_CAPACITY) return FALSE;
 	next = session->record;
-	for (index = 0; index < next.reserved_count; index++) next.items[next.count++] = next.reserved[index];
+	/* A failed native grant restores the chosen pair ahead of the rest. */
+	memmove(next.items + next.reserved_count, next.items, next.count * sizeof(next.items[0]));
+	memcpy(next.items, next.reserved, next.reserved_count * sizeof(next.items[0]));
+	next.count += next.reserved_count;
 	for (index = 0; index < 2; index++)
 	{
 		if (next.grenades[index] > SHORT_MAX - next.reserved_grenades[index]) return FALSE;
@@ -482,7 +509,10 @@ boolean gear_finish_escape(struct gear_session *session)
 		return session->record.outcome == _gear_escaped && !memcmp(session->record.settled_run, session->run, GEAR_ID_BYTES);
 	if (session->record.phase != _gear_escrow) return FALSE;
 	next = session->record;
-	for (index = 0; index < next.escrow_count; index++) next.items[next.count++] = next.escrow[index];
+	/* Successful recovery leaves the actual carried pair ready to redeploy. */
+	memmove(next.items + next.escrow_count, next.items, next.count * sizeof(next.items[0]));
+	memcpy(next.items, next.escrow, next.escrow_count * sizeof(next.items[0]));
+	next.count += next.escrow_count;
 	for (index = 0; index < 2; index++) next.grenades[index] += next.escrow_grenades[index];
 	gear_run_clear(&next, _gear_escaped);
 	return gear_commit(session, &next);
@@ -515,6 +545,7 @@ void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BY
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES]) { return FALSE; }
 void gear_close(struct gear_session *session) { memset(session, 0, sizeof(*session)); session->descriptor = -1; }
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory) { return FALSE; }
+boolean gear_cycle_loadout(struct gear_session *session) { return FALSE; }
 boolean gear_reserve(struct gear_session *session) { return FALSE; }
 boolean gear_cancel_reservation(struct gear_session *session) { return FALSE; }
 boolean gear_lose(struct gear_session *session) { return FALSE; }
