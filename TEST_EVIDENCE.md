@@ -12,6 +12,33 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
+15 November, native-body loadout admission (base `016dbc727a`): the existing
+connected Extraction/gear C harness passes 23 MSVC x86 `/O2 /W3 /WX` workflows.
+Three new flows reject an unusable first weapon, unusable second weapon and a
+Survival loadout before any carried object is dropped. They check both saved
+identities are refunded, provisional objects do not remain, current/desired
+weapon selection stays unchanged, and a compatible retry deploys and recovers
+the same pair through existing settlement. Removing the new native admission
+call reproduces carried-equipment displacement in all three flows. Existing
+transfer, grant failure, disconnect, native controls, pending escrow, refund,
+initial ammo, finite Survival and evacuation checks remain passing.
+
+The production call reuses `source/units/units.c::unit_can_use_weapon`, including
+native seat/weapon-label admission and `game_engine_allow_pick_up`; no duplicate
+biped compatibility table. OS, identity, biped animation and pickup calls are
+bounded adapters in the harness. This proves the real transaction's ordering,
+not native alternate-biped or authored-hub gameplay. A subsequent unexpected
+attachment refusal can still drop the previous equipment as existing world loot;
+the change prevents known native incompatibility from causing that displacement.
+Inspection also established that ordinary `object_delete` is deferred; no
+speculative dangling-pointer/deletion patch was made.
+
+Incremental Windows64 build passes: `build/native-biped-loadout-build.log`,
+SHA-256 `76c471d688c4fe739a72cb98bb1878c5a8caaa17babd96ff02a3df6352afdf8c`.
+Actual alternate-biped deployment, authored hub and other-platform acceptance
+remain open. Unrelated runtime components were not retested, no maps or profiles
+were opened for writes, and repository-local compile scratch is removed.
+
 15 November, rendered co-op host-hitch recovery (base `633b5ea92f`): the existing
 `tick_fraction_held` harness compiles actual clock/pacing functions with MSVC
 x86 `/O2 /W3 /WX`. Ten cases pass: local interpolation, held/released frames,

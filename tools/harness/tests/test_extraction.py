@@ -42,6 +42,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 
 
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
+                                 'biped-first', 'biped-second', 'biped-survival',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
                                  'transfer', 'grant-failure', 'authority', 'native-controls',
                                  'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
@@ -61,6 +62,13 @@ def test_transfer_negative_control():
     status, output = run(build('extraction', generated((
         'if (!weapon || weapon->object.parent_object_index != player->unit_index)',
         'if (!weapon)'))), 'transfer')
+    assert status == CHECK_FAILED, output
+
+
+def test_biped_admission_negative_control():
+    status, output = run(build('extraction', generated((
+        '!unit_can_use_weapon(player->unit_index, created[index])',
+        'FALSE'))), 'biped-second')
     assert status == CHECK_FAILED, output
 
 

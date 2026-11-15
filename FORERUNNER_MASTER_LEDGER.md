@@ -3,6 +3,19 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current equipment repair: Extraction and Survival now test each recovered
+weapon with Halo's existing `unit_can_use_weapon` before dropping any carried
+gear. Loaded/native-compatible tags can still be unusable by a different biped's
+seat/weapon animation or active gametype. Either refused weapon now leaves the
+carried objects and selection untouched, deletes provisional grants and refunds
+the same saved identities. A compatible retry uses the existing deploy/escape
+loop. Twenty-three connected checks pass; three original-defect controls detect
+carried-equipment displacement. Windows64 compiles incrementally. Actual native
+alternate-biped deployment, authored hub gameplay and other platforms remain
+unverified. Later unforeseen attachment failures retain the existing rollback
+behavior (old drops remain world loot); no stronger atomic-grant claim. No new
+storage, UI, protocol or Spark interface. Compile scratch is removed.
+
 Current multiplayer repair: a capped host frame could discard elapsed time while
 clients kept advancing, leaving them permanently ahead. Client pacing now uses
 the existing validated host tick, receipt age and bounded measured latency. No

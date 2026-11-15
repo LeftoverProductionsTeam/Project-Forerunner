@@ -220,7 +220,11 @@ boolean game_modes_inventory_apply(long player_index, struct game_modes_inventor
 		object_placement_data_new(&placement, tag_loaded(WEAPON_DEFINITION_TAG, inventory->weapons[index].tag_path), NONE);
 		placement.position = unit->object.position;
 		created[index] = object_new(&placement);
-		if (created[index] == NONE || weapon_is_flag(created[index])) goto failed;
+		/* Check this body's native seat/weapon animation and gametype rules
+		 * before dropping any carried gear. A loaded tag alone does not mean
+		 * a different playable biped can equip it. Failed grants are refunded. */
+		if (created[index] == NONE || weapon_is_flag(created[index]) ||
+			!unit_can_use_weapon(player->unit_index, created[index])) goto failed;
 		weapon = weapon_get(created[index]);
 		weapon->weapon.age = inventory->weapons[index].age;
 		for (magazine = 0; magazine < NUMBEROF(weapon->weapon.magazines); magazine++)

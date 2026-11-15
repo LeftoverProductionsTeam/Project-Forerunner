@@ -73,7 +73,7 @@ static int control_updates[3],control_effects[3];
 #include "controls_types.inc"
 static struct weapon_magazine_definition magazine = { 20, 200, 0 };
 static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
-static long missing_tag = NONE;
+static long missing_tag = NONE, unusable_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
 static struct game_globals globals = { { 2, grenades } };
 static struct scenario_object_name names[3] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"} };
@@ -143,6 +143,8 @@ static long object_new(struct object_placement_data const *p)
 }
 static void object_delete(long h)
 { short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) { weapons[i].handle=NONE; return; } }
+static boolean unit_can_use_weapon(long u,long w)
+{ unit_get(u); return weapon_get(w)->definition_index!=unusable_tag; }
 static boolean unit_drop_weapon(long u,long w)
 {
  short i; struct unit_datum *unit=unit_get(u); struct weapon_datum *weapon=weapon_try_and_get(w);
@@ -154,6 +156,7 @@ static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
 {
  short i; struct unit_datum *unit=unit_get(u); struct weapon_datum *weapon=weapon_get(w);
  if(fail_attach && !--fail_attach) { if(fail_refund) fail_write=TRUE; return FALSE; }
+ if(!unit_can_use_weapon(u,w)) return FALSE;
  if(weapon->object.parent_object_index!=NONE) return FALSE;
  for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==NONE) { unit->unit.weapon_object_indices[i]=w; weapon->object.parent_object_index=u; return TRUE; }
  return FALSE;
@@ -246,6 +249,44 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strncmp(case_name,"biped-",6)) {
+  byte ids[2][GEAR_ID_BYTES];long carried[2];short index;
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);
+  for(index=0;index<2;index++)memcpy(ids[index],run(0)->gear.record.items[index].id,GEAR_ID_BYTES);
+  carried[0]=pickup(0,1);carried[1]=pickup(0,2);
+  units[0].unit.current_weapon_index=units[0].unit.desired_weapon_index=1;
+  before=weapon_count;
+  unusable_tag=!strcmp(case_name,"biped-first") ? 1 : 2;
+  if(!strcmp(case_name,"biped-survival")) {
+   enabled=FALSE;director=TRUE;firefight.enabled=firefight.gear=TRUE;firefight.phase=1;
+   extraction_reset();advance(1);
+  } else touch(0,0);
+  CHECK(run(0)->phase==_extraction_returned || run(0)->phase==_extraction_hub,
+   "unusable biped loadout was deployed");
+  CHECK(run(0)->gear.record.count==2&&!run(0)->gear.record.reserved_count,
+   "unusable native weapon lost its reservation refund");
+  for(index=0;index<2;index++) {
+   CHECK(units[0].unit.weapon_object_indices[index]==carried[index]&&
+    weapon_get(carried[index])->object.parent_object_index==unit_handles[0],
+    "known-incompatible loadout dropped carried equipment before admission");
+   CHECK(!memcmp(ids[index],run(0)->gear.record.items[index].id,GEAR_ID_BYTES),
+    "refused native loadout changed saved item identity");
+  }
+  CHECK(units[0].unit.current_weapon_index==1&&units[0].unit.desired_weapon_index==1,
+   "known-incompatible loadout changed the carried selection");
+  for(index=before;index<weapon_count;index++)CHECK(weapons[index].handle==NONE,
+   "refused native loadout left newly created world loot");
+  unusable_tag=NONE;
+  if(director)advance(30);else touch(0,0);
+  CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.reserved_count==2,
+   "compatible body could not retry the same saved loadout");
+  for(index=0;index<2;index++)CHECK(!memcmp(ids[index],run(0)->gear.record.reserved[index].id,GEAR_ID_BYTES),
+   "retry duplicated or substituted recovered equipment");
+  if(director){firefight.phase=4;firefight.victory=TRUE;advance(1);}else escape(0);
+  CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==2,
+   "retried loadout did not complete the existing recovery loop");
+  extraction_reset();return 0;
+ }
  if(!strcmp(case_name,"initial-ammo")) {
   struct game_modes_inventory chosen;
   byte id[GEAR_ID_BYTES];
