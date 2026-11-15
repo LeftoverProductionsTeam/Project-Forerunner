@@ -6,6 +6,7 @@
 (global boolean gs_manual_4_done false)
 (global boolean gs_manual_7_done false)
 (global boolean be_rescue_failed false)
+(global short be_collector_index 0)
 
 (script static void gs_complete_4 (set gs_manual_4_done true))
 (script static void gs_complete_7 (set gs_manual_7_done true))
@@ -44,10 +45,16 @@
   (if (not be_rescue_failed) (print "be stage: surviving marines rescued"))
   (object_create be_technology)
   (print "be stage: collect classified technology")
-  (sleep_until (or
-    (unit_has_weapon (unit (list_get (players) 0)) "forerunner\be_native\technology")
-    (unit_has_weapon (unit (list_get (players) 1)) "forerunner\be_native\technology")) 1)
-  (gs_complete_4)
+  ; Scan one native player per tick, including late joiners and larger crews.
+  ; Ownership still completes this shared authored objective, not volume entry.
+  (sleep_until (begin
+    (if (>= be_collector_index (list_count (players))) (set be_collector_index 0))
+    (if (and (< be_collector_index (list_count (players)))
+      (unit_has_weapon (unit (list_get (players) be_collector_index)) "forerunner\be_native\technology"))
+      (gs_complete_4))
+    (set be_collector_index (+ be_collector_index 1))
+    gs_manual_4_done
+  ) 1)
   (print "be stage: technology collected by native weapon ownership")
   (if (volume_test_objects be_containment (players)) (begin
     ; Script-owned waves use native activation, not the runtime wave director.

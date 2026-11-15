@@ -12,6 +12,48 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, larger native co-op (base `448650a8e8`, unchanged compiled engine):
+`build/native-coop-three-player` passes player comparison for 37 seconds,
+mean/max separation 0.013/0.041, no mismatched seconds, no divergent prediction
+ticks or corrections. Both peers have 37 snapshots with three living equipped
+players. Items pass 41 snapshots, zero out of step, 4/4 new items seen.
+`build/native-coop-six-player` similarly passes 37 seconds, separation
+0.013/0.067, no mismatched seconds, 51/3324 divergent prediction ticks,
+maximum drift 0.000488 and zero corrections. Both peers have 37 snapshots with
+six living equipped players; items pass 41 snapshots, zero out of step, 10/10
+new items. Existing local-player and virtual-controller inputs are reused.
+
+The tracked owned fixture now scans one native player-list entry per tick for
+actual technology ownership, including crews beyond its former two entries.
+Invader compiles four scripts/four globals and builds candidate CRC E52C2E4E.
+`build/native-coop-six-operation` uses three local players per peer. Native
+console stages reach deployment, Covenant elimination, physical Marine rescue,
+technology pickup, Flood containment, defense and extraction availability.
+Host and client identify network player 3 holding the unique technology weapon;
+`be_collector_index=3` and `gs_manual_4_done=true` confirm the authored scan ran.
+The extra unit_has_weapon console probes used doubled path separators and all
+returned false; those probes are not ownership evidence. Actual item/player
+snapshots and the native objective transition establish the pickup instead.
+Both peers record over 100 snapshots with six living equipped players.
+
+This combat run FAILS synchronization and is retained without tolerance changes:
+137 compared seconds, separation mean/max 0.003/0.060, 74 corrections,
+22 ammunition-mismatched seconds, one aim and one alive mismatch. Player 0
+automatically picks up 180 reserve rifle rounds on the host while continuing to
+fire locally; the existing inventory grace defers them until tick 2550.
+`network_objects.c::distributed_client_note_own_inventory` refreshes use time
+while firing/reloading; `distributed_client_apply_inventory` waits for settled
+ownership before applying ammo. A safe repair must preserve prediction and avoid
+duplicating pickups through reordered inventory/pickup events. Items FAIL on
+plasma pistol 61 (tick 2100, client still held/host dropped) and extra client
+plasma grenade 4100 (tick 2130), 36/37 new items seen across 141 snapshots.
+AI FAILS because host tick 1111 has no nearby client snapshot; 35 snapshots and
+16 units compare, maximum separation 0.0753, four common damaged/dead units.
+Do not turn these findings into relaxed comparators or a full gameplay claim.
+Native split-screen captures also expose overlapping HUD placement. Six separate
+clients, independent squad quests, remote banking and complete operations remain
+unaccepted. Owned runtime copies and bulky captures are cleaned after peers stop.
+
 15 November, stowed inventory refresh (base `638dd8b1d9`): the actual old
 `distributed_client_apply_inventory` forgets/re-adds a legitimately parentless
 holstered player item, resetting pending desired weapon and last-use time. The

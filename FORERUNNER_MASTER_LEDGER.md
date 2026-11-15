@@ -3,6 +3,22 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Larger native co-op checkpoint (base `448650a8e8`): three and six living,
+equipped players over two native instances pass the existing idle/movement/
+weapon-switch checks; these are mixed local/network rosters, not six clients.
+The owned mission's technology objective now scans the native player list rather
+than only entries 0 and 1. Compiled HaloScript and a six-player native encounter
+confirm a later player collecting it, followed by Flood containment, defense and
+extraction availability. Full combat synchronization FAILS: player 0's reserve
+ammo pickup is deferred during continuous fire (180-round difference, ticks
+1890–2520, converged at 2550); the existing prediction grace resets while firing.
+Item checks also report a dropped plasma pistol ownership mismatch and extra
+plasma grenade; AI comparison has a missing nearby snapshot at tick 1111.
+Keep these exact failures open before accepting larger combat. Existing checks
+were not relaxed. Split-screen HUD overlap, six independent clients/squads and
+authenticated remote banking remain unaccepted. Compact evidence lives under
+`build/native-coop-{three-player,six-player,six-operation}`.
+
 Native stowed-refresh integration (base `638dd8b1d9`): repeated host inventories
 no longer forget/re-add a healthy holstered player weapon with native item flags,
 full player owner and no world connection. The old helper reproduces a lost

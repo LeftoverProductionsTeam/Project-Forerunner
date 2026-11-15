@@ -791,6 +791,14 @@ The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.
 This is not acceptance of Spark's Black Echo package or verified remote banking.
+The owned `tools/fixtures/black_echo_native.hsc` technology objective now scans
+the full native player list one entry per tick, rather than hardcoding two
+entries. Spark should likewise use actual owned equipment and the intended
+player/squad scope for collection objectives. A six-player/two-instance native
+encounter reaches the authored extraction-available stage with a later player
+collecting the technology. Combat ammo/item synchronization and split-screen HUD
+issues still prevent larger-roster acceptance; this adds no discovery capability
+or independent squad quest interface. Exact failures are in `TEST_EVIDENCE.md`.
 `game_modes.c::game_modes_inventory_capture` now honors native stowed-item/player
 ownership; Spark must not invent a separate writer or attach holstered models
 just to satisfy persistence. `menu_functions.c::pc_menu_start_map_update` permits
