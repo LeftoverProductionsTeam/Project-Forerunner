@@ -211,6 +211,7 @@ static game_state_before_save_proc before_save_procs[] =
 static game_state_before_load_proc before_load_procs[] =
 {
 	game_sound_clear,
+	main_script_map_name_clear, /* port: discard pending map_name on every restore. */
 	/* port: run/result handles are outside the saved image. Invalidate them
 	   for every checkpoint/disk/core load, even if the clock does not rewind. */
 	extraction_reset,

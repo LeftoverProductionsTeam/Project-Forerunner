@@ -3,19 +3,29 @@
 #ifndef _WIN32
 #include <strings.h>
 #define _stricmp strcasecmp
+#define _strnicmp strncasecmp
 #endif
 #define csstrncpy strncpy
-#define CUSTOM_EDITION_LEVEL_NAME_PREFIX "custom_maps\\"
+#define HALO_CUSTOM_EDITION 1
+enum { _map_family_xbox, _map_family_custom_edition };
+static char main_script_next_level[64];
 static int mcc_lookups, ce_lookups;
 static char const *catalog_level = "mcc_maps\\campaign\\next";
 static boolean catalog_campaign = TRUE;
 static boolean mcc_level_name(char const *name) { return name && !strncmp(name, "mcc_maps\\", 9); }
-static boolean custom_edition_level_name(char const *name) { return name && !strncmp(name, "custom_maps\\", 12); }
+static short map_family_parse(char const *name, char *file, long size) {
+    (void)file; (void)size;
+    return !strcmp(name, "start@ce") ? _map_family_custom_edition : _map_family_xbox;
+}
+static short map_family_from_wire_name(char const *name, char *file, long size) {
+    (void)file; (void)size;
+    return !strcmp(name, "custom_maps\\start") ? _map_family_custom_edition : _map_family_xbox;
+}
 static short mcc_maps_find(char const *name) { mcc_lookups++; return strcmp(name, catalog_level) ? NONE : 0; }
 static boolean mcc_maps_campaign(short index) { (void)index; return catalog_campaign; }
 static char const *mcc_maps_level_name(short index) { (void)index; return catalog_level; }
-static boolean custom_edition_maps_level_campaign(char const *name) {
-    ce_lookups++; return !strcmp(name, "custom_maps\\next");
+static boolean map_family_campaign(char const *name) {
+    ce_lookups++; return !strcmp(name, "next@ce");
 }
 #include "under_test.inc"
 
@@ -45,14 +55,14 @@ int main(int argc, char **argv)
     else if (!strcmp(name, "transitions")) {
         CHECK(main_script_level_resolve(current, "next", next, sizeof(next)), "MCC resolves");
         CHECK(main_script_level_resolve("custom_maps\\start", "next", next, sizeof(next)), "CE resolves after MCC");
-        CHECK(!strcmp(next, "custom_maps\\next"), "no MCC result leaks into CE");
+        CHECK(!strcmp(next, "next@ce"), "no MCC result leaks into CE");
         CHECK(!main_script_level_resolve("levels\\a10\\a10", "next", next, sizeof(next)), "Xbox unchanged");
         CHECK(main_script_level_resolve(current, "next", next, sizeof(next)), "MCC resolves after Xbox");
         CHECK(mcc_lookups == 2 && ce_lookups == 1, "each catalog owns only its family");
         return 0;
     } else CHECK(FALSE, "unknown case");
     CHECK(main_script_level_resolve(current, requested, next, size) == expected, "destination acceptance");
-    if (expected) CHECK(!strcmp(next, mcc_level_name(current) ? catalog_level : "custom_maps\\next"), "canonical destination");
+    if (expected) CHECK(!strcmp(next, mcc_level_name(current) ? catalog_level : "next@ce"), "canonical destination");
     else CHECK(!strcmp(next, "unchanged"), "refusal leaves output alone");
     if (!mcc_level_name(current)) CHECK(!mcc_lookups, "legacy paths never query MCC catalog");
     else CHECK(!ce_lookups, "MCC paths never query CE catalog");

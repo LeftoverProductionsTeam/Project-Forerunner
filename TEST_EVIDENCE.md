@@ -689,3 +689,16 @@ The generator and its committed menu output came together unchanged. Transfer
 rates, concurrent peers, partial seeding, disconnect/restore cleanup, payload
 hashes and Linux/Windows/web/guest parity require later authorized validation.
 Upstream's commit messages describe upstream evidence, not Forerunner acceptance.
+
+UNVERIFIED upstream campaign/co-op source adoption: reviewed original commits
+and merge differences in native director/observer, co-op presentation, owning
+HS thread checks, CE/MCC destination lookup, outcomes and restore callbacks.
+Preserved existing downloaded-map filtering, trusted menus, Stubbs, MCC order
+and host local-profile credit; CE uses actual map-family APIs and format checks.
+Pending destinations clear through existing lifecycle/restore paths, and reduced
+MCC/CE configurations retain guards. Original upstream fixture sources came with
+their commits; the CE fixture was adapted, but no tests were run or generated.
+No builds, launches, hardware or save access. Dedicated/P2P cutscenes, old-host
+fallback, package/CE bounds, first-tick mode ownership, menu/Stubbs selection,
+death/restart/restore, progress credit and platform parity require later native
+validation. Original commit test reports remain upstream-only evidence.

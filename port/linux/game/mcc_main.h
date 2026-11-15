@@ -12,6 +12,8 @@ boolean mcc_main_campaign_won(char const *requested);
 /* no MCC maps in this build (HALO_MCC, halo_port_features.h): the hooks
 the shared code calls do nothing, their arguments unevaluated */
 #define mcc_main_campaign_won(a0) ((void)sizeof(a0), (boolean)0)
+#define mcc_main_script_level_resolve(a0, a1, a2, a3) \
+	((void)sizeof(a0), (void)sizeof(a1), (void)sizeof(a2), (void)sizeof(a3), (boolean)0)
 #define mcc_main_load_failed(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_main_network_load_failed(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_main_map_completed() ((boolean)0)

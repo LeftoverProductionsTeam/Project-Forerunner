@@ -739,3 +739,16 @@ This is runtime performance/necessary arithmetic work. Source-only upstream
 validation claims do not establish local throughput. Forge-specific tag fixes
 and OpenCE campaign/cutscene source adoption remain independent next work;
 file sharing is still unchanged and cannot yet supply an inventory bank lock.
+
+UNVERIFIED campaign/co-op runtime progress: reused original ac152e44/8c70e633/
+511da10e/8903981f/958cd833 with -x and bnunu/chestahh attribution. Dedicated
+hosts can source native scripted camera presentation; older-host fallback shares
+existing spectator/presentation paths. Campaign map_name uses owning-thread
+permission and native destination lookup. Local source adapts CE to existing
+map families, preserves MCC campaign order, known UI/Stubbs and local credit,
+refuses client or mode-owned gameplay transitions, and clears pending names on
+loss/restart/menu/map/restore. CE scripts do not grant unrelated stock credit;
+reduced builds keep stubs. No new launcher, camera renderer, protocol or editor.
+Existing upstream fixture source was adapted to CE names, without execution.
+Source/callers/diffs only; no tests, builds, launches, saves or pushes. These
+campaign transitions are not continuous MegaWorld regions or accepted gameplay.

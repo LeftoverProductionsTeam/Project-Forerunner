@@ -425,7 +425,9 @@ void platform_log(const char *format, ...);
 #endif
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "mcc_main.h" /* port: port/linux/game/mcc_main.h */
-#include "custom_edition_maps.h" /* port: main_script_map_name, a Custom Edition campaign's maps */
+#ifdef HALO_CUSTOM_EDITION
+#include "halo_map_families.h" /* port: this fork's CE campaign lookup and native aliases */
+#endif
 #include "view_fov.h" /* port: display.fov, before the projection and culling */
 #include "vr_render.h" /* port: optional OpenXR stereo views, port/linux/game/vr_render.c */
 #include "halo_perf_log.h" /* port: console.perf_log */
@@ -1013,6 +1015,12 @@ void main_won_map(
 main_won_map_private takes next; empty for none */
 static char main_script_next_level[64];
 
+/* port: pending script transitions are outside the saved game image. */
+void main_script_map_name_clear(void)
+{
+	main_script_next_level[0] = 0;
+}
+
 /* port: the level the scripts name in the same campaign as `current`: a
 mission of the same MCC package, else a Custom Edition campaign map; FALSE
 for any other. The name may have a path and an extension (".map"); only its
@@ -1023,16 +1031,19 @@ static boolean main_script_level_resolve(
 	char *next,
 	size_t size)
 {
+#ifdef HALO_CUSTOM_EDITION
 	char const *leaf = requested;
 	char const *cursor;
 	char candidate[160];
 	size_t length;
+#endif
 
-	if (!current || !current[0] || !requested)
+	if (!current || !current[0] || !requested || !next || !size)
 		return FALSE;
 	/* port: package mission identities and lookup belong to mcc_main.c. */
 	if (mcc_level_name(current))
 		return mcc_main_script_level_resolve(current, requested, next, size);
+#ifdef HALO_CUSTOM_EDITION
 	for (cursor = requested; *cursor; cursor++)
 	{
 		if (*cursor == '\\' || *cursor == '/')
@@ -1043,15 +1054,23 @@ static boolean main_script_level_resolve(
 		length -= 4;
 	if (!length || length > 64)
 		return FALSE;
-	if (custom_edition_level_name(current))
+	if (map_family_parse(current, NULL, 0) == _map_family_custom_edition ||
+		map_family_from_wire_name(current, NULL, 0) == _map_family_custom_edition)
 	{
-		snprintf(candidate, sizeof(candidate), "%s%.*s", CUSTOM_EDITION_LEVEL_NAME_PREFIX, (int)length, leaf);
-		if (!custom_edition_maps_level_campaign(candidate) || strlen(candidate) >= size)
+		/* port: local CE maps are <name>@ce; the host's next-round path
+		   already converts that through map_share_level_name_choose. */
+		if (length > 3 && !_strnicmp(leaf + length - 3, "@ce", 3))
+			length -= 3;
+		if (!length || memchr(leaf, '@', length) || length + sizeof("@ce") > sizeof(main_script_next_level))
+			return FALSE;
+		snprintf(candidate, sizeof(candidate), "%.*s@ce", (int)length, leaf);
+		if (strlen(candidate) >= size || !map_family_campaign(candidate))
 			return FALSE;
 		csstrncpy(next, candidate, size - 1);
 		next[size - 1] = 0;
 		return TRUE;
 	}
+#endif
 
 	return FALSE;
 }
@@ -1071,7 +1090,34 @@ void main_script_map_name(
 		network_game_get_game() : NULL;
 	char const *current = game ? game->map.name : main_globals.soloplayer_map_name;
 	char next[NUMBEROF(main_script_next_level)];
+#ifdef HALO_MAP_LIST
+	boolean map_pack_menus_known(void);
 
+	/* port: preserve trusted UI selection even while browsing a network
+	   lobby. This is a native menu action, not a gameplay script's win. */
+	if (map_pack_menus_known() && !csstrcmp(cache_file_loaded_map_name(), "ui"))
+	{
+		main_set_map_name(map_name);
+		return;
+	}
+#endif
+
+	/* port: only the local game/co-op host may choose a scripted outcome.
+	   Authored round scripts keep running, but cannot bypass a mode owner. */
+	if ((game_connection() != _game_connection_local &&
+		!(game_connection() == _game_connection_network_server && network_coop_active())) ||
+		extraction_owns_map() || coop_enemies_firefight_active())
+		return;
+#if defined(HALO_MAP_LIST) && !defined(HALO_XBOX_CONSOLE)
+	/* port: preserve Stubbs's existing native level selection. */
+	if (stubbs_mode_active() && stubbs_campaign_map_name_allowed())
+	{
+		main_set_map_name(map_name);
+		return;
+	}
+#endif
+	if (!game_in_progress() || !global_scenario || global_scenario->type != _scenario_type_solo)
+		return;
 	if (!main_script_level_resolve(current, map_name, next, sizeof(next)))
 	{
 		error(_error_silent, "the scripts' map_name %s is no level of %s's campaign: nothing happens",
@@ -1088,6 +1134,7 @@ void main_script_map_name(
 void main_lost_map(
 	void)
 {
+	main_script_map_name_clear(); /* port: a loss cannot retain a scripted win destination. */
 	if (!main_globals.lost_map)
 	{
 		main_globals.loss_timer = 0;
@@ -1116,6 +1163,7 @@ void main_start_time(
 void main_reset_map(
 	void)
 {
+	main_script_map_name_clear(); /* port: do not retain a previous attempt's destination. */
 	main_globals.switch_to_structure_bsp_index = NONE;
 	main_globals.saving_map = FALSE;
 	main_globals.reset_map = TRUE;
@@ -1126,6 +1174,7 @@ void main_reset_map(
 void main_revert_map(
 	void)
 {
+	main_script_map_name_clear(); /* port: pending script state is not restored with the world. */
 	main_globals.switch_to_structure_bsp_index = NONE;
 	main_globals.saving_map = FALSE;
 	main_globals.revert_map = TRUE;
@@ -1237,6 +1286,7 @@ void main_switch_structure_bsp(
 void main_goto_main_menu(
 	void)
 {
+	main_script_map_name_clear(); /* port: abandon any queued campaign destination. */
 	main_globals.switch_to_structure_bsp_index = NONE;
 	main_globals.saving_map = FALSE;
 	main_globals.want_to_be_at_main_menu = TRUE;
@@ -1713,6 +1763,7 @@ boolean main_menu_is_loaded(
 static void main_new_map(
 	struct game_options *options)
 {
+	main_script_map_name_clear(); /* port: map replacement invalidates script transition state. */
 	input_flush();
 	if (game_load(options))
 	{
@@ -2754,6 +2805,15 @@ static void main_won_map_private(
 			main_goto_main_menu();
 		return;
 	}
+	/* port: a Custom Edition campaign's next level, as its scripts named it,
+	begun anew as ui_set_next_level begins one (no saved game taken). It does
+	not complete the stock mission last selected in the solo menu. */
+	if (next[0])
+	{
+		main_set_map_name(next);
+		main_disallow_persistent_storage();
+		return;
+	}
 	level = main_get_solo_level_from_name(main_globals.soloplayer_map_name);
 	/* port: a level not in the campaign (a Halo PC map's) has no next one,
 	rather than the first */
@@ -2762,14 +2822,6 @@ static void main_won_map_private(
 		level = NONE;
 	for (local_player_index = 0; local_player_index < player_spawn_count; local_player_index++)
 		player_profile_save_level_completed(local_player_index);
-	/* port: a Custom Edition campaign's next level, as its scripts named it,
-	begun anew as ui_set_next_level begins one (no saved game taken) */
-	if (next[0])
-	{
-		main_set_map_name(next);
-		main_disallow_persistent_storage();
-		return;
-	}
 	ui_set_next_level(level);
 	return;
 }
@@ -2787,6 +2839,7 @@ void main_set_map_name(
 	map_pack_menus_map_name(map_name, pack_map_name, sizeof(pack_map_name));
 	map_name = pack_map_name;
 #endif
+	main_script_map_name_clear(); /* port: explicit selection replaces a scripted destination. */
 	main_globals.want_to_be_at_main_menu = FALSE;
 	csstrncpy(main_globals.soloplayer_map_name, map_name, NUMBEROF(main_globals.soloplayer_map_name) - 1);
 	main_globals.soloplayer_map_name[NUMBEROF(main_globals.soloplayer_map_name) - 1] = 0;

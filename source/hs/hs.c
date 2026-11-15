@@ -14131,6 +14131,7 @@ static void hs_scenario_functions_check(
 	/* port: a campaign level's scripts may name its next level
 	(hs_scenario_campaign), an MCC map's too */
 	hs_scenario_campaign = scenario->type == _scenario_type_solo;
+	hs_scenario_pack_menus = FALSE; /* port: an MCC early return must not retain the last UI's exception. */
 	/* port: an MCC map's functions are checked by mcc_syntax.c (its calls
 	a map may not make skipped: hs_mcc_node_refusal) */
 	csmemset(hs_scenario_skipped_nodes, 0, sizeof(hs_scenario_skipped_nodes));

@@ -83,6 +83,15 @@ frame. Forerunner's additional status caller now shares the same rate helper.
 The upstream author reports its own tests in commit messages; **no Forerunner
 tests, builds or launches ran**, and all local behavior/performance is UNVERIFIED.
 
+Campaign/co-op source from that same pin now also reuses `ac152e44`, `8c70e633`,
+`511da10e`, `8903981f` and `958cd833` via `cherry-pick -x`, retaining bnunu's and
+chestahh's authorship. Native unattended scripted cameras, old-server fallback
+and owning-thread/campaign destination handling share existing engine systems.
+Local adaptation uses Forerunner's CE map families, preserves MCC order/menu and
+mode safeguards, clears pending destinations through native restore/lifecycle
+hooks and retains reduced-feature stubs. Source only, UNVERIFIED; upstream
+validation is not local acceptance and no network version/capability changed.
+
 Voice audit (owner-requested, source only): native desktop Chupathingy voice is
 already connected through `voice_game.c`, Delta Peer, `voice.c`/Opus and
 `dsound_voice_*` in the existing Halo mixer. Host proximity routing admits nearby

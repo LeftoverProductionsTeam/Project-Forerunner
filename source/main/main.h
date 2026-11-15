@@ -72,6 +72,8 @@ void main_won_map(
 (hs.c's map_name) */
 void main_script_map_name(
 	char const *map_name);
+/* port: invalidate a pending script destination before world/load replacement. */
+void main_script_map_name_clear(void);
 
 void main_lost_map(
 	void);

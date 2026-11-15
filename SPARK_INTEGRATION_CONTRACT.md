@@ -669,8 +669,33 @@ through the serving frame, and the existing upload selector accepts up to
 uses the shared rate helper. No map bytes, packet layouts, hash validation,
 Spark authoring schema or discovery capability changed. All local behavior and
 throughput remain UNVERIFIED: upstream commit test claims are not our evidence.
-No tests, builds, launches or pushes ran. Forge tag streaming and the new upstream
-campaign/co-op changes remain separate source-adoption work, not implied support.
+No tests, builds, launches or pushes ran. Forge tag streaming remains separate
+source-adoption work, not implied support.
+
+UNVERIFIED campaign/co-op reuse from that pin: original commits `ac152e44`,
+`8c70e633`, `511da10e`, `8903981f` and `958cd833` were cherry-picked with author
+and provenance intact. `source/camera/director.c::director_unattended_scripted_camera`
+and the native observer update let a host with no local player film scripted
+cutscenes through existing co-op presentation messages. `network_coop.c` retains
+the matching old-server fallback and existing new-game/recovery reset owners.
+No camera/network payload was added. The fallback is presentation, not exact
+reconstruction of a camera an older server never sent.
+
+`source/hs/hs.c::main_set_map_name_evaluate` now distinguishes owning console,
+script and global-initializer threads. Campaign scripts may request a native
+next mission through `main.c::main_script_map_name`: MCC resolution remains in
+`mcc_main.c` and requires the current package; CE uses this fork's existing
+`halo_map_families.h` APIs and native solo-cache checks, resolving `<name>@ce`.
+Known pack UI and Stubbs retain their existing native selection. Local/host
+authority, Extraction and built-in Firefight outcome ownership are preserved;
+unrelated scripts keep running. Pending destinations clear on loss, restart,
+menu/map replacement and every native restore. Scripted CE transitions do not
+award a stock mission selected earlier in the solo menu. Reduced MCC/CE builds
+keep their feature gates. These ordinary campaign transitions do not implement
+continuous MegaWorld traversal. Spark can use standard native `map_name` source
+within these limits, without a new export schema or launcher. All local behavior,
+camera placement, peer progression and platform parity remain unverified; no
+tests/builds/launches ran, and discovery was not upgraded.
 
 Legacy target conversion remains Spark's responsibility. The
 [compatibility matrix](COMPATIBILITY_MATRIX.md) records the evidence limits for
