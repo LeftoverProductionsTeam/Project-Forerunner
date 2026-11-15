@@ -12,6 +12,6 @@ def generated():
                  'network_coop_hosting_public', 'network_coop_wipe_reverts', 'network_coop_new_game'):
         code += function(coop, name)
     code += function(state, 'game_state_save')
-    for name in ('main_lost_map', 'main_death_timer_expired', 'main_lost_map_private'):
+    for name in ('main_script_map_name_clear', 'main_lost_map', 'main_death_timer_expired', 'main_lost_map_private'):
         code += function(main, name)
     return (('types.inc', types), ('under_test.inc', code))

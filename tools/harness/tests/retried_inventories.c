@@ -60,7 +60,17 @@ static long game_time_get(void) { return now; }
 static struct player_datum *player_get(long index) { return &player; }
 static boolean distributed_player_is_local(long player_index) { return FALSE; }
 static boolean distributed_client_own_settled(long time) { return TRUE; }
-static void distributed_client_release_item(long index, boolean dropped) {}
+/* Native release transfers one real item out of its previous owner's slots.
+ * This fixture models that contract; it does not simulate pickup physics. */
+static void distributed_client_release_item(long index, boolean dropped)
+{
+	short object, slot;
+	(void)dropped;
+	for (object = 0; object < OBJECT_COUNT; object++)
+		for (slot = 0; slot < MAXIMUM_WEAPONS_PER_UNIT; slot++)
+			if (units[object].unit.weapon_object_indices[slot] == index)
+				units[object].unit.weapon_object_indices[slot] = NONE;
+}
 static void unit_network_drop_weapon(long unit_index, short slot) { unit_get(unit_index)->unit.weapon_object_indices[slot] = NONE; }
 static void unit_network_add_weapon(long unit_index, long weapon_index, short slot)
 {
@@ -109,7 +119,7 @@ static struct distributed_inventory carrying(long unit_index, long first, long s
 /* the host's inventory comes, as network_objects_handle_inventories takes it */
 static void receive(struct distributed_inventory inventory)
 {
-	distributed_client_apply_inventory(&inventory);
+	network_objects_handle_inventories(&inventory, 1);
 }
 
 static boolean kept(long unit_index)
@@ -139,6 +149,35 @@ int main(int argc, char **argv)
 {
 	char const *case_name = argv[1];
 	long unit = OBJECT(1), first = OBJECT(2), second = OBJECT(3);
+	/* An old partial inventory must not reclaim an item after a newer host
+	   inventory gave it to another unit, even when the missing tag arrives. */
+	if (!strcmp(case_name, "ownership-transfer") || !strcmp(case_name, "ownership-recipient-late"))
+	{
+		long recipient = OBJECT(4);
+		boolean recipient_late = !strcmp(case_name, "ownership-recipient-late");
+
+		reset();
+		arrive(unit, _object_type_biped);
+		if (!recipient_late) arrive(recipient, _object_type_biped);
+		arrive(first, _object_type_weapon);
+		receive(carrying(unit, first, second, 2));
+		CHECK(held(unit, 0) == first && kept(unit), "old partial inventory was not staged");
+		now++;
+		receive(carrying(recipient, first, NONE, 1));
+		if (recipient_late)
+		{
+			arrive(recipient, _object_type_biped);
+			distributed_client_apply_retried_inventories();
+		}
+		CHECK(held(recipient, 0) == first && held(unit, 0) == NONE, "fresh host transfer did not own the item");
+		arrive(second, _object_type_weapon);
+		now++;
+		distributed_client_apply_retried_inventories();
+		CHECK(held(recipient, 0) == first && held(unit, 0) != first, "queued inventory stole the transferred item back");
+		receive(carrying(unit, NONE, second, 2));
+		CHECK(held(unit, 1) == second && held(recipient, 0) == first, "fresh host refresh did not recover the remaining gear");
+		return 0;
+	}
 	short index;
 
 	reset();

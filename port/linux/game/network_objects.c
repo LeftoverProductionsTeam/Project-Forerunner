@@ -4426,6 +4426,38 @@ static void distributed_client_ready_picked_up_weapons(
 	}
 }
 
+/* Fresh host inventories have passed distributed_message_stale. A partial
+inventory kept for a missing unit/weapon can be older than another unit's
+new ownership: do not let its retry take that item back later. Discard the
+obsolete snapshot as a whole; the host's normal refresh supplies its remainder.
+Only incoming host updates invalidate claims, never deferred retries. */
+static void distributed_client_forget_retried_ownership(
+	struct distributed_inventory const *inventory)
+{
+	short index = 0;
+
+	while (index < objects_client_retried_inventory_count)
+	{
+		struct distributed_retried_inventory *retried = &objects_client_retried_inventories[index];
+		boolean superseded = FALSE;
+		short slot, other;
+
+		if (retried->inventory.unit_index != inventory->unit_index)
+			for (slot = 0; slot < MAXIMUM_WEAPONS_PER_UNIT && !superseded; slot++)
+				if (inventory->weapon_indices[slot] != NONE)
+					for (other = 0; other < MAXIMUM_WEAPONS_PER_UNIT; other++)
+						if (retried->inventory.weapon_indices[other] == inventory->weapon_indices[slot])
+						{
+							superseded = TRUE;
+							break;
+						}
+		if (superseded)
+			*retried = objects_client_retried_inventories[--objects_client_retried_inventory_count];
+		else
+			index++;
+	}
+}
+
 void network_objects_handle_inventories(
 	void const *entries,
 	short count)
@@ -4434,7 +4466,12 @@ void network_objects_handle_inventories(
 	short index;
 
 	for (index = 0; index < count; index++)
+	{
+		if (inventories[index].unit_index == NONE)
+			continue;
+		distributed_client_forget_retried_ownership(&inventories[index]);
 		distributed_client_apply_inventory(&inventories[index]);
+	}
 }
 
 void network_objects_set_seat(

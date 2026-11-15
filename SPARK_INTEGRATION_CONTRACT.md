@@ -9,6 +9,26 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+Current verification checkpoint: the owner's Development & Verification Directive
+authorizes focused compilation/tests and isolated native smoke checks. Historical
+source-only entries below retain their original evidence limits. On base
+`87521711b` plus tracked repairs, Windows x86 compiles; 58 focused inventory/
+campaign/co-op checks and one private two-peer Blood Gulch combat/death smoke
+pass. See `TEST_EVIDENCE.md` for source identity, tolerances and observed drift.
+This does not validate Spark's authored candidate, persistence, VR or Linux.
+
+`port/linux/game/network_objects.c::{network_objects_handle_inventories,
+distributed_client_forget_retried_ownership}` now prevents a deferred old unit
+inventory from reclaiming a weapon transferred by a newer host update. Existing
+authoritative host refresh repairs its remainder. No packet, protocol version,
+capability, authoring format or personal-inventory file changed. Spark must
+continue providing native pickups/encounters and the existing Extraction controls/
+volumes; it must not implement a competing inventory authority or award a stash.
+Forerunner still owes durable owner/item/run identity, reservations and exactly-once
+settlement. Spark's next handoff remains a compiled native Zombie Apocalypse/solo
+encounter with its required resources and valid hub starts/Extraction markers;
+no editor rewrite or new launcher/interface is requested by this repair.
+
 Review baseline: Forerunner gameplay `21a809b0`, shared-life source `c8196f81`,
 repository reconciliation `3347a00c2`; Spark inspected read-only at
 `3329a4a5ab12b6f02c75b82e054f75b0896f1e2a`, clean at inspection, including its

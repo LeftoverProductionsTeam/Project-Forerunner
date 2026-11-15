@@ -8,6 +8,8 @@ header included in hcex build.
 #define __SOUND_MANAGER_H
 #pragma once
 
+#include "math/real_math.h" /* port: listener APIs must declare their point types for every includer. */
+
 /* ---------- constants */
 
 enum looping_sound_refresh_state

@@ -45,6 +45,9 @@ static boolean coop_game(void){return active;}
 static char const *config_string(char const *name){CHECK(!strcmp(name,"network.coop_team_wipe"),"wrong policy key");return policy;}
 static long tick,main_loss_last_tick;
 static boolean paused,all_dead,save_succeeds;
+static char main_script_next_level[64];
+static boolean extraction_handles_loss,extraction_spawn_succeeds;
+static int extraction_recoveries;
 static int reverts,respawns;
 static boolean firefight_active,firefight_exhausted;
 static boolean coop_enemies_firefight_active(void){return firefight_active;}
@@ -62,6 +65,13 @@ static boolean game_time_get_paused(void){return paused;}
 static boolean players_are_all_dead(void){return all_dead;}
 static boolean main_coop_host_revert(void){if(!game_state_globals.saved_game_valid)return FALSE;reverts++;return TRUE;}
 static void players_respawn_at_checkpoint(void){respawns++;}
+/* The real mode owns recovery; this fixture checks the main-loop dispatch
+ * and retries, without claiming to exercise a native spawn or inventory save. */
+static boolean extraction_respawn_after_loss(void)
+{
+ if(!extraction_handles_loss)return FALSE;
+ extraction_recoveries++;if(extraction_spawn_succeeds)all_dead=FALSE;return TRUE;
+}
 /* (MCC's Iron skull, ChupathingyCE's mcc_skulls.c: off here, so a death never restarts the level) */
 static boolean mcc_skulls_restart_on_death(void){return FALSE;}
 static void main_reset_map(void){CHECK(0,"the level restarted");}
@@ -94,10 +104,12 @@ static void setup(void)
  player_data=game_state_data_new("players",4,sizeof(struct player_datum));add_player();add_player();
  connection=_game_connection_network_server;active=TRUE;memset(&lobby,0,sizeof(lobby));browser_enabled=TRUE;policy="auto";
  tick=main_loss_last_tick=0;paused=FALSE;all_dead=TRUE;save_succeeds=TRUE;reverts=respawns=diagnostics=0;
+ strcpy(main_script_next_level,"next@ce");extraction_handles_loss=FALSE;extraction_spawn_succeeds=TRUE;extraction_recoveries=0;
+ firefight_active=firefight_exhausted=FALSE;
  memset(&main_globals,0,sizeof(main_globals));game_state_globals.saved_game_valid=FALSE;
  network_coop_new_game();game_state_save();
 }
-static void wipe(void){main_lost_map();tick+=92;main_lost_map_private();}
+static void wipe(void){main_lost_map();CHECK(!main_script_next_level[0],"loss retained script destination");tick+=92;main_lost_map_private();}
 int main(int argc,char **argv)
 {
  char const *case_name=argc>1?argv[1]:"";setup();
@@ -150,6 +162,13 @@ int main(int argc,char **argv)
   firefight_exhausted=TRUE;wipe();
   CHECK(!reverts&&respawns==1,"exhausted Firefight team respawned");
   CHECK(!main_globals.lost_map&&!main_globals.loss_timer,"Firefight retained campaign loss timer");
+ } else CASE("extraction") {
+  connection=_game_connection_local;extraction_handles_loss=TRUE;wipe();
+  CHECK(extraction_recoveries==1&&!reverts&&!respawns&&!all_dead&&!main_globals.lost_map,"Extraction recovery reached campaign rewind");
+  setup();connection=_game_connection_local;extraction_handles_loss=TRUE;extraction_spawn_succeeds=FALSE;wipe();
+  CHECK(extraction_recoveries==1&&!reverts&&!respawns&&main_globals.lost_map,"failed Extraction spawn was not retried");
+  extraction_spawn_succeeds=TRUE;tick+=92;main_lost_map_private();
+  CHECK(extraction_recoveries==2&&!all_dead&&!main_globals.lost_map&&!reverts&&!respawns,"Extraction retry did not recover");
  } else CASE("failure") {
   policy="respawn";all_dead=FALSE;add_player();wipe();CHECK(reverts==1&&!respawns,"scripted failure used wipe policy/roster guard");
  } else return 2;

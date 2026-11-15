@@ -8,7 +8,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import port_limits, CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 
-CASES = ['unit-late', 'weapon-late', 'newest', 'full', 'forget', 'expiry']
+CASES = ['unit-late', 'weapon-late', 'newest', 'full', 'forget', 'expiry', 'ownership-transfer', 'ownership-recipient-late']
 CONTROLS = [
     ('else\n\t\tdistributed_client_retry_inventory(inventory);', 'else\n\t\t(void)0;', 'unit-late'),
     ('distributed_client_apply_inventory(&inventory);', '(void)inventory;', 'unit-late'),
@@ -26,6 +26,7 @@ CONTROLS = [
     ('\tretried->inventory = *inventory;\n\tretried->time = game_time_get();',
      '\tif (retried->inventory.unit_index != inventory->unit_index)\n\t\tretried->time = game_time_get();\n'
      '\tretried->inventory = *inventory;', 'expiry'),
+    ('distributed_client_forget_retried_ownership(&inventories[index]);', '(void)0;', 'ownership-transfer'),
 ]
 
 
@@ -64,6 +65,8 @@ def generated(fault=None):
         function(network, 'distributed_client_retry_inventory'),
         function(network, 'distributed_client_forget_retried_inventory'),
         function(network, 'distributed_client_apply_inventory'),
+        function(network, 'distributed_client_forget_retried_ownership'),
+        function(network, 'network_objects_handle_inventories'),
         function(network, 'distributed_client_apply_retried_inventories'),
     ])
     if fault:

@@ -1409,6 +1409,10 @@ static boolean custom_campaign_map(char const *map_name)
 #endif
 }
 
+/* network_game_globals.c's getters, shared by startup, updates and the lobby. */
+void *global_network_game_server_get(void);
+void *global_network_game_client_get(void);
+
 /* A creator's private launch config may select an installed native CE solo
 map. Use the real campaign/profile/loader path once, with human controls and
 without resuming a checkpoint from an older authored revision. */
@@ -2585,10 +2589,6 @@ static void install_update_show(struct widget_instance *list, char const *view)
 	help_wrapped(text, value, NUMBEROF(text));
 	text_set(named(row, "install_update_value", 0), text);
 }
-
-/* (network_game_globals.c's, as declared below for the lobby) */
-void *global_network_game_server_get(void);
-void *global_network_game_client_get(void);
 
 /* whether the game may restart into an update now (updater.c): at the main
 menu with no network game, hosted or joined. The pregame lobby and the
@@ -5326,8 +5326,6 @@ void network_game_server_port_set_cooperative(struct network_game_server *server
 void network_game_server_port_set_cooperative_friendly_fire(short friendly_fire);
 void network_game_server_port_set_cooperative_player_collisions(boolean player_collisions);
 void network_game_server_port_set_cooperative_ally_friendly_fire(boolean ally_friendly_fire);
-void *global_network_game_client_get(void);
-void *global_network_game_server_get(void);
 boolean network_game_is_splitscreen_local(void);
 boolean network_game_solo_game(void);
 struct advertised_game *network_game_client_get_available_games(void *client);

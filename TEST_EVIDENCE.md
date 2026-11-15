@@ -5,11 +5,21 @@ rendered gameplay, human play and cross-platform acceptance are distinct here.
 Bounded native multiplayer, rendering and read-only Spark discovery are verified;
 full gameplay, Firefight, Extraction, VR, editing and MegaWorld acceptance remain open.
 
+The owner's later Development & Verification Directive now authorizes focused
+compilation/automated tests and targeted isolated native smoke/synchronization
+checks. Earlier source-only entries remain unverified until actual results are
+recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
+remain separate final-phase gates. Current work prioritizes inventory authority,
+shared-loot synchronization and safe Extraction persistence.
+
 All local evidence below is in the external owned directory
 `C:\Users\patri\AppData\Local\Temp\forerunner-20261114`.
 
 ## Toolchain and inputs
 
+- Current inventory verification uses the retained, digest-checked compiler with
+  installed MSVC **14.52.37025** and SDK **10.0.26100.0**. Earlier entries below
+  describe their original toolchains, not the currently installed MSVC revision.
 - Python 3.12.14; Ninja 1.13.0; LLVM-MinGW 20261104, clang 23.1.5.
 - Compiler archive SHA-256:
   `552191b5754c49a5a20723276a6fc56541ea1922c4c50b7b669022333fc1b40f`.
@@ -23,6 +33,49 @@ All local evidence below is in the external owned directory
   `data/inputs.json` and `multiplayer-data/inputs.json`. No game data is tracked.
 
 ## Candidate compilation and native smoke checks
+
+Inventory checkpoint, base `87521711b` plus tracked repairs:
+
+- Actual deferred-transfer reproducer failed before the fix: an older partial
+  inventory reclaimed a weapon assigned to a different unit. Existing real-source
+  harness now covers immediate/late recipients and recovery of the remaining
+  equipment through a fresh host update. Removing the invalidation call remains
+  a failing negative control. Initial focused integration also found eight co-op
+  fixture compile failures from missing campaign/Extraction dependencies; the
+  fixture now extracts the real pending-map clear and checks Extraction loss
+  dispatch/retry without claiming to simulate native spawning or settlement.
+- Final focused group: **58 passed in 6.55 seconds** across
+  `test_retried_inventories`, `test_coop_wipe`, `test_coop_watch_host`,
+  `test_hs_map_name_context` and `test_script_level_resolve`.
+  Logs: `verification-87521711b-001/{inventory-ownership-repro,
+  focused-foundations,focused-wipe-repair,focused-foundations-final}.log`.
+- Windows x86 compilation succeeds from disposable export
+  `C:\Users\patri\AppData\Local\Temp\frn-verify-002\source`.
+  Two pre-existing source-only integration errors were repaired: the listener
+  header lacked `real_math.h`, and menu network getters were declared after
+  their first use. Only changed files were refreshed and the same build resumed.
+  Final source snapshot SHA-256:
+  `cf19f5ebfb17a34c3c25156e7e9c770719a7c799f71aafdfa3d9b1741b4919b5`.
+  Binary SHA-256:
+  `cdc78c86fc77b759dfda5c05739e440e2ea647b5a17057115625f4af41d17a56`.
+  Identity/result: `frn-verify-002/forerunner-build.json`; final link log:
+  `frn-verify-002/compile-menu-declarations.log` (both outside the evidence root).
+  Optional FFmpeg/bgfx omitted; this does not compile the optional OpenXR path.
+- Existing `net_compare.py` ran the same binary as both peers on private loopback,
+  copied data/config/saves, hidden null renderer, microphone off, public networking
+  and data downloads disabled. Blood Gulch with scripted shoot/death events:
+  **PASS**, 26 compared seconds, tick offset 0, maximum sampled player-position
+  difference **0.177**, maximum aim difference **1 degree**, one transient grenade
+  mismatch, two client corrections. Per-tick drift: **151/516 samples apart**,
+  mean **0.171423**, maximum **88.195320** world units. Existing tolerances were
+  unchanged. Report/logs: `verification-87521711b-001/native-inventory-smoke.json`
+  and `native-inventory-smoke/runs/bloodgulch.AB.1/{host,client}.log` under that
+  verification directory. Both owned game processes exited. Before/after hashes
+  for original Spark `bloodgulch.map`/`ui.map` match (`smoke-source-map-hashes.*.json`).
+- This proves bounded native baseline synchronization, not a forced delayed-item
+  transfer, durable rewards, rendered/human gameplay, native Linux, VR compilation
+  or headset acceptance. Persistent inventory and remote-owner settlement remain
+  open requirements; no stash or original save was written.
 
 | Candidate / revision | Result | Evidence |
 | --- | --- | --- |

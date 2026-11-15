@@ -9,14 +9,20 @@ master ledger and Spark contract. 128 players and huge hordes are proof targets,
 not established capabilities. Reuse compatible OpenCE/Chupathingy/Faber/OpenH1
 and Spark implementations before writing equivalents. Prefer small changes to
 existing code; no duplicate editors, storage/VOIP systems or unrelated rewrites.
-Focused/regression validation remains deferred under the source-only rule below.
+Use focused compilation/tests and isolated native smoke checks under the policy below.
 After two unsuccessful approaches, reassess the cause. Substantial new subsystems,
 frameworks or extensive test infrastructure require the user's approval after
 explaining why existing code and simpler alternatives are insufficient.
 Judge progress by gameplay and necessary repairs, not infrastructure volume.
 
-Current owner instruction: code only; tests and native validation are deferred
-until the owner resumes them. Preserve prior evidence, and label new code unverified.
+Current owner instruction supersedes the earlier code-only restriction: keep
+implementation primary, compile and run focused automated tests after meaningful
+engine changes, and use targeted isolated native smoke checks for material runtime
+changes. Verify multiplayer synchronization at integration milestones and repair
+regressions before building dependent features. Avoid repeated full builds or new
+testing infrastructure. Full playthroughs, stress/hardware/MegaWorld acceptance
+and release certification remain final-phase gates. Preserve prior evidence and
+distinguish source, compiled, automated and gameplay verification explicitly.
 Coordinate through SPARK_INTEGRATION_CONTRACT.md and existing checkpoints at
 meaningful milestones. Spark source may be inspected read-only; modify only
 Forerunner. Do not add coordination services or repeatedly poll/rebuild Spark.
@@ -27,7 +33,8 @@ with actual Git status, source and running owned jobs before continuing.
 The complete user directive is preserved under `docs/forerunner/`.
 The anti-overengineering directive restrains complexity and infrastructure.
 The owner's later full-engine, Extraction, MegaWorld, shared-loot, voice and VR
-directives explicitly expand scope without waiving safety or authorizing tests.
+directives expand scope without waiving safety. Verification follows the current
+Development & Verification Directive above.
 
 Guilty Spark is a separate editor project. Do not modify it, original game
 installations, maps, disc images, saves or personal assets. The user authorized

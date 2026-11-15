@@ -26,6 +26,34 @@ none of its unaccepted requirements is superseded by this checkpoint.
 
 ## Current engineering gate
 
+Latest inventory checkpoint (base `87521711b`, tracked working source): fresh
+host inventory updates now discard another unit's obsolete deferred snapshot
+when it still claims a transferred weapon (`network_objects.c`). Retry processing
+cannot reclaim that weapon; normal host refresh recovers the remaining gear.
+No packet/schema/version change, persistent item identity or stash writer was
+introduced. Existing harness checks reproduce the defect and fail without the
+repair; the focused inventory/campaign/co-op group passes **58 tests**.
+
+Windows x86 compiles from an isolated tracked-source export after fixing the
+listener header's point-type dependency and moving native menu getter declarations
+before their first caller. One private two-peer Blood Gulch combat/death smoke
+passes existing tolerances: 26 seconds compared, maximum sampled player-position
+difference 0.177, one transient grenade mismatch and two client corrections.
+Per-tick drift was 151/516 samples apart (maximum 88.195 during the run); this is
+not exact lockstep or delayed-transfer gameplay proof. Owned processes exited and
+original map hashes match. See `TEST_EVIDENCE.md` for source/binary identity.
+Durable reservations/settlement, authenticated remote owners and failed-run
+reward protection remain unfinished. This is a necessary synchronization repair,
+not completed Extraction, VR, Linux or full gameplay acceptance.
+
+The owner's Development & Verification Directive supersedes the earlier source-only
+restriction. Implementation remains primary; use focused builds/tests after
+meaningful changes, isolated native smoke checks for material runtime changes,
+and multiplayer checks at integration milestones. Fix regressions before adding
+dependent systems. Full playthroughs, stress tests, VR hardware/MegaWorld acceptance
+and release certification remain final-phase gates. Historical deferred/unverified
+entries below retain their evidence limits; authorization alone verifies nothing.
+
 Advance one native synchronized Firefight encounter using compatible Faber code.
 Later owner directives add timerless single-map Extraction and the connected
 19-region MegaWorld as permanent flagship requirements alongside Firefight,
