@@ -281,17 +281,20 @@ struct bg_framebuffer
 };
 
 #ifdef HALO_OPENXR
-/* One imported texture per runtime image, using bgfx's existing external
-   texture ownership. No second Vulkan device or eye-image copy. */
+/* One imported texture per runtime image. Optional MSAA uses bgfx's
+ * ordinary resolve path and a bounded pair of owned eye targets. */
 struct bg_openxr_image
 {
 	struct bg_openxr_image *next;
 	uint64_t handle;
+	int bgra;
 	struct bg_target target;
 };
 static struct
 {
 	struct bg_openxr_image *images, *current, *eye[2];
+	struct bg_target msaa[2], *draw_target;
+	int msaa_bgra[2];
 	int begun, rendering_eye, rendered[2], failed;
 	int menu_requested, menu_rendered;
 	float menu_aspect;
@@ -2156,7 +2159,7 @@ buffer's attachments have the same samples). A change of the setting
 between frames makes new targets (bg_target_get's key), cleared once as
 any new one. FXAA is a separate pre-HUD pass; SMAA and supersampling
 remain OpenGL-only. */
-static int bg_screen_samples(void)
+static int bg_screen_samples(bgfx_texture_format_t color_format)
 {
 	static int unsupported;
 	const bgfx_caps_t *caps;
@@ -2166,15 +2169,16 @@ static int bg_screen_samples(void)
 		return 0;
 	samples = anti_aliasing_values[anti_aliasing_value].samples;
 	caps = bgfx_get_caps();
-	/* (the most samples up to the setting's that both the color and the
-	depth targets have: bgfx's bit for each count) */
+	/* The eye/screen color, native BGRA8 intermediates and depth must all
+	 * support this count, including devices with gaps in their sample masks. */
 	for (; samples >= 2; samples /= 2)
 	{
 		uint32_t bit = samples >= 16 ? BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA_X16 :
 			samples >= 8 ? BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA_X8 :
 			samples >= 4 ? BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA_X4 : BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER_MSAA_X2;
 
-		if ((caps->formats[BGFX_TEXTURE_FORMAT_BGRA8] & bit) && (caps->formats[bg.depth_format] & bit))
+		if ((caps->formats[color_format] & bit) && (caps->formats[BGFX_TEXTURE_FORMAT_BGRA8] & bit) &&
+			(caps->formats[bg.depth_format] & bit))
 			break;
 	}
 	if (samples < 2)
@@ -2223,7 +2227,7 @@ static struct bg_target *bg_target_get(const D3DSurface *surface)
 	surface_dimensions(surface, &width, &height, &depth);
 #ifdef HALO_OPENXR
 	if (bg_openxr.current && !depth && surface->Data == device.back_buffer.Data)
-		return &bg_openxr.current->target;
+		return bg_openxr.draw_target;
 #endif
 	/* the screen's targets are drawn at the screen's scale, the secondary
 	target at the 3D view's pixels with its samples (it is drawn with the
@@ -2233,12 +2237,12 @@ static struct bg_target *bg_target_get(const D3DSurface *surface)
 	{
 		scale[0] = screen_scale[0];
 		scale[1] = screen_scale[1];
-		samples = bg_screen_samples();
+		samples = bg_screen_samples(BGFX_TEXTURE_FORMAT_BGRA8);
 	}
 	else if (!depth && width == SECONDARY_TARGET_WIDTH && height == SECONDARY_TARGET_HEIGHT)
 	{
 		render_target_scale(_render_target_secondary, scale);
-		samples = bg_screen_samples();
+		samples = bg_screen_samples(BGFX_TEXTURE_FORMAT_BGRA8);
 	}
 	else if (!depth && surface_is_shadow_map(surface))
 	{
@@ -2254,7 +2258,7 @@ static struct bg_target *bg_target_get(const D3DSurface *surface)
 	{
 		scale[0] = (float)bg_openxr.current->target.pixel_width / width;
 		scale[1] = (float)bg_openxr.current->target.pixel_height / height;
-		samples = 0;
+		samples = bg_openxr.draw_target ? bg_openxr.draw_target->samples : 0;
 	}
 #endif
 	for (entry = *bg_target_bucket(surface->Data); entry; entry = entry->next)
@@ -2356,6 +2360,66 @@ static bgfx_frame_buffer_handle_t bg_framebuffer_get(struct bg_target *color, st
 }
 
 #ifdef HALO_OPENXR
+static BOOL bg_composite_copy(bgfx_frame_buffer_handle_t framebuffer, unsigned long width, unsigned long height,
+	bgfx_texture_handle_t source, const unsigned short *rect);
+
+/* Retiring an owned eye texture also invalidates the cached framebuffers
+ * that name it. bgfx defers their destruction until queued draws finish. */
+static void bg_openxr_msaa_release(int eye)
+{
+	struct bg_target *target = &bg_openxr.msaa[eye];
+	struct bg_framebuffer **link = &bg.framebuffers;
+	if (target->samples && BGFX_HANDLE_IS_VALID(target->texture))
+	{
+		while (*link)
+		{
+			struct bg_framebuffer *entry = *link;
+			if (entry->color == target->texture.idx || entry->depth == target->texture.idx)
+			{
+				if (bg.view_framebuffer.idx == entry->handle.idx)
+					bg.view_framebuffer = (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE;
+				if (bg.framebuffer.idx == entry->handle.idx)
+					bg.framebuffer = (bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE;
+				if (BGFX_HANDLE_IS_VALID(entry->handle)) bgfx_destroy_frame_buffer(entry->handle);
+				*link = entry->next; free(entry);
+			}
+			else link = &entry->next;
+		}
+		bgfx_destroy_texture(target->texture);
+	}
+	memset(target, 0, sizeof(*target));
+	target->texture = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+}
+
+static struct bg_target *bg_openxr_msaa_target(struct bg_openxr_image *image, int eye)
+{
+	struct bg_target *target = &bg_openxr.msaa[eye];
+	bgfx_texture_format_t format = image->bgra ? BGFX_TEXTURE_FORMAT_BGRA8 : BGFX_TEXTURE_FORMAT_RGBA8;
+	int samples = bg_openxr.menu_requested ? 0 : bg_screen_samples(format);
+	if (samples < 2 || !BGFX_HANDLE_IS_VALID(bg.copy) || !BGFX_HANDLE_IS_VALID(bg.full_quad))
+	{
+		bg_openxr_msaa_release(eye);
+		return &image->target;
+	}
+	if (target->samples != samples || target->pixel_width != image->target.pixel_width ||
+		target->pixel_height != image->target.pixel_height || bg_openxr.msaa_bgra[eye] != image->bgra)
+	{
+		bg_openxr_msaa_release(eye);
+		*target = image->target; target->samples = samples;
+		bg_openxr.msaa_bgra[eye] = image->bgra;
+		target->texture = bgfx_create_texture_2d((uint16_t)target->pixel_width, (uint16_t)target->pixel_height, false, 1,
+			format, bg_samples_flags(samples, FALSE) | BGFX_TEXTURE_SRGB | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP,
+			NULL, 0);
+		if (!BGFX_HANDLE_IS_VALID(target->texture))
+			bg_log_once("headset MSAA target unavailable; native single-sample rendering is kept");
+	}
+	if (!BGFX_HANDLE_IS_VALID(target->texture)) return &image->target;
+	/* Logical viewport settings may change without a swapchain resize. */
+	target->data = image->target.data; target->width = image->target.width; target->height = image->target.height;
+	memcpy(target->scale, image->target.scale, sizeof(target->scale));
+	return target;
+}
+
 int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame)
 {
 	struct platform_input_state input;
@@ -2368,11 +2432,17 @@ int xgpu_openxr_frame_begin(struct vr_openxr_frame *frame)
 	bg_openxr.rendering_eye = -1;
 	bg_openxr.rendered[0] = bg_openxr.rendered[1] = FALSE;
 	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
+	bg_openxr.draw_target = NULL;
 	bg_openxr.failed = FALSE;
 	platform_input_read(&input, FALSE);
 	bg_openxr.menu_requested = input.menus;
 	bg_openxr.menu_rendered = FALSE;
 	bg_openxr.menu_aspect = 0.0f;
+	if (bg_openxr.menu_requested || anti_aliasing() != _anti_aliasing_msaa)
+	{
+		bg_openxr_msaa_release(0);
+		bg_openxr_msaa_release(1);
+	}
 	/* Native menus keep their ordinary single render and input layout. Their
 	   completed canvas is presented as a quad instead of stereo gameplay. */
 	if (bg_openxr.menu_requested)
@@ -2391,6 +2461,8 @@ int xgpu_openxr_eye_begin(int eye)
 
 	if (!bg_openxr.begun || bg_openxr.current || eye < 0 || eye > 1 || bg_openxr.rendered[eye])
 		return 0;
+	if (bg.view + 3 >= BG_MAXIMUM_VIEWS)
+		goto failed;
 	if (!vr_openxr_eye_acquire(eye, &image))
 		goto failed;
 	if (!image.width || !image.height || image.width > UINT16_MAX || image.height > UINT16_MAX)
@@ -2403,6 +2475,7 @@ int xgpu_openxr_eye_begin(int eye)
 		if (!entry)
 			goto failed;
 		entry->handle = image.handle;
+		entry->bgra = image.bgra;
 		entry->target.pixel_width = image.width;
 		entry->target.pixel_height = image.height;
 		entry->target.texture = bgfx_create_texture_2d((uint16_t)image.width, (uint16_t)image.height, false, 1,
@@ -2413,6 +2486,8 @@ int xgpu_openxr_eye_begin(int eye)
 	}
 	if (!BGFX_HANDLE_IS_VALID(entry->target.texture))
 		goto failed;
+	if (entry->target.pixel_width != image.width || entry->target.pixel_height != image.height || entry->bgra != image.bgra)
+		goto failed;
 	surface_dimensions(&device.back_buffer, &width, &height, &depth);
 	if (!width || !height)
 		goto failed;
@@ -2421,7 +2496,17 @@ int xgpu_openxr_eye_begin(int eye)
 	entry->target.height = height;
 	entry->target.scale[0] = (float)image.width / width;
 	entry->target.scale[1] = (float)image.height / height;
-	framebuffer = bg_framebuffer_get(&entry->target, NULL);
+	bg_openxr.draw_target = bg_openxr_msaa_target(entry, eye);
+	framebuffer = bg_framebuffer_get(bg_openxr.draw_target, NULL);
+	if (!BGFX_HANDLE_IS_VALID(framebuffer) && bg_openxr.draw_target != &entry->target)
+	{
+		struct bg_target rejected = *bg_openxr.draw_target;
+		bg_openxr_msaa_release(eye);
+		bg_openxr.msaa[eye] = rejected;
+		bg_openxr.msaa[eye].texture = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+		bg_openxr.draw_target = &entry->target;
+		framebuffer = bg_framebuffer_get(bg_openxr.draw_target, NULL);
+	}
 	if (!BGFX_HANDLE_IS_VALID(framebuffer))
 		goto failed;
 	bg_openxr.eye[eye] = bg_openxr.current = entry;
@@ -2437,6 +2522,7 @@ int xgpu_openxr_eye_begin(int eye)
 	return 1;
 failed:
 	bg_openxr.failed = TRUE;
+	bg_openxr.draw_target = NULL;
 	return 0;
 }
 
@@ -2444,8 +2530,18 @@ void xgpu_openxr_eye_end(void)
 {
 	if (!bg_openxr.current)
 		return;
-	bg_openxr.rendered[bg_openxr.rendering_eye] = TRUE;
+	if (bg_openxr.draw_target != &bg_openxr.current->target)
+	{
+		bgfx_frame_buffer_handle_t destination = bg_framebuffer_get(&bg_openxr.current->target, NULL);
+		/* A new view resolves the multisampled source before it is read.
+		 * The runtime image stays single-sample; the same queue owns both. */
+		if (!BGFX_HANDLE_IS_VALID(destination) || !bg_composite_copy(destination,
+			bg_openxr.current->target.pixel_width, bg_openxr.current->target.pixel_height,
+			bg_openxr.draw_target->texture, NULL)) bg_openxr.failed = TRUE;
+	}
+	if (!bg_openxr.failed) bg_openxr.rendered[bg_openxr.rendering_eye] = TRUE;
 	bg_openxr.current = NULL;
+	bg_openxr.draw_target = NULL;
 	bg_openxr.rendering_eye = -1;
 }
 
@@ -2472,6 +2568,7 @@ static void bg_openxr_frame_submitted(void)
 	vr_openxr_frame_end(layer, bg_openxr.menu_aspect);
 	bg_openxr.begun = FALSE;
 	bg_openxr.current = NULL;
+	bg_openxr.draw_target = NULL;
 	bg_openxr.eye[0] = bg_openxr.eye[1] = NULL;
 	bg_openxr.rendering_eye = -1;
 	bg_openxr.menu_rendered = FALSE;

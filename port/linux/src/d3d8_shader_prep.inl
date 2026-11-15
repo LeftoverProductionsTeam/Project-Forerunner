@@ -320,7 +320,14 @@ static unsigned char prep_screen_samples(void)
 
 #ifdef HALO_BGFX
 	if (bg_active())
-		samples = bg_screen_samples();
+	{
+#ifdef HALO_OPENXR
+		if (bg_openxr.images)
+			samples = bg_screen_samples(bg_openxr.images->bgra ? BGFX_TEXTURE_FORMAT_BGRA8 : BGFX_TEXTURE_FORMAT_RGBA8);
+		else
+#endif
+		samples = bg_screen_samples(BGFX_TEXTURE_FORMAT_BGRA8);
+	}
 	else
 #endif
 	{

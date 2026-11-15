@@ -50,7 +50,19 @@ backend shader-source rewrites compile/pass; broken alpha, resize retirement
 and texel-bound controls are detected. Driver compilation, real captures, GPU
 cost and hardware stereo remain unverified. No simulation, packets or assets
 changed. SMAA/SSAA, HDR and enhanced Light effects still need bgfx adapters;
-headset MSAA remains unavailable and is explained in the native Video help.
+OpenXR MSAA now has source implementation through the same renderer, below.
+
+Current stereo anti-aliasing: the existing MSAA setting selects a common eye,
+native intermediate-color and depth sample count. Two owned eye targets reuse
+bgfx's resolve/copy pass into single-sample runtime images; size/format changes
+retire their framebuffers. Unsupported capabilities, missing programs and failed
+allocations retain single-sample rendering without allocating every frame. Menu
+canvases remain single-sample, and disabling MSAA releases the owned targets.
+Shader preparation uses the known headset format. Nine actual-source lifecycle
+cases compile/pass on MSVC x64, three broken controls are detected, nine FXAA
+regressions and five format checks pass. GPU calls are fixtures: actual Vulkan
+shader compilation, hardware stereo, image encoding and GPU cost remain open.
+No headset, map, original asset or network packet was touched.
 
 Current graphics integration: the existing native Video screen now previews
 Classic/Enhanced shading, shadows, model detail and filtering, with Custom for

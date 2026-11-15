@@ -390,7 +390,8 @@ static const struct config_setting config_settings[] =
 	{ "display.anti_aliasing", _config_string, DEFAULT_ANTI_ALIASING, "HALO_ANTI_ALIASING", _environment_value,
 		_platform_all,
 		"bgfx supports FXAA/MSAA; SMAA and SSAA require OpenGL.\n"
-		"Headset swapchain images currently have no MSAA.\n"
+		"OpenXR MSAA uses owned eye targets resolved into runtime images;\n"
+		"actual headset rendering and GPU cost remain unverified.\n"
 		"Smooth jagged edges: \"off\", \"fxaa\", \"smaa\", \"ssaa2x\", \"msaa2x\",\n"
 		"\"msaa4x\" or \"msaa8x\". Android has \"off\", \"fxaa\", \"msaa2x\" and\n"
 		"\"msaa4x\". The default is \"msaa2x\" on 64-bit computers. It is \"off\"\n"

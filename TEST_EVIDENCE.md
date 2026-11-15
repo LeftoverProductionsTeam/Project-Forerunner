@@ -54,6 +54,26 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+OpenXR MSAA through the existing renderer, base `6465f3b2a4`:
+
+- Installed MSVC 14.52.37025 x64 / SDK 10.0.26100.0, `/O2 /W3 /WX`
+  compile the actual eye acquisition, target/sample selection, framebuffer cache,
+  resolve, frame submission and alpha-test shader-preparation functions using
+  the existing source-extracting harness. **9 workflows pass**: stereo handoff,
+  BGRA/RGBA/depth/intermediate capabilities including disjoint masks, reuse/
+  resize retirement, off/menu, allocation and framebuffer failure, failed resolve,
+  invalid/reused image contracts and logical viewport changes. Allocation failure
+  remains cached rather than retrying every frame. Runtime images are not freed.
+- Three broken controls are detected: mismatched depth/intermediate samples,
+  skipped resolve and allocation per frame. The **9 existing FXAA source cases**
+  recompile/pass on MSVC x86; **5 existing format checks** pass. Existing Video XML
+  is regenerated/parsed; changed Python syntax passes. Test scratch is removed.
+- GPU/OpenXR calls are fixtures, not a live runtime or driver. No headset, game
+  launch, full-engine build, GPU shader compile, actual screenshots, performance
+  measurements or target/hardware acceptance is claimed. World/ray-query AO,
+  bgfx HDR and enhanced Light effects remain unfinished. No assets, saved data,
+  packets, upstream/Spark files, branches or remotes are changed; no push.
+
 Shared pre-HUD FXAA, base `f84773a792`:
 
 - Installed MSVC 14.52.37025 x86 / SDK 10.0.26100.0, `/O2 /W3 /WX` compile

@@ -736,7 +736,11 @@ file or simulation change. Resolution, FOV and timing remain individual choices.
 Enhanced uses native per-pixel model lighting on OpenGL or bgfx; a pending or
 failed bgfx shader falls back to the native vertex-lit form. OpenGL currently
 owns HDR, Light effects and SMAA/SSAA; bgfx retains SDR and now shares FXAA,
-alongside flat-screen MSAA. Acquired headset images currently have no MSAA.
+alongside MSAA. The optional OpenXR path now renders MSAA into two owned eye
+targets and resolves them into the runtime's single-sample images. It selects
+common color/intermediate/depth capabilities, retires targets on resize/off and
+keeps single-sample rendering when resources are unavailable. This adds two eye
+allocations; actual headset output, driver behavior and GPU costs are unverified.
 FXAA reuses one source copy, is clipped to each view before the HUD, preserves
 native destination alpha and skips unavailable shaders/resources. The Video
 help explains the remaining limits. OpenH1 World/ray-query AO is not yet a supported

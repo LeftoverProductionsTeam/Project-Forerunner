@@ -187,7 +187,7 @@ SCREENS = {
             ("ANTI-ALIASING:", "display.anti_aliasing",
              [("OFF", "off"), ("FXAA", "fxaa"), ("SMAA", "smaa"), ("SSAA 2X", "ssaa2x"), ("MSAA 2X", "msaa2x"),
               ("MSAA 4X", "msaa4x"), ("MSAA 8X", "msaa8x")],
-             "Vulkan/Metal/D3D11: FXAA or MSAA (not VR MSAA).\nSMAA and SSAA require OpenGL.",
+             "Vulkan/Metal/D3D11: FXAA or MSAA, GPU permitting.\nVR MSAA is unverified. SMAA/SSAA require OpenGL.",
              "desktop"),
             ("ANTI-ALIASING:", "display.anti_aliasing",
              [("OFF", "off"), ("FXAA", "fxaa"), ("MSAA 2X", "msaa2x"), ("MSAA 4X", "msaa4x")],

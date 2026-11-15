@@ -663,7 +663,10 @@ focused compiled-source evidence, not native map/stereo/target acceptance.
 bgfx still lacks HDR and enhanced Light effects; its Video help states the limits.
 The new shared pre-HUD FXAA pass uses native render targets and requires no
 authoring/cache change. Its source/lifetime checks pass; rendered/stereo output
-is unverified. SMAA/SSAA and World/ray-query AO remain separate unfinished work.
+is unverified. Optional OpenXR MSAA now resolves two owned eye targets through
+that same renderer, with capability/resource fallback; compiled lifecycle checks
+use GPU fixtures, and headset output/cost remain unverified. No authoring change.
+SMAA/SSAA and World/ray-query AO remain separate unfinished work.
 Its ambient-only AO must preserve baked self-occlusion rather than darken native
 lightmaps twice. No new editor, lighting asset format or dependency on an upstream
 checkout was introduced. See `UPSTREAM_FEATURE_MATRIX.md` and `TEST_EVIDENCE.md`.
