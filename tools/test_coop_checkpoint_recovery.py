@@ -126,6 +126,7 @@ def generated(fault=None):
         "network_player_detach_unit", "network_player_attach_unit"))
     code += "\n" + "\n".join(function(units, name) for name in (
         "unit_kill", "unit_kill_silent", "unit_kill_no_statistics",
+        "unit_drop_current_weapon", "unit_drop_inventory_weapons",
         "unit_network_forget_weapon", "unit_network_add_weapon", "unit_network_drop_weapon"))
     code += "\n" + "\n".join(function(objects, name) for name in (
         "distributed_client_release_item", "distributed_client_delete",
@@ -185,6 +186,8 @@ def test_reconstructed_unit_rejects_old_life_kill():
 @pytest.mark.parametrize("case", [
     "inventory-ammo-firing", "inventory-ammo-reload", "inventory-ammo-second-local",
     "death-grenades-client", "death-grenades-host", "death-grenades-extra-client", "death-grenades-extra-host",
+    "weapon-drop-client", "weapon-drop-host", "weapon-drop-local", "weapon-drop-player", "weapon-drop-vehicle",
+    "weapon-drop-former-player", "weapon-drop-corpse",
     "live", "host-dead", "host-kills-live", "bound-corpse", "different-handle", "unknown", "unknown-player", "stale-delete",
     "invalid-tag", "invalid-team", "invalid-color", "invalid-position", "invalid-axes",
     "invalid-identifier", "outside-pool", "allocation-failure", "repeat", "retry",
@@ -234,6 +237,15 @@ def test_ammunition_prediction_negative_control(before, after, case):
 ])
 def test_death_loot_authority_negative_control(before, after, case):
     status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
+    assert status == 1, output
+
+
+@pytest.mark.parametrize("before,after", [
+    ("network_objects_client_has(current_weapon_index) &&", "FALSE &&"),
+    ("remote_inventory && network_objects_client_has(weapon_index) &&", "remote_inventory && FALSE &&"),
+])
+def test_npc_weapon_drop_authority_negative_control(before, after):
+    status, output = run(build("coop_checkpoint_recovery", generated((before, after))), "weapon-drop-client")
     assert status == 1, output
 
 

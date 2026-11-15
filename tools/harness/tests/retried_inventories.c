@@ -16,7 +16,8 @@ struct tag_block { long count; void *address; };
 struct weapon_magazine_definition { short rounds_total_initial, rounds_total_maximum, rounds_loaded_maximum; };
 struct weapon_definition { struct { struct tag_block magazines; } weapon; };
 struct weapon_magazine { short rounds_total, rounds_loaded; };
-struct weapon_datum { long definition_index; struct {long parent_object_index;} object;
+struct weapon_datum { long definition_index; struct {long parent_object_index,owner_player_index;unsigned long flags;} object;
+ struct {unsigned long flags;} item;
  struct { struct weapon_magazine magazines[2]; real age; } weapon; };
 struct unit_datum
 {
@@ -63,10 +64,11 @@ static boolean distributed_player_is_local(long player_index) { return FALSE; }
 static boolean distributed_client_own_settled(long time) { return TRUE; }
 /* Native release transfers one real item out of its previous owner's slots.
  * This fixture models that contract; it does not simulate pickup physics. */
-static void distributed_client_release_item(long index, boolean dropped)
+static void distributed_client_release_item(long index, boolean dropped, boolean corpses_only)
 {
 	short object, slot;
 	(void)dropped;
+	CHECK(!corpses_only,"living inventory fixture received corpse-only release");
 	for (object = 0; object < OBJECT_COUNT; object++)
 		for (slot = 0; slot < MAXIMUM_WEAPONS_PER_UNIT; slot++)
 			if (units[object].unit.weapon_object_indices[slot] == index)

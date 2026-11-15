@@ -230,7 +230,10 @@ static boolean extraction_owner(struct player_datum const *player, long player_i
 	if (game_connection() == _game_connection_network_server && (!local || delta_peer_game_on_delta()))
 	{
 		struct delta_peer_identity identity;
-		long machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
+		/* The distributed lookup contains remote clients only. The host's
+		 * native player already carries its authoritative machine membership. */
+		long machine = local ? player->network_player_data.machine_index :
+			distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
 		if (machine == NONE || !delta_peer_game_player_identity((int)machine,
 			player->network_player_data.controller_index, &identity) || !identity.bound) return FALSE;
 		gear_account_owner(identity.account, owner);

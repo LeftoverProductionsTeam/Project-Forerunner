@@ -3251,7 +3251,8 @@ void network_objects_host_tick(
 /* the item out of whatever unit has it */
 static void distributed_client_release_item(
 	long item_index,
-	boolean deleting)
+	boolean deleting,
+	boolean corpses_only)
 {
 	struct object_iterator iterator;
 
@@ -3261,6 +3262,9 @@ static void distributed_client_release_item(
 		struct unit_datum *unit = unit_get(iterator.index);
 		short weapon_slot;
 
+		if (corpses_only && (unit->object.type != _object_type_biped || unit->unit.player_index != NONE ||
+			!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || !network_objects_client_has(iterator.index)))
+			continue;
 		for (weapon_slot = 0; weapon_slot < MAXIMUM_WEAPONS_PER_UNIT; weapon_slot++)
 		{
 			if (unit->unit.weapon_object_indices[weapon_slot] != item_index)
@@ -3283,7 +3287,7 @@ static void distributed_client_delete(
 	if (!object)
 		return;
 	if (TEST_FLAG(_object_mask_item, object->object.type))
-		distributed_client_release_item(object_index, TRUE);
+		distributed_client_release_item(object_index, TRUE, FALSE);
 	/* (a flag or ball, which the game never deletes but a host has, for a
 	reason not known: the client follows its word all the same. Out of its
 	carrier's hands above, as any weapon; and the goal its game type shows
@@ -4010,6 +4014,19 @@ void network_objects_handle_states(
 		}
 		else
 			network_objects_expect_live_unit(state->object_index);
+		distributed_object_state_unpack(state, &forward, &up, &velocity, &angular_velocity);
+		if (!distributed_transform_valid(&state->position, &forward, &up, NULL, NULL, &forward, &up))
+			continue;
+		/* The host sends item transforms only while they are in the world.
+		 * Dead NPCs receive no later living inventory, so apply their actual
+		 * drop here. A late ground sample must not strip a living carrier. */
+		if (object->object.type == _object_type_weapon &&
+			!TEST_FLAG(item_get(state->object_index)->item.flags, _item_belongs_to_player_bit) &&
+			(object->object.parent_object_index != NONE ||
+			 TEST_FLAG(item_get(state->object_index)->item.flags, _item_attached_to_unit_bit)))
+		{
+			distributed_client_release_item(state->object_index, FALSE, TRUE);
+		}
 		/* (an item made carried whose unit never had it here, placed on the
 		host: in the world, seen) */
 		if (TEST_FLAG(_object_mask_item, object->object.type) && object->object.parent_object_index == NONE &&
@@ -4024,9 +4041,6 @@ void network_objects_handle_states(
 		{
 			continue;
 		}
-		distributed_object_state_unpack(state, &forward, &up, &velocity, &angular_velocity);
-		if (!distributed_transform_valid(&state->position, &forward, &up, NULL, NULL, &forward, &up))
-			continue;
 		/* (come to rest: all of the way, drawn gliding, not half of it and
 		left there) */
 		if (TEST_FLAG(state->flags, _distributed_object_at_rest_bit))
@@ -4347,7 +4361,7 @@ static void distributed_client_apply_inventory(
 		}
 		if (wanted_index != NONE)
 		{
-			distributed_client_release_item(wanted_index, FALSE);
+			distributed_client_release_item(wanted_index, FALSE, FALSE);
 			unit_network_add_weapon(inventory->unit_index, wanted_index, weapon_slot);
 		}
 	}

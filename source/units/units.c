@@ -994,6 +994,7 @@ static long unit_get_weapon(struct unit_datum *unit, short index);
 static void unit_drop_item(long unit_index, long item_index);
 /* port/linux/game/network_objects.c's */
 boolean network_objects_creating_host_object(void);
+boolean network_objects_client_has(long object_index);
 /* port/linux/game/network_damage.c's */
 void network_damage_note_grenade(long unit_index, short grenade_type);
 /* network_game_globals.c's */
@@ -2783,15 +2784,21 @@ static void unit_drop_inventory_weapons(
 	long *weapon_object_index;
 	long weapon_index;
 	short inventory_index;
+	boolean remote_inventory;
 
 	unit = unit_get(unit_index);
+	/* port: replica NPC death timers cannot release the host's inventory. */
+	remote_inventory = network_game_distributed_client() && unit->object.type == _object_type_biped &&
+		unit->unit.player_index == NONE && network_objects_client_has(unit_index);
 	inventory_index = 0;
 	weapon_object_index = unit->unit.weapon_object_indices;
 	do
 	{
 		weapon_index = *weapon_object_index;
 		if (weapon_index != NONE &&
-			inventory_index != unit->unit.current_weapon_index)
+			inventory_index != unit->unit.current_weapon_index &&
+			!(remote_inventory && network_objects_client_has(weapon_index) &&
+			  !TEST_FLAG(weapon_get(weapon_index)->item.flags, _item_belongs_to_player_bit)))
 		{
 			weapon = weapon_get(weapon_index);
 			match_vassert(
@@ -7964,6 +7971,16 @@ boolean unit_drop_current_weapon(
 
 	boolean result = FALSE;
 
+	/* port: replica NPC damage/death timers must not drop the host's equipment
+	 * early. Its inventory/object updates use unit_network_drop_weapon.
+	 * Player prediction, local-only objects and native hosting keep their path. */
+	if (network_game_distributed_client() && unit->object.type == _object_type_biped &&
+		unit->unit.player_index == NONE && network_objects_client_has(unit_index) &&
+		network_objects_client_has(current_weapon_index) &&
+		!TEST_FLAG(weapon_get(current_weapon_index)->item.flags, _item_belongs_to_player_bit))
+	{
+		return FALSE;
+	}
 	if (current_weapon_index != NONE &&
 		(next_index != unit->unit.current_weapon_index || immediate) &&
 		!TEST_FLAG(object_get(current_weapon_index)->object.flags, _object_invisible_bit) &&

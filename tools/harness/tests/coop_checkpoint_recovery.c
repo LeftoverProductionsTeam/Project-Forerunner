@@ -259,6 +259,15 @@ static short unit_weapon_next_index(long index,long previous,int direction) {
     int i;(void)previous;(void)direction;for(i=0;i<MAXIMUM_WEAPONS_PER_UNIT;i++)if(unit_get(index)->unit.weapon_object_indices[i]!=NONE)return (short)i;return NONE;
 }
 static void first_person_weapon_message_from_unit(long index,int message) {(void)index;CHECK(message==13,"weapon removal");}
+struct unit_definition;
+static struct unit_definition *unit_definition_get(long index) {(void)index;return NULL;}
+static long unit_get_current_weapon_index(long index) {
+    struct object_datum *unit=unit_get(index);short slot=unit->unit.current_weapon_index;
+    return slot==NONE?NONE:unit->unit.weapon_object_indices[slot];
+}
+static boolean weapon_put_away(long index,boolean immediate) {(void)index;(void)immediate;return TRUE;}
+static boolean weapon_can_be_fired(long index) {(void)index;return TRUE;}
+static void object_delete(long index);
 static void unit_exit_seat_end(long index) {object_detach(index);unit_get(index)->unit.parent_seat_index=NONE;}
 static void unit_set_actively_controlled(long index,int active) {(void)index;(void)active;}
 static void player_control_new_unit(short local,long index) {CHECK(local==0,"local controller");control_unit=index;controls_changed++;}
@@ -412,6 +421,7 @@ static boolean distributed_legacy_host(void) {return FALSE;}
 static unsigned int network_distributed_epoch(void) {return 0;}
 
 #include "engine.inc"
+static void object_delete(long index) {object_delete_recursive(index,FALSE);}
 /* Native death loot uses the existing world; allocation is captured separately
    so an attempted client-only pickup cannot hide behind replica cleanup. */
 struct game_globals_grenade {struct {long index;} item;};
@@ -580,6 +590,40 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strncmp(name,"weapon-drop-",12)) {
+        long secondary=add_replica(5,_object_type_weapon);
+        boolean authoritative=!strcmp(name,"weapon-drop-client")||!strcmp(name,"weapon-drop-corpse");
+        weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
+        inventory.weapon_indices[1]=secondary;distributed_client_apply_inventory(&inventory);
+        corpse->unit.current_weapon_index=corpse->unit.desired_weapon_index=0;
+        if(!strcmp(name,"weapon-drop-host"))client=FALSE;
+        if(!strcmp(name,"weapon-drop-local"))objects_client_has[DATUM_INDEX_TO_ABSOLUTE_INDEX(index)]=NONE;
+        if(!strcmp(name,"weapon-drop-player"))corpse->unit.player_index=player_index;
+        if(!strcmp(name,"weapon-drop-former-player")) {
+            SET_FLAG(object_get(weapon)->item.flags,_item_belongs_to_player_bit,TRUE);
+            SET_FLAG(object_get(secondary)->item.flags,_item_belongs_to_player_bit,TRUE);
+        }
+        if(!strcmp(name,"weapon-drop-vehicle"))corpse->object.type=_object_type_vehicle;
+        CHECK(unit_drop_current_weapon(index,TRUE)==!authoritative,"native drop ignored replica authority scope");
+        unit_drop_inventory_weapons(index);
+        if(authoritative) {
+            CHECK(corpse->unit.weapon_object_indices[0]==weapon&&corpse->unit.weapon_object_indices[1]==secondary,
+                "client death/drop timer removed host NPC inventory");
+            CHECK(object_get(weapon)->object.parent_object_index==index&&object_get(secondary)->object.parent_object_index==index,
+                "client detached host NPC equipment early");
+            if(!strcmp(name,"weapon-drop-corpse")) {
+                distributed_client_release_item(weapon,FALSE,TRUE);
+                CHECK(corpse->unit.weapon_object_indices[0]==weapon,"late ground state stripped a living NPC");
+                SET_FLAG(corpse->object.damage_flags,_object_dead_bit,TRUE);
+                object_detach(secondary);SET_FLAG(object_get(secondary)->item.flags,_item_attached_to_unit_bit,TRUE);
+                distributed_client_release_item(weapon,FALSE,TRUE);distributed_client_release_item(secondary,FALSE,TRUE);
+            } else {unit_network_drop_weapon(index,0);unit_network_drop_weapon(index,1);}
+        }
+        CHECK(corpse->unit.weapon_object_indices[0]==NONE&&corpse->unit.weapon_object_indices[1]==NONE&&
+            object_get(weapon)->object.parent_object_index==NONE&&object_get(secondary)->object.parent_object_index==NONE,
+            "native host or explicit replicated drop stopped releasing equipment");
+        return 0;
+    }
     if(!strncmp(name,"death-grenades-",15)) {
         int expected;
         extra_grenades=strstr(name,"extra")!=NULL;client=strstr(name,"client")!=NULL;

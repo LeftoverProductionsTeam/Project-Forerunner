@@ -48,7 +48,7 @@ struct control_datum { long definition_index; struct object_fields object;
 #define device_datum control_datum
 struct device_group_datum {real actual_value;unsigned short flags;};
 struct player_datum { long unit_index; short local_player_index; boolean quit_out_of_game;
- struct { short controller_index; } network_player_data; };
+ struct { short machine_index, controller_index; } network_player_data; };
 struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum, rounds_total_initial; };
 struct game_globals_grenade { short maximum_count; };
@@ -192,12 +192,13 @@ static void hud_print_message(short local,wchar_t const *text) {
  local_notice_history[local_notices%4][i]=0;local_notices++;
 }
 short distributed_client_machines(long *machines,short max) { machines[0]=1; return 1; }
-long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return slot==1 ? 1 : delta_session ? (players[0].local_player_index==NONE?1:0) : NONE; }
+/* Native distributed_host_tick maps remote clients only, never the host. */
+long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return players[slot].local_player_index==NONE ? 1 : NONE; }
 void distributed_send_notice_to_machine(long machine,char const *text) { CHECK(machine==1,"wrong remote notice"); remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text); }
 static long player_ui_get_active_player_profile_index(short local) { return profile ? 0 : NONE; }
 static boolean player_ui_get_path_to_local_player_profile_directory(short local,char *path) { strcpy(path,"owned/profile"); return TRUE; }
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
-{ CHECK((machine==1 && controller==2)||(delta_session && machine==0 && controller==0),"wrong authenticated controller"); memcpy(id->account,machine==0?host_account:remote_account,16); id->bound=verified; return TRUE; }
+{ CHECK((machine==1 && controller==2)||(delta_session && machine==players[0].network_player_data.machine_index && controller==players[0].network_player_data.controller_index),"wrong authenticated controller"); memcpy(id->account,machine==1?remote_account:host_account,16); id->bound=verified; return TRUE; }
 static boolean delta_peer_game_on_delta(void) { return delta_session; }
 static long object_index_from_name_index(short index) { return index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
@@ -889,6 +890,7 @@ int main(int argc,char **argv)
  } else if(!strncmp(case_name,"account-host",12)) {
   byte expected[16],item[GEAR_ID_BYTES];
   delta_session=TRUE;
+  players[0].network_player_data.machine_index=4;players[0].network_player_data.controller_index=3;
   if(!strcmp(case_name,"account-host-unbound")) {
    verified=FALSE;touch(0,0);
    CHECK(!file_count&&run(0)->phase==_extraction_hub,"unbound Delta host fell back to a local profile stash");

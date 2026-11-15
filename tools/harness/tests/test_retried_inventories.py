@@ -48,6 +48,8 @@ def generated(fault=None):
         re.search(r'^#define AGE_SCALE .*$', network, re.M).group(0),
         enum_with(read('source/objects/object_types.h'), '_object_mask_unit'),
         enum_with(read('source/objects/objects.h'), '_object_dead_bit'),
+        enum_with(read('source/objects/objects.h'), '_object_connected_to_map_bit,'),
+        enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit ='),
         enum_with(read('source/game/players.h'), 'MAXIMUM_LOCAL_PLAYERS'),
         enum_with(units, 'MAXIMUM_WEAPONS_PER_UNIT ='),
         enum_with(units, 'NUMBER_OF_UNIT_GRENADE_TYPES\n'),

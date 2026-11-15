@@ -11,33 +11,41 @@ Spirit insertion, physical boarding/departure, fly-out, recovered gear/casualtie
 and next deployment; D, independent six-member squads, separate outcomes and
 opposing PvPvE, then connected MegaWorld/larger targets. The regression fixture
 is not the finished mission. The owner authorizes Chupathingy's existing Delta
-account/Steam setup for testing. Its key/certificate files and original-runtime
-signed-in/Steam-linked log entries are present; Forerunner authenticated banking
-has not yet been verified with them. Preserve originals and ownership safeguards.
+account/Steam setup for testing. The original account and the owner's confirmed
+ForerunnerTest account now authenticate as distinct, bound players in private
+native sessions. Original identity files remain unchanged; credentials and new
+device recovery material stay in owner-only ignored storage.
 
-Authenticated banking source (base `25767db94e`): `extraction_owner` now uses a
-verified, bound Delta account for the host as well as remote players. A Delta
-host cannot fall back to a local profile while its proof is unavailable. Offline
-profile records remain separate and untouched. The former source reproduces the
-host/account split; 77 existing connected Extraction workflows and Windows64
-compilation pass, including host-to-client redeployment with the same recovered
-item ID. This is compiled/automated evidence, not Milestone A native acceptance.
-Next: use the authorized real account/device flow and private Delta session for
-actual bank/disconnect/process-restart/redeployment; do not clone account IDs or
-substitute Steam sign-in for verified bound Delta proofs.
+Authenticated banking (base `839a1a7962`): actual deployment exposed a host lookup
+through `distributed_player_machine`, whose native table contains remote clients
+only. `extraction_owner` now uses the local host's authoritative native machine
+membership and still requires a verified, bound Delta proof. The corrected fixture
+reproduces the old refusal; 77 connected workflows and incremental Windows64
+compilation pass. `build/native-delta-extraction-inputs` completes two-account
+deployment/combat/rescue/collection/Flood/defense, ten-second extraction activation,
+physical return and durable banking; fresh processes reserve the exact four unique
+item records again (each owner generation 4 idle 2/0/0 to generation 6 deployed
+0/2/0). `build/native-delta-extraction-readback` additionally waits for both native
+clients to observe the redeployed weapons and matching ammunition. A refused host
+confirmation write safely refunds/retries; the final host generation is 8, client
+6, with the same four serialized items and no extra stash/reservation. Ordinary
+starter-weapon ammo pickups after deployment are distinct from saved quantities.
+Both authenticated combat runs pass existing player/AI/item checks. This is the
+owned CE regression fixture, not Spark's finished Black Echo. Full
+death/reconnect/crash acceptance and faction dropship operations remain open.
 
-Six independent instances (base `4564360a48`): one host/five clients pass the
-native movement/switch/item smoke. Full authored fixture combat reaches rescue,
-collection, Flood containment, defense and extraction availability. It exposed
-CE unload freeing an absent bitmap-copy table through Halo's non-null allocator;
-the guarded release now passes empty/populated/repeated/reloaded cleanup and
-native host-disconnect/menu return. Actor readback now keeps shared tick intervals
-after delayed frames while retaining actual timestamps; eleven focused cases
-pass. Final native run passes player and AI checks on all five clients, but item
-checks FAIL for client 2's rifle 42: at ticks 1470/1500 it lies on the ground while
-the host still holds it on NPC 41, before the host drops it at 1530. Do not relax
-the check or claim the full six-client operation accepted. Evidence:
-`build/native-six-{instances,operation,operation-unload,operation-cadence}`.
+Six independent instances: the NPC drop repair now passes the unchanged native
+player/AI/item comparisons on all five clients in
+`build/native-six-operation-world-drop`: 111 player seconds, 116 actor snapshots,
+115 item snapshots, zero item mismatches and all 40 new host items observed per
+client. Replica NPC death timers retain host-owned equipment until a validated
+authoritative world state releases it from a dead NPC; live/player/vehicle/local
+inventories retain their existing paths. Twenty-six related native helper cases,
+eight retry cases and both drop fault controls pass. The earlier retain-only
+attempt failed natively and remains recorded; no tolerances or packets changed.
+CE unload and actor cadence fixes remain intact. This proves the bounded encounter
+through extraction availability, not six authenticated banks, independent squad
+objectives, Spark mission acceptance, cross-platform parity or larger rosters.
 
 Larger native combat repair (base `c7f7a61ce4`): reserve-ammo settling is now
 independent of loaded shots, so sustained fire no longer hides host pickups.

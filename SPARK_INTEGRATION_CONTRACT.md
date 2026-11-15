@@ -19,7 +19,13 @@ editing operation, native-map authoring requirement or protocol version changed.
 Spark can consume the x64 discovery response; this is not VR/editor-map acceptance.
 Exact source/binary identity and sparse-sample rejection are in `TEST_EVIDENCE.md`.
 
-Current verification checkpoint: the owner's Development & Verification Directive
+Current native gameplay checkpoint, 15 November: two real Delta accounts complete
+the owned CE fixture's combat/escape/bank/process-restart/redeployment path, with
+matching final equipment on both clients. One host/five independent clients also
+pass bounded player/AI/item encounter checks. Spark's finished map, independent
+squad objectives and broad recovery acceptance remain open; see `TEST_EVIDENCE.md`.
+
+Earlier verification baseline: the owner's Development & Verification Directive
 authorizes focused compilation/tests and isolated native smoke checks. Historical
 source-only entries below retain their original evidence limits. On base
 `87521711b` plus tracked repairs, Windows x86 compiles; 58 focused inventory/
@@ -34,8 +40,9 @@ authoritative host refresh repairs its remainder. No packet, protocol version,
 capability, authoring format or personal-inventory file changed. Spark must
 continue providing native pickups/encounters and the existing Extraction controls/
 volumes; it must not implement a competing inventory authority or award a stash.
-Forerunner still owes durable owner/item/run identity, reservations and exactly-once
-settlement. Spark's next handoff remains a compiled native Zombie Apocalypse/solo
+Forerunner now implements durable owner/item/run identity, reservations and
+settlement, with the bounded native evidence below; broad recovery acceptance
+remains open. Spark's next handoff remains a compiled native Zombie Apocalypse/solo
 encounter with its required resources and valid hub starts/Extraction markers;
 no editor rewrite or new launcher/interface is requested by this repair.
 
@@ -554,8 +561,11 @@ with verified host-bound proof (`identity.bound`), not player names or self-repo
 account claims. It already exists in `delta_peer_game.c`; the declaration is now
 shared through `delta_peer.h`. The host now uses its verified account too, so
 hosting versus joining does not select different account stashes. A missing or
-unbound host proof cannot fall back to profile storage. This is compiled and
-connected-test-verified; real authenticated banking is not yet accepted.
+unbound host proof cannot fall back to profile storage. The local host uses its
+native `network_player_data.machine_index`: `distributed_player_machine` deliberately
+maps remote clients only. Two distinct verified accounts now complete native
+regression-fixture banking and process-restart reservation of the same equipment;
+exact readback and remaining acceptance limits are in `TEST_EVIDENCE.md`.
 Local profile and verified account owner domains
 are distinct; this does not promise portable client-managed or cross-host stashes.
 `xbox_files.c::CreateFileA` currently ignores `share_mode`; Faber's sharing-zero
@@ -772,15 +782,20 @@ cache and its native resource banks for that existing startup path, or review
 the existing MCC launch path separately; do not advertise format compatibility
 from the disposable CE fixture alone.
 This supersedes the older statement that Black Echo authoring was absent.
-Read-only refresh at Spark `b9463f708f71c7daf079949a297f3bfa0c5ca645`
-also records native firing-position/tactical editing and compiled readback in a
-separately imported fixture. It does not establish delivery or gameplay acceptance
-of Black Echo; its current checkpoint still leaves settlement callbacks 4/7 open.
-Technology objective 4 and extraction objective 7 still use manual setters
-`gs_complete_4` / `gs_complete_7`; their volumes alone do not collect technology
-or bank equipment. Spark must connect real native ownership to objective 4 and
-the optional settled-survivor continuation above to objective 7, with authored
-extraction gating and the normal native hub controls/starts/resources. Its
+Read-only refresh at Spark `cfe6832525e35975717981edbb7498471e3265f1`
+finds `src/haloScript.ts` now implements `weaponOwned` by scanning actual native
+player inventories, and `forerunnerExtractionSettled` by a guarded dormant
+`forerunner_extraction_complete` callback. It powers `extraction_activate` off
+until earlier objectives finish. `creative.rs::verify_native_mission` requires
+CE609 for that callback, actual placed technology with the exact weapon tag ID,
+and nonempty starting profiles with technology absent from every initial loadout.
+These source interfaces match Forerunner's current native ownership/settlement
+path; Spark need not implement its own stash writer or revive a manual volume
+substitute. Its latest native collection proof uses the older input-only CE609
+baseline, not a delivered new Black Echo mission. Next: build and retain the
+actual CE609 candidate with these hooks, resource banks, usable native controls,
+valid hub starts and reachable encounter/navigation/technology placements for
+Forerunner's existing launch path. Spark's
 scenario globals are shared world state, not independently scoped squad quests.
 Do not substitute editor-only JSON, shared global scripts or a second quest VM
 for independent authoritative squads.
@@ -811,10 +826,12 @@ peers. `network_objects.c::distributed_client_apply_inventory` accepts host rese
 pickups independently of predicted loaded rounds; `units.c::unit_drop_grenades`
 and `mcc_grenades.c::mcc_grenades_drop_extra` create death loot only on the host.
 Spark needs no replacement inventory writer or loot-spawning script. This adds
-no discovery capability or independent squad quest interface. Split-screen HUD,
-authenticated remote banking and independent squads remain unaccepted. A later
-one-host/five-independent-client native run passes player/AI comparison but retains
-one NPC rifle ownership mismatch, so full larger-client acceptance is still open.
+no discovery capability or independent squad quest interface. Split-screen HUD
+and independent squads remain unaccepted. Two real Delta accounts now bank/restart
+in the disposable native mission. The later one-host/five-independent-client
+encounter also passes unchanged player/AI/item comparison after host-authoritative
+NPC drops were completed. This is bounded encounter verification, not six
+authenticated banks or independent squad outcomes.
 `ce_models.c::ce_models_tags_unloaded` now handles a map with no temporary bitmap
 copies during native disconnect/menu return. Precise native evidence and earlier
 failures are in `TEST_EVIDENCE.md`.
