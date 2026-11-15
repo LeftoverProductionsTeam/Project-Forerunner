@@ -109,11 +109,26 @@ boolean extraction_owns_map(void)
 
 static void extraction_local_notice(short local, char const *text)
 {
-	wchar_t wide[128];
-	short index;
-	for (index = 0; text[index] && index < NUMBEROF(wide)-1; index++) wide[index] = (wchar_t)(unsigned char)text[index];
-	wide[index] = 0;
-	hud_print_message(local, wide);
+	wchar_t lines[4][63];
+	short start = 0, count = 0, end, split, index;
+	short length = (short)MIN(strlen(text), 127);
+	/* Native HUD records hold 62 characters plus NUL. Keep the existing
+	 * records/save layout and publish complete notices in word-sized parts.
+	 * Newer records draw first, so enqueue the headline last. */
+	do
+	{
+		end = MIN(start + 62, length);
+		if (end < length && text[end] != ' ')
+		{
+			for (split = end; split > start && text[split] != ' '; split--);
+			if (split > start) end = split;
+		}
+		for (index = start; index < end; index++) lines[count][index-start] = (wchar_t)(unsigned char)text[index];
+		lines[count++][end-start] = 0;
+		start = end;
+		while (start < length && text[start] == ' ') start++;
+	} while (start < length && count < NUMBEROF(lines));
+	while (count > 0) hud_print_message(local, lines[--count]);
 }
 
 static void extraction_notice(char const *text)

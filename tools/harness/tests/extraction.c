@@ -106,6 +106,7 @@ static int native_kills;
 void platform_log(char const *format, ...) { (void)format; }
 static byte remote_account[16] = {1};
 static int local_notices, remote_notices, respawns;
+static char local_notice_history[4][63];
 static char last_remote_notice[128];
 
 static boolean config_boolean(char const *name)
@@ -183,7 +184,11 @@ static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
  return FALSE;
 }
 static short local_player_get_next(short index) { return index==NONE ? 0 : NONE; }
-static void hud_print_message(short local,wchar_t const *text) { CHECK(local==0,"wrong local notice"); local_notices++; }
+static void hud_print_message(short local,wchar_t const *text) {
+ short i;CHECK(local==0,"wrong local notice");CHECK(wcslen(text)<63,"native HUD record truncated a notice");
+ for(i=0;text[i];i++)local_notice_history[local_notices%4][i]=(char)text[i];
+ local_notice_history[local_notices%4][i]=0;local_notices++;
+}
 short distributed_client_machines(long *machines,short max) { machines[0]=1; return 1; }
 long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return slot==1 ? 1 : NONE; }
 void distributed_send_notice_to_machine(long machine,char const *text) { CHECK(machine==1,"wrong remote notice"); remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text); }
@@ -286,6 +291,12 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strcmp(case_name,"notice-complete")) {
+  touch(0,0);pickup(0,1);escape(0);
+  CHECK(strstr(local_notice_history[(local_notices-1)%4],"RUN COMPLETE | Stash"),"bank report headline not queued first for display");
+  CHECK(strstr(local_notice_history[(local_notices-2)%4],"next run."),"bank report lost redeployment instructions");
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"stowed-",7)) {
   struct game_modes_inventory captured;short room[2];long stowed;
   pickup(0,1);stowed=pickup(0,2);weapon_get(stowed)->object.parent_object_index=NONE;

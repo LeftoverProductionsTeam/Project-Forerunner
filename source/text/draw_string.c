@@ -133,9 +133,6 @@ enum
 	_text_justification_center,
 	NUMBER_OF_TEXT_JUSTIFICATIONS,
 
-	_draw_text_wrap_horizontally_bit = 0,
-	_draw_text_wrap_vertically_bit,
-
 	_parsed_end_of_string = 0,
 	_parsed_end_of_line = 1,
 	_parsed_end_of_word = 2,

@@ -10,6 +10,12 @@ header included in hcex build.
 
 /* ---------- constants */
 
+enum
+{
+	_draw_text_wrap_horizontally_bit = 0,
+	_draw_text_wrap_vertically_bit,
+};
+
 /* ---------- macros */
 
 /* ---------- structures */

@@ -2441,6 +2441,18 @@ void hud_messaging_update(
 			}
 			else
 			{
+				rectangle2d text_bounds, cursor_bounds;
+				short rows;
+				/* Port: reuse native word wrapping for operation reports within
+				 * the existing HUD row budget. Item/icon lines keep their layout. */
+				message_bounds.y1 = MIN(render.camera.window_bounds.y1 - render.camera.viewport_bounds.y0,
+					message_bounds.y0 + (maximum_message_count - message_index) * line_height);
+				draw_string_set_format(NONE, _text_justification_left, FLAG(_draw_text_wrap_horizontally_bit));
+				draw_unicode_string_compute_bounds(&message_bounds, message->text, &text_bounds, &cursor_bounds);
+				rows = PIN((cursor_bounds.y1 - message_bounds.y0 + MAX(line_height, 1) - 1) / MAX(line_height, 1),
+					1, maximum_message_count - message_index);
+				line_top += (rows - 1) * line_height;
+				maximum_message_count -= rows - 1;
 				rasterizer_draw_unicode_string(
 					&message_bounds,
 					NULL,

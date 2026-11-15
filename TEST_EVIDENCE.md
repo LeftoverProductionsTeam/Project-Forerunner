@@ -12,6 +12,37 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, native local results UI (base `e370889f4e`):
+`source/interface/hud_messaging.c` now measures and wraps plain transient text
+inside the existing physical row budget. Short-line spacing and item/icon paths
+remain; the existing wrap flags are shared through `draw_string.h`. First native
+capture (`build/native-extraction-hud/captures-operation/wrapped-but-truncated.png`)
+exposes the second limit: `hud_message_definition.text[63]` had already truncated
+the notice. Its ABI/save size remains unchanged. `extraction_local_notice` now
+publishes bounded word-sized records in reverse enqueue order so the headline
+draws first. Existing remote notice transport and persistence are unchanged.
+
+All 74 connected Extraction workflows pass with the actual 62-character record
+limit enforced at the HUD adapter, including stash/report/next-run content and
+the existing ownership/refund/death/settlement controls. A deliberately dropped
+report tail is detected. Three existing native Unicode parser cases pass after
+sharing the wrap constants. Windows64 compiles incrementally in
+`build/native-extraction-notice-build.log`, binary SHA-256
+`16da2d098205ace79404c0646ba03a53c7dc8b98c497e12099e4471407a9a594`.
+
+The real hidden-OpenGL local mission with an owned saved profile repeats native
+deployment, combat, rescue, technology pickup, Flood/defense clearance, signal,
+physical return and durable bank/completion (`native-notice-complete-operation.json`).
+`captures-complete/complete-bank-report.png` visibly shows the complete report:
+stash 2/32 weapons, 2 frag, 1 plasma, followed by next-run readiness, in order
+without clipping/overlap. `complete-activation-notice.png` preserves all activation
+instructions; the inherited wrapper still splits "Leaving" across rows. The
+fixture's SDK action label is still a placeholder. No broad typography, remote,
+split-screen, VR or final Spark UI acceptance is claimed. The old partial result
+is retained. After both native processes exited normally, 2,659,723,770 bytes of
+owned runtime/save-cache/BMP data were removed; compact captures/logs/receipt and
+the small banked test record remain. The reusable accepted mission cache is untouched.
+
 15 November, Flood feigned-death replication (base `761de4e44f`): existing
 `network_objects.c` object states add an optional feigned bit; only for a dead
 nonplayer biped with a positive native feign timer/body, `time` holds the existing

@@ -3,6 +3,17 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Native local results milestone (base `e370889f4e`): Extraction's bank report now
+renders its full stash totals and next-run instruction. Native HUD records hold
+only 62 characters plus NUL; local notices retain the existing record/save layout
+and enqueue word-bounded parts in headline-first display order. Plain HUD text
+uses the inherited wrapper within the existing row budget; item/icon lines keep
+their path. Windows64, 74 connected Extraction cases, a lost-tail fault control
+and the existing Unicode parser cases pass. An actual owned local mission again
+fights/rescues/collects/extracts/banks and captures the complete two-line report.
+Remote/split-screen/VR results, broader UI typography and Spark's final terminal
+labels remain unverified. Disposable runtime/cache/BMP files are removed.
+
 Native Flood feigned-death repair (base `761de4e44f`): the existing object-state
 format now distinguishes a nonplayer biped feigning death and carries its packed
 positive vitality in the field used for vehicle prediction time on vehicles.
@@ -41,7 +52,7 @@ is positive and the client's kill replay is negative; both later reanimate with
 matching health. That original failure is retained; the bounded native repair
 above now passes without changing checker tolerances or packet layout/version.
 Remote banking still needs verified host-bound
-Delta identities. Readable HUD report, revive-with-banking, larger squads, actual
+Delta identities. Remote HUD results, revive-with-banking, larger squads, actual
 Spark content, VR and connected-world acceptance remain separate unfinished gates.
 
 Current client ownership repair: a repeated authoritative inventory now checks
@@ -89,7 +100,7 @@ contract. Keep Spark read-only. Original UI/carousel/SDK hashes are unchanged;
 owned peer/map staging, SDK subset and bulk captures are removed. One 106 MB
 compiled fixture, its authored scenario and compact evidence remain for reuse.
 Next: verified remote identities for two-player banking, then the connected
-revival/banking and readable native results workflows. Advance independent source
+revival/banking and multiplayer results workflows. Advance independent source
 work if that identity prerequisite is unavailable. Revisit the earlier intermittent rifle
 failure with its retained evidence if it recurs; do not repeat unchanged audits.
 
