@@ -3,6 +3,19 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current co-op voice repair: native co-op has no multiplayer engine, so the old
+Chupathingy engine-pointer gate incorrectly selected lobby routing. Both existing
+voice providers now share the native client-session phase predicate. Chupathingy's
+positional context accepts only a live, owned unit and valid native coordinates.
+Seventeen connected context/router checks and two original-defect controls pass;
+Windows64 builds. A private native A30 run with lobby voice disabled exchanges
+and decodes the built-in synthetic tone on proximity in both directions, with
+37 seconds of player agreement. Physical microphones stay unopened. Copied maps,
+peer runtimes and generated tone WAVs are removed; compact logs remain. Actual
+microphone/PTT/headset, spatial-hearing/occlusion, cross-region, cross-session party
+and OpenCE/Delta voice-bridge acceptance remain open. No voice packet or codec
+change and no new capture/transport system.
+
 Current Firefight AI repair: Faber-derived pursuit now respects the actor's native
 hostility table and current live player ownership. It stops reclassifying allies
 as enemies and ignores departed/recycled bodies. Ten focused cases and two

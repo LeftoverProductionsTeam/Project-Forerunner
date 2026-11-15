@@ -52,6 +52,8 @@ void network_game_client_keep_alive(
 short network_game_client_get_state(
 	struct network_game_client *client,
 	short *state_data);
+/* port: native session phase, including co-op without a multiplayer engine. */
+boolean network_game_client_in_game(struct network_game_client const *client);
 boolean network_game_client_join_first_available_game(
 	void);
 boolean network_game_client_has_local_player(

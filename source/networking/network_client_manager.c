@@ -1138,6 +1138,13 @@ short network_game_client_get_state(
 	return client->state;
 }
 
+/* port: voice paths share the native phase instead of copying private enum
+ * numbers or using game_engine_running (which is false during native co-op). */
+boolean network_game_client_in_game(struct network_game_client const *client)
+{
+	return client && client->state == _network_game_client_state_ingame;
+}
+
 boolean network_game_client_set_machine(
 	struct network_game_client *client,
 	struct network_machine *machine)

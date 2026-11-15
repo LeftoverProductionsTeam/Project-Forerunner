@@ -51,6 +51,8 @@ none. Nothing is ever recorded.
 #include "networking/network_game_manager.h"
 #include "networking/network_client_manager.h"
 #include "objects/objects.h"
+#include "units/units.h"
+#include "math/real_math.h"
 #include "sound/sound_manager.h"
 #include "halo_keyboard.h"
 #include "network_coop.h"
@@ -157,8 +159,10 @@ static boolean host_wire_rules(struct delta_wire_voice_config *config)
 /* whether a game is played now (not the lobby or its postgame) */
 static boolean voice_in_game(void)
 {
-	/* (the pregame lobby has the menus' map running, not a game engine) */
-	return game_in_progress() && game_engine_running() && !game_engine_showing_postgame();
+	/* Reuse OpenCE's native session gate: co-op intentionally has no
+	 * multiplayer engine, while a lobby still runs the menus' map. */
+	return network_game_client_in_game(global_network_game_client_get()) &&
+		game_in_progress() && !game_engine_showing_postgame();
 }
 
 /* a player of the game's list's unit's place: FALSE if it has none (dead,
@@ -168,17 +172,19 @@ static boolean player_place(long list_index, real_point3d *place)
 	struct data_iterator iterator;
 	struct player_datum *player;
 
-	if (list_index < 0 || !game_in_progress())
+	if (list_index < 0 || !game_in_progress() || !player_data)
 		return FALSE;
 	data_iterator_new(&iterator, player_data);
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 	{
 		if (!player->quit_out_of_game && player->network_player_data.player_list_index == list_index)
 		{
-			if (player->unit_index == NONE)
+			struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_unit);
+			if (!unit || unit->unit.player_index != iterator.datum_index ||
+				TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 				return FALSE;
 			object_get_origin(player->unit_index, place);
-			return TRUE;
+			return valid_real_point3d(place);
 		}
 	}
 	return FALSE;

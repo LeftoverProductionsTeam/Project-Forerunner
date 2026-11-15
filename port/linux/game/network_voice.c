@@ -224,12 +224,6 @@ enum
 	_voice_config_lobby_bit,
 };
 
-/* network_client_manager.c's client state in game (its enum is its own) */
-enum
-{
-	_voice_client_state_ingame = 3,
-};
-
 /* ---------- structures */
 
 /* a client's frame to the host (its Opus packet follows; none: it hears
@@ -418,10 +412,8 @@ static boolean voice_in_lobby(
 	void)
 {
 	struct network_game_client *client = global_network_game_client_get();
-	short state_data;
 
-	if (!client || network_game_client_get_state(client, &state_data) != _voice_client_state_ingame ||
-		!game_in_progress())
+	if (!network_game_client_in_game(client) || !game_in_progress())
 	{
 		return TRUE;
 	}

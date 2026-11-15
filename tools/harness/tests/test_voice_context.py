@@ -1,0 +1,47 @@
+"""Native session/owned-position handoff to the actual Delta voice router."""
+import pytest
+
+from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run
+
+
+def generated(fault=None):
+    client = read('source/networking/network_client_manager.c')
+    game = read('port/linux/game/voice_game.c')
+    types = '\n'.join((enum_with(client, '_network_game_client_state_ingame'),
+        enum_with(read('source/game/game.h'), '_game_connection_network_server'),
+        enum_with(read('source/objects/objects.h'), '_object_dead_bit'),
+        enum_with(read('source/objects/object_types.h'), '_object_mask_unit')))
+    code = '\n'.join((function(client, 'network_game_client_in_game'),
+        function(read('source/game/game_engine.c'), 'game_engine_running'),
+        function(read('port/linux/game/network_coop.c'), 'network_coop_active'),
+        function(game, 'voice_in_game'),
+        function(read('port/linux/game/network_voice.c'), 'voice_in_lobby'),
+        function(game, 'player_place'), function(game, 'host_world')))
+    if fault:
+        code = mutated(code, *fault)
+    peer = read('port/linux/src/delta_peer.c')
+    route = '\n'.join((function(peer, 'valid_machine'), function(peer, 'delta_peer_voice_route')))
+    return (('types.inc', types), ('under_test.inc', code), ('route.inc', route),
+            ('delta.h', read('port/linux/include/delta.h')),
+            ('halo_console_features.h', read('port/linux/include/halo_console_features.h')))
+
+
+@pytest.mark.parametrize('case', ['coop-near', 'coop-far', 'pregame', 'postgame',
+    'mp-postgame', 'no-session', 'no-world', 'no-players', 'dead', 'stale', 'missing',
+    'wrong-type', 'quit', 'invalid-position', 'vehicle', 'enemy-proximity', 'disabled'])
+def test_context(case):
+    status, output = run(build('voice_context', generated()), case)
+    assert status == 0, output
+
+
+def test_coop_lobby_negative_control():
+    status, output = run(build('voice_context', generated((
+        'return network_game_client_in_game(global_network_game_client_get()) &&',
+        'return game_engine_running() &&'))), 'coop-far')
+    assert status == CHECK_FAILED, output
+
+
+def test_stale_owner_negative_control():
+    status, output = run(build('voice_context', generated((
+        'unit->unit.player_index != iterator.datum_index ||', ''))), 'stale')
+    assert status == CHECK_FAILED, output

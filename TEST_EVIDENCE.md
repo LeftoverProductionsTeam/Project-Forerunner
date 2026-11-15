@@ -54,6 +54,40 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Native co-op voice context, base `193196a0ac`, 15 November:
+
+- The native co-op predicate requires **no** multiplayer engine. The former
+  Chupathingy voice gate required an engine and therefore always classified
+  co-op as lobby voice. `network_game_client_in_game` now owns the native session
+  phase; both voice providers reuse it. Current owned-unit, live/type and valid-
+  coordinate checks protect host routing and local placement. No packet, codec,
+  capture policy, host setting or microphone permission change.
+- **17 connected MSVC x86 cases pass**, compiling the actual phase/co-op helpers,
+  both voice classifiers, host world/position handoff and actual Delta router with
+  its native headers. Cases include near/far co-op, radio, postgame/lobby, missing
+  session/world/player data, dead/stale/invalid units, vehicles, enemy proximity
+  and disabled channels. Restoring either the engine-pointer gate or unowned-unit
+  positioning is detected. World/platform adapters remain fixtures.
+- Windows64/bgfx/OpenXR builds incrementally in the retained non-LTO environment
+  (`build/native-voice-context-build.log`). Binary SHA-256:
+  `409c06edcd91557bbf257ff827d77b540236e271ef1af061ec69bc626eb36bea`.
+  Existing private A30 runner, `HALO_VOICE_TEST=tone`,
+  `HALO_VOICE_CHAT=push_to_talk`, `HALO_VOICE_CHANNEL=proximity`,
+  `HALO_NET_VOICE_LOBBY=false`, dummy SDL audio: **PASS**, 37 matched gameplay
+  seconds, mean/max player distance 0.039/0.078; no persistent divergence.
+- Both peers log synthetic input in place of the microphone, Opus encoding,
+  private relay and decoded proximity playback (route/channel **2/2**). Host/client
+  have 27/28 voice reports, zero reported lost/late frames, mono 48 kHz 16-bit
+  decoded WAVs with 1,333,440 / 1,336,320 samples, RMS **0.175643 / 0.175644**.
+  The inherited tone bypasses physical capture and held-PTT input; no microphone
+  opened. This proves synthetic native transport/placement/decoding, not physical
+  microphones, controller PTT, audible 3D/stereo/obstruction or headset behavior.
+- Compact evidence: `build/native-voice-context-smoke/` logs/results; existing
+  A30 input provenance `build/native-gameplay-inputs.json` is reused. Original
+  hashes remain unchanged. Peer runtimes/maps and measured synthetic WAVs are
+  removed. Linux/other targets, party bridging, cross-region audio and actual
+  OpenCE/Delta voice interoperability remain unverified.
+
 Firefight pursuit ownership/allegiance, base `b80ee6b437`, 15 November:
 
 - Actual `firefight_pursue` now filters by native actor hostility, live owned
