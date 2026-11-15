@@ -16141,9 +16141,9 @@ static void main_set_map_name_evaluate(
 	if (arguments)
 	{
 		if (hs_runtime_port_executing_console_command())
-			main_set_map_name(arguments->value);
+			main_set_map_name(xbox_pointer(arguments->value)); /* port: decode the native script string. */
 		else if (hs_runtime_port_executing_script_type() != NONE)
-			main_script_map_name(arguments->value);
+			main_script_map_name(xbox_pointer(arguments->value));
 		else
 			error(_error_silent, "map_name requires a script or console command; a global initializer cannot change maps");
 		hs_return(thread_index, 0);

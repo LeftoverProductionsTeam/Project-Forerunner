@@ -34,6 +34,59 @@ All local evidence below is in the external owned directory
 
 ## Candidate compilation and native smoke checks
 
+Windows64 OpenXR/Vulkan integration, base `3d5f28dcc` plus tracked repairs:
+
+- Existing configure/Ninja path built with `--with-openxr`, bgfx enabled, optional
+  FFmpeg omitted. Pinned bx/bimg/bgfx and digest-checked OpenXR 1.1.63 headers were
+  obtained only in the owned export; unchanged third-party licenses remain there.
+  Initial x64 compilation exposed a native script address passed as a host pointer
+  and missing declarations in Extraction, MCC skulls and native actor readback.
+  Repairs reuse `xbox_pointer` and existing declarations; no ABI or protocol changed.
+  All enabled VR input, rendering, menus, Vulkan interop and patched bgfx units link.
+- Final compiled snapshot:
+  `786d6058e89500c80a8749f1049f839c4f6fa04b87585c20c3635e29aadfe061`;
+  binary SHA-256:
+  `d87150b7a5db734f72d522f875b4710b7bf4ce0a72453f580c7948608e2a3a45`.
+  Existing export: `C:\Users\patri\AppData\Local\Temp\frn-verify-002\source`.
+  Target manifest beside it: `forerunner-openxr-build.json`; configure/compile logs
+  `*-openxr*.log` preserve failures and incremental repairs. Earlier x86 manifest
+  and failed-pass snapshots remain intact; no duplicate build system was added.
+- Focused real-source checks: **24 campaign/script tests**, **8 shared XR input
+  tests**, **12 comparator tests** pass. Encoded script arguments replace the old
+  fixture's host-pointer shortcut. Controller checks cover native face/grip/stick/
+  trigger mappings, focus/disconnect, pause priority, PTT release/rearm, tracking,
+  menus/reference changes, privacy and axis conversion; they simulate located
+  actions, not a headset/runtime. Logs under `verification-87521711b-001`:
+  `openxr-script-addresses.log`, `openxr-input.log`, `openxr-comparison-coverage.log`.
+- Initial Vulkan/x86 combat run matched only one second because native log cadence
+  retained a slow first-render tick offset. Its original PASS is **insufficient**:
+  rejudging now returns ERROR for inadequate matched coverage. The first invocation
+  also used an unknown `HALO_VR_ENABLED` variable, so it covered VR-off rendering.
+  Logs/rejudged report: `native-openxr-desktop-smoke*`. Native sampling now follows
+  absolute simulation seconds and judging requires at least 75% of requested
+  seconds to match; existing distance/time/drift tolerances are unchanged.
+- Corrected `HALO_VR=true` run used the same owned map copies, hidden real Vulkan
+  rendering, existing x86 peer and scripted combat/death inputs. `XR_RUNTIME_JSON`
+  named an absent isolated file to prevent headset activation; the actual branch
+  reported **installed loader unavailable**, then continued flat-screen Vulkan.
+  **PASS: 32 matched seconds**, offsets 0/1 tick, sampled position mean/max
+  **0.432/22.766**, aim max 1 degree, five shield and one position mismatches,
+  one client correction. Predicted drift: **141/848 samples apart**, mean
+  **0.000188**, max **0.021676** world units. The 22.766-unit sample is host tick
+  330/client 331: the host logs before `network_test_gather`, the client after its
+  scripted relocation; positions agree next second. Shield samples similarly
+  straddle the post-log scripted hits at 120/360/480/720/960. This supports bounded
+  compatibility, not exact lockstep or a new defect claim. Report/logs:
+  `native-openxr-fallback-smoke.json`, `native-openxr-fallback-smoke/runs/`.
+  Thirteen native framebuffer captures; `openxr-fallback-frames/frame02700.bmp`
+  visually confirms world, native weapon and HUD. Both owned peers exited.
+- Existing Spark reference client accepts the x64 binary's contract-1 discovery
+  (`openxr-spark-discovery.log`); advertised/native protocol remain 44. No editing
+  operation, new launcher, microphone capture, original asset/save write, publish
+  or hardware session occurred. Stereo, physical interactions, physical devices,
+  full matches and Linux/macOS acceptance remain open. Deferred inventory settlement
+  is not supplied by this build milestone.
+
 Firefight shared-equipment follow-up on `c6f9255c2`:
 
 - The new focused check first reproduces `firefight_resupply_players` modifying

@@ -873,6 +873,9 @@ def judge_run(host_log, client_log, args, tolerances):
         result["problems"].append("the client's player never joined the host's game")
     divergences, figures = compare_pair(host, client, tolerances, args.skip)
     result["figures"] = figures
+    required = max(1, args.seconds * 3 // 4)
+    if figures["seconds"] < required:
+        result["problems"].append(f"only {figures['seconds']} seconds matched between peers (fewer than {required})")
     result["divergences"].extend(divergences)
     drift = drift_summary(host, args.skip)
     if not any("drift" in sample for sample in host.values()):

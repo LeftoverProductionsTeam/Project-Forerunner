@@ -3,6 +3,7 @@ logs written here (playing a game needs the retail maps: NETCODE.md)."""
 import argparse
 import ctypes
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -62,6 +63,17 @@ def test_reads_a_line():
 def test_in_step(tmp_path):
     result = judge(*write_logs(tmp_path, client_shift=0.1))
     assert not result["problems"] and not result["divergences"]
+
+
+@pytest.mark.parametrize("one_match", [False, True])
+def test_sparse_matching_seconds_cannot_pass(tmp_path, one_match):
+    host, client = write_logs(tmp_path)
+    host.write_text(re.sub(r"network test: tick (\d+)",
+        lambda match: "network test: tick " + str(int(match[1]) +
+            (0 if one_match and int(match[1]) == 600 else 3)), host.read_text()))
+    result = judge(host, client)
+    assert result["figures"]["seconds"] == int(one_match)
+    assert any("seconds matched between peers" in problem for problem in result["problems"])
 
 
 def test_position_apart(tmp_path):

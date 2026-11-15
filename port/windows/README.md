@@ -253,11 +253,13 @@ defaults remain unchanged. One backend has Touch bindings for Quest 2 PCVR and
 Index bindings for Vive/Index with Knuckles. It is not standalone Quest support.
 The device/session, renderer, stereo camera/FOV caller and basic controller
 input are connected in source through existing native frame/window and Xbox
-input paths. They remain unverified, incomplete VR: physical scopes and OpenH1
-interactions still need wiring. No compilation or headset
-validation has been performed under the owner's source-only instruction.
+input paths. The enabled Windows64 build now compiles. Private native desktop
+Vulkan gameplay, missing-loader fallback, x86 peer comparison and selected real-source
+controller/PTT checks pass; see `TEST_EVIDENCE.md` for their limits and build identity.
+Headset stereo, comfort and physical interactions remain unverified; physical scopes,
+two-hand handling and OpenH1 interactions still need wiring. No headset was started.
 
-Native menu frames now have a source-only head-locked OpenXR quad path. It
+Native menu frames have a compiled, hardware-unverified head-locked OpenXR quad path. It
 reuses the left-eye image, composites the existing menu and overlay once, and
 mirrors that canvas to the desktop. Mouse layout remains in desktop coordinates;
 gameplay resumes stereo when native menu ownership ends. Hidden desktop frames
@@ -317,7 +319,7 @@ retains native look; while deflected it owns snap-mode turning. Ownership,
 menu/focus/tracking and world transitions require neutral before rearming.
 This uses the existing body heading and facing fields, not another input or
 network path. Snap direction, comfort, bindings and headset behavior are
-unverified; no hardware checks, builds or tests have been run.
+unverified; the enabled build compiles it, but no snap-turn hardware check has run.
 Controller weapon posing now adapts OpenH1's `vr_render_weapon_camera`: only the
 native first-person animation/node build sees the right-hand camera, then the
 head camera is restored for world rendering. Both eyes use the same posed weapon;
@@ -336,7 +338,7 @@ scope images keep native placement. A target behind/outside an eye hides only
 its aiming pieces. Headset placement bypasses flat-screen reticle FOV scaling;
 the world/fog FOV queries retain their existing behavior. No shot is created and
 no simulation or network fields are changed by this rendering query.
-This is unbuilt, untested source, not complete VR gunplay. Grip/reticle alignment,
+This code compiles in the enabled Windows64 build, but VR gunplay is not accepted. Grip/reticle alignment,
 vergence comfort, physical scopes, standalone/two-hand interactions, physical
 reload/grenade actions and vehicle aiming remain open or unverified. The preview
 is an initial straight firing reference, not projectile-flight prediction.

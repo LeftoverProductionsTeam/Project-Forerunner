@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import build, enum_with, function, mutated, read, run
+from harness import build, enum_with, function, mutated, read, run, structure
 
 
 def generated(old_guard=False):
@@ -15,14 +15,15 @@ def generated(old_guard=False):
     evaluator = function(read("source/hs/hs.c"), "main_set_map_name_evaluate")
     if old_guard:
         evaluator = mutated(evaluator,
-            'if (hs_runtime_port_executing_console_command())\n\t\t\tmain_set_map_name(arguments->value);\n'
+            'if (hs_runtime_port_executing_console_command())\n\t\t\tmain_set_map_name(xbox_pointer(arguments->value)); /* port: decode the native script string. */\n'
             '\t\telse if (hs_runtime_port_executing_script_type() != NONE)\n'
-            '\t\t\tmain_script_map_name(arguments->value);\n\t\telse\n'
+            '\t\t\tmain_script_map_name(xbox_pointer(arguments->value));\n\t\telse\n'
             '\t\t\terror(_error_silent, "map_name requires a script or console command; a global initializer cannot change maps");',
             'if (hs_runtime_port_executing_script_type() != NONE)\n'
-            '\t\t\tmain_script_map_name(arguments->value);\n\t\telse\n\t\t\tmain_set_map_name(arguments->value);')
+            '\t\t\tmain_script_map_name(xbox_pointer(arguments->value));\n\t\telse\n\t\t\tmain_set_map_name(xbox_pointer(arguments->value));')
     return (("types.inc", enum_with(runtime, "_hs_thread_type_script =") + "\n" +
-             enum_with(read("source/hs/hs_scenario_definitions.h"), "_hs_script_startup =")),
+             enum_with(read("source/hs/hs_scenario_definitions.h"), "_hs_script_startup =") + "\n" +
+             structure(read("source/hs/hs.c"), "hs_arguments_string")),
             ("under_test.inc", code + "\n" + evaluator))
 
 
@@ -35,4 +36,12 @@ def test_origin(case):
 
 def test_old_guard_exposes_global_initializer():
     status, output = run(build("hs_map_name_context", generated(True)), "global")
+    assert status == 1, output
+
+
+def test_script_destination_must_be_decoded():
+    code = dict(generated())
+    code["under_test.inc"] = mutated(code["under_test.inc"],
+        'main_script_map_name(xbox_pointer(arguments->value));', 'main_script_map_name(NULL);')
+    status, output = run(build("hs_map_name_context", tuple(code.items())), "startup")
     assert status == 1, output

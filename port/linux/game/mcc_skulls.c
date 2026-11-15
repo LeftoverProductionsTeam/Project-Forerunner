@@ -25,6 +25,7 @@ inherits that local choice. Both settings default to empty. */
 #include "game/game_allegiance.h"
 #include "game/game_globals.h"
 #include "game/players.h"
+#include "editor/editor_stubs.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "items/weapons.h"

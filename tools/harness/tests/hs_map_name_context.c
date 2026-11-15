@@ -1,6 +1,10 @@
 /* The real runtime origin checks and map_name evaluator, with the two map
  * change destinations recorded instead of loading game assets. */
 #include "harness.h"
+/* Model the encoded field used by translated/64-bit builds instead of
+ * replacing the native script argument with a host pointer. */
+#undef XPTR
+#define XPTR(type) unsigned int
 #include "types.inc"
 
 struct hs_script { short script_type; };
@@ -13,8 +17,14 @@ static struct hs_thread_datum *hs_thread_get(long index) { (void)index; return &
 #define global_scenario_get() (&scenario)
 #define TAG_BLOCK_GET_ELEMENT(block, index, type) ((type *)(block)->address + (index))
 
-struct hs_arguments_string { char const *value; };
-static struct hs_arguments_string arguments = { "levels\\b30\\b30" };
+static char const destination[] = "levels\\b30\\b30";
+static struct hs_arguments_string arguments = { 0x2000 };
+#undef xbox_pointer
+static void *xbox_pointer(unsigned int address)
+{
+    CHECK(address == 0x2000, "wrong script string address");
+    return (void *)destination;
+}
 static boolean arguments_ready = TRUE;
 static int unrestricted, restricted, refused, returned;
 static void *hs_macro_function_evaluate(short function_index, long thread_index, boolean initialize)
@@ -22,8 +32,8 @@ static void *hs_macro_function_evaluate(short function_index, long thread_index,
     (void)function_index; (void)thread_index; (void)initialize;
     return arguments_ready ? &arguments : NULL;
 }
-static void main_set_map_name(char const *name) { (void)name; unrestricted++; }
-static void main_script_map_name(char const *name) { (void)name; restricted++; }
+static void main_set_map_name(char const *name) { CHECK(name == destination, "console string was not decoded"); unrestricted++; }
+static void main_script_map_name(char const *name) { CHECK(name == destination, "campaign string was not decoded"); restricted++; }
 static void hs_return(long index, long value) { (void)index; (void)value; returned++; }
 #define _error_silent 0
 static void error(int severity, char const *message) { (void)severity; (void)message; refused++; }

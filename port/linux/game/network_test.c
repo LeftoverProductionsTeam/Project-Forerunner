@@ -195,6 +195,8 @@ void network_distributed_divergence(long *samples, long *apart, real *mean, real
 void network_distributed_item_statistics(long *creates, long *deletes, long *failures, long *removed);
 void network_damage_statistics(long *sent_reports, long *dealt_reports, long *rejected_reports, long *replayed_events);
 long network_damage_line_of_sight_refusals(void);
+/* network_actors.c's native actor readback, also declared in network_distributed.h */
+void network_actors_log_units(void);
 /* xinput_sdl.c's */
 void test_input_hold_action(int hold);
 void test_input_hold_melee(int hold);
@@ -2220,7 +2222,10 @@ void network_test_update(
 #endif
 	if (network_test.melee_interval > 0.0f && game_in_progress() && !main_menu_loaded)
 		network_test_melee();
-	if (game_in_progress() && !main_menu_loaded && game_time_get() - network_test.logged_time >= TICKS_PER_SECOND)
+	/* Sample the first frame of each native second. A slow first render must
+	   not leave every later sample permanently offset from the other peer. */
+	if (game_in_progress() && !main_menu_loaded &&
+		game_time_get() / TICKS_PER_SECOND > network_test.logged_time / TICKS_PER_SECOND)
 	{
 		network_test.logged_time = game_time_get();
 		network_test_log_players();

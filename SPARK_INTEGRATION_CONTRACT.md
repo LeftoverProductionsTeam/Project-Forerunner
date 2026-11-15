@@ -9,6 +9,16 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+Windows64 integration milestone: the enabled OpenXR/bgfx Vulkan executable compiles
+and passes the existing contract-1 reference discovery client. A private native
+Vulkan/x86-peer comparison and missing-loader desktop fallback pass; headset
+behavior remains unverified. `source/hs/hs.c::main_set_map_name_evaluate` now decodes
+the native string address on x64 using the same `xbox_pointer` boundary as other
+string evaluators. Existing script/console ownership remains unchanged. No schema,
+editing operation, native-map authoring requirement or protocol version changed.
+Spark can consume the x64 discovery response; this is not VR/editor-map acceptance.
+Exact source/binary identity and sparse-sample rejection are in `TEST_EVIDENCE.md`.
+
 Current verification checkpoint: the owner's Development & Verification Directive
 authorizes focused compilation/tests and isolated native smoke checks. Historical
 source-only entries below retain their original evidence limits. On base

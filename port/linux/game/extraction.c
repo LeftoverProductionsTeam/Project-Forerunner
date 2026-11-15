@@ -18,6 +18,7 @@
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
 #include "extraction.h"
+#include "../src/port_config.h"
 
 #include <string.h>
 

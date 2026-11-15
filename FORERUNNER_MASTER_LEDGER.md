@@ -26,36 +26,28 @@ none of its unaccepted requirements is superseded by this checkpoint.
 
 ## Current engineering gate
 
-Follow-up on `c6f9255c2`: `coop_enemies.c::firefight_resupply_players` now checks
-the weapon's actual parent against the living owner's full unit handle. A stale
-slot can no longer refill another player's transferred weapon or a detached item.
-Six focused native-source checks pass, including a failing negative control;
-legitimate reserve/battery resupply and existing loaded rounds remain intact.
-Windows x86 incrementally compiles. An isolated two-peer B40 smoke passes existing
-tolerances, observes wave-one deaths/clear, resupply on both peers, and wave two
-starting. This is ordinary native resupply evidence, not a stale-transfer gameplay
-scenario or a completed encounter/persistence acceptance. Original map hashes
-match and owned processes exited; details are in `TEST_EVIDENCE.md`.
+Current runtime milestone: Windows64 now compiles with the existing optional
+OpenXR/bgfx Vulkan path enabled, after repairing native script-string conversion
+and missing declarations. With VR requested and its loader unavailable, it renders
+native desktop gameplay and completes a 32-second private comparison with the x86
+peer. Real frames were inspected. Shared controller/PTT checks and the existing
+Spark discovery client pass; stereo headset play and physical interactions remain
+unverified. Sparse peer comparisons now fail instead of passing on one sample;
+native logs sample at absolute simulation seconds without changing wire data.
+The observed large position difference is at the scripted test gather boundary,
+and shield differences occur across scripted-hit boundaries; no tolerance changed.
 
-Latest inventory checkpoint (base `87521711b`, tracked working source): fresh
-host inventory updates now discard another unit's obsolete deferred snapshot
-when it still claims a transferred weapon (`network_objects.c`). Retry processing
-cannot reclaim that weapon; normal host refresh recovers the remaining gear.
-No packet/schema/version change, persistent item identity or stash writer was
-introduced. Existing harness checks reproduce the defect and fail without the
-repair; the focused inventory/campaign/co-op group passes **58 tests**.
+Inventory retry/resupply ownership repairs in `c6f9255c2` and `3d5f28dcc` remain
+compiled and covered by focused/native checks. Historical results, exact build
+identities and limitations stay in `TEST_EVIDENCE.md`; only redundant current-status
+prose is consolidated here. Durable reservations/settlement, authenticated remote
+owners and failed-run reward protection remain unfinished.
 
-Windows x86 compiles from an isolated tracked-source export after fixing the
-listener header's point-type dependency and moving native menu getter declarations
-before their first caller. One private two-peer Blood Gulch combat/death smoke
-passes existing tolerances: 26 seconds compared, maximum sampled player-position
-difference 0.177, one transient grenade mismatch and two client corrections.
-Per-tick drift was 151/516 samples apart (maximum 88.195 during the run); this is
-not exact lockstep or delayed-transfer gameplay proof. Owned processes exited and
-original map hashes match. See `TEST_EVIDENCE.md` for source/binary identity.
-Durable reservations/settlement, authenticated remote owners and failed-run
-reward protection remain unfinished. This is a necessary synchronization repair,
-not completed Extraction, VR, Linux or full gameplay acceptance.
+Initial CI audit: local `master` tracks `origin/main`; no branch/remote was changed.
+Inherited `build.yml` main pushes can publish/prune releases; `web.yml` main runs
+can replace web-latest assets. Gate these before any approved publication while
+retaining development artifacts and supported-platform packaging. Spark's existing
+build/release workflows were read only. No CI, release or update channel activated.
 
 The owner's Development & Verification Directive supersedes the earlier source-only
 restriction. Implementation remains primary; use focused builds/tests after
@@ -65,8 +57,10 @@ dependent systems. Full playthroughs, stress tests, VR hardware/MegaWorld accept
 and release certification remain final-phase gates. Historical deferred/unverified
 entries below retain their evidence limits; authorization alone verifies nothing.
 
-Advance one native synchronized Firefight encounter using compatible Faber code.
-Later owner directives add timerless single-map Extraction and the connected
+The latest Engineering Correction prioritizes the complete multiplayer Extraction
+loop (authority, loot ownership, persistence, loss, escape and redeployment).
+Keep one primary deliverable in progress and finish connected work before switching,
+unless genuinely blocked. Firefight and the connected
 19-region MegaWorld as permanent flagship requirements alongside Firefight,
 VR and the other approved runtime work. Keep the anti-overengineering rules;
 these additions do not authorize unrelated rewrites or duplicate editors.
