@@ -935,7 +935,10 @@ static void firefight_resupply_players(void)
 			short magazine;
 			boolean holds_rounds = FALSE;
 
-			if (!weapon || !TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit))
+			/* A stale slot must not replenish an item transferred to another
+			   owner; the attachment flag alone does not identify that owner. */
+			if (!weapon || weapon->object.parent_object_index != player->unit_index ||
+				!TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit))
 				continue;
 			definition = weapon_definition_get(weapon->definition_index);
 			for (magazine = 0; magazine < MIN(definition->weapon.magazines.count, NUMBEROF(weapon->weapon.magazines)); magazine++)

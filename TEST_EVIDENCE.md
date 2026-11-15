@@ -34,6 +34,42 @@ All local evidence below is in the external owned directory
 
 ## Candidate compilation and native smoke checks
 
+Firefight shared-equipment follow-up on `c6f9255c2`:
+
+- The new focused check first reproduces `firefight_resupply_players` modifying
+  reserve ammunition through a stale slot whose weapon belongs to a different
+  unit. The repair compares the native parent to the player's full unit handle.
+  **6 passed in 0.57 seconds**: owned ballistic reserve, transferred/detached gear,
+  owned/foreign batteries, ineligible players and an ownership negative control.
+  Existing harness compiles the actual production function; this is not physics,
+  network transfer or persistence simulation. Logs under
+  `verification-87521711b-001`: `resupply-ownership-{repro,fix}.log`.
+- The same disposable Windows x86 build resumed with six build steps (changed
+  gameplay object, existing build identity dependents and link). Source snapshot:
+  `ff3c55854e939cf26257d3292dda56579eb7b557ff6ad268155d7bf7add13b1a`;
+  binary SHA-256:
+  `8d909af34044a1f95e98c8e86710e6b3c6d60d5c0c3f8d7bfe84f9431c4f5196`.
+  Manifest: `C:\Users\patri\AppData\Local\Temp\frn-verify-002\forerunner-build.json`;
+  link log beside it: `compile-resupply-ownership.log`. Prior manifest preserved
+  as `forerunner-build.before-resupply-ownership.json`.
+- Existing `net_compare.py`, same binary both peers, B40 `coop`, stationary native
+  aiming/fire, host encounter/resupply enabled, no scripted hits/deaths:
+  **PASS**, 62 seconds compared, tick offset 0. Wave one records two final enemy
+  deaths and score 200; both peers receive its clear, ammunition resupply and
+  reinforcements notices, then wave two starts. Null renderer, private loopback,
+  copied data/saves/config, microphone/public networking/downloads off.
+  Player position mean/max difference **0.015/1.350**, transient mismatches in
+  one position second and one kills second, **153 client corrections**.
+  Per-tick drift **57/1130** apart, mean **0.000106**, max **0.006441** world units.
+  Existing tolerances unchanged. Report/logs under `verification-87521711b-001`:
+  `native-resupply-smoke.json`, `native-resupply-smoke/runs/b40.AB.1/`.
+  Both owned processes exited; original B40/UI hashes match
+  (`resupply-source-map-hashes.{before,after}.json`).
+- This verifies ordinary native resupply/synchronization through one wave and
+  into the next, not a full three-wave encounter, forced stale-ownership transfer,
+  recovered loot, durable settlement or Linux/VR/human acceptance. No save writer,
+  protocol, renderer or second director was added.
+
 Inventory checkpoint, base `87521711b` plus tracked repairs:
 
 - Actual deferred-transfer reproducer failed before the fix: an older partial

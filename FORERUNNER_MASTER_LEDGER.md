@@ -26,6 +26,17 @@ none of its unaccepted requirements is superseded by this checkpoint.
 
 ## Current engineering gate
 
+Follow-up on `c6f9255c2`: `coop_enemies.c::firefight_resupply_players` now checks
+the weapon's actual parent against the living owner's full unit handle. A stale
+slot can no longer refill another player's transferred weapon or a detached item.
+Six focused native-source checks pass, including a failing negative control;
+legitimate reserve/battery resupply and existing loaded rounds remain intact.
+Windows x86 incrementally compiles. An isolated two-peer B40 smoke passes existing
+tolerances, observes wave-one deaths/clear, resupply on both peers, and wave two
+starting. This is ordinary native resupply evidence, not a stale-transfer gameplay
+scenario or a completed encounter/persistence acceptance. Original map hashes
+match and owned processes exited; details are in `TEST_EVIDENCE.md`.
+
 Latest inventory checkpoint (base `87521711b`, tracked working source): fresh
 host inventory updates now discard another unit's obsolete deferred snapshot
 when it still claims a transferred weapon (`network_objects.c`). Retry processing

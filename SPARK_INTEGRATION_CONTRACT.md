@@ -518,6 +518,17 @@ No personal inventory file has been created or changed by these source edits.
 
 ## Current code-reuse and ownership checkpoint
 
+Shared-equipment follow-up on `c6f9255c2`: native optional Firefight resupply
+(`coop_enemies.c::firefight_resupply_players`) now requires actual weapon-parent
+ownership, matching `game_modes.c::game_modes_inventory_capture` rather than
+trusting a stale slot and generic attachment flag. Six focused checks, Windows
+x86 incremental compilation and a private two-peer B40 one-wave/resupply smoke
+pass; the stale-transfer path itself has fixture evidence only. No Spark schema,
+native script, packet, authoring operation or persistent inventory file changed.
+Authored encounters still own their waves and native pickups; Spark must not
+enable this built-in director alongside its own. Durable inventory ownership/
+settlement and the compiled Zombie Apocalypse candidate remain open handoffs.
+
 Spark inspected read-only at `d56354bee4813ea3a311afe0ac48a9b378505c3a`, with
 unfinished `World.tsx`, `GpuLightmapDraft.tsx` and `gpuLightmap.ts` work present
 and left untouched. Its MIT license remains its own; no Rust/editor source was
