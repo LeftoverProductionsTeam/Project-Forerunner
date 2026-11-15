@@ -96,7 +96,7 @@ static boolean config_boolean(char const *name)
   !strcmp(name,"game.shared_gear") ? shared_cache : director; }
 static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
 static boolean network_coop_active(void) { return TRUE; }
-static struct { boolean enabled, gear, victory; short phase; } firefight;
+static struct { boolean enabled, gear, victory; short phase; long wave_limit,deadline,wipe_deadline; } firefight;
 #include "survival.inc"
 static long game_time_get(void) { return tick; }
 static struct player_datum *player_try_and_get(long handle)
@@ -195,7 +195,9 @@ static void *data_iterator_next(struct data_iterator *i) { if(i->next>=2) return
 #include "extraction.inc"
 #include "controls.inc"
 
-static void advance(short count) { while(count--) { tick++; extraction_update(); } }
+static void firefight_notice(char const *text) { extraction_notice(text); }
+#include "evacuation.inc"
+static void advance(short count) { while(count--) { tick++; extraction_update();firefight_try_evacuation(tick); } }
 static void touch(short control,short player) { control_touched(control_handles[control],unit_handles[player]); }
 static struct extraction_run *run(short player) { return &extraction_runs[player]; }
 static long pickup(short player,long tag)
@@ -216,7 +218,7 @@ static void escape(short player)
 }
 static void initialize(void)
 {
- short i,j; connection=_game_connection_network_server;
+ short i,j; connection=_game_connection_network_server;firefight.wave_limit=3;
  device_group_table.data=(byte *)device_groups;device_group_table.size=sizeof(device_groups[0]);device_group_table.maximum_count=6;
  for(i=0;i<2;i++) {
   players[i].unit_index=unit_handles[i]; players[i].local_player_index=i ? NONE : 0;
@@ -441,6 +443,66 @@ int main(int argc,char **argv)
     units[1].object.damage_flags |= FLAG(_object_dead_bit); advance(1);
     CHECK(run(1)->phase==_extraction_lost && !run(1)->gear.record.reserved_count,"actual death retained reservation");
    } else return 2;
+  }
+ } else if(!strncmp(case_name,"evac-",5)) {
+  extraction_reset();enabled=FALSE;director=TRUE;
+  firefight.enabled=firefight.gear=TRUE;firefight.phase=1;firefight.wave_limit=0;
+  if(!strcmp(case_name,"evac-binding")) {
+   names[1].name[0]=0;advance(1);
+   CHECK(!extraction.admitted&&!file_count&&!run(0)->gear.opened,"endless missing activation reserved personal gear");
+   strcpy(names[1].name,"extraction_activate");starts[1].position.x=20.f;extraction_reset();advance(1);
+   CHECK(!extraction.admitted&&!file_count,"endless field spawn admitted as a safe return hub");
+   starts[1].position.x=0.f;control_tag.control.triggers_when=1;extraction_reset();advance(1);
+   CHECK(!extraction.admitted&&!file_count,"endless non-player control admitted");
+   control_tag.control.triggers_when=0;extraction_reset();advance(1);
+   CHECK(extraction.admitted&&extraction.evacuation&&run(0)->phase==_extraction_deployed,"valid endless native recovery refused");
+  } else {
+   advance(1);
+   CHECK(extraction.survival&&extraction.evacuation&&!extraction_owns_map()&&
+    run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,"Survival recovery bindings or director ownership failed");
+   a=pickup(0,1);pickup(1,2);
+   if(!strcmp(case_name,"evac-finite-win")||!strcmp(case_name,"evac-finite-loss")) {
+    firefight.wave_limit=3;units[0].object.position.x=20.f;touch(1,0);
+    CHECK(run(0)->phase==_extraction_activating,"native evacuation activation failed");
+    firefight.phase=4;firefight.victory=!strcmp(case_name,"evac-finite-win");advance(1);
+    if(firefight.victory) CHECK(run(0)->phase==_extraction_returned&&!weapon_try_and_get(a)&&
+     run(0)->gear.record.count==1&&!extraction_survival_settlement_pending(),"finite victory during activation lost or stranded loot");
+    else CHECK(run(0)->phase==_extraction_lost&&weapon_try_and_get(a)&&
+     !run(0)->gear.record.count,"defeat during activation banked loot");
+   } else if(!strcmp(case_name,"evac-no-survivors")) {
+    units[0].object.damage_flags=units[1].object.damage_flags=1;advance(1);
+    CHECK(!extraction_survival_evacuation_ready()&&!firefight.victory&&
+     !run(0)->gear.record.count&&!run(1)->gear.record.count,"zero living evacuees won or banked loot");
+   } else {
+    escape(0);
+    CHECK(!weapon_try_and_get(a)&&run(0)->gear.record.count==1&&!coop_enemies_firefight_outcome(),
+     "individual evacuation failed or ended another player's active run");
+    advance(1);CHECK(run(0)->phase==_extraction_returned,"escaped player automatically redeployed owned gear");
+    if(!strcmp(case_name,"evac-loop")) {
+     byte id[GEAR_ID_BYTES];memcpy(id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES);
+     touch(0,0);a=units[0].unit.weapon_object_indices[0];
+     CHECK(run(0)->phase==_extraction_deployed&&!run(0)->gear.record.count&&weapon_try_and_get(a),"escaped owner could not rejoin through hub deployment");
+     escape(0);CHECK(run(0)->gear.record.count==1&&!memcmp(id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES),"redeployment duplicated or changed recovered item identity");
+     escape(1);
+    } else if(!strcmp(case_name,"evac-pending")) {
+     units[1].object.position.x=20.f;touch(1,1);advance(300);units[1].object.position.x=0.f;
+     fail_write=TRUE;advance(1);
+     CHECK(run(1)->phase==_extraction_ready&&!firefight.victory,"failed recovery write ended encounter");
+     fail_write=FALSE;publish_failure=TRUE;advance(30);
+     CHECK(run(1)->phase==_extraction_settling&&!firefight.victory,"uncertain banking ended encounter early");
+     publish_failure=FALSE;advance(30);
+     CHECK(run(1)->gear.record.count==1,"banking retry lost or duplicated escaped loot");
+    } else if(!strcmp(case_name,"evac-presence")) {
+     units[0].object.position.x=20.f;escape(1);
+     CHECK(!firefight.victory&&!extraction_survival_evacuation_ready(),"evacuation ignored a living player's physical return");
+     units[0].object.position.x=0.f;units[0].unit.player_index=NONE;
+     CHECK(!extraction_survival_evacuation_ready(),"stale native ownership completed team evacuation");
+     units[0].unit.player_index=player_handles[0];advance(1);
+    } else return 2;
+    CHECK(firefight.phase==4&&firefight.victory&&coop_enemies_firefight_outcome()==1&&
+     firefight.deadline==tick+5*TICKS_PER_SECOND,"all recovered living players did not reach the existing result/lobby path");
+    touch(0,0);CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==1,"result-screen deployment reserved gear before lobby return");
+   }
   }
  } else if(!strncmp(case_name,"survival-",9)) {
   extraction_reset(); enabled=FALSE; director=TRUE;

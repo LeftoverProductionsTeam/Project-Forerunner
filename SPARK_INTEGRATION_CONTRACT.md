@@ -660,17 +660,33 @@ this placement check. Loaded Flood variants can use existing actor selection,
 but this is not accepted Zombie outbreaks, dynamic objectives or huge-horde/
 128-player proof. Optional desktop host `network.firefight_gear` now reuses
 `extraction.c`'s owner sessions, native grants, loss and escape escrow. It is
-frozen at map start and requires a positive wave limit: zero-limit endless play
-never reserves personal gear without a success path. `coop_enemies.c` marks
-`victory` only in its completed finite-wave branch; phase-4 aborts/defeat never
-award rewards. `coop_enemies_firefight_outcome` exposes that actual outcome,
-not script/client claims. Live spawns reserve compatible stash gear; real deaths
-lose only that reservation. Existing shared lives/respawn ownership is unchanged.
-Successful survivors consume captured native loot into the shared bank; existing
-lobby return waits while winner settlement retries. Gear/profile data is never
-sent by clients, and no second director/storage/network format is introduced.
-Same-cache recovered weapons can cross back to Extraction; finite native success,
-bank reopen, hardware/platform and full Survival gameplay acceptance remain open.
+frozen at map start. Finite rounds keep victory recovery without a hub. With the
+existing valid Extraction hub, players may also activate, hold the ten-second
+signal zone, return alive, bank carried equipment and redeploy using the native
+deployment control while others continue. Zero-limit endless gear requires this
+valid recovery interface before opening/reserving any stash. Use repeatable,
+touched-by-player `extraction_deploy` / `extraction_activate` controls, optional
+`extraction_loadout`, and `extraction_zone` / `extraction_return` volumes. All
+authored player starts must lie in the return hub outside the activation zone;
+keep the existing named spawn encounter/actor placement safely away from it.
+No new marker, authoring format, JSON importer or RPC is needed.
+
+Source: `extraction.c::{extraction_bind,extraction_control_touched,
+extraction_update_run,extraction_survival_evacuation_ready}` and
+`coop_enemies.c::firefight_try_evacuation`. Only completed native recovery and
+physical return of every living player may give the existing director an early
+team-evacuation result/lobby return. Individual banking does not end other active
+runs or automatically redeploy that owner. Pending writes, zero survivors,
+incapacitation, stale ownership and restored worlds cannot complete evacuation;
+finite defeat/abort during activation never awards gear. Actual finite victory
+still recovers living players, including an in-progress activation. Shared
+lives, owner identities, native inventory consumption, escrow, records and packets
+are reused. Source workflow checks and Windows64 compile pass. Native stock B40
+endless combat passes through two clears/third wave with gear requested, but
+stock B40 has no recovery hub: it does not prove the authored evacuation loop.
+Spark must supply that compiled native hub/encounter for gameplay acceptance.
+Specific Zombie/Survival evacuation, bank reopen, hardware/platform and full
+Survival acceptance remain open; this is not an independent squad quest system.
 
 ## Persistent operations: next native handoff
 

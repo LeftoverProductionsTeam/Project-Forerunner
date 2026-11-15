@@ -1956,14 +1956,15 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Not complete Zombie/Extraction integration or large-horde proof." },
 	{ "network.firefight_gear", _config_boolean, "false", "HALO_NET_FIREFIGHT_GEAR", _environment_value,
 		_platform_desktop,
-		"Host: share Extraction's persistent weapon/grenade stash with finite\n"
+		"Host: share Extraction's persistent weapon/grenade stash with\n"
 		"built-in Firefight. Saved local profiles or verified host-bound remote\n"
 		"identities reserve compatible gear at live spawn. Death/disconnect\n"
-		"loses deployed gear; surviving actual finite victory recovers carried\n"
-		"loot once. Lobby return waits for pending winner settlement.\n"
-		"Default off, frozen at map start. Zero-limit endless waves do not\n"
-		"reserve gear; authored encounters keep their own director. Use\n"
-		"game.extraction for native hub/evacuation maps instead. Gameplay\n"
+		"loses deployed gear; finite victory or an authored activation/return\n"
+		"point recovers carried loot once. When all living players evacuate,\n"
+		"the encounter ends; hub deployment can rejoin before then. Endless gear\n"
+		"requires the existing native Extraction hub/controls/volumes.\n"
+		"Default off, frozen at map start. Authored encounters keep their\n"
+		"own director. Use game.extraction for authored Extraction. Gameplay\n"
 		"acceptance, endless evacuation and full Zombie Survival remain open." },
 	{ "network.firefight_initial_enemies", _config_integer, "2", "HALO_NET_FIREFIGHT_INITIAL_ENEMIES", _environment_value,
 		_platform_all,

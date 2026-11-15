@@ -64,7 +64,7 @@ struct extraction_run
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
-	boolean survival;
+	boolean survival, evacuation;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
 	long last_tick;
 } extraction;
@@ -272,17 +272,10 @@ static void extraction_bind(void)
 
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
+	extraction.evacuation = FALSE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 	extraction.zone = extraction.return_zone = NONE;
-	if (extraction.survival)
-	{
-		/* The already active director checked authored-script ownership and
-		 * owns its actual success/lives. It does not need an Extraction hub. */
-		extraction.admitted = TRUE;
-		extraction_notice("SURVIVAL GEAR | Compatible saved gear is at risk. Complete the finite encounter alive to recover loot.");
-		return;
-	}
-	if (config_boolean("network.firefight_encounter"))
+	if (!extraction.survival && config_boolean("network.firefight_encounter"))
 	{
 		extraction_notice("Extraction unavailable: disable the built-in Firefight director. Authored native AI scripts can keep running.");
 		return;
@@ -355,6 +348,26 @@ static void extraction_bind(void)
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
 finished:
+	if (extraction.survival)
+	{
+		/* Reuse the native controls, volumes and settlement. Finite encounters
+		 * retain their old recovery without a hub. Endless play must not
+		 * reserve gear without a real escape interface. */
+		extraction.evacuation = extraction.admitted;
+		if (!extraction.admitted && !coop_enemies_firefight_endless())
+		{
+			extraction.admitted = TRUE;
+			extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
+			extraction.zone = extraction.return_zone = NONE;
+		}
+		if (extraction.admitted && !extraction.suspended)
+			extraction_notice(extraction.evacuation ?
+				"SURVIVAL GEAR | Escape through activation/return points, or complete a finite encounter alive. Deploy at the hub to rejoin." :
+				"SURVIVAL GEAR | Compatible saved gear is at risk. Complete the finite encounter alive to recover loot.");
+		else if (!extraction.admitted)
+			extraction_notice("SURVIVAL GEAR UNAVAILABLE | Endless recovery needs unique native hub controls and extraction/return zones. No stash reserved.");
+		return;
+	}
 	if (extraction.admitted && !extraction.suspended)
 		extraction_notice("FIELD TERMINAL | Use the deployment control to begin. No raid timer.");
 	else if (!extraction.admitted)
@@ -407,7 +420,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	extraction_tell(run, extraction.survival ?
-		"SURVIVAL DEPLOYED | Gear is at risk. Recover carried loot by completing this finite encounter alive." :
+		"SURVIVAL DEPLOYED | Gear is at risk. Recover through an available evacuation point or finite victory." :
 		"DEPLOYED | Gear is at risk until escape, including disconnects. No raid timer.");
 	return TRUE;
 }
@@ -475,11 +488,12 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	long slot;
 	boolean in_hub;
 
-	if (!extraction_owns_map()) return FALSE;
+	if (!extraction_owns_map() && !(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested())) return FALSE;
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
 		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name))) return FALSE;
-	if (extraction.suspended || cinematic_in_progress()) return TRUE;
+	if (extraction.suspended || cinematic_in_progress() ||
+		(extraction.survival && coop_enemies_firefight_outcome() != 0)) return TRUE;
 	/* Recheck authored power, usability and one-use locks on the host before
 	 * reserving gear or accepting activation. A queued action may be stale. */
 	if (!device_can_change_position(control_index)) return TRUE;
@@ -628,7 +642,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 	if (run->phase == _extraction_ready &&
 		((extraction.survival && coop_enemies_firefight_outcome() == 1) ||
-		 (!extraction.survival && scenario_trigger_volume_test_object(extraction.return_zone, run->unit) &&
+		 ((!extraction.survival || extraction.evacuation) && scenario_trigger_volume_test_object(extraction.return_zone, run->unit) &&
 		  !scenario_trigger_volume_test_object(extraction.zone, run->unit))) &&
 		unit->unit.grenade_throw_state == _unit_grenade_throw_idle)
 	{
@@ -718,8 +732,8 @@ void extraction_update(void)
 						extraction_deploy(run, player);
 					}
 				}
-				if (outcome > 0 && run->phase == _extraction_deployed) run->phase = _extraction_ready;
-				else if (outcome < 0 && (run->phase == _extraction_deployed || run->phase == _extraction_ready)) extraction_lose_run(run);
+				if (outcome > 0 && (run->phase == _extraction_deployed || run->phase == _extraction_activating)) run->phase = _extraction_ready;
+				else if (outcome < 0 && (run->phase == _extraction_deployed || run->phase == _extraction_activating || run->phase == _extraction_ready)) extraction_lose_run(run);
 			}
 			extraction_update_run(run, player, now);
 		}
@@ -740,10 +754,36 @@ boolean extraction_survival_settlement_pending(void)
 	{
 		struct extraction_run const *run = &extraction_runs[index];
 		struct player_datum *player = player_try_and_get(run->player);
-		if (player && !player->quit_out_of_game && (run->phase == _extraction_deployed ||
+		if (player && !player->quit_out_of_game && (run->phase == _extraction_deployed || run->phase == _extraction_activating ||
 			run->phase == _extraction_ready || run->phase == _extraction_settling)) return TRUE;
 	}
 	return FALSE;
+}
+
+boolean extraction_survival_evacuation_ready(void)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+	short survivors = 0;
+	if (!extraction.survival || !extraction.admitted || !extraction.evacuation || extraction.suspended ||
+		!extraction_requested() || coop_enemies_firefight_outcome() != 0) return FALSE;
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+	{
+		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
+		struct unit_datum *unit;
+		if (player->quit_out_of_game) continue;
+		if (player->unit_index == NONE) continue;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		if (!unit || unit->unit.player_index != iterator.datum_index) return FALSE;
+		if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) continue;
+		if (!VALID_INDEX(slot, NUMBEROF(extraction_runs)) || extraction_runs[slot].player != iterator.datum_index ||
+			extraction_runs[slot].phase != _extraction_returned || extraction_medical_incapacitated(player->unit_index) ||
+			!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index) ||
+			scenario_trigger_volume_test_object(extraction.zone, player->unit_index)) return FALSE;
+		survivors++;
+	}
+	return survivors > 0;
 }
 
 static void extraction_medical_reset(void)

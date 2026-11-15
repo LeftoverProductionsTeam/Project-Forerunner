@@ -12,6 +12,35 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
+15 November, shared Survival evacuation: existing connected Extraction/gear C
+harness passes 20 MSVC x86 `/O2 /W3 /WX` cases. Seven new workflows cover escape,
+redeployment without changing item IDs, another player's continuing run, delayed
+bank writes, physical return/full native ownership, missing/invalid hub bindings,
+finite victory/defeat during activation and zero survivors. Existing finite gear,
+restore, death/respawn, transfer, failure, native controls, refund and ammo cases
+remain passing. Early-result and missing-hub admission faults are detected.
+The fixture compiles the actual director evacuation decision and shared recovery
+code; OS/packets/native authored map behavior are not simulated by those checks.
+
+Windows64: `build/native-survival-evacuation-build.log`, existing non-LTO/bgfx/XR
+cache; SHA-256 `8f2e4c32d8f22df2a4ca5e35bf461ca2e2909ad16d103f0828a0150f752946c3`.
+Existing native `net_compare.py`: B40/co-op, 75 seconds, skip 3, start 8, timeout
+100; `HALO_NET_FIREFIGHT_ENCOUNTER=true`, wave limit 0, initial enemies 1, gear
+true, normal aim 1 and actor snapshots 1 on both, `HALO_EXTRACTION=false`.
+`build/native-survival-endless-guard/results.json`: PASS, 77 compared seconds,
+mean/max player separation 0.041/1.282994, max aim 11 degrees, drift max 0.046678.
+Single-second position/grenade/ammo differences stay within the unchanged
+persistence judge. Host logs show two wave clears, 200 team points and wave 3
+spawning; no victory/evacuation or early lobby. Existing AI checker with
+`--require-damage`: PASS, 50 snapshots/376 unit comparisons, position max 0.626841,
+10 common movers, 4 damaged units, 2 deaths. Existing corpse normalization and
+all limits are unchanged; raw corpse differences remain in `actor-agreement.json`.
+Original B40/ui/carousel input hashes are preserved in the existing provenance.
+Staged inputs, A/B runtime copies and compiler scratch are removed. Stock B40
+lacks the required evacuation hub: this proves bounded native endless combat,
+not actual authored escape/stash/lobby acceptance, a Flood outbreak or other
+platforms. Those acceptance gates remain open with the exact existing markers.
+
 15 November, authored co-op script policy: existing `coop_gate` and
 `coop_script_players` fixtures pass 15 + 12 cases with MSVC `/O2 /W3 /WX`.
 Six-player fixtures exercise exact ALL/subset gates without gathering, scoped

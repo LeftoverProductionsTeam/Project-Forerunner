@@ -22,7 +22,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     director = read('port/linux/game/coop_enemies.c')
     survival = '\n'.join(function(director, name) for name in (
         'coop_enemies_host', 'coop_enemies_firefight_active',
-        'coop_enemies_firefight_gear_active', 'coop_enemies_firefight_outcome'))
+        'coop_enemies_firefight_gear_active', 'coop_enemies_firefight_endless', 'coop_enemies_firefight_outcome'))
     if outcome_fault:
         survival = mutated(survival, 'firefight.victory ? 1 : -1', '1')
     files.append(('survival.inc', survival))
@@ -32,6 +32,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
         extraction = mutated(extraction,
             'now - medical_players[healer_slot].last_damage < 2 * TICKS_PER_SECOND ||', '')
     files.append(('extraction.inc', extraction))
+    files.append(('evacuation.inc', function(director, 'firefight_try_evacuation')))
     devices = read('source/devices/devices.c')
     controls = read('source/devices/device_controls.c')
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
@@ -47,6 +48,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'restore', 'pending', 'binding', 'disconnect',
                                  'survival-win', 'survival-loss', 'survival-retry',
                                  'survival-restore', 'survival-respawn',
+                                 'evac-loop', 'evac-pending', 'evac-presence', 'evac-binding',
+                                 'evac-finite-win', 'evac-finite-loss', 'evac-no-survivors',
                                  'medical-authority', 'medical-revive', 'medical-interrupt',
                                  'medical-bleed', 'medical-replica', 'medical-restore', 'medical-gear'])
 def test_extraction_workflow(case):
@@ -100,6 +103,18 @@ def test_shared_cache_native_admission_negative_control():
 
 def test_failed_survival_negative_control():
     status, output = run(build('extraction', generated(outcome_fault=True)), 'survival-loss')
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('extraction_runs[slot].phase != _extraction_returned', 'FALSE', 'evac-loop'),
+    ('if (!extraction.admitted && !coop_enemies_firefight_endless())',
+     'if (!extraction.admitted)', 'evac-binding'),
+])
+def test_survival_evacuation_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
     assert status == CHECK_FAILED, output
 
 

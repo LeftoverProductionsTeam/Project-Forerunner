@@ -21,6 +21,10 @@ boolean extraction_control_touched(long control_index, long unit_index);
 /* The existing Firefight director delays lobby return only while a living
  * winner's shared gear recovery is pending. No extra wave/lives director. */
 boolean extraction_survival_settlement_pending(void);
+/* Existing director result gate: every living player recovered and physically
+ * in the authored return hub. False for missing bindings, zero survivors,
+ * pending writes, failed/ended encounters or a restored world. */
+boolean extraction_survival_evacuation_ready(void);
 
 struct player_action;
 /* Optional native medical control: downed is alive, never a cleared dead bit.

@@ -243,9 +243,14 @@ boolean coop_enemies_firefight_gear_active(void)
 	return coop_enemies_firefight_active() && firefight.gear;
 }
 
+boolean coop_enemies_firefight_endless(void)
+{
+	return coop_enemies_firefight_active() && !firefight.wave_limit;
+}
+
 short coop_enemies_firefight_outcome(void)
 {
-	/* Only the actual finite victory branch sets this flag. Spawn failures,
+	/* Only finite completion or authoritative evacuation sets this flag. Spawn failures,
 	 * exhausted lives and other aborts also use phase 4, but never earn gear. */
 	return !coop_enemies_firefight_active() || firefight.phase < 4 ? 0 : firefight.victory ? 1 : -1;
 }
@@ -985,6 +990,19 @@ static void firefight_resupply_players(void)
 		firefight_notice("Firefight: carried ammunition resupplied");
 }
 
+/* Recovery belongs to the shared Extraction path. Only actual banked returns
+ * of every living player may finish the existing encounter early. */
+static void firefight_try_evacuation(long now)
+{
+	if (!coop_enemies_firefight_gear_active() || firefight.phase >= 4 ||
+		!extraction_survival_evacuation_ready()) return;
+	firefight.phase = 4;
+	firefight.victory = TRUE;
+	firefight.wipe_deadline = 0;
+	firefight.deadline = now + 5 * TICKS_PER_SECOND;
+	firefight_notice("Survival: team evacuated - recovered gear secured");
+}
+
 static void firefight_update(void)
 {
 	long now = game_time_get();
@@ -1030,6 +1048,7 @@ static void firefight_update(void)
 		}
 		return;
 	}
+	firefight_try_evacuation(now);
 	if (firefight.phase < 4 && firefight_check_defeat(now))
 	{
 		firefight.phase = 4;
@@ -1435,9 +1454,8 @@ void coop_enemies_new_game(
 	/* Map-start host rules only. Invalid values retain the default encounter;
 	   zero waves follows Faber's endless policy, not an empty free victory. */
 	firefight.wave_limit = wave_limit >= 0 && wave_limit <= 999 ? wave_limit : 3;
-	/* Endless evacuation still needs its authored recovery interface. Do not
-	 * reserve personal gear for a policy that currently has no success path. */
-	firefight.gear = config_boolean("network.firefight_gear") && firefight.wave_limit > 0;
+	/* Extraction admits endless gear only with a valid native evacuation hub. */
+	firefight.gear = config_boolean("network.firefight_gear");
 	firefight.initial_enemies = initial_enemies >= 1 && initial_enemies <= FIREFIGHT_MAX_TRACKED_ENEMIES ?
 		(short)initial_enemies : FIREFIGHT_INITIAL_ENEMIES;
 	firefight.wave_growth = wave_growth >= 0 && wave_growth <= FIREFIGHT_MAX_TRACKED_ENEMIES ?

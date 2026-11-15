@@ -3,6 +3,19 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current Survival recovery: the built-in encounter now reuses native Extraction
+activation/return controls, escrow and hub redeployment. An individual can recover
+and rejoin while others fight; every living player recovered and physically home
+ends the existing director through its result/lobby path. Endless gear requires
+valid hub bindings before reserving a stash; finite completion without a hub
+remains. Victory/defeat during activation, pending writes, stale ownership and
+zero survivors are covered by 20 connected checks plus two negative controls.
+Windows64 builds; native endless B40 passes 77 compared seconds, two clears/200
+points and third-wave progression, with AI/damage/death agreement. This is stock
+combat, not authored evacuation or Zombie outbreak acceptance. Existing Spark
+contract specifies the same native markers; no new save/director/protocol/editor.
+Copied maps/peer runtimes/scratch are removed; compact evidence remains.
+
 Current authored co-op handoff: optional host `network.coop_script_adaptations`
 defaults true for legacy campaigns. False preserves exact authored player lists,
 ALL/visibility tests, individual transport/equipment actions and native script
