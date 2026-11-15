@@ -40,7 +40,7 @@ struct device_group_datum {real actual_value;unsigned short flags;};
 struct player_datum { long unit_index; short local_player_index; boolean quit_out_of_game;
  struct { short controller_index; } network_player_data; };
 struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
-struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum; };
+struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum, rounds_total_initial; };
 struct game_globals_grenade { short maximum_count; };
 struct game_globals { struct tag_block grenades; };
 struct control_definition { struct { short triggers_when,type;real call_value;
@@ -62,6 +62,7 @@ static long unit_handles[2] = { 0x1000a, 0x1000b };
 static struct unit_datum units[2];
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
+static boolean fail_refund;
 static struct control_datum controls[3];
 static long control_handles[3] = { 0x10003, 0x10004, 0x10005 };
 static struct control_definition control_tag;
@@ -70,7 +71,7 @@ static struct data_array device_group_table;
 static struct data_array *device_groups_data=&device_group_table;
 static int control_updates[3],control_effects[3];
 #include "controls_types.inc"
-static struct weapon_magazine_definition magazine = { 20, 200 };
+static struct weapon_magazine_definition magazine = { 20, 200, 0 };
 static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
 static long missing_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
@@ -152,7 +153,7 @@ static boolean unit_drop_weapon(long u,long w)
 static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
 {
  short i; struct unit_datum *unit=unit_get(u); struct weapon_datum *weapon=weapon_get(w);
- if(fail_attach && !--fail_attach) return FALSE;
+ if(fail_attach && !--fail_attach) { if(fail_refund) fail_write=TRUE; return FALSE; }
  if(weapon->object.parent_object_index!=NONE) return FALSE;
  for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==NONE) { unit->unit.weapon_object_indices[i]=w; weapon->object.parent_object_index=u; return TRUE; }
  return FALSE;
@@ -243,6 +244,59 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strcmp(case_name,"initial-ammo")) {
+  struct game_modes_inventory chosen;
+  byte id[GEAR_ID_BYTES];
+  magazine.rounds_total_maximum=40;magazine.rounds_total_initial=63;
+  touch(0,1);pickup(1,1);escape(1);
+  memcpy(id,run(1)->gear.record.items[0].id,sizeof(id));
+  touch(2,1);
+  CHECK(gear_loadout(&run(1)->gear,&chosen)&&chosen.weapon_count==1&&
+   game_modes_inventory_loadout_valid(&chosen),"authored starting reserve stranded recovered equipment");
+  chosen.weapons[0].rounds_reserve[0]=64;
+  CHECK(!game_modes_inventory_loadout_valid(&chosen),"reserve above both native limits was admitted");
+  touch(0,1);a=units[1].unit.weapon_object_indices[0];
+  CHECK(run(1)->phase==_extraction_deployed&&weapon_get(a)->weapon.magazines[0].rounds_total==63,
+   "starting reserve was clipped or failed to deploy");
+  escape(1);
+  CHECK(run(1)->gear.record.count==1&&!memcmp(id,run(1)->gear.record.items[0].id,sizeof(id))&&
+   run(1)->gear.record.items[0].equipment.rounds_reserve[0]==63&&!weapon_try_and_get(a),
+   "redeployed starting ammunition changed identity, duplicated or lost rounds");
+  extraction_reset();return 0;
+ }
+ if(!strncmp(case_name,"refund-",7)) {
+  byte ids[2][GEAR_ID_BYTES];
+  short index;
+  touch(0,1);pickup(1,1);pickup(1,2);escape(1);
+  for(index=0;index<2;index++) memcpy(ids[index],run(1)->gear.record.items[index].id,GEAR_ID_BYTES);
+  before=weapon_count;fail_attach=2;fail_refund=TRUE;touch(0,1);
+  CHECK(run(1)->phase==_extraction_cancelling&&run(1)->gear.record.reserved_count==2&&
+   !run(1)->gear.record.count,"failed refund was not pending");
+  CHECK(!weapon_try_and_get(0x10020+before)&&!weapon_try_and_get(0x10021+before),"ungranted equipment survived refund");
+  fail_write=fail_refund=FALSE;
+  if(!strcmp(case_name,"refund-disconnect")) {
+   players[1].quit_out_of_game=TRUE;advance(1);
+   CHECK(!run(1)->gear.opened,"disconnected refund retained bank lock");
+   players[1].quit_out_of_game=FALSE;advance(1);
+  } else if(!strcmp(case_name,"refund-recycled")) {
+   player_handles[1]+=0x10000;units[1].unit.player_index=player_handles[1];advance(1);
+  } else if(!strcmp(case_name,"refund-map-exit")) {
+   extraction_reset();advance(1);
+  } else if(!strcmp(case_name,"refund-retry")) {
+   advance(30);
+  } else return 2;
+  touch(2,1);
+  CHECK(run(1)->gear.record.count==2&&!run(1)->gear.record.reserved_count&&
+   run(1)->gear.record.grenades[0]==1,"ungranted reservation became departure loss or lost grenades");
+  for(index=0;index<2;index++) CHECK(gear_has(run(1)->gear.record.items,2,ids[index]),"refund changed owned item identity");
+  touch(0,1);
+  CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.record.reserved_count==2,
+   "refunded owner could not redeploy");
+  escape(1);
+  CHECK(run(1)->gear.record.count==2&&!run(1)->gear.record.reserved_count,
+   "redeployed refund did not settle exactly once");
+  extraction_reset();return 0;
+ }
  if(!strcmp(case_name,"shared-cache")||!strcmp(case_name,"shared-cache-reject")||!strcmp(case_name,"shared-cache-discard")) {
   struct game_modes_inventory chosen,stale;
   byte original[GEAR_ID_BYTES];unsigned long generation;

@@ -165,8 +165,10 @@ boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapo
 		if (magazine < definition->weapon.magazines.count)
 		{
 			struct weapon_magazine_definition *capacity = TAG_BLOCK_GET_ELEMENT(&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
+			/* Native starting equipment and distributed inventory admission
+			 * allow an authored initial reserve above the normal pickup cap. */
 			if (item->rounds_loaded[magazine] > capacity->rounds_loaded_maximum ||
-				item->rounds_reserve[magazine] > capacity->rounds_total_maximum) return FALSE;
+				item->rounds_reserve[magazine] > MAX(capacity->rounds_total_maximum, capacity->rounds_total_initial)) return FALSE;
 		}
 		else if (item->rounds_loaded[magazine] || item->rounds_reserve[magazine]) return FALSE;
 	}

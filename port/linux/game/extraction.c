@@ -152,9 +152,16 @@ static void extraction_run_close(struct extraction_run *run)
 {
 	if (run->gear.opened)
 	{
-		/* A committed escape was already consumed from the world. All other
-		 * unfinished departures lose the deployed reservation, not the stash. */
-		gear_lose(&run->gear);
+		/* A failed native grant removed all newly created equipment. Preserve
+		 * its refund on disconnect, slot reuse and map exit as on a live retry.
+		 * Actual deployments still lose gear; committed escapes finish escrow. */
+		if (run->phase == _extraction_cancelling)
+		{
+			if (!gear_cancel_reservation(&run->gear))
+				platform_log("extraction: ungranted loadout refund failed before session close");
+		}
+		else
+			gear_lose(&run->gear);
 		gear_close(&run->gear);
 	}
 	memset(run, 0, sizeof(*run));

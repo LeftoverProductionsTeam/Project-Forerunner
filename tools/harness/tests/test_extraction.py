@@ -41,6 +41,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 
 
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
+                                 'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
                                  'transfer', 'grant-failure', 'authority', 'native-controls',
                                  'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
                                  'restore', 'pending', 'binding', 'disconnect',
@@ -57,6 +58,25 @@ def test_transfer_negative_control():
     status, output = run(build('extraction', generated((
         'if (!weapon || weapon->object.parent_object_index != player->unit_index)',
         'if (!weapon)'))), 'transfer')
+    assert status == CHECK_FAILED, output
+
+
+def test_initial_ammo_negative_control():
+    status, output = run(build('extraction', generated((
+        'MAX(capacity->rounds_total_maximum, capacity->rounds_total_initial)',
+        'capacity->rounds_total_maximum'))), 'initial-ammo')
+    assert status == CHECK_FAILED, output
+
+
+def test_departed_refund_negative_control():
+    files = tuple((name, mutated(text,
+        'if (run->phase == _extraction_cancelling)\n\t\t{\n'
+        '\t\t\tif (!gear_cancel_reservation(&run->gear))\n'
+        '\t\t\t\tplatform_log("extraction: ungranted loadout refund failed before session close");\n'
+        '\t\t}\n\t\telse\n\t\t\tgear_lose(&run->gear);',
+        'gear_lose(&run->gear);')) if name == 'extraction.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), 'refund-disconnect')
     assert status == CHECK_FAILED, output
 
 

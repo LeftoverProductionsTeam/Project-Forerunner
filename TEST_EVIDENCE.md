@@ -12,6 +12,25 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
+15 November, Extraction departure/ammo handoff: the existing connected C harness
+passes MSVC `/O2 /W3 /WX`: `initial-ammo`, `refund-disconnect`, `refund-recycled`,
+`refund-map-exit`, `refund-retry`, `loop`, `transfer`, `disconnect`, `grant-failure`,
+`shared-cache`, `shared-cache-reject`, `shared-cache-failure`, `authority`,
+`native-controls`, `survival-win`, `survival-loss`, `survival-retry`, `pending`.
+The initial-ammo case rejects reserve above both native limits, then preserves
+the admitted ammunition and item ID through redeployment and another escape.
+Refund cases inject partial-attachment failure followed by a failed refund write,
+restore storage before departure/cleanup, reopen, redeploy and recover exactly
+the two reserved items. Deployed disconnect still loses gear. Restoring the old
+ammo bound or unconditional departure-loss call fails its corresponding case.
+Windows64 incremental build: `build/native-inventory-handoff-build.log`; retained
+non-LTO configuration/dependencies, no new launcher or test framework. Scratch
+is removed; no maps or peer runtimes were staged. No native authored Extraction
+launch was attempted: stock co-op smoke would not exercise these transactions.
+Actual authored-map/remote synchronization remains unverified. Continued storage
+failure at close and abrupt crashes retain the existing conservative loss policy;
+this fix does not promise refunds during an unwritable-storage outage.
+
 Historical local evidence below originally used the external owned directory
 `C:\Users\patri\AppData\Local\Temp\forerunner-20261114`.
 

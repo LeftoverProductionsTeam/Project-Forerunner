@@ -3,6 +3,17 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current Extraction repair: failed native equipment grants retain their refund
+policy through disconnect, player-slot reuse and map exit. Actual deployed
+departures still lose gear. Native weapon admission now matches distributed
+inventory's authored starting-ammo limit. Eighteen connected workflows and two
+original-defect controls pass; Windows64 compiles incrementally. The existing
+fixture checks identities, grenades, cleanup, redeployment and recovery; authored
+native-map acceptance remains open. A storage outage lasting through session
+close still cannot guarantee a refund; its failure is logged. Abrupt-crash loss
+policy is unchanged. No save format, protocol or subsystem was added, and owned
+compile scratch is removed. Details are in TEST_EVIDENCE.md.
+
 Current co-op voice repair: native co-op has no multiplayer engine, so the old
 Chupathingy engine-pointer gate incorrectly selected lobby routing. Both existing
 voice providers now share the native client-session phase predicate. Chupathingy's
