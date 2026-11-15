@@ -3,6 +3,21 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current co-op spectator repair: next-player cycling keeps the sole survivor
+selected and validates live full player/body ownership, departure and death.
+The existing HUD follows the same eligibility; invalid local slots are safe.
+The native director returns to the viewer's body when the last target vanishes;
+the old dead-camera auto-cycle yields to co-op's existing selection owner.
+Connected C selection/input/body-delay/HUD checks and three broken controls pass;
+Windows64 compiles. Hidden OpenGL zero-lives Firefight B40 passes 66 compared
+seconds, with the joining eliminated player visibly watching the same survivor
+before/after two next presses. Original ordinary-respawn preparation passed
+synchronization but missed its short spectator window; that gap remains recorded.
+The misleading eliminated-player respawn hint is corrected, compiled but not
+recaptured. Native disconnect/last-target fallback, other platforms, larger
+squads and hardware acceptance remain open. Original maps retain their hashes;
+copied maps/runtimes and bulky captures are removed; two lossless PNGs remain.
+
 Current native death repair: all three forced-death requests now block equipment
 capture, deployment/terminal actions, escape settlement and Survival evacuation
 completion until Halo resolves them. Medical admission, guidance and treatment

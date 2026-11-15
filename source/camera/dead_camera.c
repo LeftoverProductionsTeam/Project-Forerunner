@@ -25,6 +25,7 @@ symbols in this file:
 #include "game/players.h"
 #include "memory/data.h"
 #include "objects/objects.h"
+#include "coop_spectate.h" /* port: port/linux/game/coop_spectate.c */
 
 /* ---------- constants */
 
@@ -171,7 +172,9 @@ void dead_camera_update(
 		0.f,
 		camera->switch_timer - controls->seconds_elapsed);
 
-	if (0.f == camera->switch_timer && !game_time_get_paused())
+	/* port: co-op's director already selects a validated teammate each frame.
+	 * Its fallback corpse view must not start a second, unchecked auto-cycle. */
+	if (0.f == camera->switch_timer && !game_time_get_paused() && !coop_spectating())
 	{
 		long next_player_index;
 		long next_unit_index;

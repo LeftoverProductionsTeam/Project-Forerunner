@@ -834,12 +834,16 @@ static void director_choose_camera_game(
 				alive; in multiplayer, one with a long wait to respawn follows a
 				living player once the death camera is done
 				(port/linux/game/follow_camera.c) */
-				long watched_unit_index = coop_spectating() ? coop_spectate_unit(local_player_index) :
+				boolean cooperative = coop_spectating();
+				long watched_unit_index = cooperative ? coop_spectate_unit(local_player_index) :
 					follow_camera_unit(local_player_index);
+				/* port: losing the last valid teammate returns to our body,
+				   rather than leaving the old followed unit pinned forever. */
+				long camera_unit_index = cooperative && watched_unit_index == NONE ? player->dead_unit_index : watched_unit_index;
 
 				if (director->camera_proc != (director_camera_update_proc)dead_camera_update ||
-					(watched_unit_index != NONE &&
-						((struct dead_camera *)director->camera_data)->unit_index != watched_unit_index))
+					((cooperative || watched_unit_index != NONE) &&
+						((struct dead_camera *)director->camera_data)->unit_index != camera_unit_index))
 				{
 					dead_camera_new(
 						(struct dead_camera *)director->camera_data,

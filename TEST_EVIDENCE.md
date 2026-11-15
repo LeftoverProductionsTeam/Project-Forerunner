@@ -12,6 +12,36 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, co-op spectator recovery (base `50a24056c2`): the existing
+`tools/test_coop_spectate.py` now compiles actual selection, input-edge,
+body-delay and HUD functions together. Its MSVC x86 `/O2 /W3 /WX` workflow
+passes sole-survivor wrap, two-survivor cycling/held keys, quit players, stale
+body/player handles, changed ownership, native dead flags, HUD departure races,
+three-second own-body delay, respawn and invalid local slots. Three deliberately
+broken versions detect missing wrap, departure and ownership checks. World and
+HUD adapters remain fixtures. No replacement spectator manager or protocol.
+
+Windows64 builds: `build/native-spectator-recovery-build.log` and final caption
+compile `build/native-spectator-recovery-final-build.log`; final executable
+SHA-256 `6f20bf7ee666fcdd3d93ebbc8d6ef6f250ff35f17d82c4954b73052df1931c84`.
+Native hidden OpenGL zero-lives/endless B40 Firefight:
+`build/native-spectator-elimination/results.json` passes 66 compared seconds at
+unchanged limits, mean/max position separation 0.029958/1.349904, aim 0 degrees,
+one position-boundary mismatch; drift 61/398 samples, mean/max
+0.000319121/0.006441, 144 client corrections. Script kills the joining player at
+1306, dead state is observed at 1320, and two existing next-key inputs follow at
+1440. Visually inspected `captures/spectating-before-next.png` and
+`captures/spectating-after-next.png` retain the same `SPECTATING Player 2` view.
+An initial ordinary-co-op run (`build/native-spectator-recovery`) passes 67
+compared seconds but respawns before the helper's delayed input; its stimulus
+remains ERROR, not cycling acceptance. Existing zero-life rules supplied the
+corrected spectator window; gameplay respawn timing was not altered.
+The final non-promissory waiting caption is compiled, not recaptured; retained
+images show the old text. Native disconnect/last-target fallback, large squads,
+other platforms, human and VR acceptance remain open. Pixel identity was checked
+on PNG conversion; owned BMPs/maps/peer payloads/input replay are removed and
+original map hashes remain unchanged. No unrelated engine suite was repeated.
+
 15 November, native forced-death ownership (base `a9c8551a0c`): the actual prior
 functions in the existing C fixture reproduce pending-death equipment capture,
 silent-death medical guidance and revival by a doomed healer. The repair passes

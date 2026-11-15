@@ -84,6 +84,18 @@ byte input_abstraction_port_accept(short controller_index);
 
 /* ---------- private code */
 
+/* A player slot alone does not own a usable view after death, departure or
+ * body replacement. Keep downed-but-alive teammates eligible. */
+static long spectate_player_unit(long player_index)
+{
+	struct player_datum *player = player_try_and_get(player_index);
+	struct unit_datum *unit;
+	if (!player || player->quit_out_of_game || player->unit_index == NONE) return NONE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+	return unit && unit->unit.player_index == player_index &&
+		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ? player->unit_index : NONE;
+}
+
 /* The next living player after `after` (or the first, if `after` is NONE),
 skipping `self` and wrapping around. NONE if nobody else is alive. */
 static long next_living_player(long self, long after)
@@ -96,17 +108,14 @@ static long next_living_player(long self, long after)
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
-		if (iterator.datum_index == after)
-		{
-			passed = TRUE;
+		if (iterator.datum_index == self || spectate_player_unit(iterator.datum_index) == NONE)
 			continue;
-		}
-		if (iterator.datum_index == self || player->unit_index == NONE)
-			continue;
-		if (passed)
-			return iterator.datum_index;
 		if (first == NONE)
 			first = iterator.datum_index;
+		if (passed)
+			return iterator.datum_index;
+		if (iterator.datum_index == after)
+			passed = TRUE;
 	}
 
 	return first;
@@ -173,15 +182,21 @@ boolean coop_spectating(
 long coop_spectate_unit(
 	short local_player_index)
 {
-	long self = local_player_get_player_index(local_player_index);
-	long *watched = &coop_spectate_watched[local_player_index];
+	long self, *watched;
 	struct player_datum *player;
 
 	boolean next;
 
-	if (self == NONE)
+	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS)
 		return NONE;
-	player = player_get(self);
+	self = local_player_get_player_index(local_player_index);
+	watched = &coop_spectate_watched[local_player_index];
+	player = player_try_and_get(self);
+	if (!player || player->quit_out_of_game)
+	{
+		*watched = NONE;
+		return NONE;
+	}
 	/* checked every frame so a press is never missed or counted twice */
 	next = next_pressed(player->network_player_data.controller_index);
 	/* alive: keep `watched`, so the next death starts on the same teammate */
@@ -190,20 +205,24 @@ long coop_spectate_unit(
 	/* the retail dead camera on the player's own body first */
 	if (showing_own_body(&coop_spectate_deaths[local_player_index], player->dead_unit_index, game_time_get()))
 		return NONE;
-	if (*watched == NONE || !player_try_and_get(*watched) || player_get(*watched)->unit_index == NONE || next)
+	if (spectate_player_unit(*watched) == NONE || next)
 	{
 		*watched = next_living_player(self, *watched);
 	}
 
-	return *watched != NONE ? player_get(*watched)->unit_index : NONE;
+	return spectate_player_unit(*watched);
 }
 
 boolean coop_spectate_nothing_to_watch(
 	short local_player_index)
 {
-	long self = local_player_get_player_index(local_player_index);
+	long self;
+	struct player_datum *player;
 
-	return self != NONE && player_get(self)->unit_index == NONE && next_living_player(self, NONE) == NONE;
+	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS) return FALSE;
+	self = local_player_get_player_index(local_player_index);
+	player = player_try_and_get(self);
+	return player && !player->quit_out_of_game && player->unit_index == NONE && next_living_player(self, NONE) == NONE;
 }
 
 void coop_spectate_camera(
@@ -268,26 +287,32 @@ static void draw_bottom_text(
 void coop_spectate_draw(
 	short local_player_index)
 {
-	long watched = coop_spectate_watched[local_player_index];
+	long self, watched;
+	struct player_datum *player;
 	wchar_t text[96];
 	wchar_t const *hint;
 
+	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS) return;
+	self = local_player_get_player_index(local_player_index);
+	player = player_try_and_get(self);
+	if (!player || player->quit_out_of_game || player->unit_index != NONE) return;
+	watched = coop_spectate_watched[local_player_index];
 	/* still watching the player's own body: nothing to say yet */
 	if (showing_own_body(&coop_spectate_deaths[local_player_index],
-		player_get(local_player_get_player_index(local_player_index))->dead_unit_index, game_time_get()))
+		player->dead_unit_index, game_time_get()))
 	{
 		return;
 	}
 	/* nobody to watch yet (still joining): network_coop.c shows the host's
 	view from behind instead */
-	if (watched == NONE || !player_try_and_get(watched))
+	if (spectate_player_unit(watched) == NONE)
 	{
 		if (coop_spectate_nothing_to_watch(local_player_index))
 			draw_bottom_text(L"JOINING THE GAME");
 		return;
 	}
-	if (!players_coop_waiting_to_start(local_player_get_player_index(local_player_index)))
-		hint = L"Respawning when it is safe";
+	if (!players_coop_waiting_to_start(self))
+		hint = L"Waiting to return to combat";
 	else
 		hint = L"Joining when they're on foot";
 	usnprintf(text, NUMBEROF(text) - 1, L"SPECTATING %.12s   A: NEXT\r\n%s", player_get(watched)->name, hint);
