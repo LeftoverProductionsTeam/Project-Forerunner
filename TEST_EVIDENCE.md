@@ -34,6 +34,33 @@ All local evidence below is in the external owned directory
 
 ## Candidate compilation and native smoke checks
 
+CI publication safeguards after the Extraction milestone:
+
+- Existing `tools/test_build_workflow.py` reused: **5 passed**, 32 deselected,
+  `verification-87521711b-001/ci-publication-guards.log`. Draft conditions are
+  evaluated with approved/default inputs, push/PR/schedule events, own/upstream
+  repositories, master/main/unreviewed/tag refs and failed/skipped dependencies.
+  Automatic Forerunner updater identity stays off even with inherited release/
+  nightly input values. No destructive release mutation remains in those jobs.
+- Three previously ungated native-workflow jobs now wait for the existing source
+  gate; its master/main/release-* admission was extended without admitting other
+  `ma*` branches. The missing selected source ref in its web package job was fixed.
+  Additional existing shell-gate fixture cases cover master/maintenance, but cannot
+  run here without a POSIX shell and remain unverified. No shell/install framework
+  was added. Windows collection now skips the existing sh/jq probe when sh is absent.
+- Broader static checks exposed inherited self-saving/unguarded Android cache
+  policy differences. Both assertions also fail against unmodified `87f988317`,
+  confirmed read-only in `ci-inherited-baseline.log`. They were not hidden or
+  rewritten; this is not a claim that the whole inherited workflow suite passes.
+- Existing native/browser artifacts and supported platform package paths remain;
+  only explicit manual requests in `LeftoverProductionsTeam/Project-Forerunner`
+  may prepare new draft tags/assets. Old releases/tags are neither deleted nor
+  overwritten; public publication, signing and update activation remain separate.
+  Map-index publishing is disabled; the inherited container publishing job already
+  excludes this repository. Spark CI was inspected read-only. No GitHub workflow,
+  draft, release, push, tag, registry upload or updater activation was executed.
+  Actual CI execution and Windows/Linux/macOS package acceptance remain open.
+
 Connected Extraction/shared gear, base `143c02c40` plus the owner-approved record
 implementation and connected gameplay source:
 

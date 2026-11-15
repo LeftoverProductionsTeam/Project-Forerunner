@@ -18,6 +18,7 @@ Text only (no YAML library), no network: python3 -m pytest tools/test_build_work
 
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -109,6 +110,63 @@ def gate_script() -> str:
     return job_script("gate")
 
 
+def expression_value(expression, values):
+    """Evaluate only the literal boolean subset used by these workflow guards."""
+    expression = expression.strip().removeprefix('${{').removesuffix('}}').strip()
+    for name in sorted(values, key=len, reverse=True):
+        expression = expression.replace(name, repr(values[name]))
+    expression = expression.replace('&&', ' and ').replace('||', ' or ')
+    expression = re.sub(r'!(?!=)', ' not ', expression)
+    return eval(expression.strip(), {'__builtins__': {}}, {})
+
+
+@pytest.mark.parametrize('workflow', ['build.yml', 'web.yml'])
+def test_forerunner_draft_guards(workflow):
+    text = (WORKFLOW.parent / workflow).read_text()
+    release = text.split('\n  release:\n', 1)[1]
+    lines = release.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith('    if:'))
+    expression = lines[start].split('if:', 1)[1].strip()
+    if expression == '>-':
+        parts = []
+        for line in lines[start+1:]:
+            if line and not line.startswith('      '):
+                break
+            parts.append(line.strip())
+        expression = ' '.join(parts)
+    values = {name: 'success' for name in re.findall(r'needs\.[\w-]+\.result', expression)}
+    values.update({'github.event_name': 'workflow_dispatch',
+                   'github.repository': 'LeftoverProductionsTeam/Project-Forerunner',
+                   'github.ref': 'refs/heads/master', 'inputs.prepare_draft': True,
+                   'cancelled()': False})
+    assert expression_value(expression, values)
+    assert expression_value(expression, {**values, 'github.ref': 'refs/heads/main'})
+    for key, candidates in {
+        'github.event_name': ['push', 'pull_request', 'schedule'],
+        'github.repository': ['FractumSeraph/OpenCE', 'ChupathingyCE/chupathingyce'],
+        'github.ref': ['refs/tags/v1', 'refs/heads/unreviewed'],
+        'inputs.prepare_draft': [False],
+        **{name: ['failure', 'skipped'] for name in values if name.startswith('needs.')},
+    }.items():
+        for candidate in candidates:
+            assert not expression_value(expression, {**values, key: candidate}), (key, candidate)
+    assert re.search(r'prepare_draft:\n(?: +[^\n]*\n){2} +default: false', text)
+    assert '--draft --latest=false' in release
+    assert not re.search(r'gh release (delete|edit|upload)|git (push|tag) -f|--clobber', release)
+
+
+def test_forerunner_artifacts_do_not_activate_updates():
+    values = {'github.repository': 'LeftoverProductionsTeam/Project-Forerunner',
+              'inputs.version': '0.5.0b-nightly.202611141200', 'inputs.release': True}
+    for name, expected in [('HALO_VERSION', ''), ('HALO_RELEASE_BUILD', '0')]:
+        expression = next(line.split(':', 1)[1] for line in LINES if line.startswith('  ' + name + ':'))
+        assert expression_value(expression, values) == expected
+    assert "  HALO_FORK_RELEASE: ''" in TEXT
+    assert '- master\n      - main' in TEXT
+    index = (WORKFLOW.parent / 'map-index.yml').read_text().split('\n  publish:\n', 1)[1]
+    assert '\n    if: false\n' in index
+
+
 def job_script(name: str) -> str:
     """the job's (first) run: script, dedented"""
     lines = jobs()[name]
@@ -148,8 +206,15 @@ def repository(tmp_path_factory):
     git(folder, "checkout", "-q", "-b", "release/old", head)
     git(folder, "commit", "-q", "--allow-empty", "-m", "outside the ruleset")
     slashed = git(folder, "rev-parse", "HEAD")
+    git(folder, "checkout", "-q", "-b", "master", head)
+    git(folder, "commit", "-q", "--allow-empty", "-m", "Forerunner master")
+    master = git(folder, "rev-parse", "HEAD")
+    git(folder, "checkout", "-q", "-b", "maintenance", head)
+    git(folder, "commit", "-q", "--allow-empty", "-m", "not an approved source branch")
+    maintenance = git(folder, "rev-parse", "HEAD")
     git(folder, "checkout", "-q", "main")
-    return {"folder": folder, "old": old, "head": head, "release": release, "other": other, "slashed": slashed}
+    return {"folder": folder, "old": old, "head": head, "release": release,
+            "other": other, "slashed": slashed, "master": master, "maintenance": maintenance}
 
 
 def gate(repository, commit: str, work: Path) -> subprocess.CompletedProcess:
@@ -159,13 +224,13 @@ def gate(repository, commit: str, work: Path) -> subprocess.CompletedProcess:
                           env=environment)
 
 
-@pytest.mark.parametrize("which", ["old", "head", "release"])
+@pytest.mark.parametrize("which", ["old", "head", "release", "master"])
 def test_gate_takes_mains_and_release_branches(repository, tmp_path, which):
     result = gate(repository, repository[which], tmp_path)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.parametrize("which", ["other", "slashed"])
+@pytest.mark.parametrize("which", ["other", "slashed", "maintenance"])
 def test_gate_refuses_a_commit_on_no_such_branch(repository, tmp_path, which):
     """an unmerged branch, and release/... (the ruleset covers release-* only)"""
     result = gate(repository, repository[which], tmp_path)
@@ -274,7 +339,8 @@ def needs(platforms: str, **changes) -> dict:
     return found
 
 
-@pytest.mark.skipif(subprocess.run(["sh", "-c", "command -v jq"], capture_output=True).returncode != 0,
+@pytest.mark.skipif(shutil.which("sh") is None or
+                    subprocess.run(["sh", "-c", "command -v jq"], capture_output=True).returncode != 0,
                     reason="no jq")
 def test_ci_ok():
     assert ci_ok(needs("skipped"), "false", "pull_request")

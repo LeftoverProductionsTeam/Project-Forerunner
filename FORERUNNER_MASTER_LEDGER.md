@@ -64,11 +64,20 @@ prose is consolidated here. Durable reservation/settlement, verified owner
 admission and failed-run reward protection now have connected source coverage;
 native authored-map multiplayer and crash/gameplay acceptance remain open.
 
-Initial CI audit: local `master` tracks `origin/main`; no branch/remote was changed.
-Inherited `build.yml` main pushes can publish/prune releases; `web.yml` main runs
-can replace web-latest assets. Gate these before any approved publication while
-retaining development artifacts and supported-platform packaging. Spark's existing
-build/release workflows were read only. No CI, release or update channel activated.
+CI safety source now keeps master/main development artifacts and existing
+Windows/Linux/macOS packaging, but removes inherited automatic native publication/
+pruning and browser web-latest replacement. Manual owner-repository requests may
+only prepare unique review drafts; Forerunner packages retain development updater
+identity, without inherited signing/update manifests. Map-index branch replacement
+is disabled; the inherited container publisher already restricts itself to OpenCE.
+All native-workflow jobs now wait for its existing commit gate, which admits
+master/main and release-* history; packaged jobs use the same selected source.
+Five focused guard checks pass. Two inherited cache-policy checks also fail on
+the unmodified baseline; no cache framework rewrite was added. Shell gate execution
+and actual multi-platform CI packaging remain unverified on this Windows host.
+Local `master` still tracks `origin/main`; no branch/remote was changed. Spark's
+existing build/release workflows were read only. No CI, draft, release, signing
+key, tag, registry, map index or update channel was created/activated remotely.
 
 The owner's Development & Verification Directive supersedes the earlier source-only
 restriction. Implementation remains primary; use focused builds/tests after

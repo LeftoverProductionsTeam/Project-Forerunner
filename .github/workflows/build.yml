@@ -1,55 +1,18 @@
 name: Build
 
-# Debug and release builds of the native ports (Linux and Windows, 32- and
-# 64-bit, Android and its native 64-bit and 32-bit ARM apps, macOS, FreeBSD), and release builds of the dedicated server (Linux
-# x86, x64 and arm64, and Windows x86 and x64) and its container, for every pushed commit and pull
-# request, uploaded as artifacts: whether a change builds. tools/ci_build.py does each build; see it for the options.
-#
-# These builds are VERSION's -dev, and never look for updates. Releases and
-# nightlies are built here too, by hand or by ChupathingyCE's release
-# workflows (ChupathingyCE/command), which run this workflow on main with a
-# commit and its version (tools/version.py): the builds are that commit's,
-# as that version, and a release's look for newer releases. Those workflows
-# then sign the Android app with ChupathingyCE's key (this repository has no
-# key: the debug app has the runner's debug key, the release app is
-# unsigned) and publish the builds to this repository's Releases. Each run
-# also uploads chupathingyce-build-info: the commit and version it built.
-#
-# Kept cheap:
-# - one job per platform builds both configurations, so its set-up (tools,
-#   downloads, caches) is paid once;
-# - compiles go through ccache, whose cache carries over from run to run, so
-#   a commit only recompiles what it changed; downloads (SDL, musl, Gradle,
-#   the Linux builds' system roots) are cached too;
-# - the 32-bit Linux build is built once (linux) and tested in that job (this
-#   fork: ChupathingyCE's linux-tests, which splits tools/ci_tests.txt over
-#   runners, is left out, below); the big-endian tests need no build and
-#   start at once;
-# - pushes build only release branches and tags, not main: a commit reaches
-#   main through a pull request whose Build passed, and the nightly, the
-#   releases and the test builds start their own run (workflow_dispatch);
-#   every other branch builds through its pull request;
-# - debug builds only in runs started with workflow_dispatch and on tags;
-#   pull requests build release only (BUILD_DEBUG);
-# - a newer commit to a pull request or a release branch cancels its run
-#   still going; runs on main (started with workflow_dispatch) are never
-#   canceled;
-# - changes that only touch documentation do not build (no check is
-#   required to merge, so a pull request without a Build is not blocked);
-# - a push that only changes the approved map list
-#   (port/assets/network/map_torrents.txt) does not build or release:
-#   map-index.yml publishes it, and the games fetch it;
-# - the compile caches are saved only by runs on main (the nightly's and
-#   the releases'; each run restores main's
-#   newest), so branches and pull requests do not crowd main's out of the
-#   repository's 10 GB of caches;
-# - Windows, whose minutes cost twice Linux's, builds only Windows;
-# - artifacts are kept for three days.
+# Platform builds/packaging inherited from OpenCE, ChupathingyCE and
+# FractumSeraph/OpenCE. Existing platform configurations, caches and three-day
+# downloadable artifacts are retained. Pushes/PRs build development packages;
+# master and main are both supported. Profiling/debug choices remain explicit.
+# Forerunner packages never enable inherited release/nightly update channels.
+# Manual prepare_draft may collect successful packages in the owner's repository
+# for review. It never publishes, moves existing tags or prunes old releases.
+# Public release, signing and update channels need separate owner authorization.
 on:
   push:
     branches:
-      # (port, this fork: every push to main is a release, HALO_FORK_RELEASE;
-      # ChupathingyCE builds main nightly instead, so its list has no main)
+      # Forerunner development artifacts on both existing branch names.
+      - master
       - main
       - "release-*"
       - "release/**"
@@ -76,11 +39,15 @@ on:
         type: string
         default: ""
       version:
-        description: The version (0.5.0b, 0.5.0b-nightly.42; empty, VERSION's -dev)
+        description: Upstream ChupathingyCE version override; Forerunner always builds VERSION-dev
         type: string
         default: ""
       release:
-        description: A release's build (its updater looks for newer releases; the version must be VERSION's)
+        description: Upstream ChupathingyCE release build; Forerunner builds keep automatic updates disabled
+        type: boolean
+        default: false
+      prepare_draft:
+        description: Prepare a private Forerunner release draft for owner review; never publish or activate updates
         type: boolean
         default: false
       request:
@@ -92,9 +59,8 @@ on:
         type: boolean
         default: false
 
-# (a run started with a version is named for it, so that the release
-# workflows find their run; the others keep GitHub's name)
-run-name: ${{ inputs.version && format('Build {0} at {1} {2}', inputs.version, inputs.commit, inputs.request) || '' }}
+# Preserve the upstream dispatch identity; Forerunner drafts stay development builds.
+run-name: ${{ github.repository == 'ChupathingyCE/chupathingyce' && inputs.version && format('Build {0} at {1} {2}', inputs.version, inputs.commit, inputs.request) || '' }}
 
 # (a run started by hand is never canceled by a push, and cancels none; a
 # push to main or a tag has a group of its own, so none is canceled or left
@@ -108,16 +74,13 @@ permissions:
 
 env:
   # (empty unless started with a version: VERSION's -dev, tools/version.py)
-  HALO_VERSION: ${{ inputs.version }}
-  HALO_RELEASE_BUILD: ${{ inputs.release && '1' || '0' }}
-  # (a fork's: every push to its main is a release, published by the
-  # release job below; tools/ci_build.py makes its version)
-  HALO_FORK_RELEASE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository != 'ChupathingyCE/chupathingyce' && '1' || '' }}
-  # debug builds only for releases, nightlies and test builds (a run started
-  # with workflow_dispatch, as ChupathingyCE/command does) and tags; pull
-  # requests build release only. (This fork: every push to its main is a
-  # release, whose assets include the debug builds, HALO_FORK_RELEASE's.)
-  BUILD_DEBUG: ${{ (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository != 'ChupathingyCE/chupathingyce')) && 'true' || 'false' }}
+  HALO_VERSION: ${{ github.repository == 'ChupathingyCE/chupathingyce' && inputs.version || '' }}
+  HALO_RELEASE_BUILD: ${{ github.repository == 'ChupathingyCE/chupathingyce' && inputs.release && '1' || '0' }}
+  # Development/draft artifacts must not inherit Fractum's release updater.
+  HALO_FORK_RELEASE: ''
+  # Debug configurations only for manual runs and tags; automatic branch
+  # builds retain release optimization with development/updater identity.
+  BUILD_DEBUG: ${{ (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')) && 'true' || 'false' }}
   CI_COMPILER_LAUNCHER: ccache
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   CCACHE_BASEDIR: ${{ github.workspace }}
@@ -131,14 +94,14 @@ env:
 jobs:
   gate:
     # A run started with a commit (workflow_dispatch's inputs.commit) builds
-    # it only when it is a full SHA in the history of main or of a release
+    # it only when it is a full SHA in the history of master/main or of a release
     # branch (release-*) of this repository. GitHub checks out
     # any commit of the repository's network, a fork's unmerged pull request
     # included, and every other job waits for this one.
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: The commit is main's or a release branch's
+      - name: The commit is master/main's or a release branch's
         if: github.event_name == 'workflow_dispatch' && inputs.commit != ''
         env:
           COMMIT: ${{ inputs.commit }}
@@ -154,17 +117,21 @@ jobs:
           # (one retry: a GitHub hiccup should not fail a release's build)
           fetch() {
             git fetch -q --filter=tree:0 "$REPOSITORY" \
-              '+refs/heads/main:refs/gate/main' \
+              '+refs/heads/ma*:refs/gate/ma*' \
               '+refs/heads/release-*:refs/gate/release-*'
           }
           fetch || { echo "fetch failed; trying again in 10 seconds"; sleep 10; fetch; }
           for branch in $(git for-each-ref --format='%(refname)' refs/gate); do
+            case "$branch" in
+              refs/gate/main|refs/gate/master|refs/gate/release-*) ;;
+              *) continue ;;
+            esac
             if git merge-base --is-ancestor "$COMMIT" "$branch" 2>/dev/null; then
               echo "$COMMIT is on ${branch#refs/gate/}"
               exit 0
             fi
           done
-          echo "::error::$COMMIT is not on main or a release branch: this workflow builds only ChupathingyCE's own commits"
+          echo "::error::$COMMIT is not on master, main or a release branch of this repository"
           exit 1
 
   info:
@@ -1082,6 +1049,7 @@ jobs:
           key: ccache-server-windows64-${{ github.sha }}
 
   android:
+    needs: gate
     # The runner image has the Android SDK and NDK, a JDK and CMake.
     runs-on: ubuntu-24.04
     timeout-minutes: 40
@@ -1365,6 +1333,7 @@ jobs:
           key: ccache-android64-${{ github.sha }}
 
   android32:
+    needs: gate
     # The native 32-bit ARM Android app (ninja android32;
     # tools/android32_build.py), for a 32-bit-only Android such as the Galaxy
     # Watch 8 Classic's: the same app as the android job's, built with
@@ -1887,6 +1856,7 @@ jobs:
           key: ccache-macos-${{ github.sha }}
 
   web:
+    needs: gate
     # OpenCE's web build (ninja web, port/web/README.md), as OpenCE builds and
     # tests it; nothing of it is published here (this fork's site is its own
     # browser build: web.yml).
@@ -1901,6 +1871,8 @@ jobs:
       EMSDK_VERSION: 6.0.10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit }}
 
       - uses: actions/cache@v4
         with:
@@ -1971,30 +1943,20 @@ jobs:
           retention-days: 3
 
   release:
-    # A fork's own releases (FractumSeraph/OpenCE): every push to its main
-    # that builds on every platform is published as v<VERSION>-fs.<run>,
-    # marked latest, with the files the self-updaters ask for
-    # (fractum-halo-<platform>-<config>.zip, as updates.json names them:
-    # port/linux/src/updater.c, Updater.java; chupathingyce-* before
-    # fs.00222), signed with the fork's update key, and the dedicated
-    # servers; with OpenCE's SHA256SUMS of the release's files and, when the
-    # RELEASE_SIGNING_KEY secret is set, its Ed25519 signature
-    # (SHA256SUMS.sig, tools/release_sign.sh); the newest five are kept.
-    # ChupathingyCE's own releases come from its release workflows instead.
-    # (macOS's build is waited for but not required: GitHub's macOS runners
-    # are often not to be had, and a release without it is published all the
-    # same; a Mac's self-updater finds no file of its own in that release's
-    # updates.json and stays on its version until one that has it. Every
-    # other build must succeed, and a run cancelled by hand publishes nothing.)
+    # Reuse inherited platform packaging for an explicitly requested draft.
+    # All desktop packages must succeed. Public release/signing/update-channel
+    # activation remains a separate owner decision; old releases are retained.
     if: >-
-      !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' &&
-      github.repository != 'ChupathingyCE/chupathingyce' &&
+      !cancelled() && github.event_name == 'workflow_dispatch' && inputs.prepare_draft &&
+      github.repository == 'LeftoverProductionsTeam/Project-Forerunner' &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') &&
+      needs.gate.result == 'success' && needs.info.result == 'success' && needs.macos.result == 'success' &&
       needs.linux.result == 'success' && needs.linux64.result == 'success' &&
       needs.server.result == 'success' && needs.server-windows.result == 'success' &&
       needs.android.result == 'success' && needs.android64.result == 'success' &&
       needs.android32.result == 'success' && needs.windows.result == 'success' &&
       needs.windows64.result == 'success'
-    needs: [linux, linux64, server, server-windows, android, android64, android32, windows, windows64, macos]
+    needs: [gate, info, linux, linux64, server, server-windows, android, android64, android32, windows, windows64, macos]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -2003,31 +1965,21 @@ jobs:
       # which tools/ci_build.py imports)
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.commit }}
           sparse-checkout: |
             VERSION
-            tools/update_sign.py
-            port/linux/src/update_key.h
             tools/ci_build.py
             tools/version.py
-            tools/release_sign.sh
-            deploy/release-key.pub
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Publish
+      - name: Prepare draft for owner review
         env:
           GH_TOKEN: ${{ github.token }}
-          # the fork's release key's private half (Ed25519 PEM), which signs
-          # the update files; its public half is in update_key.h and
-          # UpdateManifest.java
-          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
-          # OpenCE's release key's seed (64 hex digits), which signs the
-          # release's SHA256SUMS; checked against deploy/release-key.pub, or
-          # the RELEASE_PUBLIC_KEY variable's key (a fork's own)
-          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
-          RELEASE_PUBLIC_KEY: ${{ vars.RELEASE_PUBLIC_KEY }}
         run: |
-          version="$(cat VERSION)-fs.$(printf '%05d' "$GITHUB_RUN_NUMBER")"
+          commit="$(git rev-parse HEAD)"
+          version="$(python3 -c 'from tools.version import version; print(version())')"
+          tag="forerunner-preview-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           mkdir release
           for dir in artifacts/*/; do
             name=$(basename "$dir")
@@ -2041,67 +1993,30 @@ jobs:
               chupathingyce-android32-release-unsigned) zipname=chupathingyce-android32-release ;;
               *) zipname=$name ;;
             esac
-            # (the fork's name for its downloads; the self-updaters, the VPS's
-            # halo-gameservers-update among them, take the names updates.json
-            # and the release give, so the builds before keep updating)
-            zipname="fractum-halo-${zipname#chupathingyce-}"
+            # Preserve platform/configuration identity under Forerunner naming.
+            zipname="forerunner-${zipname#chupathingyce-}"
             # (macOS's builds come as a tar, keeping the application's links)
             if ls "$dir"/*.tar >/dev/null 2>&1; then
               mkdir -p "unpacked/$name" && tar -C "unpacked/$name" -xf "$dir"/*.tar && dir="unpacked/$name/$name/"
             fi
             (cd "$dir" && zip -qry "$GITHUB_WORKSPACE/release/$zipname.zip" .)
           done
-          # (the release apps bare as well, signed with the fork's key, at
-          # names that stay the same, for a phone to install from a link:
-          # releases/latest/download/fractum-halo-android.apk is always the
-          # newest; halo.fractumseraph.net/assets/android/ links them;
-          # fractum-halo-android32.apk is for a 32-bit-only Android, a watch's)
+          # Also retain unsigned installable APKs for owner review.
           for build in android android64 android32; do
             apk=$(find "artifacts/chupathingyce-$build-release-unsigned" -name '*.apk' | head -n 1)
-            if [ -n "$apk" ]; then cp "$apk" "release/fractum-halo-$build.apk"; fi
+            if [ -n "$apk" ]; then cp "$apk" "release/forerunner-$build.apk"; fi
           done
-          # (the update files signed for the self-updaters: each zip's .sig, and
-          # the release's list of them, updates.json and its .sig; checked
-          # against update_key.h before they go out. tools/update_sign.py)
+          # Checksums reuse existing packaging. No inherited update manifest,
+          # signing key, latest tag or automatic release deletion is used.
           files=(release/*.zip release/*.apk)
-          if [ -n "$UPDATE_SIGNING_KEY" ]; then
-            key="$RUNNER_TEMP/update-key.pem"
-            (umask 077 && printf '%s\n' "$UPDATE_SIGNING_KEY" > "$key")
-            python3 tools/update_sign.py sign "$key" "$version" release/*.zip >/dev/null
-            python3 tools/update_sign.py manifest "$key" "$version" --tag "v$version" --debug-tag "v$version" \
-              --commit "$GITHUB_SHA" release/*.zip >/dev/null
-            rm -f "$key"
-            python3 tools/update_sign.py verify "$version" release/*.zip
-            files+=(release/*.sig release/updates.json)
-          else
-            echo "::warning::no UPDATE_SIGNING_KEY secret: this release is not signed, and the self-updaters will not install it"
-          fi
-          # (OpenCE's SHA256SUMS of the release's files, and its signature by
-          # the release key when the secret is set: tools/release_sign.sh,
-          # checked before anything is published. Beside the update files'
-          # signatures above, which the self-updaters check: not instead)
           python3 tools/ci_build.py sums release
           files+=(release/SHA256SUMS)
-          if [ -n "$RELEASE_SIGNING_KEY" ]; then
-            sh tools/release_sign.sh sign release/SHA256SUMS
-            sh tools/release_sign.sh verify release/SHA256SUMS
-            files+=(release/SHA256SUMS.sig)
-          else
-            echo "::warning::no RELEASE_SIGNING_KEY secret: the release's SHA256SUMS is not signed"
-          fi
           ls -l release
           {
-            echo "Built from $GITHUB_SHA on $GITHUB_REF_NAME (version $version)."
+            echo "Forerunner review draft from $commit on $GITHUB_REF_NAME (version $version)."
             echo
-            echo "The release builds are for playing; the debug builds stop at the first failed assertion."
-            if ! ls release/fractum-halo-macos-*.zip >/dev/null 2>&1; then
-              echo
-              echo "No macOS build in this release (GitHub's macOS runner was not to be had): the previous release's is the newest."
-            fi
+            echo "Uncertified development packages. No game data or activated update channel."
+            echo "Public release and signing require separate owner authorization."
           } > notes.txt
-          gh release create "v$version" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "$version" --notes-file notes.txt --latest
-          # (the newest five of these kept)
-          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
-            --jq '[.[] | select(.tagName | contains("-fs."))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
-            while read -r tag; do gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag; done
+          gh release create "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$commit" \
+            --title "Forerunner preview $GITHUB_RUN_NUMBER" --notes-file notes.txt --draft --latest=false

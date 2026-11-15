@@ -26,7 +26,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: map-index
@@ -34,7 +34,12 @@ concurrency:
 
 jobs:
   publish:
+    # This replaces a public branch and activates a signed map index. Kept
+    # disabled until the Forerunner owner separately approves that channel.
+    if: false
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Sign and publish
