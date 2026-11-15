@@ -566,6 +566,17 @@ rolls forward once on reopen;
 published-but-uncertain writes retry the same intent rather than minting rewards.
 These are implementation/automated checks, not power-loss or gameplay acceptance.
 
+Native `unit_kill`, `unit_kill_silent` and `unit_kill_no_statistics` requests
+block new equipment grants, recovery settlement and medical treatment until
+Halo resolves them. Spark can keep using these native calls; operation helpers
+cannot turn their requests into a living casualty or a successful gear return.
+Death and eligible drops still belong to Halo, including
+survivor pickup through native ownership. Bounded desktop co-op demonstrates
+forced-death treatment interruption and replicated drops; authored death-loot
+banking remains unverified. Source: `extraction.c::extraction_unit_pending_death`,
+`extraction_update_run`, `extraction_medical_update` and
+`game_modes.c::game_modes_inventory_capture`. No new authoring interface.
+
 `game_modes.c::{game_modes_inventory_grenade_room,game_modes_inventory_weapon_compatible,game_modes_inventory_loadout_valid,
 game_modes_inventory_apply,game_modes_inventory_consume}` reuse native tag lookup,
 object creation, weapon drop/attach/delete and actual owned snapshots. Old carried

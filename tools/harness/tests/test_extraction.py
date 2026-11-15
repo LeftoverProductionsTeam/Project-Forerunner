@@ -51,7 +51,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
                                  'confirmation-outage', 'confirmation-published',
                                  'reservation-published',
-                                 'transfer', 'grant-failure', 'authority', 'native-controls',
+                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls',
                                  'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
                                  'restore', 'pending', 'binding', 'disconnect',
                                  'survival-win', 'survival-loss', 'survival-retry',
@@ -59,6 +59,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'evac-loop', 'evac-pending', 'evac-presence', 'evac-binding',
                                  'evac-finite-win', 'evac-finite-loss', 'evac-no-survivors',
                                  'medical-authority', 'medical-revive', 'medical-interrupt',
+                                 'medical-pending-target', 'medical-pending-healer',
+                                 'medical-pending-lethal', 'medical-pending-final',
                                  'medical-guidance', 'medical-guidance-client', 'medical-guidance-budget',
                                  'medical-guidance-styles', 'medical-guidance-countdown',
                                  'medical-bleed', 'medical-replica', 'medical-restore', 'medical-gear'])
@@ -71,6 +73,22 @@ def test_transfer_negative_control():
     status, output = run(build('extraction', generated((
         'if (!weapon || weapon->object.parent_object_index != player->unit_index)',
         'if (!weapon)'))), 'transfer')
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('file,before,after,case', [
+    ('equipment.inc', 'FLAG(_object_dead_bit) | FLAG(_object_die_act_of_god_bit) |\n'
+     '\t\t FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit)',
+     'FLAG(_object_dead_bit)', 'pending-escape'),
+    ('extraction.inc', 'FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit)',
+     '0', 'medical-pending-lethal'),
+    ('extraction.inc', 'extraction_unit_pending_death(unit_get(healer->unit_index)) || ',
+     '', 'medical-pending-final'),
+])
+def test_pending_native_death_negative_control(file, before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == file else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
     assert status == CHECK_FAILED, output
 
 

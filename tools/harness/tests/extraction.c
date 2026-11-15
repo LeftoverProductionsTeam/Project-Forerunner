@@ -23,6 +23,7 @@
 enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4,
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
  _scenario_type_solo=0, _object_die_act_of_god_bit=1,
+ _object_die_act_of_god_silent_bit=2, _object_die_act_of_god_no_statistics_bit=3,
  _unit_control_crouch_modifier_bit=0, _unit_control_action_bit=6,
  _unit_control_weapon_reload_bit=10, _unit_control_weapon_primary_trigger_bit=11,
  _unit_control_weapon_secondary_trigger_bit=12, _unit_control_throw_grenade_bit=13,
@@ -275,7 +276,44 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
- if(!strncmp(case_name,"biped-",6)) {
+ if(!strcmp(case_name,"pending-deploy")||!strcmp(case_name,"pending-escape")) {
+  short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
+  short i;struct game_modes_inventory captured;byte item_id[GEAR_ID_BYTES];
+  touch(0,0);a=pickup(0,1);escape(0);
+  memcpy(item_id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES);
+  if(!strcmp(case_name,"pending-escape")) {
+   touch(0,0);a=units[0].unit.weapon_object_indices[0];
+   units[0].object.position.x=20.f;touch(1,0);advance(300);units[0].object.position.x=0.f;
+  }
+  for(i=0;i<3;i++) {
+   unsigned long generation=run(0)->gear.record.generation;
+   units[0].object.damage_flags=FLAG(flags[i]);
+   CHECK(!game_modes_inventory_capture(player_handles[0],&captured),"pending native death captured recoverable equipment");
+   if(!strcmp(case_name,"pending-deploy")) {
+    touch(0,0);CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==1,
+     "pending native death deployed persistent equipment");
+   } else {
+    advance(1);CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(a)&&!run(0)->gear.record.count,
+     "pending native death banked a successful escape or consumed native loot");
+   }
+   CHECK(run(0)->gear.record.generation==generation,"pending death changed the persistent stash");
+  }
+  units[0].object.damage_flags=0;
+  if(!strcmp(case_name,"pending-deploy")) {
+   touch(0,0);CHECK(run(0)->phase==_extraction_deployed,"cleared native request prevented legitimate deployment");
+  }
+  else {
+   units[0].object.damage_flags=FLAG(_object_dead_bit);advance(1);
+   CHECK(run(0)->phase==_extraction_lost&&!run(0)->gear.record.count,"native death earned escape rewards");
+   /* Halo releases the exact carried weapon; a survivor takes it through
+    * native ownership, not a new corpse inventory or a former-owner claim. */
+   CHECK(unit_drop_weapon(unit_handles[0],a),"native corpse drop failed");touch(0,1);
+   CHECK(unit_add_weapon_to_inventory(unit_handles[1],a,0),"survivor could not pick up death loot");escape(1);
+   CHECK(run(1)->gear.record.count==1&&!run(0)->gear.record.count&&!weapon_try_and_get(a)&&
+    !memcmp(item_id,run(1)->gear.record.items[0].id,GEAR_ID_BYTES),"death loot did not settle once with its original identity for the survivor");
+  }
+  extraction_reset();return 0;
+ } else if(!strncmp(case_name,"biped-",6)) {
   byte ids[2][GEAR_ID_BYTES];long carried[2];short index;
   touch(0,0);pickup(0,1);pickup(0,2);escape(0);
   for(index=0;index<2;index++)memcpy(ids[index],run(0)->gear.record.items[index].id,GEAR_ID_BYTES);
@@ -489,7 +527,17 @@ int main(int argc,char **argv)
  }
  if(!strncmp(case_name,"medical-",8)) {
   enabled=FALSE; medical_setting=TRUE; extraction_reset(); advance(1);
-  if(!strcmp(case_name,"medical-guidance-client")) {
+  if(!strcmp(case_name,"medical-pending-lethal")) {
+   short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
+   short i;units[1].object.body_vitality=-.1f;
+   for(i=0;i<3;i++) {
+    units[1].object.damage_flags=FLAG(flags[i]);
+    CHECK(!extraction_medical_lethal(unit_handles[1])&&!medical_players[1].used&&units[1].object.body_vitality==-.1f,
+     "native forced death became a living medical casualty");
+   }
+   units[1].object.damage_flags=0;
+   CHECK(extraction_medical_lethal(unit_handles[1]),"refused forced death consumed a legitimate incapacitation");
+  } else if(!strcmp(case_name,"medical-guidance-client")) {
    client=TRUE;medical_enabled=FALSE;units[0].object.body_vitality=units[1].object.body_vitality=0.f;
    CHECK(!medical_markers(0),"client invented an unreceived casualty marker");
    extraction_medical_network_state(unit_handles[1],TRUE,epoch,(unsigned short)tick);
@@ -574,6 +622,32 @@ int main(int argc,char **argv)
     CHECK(remote_notices==notices+6&&strstr(last_remote_notice,"4 seconds"),"final bleedout seconds did not update");
     units[1].object.body_vitality=.25f;advance(150);
     CHECK(remote_notices==notices+6&&!medical_markers(0),"recovery retained countdown or marker");
+   } else if(!strcmp(case_name,"medical-pending-final")) {
+    short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
+    short i,pending;
+    for(pending=0;pending<2;pending++)for(i=0;i<3;i++) {
+     struct player_action action;long now=tick;
+     medical_players[1].progress=149;medical_players[1].healer=player_handles[0];
+     medical_players[1].healer_unit=unit_handles[0];medical_players[1].last_control=now;
+     memset(&action,0,sizeof(action));action.control_flags=FLAG(_unit_control_swap_weapons_bit);tick++;
+     extraction_medical_control(player_handles[0],&action);
+     CHECK(medical_players[1].progress==150,"final treatment tick was not queued before death");
+     units[pending].object.damage_flags=FLAG(flags[i]);extraction_update();
+     CHECK(units[1].object.body_vitality==0.f&&!medical_players[1].progress,"native death on final tick completed revival");
+     units[pending].object.damage_flags=0;
+    }
+    treat(150,FALSE);CHECK(units[1].object.body_vitality==.25f,"interrupted native death prevented legitimate retry");
+   } else if(!strcmp(case_name,"medical-pending-target")||!strcmp(case_name,"medical-pending-healer")) {
+    short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
+    short i;long pending=!strcmp(case_name,"medical-pending-target") ? 1 : 0;
+    for(i=0;i<3;i++) {
+     units[pending].object.damage_flags=FLAG(flags[i]);
+     CHECK(!medical_markers(0),"pending native death retained medical guidance");
+     treat(150,FALSE);
+     CHECK(units[1].object.body_vitality==0.f&&!medical_players[1].progress,"pending native death participated in successful revival");
+     units[pending].object.damage_flags=0;
+    }
+    treat(150,FALSE);CHECK(units[1].object.body_vitality==.25f,"cleared native request prevented later legitimate revival");
    } else if(!strcmp(case_name,"medical-revive")) {
     struct player_action press;
     tick++; memset(&press,0,sizeof(press)); press.control_flags=FLAG(_unit_control_action_bit);
@@ -664,7 +738,15 @@ int main(int argc,char **argv)
      CHECK(!firefight.victory&&!extraction_survival_evacuation_ready(),"evacuation ignored a living player's physical return");
      units[0].object.position.x=0.f;units[0].unit.player_index=NONE;
      CHECK(!extraction_survival_evacuation_ready(),"stale native ownership completed team evacuation");
-     units[0].unit.player_index=player_handles[0];advance(1);
+     units[0].unit.player_index=player_handles[0];
+     { short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};short i;
+      for(i=0;i<3;i++) {
+       units[0].object.damage_flags=FLAG(flags[i]);
+       CHECK(!extraction_survival_evacuation_ready(),"pending native death completed the team's evacuation");
+      }
+      units[0].object.damage_flags=0;
+     }
+     advance(1);
     } else return 2;
     CHECK(firefight.phase==4&&firefight.victory&&coop_enemies_firefight_outcome()==1&&
      firefight.deadline==tick+5*TICKS_PER_SECOND,"all recovered living players did not reach the existing result/lobby path");

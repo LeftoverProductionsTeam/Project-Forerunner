@@ -68,7 +68,11 @@ boolean game_modes_inventory_capture(long player_index, struct game_modes_invent
 	if (!player || player->quit_out_of_game || player->unit_index == NONE)
 		return FALSE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
-	if (!unit || unit->unit.player_index != player_index || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+	/* Native forced kills are processed later by objects_update_body. A body
+	 * awaiting any of those deaths cannot grant or settle personal equipment. */
+	if (!unit || unit->unit.player_index != player_index || (unit->object.damage_flags &
+		(FLAG(_object_dead_bit) | FLAG(_object_die_act_of_god_bit) |
+		 FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))))
 		return FALSE;
 	map_name = cache_file_loaded_map_name();
 	if (!map_name || strlen(map_name) >= sizeof(captured.map_name))

@@ -3,6 +3,20 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current native death repair: all three forced-death requests now block equipment
+capture, deployment/terminal actions, escape settlement and Survival evacuation
+completion until Halo resolves them. Medical admission, guidance and treatment
+also honor silent/no-statistics requests, including a healer killed on the final
+treatment tick. Native death/drop processing remains authoritative; a refused
+request can clear normally. The old source reproduces improper admission and
+revival; 62 connected checks and three broken controls pass. Windows64 compiles.
+Hidden OpenGL B40 co-op passes 77 compared seconds: silent death interrupts the
+healer, no revival completes, and the same rifle drops on both peers. The casualty
+later bleeds out natively. An initial helper assumed script/network player order
+matched; corrected readback validates the existing logs without another run.
+Native death-to-stash recovery, authored operations, other platforms and hardware
+acceptance remain open. Copied maps, peer runtimes and scratch are removed.
+
 Current inventory repair: unissued loadouts now have a prepared reservation,
 distinct from confirmed native deployments. If grant/confirmation fails, only
 its new objects and added grenades are revoked; a prepared record refunds on

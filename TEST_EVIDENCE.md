@@ -12,6 +12,36 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, native forced-death ownership (base `a9c8551a0c`): the actual prior
+functions in the existing C fixture reproduce pending-death equipment capture,
+silent-death medical guidance and revival by a doomed healer. The repair passes
+62 connected workflows under MSVC x86 `/O2 /W3 /WX`; three broken controls detect
+missing inventory admission, missing silent/no-statistics handling and missing
+final-tick healer recheck. Cases cover all three native kill requests, refused
+deployment/escape without a stash write, legitimate retry after a request clears,
+native death followed by survivor recovery of the same item identity, and
+late treatment interruption. Native drops/identity/storage in this fixture are
+adapters, not full multiplayer inventory acceptance.
+
+Windows64 incremental build: `build/native-pending-death-build.log`, executable
+SHA-256 `4ba14da262106cd78d86aa344308a0fe41336eb8e66a98b8f819ea12b0844be4`.
+Actual hidden OpenGL B40 co-op: `build/native-medical-forced-death/results.json`
+passes 77 compared seconds with unchanged limits: mean/max position separation
+0.020791/1.349904, one position and one alive-boundary mismatch, aim 0 degrees;
+drift 65/623 samples, mean/max 0.000206058/0.006441, 201 client corrections.
+The casualty downs at tick 1200; held-Action treatment starts at 1500. HaloScript
+`unit_kill_silent` at 1576 kills the healer (network player 1), both peers show
+that death at 1590/1650, and no revival completes. Rifle object 238 moves from
+holder 228 at 1560 to world parent -1 at 1590 on both peers. The casualty later
+dies by native bleedout (2130). An initial helper incorrectly expected network
+player 0 to die because it assumed HaloScript list order matched network order;
+its final assertion failed despite the native comparator passing. Corrected
+readback checks both completed logs and the exact rifle transition without a
+rerun; the initial error and corrected acceptance are retained in `guidance.json`.
+Maps/peer copies/input replay and compile scratch are removed. This verifies a
+bounded desktop interruption/drop path, not native death-loot banking, authored
+Extraction, physical VR, WAN or other-platform acceptance. No wire/save change.
+
 15 November, prepared native grant recovery (base `614d2db342`): compilation of
 the actual prior committed `gear.c`, `extraction.c` and `game_modes.c` in the
 existing connected fixture reproduces lost ungranted equipment after a refund

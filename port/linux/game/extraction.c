@@ -83,6 +83,14 @@ static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
 
+/* Match Halo's three native forced-death requests. Do not consume the flags,
+ * clear death, or substitute settlement for native death and loot disposal. */
+static boolean extraction_unit_pending_death(struct unit_datum const *unit)
+{
+	return (unit->object.damage_flags & (FLAG(_object_die_act_of_god_bit) |
+		FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))) != 0;
+}
+
 static boolean extraction_requested(void)
 {
 	return (config_boolean("game.extraction") || coop_enemies_firefight_gear_active()) && global_scenario &&
@@ -509,7 +517,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (!device_can_change_position(control_index)) return TRUE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
 	if (!unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-		extraction_medical_incapacitated(unit_index)) return TRUE;
+		extraction_unit_pending_death(unit) || extraction_medical_incapacitated(unit_index)) return TRUE;
 	player = player_try_and_get(unit->unit.player_index);
 	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
 	if (!player || player->unit_index != unit_index || player->quit_out_of_game || !VALID_INDEX(slot, NUMBEROF(extraction_runs))) return TRUE;
@@ -601,7 +609,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	{
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (now > run->discard_deadline || !unit || player->unit_index != run->discard_unit ||
-			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) || unit->object.parent_object_index != NONE ||
 			extraction_medical_incapacitated(player->unit_index) || cinematic_in_progress() ||
 			!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index) ||
 			scenario_trigger_volume_test_object(extraction.zone, player->unit_index) ||
@@ -629,6 +637,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	{
 		extraction_lose_run(run); return;
 	}
+	if (extraction_unit_pending_death(unit)) return; /* Native death decides the loss next tick. */
 	if (extraction_medical_incapacitated(run->unit))
 	{
 		if (run->phase == _extraction_activating)
@@ -787,6 +796,7 @@ boolean extraction_survival_evacuation_ready(void)
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (!unit || unit->unit.player_index != iterator.datum_index) return FALSE;
 		if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) continue;
+		if (extraction_unit_pending_death(unit)) return FALSE;
 		if (!VALID_INDEX(slot, NUMBEROF(extraction_runs)) || extraction_runs[slot].player != iterator.datum_index ||
 			extraction_runs[slot].phase != _extraction_returned || extraction_medical_incapacitated(player->unit_index) ||
 			!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index) ||
@@ -867,11 +877,11 @@ boolean extraction_medical_ally_incapacitated(long viewer_unit, long target_unit
 	 * decide whether this owned body can see allies who need assistance. */
 	if (!viewer || viewer->unit.player_index == NONE || !(viewer->object.body_vitality >= 0.f) ||
 		TEST_FLAG(viewer->object.damage_flags, _object_dead_bit) ||
-		TEST_FLAG(viewer->object.damage_flags, _object_die_act_of_god_bit)) return FALSE;
+		extraction_unit_pending_death(viewer)) return FALSE;
 	player = player_try_and_get(viewer->unit.player_index);
 	if (!player || player->quit_out_of_game || player->unit_index != viewer_unit) return FALSE;
 	target = unit_get(target_unit);
-	return !TEST_FLAG(target->object.damage_flags, _object_die_act_of_god_bit) &&
+	return !extraction_unit_pending_death(target) &&
 		!game_team_is_enemy(viewer->object.owner_team_index, target->object.owner_team_index);
 }
 
@@ -926,7 +936,7 @@ boolean extraction_medical_lethal(long unit_index)
 	if (!unit || unit->object.parent_object_index != NONE || !unit_controllable(unit_index) ||
 		!(unit->object.body_vitality < 0.f) || unit->object.body_vitality < -1.f ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-		TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit)) return FALSE;
+		extraction_unit_pending_death(unit)) return FALSE;
 	slot = extraction_medical_slot(unit_index);
 	if (slot == NONE || medical_players[slot].used) return FALSE;
 	medical_players[slot].used = medical_players[slot].downed = TRUE;
@@ -994,13 +1004,14 @@ void extraction_medical_control(long player_index, struct player_action *action)
 	slot = extraction_medical_slot(player->unit_index);
 	if (slot == NONE || now - medical_players[slot].last_damage < 2 * TICKS_PER_SECOND) return;
 	unit = unit_get(player->unit_index);
-	if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || !unit_controllable(player->unit_index) ||
+	if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
+		!unit_controllable(player->unit_index) ||
 		unit_is_busy(player->unit_index) || (action->desired_weapon_index != NONE &&
 		action->desired_weapon_index != unit->unit.current_weapon_index)) return;
 	for (target = 0; target < NUMBEROF(medical_players); target++)
 	{
 		if (!medical_players[target].downed || !extraction_medical_incapacitated(medical_players[target].unit) ||
-			TEST_FLAG(unit_get(medical_players[target].unit)->object.damage_flags, _object_die_act_of_god_bit) ||
+			extraction_unit_pending_death(unit_get(medical_players[target].unit)) ||
 			now - medical_players[target].last_damage < 2 * TICKS_PER_SECOND ||
 			!extraction_medical_reach(player->unit_index, medical_players[target].unit)) continue;
 		if (!(action->control_flags & FLAG(_unit_control_swap_weapons_bit)))
@@ -1060,7 +1071,7 @@ static void extraction_medical_update(void)
 		if (!player || player->quit_out_of_game || player->unit_index != medical_players[index].unit ||
 			unit->unit.player_index != medical_players[index].player || now >= medical_players[index].deadline || medical_restored)
 		{
-			if (!TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit))
+			if (!extraction_unit_pending_death(unit))
 				platform_log("medical: player %ld pending native death; revive refused", index);
 			unit_kill(medical_players[index].unit); continue; /* Native death/loot, never resurrect a corpse. */
 		}
@@ -1068,7 +1079,7 @@ static void extraction_medical_update(void)
 		 * countdown or another replicated medical timer. */
 		{
 			long remaining = medical_players[index].deadline - now;
-			if (!cinematic_in_progress() && !TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit) &&
+			if (!cinematic_in_progress() && !extraction_unit_pending_death(unit) &&
 				remaining > 0 && remaining < medical_bleed_seconds * TICKS_PER_SECOND &&
 				remaining % TICKS_PER_SECOND == 0 &&
 				(remaining <= 5 * TICKS_PER_SECOND || remaining % (5 * TICKS_PER_SECOND) == 0))
@@ -1091,7 +1102,7 @@ static void extraction_medical_update(void)
 				extraction_medical_incapacitated(healer->unit_index) ||
 				unit_is_busy(healer->unit_index) ||
 				TEST_FLAG(unit_get(healer->unit_index)->object.damage_flags, _object_dead_bit) ||
-				TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit) ||
+				extraction_unit_pending_death(unit_get(healer->unit_index)) || extraction_unit_pending_death(unit) ||
 				!extraction_medical_reach(healer->unit_index, medical_players[index].unit))
 			{
 				extraction_player_notice(medical_players[index].healer, "BIOFOAM INTERRUPTED | Hold Action again nearby after combat.");
