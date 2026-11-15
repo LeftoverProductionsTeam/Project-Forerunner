@@ -2954,6 +2954,13 @@ static void unit_drop_grenades(
 	/* port: MCC's expanded grenade types drop as well */
 	if (mcc_grenades_active()) mcc_grenades_drop_extra(unit_index, unit_drop_item);
 	unit = unit_get(unit_index);
+	/* The distributed host creates death loot. Do not create a second set
+	 * while replaying its death here, even if replica cleanup is deferred. */
+	if (network_game_distributed_client())
+	{
+		csmemset(unit->unit.grenade_counts, 0, sizeof(unit->unit.grenade_counts));
+		return;
+	}
 	grenade_count = unit->unit.grenade_counts;
 	grenade_count_negative_base =
 		0u - (unsigned long)POINTER_BITS(unit->unit.grenade_counts);

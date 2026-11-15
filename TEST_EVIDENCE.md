@@ -12,6 +12,41 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, combat reserve/death-loot repair (base `c7f7a61ce4`): the existing
+per-local-player inventory record now tracks reserve changes/reloads separately
+from loaded shots. The host's absolute reserve updates can arrive during sustained
+fire without refunding predicted loaded rounds or undoing a reload. Original code
+reproduces the withheld pickup. Native `unit_drop_grenades` now clears a replica's
+counts without allocating loot; `mcc_grenades_drop_extra` likewise drains extra
+types without creating client-only equipment. Original client death allocation
+also reproduces. Eighteen related real-code native harness cases pass, including
+reload grace, a second local player, repeated inventory/death, host drops, base/
+extended grenade counts, stowed ownership and checkpoint inventory. Four fault
+controls detect lost reload/loaded-round/death authority guards. No new harness,
+wire format, pickup message or persistence format was added.
+
+Windows64 incremental builds pass (`build/native-reserve-pickup-build.log`,
+`build/native-death-loot-build.log`); final binary SHA-256
+`94b29b5f7ed7c8a0f549a43eebba83e8d1ba2abc83cfc3054ffd0030070fec23`.
+The intermediate `build/native-coop-six-reserve` passes native player/AI checks
+and exercises the reserve pickup within one round, but FAILS items with six extra
+client grenade objects. Those failures drove the drop-only authority repair.
+Final `build/native-coop-six-loot` passes the unchanged player comparator for
+137 seconds, mean/max separation 0.002/0.051, maximum aim difference one degree,
+zero of 11733 divergent prediction ticks and 84 corrections. One transient alive
+mismatch remains below the existing persistence threshold; no tolerance changed.
+AI passes 142 snapshots/1353 unit comparisons, max separation 0.1898, twelve
+common live/damaged units and eleven common moved/dead units. Items pass 141
+snapshots, zero out of step, 37/39 new host items observed. Both peers record over
+120 snapshots with six living equipped players. Player 0 gains 180 rifle rounds
+at tick 2610 with equal totals on both peers; maximum rifle ammo difference is one.
+Native authored stages again reach extraction availability after deployment,
+Covenant combat, physical rescue, technology collection, Flood and defense.
+This is three local players per peer, not six independent clients/squads; remote
+banking, full mission completion, split-screen HUD, Linux/MCC native gameplay and
+hardware VR remain unaccepted. Compact logs and lossless native captures are
+retained; disposable runtime copies and bulky BMPs are removed after jobs stop.
+
 15 November, larger native co-op (base `448650a8e8`, unchanged compiled engine):
 `build/native-coop-three-player` passes player comparison for 37 seconds,
 mean/max separation 0.013/0.041, no mismatched seconds, no divergent prediction

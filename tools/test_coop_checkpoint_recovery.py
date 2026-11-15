@@ -157,6 +157,9 @@ def generated(fault=None):
     code += "\n" + function(distributed, "distributed_checkpoint_ready")
     code += "\n" + "\n".join(function(objects, name) for name in (
         "distributed_client_note_own_inventories", "network_objects_client_tick"))
+    code += "\n#define object_new grenade_drop_new\n"
+    code += function(read("port/linux/game/mcc_grenades.c"), "mcc_grenades_drop_extra") + "\n"
+    code += function(units, "unit_drop_grenades") + "\n#undef object_new\n"
     if fault:
         code = mutated(code, *fault)
     return (("config.inc", "\n".join(config)), ("types.inc", types), ("data.inc", data_code),
@@ -180,6 +183,8 @@ def test_reconstructed_unit_rejects_old_life_kill():
 
 
 @pytest.mark.parametrize("case", [
+    "inventory-ammo-firing", "inventory-ammo-reload", "inventory-ammo-second-local",
+    "death-grenades-client", "death-grenades-host", "death-grenades-extra-client", "death-grenades-extra-host",
     "live", "host-dead", "host-kills-live", "bound-corpse", "different-handle", "unknown", "unknown-player", "stale-delete",
     "invalid-tag", "invalid-team", "invalid-color", "invalid-position", "invalid-axes",
     "invalid-identifier", "outside-pool", "allocation-failure", "repeat", "retry",
@@ -206,6 +211,28 @@ def test_inventory_attachment_negative_control(case):
     ("!TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit) &&", "TRUE &&", "inventory-stowed-ground"),
 ])
 def test_stowed_ownership_negative_control(before, after, case):
+    status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
+    assert status == 1, output
+
+
+@pytest.mark.parametrize("before,after,case", [
+    ("if (!predicting || distributed_client_own_settled(own->reserve_times[weapon_slot][magazine]))",
+     "if (TRUE)", "inventory-ammo-reload"),
+    ("if (!predicting || distributed_client_own_settled(own->weapon_times[weapon_slot]))\n\t\t\t\tstate->rounds_loaded",
+     "if (TRUE)\n\t\t\t\tstate->rounds_loaded", "inventory-ammo-firing"),
+])
+def test_ammunition_prediction_negative_control(before, after, case):
+    status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
+    assert status == 1, output
+
+
+@pytest.mark.parametrize("before,after,case", [
+    ("if (network_game_distributed_client())\n\t{\n\t\tcsmemset(unit->unit.grenade_counts, 0, sizeof(unit->unit.grenade_counts));",
+     "if (FALSE)\n\t{\n\t\tcsmemset(unit->unit.grenade_counts, 0, sizeof(unit->unit.grenade_counts));", "death-grenades-client"),
+    ("grenade && grenade->item.index!=NONE && !network_game_distributed_client()",
+     "grenade && grenade->item.index!=NONE", "death-grenades-extra-client"),
+])
+def test_death_loot_authority_negative_control(before, after, case):
     status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
     assert status == 1, output
 

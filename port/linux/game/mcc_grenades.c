@@ -207,7 +207,8 @@ void mcc_grenades_drop_extra(long unit,void (*drop_item)(long,long))
         while (mcc_grenades_get(unit,type)>0) {
             struct object_placement_data placement;
             long item=NONE;
-            if (grenade && grenade->item.index!=NONE) {
+            /* Replica deaths clear counts; only the host creates the loot. */
+            if (grenade && grenade->item.index!=NONE && !network_game_distributed_client()) {
                 object_placement_data_new(&placement,grenade->item.index,unit);
                 item=object_new(&placement);
             }

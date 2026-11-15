@@ -796,9 +796,15 @@ the full native player list one entry per tick, rather than hardcoding two
 entries. Spark should likewise use actual owned equipment and the intended
 player/squad scope for collection objectives. A six-player/two-instance native
 encounter reaches the authored extraction-available stage with a later player
-collecting the technology. Combat ammo/item synchronization and split-screen HUD
-issues still prevent larger-roster acceptance; this adds no discovery capability
-or independent squad quest interface. Exact failures are in `TEST_EVIDENCE.md`.
+collecting the technology. The subsequent reserve/death-loot repair now passes
+unchanged native player/AI/item checks with three local players on each of two
+peers. `network_objects.c::distributed_client_apply_inventory` accepts host reserve
+pickups independently of predicted loaded rounds; `units.c::unit_drop_grenades`
+and `mcc_grenades.c::mcc_grenades_drop_extra` create death loot only on the host.
+Spark needs no replacement inventory writer or loot-spawning script. This adds
+no discovery capability or independent squad quest interface. Split-screen HUD,
+six separate clients and authenticated remote banking remain unaccepted; precise
+native evidence and earlier failures are in `TEST_EVIDENCE.md`.
 `game_modes.c::game_modes_inventory_capture` now honors native stowed-item/player
 ownership; Spark must not invent a separate writer or attach holstered models
 just to satisfy persistence. `menu_functions.c::pc_menu_start_map_update` permits

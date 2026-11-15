@@ -412,6 +412,23 @@ static boolean distributed_legacy_host(void) {return FALSE;}
 static unsigned int network_distributed_epoch(void) {return 0;}
 
 #include "engine.inc"
+/* Native death loot uses the existing world; allocation is captured separately
+   so an attempted client-only pickup cannot hide behind replica cleanup. */
+struct game_globals_grenade {struct {long index;} item;};
+static struct game_globals_grenade drop_grenades[4]={{{100}},{{101}},{{102}},{{103}}};
+static struct game_globals {struct {struct game_globals_grenade *elements;} grenades;} drop_globals={ {drop_grenades} };
+static int extra_grenades,grenade_drop_attempts,extra_grenade_counts[4];
+#define POINTER_BITS(p) ((unsigned long)(p))
+static struct game_globals *scenario_get_game_globals(void) {return &drop_globals;}
+static boolean mcc_grenades_active(void) {return extra_grenades;}
+static short mcc_grenades_type_count(void) {return extra_grenades?4:2;}
+static struct game_globals_grenade *mcc_grenade_definition(short type) {return &drop_grenades[type];}
+static short mcc_grenades_get(long unit,short type) {(void)unit;return (short)extra_grenade_counts[type];}
+static void mcc_grenades_set(long unit,short type,short count) {(void)unit;extra_grenade_counts[type]=count;}
+static long grenade_drop_new(struct object_placement_data *placement) {
+    CHECK(placement->definition_index>=100&&placement->definition_index<=103,"grenade drop definition");
+    grenade_drop_attempts++;return NONE;
+}
 #include "under_test.inc"
 
 static void begin_checkpoint(void) {
@@ -563,6 +580,63 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strncmp(name,"death-grenades-",15)) {
+        int expected;
+        extra_grenades=strstr(name,"extra")!=NULL;client=strstr(name,"client")!=NULL;
+        corpse->unit.grenade_counts[0]=2;corpse->unit.grenade_counts[1]=1;
+        extra_grenade_counts[2]=3;extra_grenade_counts[3]=1;
+        expected=client?0:extra_grenades?7:3;
+        unit_drop_grenades(index);
+        CHECK(grenade_drop_attempts==expected,"death pickup allocation must belong to the host");
+        CHECK(!corpse->unit.grenade_counts[0]&&!corpse->unit.grenade_counts[1],"death must clear native grenade counts");
+        if(extra_grenades)CHECK(!extra_grenade_counts[2]&&!extra_grenade_counts[3],"death must clear extended grenade counts");
+        unit_drop_grenades(index);
+        CHECK(grenade_drop_attempts==expected,"repeated death duplicated grenade loot");
+        return 0;
+    }
+    if(!strncmp(name,"inventory-ammo-",15)) {
+        short local_slot=!strcmp(name,"inventory-ammo-second-local")?1:0;
+        struct distributed_own_inventory *own=&objects_client_own_inventories[local_slot];
+        struct weapon_magazine *magazine;
+        distributed_handle_unit_state(now,&state);
+        weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
+        distributed_client_apply_inventory(&inventory);
+        player_get(player_index)->local_player_index=local_slot;
+        distributed_client_note_own_inventory(own,index,TRUE);
+        magazine=&object_get(weapon)->weapon.magazines[0];
+        if(!strcmp(name,"inventory-ammo-reload")) {
+            magazine->state=_magazine_reloading;magazine->rounds_total=60;magazine->rounds_loaded=12;
+            now++;distributed_client_note_own_inventory(own,index,TRUE);
+            inventory.rounds_total[0][0]=110;
+            distributed_client_apply_inventory(&inventory);
+            CHECK(magazine->rounds_total==60&&magazine->rounds_loaded==12,
+                "old host inventory undid a predicted reload");
+            magazine->state=0;now++;
+            object_get(weapon)->weapon.game_time_last_fired=now;magazine->rounds_loaded=11;
+            distributed_client_note_own_inventory(own,index,TRUE);
+            distributed_client_apply_inventory(&inventory);
+            CHECK(magazine->rounds_total==60,"reserve correction ignored reload round-trip grace");
+            now+=3*TICKS_PER_SECOND;
+        } else {
+            now++;object_get(weapon)->weapon.game_time_last_fired=now;magazine->rounds_loaded=10;
+            distributed_client_note_own_inventory(own,index,TRUE);
+        }
+        object_get(weapon)->weapon.game_time_last_fired=++now;
+        magazine->rounds_loaded=9;distributed_client_note_own_inventory(own,index,TRUE);
+        inventory.rounds_total[0][0]=110;inventory.rounds_loaded[0][0]=11;
+        distributed_client_apply_inventory(&inventory);
+        CHECK(magazine->rounds_total==110,"continuous firing withheld an authoritative reserve pickup");
+        CHECK(magazine->rounds_loaded==9,"reserve pickup refunded locally fired loaded rounds");
+        now++;object_get(weapon)->weapon.game_time_last_fired=now;magazine->rounds_loaded=8;
+        distributed_client_note_own_inventory(own,index,TRUE);
+        distributed_client_apply_inventory(&inventory);
+        CHECK(magazine->rounds_total==110&&magazine->rounds_loaded==8,
+            "repeated host pickup inventory duplicated ammunition");
+        now+=3*TICKS_PER_SECOND;distributed_client_apply_inventory(&inventory);
+        CHECK(magazine->rounds_total==110&&magazine->rounds_loaded==11,
+            "settled loaded ammunition stopped accepting host corrections");
+        return 0;
+    }
     if(!strncmp(name,"inventory-stowed",16)) {
         long secondary=add_replica(5,_object_type_weapon);
         weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);

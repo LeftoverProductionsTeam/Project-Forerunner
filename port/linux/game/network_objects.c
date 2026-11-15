@@ -530,6 +530,7 @@ static struct distributed_own_inventory
 	short rounds[MAXIMUM_WEAPONS_PER_UNIT][2][2];
 	long fired_times[MAXIMUM_WEAPONS_PER_UNIT];
 	long weapon_times[MAXIMUM_WEAPONS_PER_UNIT];
+	long reserve_times[MAXIMUM_WEAPONS_PER_UNIT][2];
 } objects_client_own_inventories[MAXIMUM_LOCAL_PLAYERS];
 /* ... the weapon each of them last picked up (the host said so), its unit
 and when, until it is readied (definition NONE: none) */
@@ -4149,6 +4150,8 @@ static void distributed_client_note_own_inventory(
 		{
 			own->weapon_indices[weapon_slot] = weapon_index;
 			own->weapon_times[weapon_slot] = NONE;
+			for (magazine = 0; magazine < 2; magazine++)
+				own->reserve_times[weapon_slot][magazine] = NONE;
 		}
 		else if (compare)
 		{
@@ -4156,6 +4159,14 @@ static void distributed_client_note_own_inventory(
 
 			for (magazine = 0; magazine < 2; magazine++)
 			{
+				/* Firing from the loaded magazine does not spend reserve.
+				 * A pickup can update reserve during sustained fire once the
+				 * last local reload/reserve change has reached the host. */
+				if (weapon->weapon.magazines[magazine].state == _magazine_reloading ||
+					weapon->weapon.magazines[magazine].rounds_total != own->rounds[weapon_slot][magazine][0])
+				{
+					own->reserve_times[weapon_slot][magazine] = now;
+				}
 				used |= weapon->weapon.magazines[magazine].state == _magazine_reloading ||
 					weapon->weapon.magazines[magazine].rounds_total != own->rounds[weapon_slot][magazine][0] ||
 					weapon->weapon.magazines[magazine].rounds_loaded != own->rounds[weapon_slot][magazine][1];
@@ -4349,24 +4360,21 @@ static void distributed_client_apply_inventory(
 	{
 		unit->unit.desired_weapon_index = inventory->current_weapon_index;
 	}
-	/* the ammunition (as much as the weapon's magazines hold): a client's
-	own player spends its own as it fires and reloads (the host's count
-	trails it), so it is the host's only once the host has had a round trip
-	to see what it did with the weapon; then whatever the host's is */
+	/* A client's own loaded rounds trail its predicted shots. Reserve is
+	 * independent: defer it for a reload/reserve change, not for sustained
+	 * firing, which would otherwise hide pickups until the trigger releases.
+	 * Both use the existing round-trip grace and absolute host counts. */
 	for (weapon_slot = 0; weapon_slot < MAXIMUM_WEAPONS_PER_UNIT; weapon_slot++)
 	{
 		long weapon_index = unit->unit.weapon_object_indices[weapon_slot];
 		struct weapon_datum *weapon = weapon_index != NONE ? weapon_try_and_get(weapon_index) : NULL;
 		struct weapon_definition *definition;
+		boolean predicting;
 		short magazine;
 
 		if (!weapon || weapon_index != inventory->weapon_indices[weapon_slot])
 			continue;
-		if (own && own->weapon_indices[weapon_slot] == weapon_index &&
-			!distributed_client_own_settled(own->weapon_times[weapon_slot]))
-		{
-			continue;
-		}
+		predicting = own && own->weapon_indices[weapon_slot] == weapon_index;
 		definition = weapon_definition_get(weapon->definition_index);
 		for (magazine = 0; magazine < 2 && magazine < definition->weapon.magazines.count; magazine++)
 		{
@@ -4377,10 +4385,13 @@ static void distributed_client_apply_inventory(
 			short total = inventory->rounds_total[weapon_slot][magazine];
 			short loaded = inventory->rounds_loaded[weapon_slot][magazine];
 
-			state->rounds_total = total < 0 ? 0 : MIN(total, total_maximum);
-			state->rounds_loaded = loaded < 0 ? 0 : MIN(loaded, magazine_definition->rounds_loaded_maximum);
+			if (!predicting || distributed_client_own_settled(own->reserve_times[weapon_slot][magazine]))
+				state->rounds_total = total < 0 ? 0 : MIN(total, total_maximum);
+			if (!predicting || distributed_client_own_settled(own->weapon_times[weapon_slot]))
+				state->rounds_loaded = loaded < 0 ? 0 : MIN(loaded, magazine_definition->rounds_loaded_maximum);
 		}
-		weapon->weapon.age = (real)inventory->age[weapon_slot] / AGE_SCALE;
+		if (!predicting || distributed_client_own_settled(own->weapon_times[weapon_slot]))
+			weapon->weapon.age = (real)inventory->age[weapon_slot] / AGE_SCALE;
 	}
 	/* the grenades (no more than a unit carries): a client's own player
 	throws its own, so the host's count is taken when it is lower, and when

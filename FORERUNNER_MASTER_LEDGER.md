@@ -3,21 +3,20 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
-Larger native co-op checkpoint (base `448650a8e8`): three and six living,
-equipped players over two native instances pass the existing idle/movement/
-weapon-switch checks; these are mixed local/network rosters, not six clients.
-The owned mission's technology objective now scans the native player list rather
-than only entries 0 and 1. Compiled HaloScript and a six-player native encounter
-confirm a later player collecting it, followed by Flood containment, defense and
-extraction availability. Full combat synchronization FAILS: player 0's reserve
-ammo pickup is deferred during continuous fire (180-round difference, ticks
-1890–2520, converged at 2550); the existing prediction grace resets while firing.
-Item checks also report a dropped plasma pistol ownership mismatch and extra
-plasma grenade; AI comparison has a missing nearby snapshot at tick 1111.
-Keep these exact failures open before accepting larger combat. Existing checks
-were not relaxed. Split-screen HUD overlap, six independent clients/squads and
-authenticated remote banking remain unaccepted. Compact evidence lives under
-`build/native-coop-{three-player,six-player,six-operation}`.
+Larger native combat repair (base `c7f7a61ce4`): reserve-ammo settling is now
+independent of loaded shots, so sustained fire no longer hides host pickups.
+Reload protection, absolute host counts and existing packets remain. Replica
+deaths clear grenade counts without creating duplicate loot, including MCC's
+extra types. The original failures reproduce through real-code native cases;
+18 related cases, four fault controls and incremental Windows64 builds pass.
+`build/native-coop-six-loot` now passes unchanged player/AI/item checks through
+combat, Marine rescue, later-player technology collection, Flood containment,
+defense and extraction availability. Both peers observe the 180-round pickup;
+maximum rifle ammo difference is one round, with zero items out of step across
+141 snapshots. This is three local players per native peer, not six clients or
+independent squads. Split-screen HUD overlap, authenticated remote banking and
+the complete multiplayer escape/bank/redeploy loop remain unaccepted. Earlier
+failed native runs remain evidence; detailed metrics are in `TEST_EVIDENCE.md`.
 
 Native stowed-refresh integration (base `638dd8b1d9`): repeated host inventories
 no longer forget/re-add a healthy holstered player weapon with native item flags,
