@@ -1487,6 +1487,7 @@ void pc_menu_start_map_update(unsigned char main_menu_loaded)
 	static boolean profile_notice;
 	static char requested_map[68];
 	char const *map;
+	char const *network_start;
 	char file[64], canonical[68], why[192];
 	struct player_profile profile;
 
@@ -1498,7 +1499,9 @@ void pc_menu_start_map_update(unsigned char main_menu_loaded)
 		checked = TRUE;
 		return;
 	}
-	if (config_boolean("server.enabled") || config_string("debug.network_test")[0] ||
+	/* Passive log mode observes a game; it does not start or own a session. */
+	network_start = config_string("debug.network_test");
+	if (config_boolean("server.enabled") || (network_start[0] && strcmp(network_start, "log")) ||
 		global_network_game_server_get() || global_network_game_client_get())
 	{
 		checked = TRUE;

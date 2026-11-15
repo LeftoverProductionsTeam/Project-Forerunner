@@ -33,13 +33,15 @@ enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4,
  _delta_capability_coop=6, _delta_capability_object_sync=17 };
 struct tag_block { long count; void *address; };
 #include "medical_hud_types.inc"
-struct object_fields { long parent_object_index; short name_index; long damage_flags; real_point3d position;
+#include "equipment_ownership.inc"
+struct object_fields { long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
  struct { long player_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags; } unit; };
 struct weapon_datum { long definition_index; struct object_fields object;
+ struct { unsigned long flags; } item;
  struct { struct { short rounds_loaded, rounds_total; } magazines[2]; float age; } weapon; };
 struct control_datum { long definition_index; struct object_fields object;
  struct {short position_group_index,power_group_index;unsigned short flags;} device; };
@@ -163,8 +165,9 @@ static boolean unit_can_use_weapon(long u,long w)
 static boolean unit_drop_weapon(long u,long w)
 {
  short i; struct unit_datum *unit=unit_get(u); struct weapon_datum *weapon=weapon_try_and_get(w);
- if(!weapon || weapon->object.parent_object_index!=u) return FALSE;
- for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==w) { unit->unit.weapon_object_indices[i]=NONE; weapon->object.parent_object_index=NONE; return TRUE; }
+ if(!weapon || (weapon->object.parent_object_index!=NONE && weapon->object.parent_object_index!=u)) return FALSE;
+ for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==w) { unit->unit.weapon_object_indices[i]=NONE; weapon->object.parent_object_index=NONE;
+  weapon->item.flags=0;weapon->object.flags|=FLAG(_object_connected_to_map_bit);return TRUE; }
  return FALSE;
 }
 static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
@@ -174,6 +177,8 @@ static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
  if(!unit_can_use_weapon(u,w)) return FALSE;
  if(weapon->object.parent_object_index!=NONE) return FALSE;
  for(i=0;i<4;i++) if(unit->unit.weapon_object_indices[i]==NONE) { unit->unit.weapon_object_indices[i]=w; weapon->object.parent_object_index=u;
+  weapon->item.flags=FLAG(_item_attached_to_unit_bit)|FLAG(_item_belongs_to_player_bit);
+  weapon->object.owner_player_index=unit->unit.player_index;weapon->object.flags&=~FLAG(_object_connected_to_map_bit);
   if(fail_confirm)fail_write=TRUE;if(publish_confirm)publish_failure=TRUE;return TRUE; }
  return FALSE;
 }
@@ -281,6 +286,32 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strncmp(case_name,"stowed-",7)) {
+  struct game_modes_inventory captured;short room[2];long stowed;
+  pickup(0,1);stowed=pickup(0,2);weapon_get(stowed)->object.parent_object_index=NONE;
+  if(!strcmp(case_name,"stowed-loop")) {
+   CHECK(game_modes_inventory_capture(player_handles[0],&captured)&&captured.weapon_count==2,
+    "native stowed weapon blocked capture");
+   touch(0,0);CHECK(run(0)->phase==_extraction_deployed,"stowed starting gear blocked deployment");
+   escape(0);CHECK(run(0)->gear.record.count==2&&!weapon_try_and_get(stowed),"stowed loot not consumed and banked once");
+   touch(0,0);CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.reserved_count==2,"stowed gear not redeployable");
+   weapon_get(units[0].unit.weapon_object_indices[1])->object.parent_object_index=NONE;
+   escape(0);CHECK(run(0)->gear.record.count==2,"redeployed stowed gear duplicated or lost");
+   extraction_reset();advance(1);touch(2,0);CHECK(run(0)->gear.record.count==2,"stowed bank did not survive reopen");
+  } else {
+   if(!strcmp(case_name,"stowed-owner"))weapon_get(stowed)->object.owner_player_index=player_handles[1];
+   else if(!strcmp(case_name,"stowed-ground"))weapon_get(stowed)->object.flags|=FLAG(_object_connected_to_map_bit);
+   else if(!strcmp(case_name,"stowed-unmarked"))weapon_get(stowed)->item.flags&=~FLAG(_item_attached_to_unit_bit);
+   else if(!strcmp(case_name,"stowed-nonplayer"))weapon_get(stowed)->item.flags&=~FLAG(_item_belongs_to_player_bit);
+   else if(!strcmp(case_name,"stowed-parent"))weapon_get(stowed)->object.parent_object_index=unit_handles[1];
+   else CHECK(FALSE,"unknown stowed case");
+   CHECK(!game_modes_inventory_capture(player_handles[0],&captured)&&!captured.weapon_count,
+    "unsafe detached ownership recovered loot");
+   CHECK(!game_modes_inventory_grenade_room(player_handles[0],room),"unsafe inventory admitted loadout");
+   touch(0,0);CHECK(run(0)->phase==_extraction_hub,"unsafe inventory deployed");
+  }
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"mission-",8)) {
   strcpy(completion_script.name,"forerunner_extraction_complete");
   completion_script.script_type=_hs_script_dormant;completion_script.return_type=_hs_type_void;

@@ -930,7 +930,8 @@ static void network_test_shoot(
 }
 
 /* (this fork) debug.network_test_aim: each of this machine's players aims
-at the next living player (from their eyes at their body's centre, where
+at a visible hostile AI in solo/co-op, otherwise the next living player
+(from their eyes at their body's centre, where
 network_test_shoot's hit then lands) and holds the trigger, as a player
 shooting them does: their hits, scripted or fired, aimed, which a host's
 fair play checks (network_fairplay.c) must deal */
@@ -940,6 +941,8 @@ static void network_test_aim(
 	struct data_iterator iterator;
 	struct player_datum *player;
 	boolean firing = FALSE;
+	boolean encounter = network_coop_active() || (game_connection() == _game_connection_local &&
+		global_scenario && global_scenario->type == _scenario_type_solo);
 
 	data_iterator_new(&iterator, player_data);
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
@@ -962,7 +965,7 @@ static void network_test_aim(
 				break;
 			}
 		}
-		if (network_coop_active())
+		if (encounter)
 		{
 			struct object_iterator units;
 			real nearest = 0.0f;
@@ -1010,7 +1013,7 @@ static void network_test_aim(
 			long weapon_index = unit->unit.current_weapon_index != NONE ?
 				unit->unit.weapon_object_indices[unit->unit.current_weapon_index] : NONE;
 
-			if (!network_coop_active() && weapon_index != NONE && weapon_get(weapon_index)->weapon.magazines[0].rounds_loaded < 4)
+			if (!encounter && weapon_index != NONE && weapon_get(weapon_index)->weapon.magazines[0].rounds_loaded < 4)
 				weapon_get(weapon_index)->weapon.magazines[0].rounds_loaded = 32;
 		}
 		firing = TRUE;

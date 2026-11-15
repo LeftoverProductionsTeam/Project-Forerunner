@@ -787,6 +787,21 @@ called. An explicit native `ai_migrate` to a return squad is another supported
 authoring route; it must still physically reach the volume. Preserve native
 allegiance, combat and movement; do not globally force factions friendly or
 replace rescue/technology ownership checks with volume entry.
+The owned native CE fixture additionally demonstrates local saved-profile
+deployment, combat/rescue/collection, countdown/return, durable bank, the native
+completion callback and process-restart redeployment of exactly the banked gear.
+This is not acceptance of Spark's Black Echo package or verified remote banking.
+`game_modes.c::game_modes_inventory_capture` now honors native stowed-item/player
+ownership; Spark must not invent a separate writer or attach holstered models
+just to satisfy persistence. `menu_functions.c::pc_menu_start_map_update` permits
+passive `debug.network_test=log`; active host/join/server ownership is still refused.
+For an authored outbreak, use native `ai_force_active` / `ai_allow_dormant` where
+activation PVS would otherwise sleep the encounter, then release those overrides.
+Keep spawn geometry inside valid collision/navigation. Observe initial spawn
+counts every tick if fast combat could kill the entire wave between polls.
+Two-player combat/item evidence reaches extraction availability, but the strict
+AI check retains a Flood feigned-death body discrepancy; remote banking, readable
+results UX and the complete multiplayer operation remain unaccepted.
 Spark's next handoff must identify the compiled native map/resources/content
 identity, rescue/escort actors, technology objects, trigger/terminal bindings,
 spawn/region identifiers and mission/audio source; supply reviewed objective IDs,

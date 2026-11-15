@@ -12,6 +12,59 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, native local operation/gear milestone (base `f036b81913`):
+`game_modes_inventory_capture` previously refused a legitimate stowed weapon
+whose native model parent is NONE. It now accepts that state only with native
+attached-to-unit/player-item flags, the full player owner and no world connection;
+another parent remains refused. The existing connected Extraction harness passes
+73 workflows, including stowed capture, deployment, bank, redeploy and reopen,
+plus wrong-owner/ground/unmarked/nonplayer/other-parent refusal. The old capture
+fails the stowed loop. Deliberately bypassed player-owner and parent guards are
+both detected. Existing transfer negative-control mutation is updated, not removed.
+Windows64 compiles incrementally (`build/native-authored-aim-build.log`), binary
+SHA-256 `86fc08ec8a56ef89cbd6463164a45433ba02c0bbecea5ada91e3e76fc6b7a02c`.
+
+Actual hidden-OpenGL native evidence in `build/native-extraction-profile`:
+native Settings creates a disposable saved profile; old binary refuses CE startup
+with passive `debug.network_test=log`. The repaired existing startup path loads
+`be_native@ce` with the profile and admits Extraction's controls; competing session/
+server guards remain. `deployment.log` reproduces real stowed-ownership refusal;
+the corrected build deploys. The inherited aim helper now targets AI in local solo
+as in co-op, with no ammunition replenishment in either encounter mode. An early
+external input-driver file-open race and the unaimed solo combat failure are
+retained; neither is gameplay success. The fixture's 15-tick positive spawn wait
+missed a short-lived defender; one-tick observation preserves the nonzero gate.
+
+`native-escape-spawn-operation.json`, its native log and console show deployment,
+real Covenant/Flood/defense combat, physical rescue, actual technology-placeholder
+ownership, extraction activation at tick 1170, ten-second signal wait, physical
+return and durable bank/completion. Gear was consumed from the native body.
+`restart-operation.json` then proves a new engine process reopens two stashed
+weapons and ordinary deployment issues them. `native-bank-redeploy.json` compares
+the existing record bytes: version 1, generation 10 idle counts 2/0/0 to generation
+12 deployed counts 0/2/0; the exact two item records (identity, cache, quantities)
+are identical. Recovered items are the empty technology pistol placeholder and a
+normal pistol, not Spark's final technology assets. This verifies local native
+banking/callback/restart/redeployment, NOT remote banking or the full multiplayer
+Deploy/Fight/Loot/Revive/Extract acceptance. Readable HUD/results UX remains open.
+
+Two-player `build/native-black-echo-flood-defense/results.json` passes 102 compared
+seconds, mean/max player separation 0.014/0.059, zero/2883 divergent prediction
+ticks, 101 corrections and one sampled alive disagreement within the existing
+player checker. Actual authored script reaches extraction availability. Full
+item check passes 106 snapshots, zero out-of-step items, 16/18 new items seen.
+However unchanged `actors.json` is FAIL: tick 2280, Flood full handle e3470012,
+host dead body 0.625 versus client dead body -1.9375. Both are alive at tick 2310
+with matching 0.625 health. Native `units.c` feigns death with positive vitality;
+`network_damage.c` replays a kill, while `network_actors.c` sends living control
+states and later resurrects it. No checker weakening, packet or gameplay replay
+patch is included. Preserve this exact failure for the next AI integration cycle.
+The earlier bad Flood spawn fell outside the world; the owned fixture now uses
+the proven Covenant XY, z=1, and encounter-scoped force-active/no-dormancy commands.
+Compiled fixture provenance remains in its existing `receipt.json`; no original
+map or SDK changed. Disposable peer/runtime/cache/BMP payloads are cleaned after
+terminal processes; compact evidence and one reusable compiled fixture remain.
+
 15 November, client inventory attachment (base `bfa9c0c56e`): the existing
 same-slot fast path now checks the weapon's full native parent. A fresh host
 inventory repairs a detached item or stale claim by another unit through the

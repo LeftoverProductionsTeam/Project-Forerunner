@@ -29,7 +29,7 @@
   (sleep_until (> (ai_living_count be_marines) 0) 15 300)
   (ai_set_team be_marines human)
   (ai_place be_covenant)
-  (sleep_until (> (ai_living_count be_covenant) 0) 15)
+  (sleep_until (> (ai_living_count be_covenant) 0) 1)
   (print "be stage: native hostile encounter active")
   (sleep_until (= (ai_living_count be_covenant) 0) 15)
   (print "be stage: facility defenders eliminated")
@@ -50,14 +50,21 @@
   (gs_complete_4)
   (print "be stage: technology collected by native weapon ownership")
   (if (volume_test_objects be_containment (players)) (begin
+    ; Script-owned waves use native activation, not the runtime wave director.
+    ; Keep the outbreak awake even outside a player's current activation PVS.
+    (ai_force_active be_flood true)
+    (ai_allow_dormant be_flood false)
     (ai_place be_flood)
-    (sleep_until (> (ai_living_count be_flood) 0) 15)
+    (sleep_until (> (ai_living_count be_flood) 0) 1)
     (print "be stage: optional flood outbreak active")
     (sleep_until (= (ai_living_count be_flood) 0) 15)
+    (ai_allow_dormant be_flood true)
+    (ai_force_active be_flood false)
     (print "be stage: outbreak contained")
   ))
   (ai_place be_defense)
-  (sleep_until (> (ai_living_count be_defense) 0) 15)
+  ; Observe the spawn before a short-lived defender can die between polls.
+  (sleep_until (> (ai_living_count be_defense) 0) 1)
   (print "be stage: defend extraction")
   (sleep_until (= (ai_living_count be_defense) 0) 15)
   (device_set_power extraction_activate 1)

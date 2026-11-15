@@ -32,6 +32,7 @@ of their own (menu_functions.c's OPENCE).
 #include "game/game_globals.h"
 #include "game/players.h"
 #include "items/weapons.h"
+#include "items/items.h"
 #include "items/weapon_definitions.h"
 #include "networking/network_game_globals.h"
 #include "objects/objects.h"
@@ -102,7 +103,15 @@ boolean game_modes_inventory_capture(long player_index, struct game_modes_invent
 			if (owned[other] == weapon_index)
 				return FALSE;
 		weapon = weapon_try_and_get(weapon_index);
-		if (!weapon || weapon->object.parent_object_index != player->unit_index)
+		/* Halo attaches the readied weapon to a model marker. A stowed
+		 * weapon can have no parent; item_in_unit_inventory still records
+		 * its full player owner and removes it from the world. */
+		if (!weapon || (weapon->object.parent_object_index != player->unit_index &&
+			(weapon->object.parent_object_index != NONE ||
+			 !TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit) ||
+			 !TEST_FLAG(weapon->item.flags, _item_belongs_to_player_bit) ||
+			 TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit) ||
+			 weapon->object.owner_player_index != player_index)))
 			return FALSE;
 		/* Objective weapons are mission state, never personal salvage. */
 		if (weapon_is_flag(weapon_index))

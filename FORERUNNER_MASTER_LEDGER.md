@@ -3,6 +3,31 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Native local operation milestone (base `f036b81913` plus this change): a genuine
+native Settings profile now completes the owned CE fixture through deployment,
+Covenant combat, physical Marine rescue, technology-placeholder pickup, Flood
+combat, extraction defense, activation countdown and walking back into the hub.
+The runtime banks two real weapons and wakes the authored completion once.
+A second engine process reopens that stash and ordinary terminal deployment
+issues both: exact item identities/quantities are unchanged, stash/reserved
+counts move from 2/0 to 0/2. This is local native acceptance, NOT Spark's Black
+Echo package or two-player banking acceptance. Shared inventory now recognizes
+Halo's detached stowed weapons through native item/player ownership; ground,
+wrong-owner and wrong-parent claims remain refused. All 73 connected Extraction
+workflows, ownership fault controls and Windows64 compilation pass. Passive
+logging no longer blocks the existing private CE startup; the existing aim
+helper supports solo encounters without replenishing ammunition. Fixture waves
+use native encounter activation and one-tick spawn observation.
+
+The two-player authored mission reaches extraction availability (102 compared
+seconds, zero divergent prediction ticks; full item check passes). Its strict AI
+check FAILS on a Flood feigned-death body value: both bodies are dead, host health
+is positive and the client's kill replay is negative; both later reanimate with
+matching health. Keep that failure and native replay requirement open; no checker
+tolerance or protocol was changed. Remote banking still needs verified host-bound
+Delta identities. Readable HUD report, revive-with-banking, larger squads, actual
+Spark content, VR and connected-world acceptance remain separate unfinished gates.
+
 Current client ownership repair: a repeated authoritative inventory now checks
 the actual weapon parent even when its slot already remembers the same full
 handle. Detached/wrong-owner items reuse the existing release/attach helpers;
@@ -20,8 +45,8 @@ Current operations handoff: Extraction can wake the optional native dormant-void
 `forerunner_extraction_complete` once all living survivors have durably banked
 and physically returned. It reuses Survival's return checks and native HaloScript;
 no new writer, protocol, launcher or quest VM. Connected settlement/signature/
-restore/redeployment checks and Windows64 compilation pass. Native callback and
-full multiplayer banking remain UNVERIFIED. The existing death-timing harness
+restore/redeployment checks and Windows64 compilation pass. Native callback now
+passes locally above; full multiplayer banking remains UNVERIFIED. The existing death-timing harness
 again compiles with current mode adapters and preserves spectator ownership.
 
 Native CE fixture now demonstrates two equipped players, real walking/Action,
@@ -34,7 +59,8 @@ are held by host units 17/19 but appear loose on the client. Tracked-AI PASS doe
 not certify those Flood bodies. The later world census confirms those bodies
 exist on both peers; the attachment repair above addresses a proven stale-slot
 ownership gap, with initiating intermittent ordering still unresolved;
-do not claim Flood combat, full Extraction or Black Echo acceptance. The tech
+the later native runs above add Flood combat and local banking, not Black Echo
+or full multiplayer Extraction acceptance. The tech
 item is subsequently dropped, not banked. A separate actual terminal attempt
 correctly refuses the test session's missing saved profile. Remote banking still
 needs the existing verified host-bound Delta identity, not synthesized LAN IDs.
@@ -46,8 +72,8 @@ the existing CE609 startup path by renaming. Exact next handoff, manual objectiv
 contract. Keep Spark read-only. Original UI/carousel/SDK hashes are unchanged;
 owned peer/map staging, SDK subset and bulk captures are removed. One 106 MB
 compiled fixture, its authored scenario and compact evidence remain for reuse.
-Next: continue native Flood combat/defense and normal profile selection plus
-verified remote identities for banking. Revisit the earlier intermittent rifle
+Next: resolve native Flood feigned-death replay/readback and provide verified
+remote identities for two-player banking. Revisit the earlier intermittent rifle
 failure with its retained evidence if it recurs; do not repeat unchanged audits.
 
 Current co-op spectator repair: next-player cycling keeps the sole survivor

@@ -19,6 +19,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
         equipment = mutated(equipment, *fault)
     files.append(('equipment.inc', equipment))
     files.append(('equipment_flags.inc', enum_with(read('source/items/weapon_definitions.h'), '_weapon_must_be_readied_bit')))
+    files.append(('equipment_ownership.inc', enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit') +
+                  '\n' + enum_with(read('source/objects/objects.h'), '_object_connected_to_map_bit')))
     files.append(('mission_types.inc', enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') +
                   '\n' + enum_with(read('source/hs/hs.h'), '_hs_unparsed') +
                   '\n' + structure(read('source/hs/hs_scenario_definitions.h'), 'hs_script')))
@@ -49,6 +51,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 
 
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
+                                 'stowed-loop', 'stowed-owner', 'stowed-ground', 'stowed-unmarked', 'stowed-nonplayer', 'stowed-parent',
                                  'biped-first', 'biped-second', 'biped-survival',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
@@ -73,10 +76,16 @@ def test_extraction_workflow(case):
     assert status == 0, output
 
 
+def test_stowed_owner_negative_control():
+    status, output = run(build('extraction', generated((
+        'weapon->object.owner_player_index != player_index', 'FALSE'))), 'stowed-owner')
+    assert status == CHECK_FAILED, output
+
+
 def test_transfer_negative_control():
     status, output = run(build('extraction', generated((
-        'if (!weapon || weapon->object.parent_object_index != player->unit_index)',
-        'if (!weapon)'))), 'transfer')
+        'weapon->object.parent_object_index != player->unit_index &&',
+        'FALSE &&'))), 'transfer')
     assert status == CHECK_FAILED, output
 
 
