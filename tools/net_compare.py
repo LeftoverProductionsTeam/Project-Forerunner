@@ -430,6 +430,11 @@ def prepare_copy(work, name, executable, data_root, wrapper=""):
     if not (data_root / "maps").is_dir():
         raise SystemExit(f"net_compare: no maps folder in {data_root}")
     folder = work / name
+    # A staging directory inside either input can recursively copy itself.
+    resolved_folder = folder.resolve()
+    if any(resolved_folder == source or source in resolved_folder.parents
+           for source in (executable.parent, data_root)):
+        raise SystemExit("net_compare: work must be outside the input runtime and game-data folders")
     bin_folder = folder / "bin"
     data = folder / "data"
     saves = folder / "saves"
@@ -995,7 +1000,9 @@ def main():
                                           "through SDL's X11 driver")
     parser.add_argument("--work", help="the folder for the copies' files and logs (default: a new one in "
                                        "build/net_compare, removed if every game passes)")
-    parser.add_argument("--keep", action="store_true", help="keep the default folder when every game passes")
+    parser.add_argument("--keep", action="store_true", help="keep the default folder's logs when every game passes")
+    parser.add_argument("--keep-runtime", action="store_true",
+                        help="also retain full disposable runtime/map copies for debugging (can use several GiB)")
     parser.add_argument("--tolerance", action="append", default=[], metavar="NAME=VALUE",
                         help="change a tolerance (" + ", ".join(TOLERANCES) + ")")
     parser.add_argument("--json", help="write the results to this file as JSON")
@@ -1038,17 +1045,40 @@ def main():
         stop_all()
 
 
+@contextmanager
+def prepared_copies(work, args):
+    """Own only newly created peer folders; keep the run logs outside them."""
+    root = work.resolve()
+    fresh = [root / name for name in ("A", "B") if not (root / name).exists()
+             and not (root / name).is_symlink()]
+    try:
+        yield {
+            "A": prepare_copy(work, "A", args.a, args.data, args.a_wrapper),
+            "B": prepare_copy(work, "B", args.b or args.a, args.b_data or args.data, args.b_wrapper),
+        }
+    finally:
+        if not getattr(args, "keep_runtime", False):
+            stop_all()
+            for folder in fresh:
+                if folder.is_symlink() or getattr(folder, "is_junction", lambda: False)() or folder.resolve().parent != root:
+                    print(f"net_compare: linked cleanup target left untouched: {folder}", file=sys.stderr)
+                    continue
+                if folder.is_dir():
+                    shutil.rmtree(folder)
+
+
 def play_all(args, tolerances):
     """plays every game, prints and returns the exit status"""
     # (on disk: the copies' saves hold map caches of hundreds of megabytes,
     # too many for a /tmp in memory)
-    temporary = args.work is None
     work = Path(args.work or ROOT / "build" / "net_compare" / time.strftime("%Y%m%d-%H%M%S"))
+    temporary = args.work is None and not work.exists()
     work.mkdir(parents=True, exist_ok=True)
-    copies = {
-        "A": prepare_copy(work, "A", args.a, args.data, args.a_wrapper),
-        "B": prepare_copy(work, "B", args.b or args.a, args.b_data or args.data, args.b_wrapper),
-    }
+    with prepared_copies(work, args) as copies:
+        return play_copies(work, temporary, copies, args, tolerances)
+
+
+def play_copies(work, temporary, copies, args, tolerances):
     extra = {"A": args.a_env, "B": args.b_env}
     orders = [("A", "B")] + ([("B", "A")] if args.swap else [])
     results = []
@@ -1082,7 +1112,7 @@ def play_all(args, tolerances):
             json.dump({"a": args.a, "b": args.b or args.a, "tolerances": tolerances, "results": results},
                       output, indent=1, default=str)
     status = exit_status(result["verdict"] for result in results)
-    if temporary and not args.keep and status == 0:
+    if temporary and not args.keep and not getattr(args, "keep_runtime", False) and status == 0:
         shutil.rmtree(work, ignore_errors=True)
     elif temporary:
         print(f"files kept in {work}")

@@ -15,6 +15,26 @@ shared-loot synchronization and safe Extraction persistence.
 All local evidence below is in the external owned directory
 `C:\Users\patri\AppData\Local\Temp\forerunner-20261114`.
 
+Artifact availability after cleanup, 15 November: that external staging tree and
+`frn-verify-002` were already absent when the cleanup guard checked their paths;
+this agent's deletion command stopped before removing anything. The historical
+raw logs/binaries named below can no longer be reopened there. Their live
+observations remain recorded here and in the chat; source checkpoints remain
+committed in the root repository. Do not mistake the recorded results for
+currently retained build artifacts.
+
+The existing `tools/net_compare.py` now removes only newly created peer folders
+after completion, interruption or partial setup failure, retaining run logs.
+Preexisting folders remain owned by their caller. `--keep` retains logs;
+`--keep-runtime` explicitly retains full disposable copies. Staging inside the
+input runtime or game-data folder is refused before creation. Direct
+standard-library checks use tiny fixtures inside this repository and remove
+their scratch directory afterward: **7 passed**, including handled interruption,
+explicit retention, preexisting-file preservation and both nested input paths.
+Python syntax and CLI help also pass; no builds or game launches were needed.
+The full pytest suite is not rerun because the prior temporary pytest/toolchain
+installation is gone. Earlier native acceptance limits remain unchanged.
+
 ## Toolchain and inputs
 
 - Current inventory verification uses the retained, digest-checked compiler with

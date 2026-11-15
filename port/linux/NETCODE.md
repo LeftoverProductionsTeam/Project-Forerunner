@@ -1731,7 +1731,13 @@ a build's compiler, maths or the simulation itself. A build
 is its executable: a build's (`build/linux/halo`) or a release's. Each copy
 gets its own folder (an executable, `config.toml` written in the copy's
 folder, a data root linking the maps, and saves) in `build/net_compare/`,
-removed when every game passes. It prints PASS, FAIL (with the first
+removed when every game passes. Windows uses isolated copies of the maps.
+New peer runtime/data folders are pruned after completion, handled interruption
+or partial preparation failure, including when a failed run's logs are retained.
+`--keep` keeps logs/results; `--keep-runtime` also keeps the full disposable
+copies for debugging and can consume several GiB. Preexisting peer folders are
+left untouched by cleanup. A staging path inside either input runtime or data
+folder is refused so it cannot recursively copy itself. It prints PASS, FAIL (with the first
 divergent player, tick and field) or ERROR (a copy that did not start, join or log) for each game and
 a line of figures; a copy's log and the end of its `debug.txt` are kept for
 each game. It exits 0 when every game passes, 1 when any fails, even if

@@ -40,8 +40,12 @@ Guilty Spark is a separate editor project. Do not modify it, original game
 installations, maps, disc images, saves or personal assets. The user authorized
 copying game data from Guilty Spark into isolated Forerunner test staging;
 that authorization does not permit modifying the originals or distributing data.
-Compile disposable source exports outside this checkout. Keep generated
-binaries, caches, test maps and research clones out of tracked source.
+The owner's latest location rule is `D:\Project Forerunner` only, on `master`.
+Do not create external staging or nested project/repository copies. Reuse the
+existing ignored build/work locations; keep generated binaries, caches and test
+maps out of tracked source. After owned jobs stop, remove their disposable
+runtime/map payloads and scratch files while retaining compact useful evidence.
+Full runtime retention is an explicit debugging choice, not the default.
 
 Preserve attribution and upstream history. Do not push, publish or submit
 upstream changes without explicit authorization. Build success, source feature

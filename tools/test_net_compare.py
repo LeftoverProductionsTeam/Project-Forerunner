@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -190,6 +191,88 @@ def test_copy_of_a_flat_folder(tmp_path):
     else:
         assert (tmp_path / "work/A/bin/libSDL3.so.0").resolve() == build / "libSDL3.so.0"
         assert (copy["data"] / "maps").is_symlink()
+
+
+def test_new_copy_payloads_are_removed_without_losing_logs(tmp_path):
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "halo").write_text("disposable executable")
+    data = make_data(tmp_path)
+    work = tmp_path / "work"
+    logs = work / "runs"
+    logs.mkdir(parents=True)
+    (logs / "host.log").write_text("required evidence")
+    args = SimpleNamespace(a=build / "halo", b=None, data=data, b_data=None,
+                           a_wrapper="", b_wrapper="", keep_runtime=False)
+    with net_compare.prepared_copies(work, args):
+        assert (work / "A/data/maps").exists()
+    assert not (work / "A").exists() and not (work / "B").exists()
+    assert (logs / "host.log").read_text() == "required evidence"
+    assert (build / "halo").read_text() == "disposable executable"
+    assert (data / "maps").is_dir()
+
+
+def test_partial_preparation_is_cleaned_up(tmp_path):
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "halo").write_text("disposable executable")
+    data = make_data(tmp_path)
+    work = tmp_path / "work"
+    work.mkdir()
+    args = SimpleNamespace(a=build / "halo", b=build / "missing", data=data, b_data=None,
+                           a_wrapper="", b_wrapper="", keep_runtime=False)
+    with pytest.raises(SystemExit):
+        with net_compare.prepared_copies(work, args):
+            pytest.fail("missing executable admitted")
+    assert not (work / "A").exists() and not (work / "B").exists()
+
+
+def test_interruption_removes_new_peer_copies(tmp_path):
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "halo").write_text("disposable executable")
+    data = make_data(tmp_path)
+    work = tmp_path / "work"
+    work.mkdir()
+    args = SimpleNamespace(a=build / "halo", b=None, data=data, b_data=None,
+                           a_wrapper="", b_wrapper="", keep_runtime=False)
+    with pytest.raises(KeyboardInterrupt):
+        with net_compare.prepared_copies(work, args):
+            raise KeyboardInterrupt()
+    assert not (work / "A").exists() and not (work / "B").exists()
+
+
+@pytest.mark.parametrize("keep_runtime,preexisting", [(True, False), (False, True)])
+def test_runtime_retention_is_explicit_or_preexisting(tmp_path, keep_runtime, preexisting):
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "halo").write_text("disposable executable")
+    data = make_data(tmp_path)
+    work = tmp_path / "work"
+    work.mkdir()
+    if preexisting:
+        (work / "A").mkdir()
+        (work / "A/user.txt").write_text("preserve")
+    args = SimpleNamespace(a=build / "halo", b=None, data=data, b_data=None,
+                           a_wrapper="", b_wrapper="", keep_runtime=keep_runtime)
+    with net_compare.prepared_copies(work, args):
+        pass
+    assert (work / "A").exists()
+    assert (work / "B").exists() == keep_runtime
+    if preexisting:
+        assert (work / "A/user.txt").read_text() == "preserve"
+
+
+@pytest.mark.parametrize("source", ["build", "data"])
+def test_nested_staging_is_refused(tmp_path, source):
+    build = tmp_path / "build"
+    build.mkdir()
+    (build / "halo").write_text("disposable executable")
+    data = make_data(tmp_path)
+    nested = (build if source == "build" else data) / "nested"
+    with pytest.raises(SystemExit):
+        net_compare.prepare_copy(nested, "A", build / "halo", data)
+    assert not nested.exists()
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows command-line quoting")
