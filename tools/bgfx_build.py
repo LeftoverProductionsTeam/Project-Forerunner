@@ -20,17 +20,26 @@ start. On Windows SPIRV-Cross turns the SPIR-V into HLSL for it.
 
 import hashlib
 import subprocess
+import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List
 
 from .ninja_syntax import Writer
+from . import download
 
 BGFX_SOURCES = Path("build/bgfx")
 BGFX_REPOSITORIES = {
     "bx": ("https://github.com/bkaradzic/bx.git", "57548da89a07771c5b0f8a6711149be70e08a329"),
     "bimg": ("https://github.com/bkaradzic/bimg.git", "77bebb28e12956bfced82bb2cf7c19ac5735b6c8"),
     "bgfx": ("https://github.com/bkaradzic/bgfx.git", "4608478e119667eab7635226f721ede32b0935c3"),
+}
+# The same pinned sources, without nested Git repositories in build/. Licenses
+# remain in the archives. Existing Git-based dependency caches can still be used.
+BGFX_ARCHIVE_SHA256 = {
+    "bx": "8c786ce46123dae17d15bc5115d134e21bd3ac7908980f20fba8cbc95b956f6e",
+    "bimg": "885cb97b2c5f569e07b2f59ce45223964a56a022ac6727f7293e98a707ffbf84",
+    "bgfx": "3f9a3decb507947208fc15138060124744238e4a811402049b84d706a0396924",
 }
 # our changes to bgfx, applied to the fetched sources (tools/bgfx-patches)
 BGFX_PATCHES = sorted(Path("tools/bgfx-patches").glob("*.patch"))
@@ -71,20 +80,31 @@ def fetch_bgfx() -> bool:
     whether they are there"""
     for name, (url, commit) in BGFX_REPOSITORIES.items():
         directory = BGFX_SOURCES / name
-        if (directory / "LICENSE").is_file() and _git_head(directory) == commit:
+        revision = directory / ".halo-revision"
+        if (directory / "LICENSE").is_file() and (
+                (revision.is_file() and revision.read_text().strip() == commit) or _git_head(directory) == commit):
             continue
-        directory.mkdir(parents=True, exist_ok=True)
+        if directory.exists() and any(directory.iterdir()):
+            raise BgfxPatchError(f"{directory} is not the pinned source cache; preserve it before regenerating")
+        BGFX_SOURCES.mkdir(parents=True, exist_ok=True)
         print(f"Fetching {name} {commit[:12]} (the bgfx renderer's)")
-        # (the files as they are, whatever the machine's line endings: the
-        # patches are made against them)
-        git = ["git", "-C", str(directory), "-c", "core.autocrlf=false"]
-        if not ((directory / ".git").is_dir() or subprocess.run([*git, "init", "-q"]).returncode == 0):
-            return False
-        if not (subprocess.run([*git, "fetch", "-q", "--depth", "1", url, commit]).returncode == 0
-                and subprocess.run([*git, "checkout", "-q", "-f", "FETCH_HEAD"]).returncode == 0):
-            return False
-        # (fresh sources: none of the patches)
-        (directory / ".halo-patches").unlink(missing_ok=True)
+        archive = download.DOWNLOADS / f"{name}-{commit}.tar.gz"
+        repository = url.removeprefix("https://github.com/").removesuffix(".git")
+        download.fetch_file([f"https://codeload.github.com/{repository}/tar.gz/{commit}"],
+                            archive, BGFX_ARCHIVE_SHA256[name])
+        unpacked = BGFX_SOURCES / f"{name}-{commit}"
+        if directory.resolve().parent != BGFX_SOURCES.resolve() or unpacked.resolve().parent != BGFX_SOURCES.resolve():
+            raise BgfxPatchError("dependency source paths must stay in the build cache")
+        if unpacked.exists():
+            raise BgfxPatchError(f"{unpacked} already exists; preserve it before regenerating")
+        with tarfile.open(archive) as package:
+            if any(member.name.split("/", 1)[0] != unpacked.name for member in package.getmembers()):
+                raise BgfxPatchError(f"{archive} has an unexpected source root")
+            package.extractall(BGFX_SOURCES, filter="data")
+        if directory.exists():
+            directory.rmdir()  # only the verified empty destination
+        unpacked.rename(directory)
+        revision.write_text(commit + "\n")
     # (the patches once, in order, on the fetched sources: a stamp lists
     # those applied; other patches, the sources again and all of them. A
     # patch is read with its lines' ends as made, LF, whatever a Windows
@@ -95,11 +115,17 @@ def fetch_bgfx() -> bool:
     wanted = "".join(f"{name} {hashlib.sha256(text).hexdigest()}\n" for name, text in patches)
     if stamp.is_file() and stamp.read_text() == wanted:
         return True
-    if subprocess.run(["git", "-C", str(bgfx), "-c", "core.autocrlf=false", "checkout", "-q", "-f", "--", "."]).returncode != 0:
-        return False
+    legacy_git = (bgfx / ".git").exists()
+    if legacy_git:
+        if subprocess.run(["git", "-C", str(bgfx), "-c", "core.autocrlf=false", "checkout", "-q", "-f", "--", "."]).returncode != 0:
+            return False
+    elif stamp.exists():
+        raise BgfxPatchError(f"{bgfx} has different cached patches; preserve/regenerate this dependency cache")
     for name, text in patches:
         print(f"Patching bgfx: {name}")
-        if subprocess.run(["git", "-C", str(bgfx), "apply", "-"], input=text).returncode != 0:
+        command = ["git", "-C", str(bgfx), "apply", "-"] if legacy_git else [
+            "git", "-C", str(Path.cwd()), "apply", "--directory=" + bgfx.as_posix(), "-"]
+        if subprocess.run(command, input=text).returncode != 0:
             # (a patch that no longer applies, after a pin bump, is a broken
             # build, not a build without bgfx: it stops here, loudly, instead
             # of shipping builds with no bgfx renderer that nobody notices, #1080)

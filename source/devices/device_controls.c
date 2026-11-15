@@ -142,7 +142,8 @@ void control_touched(
 	struct control_datum *control= control_get(control_index);
 	struct control_definition *definition= control_definition_get(control->definition_index);
 
-	/* port: opt-in Extraction terminals use the native validated action path. */
+	/* port: accepted deployment/activation keeps the authored native state
+	 * transition; refused/storage actions are consumed by Extraction. */
 	if (definition->control.triggers_when == 0 && !extraction_control_touched(control_index, unit_index))
 		control_toggle(control_index);
 

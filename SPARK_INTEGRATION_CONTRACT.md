@@ -423,7 +423,17 @@ A candidate needs
 live scenario **control** objects named `extraction_deploy` and
 `extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named
 `extraction_zone` and `extraction_return`. Controls must be powered, usable and
-reachable. Put the deploy control inside the safe hub's return volume, outside
+reachable. `extraction.c::extraction_control_touched` rechecks native power,
+usability and one-use locks on the host before reserving gear or activating.
+Accepted deployment and activation continue through
+`device_controls.c::control_touched` / `control_toggle`, so HaloScript can observe
+their authored device-group transition and native effects. Refused actions and
+stash management do not toggle the controls. A deployment signal means its native
+loadout grant succeeded; an activation signal starts the cancellable countdown,
+not a completed escape or banked reward. Keep rearming/toggle behavior in the
+authored control groups/scripts. Source and focused native-function checks cover
+this handoff; acceptance on Spark's authored map remains unverified.
+Put the deploy control inside the safe hub's return volume, outside
 the activation zone, and the extraction control inside the activation zone.
 Put every native player starting location selectable by this solo map inside
 the safe hub's return volume and outside the activation zone. Supply the normal

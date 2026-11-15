@@ -14,8 +14,9 @@ boolean extraction_owns_map(void);
 /* TRUE handles a real host-owned wipe without rewinding the world. If allocation
    fails, the caller retains its native loss timer and retries. */
 boolean extraction_respawn_after_loss(void);
-/* Called only by the native control-use path. TRUE consumes this named
-   Extraction control; ordinary controls keep their existing behavior. */
+/* Called by the native control-use path. TRUE consumes refused or storage
+ * actions. FALSE preserves ordinary controls and the authored state/effect
+ * transition after successful deployment or activation, for native HaloScript. */
 boolean extraction_control_touched(long control_index, long unit_index);
 /* The existing Firefight director delays lobby return only while a living
  * winner's shared gear recovery is pending. No extra wave/lives director. */

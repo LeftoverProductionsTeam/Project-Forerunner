@@ -33,14 +33,18 @@ struct unit_datum { long definition_index; struct object_fields object;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags; } unit; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { struct { short rounds_loaded, rounds_total; } magazines[2]; float age; } weapon; };
-struct control_datum { long definition_index; struct object_fields object; };
+struct control_datum { long definition_index; struct object_fields object;
+ struct {short position_group_index,power_group_index;unsigned short flags;} device; };
+#define device_datum control_datum
+struct device_group_datum {real actual_value;unsigned short flags;};
 struct player_datum { long unit_index; short local_player_index; boolean quit_out_of_game;
  struct { short controller_index; } network_player_data; };
 struct weapon_definition { struct { struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum; };
 struct game_globals_grenade { short maximum_count; };
 struct game_globals { struct tag_block grenades; };
-struct control_definition { struct { short triggers_when; } control; };
+struct control_definition { struct { short triggers_when,type;real call_value;
+ struct {long index;} on_effect,off_effect,denied_effect; } control; };
 struct scenario_object_name { char name[32]; };
 struct scenario_trigger_volume { char name[32]; };
 struct player_starting_location { real_point3d position; };
@@ -61,6 +65,11 @@ static short weapon_count, fail_allocate, fail_attach;
 static struct control_datum controls[3];
 static long control_handles[3] = { 0x10003, 0x10004, 0x10005 };
 static struct control_definition control_tag;
+static struct device_group_datum device_groups[6];
+static struct data_array device_group_table;
+static struct data_array *device_groups_data=&device_group_table;
+static int control_updates[3],control_effects[3];
+#include "controls_types.inc"
 static struct weapon_magazine_definition magazine = { 20, 200 };
 static struct weapon_definition weapon_tag = { { { 1, &magazine } } };
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
@@ -157,6 +166,19 @@ static boolean delta_peer_game_player_identity(int machine,int controller,struct
 static long object_index_from_name_index(short index) { return index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
 static struct control_definition *control_definition_get(long h) { return &control_tag; }
+static struct control_datum *control_get(long h) { struct control_datum *c=control_try_and_get(h);CHECK(c,"invalid control");return c; }
+static struct device_datum *device_get(long h) { return control_get(h); }
+static boolean device_group_set_desired_value(short index,real value)
+{
+ CHECK(index>=0&&index<3,"invalid position group");
+ if((device_groups[index].flags&FLAG(_device_group_can_change_only_once_bit))&&
+    (device_groups[index].flags&FLAG(_device_group_changed_once_bit)))return FALSE;
+ device_groups[index].actual_value=value;device_groups[index].flags|=FLAG(_device_group_changed_once_bit);control_updates[index]++;return TRUE;
+}
+static void device_effect_new(long control,long effect) { for(short i=0;i<3;i++)if(control_handles[i]==control){control_effects[i]=(int)effect;return;}CHECK(FALSE,"invalid effect owner"); }
+static void display_assert(void *unused,char const *path,int line,boolean fatal) { (void)unused;(void)path;(void)line;(void)fatal;abort(); }
+static void system_exit(long code) { (void)code;abort(); }
+boolean device_can_change_position(long control_index);
 static boolean scenario_trigger_volume_test_point(short zone,real_point3d const *p) { return zone==0 ? p->x>10.f : p->x<5.f; }
 static boolean scenario_trigger_volume_test_object(short zone,long h) { return scenario_trigger_volume_test_point(zone,&unit_get(h)->object.position); }
 static boolean players_are_all_dead(void) { return (units[0].object.damage_flags&1) && (units[1].object.damage_flags&1); }
@@ -166,9 +188,10 @@ static void *data_iterator_next(struct data_iterator *i) { if(i->next>=2) return
 
 #include "equipment.inc"
 #include "extraction.inc"
+#include "controls.inc"
 
 static void advance(short count) { while(count--) { tick++; extraction_update(); } }
-static void touch(short control,short player) { CHECK(extraction_control_touched(control_handles[control],unit_handles[player]),"control not consumed"); }
+static void touch(short control,short player) { control_touched(control_handles[control],unit_handles[player]); }
 static struct extraction_run *run(short player) { return &extraction_runs[player]; }
 static long pickup(short player,long tag)
 {
@@ -189,6 +212,7 @@ static void escape(short player)
 static void initialize(void)
 {
  short i,j; connection=_game_connection_network_server;
+ device_group_table.data=(byte *)device_groups;device_group_table.size=sizeof(device_groups[0]);device_group_table.maximum_count=6;
  for(i=0;i<2;i++) {
   players[i].unit_index=unit_handles[i]; players[i].local_player_index=i ? NONE : 0;
   players[i].network_player_data.controller_index=i ? 2 : 0; units[i].unit.player_index=player_handles[i];
@@ -197,7 +221,8 @@ static void initialize(void)
   units[i].unit.current_weapon_index=0; units[i].unit.grenade_counts[0]=1;
   for(j=0;j<4;j++) units[i].unit.weapon_object_indices[j]=NONE;
  }
- for(i=0;i<3;i++) controls[i].object.name_index=i;
+ for(i=0;i<3;i++) {controls[i].object.name_index=i;controls[i].device.position_group_index=i;controls[i].device.power_group_index=i+3;device_groups[i+3].actual_value=1.f;}
+ control_tag.control.on_effect.index=1;control_tag.control.off_effect.index=2;control_tag.control.denied_effect.index=3;
  extraction_reset(); advance(1); CHECK(extraction_owns_map(),"valid authored hub refused");
 }
 static void treat(short count,boolean hit_last)
@@ -214,6 +239,27 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strcmp(case_name,"native-controls")) {
+  device_groups[3].actual_value=0.f;touch(0,0);
+  CHECK(run(0)->phase==_extraction_hub&&!file_count&&!control_updates[0],"unpowered deployment changed gear or signaled scripts");
+  device_groups[3].actual_value=1.f;fail_write=TRUE;touch(0,0);
+  CHECK(run(0)->phase==_extraction_hub&&!control_updates[0],"failed reservation signaled authored deployment");
+  fail_write=FALSE;touch(0,0);
+  CHECK(run(0)->phase==_extraction_deployed&&control_updates[0]==1&&device_groups[0].actual_value==1.f&&control_effects[0]==1,"accepted deployment did not reach native state/effects");
+  touch(0,0);CHECK(control_updates[0]==1,"duplicate deployment retriggered authored mission");
+  device_groups[0].flags|=FLAG(_device_group_can_change_only_once_bit);touch(0,1);
+  CHECK(run(1)->phase==_extraction_hub&&!run(1)->gear.opened&&control_updates[0]==1,"one-use mission lock reserved another player's gear");
+  units[0].object.position.x=20.f;device_groups[4].actual_value=0.f;touch(1,0);
+  CHECK(run(0)->phase==_extraction_deployed&&!control_updates[1],"unpowered extraction activated");
+  device_groups[4].actual_value=1.f;controls[1].device.flags=FLAG(_device_not_usable_bit);touch(1,0);
+  CHECK(run(0)->phase==_extraction_deployed&&!control_updates[1],"locked mission control activated");
+  controls[1].device.flags=0;touch(1,0);touch(1,0);
+  CHECK(run(0)->phase==_extraction_activating&&control_updates[1]==1&&control_effects[1]==1,"accepted activation did not signal exactly once");
+  advance(300);units[0].object.position.x=0.f;advance(1);
+  CHECK(run(0)->phase==_extraction_returned,"native signal handoff broke durable return");
+  controls[2].object.name_index=NONE;touch(2,0);CHECK(control_updates[2]==1,"ordinary native control was intercepted");
+  return 0;
+ }
  if(!strncmp(case_name,"medical-",8)) {
   enabled=FALSE; medical_setting=TRUE; extraction_reset(); advance(1);
   if(!strcmp(case_name,"medical-authority")) {

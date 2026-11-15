@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "cseries.h"
 #include "devices/device_controls.h"
+#include "devices/devices.h"
 #include "game/game.h"
 #include "game/players.h"
 #include "networking/network_game_globals.h"
@@ -472,6 +473,9 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
 		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name))) return FALSE;
 	if (extraction.suspended || cinematic_in_progress()) return TRUE;
+	/* Recheck authored power, usability and one-use locks on the host before
+	 * reserving gear or accepting activation. A queued action may be stale. */
+	if (!device_can_change_position(control_index)) return TRUE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
 	if (!unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
 		extraction_medical_incapacitated(unit_index)) return TRUE;
@@ -530,14 +534,16 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (control->object.name_index == extraction.deploy_name && in_hub &&
 		(run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned))
 	{
-		extraction_deploy(run, player);
-		return TRUE;
+		/* Let the native control transition notify HaloScript only after the
+		 * host has granted the reserved loadout successfully. */
+		return !extraction_deploy(run, player);
 	}
 	if (control->object.name_index == extraction.activate_name && run->phase == _extraction_deployed && run->unit == unit_index &&
 		scenario_trigger_volume_test_object(extraction.zone, unit_index))
 	{
 		run->phase = _extraction_activating; run->activation_ticks = 10 * TICKS_PER_SECOND;
 		extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
+		return FALSE;
 	}
 	return TRUE;
 }

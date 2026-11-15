@@ -3,6 +3,23 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current gameplay handoff: accepted Extraction deployment and activation now use
+the native control-group transition and effects, allowing authored HaloScript to
+observe them. Refused/storage actions stay consumed; the host rechecks native
+power, usability and one-use locks before touching gear or activation. Six
+connected source workflows pass with MSVC, and restoring the original swallowed
+deployment signal makes the regression fail. Windows64 with bgfx/OpenXR compiles
+in the existing non-LTO mode. A private A30 two-peer native smoke compares 37
+seconds at unchanged tolerances (largest position difference 0.1184 world units).
+Both players move/use weapons; this does not prove AI encounter progression or
+the authored controls/gear loop. Spark-authored mission and headset acceptance
+remain open. Copied maps/peer runtimes are removed; compact logs and one reusable
+root-local build cache remain. Unfinished HDR work is preserved in a named local
+stash and deferred in favor of core gameplay. TEST_EVIDENCE.md records the native
+commands, input correction and LTO limitation; do not repeat those investigations
+without a new failure. The existing dependency downloader now restores the same
+pinned licensed renderer sources without creating nested Git repositories.
+
 Current stash management: the existing optional loadout terminal can now preview
 and explicitly discard one owned stored weapon to make capacity. Crouch-use
 shows the exact weapon/ammo; a second use after one second, within ten seconds,

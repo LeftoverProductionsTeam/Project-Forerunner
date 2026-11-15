@@ -12,7 +12,7 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes inventory authority,
 shared-loot synchronization and safe Extraction persistence.
 
-All local evidence below is in the external owned directory
+Historical local evidence below originally used the external owned directory
 `C:\Users\patri\AppData\Local\Temp\forerunner-20261114`.
 
 Artifact availability after cleanup, 15 November: that external staging tree and
@@ -53,6 +53,50 @@ installation is gone. Earlier native acceptance limits remain unchanged.
   `data/inputs.json` and `multiplayer-data/inputs.json`. No game data is tracked.
 
 ## Candidate compilation and native smoke checks
+
+Native Extraction control handoff, base `6c702d327d`, 15 November:
+
+- `extraction_control_touched` now preserves native control state/effects only
+  after successful deployment or accepted activation, and rechecks native power,
+  usability and one-use locks on the host. The existing connected Extraction
+  harness includes the actual `device_can_change_position`, `control_touched`
+  and `control_toggle`. Six MSVC x86 `/O2 /W3 /WX` workflows pass: native controls,
+  loop, grant-failure, authority, binding and pending settlement. Restoring the
+  original swallowed deployment signal fails the native-controls case. OS/world
+  adapters remain fixtures; this is not authored-map or native persistence proof.
+- Restored one root-local toolchain/cache. The existing downloader verifies the
+  same pinned bx/bimg/bgfx archive hashes, retains licenses and applies all nine
+  existing patches without initializing nested repositories. Installed MSVC
+  14.52.37025 and SDK 10.0.26100.0, LLVM-MinGW 20261104 (digest above), Ninja 1.13.0.
+  `configure.py --portable --without-ffmpeg --with-openxr --lto=off`, then
+  `ninja windows64 -j6`: **PASS**. bgfx/OpenXR are included; rendering/stereo are
+  not exercised. Expat emits LNK4217 local-import warnings; native menu/lobby
+  startup below works. Full LTO was stopped after excessive optimization time;
+  a link-only LTO=0/codegen=0 attempt failed on an existing credits-string symbol.
+  No credits/source workaround was applied. Optimized full-LTO linking remains
+  unresolved; use the established non-LTO verification mode until revisiting it
+  is necessary. Logs: `build/native-gameplay-nonlto-{config,build}.log`.
+- Existing `tools/net_compare.py`, same freshly compiled executable on both
+  peers, `--maps a30 --variant coop --seconds 35 --skip 5 --start 8 --timeout 100`,
+  with `HALO_EXTRACTION=true` and `HALO_NETWORK_TEST_ACTORS=5` on both:
+  **PASS**, 37 seconds compared, unchanged tolerances, position mean 0.042 / max
+  0.118347 world units, aim max 1 degree; drift max 0.013139 across 802 samples.
+  Three grenade and one ammunition mismatched seconds stay within the existing
+  tolerances; 14 client corrections. Native logs show co-op snapshot traffic,
+  both players moving, weapon/grenade changes and no observed assertion.
+  Actor telemetry stays zero in this bounded opening section: do not claim AI
+  encounter progression, authored Extraction acceptance, rendering or human play.
+- First staging attempt omitted the stock lobby prerequisite `carousel.map` and
+  timed out in the menu with an explicit missing-map log. Correcting the inputs
+  to only `ui.map`, `a30.map`, `carousel.map` passes without another engine build.
+  Authorized originals were read-only, copied/verified by SHA-256, and rechecked
+  unchanged afterward. Both peers use isolated saves and local gameplay, with
+  public lobby/sharing/downloads disabled; ordinary startup still refreshes
+  public metadata. Runtime/map copies are removed after both attempts.
+  Compact logs/results: `build/native-operations-smoke-complete-inputs/`; the
+  failed run's logs remain in `build/native-operations-smoke/`. Input provenance:
+  `build/native-gameplay-inputs.json`. Compiled executable SHA-256:
+  `c9403a652b789e1e392df27664542ea9cf32265a319918390f0ea4b644cc7852`.
 
 Connected AA regression repairs, base `861a6497ce`:
 
