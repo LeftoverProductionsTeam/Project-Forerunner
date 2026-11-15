@@ -78,6 +78,7 @@ machine (their datum identifiers need not be).
 #include "vehicle_riding.h"
 #include "network_coop.h"
 #include "coop_enemies.h"
+#include "extraction.h"
 #include "host_evidence.h"
 #include "conduct_rules.h"
 #include "network_distributed.h"
@@ -3186,6 +3187,7 @@ static void distributed_handle_predictions(
 		/* Scripted poses and suspension belong to the host, never predictions. */
 		if (state.player_index >= MAXIMUM_TRACKED_PLAYERS ||
 			!distributed_machine_has_player(machine_index, state.player_index) ||
+			!extraction_medical_predictable(state.player_index) ||
 			state.scripted_pose ||
 			TEST_FLAG(state.unit_flags, _distributed_unit_suspended_bit) ||
 			!TEST_FLAG(state.flags, _distributed_unit_alive_bit) ||
@@ -8209,7 +8211,9 @@ void network_distributed_handle_message(
 unsigned int network_distributed_epoch(
 	void)
 {
-	return (unsigned int)distributed_epoch;
+	/* The built-in header uses the ordered snapshot boundary, not the
+	 * optional learned-layout epoch which remains unbound on such clients. */
+	return (unsigned int)(distributed_wire_layout()->epoch_kind ? distributed_epoch : distributed_checkpoint_epoch);
 }
 
 real network_distributed_rider_ejection_up(

@@ -645,6 +645,7 @@ symbols in this file:
 
 #include "cseries.h"
 #include "infection.h" /* port: port/linux/game/infection.c */
+#include "extraction.h" /* port: incapacitated bodies cannot pick up weapons */
 #include "units.h"
 
 #include "bipeds.h"
@@ -1960,6 +1961,8 @@ boolean unit_approve_weapon_pickup(
 	boolean approved;
 
 	weapon_definition_get(weapon->definition_index);
+	/* port: native pickup authority also covers a client's request. */
+	if (extraction_medical_incapacitated(unit_index)) return FALSE;
 	approved = TRUE;
 	inventory_weapon_index = unit->unit.weapon_object_indices;
 	remaining_weapon_count = MAXIMUM_WEAPONS_PER_UNIT;

@@ -1701,12 +1701,14 @@ int delta_wire_read_unit_vitals(const unsigned char *payload, int size, struct d
 
 	vitals->count = 0;
 	vitals->flags = 0;
+	vitals->medical_epoch = vitals->medical_tick = 0;
 	if (!payload || size < DELTA_WIRE_UNIT_VITALS_SIZE || size > DELTA_WIRE_MAXIMUM_PAYLOAD ||
 		payload[0] > DELTA_WIRE_MAXIMUM_UNIT_VITALS ||
 		size < DELTA_WIRE_UNIT_VITALS_SIZE + payload[0] * DELTA_WIRE_UNIT_VITALS_ENTRY_SIZE)
 	{
 		return 0;
 	}
+	if ((payload[1] & DELTA_WIRE_UNIT_VITALS_MEDICAL) && !read_u16(payload + 2)) return 0;
 	for (index = 0; index < payload[0]; index++)
 	{
 		const unsigned char *entry = payload + DELTA_WIRE_UNIT_VITALS_SIZE + index * DELTA_WIRE_UNIT_VITALS_ENTRY_SIZE;
@@ -1716,11 +1718,21 @@ int delta_wire_read_unit_vitals(const unsigned char *payload, int size, struct d
 		vital->flags = entry[4];
 		vital->body = read_u16(entry + 6);
 		vital->shield = read_u16(entry + 8);
+		vital->medical = 0;
+		if (payload[1] & DELTA_WIRE_UNIT_VITALS_MEDICAL)
+		{
+			if ((entry[5] & 0xfe) != DELTA_WIRE_MEDICAL_VERSION ||
+				((entry[5] & 1) && vital->body)) return 0;
+			vital->medical = (unsigned char)(entry[5] & 1);
+			if (index && vitals->medical_tick != read_u16(entry + 10)) return 0;
+			vitals->medical_tick = read_u16(entry + 10);
+		}
 		if (vital->flags & ~DELTA_WIRE_VITALS_FLAGS)
 			return 0;
 	}
 	vitals->count = payload[0];
-	vitals->flags = (unsigned char)(payload[1] & DELTA_WIRE_UNIT_VITALS_PASS);
+	vitals->flags = (unsigned char)(payload[1] & (DELTA_WIRE_UNIT_VITALS_PASS | DELTA_WIRE_UNIT_VITALS_MEDICAL));
+	if (vitals->flags & DELTA_WIRE_UNIT_VITALS_MEDICAL) vitals->medical_epoch = read_u16(payload + 2);
 	return 1;
 }
 
@@ -1736,6 +1748,12 @@ int delta_wire_write_unit_vitals(unsigned char *data, delta_u32 session, const s
 	clear(payload, length);
 	payload[0] = (unsigned char)vitals->count;
 	payload[1] = (unsigned char)(vitals->flags & DELTA_WIRE_UNIT_VITALS_PASS);
+	if (vitals->flags & DELTA_WIRE_UNIT_VITALS_MEDICAL)
+	{
+		if (!vitals->medical_epoch) return 0;
+		payload[1] |= DELTA_WIRE_UNIT_VITALS_MEDICAL;
+		write_u16(payload + 2, vitals->medical_epoch);
+	}
 	for (index = 0; index < vitals->count; index++)
 	{
 		unsigned char *entry = payload + DELTA_WIRE_UNIT_VITALS_SIZE + index * DELTA_WIRE_UNIT_VITALS_ENTRY_SIZE;
@@ -1747,6 +1765,12 @@ int delta_wire_write_unit_vitals(unsigned char *data, delta_u32 session, const s
 		entry[4] = vital->flags;
 		write_u16(entry + 6, vital->body);
 		write_u16(entry + 8, vital->shield);
+		if (vitals->flags & DELTA_WIRE_UNIT_VITALS_MEDICAL)
+		{
+			if (vital->medical > 1 || (vital->medical && vital->body)) return 0;
+			entry[5] = (unsigned char)(DELTA_WIRE_MEDICAL_VERSION | vital->medical);
+			write_u16(entry + 10, vitals->medical_tick);
+		}
 	}
 	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_unit_vitals, length, session);
 	return DELTA_WIRE_HEADER_SIZE + length;

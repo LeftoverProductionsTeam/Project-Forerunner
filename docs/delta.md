@@ -139,7 +139,7 @@ shares.
 | 3 | `chat` | text chat between Delta players |
 | 4 | `ce_maps` | Halo PC map identity (family, file name, size and hash) for every Halo PC family: Custom Edition, HaloMD and Halo PC retail (see "Map identity") |
 | 5 | `md_maps` | retired before use: `ce_maps` carries every Halo PC family. Never set, never reused |
-| 6 | `coop` | network co-op extensions beyond OpenCE's |
+| 6 | `coop` | Forerunner medical v1 on desktop: host-owned living incapacitation metadata through negotiated object sync; no independent squads or general quest protocol |
 | 7 | `ai_sync` | AI sync extensions |
 | 8 | `vote` | map and game type votes |
 | 9 | `console_slots` | retired before use: a console's slots are its platform key's limits (below). Never set, never reused |
@@ -164,8 +164,10 @@ the single source for the bit numbers. Built so far: `platform`, `profile`,
 `ce_maps`, `moderation` (see "Moderation"), `chat` and `server_messages`
 (see "Chat"), `bomb`, `bomb_movement` and `bomb_traits` ([bomb.md](bomb.md)),
 `ping`, `team_change`, `object_sync`, `host_cheats`, `host_rules`,
-`identity` (see "Verified names"), `party_teams` and `voice` (see "Voice"). No
-build sets `coop`, `ai_sync`, `vote` or `server_badge` yet. The first two's values are
+`identity` (see "Verified names"), `party_teams` and `voice` (see "Voice"). Desktop
+Forerunner builds also offer `coop` for medical v1 below; mobile/web and console
+builds do not. No build sets `ai_sync`, `vote` or `server_badge` yet. The platform
+and profile values are
 claims, shown as claims, never used for game state:
 
 - **`platform`**: each machine's platform key (below), and so each player's
@@ -1085,6 +1087,26 @@ plan in `port/linux/src/party_teams_plan.c`, tested by
 `port/linux/game/guide.c`.
 
 ### Object sync
+
+Forerunner's optional medical v1 requires both `coop` and `object_sync`. It reuses
+UNIT_VITALS's existing 4-byte header and 12-byte entries: batch flag `0x02`,
+header bytes 2..3 as a nonzero native checkpoint epoch, entry byte 5 as `0x10`
+(active) or `0x11` (incapacitated), and entry bytes 10..11 as the native tick.
+All entries in a batch share that tick; a downed entry must have zero body
+vitality. Epochs beyond 65535 disable new network incapacitations. The receiver
+checks native epoch, tick age, full object/player handles and current ownership.
+Only the metadata controls local input; player health remains in native unit
+replication. This adds no healing request or inventory authority. Peers without
+negotiated `coop` receive the original zero reserved bytes. A room lacking the
+capability cannot create new downs. The first implementation uses native friendly
+factions in co-op, not independent squad/quest semantics.
+
+The native agreement is version 45. The explicit 44/45 join bridge preserves the
+unchanged version-44 native layout/recovery rules, in both hosting directions;
+medical state still requires Delta negotiation. Other version admission remains
+strict. See `network_client_manager.c`, `network_server_message_handler.c`,
+`network_objects.c`, `extraction.c` and the Delta codec/session tests. This is
+not a claim of compatibility with every upstream version or console VR support.
 
 What the game's own messages leave out of the host's objects, over
 `object_sync` (bit 17). The game messages stay as they are; a host sends

@@ -1,7 +1,19 @@
 # Forerunner engineering checkpoint
 
-Updated: 14 November 2026. The persistent engineering goal remains active.
+Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
+
+Current medical milestone: optional native living incapacitation, continuous
+held-Action biofoam and negotiated client input suppression are implemented.
+Windows64/OpenXR compiles; 45 connected medical/gear/resupply/co-op checks and
+nine checkpoint checks pass. A private two-peer B40 smoke proves downed movement
+suppression, same-body revival and matching 25% native health, with 66 seconds
+compared at unchanged tolerances. Native Action is edge-latched, so treatment
+reuses its existing unlatched long-hold gesture. Medical metadata now uses the
+active native checkpoint epoch, fixing an observed client movement divergence.
+Missing optional scripted damage resources now no-op instead of asserting.
+The probe pauses AI and sets up the injury; it is not Black Echo, human play,
+death-looting acceptance, physical VR or complete multiplayer operations proof.
 The [complete directive](docs/forerunner/MASTER_DIRECTIVE_2026-11-14.md) is retained;
 none of its unaccepted requirements is superseded by this checkpoint.
 
@@ -110,8 +122,12 @@ scoped mission audio and reconnect-safe persistent rewards. Native HaloScript,
 co-op, gear, AI and audio remain owners; only necessary per-squad extension state
 is authorized. Spark's reviewed quest export/Black Echo package was not found in
 the inspected current source; exact handoff requirements are in the existing
-contract. These operations and concurrent connected regions are not implemented
-or gameplay accepted merely by recording the requirement. Continue independent
+contract. Optional native living incapacitation/held-Action biofoam is now
+source-implemented using the existing Extraction, native damage/control and
+negotiated Delta object-sync paths. Actual death, native physics and gear loss
+retain their existing owners; no corpse resurrection, quest VM or second bank
+was added. Native factions are not independent squads. Complete operations and
+concurrent connected regions remain unaccepted. Continue independent
 engine work while that authoring handoff is missing.
 
 Extraction acceptance requires an original Marathon-inspired hub/menu, inventory
@@ -845,3 +861,30 @@ Source/all action consumers reviewed only; no tests, builds, launches, audio
 queries, hardware/save access or pushes. Actual mic/controller behavior, peer
 voice and cross-region audio remain acceptance gates. This is runtime input
 integration, not full VR or native-voice interoperability proof.
+
+
+Owner graphics requirement, 15 November: retain all compatible graphics options
+from the reviewed runtime forks in the shared settings/menu/renderer paths.
+Read-only option comparison against retained OpenCE, Chupathingy, Faber, Fractum
+and OpenH1 found substantial existing overlap, with names that are not always
+equivalent (Chupathingy's 70-degree FOV and inherited viewmodel behavior must not
+be blindly renamed to Forerunner's 16:9 FOV/independent viewmodel control).
+OpenH1 baed7757 contains real Vulkan ray-query ambient occlusion in
+port/linux/vulkan/xgpu_vulkan_rt.c, world-space SDF/object-proxy AO in
+docs/world-ao.md, and enhanced dynamic lighting/per-pixel model lighting.
+Its ray tracing is ambient occlusion, not evidence of full path-traced global
+illumination. It preserves the BSP's existing baked lighting by applying the
+new occlusion only to the appropriate ambient term. Preserve that distinction
+for Spark GPU-baked native content.
+
+Graphics integration remains OPEN: the current bgfx Vulkan path does not yet
+provide OpenH1's acceleration-structure/early-command/ambient-shader interfaces.
+Do not copy its full guest/host renderer or expose a ray-tracing switch that
+does nothing. Reuse its compatible algorithms, licensed source and fallback
+behavior through the existing renderer after reviewing resource/device ownership.
+Required parity also includes HDR/paper-white controls, anti-aliasing/filtering,
+render scale/supersampling, shadows/model detail, frame pacing/latency, world,
+vehicle and viewmodel FOV/offsets, projection and reticle options. Existing
+options count only where their renderer consumer works. Classic defaults,
+Linux/Windows support, VR eye consistency, bounded GPU use and resource-limited
+targets remain mandatory. Source presence is not hardware/performance proof.

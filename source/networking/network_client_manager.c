@@ -3456,7 +3456,9 @@ static void network_game_client_send_join_request(
 	message_header *message;
 
 	csmemset(&join_game_request, 0, sizeof(join_game_request));
-	join_game_request.network_version = HALO_PORT_NETWORK_VERSION; /* port: explicit shared agreement */
+	/* port: Forerunner medical v1 changes only negotiated Delta bytes. A
+	   classic 44 host keeps the existing native recovery/layout agreement. */
+	join_game_request.network_version = HALO_PORT_NETWORK_VERSION == 45 && version == 44 ? 44 : HALO_PORT_NETWORK_VERSION;
 	network_game_generate_local_machine_name(join_game_request.machine_name);
 	csmemcpy(
 		join_game_request.join_token,

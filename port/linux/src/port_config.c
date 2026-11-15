@@ -1342,6 +1342,21 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"and D-pad down sends it. Leave it empty for none." },
 
 	/* ---- game */
+	{ "game.revive", _config_boolean, "false", "HALO_REVIVE", _environment_value, _platform_desktop,
+		"Optional native Spartan emergency stabilization. First noncatastrophic\n"
+		"lethal injury to a live on-foot body may incapacitate it instead of\n"
+		"killing it. Hold Action within reach of an ally to apply biofoam;\n"
+		"combat, walls, range, release or death interrupt. Real deaths cannot\n"
+		"be medically revived. Default off; fixed at map start. Network play\n"
+		"requires negotiated Forerunner medical co-op support in the room.\n"
+		"Native physics and death/loot remain owners. Checkpoint/core recovery\n"
+		"requires a fresh operation; restored critical bodies die normally.\n"
+		"Bounded native revival is checked; hardware and full operations\n"
+		"gameplay acceptance remain unverified." },
+	{ "game.revive_seconds", _config_integer, "5", "HALO_REVIVE_SECONDS", _environment_value, _platform_desktop,
+		"Held biofoam treatment seconds, 1 to 30; fixed at map start." },
+	{ "game.revive_bleed_seconds", _config_integer, "30", "HALO_REVIVE_BLEED_SECONDS", _environment_value, _platform_desktop,
+		"Incapacitation seconds before actual native death, 5 to 180; fixed at map start." },
 	{ "game.extraction", _config_boolean, "false", "HALO_EXTRACTION", _environment_value, _platform_desktop,
 		"Extraction gameplay remains unverified. Requires a native solo map\n"
 		"with extraction_deploy/extraction_activate controls, extraction_zone\n"

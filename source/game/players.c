@@ -4431,6 +4431,8 @@ static void player_examine_nearby_item(
 	player = player_get(player_index);
 	unit = unit_get(player->unit_index);
 	item = item_get(item_index);
+	/* port: an incapacitated Spartan retains gear but cannot take pickups. */
+	if (extraction_medical_incapacitated(player->unit_index)) return;
 	if (item->object.parent_object_index != NONE ||
 		item->item.ignore_object_index == player->unit_index)
 	{
@@ -5140,6 +5142,9 @@ void players_update_before_game(
 				if (!players_globals->input_disabled)
 				{
 					network_player_log_idle_action(iterator.datum_index, action->control_flags);
+					/* port: native movement/physics remain active; medical input
+					   and held-action treatment are host-owned co-op extensions. */
+					extraction_medical_control(iterator.datum_index, action);
 					/* port: not for the keyboard's action key, which only acts
 					(units.h, UNIT_CONTROL_PORT_ACTION_ONLY_BIT) */
 					if (TEST_FLAG(action->control_flags, _unit_control_action_bit) &&

@@ -11,13 +11,22 @@
 #define MAXIMUM_WEAPONS_PER_UNIT 4
 #define TICKS_PER_SECOND 30
 #define WEAPON_DEFINITION_TAG 1
+#define NETWORK_RULES_TIME_WINDOW_TICKS 450
 #define csmemset memset
 #define TAG_BLOCK_GET_ELEMENT(block,index,type) (&((type *)(block)->address)[index])
 enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4,
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
- _scenario_type_solo=0 };
+ _scenario_type_solo=0, _object_die_act_of_god_bit=1,
+ _unit_control_crouch_modifier_bit=0, _unit_control_action_bit=6,
+ _unit_control_weapon_reload_bit=10, _unit_control_weapon_primary_trigger_bit=11,
+ _unit_control_weapon_secondary_trigger_bit=12, _unit_control_throw_grenade_bit=13,
+ _unit_control_use_equipment_bit=7, _unit_control_swap_weapons_bit=14, _unit_control_user_animation1_bit=2,
+ _collision_test_structure_bit=0, _collision_test_objects_bit=1,
+ _collision_test_front_facing_surfaces_bit=2, _collision_test_back_facing_surfaces_bit=3,
+ _delta_capability_coop=6, _delta_capability_object_sync=17 };
 struct tag_block { long count; void *address; };
-struct object_fields { long parent_object_index; short name_index; long damage_flags; real_point3d position; };
+struct object_fields { long parent_object_index; short name_index; long damage_flags; real_point3d position;
+ real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
  struct { long player_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index;
@@ -39,6 +48,9 @@ struct scenario { short type; struct tag_block object_names, trigger_volumes, pl
 struct object_placement_data { long definition_index; real_point3d position; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
+struct player_action { unsigned long control_flags; real primary_trigger; struct {real i,j;} throttle;
+ short desired_zoom_level, desired_weapon_index; };
+struct collision_result { long object_index; };
 
 static struct player_datum players[2];
 static long player_handles[2] = { 0x10000, 0x10001 };
@@ -61,10 +73,16 @@ static struct scenario *global_scenario = &scenario;
 static void *player_data;
 static long tick;
 static boolean enabled=TRUE, director, profile=TRUE, verified=TRUE;
+static boolean medical_setting, medical_support=TRUE, medical_object_sync=TRUE, wall;
+static unsigned int epoch=1;
+static int native_kills;
+void platform_log(char const *format, ...) { (void)format; }
 static byte remote_account[16] = {1};
 static int local_notices, remote_notices, respawns;
 
-static boolean config_boolean(char const *name) { return !strcmp(name,"game.extraction") ? enabled : director; }
+static boolean config_boolean(char const *name)
+{ return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting : director; }
+static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
 static boolean network_coop_active(void) { return TRUE; }
 static struct { boolean enabled, gear, victory; short phase; } firefight;
 #include "survival.inc"
@@ -84,6 +102,16 @@ static void *object_try_and_get_and_verify_type(long h,long mask)
 static struct unit_datum *unit_get(long h) { void *p=object_try_and_get_and_verify_type(h,_object_mask_biped); CHECK(p,"invalid unit"); return p; }
 static struct weapon_datum *weapon_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_weapon); }
 static struct weapon_datum *weapon_get(long h) { struct weapon_datum *p=weapon_try_and_get(h); CHECK(p,"invalid weapon"); return p; }
+static boolean cinematic_in_progress(void) { return FALSE; }
+static boolean unit_controllable(long h) { return !(unit_get(h)->object.damage_flags & 1); }
+static boolean unit_is_busy(long h) { return FALSE; }
+static void object_deplete_shield(long h) { unit_get(h)->object.shield_vitality=0.f; }
+static void unit_kill(long h) { native_kills++; unit_get(h)->object.damage_flags |= FLAG(_object_die_act_of_god_bit); }
+static unsigned int network_distributed_epoch(void) { return epoch; }
+static boolean delta_peer_game_room_has(int capability) { return capability==_delta_capability_object_sync ? medical_object_sync : medical_support; }
+static boolean game_team_is_enemy(short a,short b) { return a!=b; }
+static boolean collision_test_vector(unsigned long flags,real_point3d const *from,real_vector3d const *way,long ignore,struct collision_result *result)
+{ result->object_index=NONE; return wall; }
 static boolean weapon_is_flag(long h)
 { short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) return weapons[i].flag; return FALSE; }
 static char const *tag_get_name(long tag) { return tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
@@ -164,17 +192,96 @@ static void initialize(void)
  for(i=0;i<2;i++) {
   players[i].unit_index=unit_handles[i]; players[i].local_player_index=i ? NONE : 0;
   players[i].network_player_data.controller_index=i ? 2 : 0; units[i].unit.player_index=player_handles[i];
+  units[i].object.body_vitality=units[i].object.shield_vitality=1.f;
+  units[i].object.parent_object_index=NONE;
   units[i].unit.current_weapon_index=0; units[i].unit.grenade_counts[0]=1;
   for(j=0;j<4;j++) units[i].unit.weapon_object_indices[j]=NONE;
  }
  for(i=0;i<3;i++) controls[i].object.name_index=i;
  extraction_reset(); advance(1); CHECK(extraction_owns_map(),"valid authored hub refused");
 }
+static void treat(short count,boolean hit_last)
+{
+ short i; struct player_action action;
+ for(i=0;i<count;i++) {
+  tick++; memset(&action,0,sizeof(action)); action.control_flags=FLAG(_unit_control_swap_weapons_bit);
+  extraction_medical_control(player_handles[0],&action);
+  if(hit_last && i==count-1) extraction_medical_damaged(unit_handles[0]);
+  extraction_update();
+ }
+}
 int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
- if(!strncmp(case_name,"survival-",9)) {
+ if(!strncmp(case_name,"medical-",8)) {
+  enabled=FALSE; medical_setting=TRUE; extraction_reset(); advance(1);
+  if(!strcmp(case_name,"medical-authority")) {
+   units[1].object.body_vitality=-.1f; medical_support=FALSE;
+   CHECK(!extraction_medical_lethal(unit_handles[1]),"unsupported peer admitted medical gameplay");
+   medical_support=TRUE; medical_object_sync=FALSE;
+   CHECK(!extraction_medical_lethal(unit_handles[1]),"peer without object sync admitted medical gameplay");
+   medical_object_sync=TRUE; client=TRUE;
+   CHECK(!extraction_medical_lethal(unit_handles[1]),"client granted itself incapacitation");
+  } else if(!strcmp(case_name,"medical-replica")) {
+   struct player_action action;
+   client=TRUE; units[1].object.body_vitality=0.f;
+   extraction_medical_network_state(unit_handles[1],TRUE,epoch,(unsigned short)tick);
+   CHECK(extraction_medical_incapacitated(unit_handles[1]),"host medical state not applied");
+   memset(&action,0,sizeof(action)); action.primary_trigger=1.f; action.throttle.i=1.f;
+   extraction_medical_control(player_handles[1],&action);
+   CHECK(!action.primary_trigger && !action.throttle.i && action.control_flags==FLAG(_unit_control_crouch_modifier_bit),"downed client moved/fired");
+   extraction_medical_network_state(unit_handles[1],FALSE,epoch,(unsigned short)(tick-1));
+   extraction_medical_network_state(unit_handles[1],FALSE,epoch+1,(unsigned short)(tick+1));
+   CHECK(extraction_medical_incapacitated(unit_handles[1]),"stale/wrong-epoch state overrode host");
+   tick++; extraction_medical_network_state(unit_handles[1],FALSE,epoch,(unsigned short)tick);
+   CHECK(!extraction_medical_incapacitated(unit_handles[1]),"new stable state retained input lock");
+   extraction_medical_network_state(unit_handles[1]+0x10000,TRUE,epoch,(unsigned short)(tick+1));
+   CHECK(!extraction_medical_incapacitated(unit_handles[1]),"recycled object salt controlled player");
+  } else {
+   units[1].object.body_vitality=-.1f;
+   CHECK(extraction_medical_lethal(unit_handles[1]) && !units[1].object.damage_flags && !units[1].object.body_vitality,
+    "critical live Spartan died or did not stabilize");
+   CHECK(!native_kills,"incapacitation charged a native death");
+   advance(60);
+   if(!strcmp(case_name,"medical-revive")) {
+    struct player_action press;
+    tick++; memset(&press,0,sizeof(press)); press.control_flags=FLAG(_unit_control_action_bit);
+    extraction_medical_control(player_handles[0],&press); extraction_update();
+    CHECK(!medical_players[1].progress && !press.control_flags,"a one-tick Action press began held treatment");
+    treat(150,FALSE);
+    CHECK(!extraction_medical_incapacitated(unit_handles[1]) && units[1].object.body_vitality==.25f && !native_kills,"held biofoam did not revive living body");
+    units[1].object.body_vitality=-.1f;
+    CHECK(!extraction_medical_lethal(unit_handles[1]),"same body received unlimited free downs");
+   } else if(!strcmp(case_name,"medical-interrupt")) {
+    treat(150,TRUE);
+    CHECK(extraction_medical_incapacitated(unit_handles[1]) && !medical_players[1].progress,"last-tick combat failed to interrupt");
+    advance(60); treat(60,FALSE); wall=TRUE; treat(1,FALSE);
+    CHECK(!medical_players[1].progress,"biofoam passed through a wall");
+    wall=FALSE; units[1].object.bounding_sphere_center.x=3.f; treat(1,FALSE);
+    CHECK(!medical_players[1].progress,"out-of-range ally revived");
+    units[1].object.bounding_sphere_center.x=0.f; units[1].object.owner_team_index=1; treat(1,FALSE);
+    CHECK(!medical_players[1].progress,"hostile body received ally treatment");
+    units[1].object.owner_team_index=0; treat(150,FALSE);
+    CHECK(units[1].object.body_vitality==.25f,"valid treatment did not recover after interruption");
+   } else if(!strcmp(case_name,"medical-bleed")) {
+    advance(841); CHECK(native_kills && (units[1].object.damage_flags&FLAG(_object_die_act_of_god_bit)),"bleedout did not request actual native death");
+    treat(150,FALSE); CHECK(!units[1].object.body_vitality,"pending native death was medically resurrected");
+    units[1].object.damage_flags |= FLAG(_object_dead_bit); treat(150,FALSE);
+    CHECK(!units[1].object.body_vitality,"dead Spartan was medically revived");
+   } else if(!strcmp(case_name,"medical-restore")) {
+    extraction_restored(); advance(1);
+    CHECK(native_kills && !extraction_medical_host(),"saved critical body bypassed operation failure/quarantine");
+   } else if(!strcmp(case_name,"medical-gear")) {
+    /* Downed remains alive and owns the same native items until actual death. */
+    units[1].object.body_vitality=1.f; medical_setting=FALSE; extraction_reset(); enabled=TRUE; advance(1); touch(0,1); a=pickup(1,2);
+    medical_enabled=TRUE; units[1].object.body_vitality=-.1f; CHECK(extraction_medical_lethal(unit_handles[1]),"geared player did not incapacitate");
+    advance(1); CHECK(run(1)->phase==_extraction_deployed && weapon_get(a)->object.parent_object_index==unit_handles[1],"downing lost owned gear");
+    units[1].object.damage_flags |= FLAG(_object_dead_bit); advance(1);
+    CHECK(run(1)->phase==_extraction_lost && !run(1)->gear.record.reserved_count,"actual death retained reservation");
+   } else return 2;
+  }
+ } else if(!strncmp(case_name,"survival-",9)) {
   extraction_reset(); enabled=FALSE; director=TRUE;
   firefight.enabled=firefight.gear=TRUE; firefight.phase=1; advance(1);
   CHECK(extraction.survival && !extraction_owns_map(),"gear policy stole Firefight map/lives ownership");

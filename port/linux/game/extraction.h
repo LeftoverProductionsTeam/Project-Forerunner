@@ -21,4 +21,15 @@ boolean extraction_control_touched(long control_index, long unit_index);
  * winner's shared gear recovery is pending. No extra wave/lives director. */
 boolean extraction_survival_settlement_pending(void);
 
+struct player_action;
+/* Optional native medical control: downed is alive, never a cleared dead bit.
+ * Epoch/tick metadata reuses negotiated Delta object sync; legacy stays stock. */
+boolean extraction_medical_incapacitated(long unit_index);
+boolean extraction_medical_predictable(short absolute_player_index);
+boolean extraction_medical_network_enabled(void);
+void extraction_medical_network_state(long unit_index, boolean downed, unsigned int epoch, unsigned short tick);
+void extraction_medical_control(long player_index, struct player_action *action);
+boolean extraction_medical_lethal(long unit_index);
+void extraction_medical_damaged(long unit_index);
+
 #endif

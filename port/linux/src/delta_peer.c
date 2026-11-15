@@ -2132,11 +2132,21 @@ int delta_peer_send_unit_vitals(struct delta_peer *peer, int machine_index, cons
 	for (index = 0; index < DELTA_PEER_MAXIMUM_MACHINES; index++)
 	{
 		struct delta_peer_host_peer *client = &peer->peers[index];
+		struct delta_wire_unit_vitals compatible;
 		int size;
 
 		if ((machine_index >= 0 && index != machine_index) || !host_objects_client(peer, client))
 			continue;
-		size = delta_wire_write_unit_vitals(data, client->session, vitals);
+		/* Medical v1 is negotiated beside the legacy game protocol. Never put
+		 * its reserved-byte interpretation on a peer that did not agree. */
+		if ((vitals->flags & DELTA_WIRE_UNIT_VITALS_MEDICAL) &&
+			!(client->agreed & offered(peer) & CAPABILITY(_delta_capability_coop)))
+		{
+			compatible = *vitals;
+			compatible.flags &= ~DELTA_WIRE_UNIT_VITALS_MEDICAL;
+			size = delta_wire_write_unit_vitals(data, client->session, &compatible);
+		}
+		else size = delta_wire_write_unit_vitals(data, client->session, vitals);
 		if (!size)
 			return sent;
 		peer_send(peer, client->ipv4, client->port, data, size);
@@ -3620,7 +3630,11 @@ static void client_receive(struct delta_peer *peer, delta_u32 now, delta_u32 ipv
 			if (!delta_wire_read_unit_vitals(payload, header.length, &vitals))
 				peer->dropped++;
 			else if (peer->objects_client->vitals)
+			{
+				if (!(peer->agreed & offered(peer) & CAPABILITY(_delta_capability_coop)))
+					vitals.flags &= ~DELTA_WIRE_UNIT_VITALS_MEDICAL;
 				peer->objects_client->vitals(peer->objects_client->context, &vitals);
+			}
 		}
 		else
 		{

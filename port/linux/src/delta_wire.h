@@ -178,6 +178,10 @@ enum
 	reserved bytes, then 12-byte entries, as many as a datagram holds */
 	DELTA_WIRE_UNIT_VITALS_SIZE = 4,
 	DELTA_WIRE_UNIT_VITALS_ENTRY_SIZE = 12,
+	/* Optional co-op medical v1 uses only reserved bytes. Nonparticipants
+	 * receive the original bytes. Epochs above 65535 disable this extension. */
+	DELTA_WIRE_UNIT_VITALS_MEDICAL = 2,
+	DELTA_WIRE_MEDICAL_VERSION = 0x10,
 	/* (98) */
 	DELTA_WIRE_MAXIMUM_UNIT_VITALS =
 		(DELTA_WIRE_MAXIMUM_PAYLOAD - DELTA_WIRE_UNIT_VITALS_SIZE) / DELTA_WIRE_UNIT_VITALS_ENTRY_SIZE,
@@ -1077,12 +1081,15 @@ struct delta_wire_unit_vital
 	states' scale: up to 4) */
 	unsigned short body;
 	unsigned short shield;
+	/* Only meaningful with UNIT_VITALS_MEDICAL; 0 stable, 1 downed/alive. */
+	unsigned char medical;
 };
 
 struct delta_wire_unit_vitals
 {
 	/* DELTA_WIRE_UNIT_VITALS_* (others a later build's: ignored) */
 	unsigned char flags;
+	unsigned short medical_epoch, medical_tick;
 	int count;
 	struct delta_wire_unit_vital entries[DELTA_WIRE_MAXIMUM_UNIT_VITALS];
 };

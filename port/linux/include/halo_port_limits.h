@@ -139,7 +139,9 @@ hosts announce 32. Delta clients (ChupathingyCE's 0.8.0e to 0.8.0h, this
 fork's) join a host whose wire plays with theirs (chupa-38a, from chupa-28a,
 delta.h) whatever number it announces, and are sent the record of the older
 of their HELLO's version and this one (network_server_message_handler.c). */
-#define HALO_PORT_NETWORK_VERSION 44
+/* Medical v1 adds negotiated co-op semantics. Classic layouts still route
+ * through the existing version adapter; the legacy packet sizes are unchanged. */
+#define HALO_PORT_NETWORK_VERSION 45
 /* ... the versions whose hosts a client joins: its own, and those that differ
 from it only in what the other machines leave out (a message a machine of
 the other version does not know it drops). Which are which is delta.h's

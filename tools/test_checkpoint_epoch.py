@@ -416,3 +416,26 @@ int main(void){
 }
 '''
     run_c(tmp_path, code)
+
+
+def test_public_epoch_matches_the_active_native_header(tmp_path):
+    source = (ROOT / "port/linux/game/network_distributed.c").read_text()
+    code = """
+#include <assert.h>
+static unsigned int distributed_epoch, distributed_checkpoint_epoch;
+static struct { int epoch_kind; } layout;
+#define distributed_wire_layout() (&layout)
+""" + function(source, "network_distributed_epoch") + """
+int main(void) {
+    distributed_epoch=0; distributed_checkpoint_epoch=7; layout.epoch_kind=0;
+    assert(network_distributed_epoch()==7);
+    distributed_epoch=8;
+    assert(network_distributed_epoch()==7);
+    layout.epoch_kind=250;
+    assert(network_distributed_epoch()==8);
+    distributed_epoch=0;
+    assert(network_distributed_epoch()==0);
+    return 0;
+}
+"""
+    run_c(tmp_path, code)

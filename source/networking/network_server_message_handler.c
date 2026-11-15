@@ -2640,7 +2640,12 @@ static boolean network_game_server_handle_message_client_join_game_request(
 		the number it announces: network_game_client_initiate_join_game) */
 		else if (message_size >= 2 + 0x70 &&
 			network_rules_join_request_refused((unsigned)delta_legacy_announce(), (unsigned char const *)(message + 1) + 1 + 0x70,
-				message_size - 2 - 0x70))
+				message_size - 2 - 0x70) &&
+			/* port: the same bounded 44/45 native agreement as the decoded
+			   gate below; retain the existing bounds-checked tail reader. */
+			!(HALO_PORT_NETWORK_VERSION == 45 && delta_legacy_announce() == 45 &&
+				!network_rules_join_request_refused(44, (unsigned char const *)(message + 1) + 1 + 0x70,
+					message_size - 2 - 0x70)))
 		{
 			network_event("ignoring a join request of another network version than this host's");
 		}
@@ -2662,7 +2667,10 @@ static boolean network_game_server_handle_message_client_join_game_request(
 
 			/* port: discovery is advisory; direct joins must prove the same
 			shared recovery agreement before ordinary admission. */
-			if (join_game_request.network_version != HALO_PORT_NETWORK_VERSION)
+			/* port: 44's native fields/epoch agreement are unchanged by medical
+			   v1's optional Delta bytes. Do not widen unrelated version admission. */
+			if (join_game_request.network_version != HALO_PORT_NETWORK_VERSION &&
+				!(HALO_PORT_NETWORK_VERSION == 45 && join_game_request.network_version == 44))
 			{
 				/* (port, this fork: told so, as OpenCE's clients are by the
 				advertisement, rather than left to time out) */

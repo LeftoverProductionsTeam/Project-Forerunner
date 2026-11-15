@@ -10,7 +10,7 @@ from harness import CHECK_FAILED, build, function, mutated, read, run
 from harness.tests.test_gear import generated as gear_generated
 
 
-def generated(fault=None, outcome_fault=False):
+def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
     inventory = read('port/linux/game/game_modes.c')
     names = ('capture', 'grenade_room', 'loadout_valid', 'apply', 'consume')
@@ -25,15 +25,21 @@ def generated(fault=None, outcome_fault=False):
     if outcome_fault:
         survival = mutated(survival, 'firefight.victory ? 1 : -1', '1')
     files.append(('survival.inc', survival))
-    files.append(('extraction.inc', re.sub(r'^#include.*\n', '',
-        read('port/linux/game/extraction.c'), flags=re.M)))
+    extraction = re.sub(r'^#include.*\n', '',
+        read('port/linux/game/extraction.h') + '\n' + read('port/linux/game/extraction.c'), flags=re.M)
+    if medical_fault:
+        extraction = mutated(extraction,
+            'now - medical_players[healer_slot].last_damage < 2 * TICKS_PER_SECOND ||', '')
+    files.append(('extraction.inc', extraction))
     return tuple(files)
 
 
 @pytest.mark.parametrize('case', ['loop', 'transfer', 'grant-failure', 'authority',
                                  'restore', 'pending', 'binding', 'disconnect',
                                  'survival-win', 'survival-loss', 'survival-retry',
-                                 'survival-restore', 'survival-respawn'])
+                                 'survival-restore', 'survival-respawn',
+                                 'medical-authority', 'medical-revive', 'medical-interrupt',
+                                 'medical-bleed', 'medical-replica', 'medical-restore', 'medical-gear'])
 def test_extraction_workflow(case):
     status, output = run(build('extraction', generated()), case)
     assert status == 0, output
@@ -48,4 +54,9 @@ def test_transfer_negative_control():
 
 def test_failed_survival_negative_control():
     status, output = run(build('extraction', generated(outcome_fault=True)), 'survival-loss')
+    assert status == CHECK_FAILED, output
+
+
+def test_medical_combat_negative_control():
+    status, output = run(build('extraction', generated(medical_fault=True)), 'medical-interrupt')
     assert status == CHECK_FAILED, output

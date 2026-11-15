@@ -2250,6 +2250,8 @@ static struct
 	int vitals;
 	int names;
 	int removed;
+	unsigned char medical;
+	unsigned short medical_epoch, medical_tick;
 	struct delta_wire_unit_vital last_vital;
 	struct delta_wire_object_name last_name;
 	struct delta_wire_object_name last_removed;
@@ -2259,6 +2261,9 @@ static void test_objects_vitals(void *context, const struct delta_wire_unit_vita
 {
 	(void)context;
 	client_objects.vitals++;
+	client_objects.medical = vitals->flags & DELTA_WIRE_UNIT_VITALS_MEDICAL;
+	client_objects.medical_epoch = vitals->medical_epoch;
+	client_objects.medical_tick = vitals->medical_tick;
 	if (vitals->count)
 		client_objects.last_vital = vitals->entries[vitals->count - 1];
 }
@@ -2292,7 +2297,7 @@ static void test_objects(void)
 	int step;
 
 	memset(&client_objects, 0, sizeof(client_objects));
-	node_start(0, HOST_IPV4, DELTA_PEER_PORT, OBJECT_SYNC_BIT, _delta_platform_pc_linux, 0, 0);
+	node_start(0, HOST_IPV4, DELTA_PEER_PORT, OBJECT_SYNC_BIT | ((delta_u32)1 << _delta_capability_coop), _delta_platform_pc_linux, 0, 0);
 	node_start(1, 0x0300007F, 40001, OBJECT_SYNC_BIT, _delta_platform_pc_linux, 0, 0);
 	/* (a Delta machine without object sync: an older build, or a console) */
 	node_start(2, 0x0400007F, 40002, 0, _delta_platform_xbox, 0, 0);
@@ -2333,7 +2338,7 @@ static void test_objects(void)
 	{
 		int late_joined[4] = { 0, 1, 1, 1 };
 
-		node_start(3, 0x0500007F, 40003, OBJECT_SYNC_BIT, _delta_platform_pc_linux, 0, 0);
+		node_start(3, 0x0500007F, 40003, OBJECT_SYNC_BIT | ((delta_u32)1 << _delta_capability_coop), _delta_platform_pc_linux, 0, 0);
 		delta_peer_set_objects_client(&nodes[3].peer, &test_objects_client);
 		game_add(3);
 		for (step = 0; step < 4; step++, now += 300)
@@ -2362,6 +2367,20 @@ static void test_objects(void)
 		/* (an older build's client, without object sync, gets none) */
 		CHECK(delta_peer_send_object_names(&nodes[0].peer, 2, &names) == 0);
 	}
+	/* The same host packet reaches only a negotiated medical peer as v1.
+	 * The legacy object-sync peer gets the original zero-reserved bytes. */
+	vitals.flags = DELTA_WIRE_UNIT_VITALS_MEDICAL;
+	vitals.medical_epoch = 7; vitals.medical_tick = 65530;
+	vitals.entries[0].body = 0; vitals.entries[0].medical = 1;
+	CHECK(delta_peer_send_unit_vitals(&nodes[0].peer, 1, &vitals) == 1);
+	deliver(now);
+	CHECK(!client_objects.medical && !client_objects.last_vital.medical);
+	CHECK(delta_peer_send_unit_vitals(&nodes[0].peer, 3, &vitals) == 1);
+	deliver(now);
+	CHECK(client_objects.medical && client_objects.last_vital.medical == 1 &&
+		client_objects.medical_epoch == 7 && client_objects.medical_tick == 65530);
+	memset(&client_objects, 0, sizeof(client_objects));
+	vitals.flags = 0;
 
 	/* a client without anywhere for them drops them */
 	delta_peer_set_objects_client(&nodes[1].peer, NULL);
@@ -2371,6 +2390,35 @@ static void test_objects(void)
 }
 
 /* ---------- the wire */
+
+static void test_wire_medical(void)
+{
+	struct delta_wire_unit_vitals state, decoded;
+	unsigned char data[DELTA_WIRE_MAXIMUM_DATAGRAM], *payload = data + DELTA_WIRE_HEADER_SIZE;
+	int size;
+	memset(&state, 0, sizeof(state));
+	state.count = 2; state.flags = DELTA_WIRE_UNIT_VITALS_PASS | DELTA_WIRE_UNIT_VITALS_MEDICAL;
+	state.medical_epoch = 0x1234; state.medical_tick = 65530;
+	state.entries[0].object = 0xE1A00004u; state.entries[0].medical = 1;
+	state.entries[1].object = 0xE1A00005u; state.entries[1].body = 16384;
+	size = delta_wire_write_unit_vitals(data, 7, &state);
+	CHECK(size == DELTA_WIRE_HEADER_SIZE + 4 + 2 * 12);
+	CHECK(payload[2] == 0x34 && payload[3] == 0x12 && payload[9] == 0x11 && payload[14] == 0xFA && payload[15] == 0xFF);
+	CHECK(delta_wire_read_unit_vitals(payload, size - DELTA_WIRE_HEADER_SIZE, &decoded) &&
+		decoded.medical_epoch == 0x1234 && decoded.medical_tick == 65530 &&
+		decoded.entries[0].medical == 1 && decoded.entries[1].medical == 0);
+	payload[9] = 0x20;
+	CHECK(!delta_wire_read_unit_vitals(payload, size - DELTA_WIRE_HEADER_SIZE, &decoded));
+	payload[9] = 0x11; payload[10] = 1;
+	CHECK(!delta_wire_read_unit_vitals(payload, size - DELTA_WIRE_HEADER_SIZE, &decoded));
+	state.medical_epoch = 0;
+	CHECK(!delta_wire_write_unit_vitals(data, 7, &state));
+	state.flags = DELTA_WIRE_UNIT_VITALS_PASS;
+	size = delta_wire_write_unit_vitals(data, 7, &state);
+	CHECK(size && !payload[2] && !payload[3] && !payload[9] && !payload[14] && !payload[15] &&
+		delta_wire_read_unit_vitals(payload, size - DELTA_WIRE_HEADER_SIZE, &decoded) &&
+		!decoded.entries[0].medical && !decoded.medical_epoch && !decoded.medical_tick);
+}
 
 static void test_wire_table(void)
 {
@@ -5240,6 +5288,7 @@ int main(int argc, char **argv)
 	test_wire_badge();
 	test_badge();
 	test_wire_objects();
+	test_wire_medical();
 	test_objects();
 	test_wire_identity();
 	test_identity();

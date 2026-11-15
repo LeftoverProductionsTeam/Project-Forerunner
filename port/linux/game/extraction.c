@@ -6,11 +6,16 @@
 #include "devices/device_controls.h"
 #include "game/game.h"
 #include "game/players.h"
+#include "networking/network_game_globals.h"
+#include "game/game_allegiance.h"
+#include "cutscene/cinematics.h"
 #include "game_modes.h"
 #include "gear.h"
 #include "interface/hud_messaging.h"
 #include "interface/player_ui.h"
 #include "objects/objects.h"
+#include "objects/damage.h"
+#include "physics/collisions.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "tag_files/files.h"
@@ -18,6 +23,8 @@
 #include "units/units.h"
 #include "extraction.h"
 #include "network_coop.h"
+#include "network_distributed.h"
+#include "network_rules.h"
 #include "coop_enemies.h"
 #include "../include/halo_port_limits.h"
 #include "../src/port_config.h"
@@ -31,6 +38,7 @@
 short distributed_client_machines(long *machines, short maximum);
 long distributed_player_machine(short player_index);
 void distributed_send_notice_to_machine(long machine_index, char const *text);
+void platform_log(char const *format, ...);
 
 enum extraction_phase
 {
@@ -57,6 +65,19 @@ static struct
 	long last_tick;
 } extraction;
 static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
+
+/* Medical state is transient host authority, not a second save or inventory.
+ * A native death is never cleared. New bodies/full player handles get new state. */
+static struct
+{
+	long player, unit, deadline, last_damage, healer, healer_unit, progress, last_control, received_tick;
+	unsigned int epoch;
+	boolean downed, used;
+} medical_players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
+static boolean medical_enabled, medical_received, medical_restored;
+static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30;
+static void extraction_medical_reset(void);
+static void extraction_medical_update(void);
 
 static boolean extraction_requested(void)
 {
@@ -93,9 +114,9 @@ static void extraction_notice(char const *text)
 	}
 }
 
-static void extraction_tell(struct extraction_run const *run, char const *text)
+static void extraction_player_notice(long player_index, char const *text)
 {
-	struct player_datum *player = player_try_and_get(run->player);
+	struct player_datum *player = player_try_and_get(player_index);
 	long machine;
 	char notice[128];
 	if (!player || player->quit_out_of_game) return;
@@ -103,13 +124,18 @@ static void extraction_tell(struct extraction_run const *run, char const *text)
 		extraction_local_notice(player->local_player_index, text);
 	else
 	{
-		machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player));
+		machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
 		if (machine != NONE)
 		{
 			snprintf(notice, sizeof(notice), "P%d | %s", (int)player->network_player_data.controller_index + 1, text);
 			distributed_send_notice_to_machine(machine, notice);
 		}
 	}
+}
+
+static void extraction_tell(struct extraction_run const *run, char const *text)
+{
+	extraction_player_notice(run->player, text);
 }
 
 static void extraction_block(struct extraction_run *run, char const *text)
@@ -141,6 +167,7 @@ void extraction_reset(void)
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.last_tick = NONE;
 	gear_world_reset();
+	extraction_medical_reset();
 }
 
 void extraction_restored(void)
@@ -149,6 +176,7 @@ void extraction_restored(void)
 	/* Saved world images can resurrect already recovered pickups. They may
 	 * never produce another bank transaction; a fresh map starts a new world. */
 	extraction.suspended = TRUE;
+	medical_restored = medical_enabled;
 }
 
 static boolean extraction_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES])
@@ -349,6 +377,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
+	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	if (!extraction_open_gear(run, player) || !game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
 		!gear_loadout(&run->gear, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
 	{
@@ -460,6 +489,14 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	{
 		extraction_lose_run(run); return;
 	}
+	if (extraction_medical_incapacitated(run->unit))
+	{
+		if (run->phase == _extraction_activating)
+		{
+			run->phase = _extraction_deployed; run->activation_ticks = 0;
+		}
+		return; /* Retain owned gear while alive; an incapacitated body cannot escape. */
+	}
 	if (run->phase == _extraction_activating)
 	{
 		if (!scenario_trigger_volume_test_object(extraction.zone, run->unit))
@@ -515,6 +552,7 @@ void extraction_update(void)
 	struct player_datum *player;
 	long now, slot;
 	short index;
+	extraction_medical_update();
 	if (!extraction_requested()) return;
 	if (!extraction.bound)
 	{
@@ -590,4 +628,287 @@ boolean extraction_survival_settlement_pending(void)
 			run->phase == _extraction_ready || run->phase == _extraction_settling)) return TRUE;
 	}
 	return FALSE;
+}
+
+static void extraction_medical_reset(void)
+{
+	short index;
+	medical_enabled = config_boolean("game.revive");
+	medical_received = medical_restored = FALSE;
+	medical_tick = NONE;
+	medical_seconds = PIN(config_integer("game.revive_seconds"), 1, 30);
+	medical_bleed_seconds = PIN(config_integer("game.revive_bleed_seconds"), 5, 180);
+	memset(medical_players, 0, sizeof(medical_players));
+	for (index = 0; index < NUMBEROF(medical_players); index++)
+	{
+		medical_players[index].player = medical_players[index].unit = medical_players[index].healer = NONE;
+		medical_players[index].received_tick = NONE;
+	}
+}
+
+static long extraction_medical_slot(long unit_index)
+{
+	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	struct player_datum *player;
+	long slot;
+	if (!unit || unit->unit.player_index == NONE) return NONE;
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
+	player = player_try_and_get(unit->unit.player_index);
+	if (!VALID_INDEX(slot, NUMBEROF(medical_players)) || !player || player->quit_out_of_game || player->unit_index != unit_index) return NONE;
+	if (medical_players[slot].unit != unit_index || medical_players[slot].player != unit->unit.player_index)
+	{
+		memset(&medical_players[slot], 0, sizeof(medical_players[slot]));
+		medical_players[slot].player = unit->unit.player_index;
+		medical_players[slot].unit = unit_index;
+		medical_players[slot].healer = medical_players[slot].received_tick = NONE;
+		medical_players[slot].last_damage = game_time_get() - 2 * TICKS_PER_SECOND;
+	}
+	return slot;
+}
+
+boolean extraction_medical_incapacitated(long unit_index)
+{
+	struct unit_datum *unit;
+	struct player_datum *player;
+	long slot;
+	if (!medical_enabled && !medical_received) return FALSE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (!unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) return FALSE;
+	player = player_try_and_get(unit->unit.player_index);
+	if (!player || player->quit_out_of_game || player->unit_index != unit_index) return FALSE;
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
+	return VALID_INDEX(slot, NUMBEROF(medical_players)) && medical_players[slot].downed &&
+		medical_players[slot].player == unit->unit.player_index && medical_players[slot].unit == unit_index &&
+		unit->object.body_vitality <= 0.f &&
+		(!network_game_distributed_client() || medical_players[slot].epoch == network_distributed_epoch());
+}
+
+boolean extraction_medical_predictable(short absolute_player_index)
+{
+	return !VALID_INDEX(absolute_player_index, NUMBEROF(medical_players)) ||
+		!extraction_medical_incapacitated(medical_players[absolute_player_index].unit);
+}
+
+boolean extraction_medical_network_enabled(void)
+{
+	unsigned int epoch = network_distributed_epoch();
+	return medical_enabled && game_in_progress() && game_connection() == _game_connection_network_server &&
+		network_coop_active() && epoch && epoch <= 65535;
+}
+
+static boolean extraction_medical_host(void)
+{
+	if (!medical_enabled || medical_restored || !game_in_progress() || network_game_distributed_client() ||
+		!global_scenario || global_scenario->type != _scenario_type_solo || cinematic_in_progress()) return FALSE;
+	if (game_connection() == _game_connection_local) return TRUE;
+#ifdef HALO_GAME_BROWSER
+	return extraction_medical_network_enabled() && delta_peer_game_room_has(_delta_capability_coop) &&
+		delta_peer_game_room_has(_delta_capability_object_sync);
+#else
+	return FALSE;
+#endif
+}
+
+void extraction_medical_network_state(long unit_index, boolean downed, unsigned int epoch, unsigned short tick)
+{
+	long slot, stamp, age;
+	if (!game_in_progress() || !network_game_distributed_client() || !network_coop_active() || !epoch ||
+		epoch != network_distributed_epoch()) return;
+	age = (short)((unsigned short)game_time_get() - tick);
+	if (age < -15 || age > NETWORK_RULES_TIME_WINDOW_TICKS) return;
+	stamp = game_time_get() - age;
+	slot = extraction_medical_slot(unit_index);
+	if (slot == NONE || (medical_players[slot].epoch == epoch && medical_players[slot].received_tick != NONE &&
+		stamp <= medical_players[slot].received_tick)) return;
+	medical_players[slot].epoch = epoch;
+	medical_players[slot].received_tick = stamp;
+	if (downed != medical_players[slot].downed)
+		platform_log("medical: client player %ld incapacitation %d at native epoch %u", slot, downed, epoch);
+	medical_players[slot].downed = downed;
+	medical_received = TRUE;
+}
+
+boolean extraction_medical_lethal(long unit_index)
+{
+	struct unit_datum *unit;
+	long slot;
+	if (!extraction_medical_host()) return FALSE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (!unit || unit->object.parent_object_index != NONE || !unit_controllable(unit_index) ||
+		!(unit->object.body_vitality < 0.f) || unit->object.body_vitality < -1.f ||
+		TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit)) return FALSE;
+	slot = extraction_medical_slot(unit_index);
+	if (slot == NONE || medical_players[slot].used) return FALSE;
+	medical_players[slot].used = medical_players[slot].downed = TRUE;
+	medical_players[slot].deadline = game_time_get() + medical_bleed_seconds * TICKS_PER_SECOND;
+	medical_players[slot].last_damage = game_time_get();
+	unit->object.body_vitality = 0.f;
+	object_deplete_shield(unit_index);
+	platform_log("medical: player %ld incapacitated alive; native unit %ld", slot, unit_index);
+	extraction_player_notice(medical_players[slot].player,
+		"MJOLNIR EMERGENCY STABILIZATION | Downed, alive. An ally must hold Action nearby to apply biofoam before bleedout.");
+	return TRUE;
+}
+
+void extraction_medical_damaged(long unit_index)
+{
+	long slot;
+	if (!medical_enabled || network_game_distributed_client()) return;
+	slot = extraction_medical_slot(unit_index);
+	if (slot != NONE) medical_players[slot].last_damage = game_time_get();
+}
+
+static boolean extraction_medical_reach(long healer, long target)
+{
+	struct unit_datum *from = unit_get(healer), *to = unit_get(target);
+	real_vector3d delta;
+	struct collision_result collision;
+	delta.i = to->object.bounding_sphere_center.x - from->object.bounding_sphere_center.x;
+	delta.j = to->object.bounding_sphere_center.y - from->object.bounding_sphere_center.y;
+	delta.k = to->object.bounding_sphere_center.z - from->object.bounding_sphere_center.z;
+	if (delta.i * delta.i + delta.j * delta.j + delta.k * delta.k > 2.25f ||
+		from->object.parent_object_index != NONE || to->object.parent_object_index != NONE ||
+		game_team_is_enemy(from->object.owner_team_index, to->object.owner_team_index)) return FALSE;
+	return !collision_test_vector(FLAG(_collision_test_structure_bit) | FLAG(_collision_test_objects_bit) |
+		FLAG(_collision_test_front_facing_surfaces_bit) | FLAG(_collision_test_back_facing_surfaces_bit),
+		&from->object.bounding_sphere_center, &delta, healer, &collision) || collision.object_index == target;
+}
+
+void extraction_medical_control(long player_index, struct player_action *action)
+{
+	struct player_datum *player = player_try_and_get(player_index);
+	struct unit_datum *unit;
+	long slot, target, now = game_time_get();
+	unsigned long combat = FLAG(_unit_control_weapon_primary_trigger_bit) | FLAG(_unit_control_weapon_secondary_trigger_bit) |
+		FLAG(_unit_control_throw_grenade_bit) | FLAG(_unit_control_use_equipment_bit) | FLAG(_unit_control_weapon_reload_bit) |
+		FLAG(_unit_control_user_animation1_bit);
+	if (!player || !action || player->unit_index == NONE) return;
+	if (extraction_medical_incapacitated(player->unit_index))
+	{
+		action->control_flags = FLAG(_unit_control_crouch_modifier_bit);
+		action->throttle.i = action->throttle.j = action->primary_trigger = 0.f;
+		action->desired_zoom_level = NONE;
+		action->desired_weapon_index = unit_get(player->unit_index)->unit.current_weapon_index;
+		return;
+	}
+	/* The native queue latches Action to its first tick. Its unlatched
+	 * long-hold swap gesture is the existing continuous Action signal. */
+	if (!extraction_medical_host() || !(action->control_flags &
+		(FLAG(_unit_control_action_bit) | FLAG(_unit_control_swap_weapons_bit))) ||
+		(action->control_flags & combat) || action->primary_trigger > 0.f) return;
+	slot = extraction_medical_slot(player->unit_index);
+	if (slot == NONE || now - medical_players[slot].last_damage < 2 * TICKS_PER_SECOND) return;
+	unit = unit_get(player->unit_index);
+	if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || !unit_controllable(player->unit_index) ||
+		unit_is_busy(player->unit_index) || (action->desired_weapon_index != NONE &&
+		action->desired_weapon_index != unit->unit.current_weapon_index)) return;
+	for (target = 0; target < NUMBEROF(medical_players); target++)
+	{
+		if (!medical_players[target].downed || !extraction_medical_incapacitated(medical_players[target].unit) ||
+			TEST_FLAG(unit_get(medical_players[target].unit)->object.damage_flags, _object_die_act_of_god_bit) ||
+			now - medical_players[target].last_damage < 2 * TICKS_PER_SECOND ||
+			!extraction_medical_reach(player->unit_index, medical_players[target].unit)) continue;
+		if (!(action->control_flags & FLAG(_unit_control_swap_weapons_bit)))
+		{
+			/* Consume the initial press near the casualty, before native
+			 * reload/pickup handling. Treatment waits for an actual hold. */
+			action->control_flags = 0;
+			return;
+		}
+		if (medical_players[target].healer != player_index || medical_players[target].healer_unit != player->unit_index ||
+			now - medical_players[target].last_control > 1)
+		{
+			if (medical_players[target].healer != NONE && now - medical_players[target].last_control <= 1) continue;
+			medical_players[target].healer = player_index; medical_players[target].healer_unit = player->unit_index;
+			medical_players[target].progress = 0;
+			platform_log("medical: player %ld begins biofoam for player %ld", slot, target);
+		}
+		if (medical_players[target].last_control == now) return;
+		medical_players[target].last_control = now;
+		/* Held Action also generates the native weapon-swap gesture. Consume
+		 * it with treatment; a separate weapon selection above still cancels. */
+		action->control_flags = 0; action->throttle.i = action->throttle.j = action->primary_trigger = 0.f;
+		medical_players[target].progress++;
+		if (medical_players[target].progress % TICKS_PER_SECOND == 0 &&
+			medical_players[target].progress < medical_seconds * TICKS_PER_SECOND)
+		{
+			char message[128];
+			snprintf(message, sizeof(message), "APPLYING BIOFOAM | %ld/%ld seconds. Hold Action; stay close and avoid combat.",
+				medical_players[target].progress / TICKS_PER_SECOND, medical_seconds);
+			extraction_player_notice(player_index, message);
+		}
+		return;
+	}
+}
+
+static void extraction_medical_update(void)
+{
+	long index, now = game_time_get();
+	if ((!medical_enabled && !medical_received) || !game_in_progress() || now == medical_tick) return;
+	medical_tick = now;
+	for (index = 0; index < NUMBEROF(medical_players); index++)
+	{
+		struct player_datum *player = player_try_and_get(medical_players[index].player);
+		struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(medical_players[index].unit, _object_mask_biped);
+		if (!medical_players[index].downed) continue;
+		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		{
+			medical_players[index].downed = FALSE; continue;
+		}
+		if (network_game_distributed_client()) continue;
+		/* An authored native repair may help a living Spartan too. It never
+		 * clears the dead bit or permits this body another free incapacitation. */
+		if (unit->object.body_vitality > 0.f)
+		{
+			medical_players[index].downed = FALSE; continue;
+		}
+		if (!player || player->quit_out_of_game || player->unit_index != medical_players[index].unit ||
+			unit->unit.player_index != medical_players[index].player || now >= medical_players[index].deadline || medical_restored)
+		{
+			if (!TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit))
+				platform_log("medical: player %ld pending native death; revive refused", index);
+			unit_kill(medical_players[index].unit); continue; /* Native death/loot, never resurrect a corpse. */
+		}
+		if (medical_players[index].healer != NONE)
+		{
+			struct player_datum *healer = player_try_and_get(medical_players[index].healer);
+			long healer_slot = healer ? extraction_medical_slot(healer->unit_index) : NONE;
+			/* Resolve after damage/physics: a hit or displacement on the final
+			 * treatment tick must cancel, not heal first and hide the interruption. */
+			if (!healer || healer_slot == NONE || healer->unit_index != medical_players[index].healer_unit ||
+				medical_players[index].last_control != now ||
+				now - medical_players[index].last_damage < 2 * TICKS_PER_SECOND ||
+				now - medical_players[healer_slot].last_damage < 2 * TICKS_PER_SECOND ||
+				extraction_medical_incapacitated(healer->unit_index) ||
+				unit_is_busy(healer->unit_index) ||
+				TEST_FLAG(unit_get(healer->unit_index)->object.damage_flags, _object_dead_bit) ||
+				TEST_FLAG(unit->object.damage_flags, _object_die_act_of_god_bit) ||
+				!extraction_medical_reach(healer->unit_index, medical_players[index].unit))
+			{
+				extraction_player_notice(medical_players[index].healer, "BIOFOAM INTERRUPTED | Hold Action again within reach after combat stops.");
+				medical_players[index].healer = NONE; medical_players[index].progress = 0;
+			}
+			else if (medical_players[index].progress >= medical_seconds * TICKS_PER_SECOND)
+			{
+				unit->object.body_vitality = .25f;
+				medical_players[index].downed = FALSE;
+				platform_log("medical: player %ld revived alive by player %ld; native unit preserved", index,
+					DATUM_INDEX_TO_ABSOLUTE_INDEX(medical_players[index].healer));
+				extraction_player_notice(medical_players[index].player, "BIOFOAM STABILIZED | Back on your feet. Further lethal injury to this body is fatal.");
+				extraction_player_notice(medical_players[index].healer, "BIOFOAM TREATMENT COMPLETE | Ally stabilized. Native health and shield rules resume.");
+			}
+		}
+	}
+	if (medical_restored && !network_game_distributed_client())
+	{
+		struct data_iterator iterator;
+		struct player_datum *player;
+		data_iterator_new(&iterator, player_data);
+		while ((player = data_iterator_next(&iterator)) != NULL)
+		{
+			struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+			if (unit && unit->object.body_vitality <= 0.f && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) unit_kill(player->unit_index);
+		}
+	}
 }

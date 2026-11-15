@@ -104,6 +104,7 @@ symbols in this file:
 #include "cseries.h"
 #include "damage.h"
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
+#include "extraction.h" /* port: optional native medical co-op state */
 #include "ai/ai.h"
 #include "cseries/errors.h"
 #include "effects/effects.h"
@@ -1405,7 +1406,13 @@ static void object_damage_body(
 				FLAG(_object_being_damaged_body_depleted_bit) |
 				FLAG(_object_being_damaged_body_destroyed_bit);
 		}
-		else if (body_vitality < 0.f)
+		else if (body_vitality < 0.f &&
+			/* port: explicit kills, destroyed regions and catastrophic damage
+			   retain native death. A downed Spartan is still a living biped. */
+			(TEST_FLAG(damage->flags, _damage_kill_instantly_bit) ||
+			 TEST_FLAG(*being_damaged_flags, _object_being_damaged_killed_instantly_bit) ||
+			 TEST_FLAG(*being_damaged_flags, _object_being_damaged_region_destroyed_bit) ||
+			 !extraction_medical_lethal(object_index)))
 		{
 			if (!TEST_FLAG(object->object.damage_flags, _object_dead_bit))
 			{
@@ -1979,6 +1986,9 @@ void object_cause_damage(
 					TEST_FLAG(being_damaged_flags, _object_being_damaged_body_depleted_bit));
 			}
 #endif
+			/* port: positive native damage interrupts medical treatment; clients
+			   cannot submit a heal or turn an actual death back into a down. */
+			if (shield_damage > 0.f || body_damage > 0.f) extraction_medical_damaged(current_object_index);
 			object_damage_aftermath(
 				current_object_index,
 				damage,

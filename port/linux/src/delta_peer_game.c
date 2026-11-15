@@ -698,6 +698,10 @@ int delta_peer_protocol(void)
 		/* (units' shield and health and objects' names, as the host has
 		them: network_objects.c) */
 		local.capabilities |= (delta_u32)1 << _delta_capability_object_sync;
+#if !defined(HALO_ANDROID) && !defined(HALO_WEB) && !defined(HALO_CONSOLE)
+		/* Forerunner co-op medical v1, in negotiated UNIT_VITALS bytes. */
+		local.capabilities |= (delta_u32)1 << _delta_capability_coop;
+#endif
 		/* (the host's rules for its players' extras: host_rules.c; a host
 		sends them, a client plays by them) */
 		local.capabilities |= (delta_u32)1 << _delta_capability_host_rules;

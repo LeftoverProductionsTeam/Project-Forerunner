@@ -655,8 +655,32 @@ existing contract before Forerunner consumes extension data. Exact event identit
 reconnect/epoch semantics and squad/player/world cue scope need review together.
 Spark owns authoring/readback; Forerunner owns bounded per-squad execution and
 membership/alliance/loot authority. The shared native bank is implemented, but
-quest execution, six-member squad operations, incapacitation/revival and scoped
-mission audio are not implemented or advertised by discovery from this checkpoint.
+quest execution, six-member squad operations and scoped mission audio remain
+unfinished and are not advertised by discovery from this checkpoint.
+
+Forerunner now implements optional native living incapacitation and held-Action
+biofoam in `port/linux/game/extraction.c` (`extraction_medical_lethal`,
+`extraction_medical_control`, `extraction_medical_update`). Native damage in
+`source/objects/damage.c` retains explicit/catastrophic kills; the native player
+control/pickup paths and `network_distributed.c` clamp incapacitated actions and
+predictions. Actual death is never cleared, and only actual death triggers gear
+loss. The host's map-start `game.revive` is off by default; treatment defaults to
+five seconds and bleedout to thirty. Combat, release, walls, range, vehicle/state
+changes and death interrupt treatment. Native friendly factions determine aid
+until the separate squad/alliance rules are implemented. A body gets at most one
+incapacitation; no medical equipment economy or new animation is claimed.
+
+Desktop network use requires room-wide negotiated Delta `coop` and `object_sync`;
+`network_objects.c` sends versioned epoch/tick metadata in existing reserved
+UNIT_VITALS bytes, while native player streams retain health authority. Older
+peers keep ordinary co-op; no new downs are admitted without both capabilities.
+Native agreement 45 has an explicit 44/45 layout-compatible join bridge, not a
+general claim of upstream compatibility. `docs/delta.md` specifies the bytes.
+This is not a new Spark discovery capability or a mission-data handoff. Spark
+should keep native encounters/scripts and export the reviewed Black Echo package
+and mission bindings described above, rather than authoring a competing revive
+or wave director. Compilation, focused checks and bounded native evidence are
+recorded in `TEST_EVIDENCE.md`; complete operations gameplay remains unaccepted.
 
 Optional controller-facing source now uses `source/game/player_control.c`'s
 `handle_one_player_input` and `port/linux/game/vr_render.c`'s

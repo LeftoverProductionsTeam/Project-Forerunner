@@ -1,6 +1,6 @@
 # Forerunner test evidence
 
-14 November 2026. Source inspection, compilation, automated native simulation,
+15 November 2026. Source inspection, compilation, automated native simulation,
 rendered gameplay, human play and cross-platform acceptance are distinct here.
 Bounded native multiplayer, rendering and read-only Spark discovery are verified;
 full gameplay, Firefight, Extraction, VR, editing and MegaWorld acceptance remain open.
@@ -33,6 +33,71 @@ All local evidence below is in the external owned directory
   `data/inputs.json` and `multiplayer-data/inputs.json`. No game data is tracked.
 
 ## Candidate compilation and native smoke checks
+
+Native living incapacitation and held-Action biofoam, base `8d2cbb07f`:
+
+- `verification-87521711b-001/medical-held-action-workflows.log`: **45 passed**
+  in the existing connected Extraction/gear/resupply/co-op harnesses. Real source
+  covers host authority, unsupported peers (including missing object sync),
+  actual-death refusal, held treatment, final-tick combat/range/wall/faction
+  interruption, bleedout, restore quarantine and gear loss only at actual death.
+  `medical-final-controls.log`: **23 passed**, adding the native distinction
+  between a one-tick Action press and its continuous long-hold gesture. These
+  fake-world checks do not reproduce rendering, real packets or verified identity.
+- `medical-checkpoint-configured.log`: **9 passed**, including the actual public
+  epoch getter with both native-header and learned-layout epochs. Initial
+  `medical-epoch-actions*.log` failures were missing Windows SDK headers/linker,
+  followed by a run with the installed SDK and native linker; no production
+  workaround or tolerance change was used.
+- `medical-delta.log`: **2 passed**, three unrelated cases deselected. Existing
+  C89 codec/session checks cover negotiated medical bytes, legacy zero reserved
+  bytes, malformed schema/epoch/vitality and 5,000 random inputs. The three
+  focused source/layout join checks also pass; packet sizes remain unchanged.
+- Disposable Windows64/OpenXR/bgfx compilation succeeded at source snapshot
+  `e68eb15a12578cb936e588283120c4870896aa5c5abe43fbf04b635d23eccd81`;
+  executable SHA-256
+  `cebdb17bac1364ce79fb384d112e1aaf7fe36bb5d1733f45f074e682476b7991`.
+  Log: `frn-verify-002/compile-openxr-medical-held-action.log`.
+  The later config description, regression assertion and checkpoint prose do
+  not change gameplay behavior in this measured binary.
+- `native-medical-held-action/`: **PASS**, two private copies of that binary,
+  Xbox B40 co-op, synthetic held Action on the healer and held W+Action on the
+  casualty. Host medical on, client local medical setting off. Native AI is
+  paused; the existing single-shot simulator injures the critical player.
+  Actual engine logs show living incapacitation, five-second continuous biofoam,
+  the same body returning to 0.25 health on both peers, matching down-state entry
+  and exit metadata at native epoch 1, and suppressed downed movement. **66
+  seconds compared**, offset 0, sampled position mean/max **0.026/1.350** world
+  units, one position and one alive boundary mismatch; prediction drift
+  **63/1066 ticks**, mean/max **0.000120/0.006441**, **193** client corrections.
+  Existing comparison tolerances were unchanged. Native scripted death later
+  kills the other player; it does not prove corpse revival refusal for the
+  treated casualty, which remains a focused-source check.
+- Failed probes are retained: `native-medical-interaction` scheduled cues past
+  its end; `native-medical-interaction-fixed` supplied default Slayer on a solo
+  map and invalid cue separators; `native-medical-treatment` used parenthesized
+  script expressions instead of console lines; `native-medical-treatment-console`
+  exposed `damage_object` accepting a missing scenario tag (NONE), now guarded in
+  both native script damage helpers. `native-medical-native-shot` reset health
+  too early and the shield recharged. The subsequent timed probe and diagnosis
+  found real client divergence: the public epoch getter returned the unbound
+  learned-layout epoch instead of the active native snapshot epoch. The epoch
+  repair restores synchronization. Treatment still stopped after one tick
+  because native queues latch Action. Reusing the existing unlatched long-hold
+  gesture fixes that cause; temporary diagnostics have been removed.
+- `native-medical-legacy-fixed/` passed **2/2**, retained x86 version 44 and x64
+  version 45 in swapped hosting directions, medical off. The earlier
+  `native-medical-legacy/` failed admission before the explicit bounded 44/45
+  bridge; that failure remains recorded. Final compatibility after the epoch
+  getter repair, `native-medical-final-legacy/`, also passes **2/2** swapped-host
+  games: **34 seconds** each, offset 0, sampled position mean/max
+  **0.042/1.287** and **0.045/1.349**, one position boundary mismatch each;
+  prediction maximum **0.032693/0.007611**, **141/140** client corrections.
+
+This proves a bounded native medical interaction, not human acceptance, Black
+Echo, independent squads, actual PvPvE death looting, recovered rewards, hardware
+VR, Linux execution or connected-region gameplay. Original maps, Spark, personal
+profiles and save records were not modified.
 
 Finite Survival/shared gear, base `0f8bf79f3` plus the connected mode changes:
 

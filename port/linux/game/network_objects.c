@@ -81,6 +81,7 @@ same datum index (identifier and all), so that any message can name one:
 #include "scenario/scenario_definitions.h"
 #include "../src/delta_wire.h"
 #include "../src/delta_peer.h"
+#include "extraction.h"
 
 /* (Delta Peer's object sync, below) */
 static void delta_host_vitals_pass(long machine_index);
@@ -2469,6 +2470,8 @@ struct delta_host_vital
 	word shield;
 	byte flags;
 	byte repeats;
+	byte medical;
+	word medical_epoch, medical_tick;
 };
 
 static struct delta_host_vital delta_host_vitals[MAXIMUM_TRACKED_OBJECTS];
@@ -2552,7 +2555,7 @@ static boolean delta_unit_carried(
 {
 	struct unit_datum *unit = unit_get(unit_index);
 
-	return unit->unit.player_index != NONE || unit->unit.actor_index != NONE;
+	return (unit->unit.player_index != NONE && !extraction_medical_network_enabled()) || unit->unit.actor_index != NONE;
 }
 
 static void delta_vital_from_unit(
@@ -2568,6 +2571,18 @@ static void delta_vital_from_unit(
 		(damage.shield_over_charging ? DELTA_WIRE_VITALS_SHIELD_OVER_CHARGING : 0));
 	vital->body = distributed_vitality_pack(damage.body_vitality);
 	vital->shield = distributed_vitality_pack(damage.shield_vitality);
+	vital->medical = (unsigned char)extraction_medical_incapacitated(unit_index);
+}
+
+static void delta_medical_stamp(struct delta_wire_unit_vitals *message)
+{
+	message->flags = 0;
+	if (extraction_medical_network_enabled())
+	{
+		message->flags = DELTA_WIRE_UNIT_VITALS_MEDICAL;
+		message->medical_epoch = (word)network_distributed_epoch();
+		message->medical_tick = (word)game_time_get();
+	}
 }
 
 /* (a change a client should see at once: a value fell from full or emptied,
@@ -2576,7 +2591,7 @@ static boolean delta_vital_urgent(
 	struct delta_host_vital const *sent,
 	struct delta_wire_unit_vital const *vital)
 {
-	return sent->flags != vital->flags ||
+	return sent->flags != vital->flags || sent->medical != vital->medical ||
 		(sent->shield >= DELTA_VITALITY_FULL && vital->shield < DELTA_VITALITY_FULL) ||
 		(sent->body >= DELTA_VITALITY_FULL && vital->body < DELTA_VITALITY_FULL) ||
 		(sent->shield && !vital->shield) || (sent->body && !vital->body);
@@ -2610,7 +2625,7 @@ static void delta_host_send_vitals(
 			sent->object_index = iterator.index;
 			sent->repeats = 1;
 		}
-		else if (sent->body != vital.body || sent->shield != vital.shield || sent->flags != vital.flags)
+		else if (sent->body != vital.body || sent->shield != vital.shield || sent->flags != vital.flags || sent->medical != vital.medical)
 		{
 			urgent = urgent || delta_vital_urgent(sent, &vital);
 			sent->repeats = DELTA_VITALS_REPEATS;
@@ -2620,6 +2635,7 @@ static void delta_host_send_vitals(
 		sent->body = vital.body;
 		sent->shield = vital.shield;
 		sent->flags = vital.flags;
+		sent->medical = vital.medical;
 		if (sent->repeats && due_count < (short)NUMBEROF(due))
 			due[due_count++] = iterator.index;
 	}
@@ -2630,6 +2646,7 @@ static void delta_host_send_vitals(
 		return;
 	}
 	message.count = 0;
+	delta_medical_stamp(&message);
 	for (index = 0; index < due_count; index++)
 	{
 		struct delta_host_vital *sent = &delta_host_vitals[DATUM_INDEX_TO_ABSOLUTE_INDEX(due[index])];
@@ -2639,6 +2656,7 @@ static void delta_host_send_vitals(
 		message.entries[message.count].flags = sent->flags;
 		message.entries[message.count].body = sent->body;
 		message.entries[message.count].shield = sent->shield;
+		message.entries[message.count].medical = sent->medical;
 		if (++message.count == DELTA_WIRE_MAXIMUM_UNIT_VITALS)
 		{
 			delta_peer_game_send_unit_vitals(NONE, &message);
@@ -2668,6 +2686,7 @@ static void delta_host_send_vitals(
 			message.entries[message.count].flags = sent->flags;
 			message.entries[message.count].body = sent->body;
 			message.entries[message.count].shield = sent->shield;
+			message.entries[message.count].medical = sent->medical;
 			message.count++;
 			added++;
 		}
@@ -2691,6 +2710,7 @@ static void delta_host_vitals_pass(
 		return;
 	message.flags = 0;
 	message.count = 0;
+	delta_medical_stamp(&message);
 	object_iterator_new(&iterator, _object_mask_unit, 0);
 	while (object_iterator_next(&iterator))
 	{
@@ -2703,7 +2723,7 @@ static void delta_host_vitals_pass(
 			message.count = 0;
 		}
 	}
-	message.flags = DELTA_WIRE_UNIT_VITALS_PASS;
+	message.flags |= DELTA_WIRE_UNIT_VITALS_PASS;
 	delta_peer_game_send_unit_vitals(machine_index, &message);
 	/* (and the names, which the client's copies take as they come) */
 	delta_host_send_names(TRUE, machine_index);
@@ -2850,6 +2870,9 @@ static void delta_client_vitals(
 		heard->flags = vital->flags;
 		heard->body = vital->body;
 		heard->shield = vital->shield;
+		heard->medical = (vitals->flags & DELTA_WIRE_UNIT_VITALS_MEDICAL) ? vital->medical + 1 : 0;
+		heard->medical_epoch = vitals->medical_epoch;
+		heard->medical_tick = vitals->medical_tick;
 	}
 	if (vitals->flags & DELTA_WIRE_UNIT_VITALS_PASS)
 		delta_client_pass_heard = TRUE;
@@ -2873,10 +2896,15 @@ static void delta_client_apply_vitals(
 			continue;
 		heard->object_index = NONE;
 		if ((absolute_index >= LOCAL_OBJECTS_FIRST_INDEX && !network_objects_client_has(unit_index)) ||
-			!object_try_and_get_and_verify_type(unit_index, _object_mask_unit) ||
-			unit_get(unit_index)->unit.player_index != NONE)
+			!object_try_and_get_and_verify_type(unit_index, _object_mask_unit))
 		{
 			continue;
+		}
+		if (unit_get(unit_index)->unit.player_index != NONE)
+		{
+			if (heard->medical) extraction_medical_network_state(unit_index, heard->medical == 2,
+				heard->medical_epoch, heard->medical_tick);
+			continue; /* Player vitality still belongs to the native unit stream. */
 		}
 		damage_get_network_state(unit_index, &damage);
 		damage.shield_depleted = (heard->flags & DELTA_WIRE_VITALS_SHIELD_DEPLETED) ? TRUE : FALSE;

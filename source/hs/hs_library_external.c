@@ -800,6 +800,8 @@ void hs_damage_new(
 	struct scenario_cutscene_flag *cutscene_flag;
 	struct damage_data damage;
 
+	/* port: a missing optional script resource is NONE, not a cache tag. */
+	if (damage_effect_index == NONE) return;
 	cutscene_flag = TAG_BLOCK_GET_ELEMENT(
 		&global_scenario_get()->cutscene_flags,
 		cutscene_flag_index,
@@ -816,7 +818,8 @@ void hs_damage_object(
 	long damage_effect_index,
 	long object_index)
 {
-	if (object_index != NONE)
+	/* port: absent scenario damage references must not reach tag_get(NONE). */
+	if (object_index != NONE && damage_effect_index != NONE)
 	{
 		struct damage_data damage;
 
