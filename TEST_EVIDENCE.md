@@ -34,6 +34,45 @@ All local evidence below is in the external owned directory
 
 ## Candidate compilation and native smoke checks
 
+Finite Survival/shared gear, base `0f8bf79f3` plus the connected mode changes:
+
+- `verification-87521711b-001/survival-gear-workflow.log`: **37 passed** using the
+  existing asset-free harness. The actual Extraction/session/gear/equipment code
+  and native director outcome getters cover finite success, failure/abort, live
+  owner admission, death/paid native respawn, pending escrow and lobby wait,
+  checkpoint quarantine, unchanged recovered ammo and same-cache Survival-to-
+  Extraction reuse. Forcing failed phase-4 outcomes to success fails the negative
+  control. Existing resupply, gear and co-op wipe checks also pass. Native actor
+  spawning, physical player behavior and real verified identity are not simulated.
+- The first paid-respawn fixture reused the dead body's stale parented weapons;
+  capture correctly refused them. The fixture now models a new native biped's
+  fresh inventory. No production ownership guard was weakened to make it pass.
+- Existing Windows64/OpenXR/bgfx export builds incrementally:
+  `frn-verify-002/compile-openxr-survival-gear.log`. Snapshot
+  `8b28d8749a9be951d0499a3e771f8540cc3a580216d7c52a9bce6d4711e62c3f`,
+  binary `dad2038465913a13c08a2b23fc8808dd7d3053d38080684f2a4895e1fee14931`.
+  Later changes only add checks/docs and clarify the source header comment.
+- One private x64 host/x86 peer B40 co-op smoke with finite Firefight/shared gear
+  requested passed: 34 matched seconds, tick offset 0; mean/max sampled separation
+  0.040/1.350 units, one isolated position mismatch; predicted error 63/360 ticks,
+  mean/max 0.000431/0.006691 units. Tolerances unchanged. Evidence is in
+  `verification-87521711b-001/native-survival-gear`; the host reached native
+  director preparation/shared-life notice. No `.gear` records or successful
+  finite-victory banking were observed with these synthetic test players.
+  This is bounded native compatibility/preparation, not successful Survival,
+  persistent-owner admission, native reward recovery or gameplay acceptance.
+- Shared lives, native respawns and authored HaloScript/director ownership remain
+  with existing systems. Default-off finite gear policy shares the same sessions,
+  lock/codec/escrow and native object operations; zero-limit endless runs do not
+  reserve gear without a recovery path. No new packets, editor, storage writer,
+  framework, global pool limit or original asset/profile/save change.
+- The later full Persistent Spartan Operations directive is preserved under
+  `docs/forerunner/`. Spark `e472e79` was inspected read-only: native logic/encounter
+  authoring exists; no reviewed Black Echo/per-squad quest export was found in
+  the inspected source. Its required map/mission/event/region/audio handoff is
+  recorded in the existing contract. No quest, six-member squad, revive or
+  multi-region gameplay support is claimed from these gear results.
+
 CI publication safeguards after the Extraction milestone:
 
 - Existing `tools/test_build_workflow.py` reused: **5 passed**, 32 deselected,

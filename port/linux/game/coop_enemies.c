@@ -61,6 +61,7 @@ Only the host runs the AI, so all of this is the host's.
 #include "units/unit_definitions.h"
 
 #include "coop_enemies.h"
+#include "extraction.h"
 #include "network_coop.h"
 #include "network_distributed.h"
 
@@ -190,6 +191,7 @@ static struct
 	boolean enabled;
 	boolean script_owner_checked;
 	boolean resupply;
+	boolean gear, victory;
 	short phase;
 	long wave;
 	long wave_limit;
@@ -234,6 +236,18 @@ boolean coop_enemies_firefight_result_ready(void)
 {
 	/* The result notice finishes before the director requests lobby return. */
 	return coop_enemies_firefight_active() && firefight.phase == 5;
+}
+
+boolean coop_enemies_firefight_gear_active(void)
+{
+	return coop_enemies_firefight_active() && firefight.gear;
+}
+
+short coop_enemies_firefight_outcome(void)
+{
+	/* Only the actual finite victory branch sets this flag. Spawn failures,
+	 * exhausted lives and other aborts also use phase 4, but never earn gear. */
+	return !coop_enemies_firefight_active() || firefight.phase < 4 ? 0 : firefight.victory ? 1 : -1;
 }
 
 /* A spent life belongs to the dead player's full handle until a spawn succeeds.
@@ -1124,6 +1138,7 @@ static void firefight_update(void)
 		else
 		{
 			firefight.phase = 4;
+			firefight.victory = TRUE;
 			firefight.deadline = now + 5 * TICKS_PER_SECOND;
 			{
 				char text[128];
@@ -1136,7 +1151,7 @@ static void firefight_update(void)
 			}
 		}
 	}
-	if (firefight.phase == 4 && now >= firefight.deadline)
+	if (firefight.phase == 4 && now >= firefight.deadline && !extraction_survival_settlement_pending())
 	{
 		firefight.phase = 5;
 		/* The main loop owns the world/lobby transition. */
@@ -1415,6 +1430,9 @@ void coop_enemies_new_game(
 	/* Map-start host rules only. Invalid values retain the default encounter;
 	   zero waves follows Faber's endless policy, not an empty free victory. */
 	firefight.wave_limit = wave_limit >= 0 && wave_limit <= 999 ? wave_limit : 3;
+	/* Endless evacuation still needs its authored recovery interface. Do not
+	 * reserve personal gear for a policy that currently has no success path. */
+	firefight.gear = config_boolean("network.firefight_gear") && firefight.wave_limit > 0;
 	firefight.initial_enemies = initial_enemies >= 1 && initial_enemies <= FIREFIGHT_MAX_TRACKED_ENEMIES ?
 		(short)initial_enemies : FIREFIGHT_INITIAL_ENEMIES;
 	firefight.wave_growth = wave_growth >= 0 && wave_growth <= FIREFIGHT_MAX_TRACKED_ENEMIES ?
@@ -1446,6 +1464,7 @@ void coop_enemies_reset(
 	encounter with its original allowance and score, preserving the map's
 	frozen actor/spawn/wave/count settings. Respawn-only wipes do not call here. */
 	firefight.phase = 0;
+	firefight.victory = FALSE;
 	firefight.script_owner_checked = FALSE;
 	firefight.wave = 0;
 	firefight.score = 0;

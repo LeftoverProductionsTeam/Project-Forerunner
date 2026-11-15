@@ -502,8 +502,10 @@ after successful escape and has no mandatory raid timer. Compatible recovered
 equipment can cross modes. Spark authors discoverable loot and mode rules using
 supported native tags; it must not write player stashes, invent awarded gear or
 advertise a persistence endpoint that Forerunner has not implemented. Extraction
-now consumes the shared weapon/grenade bank below; Survival milestone/evacuation
-settlement remains unfinished and must not award gear for a failed survival run.
+now consumes the shared weapon/grenade bank below. Finite built-in Survival can
+opt into that same bank at its actual victory milestone; native authored Survival
+can use the existing hub/evacuation controls with the built-in director OFF.
+Endless built-in evacuation and full Zombie progression remain unfinished.
 
 The shared native gear reader in `game_modes.c` now feeds both Extraction return
 reports and Firefight wave-clear reports before optional resupply. It reads real
@@ -615,11 +617,46 @@ carrier children; failure aborts rather than dropping untracked enemies.
 Dead bipeds no longer count as standing occupants in the reused spread helper;
 full queries remain conservatively occupied. No bodies/loot are deleted by
 this placement check. Loaded Flood variants can use existing actor selection,
-but this is UNVERIFIED generic survival source, not accepted Zombie outbreaks,
-dynamic objectives, persistent rewards or huge-horde/128-player proof. Local
-Extraction and the network-only director still have different admission paths;
-their combined run/outcome loop remains unfinished. No new Spark operation or
-native-map format is introduced.
+but this is not accepted Zombie outbreaks, dynamic objectives or huge-horde/
+128-player proof. Optional desktop host `network.firefight_gear` now reuses
+`extraction.c`'s owner sessions, native grants, loss and escape escrow. It is
+frozen at map start and requires a positive wave limit: zero-limit endless play
+never reserves personal gear without a success path. `coop_enemies.c` marks
+`victory` only in its completed finite-wave branch; phase-4 aborts/defeat never
+award rewards. `coop_enemies_firefight_outcome` exposes that actual outcome,
+not script/client claims. Live spawns reserve compatible stash gear; real deaths
+lose only that reservation. Existing shared lives/respawn ownership is unchanged.
+Successful survivors consume captured native loot into the shared bank; existing
+lobby return waits while winner settlement retries. Gear/profile data is never
+sent by clients, and no second director/storage/network format is introduced.
+Same-cache recovered weapons can cross back to Extraction; finite native success,
+bank reopen, hardware/platform and full Survival gameplay acceptance remain open.
+
+## Persistent operations: next native handoff
+
+The owner's [complete operations directive](docs/forerunner/PERSISTENT_SPARTAN_OPERATIONS_2026-11-14.md)
+adds **Operation Black Echo** as the first operations acceptance map: deployment,
+rescue, native enemy encounter, technology pickup, escalation, physical extraction,
+durable reward and redeployment. It then requires independent squads of at most
+six, agreed temporary alliances/PvE/PvPvE rules, interruptible downed-but-alive
+revival, true-death looting and reconnect-safe ownership. 128 players and two
+concurrent connected regions before all 19 remain proof targets, not capabilities.
+
+Read-only review of Spark `e472e79` found native logic source/readback and ordinary
+HaloScript authoring in `src/nativeLogic.ts` / `crates/spark-core/src/native_logic.rs`,
+plus native encounters in `firefight.rs`; no Black Echo or reviewed per-squad quest
+export was found in those sources. Do not substitute editor-only JSON, a shared
+global scenario script or a second quest VM for independent authoritative squads.
+Spark's next handoff must identify the compiled native map/resources/content
+identity, rescue/escort actors, technology objects, trigger/terminal bindings,
+spawn/region identifiers and mission/audio source; supply reviewed objective IDs,
+ordering/branches, completion/failure rules and reward conditions through this
+existing contract before Forerunner consumes extension data. Exact event identity,
+reconnect/epoch semantics and squad/player/world cue scope need review together.
+Spark owns authoring/readback; Forerunner owns bounded per-squad execution and
+membership/alliance/loot authority. The shared native bank is implemented, but
+quest execution, six-member squad operations, incapacitation/revival and scoped
+mission audio are not implemented or advertised by discovery from this checkpoint.
 
 Optional controller-facing source now uses `source/game/player_control.c`'s
 `handle_one_player_input` and `port/linux/game/vr_render.c`'s

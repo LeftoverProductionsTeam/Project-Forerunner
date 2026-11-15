@@ -17,5 +17,8 @@ boolean extraction_respawn_after_loss(void);
 /* Called only by the native control-use path. TRUE consumes this named
    Extraction control; ordinary controls keep their existing behavior. */
 boolean extraction_control_touched(long control_index, long unit_index);
+/* The existing Firefight director delays lobby return only while a living
+ * winner's shared gear recovery is pending. No extra wave/lives director. */
+boolean extraction_survival_settlement_pending(void);
 
 #endif

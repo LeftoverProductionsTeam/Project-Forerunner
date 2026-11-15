@@ -68,6 +68,10 @@ script scheduler. Recognized Spark native round scripts disable that director. *
 boolean coop_enemies_firefight_active(void);
 /* main.c: active built-in rounds decide when their result may end the map. */
 boolean coop_enemies_firefight_result_ready(void);
+/* Optional shared gear policy, frozen at map start. Outcome: 0 running,
+ * 1 completed finite encounter, -1 defeat/abort; never a client reward claim. */
+boolean coop_enemies_firefight_gear_active(void);
+short coop_enemies_firefight_outcome(void);
 boolean coop_enemies_firefight_out_of_lives(void);
 boolean coop_enemies_firefight_can_spawn(long player_index);
 /* players.c, before detaching a real dead player's body. */

@@ -1,5 +1,5 @@
-/* Native timerless Extraction, using native controls, co-op authority and
- * the shared gear record. No client claims, map rewriting or second director.
+/* Native timerless Extraction and finite-Survival gear, using native controls,
+ * co-op authority and the shared record. No client claims or second director.
  * Native/hardware gameplay acceptance remains separate from source presence.
  * SPDX-License-Identifier: AGPL-3.0-or-later */
 #include "cseries.h"
@@ -18,6 +18,7 @@
 #include "units/units.h"
 #include "extraction.h"
 #include "network_coop.h"
+#include "coop_enemies.h"
 #include "../include/halo_port_limits.h"
 #include "../src/port_config.h"
 #ifdef HALO_GAME_BROWSER
@@ -51,6 +52,7 @@ struct extraction_run
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
+	boolean survival;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
 	long last_tick;
 } extraction;
@@ -58,7 +60,7 @@ static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 
 static boolean extraction_requested(void)
 {
-	return config_boolean("game.extraction") && global_scenario &&
+	return (config_boolean("game.extraction") || coop_enemies_firefight_gear_active()) && global_scenario &&
 		global_scenario->type == _scenario_type_solo &&
 		(game_connection() == _game_connection_local ||
 		(game_connection() == _game_connection_network_server && network_coop_active()));
@@ -66,7 +68,7 @@ static boolean extraction_requested(void)
 
 boolean extraction_owns_map(void)
 {
-	return extraction_requested() && extraction.bound && extraction.admitted;
+	return config_boolean("game.extraction") && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
 }
 
 static void extraction_local_notice(short local, char const *text)
@@ -204,7 +206,9 @@ static void extraction_lose_run(struct extraction_run *run)
 	{
 		run->phase = _extraction_lost;
 		run->blocked = FALSE;
-		extraction_tell(run, "RUN LOST | Deployed gear lost. Your remaining stash is safe. Return to the hub to redeploy.");
+		extraction_tell(run, extraction.survival ?
+			"RUN LOST | Deployed gear lost. Remaining stash is safe; respawn follows the encounter's shared lives." :
+			"RUN LOST | Deployed gear lost. Your remaining stash is safe. Return to the hub to redeploy.");
 	}
 	else extraction_block(run, "LOSS SETTLEMENT PENDING | Redeployment waits for the stash write to complete.");
 }
@@ -230,6 +234,14 @@ static void extraction_bind(void)
 	extraction.admitted = FALSE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 	extraction.zone = extraction.return_zone = NONE;
+	if (extraction.survival)
+	{
+		/* The already active director checked authored-script ownership and
+		 * owns its actual success/lives. It does not need an Extraction hub. */
+		extraction.admitted = TRUE;
+		extraction_notice("SURVIVAL GEAR | Compatible saved gear is at risk. Complete the finite encounter alive to recover loot.");
+		return;
+	}
 	if (config_boolean("network.firefight_encounter"))
 	{
 		extraction_notice("Extraction unavailable: disable the built-in Firefight director. Authored native AI scripts can keep running.");
@@ -333,14 +345,37 @@ static void extraction_loadout_notice(struct extraction_run *run)
 	extraction_tell(run, text);
 }
 
+static boolean extraction_deploy(struct extraction_run *run, struct player_datum const *player)
+{
+	struct game_modes_inventory loadout;
+	long created[GAME_MODES_INVENTORY_WEAPONS];
+	if (!extraction_open_gear(run, player) || !game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
+		!gear_loadout(&run->gear, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
+	{
+		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
+	}
+	if (!game_modes_inventory_apply(run->player, &loadout, created))
+	{
+		if (!gear_cancel_reservation(&run->gear)) run->phase = _extraction_cancelling;
+		run->retry_tick = game_time_get();
+		extraction_block(run, "DEPLOYMENT BLOCKED | Native loadout could not be placed; reserved gear is returning to the stash."); return FALSE;
+	}
+	gear_track_reserved(&run->gear, created);
+	run->unit = player->unit_index; run->local_player = player->local_player_index;
+	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
+	extraction_tell(run, extraction.survival ?
+		"SURVIVAL DEPLOYED | Gear is at risk. Recover carried loot by completing this finite encounter alive." :
+		"DEPLOYED | Gear is at risk until escape, including disconnects. No raid timer.");
+	return TRUE;
+}
+
 boolean extraction_control_touched(long control_index, long unit_index)
 {
 	struct object_datum *control;
 	struct unit_datum *unit;
 	struct player_datum *player;
 	struct extraction_run *run;
-	struct game_modes_inventory loadout;
-	long slot, created[GAME_MODES_INVENTORY_WEAPONS];
+	long slot;
 	boolean in_hub;
 
 	if (!extraction_owns_map()) return FALSE;
@@ -374,21 +409,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (control->object.name_index == extraction.deploy_name && in_hub &&
 		(run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned))
 	{
-		if (!extraction_open_gear(run, player) || !game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
-			!gear_loadout(&run->gear, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
-		{
-			extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return TRUE;
-		}
-		if (!game_modes_inventory_apply(run->player, &loadout, created))
-		{
-			if (!gear_cancel_reservation(&run->gear)) run->phase = _extraction_cancelling;
-			run->retry_tick = game_time_get();
-			extraction_block(run, "DEPLOYMENT BLOCKED | Native loadout could not be placed; reserved gear is returning to the stash."); return TRUE;
-		}
-		gear_track_reserved(&run->gear, created);
-		run->unit = unit_index; run->local_player = player->local_player_index;
-		run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
-		extraction_tell(run, "DEPLOYED | Gear is at risk until escape, including disconnects. No raid timer.");
+		extraction_deploy(run, player);
 		return TRUE;
 	}
 	if (control->object.name_index == extraction.activate_name && run->phase == _extraction_deployed && run->unit == unit_index &&
@@ -409,7 +430,7 @@ static void extraction_finish_return(struct extraction_run *run)
 		extraction_block(run, "RECOVERY PENDING | Escaped gear secured in escrow; banking will retry."); return;
 	}
 	run->phase = _extraction_returned; run->blocked = FALSE;
-	snprintf(text, sizeof(text), "RUN COMPLETE | Stash %d/%d weapons, %d frag, %d plasma. Loadout terminal: choose. Deployment: redeploy.",
+	snprintf(text, sizeof(text), "RUN COMPLETE | Stash %d/%d weapons, %d frag, %d plasma. Compatible recovered gear is ready for your next run.",
 		(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
 	extraction_tell(run, text);
 }
@@ -452,8 +473,11 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 			extraction_tell(run, "EXTRACTION SIGNAL READY | Reach the return point alive.");
 		}
 	}
-	if (run->phase == _extraction_ready && scenario_trigger_volume_test_object(extraction.return_zone, run->unit) &&
-		!scenario_trigger_volume_test_object(extraction.zone, run->unit) && unit->unit.grenade_throw_state == _unit_grenade_throw_idle)
+	if (run->phase == _extraction_ready &&
+		((extraction.survival && coop_enemies_firefight_outcome() == 1) ||
+		 (!extraction.survival && scenario_trigger_volume_test_object(extraction.return_zone, run->unit) &&
+		  !scenario_trigger_volume_test_object(extraction.zone, run->unit))) &&
+		unit->unit.grenade_throw_state == _unit_grenade_throw_idle)
 	{
 		struct game_modes_inventory equipment;
 		long objects[GAME_MODES_INVENTORY_WEAPONS];
@@ -492,7 +516,11 @@ void extraction_update(void)
 	long now, slot;
 	short index;
 	if (!extraction_requested()) return;
-	if (!extraction.bound) extraction_bind();
+	if (!extraction.bound)
+	{
+		extraction.survival = !config_boolean("game.extraction");
+		extraction_bind();
+	}
 	if (!extraction.admitted) return;
 	now = game_time_get();
 	if (extraction.last_tick != NONE && now < extraction.last_tick)
@@ -521,11 +549,45 @@ void extraction_update(void)
 		{
 			extraction_run_close(run); run->player = iterator.datum_index;
 		}
-		if (!player->quit_out_of_game) extraction_update_run(run, player, now);
+		if (!player->quit_out_of_game)
+		{
+			if (extraction.survival)
+			{
+				short outcome = coop_enemies_firefight_outcome();
+				if (!outcome && (run->phase == _extraction_hub || run->phase == _extraction_lost) &&
+					(!run->blocked || (unsigned long)now - (unsigned long)run->retry_tick >= TICKS_PER_SECOND))
+				{
+					struct game_modes_inventory owned;
+					if (game_modes_inventory_capture(run->player, &owned))
+					{
+						run->retry_tick = now;
+						extraction_deploy(run, player);
+					}
+				}
+				if (outcome > 0 && run->phase == _extraction_deployed) run->phase = _extraction_ready;
+				else if (outcome < 0 && (run->phase == _extraction_deployed || run->phase == _extraction_ready)) extraction_lose_run(run);
+			}
+			extraction_update_run(run, player, now);
+		}
 	}
 	for (index = 0; index < NUMBEROF(extraction_runs); index++)
 	{
 		player = player_try_and_get(extraction_runs[index].player);
 		if (extraction_runs[index].player != NONE && (!player || player->quit_out_of_game)) extraction_run_close(&extraction_runs[index]);
 	}
+}
+
+boolean extraction_survival_settlement_pending(void)
+{
+	short index;
+	if (!extraction.survival || !extraction.admitted || extraction.suspended ||
+		!coop_enemies_firefight_gear_active() || coop_enemies_firefight_outcome() != 1) return FALSE;
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run const *run = &extraction_runs[index];
+		struct player_datum *player = player_try_and_get(run->player);
+		if (player && !player->quit_out_of_game && (run->phase == _extraction_deployed ||
+			run->phase == _extraction_ready || run->phase == _extraction_settling)) return TRUE;
+	}
+	return FALSE;
 }

@@ -40,7 +40,14 @@ compatibility smoke passes; it has no Extraction markers and creates no gear
 records. This does NOT prove native multiplayer Extraction. Spark must supply
 the compiled authored hub/cache through its existing handoff and adopt a reviewed
 current runtime identity. Its optional loadout control/readback is specified in
-the existing contract. Survival settlement, armor/equipment, rarity/upgrades,
+the existing contract. Finite built-in Survival now optionally shares those same
+owner sessions and native gear transactions: spawn reservations, true-death loss,
+actual finite-victory recovery and lobby wait/retry. Default off; endless waves
+do not reserve gear without an authored recovery path. Existing shared lives and
+script ownership are unchanged. Windows64/OpenXR compiles and 37 focused checks
+pass. Private x64/x86 co-op reaches director preparation and passes comparison,
+but no native winner bank or successful Survival session is proven.
+Armor/equipment, rarity/upgrades,
 general cross-cache gear and the original full hub/menu remain unfinished.
 No personal inventories, original maps, Spark source or remote configuration
 were modified. This cycle delivered runtime gameplay source and necessary
@@ -94,6 +101,18 @@ unless genuinely blocked. Firefight and the connected
 19-region MegaWorld as permanent flagship requirements alongside Firefight,
 VR and the other approved runtime work. Keep the anti-overengineering rules;
 these additions do not authorize unrelated rewrites or duplicate editors.
+
+The later [Persistent Spartan Operations directive](docs/forerunner/PERSISTENT_SPARTAN_OPERATIONS_2026-11-14.md)
+is preserved in full. First operations acceptance is Spark's Operation Black Echo,
+then independent squads (maximum six members), cooperative/hostile alliances,
+bounded server-owned quests, downed-alive biofoam revival, actual-death looting,
+scoped mission audio and reconnect-safe persistent rewards. Native HaloScript,
+co-op, gear, AI and audio remain owners; only necessary per-squad extension state
+is authorized. Spark's reviewed quest export/Black Echo package was not found in
+the inspected current source; exact handoff requirements are in the existing
+contract. These operations and concurrent connected regions are not implemented
+or gameplay accepted merely by recording the requirement. Continue independent
+engine work while that authoring handoff is missing.
 
 Extraction acceptance requires an original Marathon-inspired hub/menu, inventory
 and loadouts, deployment, AI with optional PvPvE, collectible loot, an interactable

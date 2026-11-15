@@ -66,6 +66,8 @@ static int local_notices, remote_notices, respawns;
 
 static boolean config_boolean(char const *name) { return !strcmp(name,"game.extraction") ? enabled : director; }
 static boolean network_coop_active(void) { return TRUE; }
+static struct { boolean enabled, gear, victory; short phase; } firefight;
+#include "survival.inc"
 static long game_time_get(void) { return tick; }
 static struct player_datum *player_try_and_get(long handle)
 { short i; for(i=0;i<2;i++) if(player_handles[i]==handle) return &players[i]; return NULL; }
@@ -172,7 +174,53 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
- if(!strcmp(case_name,"binding")) {
+ if(!strncmp(case_name,"survival-",9)) {
+  extraction_reset(); enabled=FALSE; director=TRUE;
+  firefight.enabled=firefight.gear=TRUE; firefight.phase=1; advance(1);
+  CHECK(extraction.survival && !extraction_owns_map(),"gear policy stole Firefight map/lives ownership");
+  CHECK(run(0)->phase==_extraction_deployed && run(1)->phase==_extraction_deployed,"Survival gear not reserved at live spawn");
+  a=pickup(0,1); pickup(1,2);
+  if(!strcmp(case_name,"survival-win")) {
+   /* Only an actual finite success admits a reward. No activation timer,
+    * Extraction marker or world rewind is required for this milestone. */
+   firefight.phase=4; firefight.victory=TRUE;
+   CHECK(extraction_survival_settlement_pending(),"lobby passed unsettled winners"); advance(1);
+   CHECK(!extraction_survival_settlement_pending() && run(0)->phase==_extraction_returned &&
+    run(0)->gear.record.count==1 && run(1)->gear.record.count==1 && !weapon_try_and_get(a),"finite victory did not bank owned loot");
+   advance(60); CHECK(run(0)->gear.record.count==1,"victory retry duplicated reward");
+   extraction_reset(); firefight.victory=FALSE; firefight.phase=1; advance(1);
+   CHECK(run(0)->gear.record.reserved_count==1 && weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_loaded==7,
+    "next Survival session did not restore recovered gear");
+   firefight.phase=4; firefight.victory=TRUE; advance(1);
+   extraction_reset(); firefight.enabled=FALSE; enabled=TRUE; director=FALSE; advance(1); touch(0,0);
+   CHECK(run(0)->gear.record.reserved_count==1 && !run(0)->gear.record.count &&
+    weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_loaded==7,
+    "same-cache Extraction did not reuse Survival's owned stash");
+  } else if(!strcmp(case_name,"survival-loss")) {
+   firefight.phase=4; CHECK(coop_enemies_firefight_outcome()==-1,"abort phase treated as victory"); advance(1);
+   CHECK(!extraction_survival_settlement_pending() && run(0)->phase==_extraction_lost &&
+    !run(0)->gear.record.count && !run(0)->gear.record.reserved_count && weapon_try_and_get(a),"failed run awarded or erased native loot");
+  } else if(!strcmp(case_name,"survival-retry")) {
+   firefight.phase=4; firefight.victory=TRUE; fail_write=TRUE; advance(1);
+   CHECK(extraction_survival_settlement_pending() && run(0)->phase==_extraction_ready && weapon_try_and_get(a),"failed escrow discarded winning loot");
+   fail_write=FALSE; publish_failure=TRUE; advance(30);
+   CHECK(extraction_survival_settlement_pending() && run(0)->phase==_extraction_settling && !weapon_try_and_get(a),"uncertain saved success was not consumed once");
+   publish_failure=FALSE; advance(30);
+   CHECK(!extraction_survival_settlement_pending() && run(0)->gear.record.count==1,"winner retry never released lobby");
+  } else if(!strcmp(case_name,"survival-restore")) {
+   extraction_restored(); advance(1); firefight.phase=4; firefight.victory=TRUE; advance(1);
+   CHECK(extraction.suspended && !run(0)->gear.opened && !extraction_survival_settlement_pending(),"restored world minted Survival loot");
+  } else if(!strcmp(case_name,"survival-respawn")) {
+   units[0].object.damage_flags=1; advance(1); CHECK(run(0)->phase==_extraction_lost,"dead survivor retained reservation");
+   units[0].object.damage_flags=0; unit_handles[0]+=0x10000; players[0].unit_index=unit_handles[0];
+   /* A native respawn is a new biped, not the dead body's stale inventory. */
+   { short slot; for(slot=0;slot<4;slot++) units[0].unit.weapon_object_indices[slot]=NONE; }
+   advance(1);
+   CHECK(run(0)->phase==_extraction_deployed && run(0)->unit==unit_handles[0],"paid native respawn did not enter a new at-risk run");
+   units[0].object.damage_flags=1; firefight.phase=4; firefight.victory=TRUE; advance(1);
+   CHECK(run(0)->phase==_extraction_lost && !run(0)->gear.record.count,"dead player received finite victory reward");
+  } else return 2;
+ } else if(!strcmp(case_name,"binding")) {
   extraction_reset(); starts[1].position.x=20; advance(1); CHECK(!extraction_owns_map(),"field spawn admitted");
   starts[1].position.x=0; extraction_reset(); director=TRUE; advance(1); CHECK(!extraction_owns_map(),"duplicate director admitted");
   director=FALSE; extraction_reset(); names[2].name[0]=0; advance(1);
