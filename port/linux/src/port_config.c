@@ -957,6 +957,15 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Controller snap-turn degrees, 1 to 180. Invalid/non-finite values use\n"
 		"OpenH1's 30-degree default. Existing native facing carries the turn;\n"
 		"no new network fields or simulation rate. Source only, unverified." },
+	{ "vr.push_to_talk", _config_string, "\"off\"", "HALO_VR_PUSH_TO_TALK", _environment_value, _platform_desktop,
+		"Optional XR voice button: \"left_grip\", \"right_grip\", \"left_stick\" or\n"
+		"\"right_stick\" (stick click). Off/unknown values leave native controls.\n"
+		"Requires audio.voice_chat = \"push_to_talk\"; does not enable voice chat.\n"
+		"Reserves that button in gameplay and feeds the existing PTT action,\n"
+		"without sending a D-pad vote or adding another voice/network path.\n"
+		"Release before talking after focus/tracking, binding or menu ownership\n"
+		"changes. Both-stick pause and native menu controls retain priority.\n"
+		"Off by default. Windows64 OpenXR source only; unverified on hardware." },
 #endif
 
 	/* ---- audio */

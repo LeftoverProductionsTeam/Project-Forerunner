@@ -752,3 +752,14 @@ reduced builds keep stubs. No new launcher, camera renderer, protocol or editor.
 Existing upstream fixture source was adapted to CE names, without execution.
 Source/callers/diffs only; no tests, builds, launches, saves or pushes. These
 campaign transitions are not continuous MegaWorld regions or accepted gameplay.
+
+UNVERIFIED VR/voice runtime bridge: optional vr.push_to_talk reserves a selected
+Touch/Index grip or stick click and emits the existing PTT action for native
+voice. Default off, native PTT mode required; focus/tracking, setting/reference
+and menu/Guide/chat/capture changes require release. Both-stick pause wins.
+No D-pad voting, new VOIP, packets, microphone SDK or extra XR sync was added;
+native capture/device/channel/host/privacy gates and Linux controls are reused.
+Source/all action consumers reviewed only; no tests, builds, launches, audio
+queries, hardware/save access or pushes. Actual mic/controller behavior, peer
+voice and cross-region audio remain acceptance gates. This is runtime input
+integration, not full VR or native-voice interoperability proof.

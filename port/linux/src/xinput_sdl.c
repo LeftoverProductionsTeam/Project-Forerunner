@@ -2556,20 +2556,34 @@ static BYTE openxr_trigger(float value)
 	return value >= 1.0f ? 255 : (BYTE)(value * 255.0f);
 }
 
+/* The existing PTT action owns transmission. Never synthesize D-pad right:
+   it also owns vote responses. No microphone or voice transport lives here. */
+static BOOL openxr_talk_armed, openxr_talk_held;
+static int openxr_talk_binding;
+static unsigned int openxr_talk_reference;
+
 static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 {
 	struct vr_openxr_frame frame;
 	XINPUT_GAMEPAD xr;
 	unsigned int left, right;
 	unsigned long buttons;
-	BOOL pause_combo, moved;
-	int index;
+	BOOL pause_combo, moved, left_grip, right_grip, talk_down = FALSE, talk_valid = FALSE;
+	char const *talk = config_string("vr.push_to_talk");
+	int index, talk_binding = 0;
 
 	memset(pad, 0, sizeof(*pad));
+	openxr_talk_held = FALSE;
 	if (!vr_openxr_input_read(&frame))
+	{
+		openxr_talk_armed = FALSE;
 		return FALSE;
+	}
 	if (!frame.focused)
+	{
+		openxr_talk_armed = FALSE;
 		return TRUE;
+	}
 	memset(&xr, 0, sizeof(xr));
 	left = frame.hand[0].buttons;
 	right = frame.hand[1].buttons;
@@ -2578,14 +2592,46 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	pause_combo = (left & _vr_button_stick) && (right & _vr_button_stick);
 	if (pause_combo || ((left | right) & _vr_button_menu))
 		xr.wButtons |= XINPUT_GAMEPAD_START;
+	left_grip = frame.hand[0].squeeze > 0.75f;
+	right_grip = frame.hand[1].squeeze > 0.75f;
+	if (!menus && frame.should_render && !strcmp(config_string("audio.voice_chat"), "push_to_talk"))
+	{
+		if (!strcmp(talk, "left_grip")) talk_binding = 1;
+		else if (!strcmp(talk, "right_grip")) talk_binding = 2;
+		else if (!strcmp(talk, "left_stick")) talk_binding = 3;
+		else if (!strcmp(talk, "right_stick")) talk_binding = 4;
+		if (talk_binding)
+			talk_valid = frame.hand[(talk_binding == 1 || talk_binding == 3) ? 0 : 1].grip.valid &&
+				!pause_combo && !((left | right) & _vr_button_menu);
+		if ((talk_binding == 1 && !(frame.hand[0].squeeze >= 0.f && frame.hand[0].squeeze <= 1.f)) ||
+			(talk_binding == 2 && !(frame.hand[1].squeeze >= 0.f && frame.hand[1].squeeze <= 1.f)))
+			talk_valid = FALSE;
+	}
+	if (talk_binding != openxr_talk_binding || frame.reference_serial != openxr_talk_reference)
+		openxr_talk_armed = FALSE;
+	openxr_talk_binding = talk_binding;
+	openxr_talk_reference = frame.reference_serial;
+	if (talk_binding == 1) { talk_down = left_grip; left_grip = FALSE; }
+	else if (talk_binding == 2) { talk_down = right_grip; right_grip = FALSE; }
+	else if (talk_binding == 3) { talk_down = (left & _vr_button_stick) != 0; left &= ~_vr_button_stick; }
+	else if (talk_binding == 4) { talk_down = (right & _vr_button_stick) != 0; right &= ~_vr_button_stick; }
+	/* Keep the assigned button reserved during a tracking gap; it must not
+	   become a grenade/zoom action while its voice input is unavailable. */
+	if (!talk_binding || !talk_valid)
+		openxr_talk_armed = FALSE;
+	else
+	{
+		if (!talk_down) openxr_talk_armed = TRUE;
+		openxr_talk_held = openxr_talk_armed && talk_down;
+	}
 	if (!pause_combo && (menus || frame.should_render))
 	{
 		merge_button(&xr, XINPUT_GAMEPAD_A, right & _vr_button_primary);
 		merge_button(&xr, XINPUT_GAMEPAD_B, right & _vr_button_secondary);
 		merge_button(&xr, XINPUT_GAMEPAD_X, left & _vr_button_primary);
 		merge_button(&xr, XINPUT_GAMEPAD_Y, left & _vr_button_secondary);
-		merge_button(&xr, XINPUT_GAMEPAD_WHITE, frame.hand[0].squeeze > 0.75f);
-		merge_button(&xr, XINPUT_GAMEPAD_BLACK, frame.hand[1].squeeze > 0.75f);
+		merge_button(&xr, XINPUT_GAMEPAD_WHITE, left_grip);
+		merge_button(&xr, XINPUT_GAMEPAD_BLACK, right_grip);
 		xr.bAnalogButtons[XINPUT_GAMEPAD_LEFT_TRIGGER] = openxr_trigger(frame.hand[0].trigger);
 		xr.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER] = openxr_trigger(frame.hand[1].trigger);
 		if (left & _vr_button_stick) xr.wButtons |= XINPUT_GAMEPAD_LEFT_THUMB;
@@ -2601,7 +2647,7 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 		if (xr.bAnalogButtons[index] > 30) buttons |= 1UL << (16 + index);
 	moved = abs(xr.sThumbLX) > 8000 || abs(xr.sThumbLY) > 8000 ||
 		abs(xr.sThumbRX) > 8000 || abs(xr.sThumbRY) > 8000;
-	if (buttons || moved)
+	if (buttons || moved || openxr_talk_held)
 	{
 		pthread_mutex_lock(&mouse_lock);
 		pad_used_ms = SDL_GetTicks();
@@ -3216,6 +3262,8 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 			prompt_connected = TRUE;
 		}
 	}
+	else if (port == 0)
+		openxr_talk_armed = openxr_talk_held = FALSE;
 #endif
 	/* Keep the opening chat press so even B can open it without immediately closing it. */
 	chat_pad_record((short)port, &physical);
@@ -3305,8 +3353,20 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 #ifdef HALO_OPENXR
 		/* OpenH1's merge stage: the runtime owns XR focus. Existing guide,
 		   chat and capture ownership still process the final native pad. */
-		if (xr_connected && !console_active)
-			controller_remap_merge(&xr, &state->Gamepad);
+		if (xr_connected)
+		{
+			BOOL talk_allowed = !console_active && !input.menus && !captured;
+
+#ifdef HALO_GUIDE
+			talk_allowed = talk_allowed && !guide_capture;
+#endif
+			if (!talk_allowed)
+				openxr_talk_armed = openxr_talk_held = FALSE;
+			if (openxr_talk_held)
+				keyboard_actions_held |= 1UL << HALO_KEYBOARD_PUSH_TO_TALK;
+			if (!console_active)
+				controller_remap_merge(&xr, &state->Gamepad);
+		}
 #endif
 		test_input_gamepad(&state->Gamepad);
 		touch_input_gamepad(&state->Gamepad);
@@ -3336,6 +3396,10 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 			guide_asks(&input, own, own_count, &state->Gamepad);
 		}
 		guide_take(&state->Gamepad);
+#ifdef HALO_OPENXR
+		if (guide_capture)
+			openxr_talk_armed = openxr_talk_held = FALSE;
+#endif
 #endif
 		/* (a right stick dead zone set below it aims from that) */
 		aiming_deflection = halo_stick_dead_range(1);

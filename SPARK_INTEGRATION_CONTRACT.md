@@ -584,7 +584,21 @@ source interfaces. Existing native weapon HUD/model tags remain sufficient;
 there is no new map-side VR schema or projectile-flight prediction.
 
 Native proximity voice now has optional `audio.voice_obstruction` source
-(default false). `source/sound/sound_manager.c::sound_world_obstruction` calls
+and optional Windows64 `vr.push_to_talk` input source. The latter defaults off,
+requires native PTT mode, and assigns one existing Touch/Index grip or stick
+click through `xinput_sdl.c::openxr_gamepad_read` / `XInputGetState` to
+`HALO_KEYBOARD_PUSH_TO_TALK`. `voice_game.c::controls` remains the action consumer;
+native Delta/Opus capture, routing, channels and host permissions remain owners.
+The selected XR gameplay button is reserved during tracking gaps; release
+rearming covers focus, tracking, setting/reference and menu/Guide/chat/capture
+ownership. Both-stick pause and native menu controls retain priority. D-pad vote
+actions are never synthesized. No Spark schema, new VOIP/packet, input polling
+loop or microphone SDK was added. Source only, UNVERIFIED for Quest 2 PCVR and
+Vive/Index Knuckles; this is not a bridge to stock OpenCE voice or cross-region
+audio acceptance. Native Linux/non-OpenXR paths retain their existing controls.
+
+The existing `audio.voice_obstruction` option defaults to false.
+`source/sound/sound_manager.c::sound_world_obstruction` calls
 the inherited `game_sound.c::compute_sound_obstruction` and native millibel
 conversion. `voice_game.c::local_update`, `voice.c::voice_environment` and
 `dsound_sdl.c::dsound_voice_place` feed that result into the existing I3DL2 mixer;

@@ -288,6 +288,19 @@ untracked gameplay input is neutral; native rumble also feeds the two hands.
 All mappings, focus/ownership transitions and haptics are unverified. No tracked
 weapon pose, physical reload/grenade gesture or hand-model acceptance is implied.
 
+Optional `vr.push_to_talk` / `HALO_VR_PUSH_TO_TALK` assigns `"left_grip"`,
+`"right_grip"`, `"left_stick"` or `"right_stick"` (click) to the existing native
+voice PTT action. It defaults to `"off"` and requires
+`audio.voice_chat = "push_to_talk"`; it does not enable voice chat or choose a
+microphone. The selected XR button is reserved during gameplay, including hand
+tracking gaps, and must be released to rearm after focus/tracking, setting,
+reference or menu/Guide/chat/capture changes. Both-stick pause retains priority;
+native menu controls remain available. The bridge emits the PTT action, never a
+D-pad vote or extra voice packet. Existing channel, volume, mute, device and host
+permissions still apply; `audio.voice_input_device` selects the Windows mic.
+Touch/Index use their existing actions; no extra XR sync or headset microphone
+SDK was added. All button, microphone and headset behavior is unverified.
+
 `vr.aim = "controller"` / `HALO_VR_AIM=controller` optionally routes the right-hand
 aim pose through native first-person, on-foot facing. The default `"gamepad"`
 keeps native stick aiming. Source adapts OpenH1's separate body heading and

@@ -702,3 +702,14 @@ No builds, launches, hardware or save access. Dedicated/P2P cutscenes, old-host
 fallback, package/CE bounds, first-tick mode ownership, menu/Stubbs selection,
 death/restart/restore, progress credit and platform parity require later native
 validation. Original commit test reports remain upstream-only evidence.
+
+UNVERIFIED XR PTT source: reviewed existing Touch/Index actions, cached tracking
+and native input/Guide/chat/capture ownership plus every halo_keyboard_actions
+consumer (gameplay, both chats, votes and voice). The optional binding emits only
+the existing PTT bit, reserves its gameplay button through tracking gaps, and
+requires release after ownership/focus/reference/binding changes. Native pause,
+voice modes/device/host restrictions remain owners; no voice protocol changed.
+No tests, builds, launches, audio/device enumeration or hardware/save access.
+Selected/unknown/off bindings, held-button resume, pause/Guide/chat/capture,
+hand tracking, recenter, microphone permission/device/mode changes, voting and
+Quest 2/Index plus Linux/non-XR parity require later authorized validation.
