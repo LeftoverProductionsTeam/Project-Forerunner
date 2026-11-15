@@ -14,6 +14,20 @@ active native checkpoint epoch, fixing an observed client movement divergence.
 Missing optional scripted damage resources now no-op instead of asserting.
 The probe pauses AI and sets up the injury; it is not Black Echo, human play,
 death-looting acceptance, physical VR or complete multiplayer operations proof.
+
+Current graphics slice: Faber's optional soft shadow budget is connected through
+the native renderer, setting persistence and generated Video/Advanced menus.
+Default zero preserves stock selection/fade arithmetic. Bounded per-window
+history resets on map load; repeated passes in the same native frame share one
+threshold, including stereo eye passes. Windows64/OpenXR compiles and ten focused
+shadow/menu checks pass. Hidden Vulkan gameplay frames were inspected, but the
+native comparison is INCOMPLETE: 288 on-foot drift samples fall short of the
+existing 300-sample minimum. Keep that result open; do not relax the judge.
+GPU savings, dense-crowd appearance, Linux execution and hardware stereo are
+unverified. OpenH1 AO/enhanced graphics parity remains unfinished; the proposed
+shared-renderer ray-query extension is awaiting the owner's explicit decision.
+Latest scope: further work/files remain only in this root repository on master;
+do not access external staging or other repositories without renewed direction.
 The [complete directive](docs/forerunner/MASTER_DIRECTIVE_2026-11-14.md) is retained;
 none of its unaccepted requirements is superseded by this checkpoint.
 

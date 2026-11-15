@@ -393,6 +393,14 @@ static const struct config_setting config_settings[] =
 		"\"msaa4x\" or \"msaa8x\". Android has \"off\", \"fxaa\", \"msaa2x\" and\n"
 		"\"msaa4x\". The default is \"msaa2x\" on 64-bit computers. It is \"off\"\n"
 		"on 32-bit computers and Android." },
+	/* Adapted from SutlabSol/OpenCE-Faber d67d7922, AGPL-3.0-or-later.
+	 * Stock by default; the existing native render path owns every backend. */
+	{ "display.shadow_limit", _config_integer, "0", "HALO_SHADOW_LIMIT", _environment_value, _platform_all,
+		"Soft object-shadow budget: 0 keeps the Xbox's unbounded selection.\n"
+		"Positive values favor the largest shadows on screen and fade the\n"
+		"rest as the crowd moves. A bounded 256-candidate history is used.\n"
+		"Changes next native frame; both VR eyes share its decision.\n"
+		"Rendering only; actual GPU cost and hardware VR remain unverified." },
 	{ "display.shadow_resolution", _config_integer, DEFAULT_SHADOW_RESOLUTION, "HALO_SHADOW_RESOLUTION",
 		_environment_value, _platform_all,
 		"Shadow size in pixels: 128, 256, 512 or 1024. The Xbox used 128." },

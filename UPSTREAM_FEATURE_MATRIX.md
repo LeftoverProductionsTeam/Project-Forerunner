@@ -45,7 +45,7 @@ component validator. Validation of the resulting tree is recorded separately.
 | Forge and live object editing | Faber `port/forge/src/forge_3d_mode.c`, `forge_network.c`, `forge_hooks.c`; build-time symbol replacement | Real upstream code, not integrated. Windows input/hooks and its separate Forge agreement require adapters. Save/export claims need native readback and target-runtime tests. |
 | Firefight | Faber `firefight.c`, `firefight_spawner.c`, `firefight_generators.c`, `firefight_stats.c`, `firefight_network.c`; game-engine callbacks | Actor creation/pursuit and clear-all-wave progression adapted into existing co-op code in `21a809b0`. Three-wave B40 encounter completes with two native clients. Full HUD/lives/settings and remaining systems are open. No native-struct packet imported; future structured state needs negotiated Delta support. |
 | Extraction and AI zombie survival | No corresponding native mode found in the reviewed foundation/Faber trees | Not implemented in Forerunner. Build on shared native objectives/spawning after baseline acceptance; asset-extraction utilities are unrelated. |
-| Vulkan/Metal | Inherited `tools/bgfx_build.py`, `port/linux/src/d3d8_bgfx.inl`; OpenH1 host renderers | Keep existing optional bgfx path before replacing stable rendering. Current x86 baseline uses OpenGL/null rendering; optional modern backends have not passed local acceptance. |
+| Vulkan/Metal | Inherited `tools/bgfx_build.py`, `port/linux/src/d3d8_bgfx.inl`; OpenH1 host renderers | Keep existing optional bgfx path before replacing stable rendering. Windows64/OpenXR compiles and bounded native desktop fallback/interoperability are recorded in TEST_EVIDENCE.md; headset and full backend acceptance remain open. |
 | OpenXR, tracked input, hand interaction | OpenH1 `port/linux/host/host_vr.c`, `port/linux/src/vr.c`, `port/linux/game/vr_*.c` | Adapt as optional capability. Linux builders enable VR; Windows builder explicitly uses `vr=False`. Host/local physical reload and remote-client timed reload differ by design. No headset or mixed-session test performed. |
 | Audio, HUD, input | Inherited SDL3 platform/audio/input and HUD modules | Retain existing implementations and artwork notices. Headless dummy-audio runs prove no audible/spatial audio result. |
 | Recording and replay | Inherited `network_recording.c`, `guide_record.c`; Fractum viewer/service code | Retain source; replay fidelity and production playback acceptance remain open. Do not treat every recording format as deterministic Theater. |
@@ -132,3 +132,24 @@ No proprietary game data belongs in this repository or release packages.
 
 Future integration uses source comparisons and small author-preserving commits.
 No public release, push, or upstream submission is authorized by this ledger.
+
+
+Graphics parity review, 15 November 2026: retain compatible options from every
+reviewed fork using the existing setting/menu/render paths. Names alone do not
+establish parity: Chupathingy's FOV defaults/units differ, while OpenCE/Fractum
+display declarations already overlap the foundation. OpenH1 `baed7757` contains
+actual Vulkan ray-query AO (`xgpu_vulkan_rt.c`), world SDF/object-proxy occlusion,
+enhanced dynamic lights, per-pixel lighting, HDR controls and projection/view
+options. Its ray-traced mode covers ambient occlusion; full path-traced global
+illumination is not established. These paths are NOT imported merely by recording
+them. Native GPU/device/shader ownership in the existing renderer needs an
+approved extension; no second OpenH1 renderer is authorized by this review.
+
+Faber shadow-budget reuse adapts SutlabSol/OpenCE-Faber commit
+`d67d7922a96e9a24e16cbbe4015c3fe8abc1473f`,
+`source/render/render_objects.c`, under AGPL-3.0-or-later. The original
+screen-size ranking/fade behavior is retained in Forerunner's native shadow
+path, with stock-off default, bounded history, map reset and one shared
+per-window threshold per frame for stereo passes. Existing generated graphics
+menus expose it. Focused/native evidence is in TEST_EVIDENCE.md; this is not
+measured large-horde performance or physical VR acceptance.

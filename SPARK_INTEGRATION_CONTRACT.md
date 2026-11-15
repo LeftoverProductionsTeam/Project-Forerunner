@@ -634,6 +634,15 @@ bank reopen, hardware/platform and full Survival gameplay acceptance remain open
 
 ## Persistent operations: next native handoff
 
+Graphics requirement clarification: retain Spark's native GPU-baked BSP/material
+content and its target limits. Forerunner's reused Faber `display.shadow_limit`
+changes only native runtime shadow selection; it requires no new authoring field
+or cache conversion. OpenH1's reviewed ray-query/world-space AO and enhanced
+lighting remain pending runtime integration, not advertised Spark capabilities.
+Its ambient-only AO must preserve baked self-occlusion rather than darken native
+lightmaps twice. No new editor, lighting asset format or dependency on an upstream
+checkout was introduced. See `UPSTREAM_FEATURE_MATRIX.md` and `TEST_EVIDENCE.md`.
+
 The owner's [complete operations directive](docs/forerunner/PERSISTENT_SPARTAN_OPERATIONS_2026-11-14.md)
 adds **Operation Black Echo** as the first operations acceptance map: deployment,
 rescue, native enemy encounter, technology pickup, escalation, physical extraction,

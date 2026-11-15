@@ -158,6 +158,109 @@ enum
 #define OBJECT_SHADOW_MINIMUM_PIXELS 30.f
 #define OBJECT_SHADOW_MINIMUM_DARKNESS 0.19f
 
+/* port: adapted from SutlabSol/OpenCE-Faber render_objects.c,
+ * d67d7922a96e9a24e16cbbe4015c3fe8abc1473f, AGPL-3.0-or-later.
+ * Keep one decision per native frame/window: stereo eye passes share it. */
+/* port: display.shadow_limit, the most objects' shadows a window draws a
+frame (0: as the Xbox, as many as are big enough). The game fades an
+object's shadow in as the object grows from 30 pixels across to 45
+(render_object); past the limit the size it starts at is raised to the
+size of the last shadow within it, ranked by size the frame before, and
+moved there a part at a time, so that shadows fade in and out as the crowd
+moves rather than appear and go. */
+#define PORT_SHADOW_CANDIDATE_LIMIT 256
+#define PORT_SHADOW_WINDOWS 4
+/* the part of the way to the new size the threshold moves each frame */
+#define PORT_SHADOW_THRESHOLD_EASE 0.15f
+/* the fade's width past the threshold, a part of it (the game's own: 15
+of 30) */
+#define PORT_SHADOW_FADE_PART 0.5f
+
+/* (the port's, port/linux/src/port_config.c) */
+long config_integer(const char *name);
+
+static struct
+{
+	real sizes[PORT_SHADOW_CANDIDATE_LIMIT];
+	short count;
+	real threshold;
+	long frame;
+	boolean collect;
+} port_shadow_windows[PORT_SHADOW_WINDOWS];
+
+/* render_object_shadows' start: this frame's threshold from the last
+frame's shadows, and their list emptied for this one's */
+static void port_shadow_limit_begin(
+	void)
+{
+	short window = (short)PIN(render.window_index, 0, PORT_SHADOW_WINDOWS - 1);
+	long limit = config_integer("display.shadow_limit");
+	real target = OBJECT_SHADOW_MINIMUM_PIXELS;
+
+	/* Repeated passes, including the other VR eye, use the first pass's
+	 * threshold and do not count the same crowd twice. */
+	if (port_shadow_windows[window].frame == render.frame_index)
+	{
+		port_shadow_windows[window].collect = FALSE;
+		return;
+	}
+	port_shadow_windows[window].frame = render.frame_index;
+	port_shadow_windows[window].collect = limit > 0;
+	if (limit <= 0)
+	{
+		port_shadow_windows[window].threshold = OBJECT_SHADOW_MINIMUM_PIXELS;
+		port_shadow_windows[window].count = 0;
+		return;
+	}
+
+	if (limit > 0 && port_shadow_windows[window].count > limit)
+	{
+		short index, rank;
+		real *sizes = port_shadow_windows[window].sizes;
+		short count = port_shadow_windows[window].count;
+
+		/* (the limit-th largest, by a partial selection) */
+		for (rank = 0; rank < limit; rank++)
+		{
+			short largest = rank;
+
+			for (index = (short)(rank + 1); index < count; index++)
+			{
+				if (sizes[index] > sizes[largest])
+					largest = index;
+			}
+			{
+				real swap = sizes[rank];
+
+				sizes[rank] = sizes[largest];
+				sizes[largest] = swap;
+			}
+		}
+		target = MAX(sizes[limit - 1], OBJECT_SHADOW_MINIMUM_PIXELS);
+	}
+	if (port_shadow_windows[window].threshold < OBJECT_SHADOW_MINIMUM_PIXELS)
+		port_shadow_windows[window].threshold = OBJECT_SHADOW_MINIMUM_PIXELS;
+	port_shadow_windows[window].threshold +=
+		(target - port_shadow_windows[window].threshold) * PORT_SHADOW_THRESHOLD_EASE;
+	port_shadow_windows[window].count = 0;
+}
+
+/* the size an object's shadow starts at in this window this frame, and the
+object counted for the next one's */
+static real port_shadow_minimum_pixels(
+	real level_of_detail_pixels)
+{
+	short window = (short)PIN(render.window_index, 0, PORT_SHADOW_WINDOWS - 1);
+
+	/* (a cutscene's movie star is always big enough, and not ranked:
+	object_get_level_of_detail_pixels) */
+	if (level_of_detail_pixels >= REAL_MAX * 0.5f)
+		return OBJECT_SHADOW_MINIMUM_PIXELS;
+	if (port_shadow_windows[window].collect && port_shadow_windows[window].count < PORT_SHADOW_CANDIDATE_LIMIT)
+		port_shadow_windows[window].sizes[port_shadow_windows[window].count++] = level_of_detail_pixels;
+	return MAX(port_shadow_windows[window].threshold, OBJECT_SHADOW_MINIMUM_PIXELS);
+}
+
 #define OBJECT_LIGHTING_MAXIMUM_COLOR_DELTA 0.03f
 #define OBJECT_LIGHTING_MAXIMUM_SHADOW_VECTOR_DELTA 0.012f
 
@@ -317,6 +420,11 @@ void render_objects_initialize(
 void render_objects_initialize_for_new_map(
 	void)
 {
+	short window;
+	/* port: no previous map's crowd/threshold or frame identity survives. */
+	csmemset(port_shadow_windows, 0, sizeof(port_shadow_windows));
+	for (window = 0; window < PORT_SHADOW_WINDOWS; window++)
+		port_shadow_windows[window].frame = NONE;
 	data_make_valid(cached_object_render_states);
 
 	return;
@@ -428,6 +536,7 @@ void render_object_shadows(
 	{
 		struct object_render_data data;
 
+		port_shadow_limit_begin(); /* port: Faber shadow budget for this frame. */
 		rasterizer_environment_shadows_begin();
 
 		data.shadow = TRUE;
@@ -1257,6 +1366,7 @@ static void render_object(
 		{
 			real level_of_detail_pixels;
 			real shadow_darkness;
+			real minimum_pixels;
 
 			data->lighting = object_get_cached_render_lighting(
 				data->object_index,
@@ -1265,11 +1375,16 @@ static void render_object(
 			level_of_detail_pixels = object_get_level_of_detail_pixels(data->object_index);
 			shadow_darkness = 1.f - real_rgb_color_brightness(&data->lighting->shadow_color);
 
-			if (level_of_detail_pixels > OBJECT_SHADOW_MINIMUM_PIXELS &&
+			/* port: Faber's smoothly fading, render-only shadow budget. */
+			minimum_pixels = shadow_darkness > OBJECT_SHADOW_MINIMUM_DARKNESS ?
+				port_shadow_minimum_pixels(level_of_detail_pixels) : OBJECT_SHADOW_MINIMUM_PIXELS;
+			if (level_of_detail_pixels > minimum_pixels &&
 				shadow_darkness > OBJECT_SHADOW_MINIMUM_DARKNESS)
 			{
 				real size_fraction =
-					(level_of_detail_pixels - OBJECT_SHADOW_MINIMUM_PIXELS) * 0.06666667f;
+					minimum_pixels == OBJECT_SHADOW_MINIMUM_PIXELS ?
+					(level_of_detail_pixels - OBJECT_SHADOW_MINIMUM_PIXELS) * 0.06666667f :
+					(level_of_detail_pixels - minimum_pixels) / (minimum_pixels * PORT_SHADOW_FADE_PART);
 				real darkness_fraction =
 					(shadow_darkness - OBJECT_SHADOW_MINIMUM_DARKNESS) * 9.0909081f;
 

@@ -34,6 +34,39 @@ All local evidence below is in the external owned directory
 
 ## Candidate compilation and native smoke checks
 
+Faber shadow-budget graphics reuse, base `d13303555`:
+
+- `verification-87521711b-001/graphics-shadow-menu-final-configured.log`:
+  **10 passed**. Existing harness compiles the real native shadow helpers/map
+  lifecycle: stock behavior, ranked fading, shared same-frame stereo decisions,
+  independent windows, bounded history, cinematic sentinel and map reset. Removing
+  the frame-sharing guard fails the negative control. Generated menu content,
+  spinner values and runtime setting are connected; existing text-fit checks pass.
+  Initial fixture macro/compiler-environment failures are retained in the earlier
+  `graphics-shadow-menu*.log` files. They were corrected in the fixture/environment.
+- Disposable Windows64/OpenXR/bgfx compilation passed, snapshot
+  `a7335cc6769343d5230afb89b8d130685ce9058adf821a28ea593aeb6885092a`;
+  executable SHA-256
+  `f4508e336f1ebcea93fa3c1a8660040056a0a519c3ea56ae1cda419c3c532046`.
+  Log: `frn-verify-002/compile-openxr-graphics-shadow.log`.
+- `native-graphics-shadow/`: hidden rendered B40 co-op with native shadow budget
+  **8 versus 0**, VR/microphones off, isolated copied data. Both peers started
+  bgfx Vulkan on the NVIDIA GeForce RTX 4070 Ti. Captured `frames/frame05200.bmp`
+  was visually inspected: native first-person weapon/HUD, structure, effects and
+  world rendering are present. No user desktop input or headset was used.
+- Native synchronization result is **ERROR / insufficient evidence**, not PASS:
+  **47 seconds compared**, offsets 0/1, position mean/max **0.044/0.204** world
+  units, aim maximum **1 degree**, three grenade-boundary mismatches, prediction
+  drift **77/288 ticks**, mean/max **0.000134/0.006119**, **187** corrections.
+  Only **288** eligible on-foot samples were available, below the existing **300**
+  minimum. No tolerance or coverage requirement was relaxed. Longer isolated
+  coverage remains open; this run establishes rendered startup and bounded state
+  observations, not accepted multiplayer graphics parity or measured GPU savings.
+- All owned jobs above completed before the owner's renewed directory restriction.
+  Further file operations remain inside `D:\Project Forerunner`; external staging
+  and upstream checkouts are left untouched. Hardware VR, Linux execution, large
+  crowds and OpenH1 AO/lighting integration remain acceptance requirements.
+
 Native living incapacitation and held-Action biofoam, base `8d2cbb07f`:
 
 - `verification-87521711b-001/medical-held-action-workflows.log`: **45 passed**
