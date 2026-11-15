@@ -553,6 +553,9 @@ struct map_share_globals
 
 static struct map_share_globals map_share_globals;
 
+/* Status and the overlay share the upstream 64-bit rate calculation. */
+static unsigned long download_rate(struct download const *download);
+
 /* ---------- little-endian bytes */
 
 static void put_long(
@@ -1600,8 +1603,7 @@ boolean map_share_download_status(
 	}
 	snprintf(status, (size_t)status_size, "%lu of %lu MB from %d player%s, %lu KB/s",
 		(download->done_bytes + 0x80000) >> 20, (download->total_bytes + 0x80000) >> 20, (int)sources,
-		sources == 1 ? "" : "s", (download->last_window_time ?
-			download->last_window_bytes * 1000 / download->last_window_time : 0) >> 10);
+		sources == 1 ? "" : "s", download_rate(download) >> 10);
 	return TRUE;
 }
 

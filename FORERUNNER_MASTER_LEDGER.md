@@ -725,3 +725,17 @@ still share capacity; placement/allocation/capacity failure aborts. Authored
 HaloScript ownership, native pools/AI/replication and finite outcomes are kept.
 This is runtime source, not complete Zombie outbreaks or huge-horde proof.
 Source/callers/diff review only; no tests, builds, launches, saves or pushes.
+
+Mota's latest lead refreshed OpenCE-Forge to 91099ce3 (2.10.11), 13 commits after
+the old pin; source Forge protocol is now 0x4630 (README stale). UNVERIFIED reuse:
+cherry-picked original OpenCE ebfa05b7 + slow-peer follow-up 796df195 with -x and
+bnunu's authorship. Existing map sharing now uses eight host/two peer requests,
+32 overall, 64-bit rate/allowance arithmetic and serving-frame catalog streams;
+upload choices extend to 250 MB/s, default unchanged. The Forerunner private-join
+status now uses the same rate helper, avoiding its remaining overflow. Existing
+payload/hash/sandbox paths are retained; no new protocol or Forge tag admission.
+Review/callers only; no tests, builds, launches, fetch, save access or pushes.
+This is runtime performance/necessary arithmetic work. Source-only upstream
+validation claims do not establish local throughput. Forge-specific tag fixes
+and OpenCE campaign/cutscene source adoption remain independent next work;
+file sharing is still unchanged and cannot yet supply an inventory bank lock.

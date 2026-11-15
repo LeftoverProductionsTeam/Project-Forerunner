@@ -28,7 +28,7 @@ component validator. Validation of the resulting tree is recorded separately.
 | [FractumSeraph/OpenCE](https://github.com/FractumSeraph/OpenCE) | `eae91445333bc8ebfb1604e08fcedffbd5c3a558` | `1519c65facbb068e44b956da2769198a83a17847` | Selected after repairs, Windows x86 compilation, swapped-host native movement/combat and hidden OpenGL gameplay. Other acceptance gates remain open. |
 | [OpenCE-Faber](https://github.com/SutlabSol/OpenCE-Faber) | `e4ffe0fe9874870b4fca1fca76beb83514c793f4` | `da8d455623cf50002e6a798b1980068fd3ca0292` | Adapt Firefight and object editing incrementally. Whole-branch adoption would replace newer core fixes. |
 | [Watanoge/halo-content-evolved](https://github.com/Watanoge/halo-content-evolved) | `aff7a5d1b8ef592eea1106b64713e2a5d0a74569` | Not computed; source inspected through read-only GitHub access | Mota-recommended Forge/Firefight compatibility reference. Inspect its existing extensions before implementing equivalents; no branch merge, network compatibility or gameplay acceptance is claimed. |
-| [Mota's OpenCE-Forge, main](https://github.com/SutlabSol/OpenCE-Forge) | `2467e708b67bdab994b4f3725516a72e31f629b3` | Not computed; read-only GitHub source inspection | Reuse its existing text sidecar and runtime tag/object loading where compatible. Source separates stock sessions from Forge protocol `0x462C`; no compatibility or tag-stream acceptance is claimed here. |
+| [Mota's OpenCE-Forge, main](https://github.com/SutlabSol/OpenCE-Forge) | `91099ce375632167e425edd7fd40dadf83ab93d2` | Source refresh, 13 commits after the prior `2467e708` pin | Version 2.10.11 source uses Forge protocol `0x4630`, separate from stock sessions. Reused compatible OpenCE transfer commits `ebfa05b7` and `796df195` with original authorship; Forge streaming/placement and live compatibility remain unimplemented/unverified here. |
 | [OpenH1/GOAT H1, dev](https://github.com/OpenH1/goath1) | `baed77571d53abe32b27434b4ba869f11db00fe9` | `6ec42856d73e258e5a8c7e9cd19161f46d89d0e4` | Separate optional VR/renderer adaptation; do not merge its protocol and simulation changes wholesale. |
 | [GulchCE](https://github.com/chestahh/GulchCE) | `66b4df0bc9afeb09189a7f9c0fff0c5b1f5d51b2` | `1519c65facbb068e44b956da2769198a83a17847` | Compare individual MCC fixes against already inherited MCC modules; preserve map-family boundaries. |
 | [DamnationCE](https://github.com/xshxdex98/DamnationCE) | `d31736d3748f1156995e6bba13126f87aeff40ee` | `0b2c6759bb4cb3ee5dcc3d650de2dcda74d79620` | Older CE/co-op reference; avoid copying AI/network systems already present in newer ancestry. |
@@ -68,6 +68,20 @@ roots/order and locally available packs across peers. Our existing `mods.c`
 is visual-only replacement, not gameplay-tag admission. No upstream code was
 imported or executed in this audit. Follow the existing Spark contract before
 adding a placement-file reader; preserve original maps and locally owned data.
+
+Mota's later update refreshed the pin to `91099ce3` (2.10.11). Its Forge-specific
+changes cover client-to-host compressed bundle retention/re-serving, held-object
+slot mapping, missing-tag cache handling, reliable backlog pacing and MCC preview
+decode bounds/swizzle output. Those modules are absent here; do not import a
+second editor/preview layer or call them accepted Forerunner capabilities.
+The compatible OpenCE map-transfer commits already present in local object
+history were cherry-picked with `-x`: `ebfa05b7` and its required slow-peer
+follow-up `796df195`. No fetch/remotes/branch changes were needed. Requests stay
+within existing wire limits (eight host, two peer, 32 in flight); transfer
+arithmetic uses 64-bit intermediates and catalog streams close each serving
+frame. Forerunner's additional status caller now shares the same rate helper.
+The upstream author reports its own tests in commit messages; **no Forerunner
+tests, builds or launches ran**, and all local behavior/performance is UNVERIFIED.
 
 Voice audit (owner-requested, source only): native desktop Chupathingy voice is
 already connected through `voice_game.c`, Delta Peer, `voice.c`/Opus and

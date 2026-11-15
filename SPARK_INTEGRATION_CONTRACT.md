@@ -503,7 +503,8 @@ unfinished `World.tsx`, `GpuLightmapDraft.tsx` and `gpuLightmap.ts` work present
 and left untouched. Its MIT license remains its own; no Rust/editor source was
 copied into Forerunner or linked across repositories. The responsibility review
 uses the already pinned OpenCE/Chupathingy foundation, Faber `e4ffe0fe`,
-OpenH1 `baed7757`, and Mota's `2467e708` sidecar source in the upstream matrix.
+OpenH1 `baed7757`, and Mota's initially inspected `2467e708` sidecar source
+(refreshed to `91099ce3` below) in the upstream matrix.
 
 | Responsibility | Existing implementation and handoff |
 | --- | --- |
@@ -640,7 +641,8 @@ conversion is introduced by this checkpoint.
 
 Community compatibility lead (14 November): Mota supplied
 [`SutlabSol/OpenCE-Forge`, main](https://github.com/SutlabSol/OpenCE-Forge),
-inspected at `2467e708b67bdab994b4f3725516a72e31f629b3`. Its existing
+initially inspected at `2467e708b67bdab994b4f3725516a72e31f629b3` and refreshed
+after his update to `91099ce375632167e425edd7fd40dadf83ab93d2` (2.10.11). Its existing
 `port/linux/game/forge_runtime_tags.c` contains the exact format entry points:
 `forge_write_sidecar_state_file`, `parse_forge_state_text_buffer` and
 `forge_load_saved_map_state_if_present`. Saves use `custom_maps/<name>.txt`,
@@ -649,13 +651,26 @@ records. Reuse this upstream format rather than defining a competing writer.
 The required runtime object/tag admission and full record semantics are not yet
 implemented here; Spark must not advertise Forerunner as its sidecar consumer.
 The fork's source selects stock protocol for ordinary games and Forge-specific
-`0x462C` / game kind `0x46` for Forge; its messages and tag-streaming paths are
+`0x4630` / game kind `0x46` for Forge at the refreshed pin (the README's older
+`0x462A` description is stale); its messages and tag-streaming paths are
 not automatically compatible with Forerunner. Watanoge's separate Forge/Firefight
 snapshot remains pinned in [the upstream matrix](UPSTREAM_FEATURE_MATRIX.md).
 A placement file does not supply missing client gameplay tags: every peer must
 resolve compatible content and dependencies before spawning, including late
 joiners. Existing visual-only loose-tag mods do not meet that requirement.
 Keep proprietary base MCC data local; no asset-sharing capability is implied.
+
+The refreshed branch includes compatible OpenCE transfer fixes now cherry-picked
+here with original authorship (`ebfa05b7`, `796df195`). Existing map sharing asks
+eight pieces of the host, two of peers, at most 32 overall; upload allowance and
+rate calculation use 64-bit intermediates. Serving catalog files stay open only
+through the serving frame, and the existing upload selector accepts up to
+256000 KB/s without changing its default. Forerunner's private-join status also
+uses the shared rate helper. No map bytes, packet layouts, hash validation,
+Spark authoring schema or discovery capability changed. All local behavior and
+throughput remain UNVERIFIED: upstream commit test claims are not our evidence.
+No tests, builds, launches or pushes ran. Forge tag streaming and the new upstream
+campaign/co-op changes remain separate source-adoption work, not implied support.
 
 Legacy target conversion remains Spark's responsibility. The
 [compatibility matrix](COMPATIBILITY_MATRIX.md) records the evidence limits for

@@ -678,3 +678,14 @@ fixed size, and authored scripts still disable this director. No tests, builds,
 launches or hardware/save access. Default/invalid/custom/endless sizes, saturation,
 reverts, carrier capacity, placement pressure and peer replication remain native
 validation gates; this is not measured large-horde or Zombie-mode acceptance.
+
+UNVERIFIED upstream map-transfer reuse: compared OpenCE-Forge 2467e708..91099ce3
+and cherry-picked ebfa05b7/796df195 with authorship/provenance. Inspected request
+array bounds, host/peer selection, allowance/rate widths, owned serving streams
+versus borrowed download streams, frame cleanup and upload setting consumers.
+Forerunner-specific private-join status now shares download_rate with log/overlay.
+No tests, builds, generators, launches, assets/saves or publication were run.
+The generator and its committed menu output came together unchanged. Transfer
+rates, concurrent peers, partial seeding, disconnect/restore cleanup, payload
+hashes and Linux/Windows/web/guest parity require later authorized validation.
+Upstream's commit messages describe upstream evidence, not Forerunner acceptance.
