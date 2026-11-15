@@ -356,6 +356,37 @@ boolean gear_cycle_loadout(struct gear_session *session)
 	return gear_commit(session, &next);
 }
 
+struct gear_item const *gear_loadout_choice(struct gear_session *session)
+{
+	short indices[GEAR_LOADOUT_WEAPONS];
+	if (!gear_flush(session) || session->record.phase != _gear_idle || !gear_selected(session, indices)) return NULL;
+	return &session->record.items[indices[0]];
+}
+
+boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation)
+{
+	struct gear_record next;
+	short index;
+	char const *map = cache_file_loaded_map_name();
+	unsigned long checksum = cache_files_get_checksum();
+
+	if (!gear_flush(session) || session->record.phase != _gear_idle || !gear_nonzero(id) || !map ||
+		generation == 0xffffffffUL) return FALSE;
+	if (session->record.generation != generation)
+		return session->record.generation == generation + 1 && !gear_has(session->record.items, session->record.count, id);
+	for (index = 0; index < session->record.count; index++)
+	{
+		struct gear_item const *item = &session->record.items[index];
+		if (memcmp(item->id, id, GEAR_ID_BYTES)) continue;
+		if (item->map_checksum != checksum || strcmp(item->map_name, map)) return FALSE;
+		next = session->record;
+		memmove(next.items + index, next.items + index + 1, (next.count - index - 1) * sizeof(next.items[0]));
+		next.count--;
+		return gear_commit(session, &next);
+	}
+	return FALSE;
+}
+
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory)
 {
 	short index, count, indices[GEAR_LOADOUT_WEAPONS];
@@ -546,6 +577,8 @@ boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
 void gear_close(struct gear_session *session) { memset(session, 0, sizeof(*session)); session->descriptor = -1; }
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory) { return FALSE; }
 boolean gear_cycle_loadout(struct gear_session *session) { return FALSE; }
+struct gear_item const *gear_loadout_choice(struct gear_session *session) { return NULL; }
+boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation) { return FALSE; }
 boolean gear_reserve(struct gear_session *session) { return FALSE; }
 boolean gear_cancel_reservation(struct gear_session *session) { return FALSE; }
 boolean gear_lose(struct gear_session *session) { return FALSE; }

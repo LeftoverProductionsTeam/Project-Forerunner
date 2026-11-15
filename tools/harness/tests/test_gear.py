@@ -31,7 +31,8 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', ['authority', 'escape-reopen', 'loss', 'uncertain', 'corrupt', 'cache',
-                                'choice-reopen', 'choice-failure', 'choice-cancel', 'choice-recovery', 'choice-cache'])
+                                'choice-reopen', 'choice-failure', 'choice-cancel', 'choice-recovery', 'choice-cache',
+                                'discard', 'discard-uncertain', 'discard-state'])
 def test_transactions(case):
     status, output = run(build('gear', generated()), case)
     assert status == 0, output
@@ -46,4 +47,10 @@ def test_loss_negative_control():
 def test_choice_retry_negative_control():
     status, output = run(build('gear', generated((
         'if (pending || !map) return TRUE;', 'if ((pending && FALSE) || !map) return TRUE;'))), 'choice-failure')
+    assert status == CHECK_FAILED, output
+
+
+def test_discard_generation_negative_control():
+    status, output = run(build('gear', generated((
+        'if (session->record.generation != generation)', 'if (FALSE)'))), 'discard-state')
     assert status == CHECK_FAILED, output

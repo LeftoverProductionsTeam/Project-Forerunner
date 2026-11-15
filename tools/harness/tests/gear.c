@@ -167,6 +167,37 @@ int main(int argc, char **argv)
   CHECK(gear_cycle_loadout(&session) && session.record.generation==generation,"unrelated cache moved the saved choice");
   checksum-=2;client=TRUE;
   CHECK(!gear_cycle_loadout(&session) && session.record.generation==generation,"client changed durable gear choice");client=FALSE;
+ } else if (!strcmp(case_name, "discard")) {
+  struct gear_record full;
+  byte id[GEAR_ID_BYTES];unsigned long generation;short i;
+  earn(3);full=session.record;
+  for(i=0;i<GEAR_CAPACITY;i++){full.items[i]=session.record.items[0];full.items[i].id[0]=(byte)(i+1);}
+  full.count=GEAR_CAPACITY;CHECK(gear_commit(&session,&full),"full stash setup failed");
+  CHECK(gear_loadout_choice(&session)!=NULL,"stored choice missing");
+  memcpy(id,gear_loadout_choice(&session)->id,sizeof(id));generation=session.record.generation;
+  client=TRUE;CHECK(!gear_discard(&session,id,generation),"client discarded owned gear");client=FALSE;
+  CHECK(!gear_discard(&session,id,generation-1) && session.record.count==GEAR_CAPACITY,"stale preview discarded gear");
+  checksum++;CHECK(!gear_discard(&session,id,generation),"wrong cache discarded owned gear");checksum--;
+  CHECK(gear_discard(&session,id,generation) && session.record.count==GEAR_CAPACITY-1,"confirmed discard did not free exactly one slot");
+  CHECK(gear_discard(&session,id,generation) && session.record.count==GEAR_CAPACITY-1 && session.record.generation==generation+1,
+   "discard retry removed another stored weapon");
+  gear_close(&session);CHECK(gear_open(&session,owner) && session.record.count==GEAR_CAPACITY-1 &&
+   session.record.grenades[0]==2 && session.record.grenades[1]==1,"discard changed grenades or failed to persist");
+ } else if (!strcmp(case_name, "discard-uncertain")) {
+  byte id[GEAR_ID_BYTES];unsigned long generation;
+  earn(3);memcpy(id,gear_loadout_choice(&session)->id,sizeof(id));generation=session.record.generation;
+  fail_write=TRUE;CHECK(!gear_discard(&session,id,generation) && session.record.count==3,"failed write lost gear");
+  fail_write=FALSE;publish_failure=TRUE;
+  CHECK(!gear_discard(&session,id,generation) && session.pending && session.record.count==2,"published deletion was forgotten");
+  publish_failure=FALSE;CHECK(gear_discard(&session,id,generation) && !session.pending && session.record.count==2 &&
+   session.record.generation==generation+1,"uncertain deletion retried as another discard");
+ } else if (!strcmp(case_name, "discard-state")) {
+  byte id[GEAR_ID_BYTES];unsigned long generation;
+  earn(3);memcpy(id,gear_loadout_choice(&session)->id,sizeof(id));generation=session.record.generation;
+  CHECK(gear_cycle_loadout(&session) && !gear_discard(&session,id,generation) && session.record.count==3,
+   "choice change reused old confirmation");
+  CHECK(gear_reserve(&session) && !gear_loadout_choice(&session) && !gear_discard(&session,id,session.record.generation),
+   "active run admitted stash deletion");
  } else if (!strcmp(case_name, "loss")) {
   earn(3);
   CHECK(gear_reserve(&session) && session.record.count == 1 && session.record.reserved_count == 2, "wrong risk reservation");

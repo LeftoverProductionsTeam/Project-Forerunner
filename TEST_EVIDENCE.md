@@ -54,6 +54,23 @@ installation is gone. Earlier native acceptance limits remain unchanged.
 
 ## Candidate compilation and native smoke checks
 
+Confirmed stash discard, base `e08f85816`:
+
+- Existing actual-source gear fixture: **14 cases pass**, including a full
+  32-item stash, exact-item removal, client/cache/generation refusal, reopen,
+  active-reservation protection and failed/unconfirmed write retries.
+- Existing connected Extraction fixture: **25 workflows pass**, including
+  preview/confirmation delay, Cancel, published-save retry while standing,
+  expiry, hub exit, new native body, vehicle entry, changed/revoked owner and
+  incapacitation. Prior Extraction, finite Survival and medical cases still pass.
+- Installed MSVC 14.52.37025 x86, SDK 10.0.26100.0, `/O2 /W3 /WX`. These are
+  direct compiled fixture runs, not a pytest run, full engine build or native
+  gameplay. The generation negative control was detected during development.
+  OS locking/replacement is unchanged and not re-proven by the fake filesystem.
+- Generated includes, objects and executables used repository-local disposable
+  `.pytest_cache/gear-check-*` scratch, removed after each run. No game assets,
+  personal inventories, other repositories or headset devices were accessed.
+
 Durable native loadout choice, base `2ecf1877d`:
 
 - Installed MSVC **14.52.37025**, Windows SDK **10.0.26100.0**, x86 C11 `/O2 /W3

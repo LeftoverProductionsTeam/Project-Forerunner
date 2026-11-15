@@ -3,6 +3,16 @@
 Updated: 15 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
+Current stash management: the existing optional loadout terminal can now preview
+and explicitly discard one owned stored weapon to make capacity. Crouch-use
+shows the exact weapon/ammo; a second use after one second, within ten seconds,
+confirms that item's identity and record generation. Stand-use cancels a preview;
+an already published confirmed deletion is finished rather than falsely reported
+as cancelled. Body/owner/hub/life changes cancel stale previews. Grenades, other
+owners, other cache gear and deployed reservations are protected. Fourteen gear
+cases and 25 connected source workflows compile/pass with installed MSVC; actual
+native terminal gameplay remains unverified. No new save format, marker or writer.
+
 Current inventory slice: hub loadout choices now persist through the existing
 locked version-1 gear record. Compatible item order stores the choice; no new
 save fields, writer or packet is needed. Each native cache's order rotates

@@ -34,7 +34,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     return tuple(files)
 
 
-@pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'transfer', 'grant-failure', 'authority',
+@pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
+                                 'transfer', 'grant-failure', 'authority',
                                  'restore', 'pending', 'binding', 'disconnect',
                                  'survival-win', 'survival-loss', 'survival-retry',
                                  'survival-restore', 'survival-respawn',

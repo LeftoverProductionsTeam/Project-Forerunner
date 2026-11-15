@@ -30,7 +30,7 @@ struct object_fields { long parent_object_index; short name_index; long damage_f
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
  struct { long player_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index;
-  signed char grenade_counts[2]; short grenade_throw_state; } unit; };
+  signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags; } unit; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { struct { short rounds_loaded, rounds_total; } magazines[2]; float age; } weapon; };
 struct control_datum { long definition_index; struct object_fields object; };
@@ -339,6 +339,53 @@ int main(int argc,char **argv)
   touch(0,0); touch(0,1); CHECK(!file_count,"unidentified player opened storage");
   verified=TRUE; touch(0,1); CHECK(run(1)->phase==_extraction_deployed,"verified owner refused");
   remote_account[0]++; advance(1); CHECK(run(1)->phase==_extraction_lost,"changed identity retained run");
+ } else if(!strcmp(case_name,"stash-discard")) {
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);
+  touch(0,1);pickup(1,1);escape(1);
+  units[0].unit.control_flags=FLAG(_unit_control_crouch_modifier_bit);touch(2,0);
+  CHECK(run(0)->discard_deadline && run(0)->gear.record.count==2,"first use discarded gear without a preview");
+  touch(2,0);CHECK(run(0)->gear.record.count==2,"same-tick action confirmed discard");
+  advance(30);units[0].unit.control_flags=0;touch(2,0);
+  CHECK(!run(0)->discard_deadline && run(0)->gear.record.count==2,"standing did not cancel discard");
+  units[0].unit.control_flags=1;touch(2,0);advance(30);touch(2,0);
+  CHECK(run(0)->gear.record.count==1 && run(1)->gear.record.count==1,"discard changed another owner's stash");
+  extraction_reset();advance(1);units[0].unit.control_flags=0;touch(0,0);
+  CHECK(run(0)->gear.record.reserved_count==1 && weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==2,
+   "discarded gear returned or surviving gear could not redeploy");
+ } else if(!strcmp(case_name,"discard-pending")) {
+  unsigned long generation;
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);units[0].unit.control_flags=1;touch(2,0);advance(30);
+  fail_write=TRUE;touch(2,0);CHECK(run(0)->blocked && run(0)->gear.record.count==2,"failed discard lost gear");
+  fail_write=FALSE;publish_failure=TRUE;touch(2,0);
+  CHECK(run(0)->gear.pending && run(0)->gear.record.count==1,"published discard was forgotten");generation=run(0)->gear.record.generation;
+  units[0].unit.control_flags=0;touch(2,0);
+  CHECK(run(0)->discard_deadline && run(0)->gear.pending,"standing reported a published deletion as cancelled");
+  publish_failure=FALSE;touch(2,0);
+  CHECK(!run(0)->gear.pending && !run(0)->blocked && !run(0)->discard_deadline && run(0)->gear.record.count==1 &&
+   run(0)->gear.record.generation==generation,"discard retry removed another item");
+  units[0].unit.control_flags=1;touch(2,0);touch(2,0);
+  CHECK(run(0)->gear.record.count==1,"duplicate interactions discarded another item without confirmation delay");
+ } else if(!strcmp(case_name,"discard-identity")) {
+  touch(0,1);pickup(1,1);pickup(1,2);escape(1);units[1].unit.control_flags=1;touch(2,1);
+  CHECK(run(1)->discard_deadline,"remote preview missing");remote_account[0]++;advance(1);
+  CHECK(!run(1)->discard_deadline,"changed account retained discard intent");touch(2,1);
+  CHECK(!run(1)->discard_deadline && !run(1)->gear.record.count,"new account inherited old stash or confirmation");
+  remote_account[0]--;touch(2,1);CHECK(run(1)->gear.record.count==2,"identity change removed original owner's gear");
+  verified=FALSE;advance(1);touch(2,1);
+  CHECK(!run(1)->discard_deadline && run(1)->gear.record.count==2,"unverified player discarded gear");verified=TRUE;
+  touch(2,1);medical_setting=TRUE;extraction_medical_reset();units[1].object.body_vitality=-.1f;
+  CHECK(extraction_medical_lethal(unit_handles[1]),"downed fixture failed");advance(1);touch(2,1);
+  CHECK(!run(1)->discard_deadline && run(1)->gear.record.count==2,"incapacitated player discarded stored gear");
+ } else if(!strcmp(case_name,"discard-state")) {
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);units[0].unit.control_flags=1;touch(2,0);
+  units[0].object.position.x=20.f;advance(1);CHECK(!run(0)->discard_deadline,"leaving hub retained confirmation");
+  units[0].object.position.x=0.f;touch(2,0);advance(301);CHECK(!run(0)->discard_deadline,"confirmation did not expire");
+  touch(2,0);unit_handles[0]+=0x10000;players[0].unit_index=unit_handles[0];advance(1);
+  CHECK(!run(0)->discard_deadline,"new native body inherited discard intent");
+  touch(2,0);CHECK(run(0)->gear.record.count==2,"body change deleted gear on preview");
+  units[0].object.parent_object_index=123;advance(1);touch(2,0);
+  CHECK(!run(0)->discard_deadline && run(0)->gear.record.count==2,"vehicle control authorized discard");
+  units[0].object.parent_object_index=NONE;
  } else if(!strcmp(case_name,"loadout-choice")) {
   struct game_modes_inventory chosen;
   unsigned long generation;

@@ -54,6 +54,9 @@ struct extraction_run
 	enum extraction_phase phase;
 	boolean blocked, loadout_seen;
 	byte owner[GEAR_ID_BYTES];
+	byte discard_id[GEAR_ID_BYTES];
+	unsigned long discard_generation;
+	long discard_unit, discard_after, discard_deadline;
 	struct gear_session gear;
 };
 
@@ -211,6 +214,7 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 		extraction_block(run, "DEPLOYMENT BLOCKED | Select a saved profile locally, or verify your multiplayer identity.");
 		return FALSE;
 	}
+	if (memcmp(run->owner, owner, GEAR_ID_BYTES)) run->discard_deadline = 0;
 	if (run->gear.opened && memcmp(run->owner, owner, GEAR_ID_BYTES))
 	{
 		gear_lose(&run->gear); gear_close(&run->gear);
@@ -366,7 +370,7 @@ static void extraction_loadout_notice(struct extraction_run *run)
 		extraction_block(run, "LOADOUT PENDING | Native equipment or stash unavailable. Retry at the terminal."); return;
 	}
 	run->blocked = FALSE;
-	snprintf(text, sizeof(text), "SAVED LOADOUT %d/%d | %.24s / %.24s | +%d frag +%d plasma. Use again to change.",
+	snprintf(text, sizeof(text), "STASH %d/%d | %.20s / %.20s | +%d frag +%d plasma. Use: change; crouch-use: discard.",
 		(int)run->gear.record.count, GEAR_CAPACITY,
 		loadout.weapon_count > 0 ? extraction_item_name(loadout.weapons[0].tag_path) : "carried gear",
 		loadout.weapon_count > 1 ? extraction_item_name(loadout.weapons[1].tag_path) : "-",
@@ -379,6 +383,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
+	run->discard_deadline = 0;
 	if (!extraction_open_gear(run, player) || !game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
 		!gear_loadout(&run->gear, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
 	{
@@ -399,6 +404,60 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	return TRUE;
 }
 
+static void extraction_discard_choice(struct extraction_run *run, long unit_index)
+{
+	struct gear_item const *choice;
+	long now = game_time_get();
+	char text[128];
+	boolean confirming = run->discard_deadline && now <= run->discard_deadline && run->discard_unit == unit_index;
+
+	if (unit_get(unit_index)->object.parent_object_index != NONE)
+	{
+		run->discard_deadline = 0;
+		extraction_tell(run, "DISCARD BLOCKED | Leave the vehicle before managing stored gear.");
+		return;
+	}
+	if (confirming && now < run->discard_after) return;
+	/* Preserve a pending deletion's exact identity even though that item has
+	 * already left the published record. Another choice must not be removed. */
+	if (confirming && (run->gear.record.generation == run->discard_generation ||
+		run->gear.record.generation == run->discard_generation + 1))
+	{
+		if (!gear_discard(&run->gear, run->discard_id, run->discard_generation))
+		{
+			if (!run->gear.pending && run->gear.record.generation != run->discard_generation)
+			{
+				run->discard_deadline = 0;
+				extraction_tell(run, "DISCARD CANCELLED | Stash changed. Use again to review the current weapon.");
+				return;
+			}
+			extraction_block(run, "DISCARD PENDING | Saved gear unchanged or awaiting confirmation. Retry crouch-use; no other item will be removed.");
+			return;
+		}
+		run->discard_deadline = 0; run->blocked = FALSE;
+		extraction_tell(run, "DISCARD COMPLETE | One confirmed stored weapon removed. Other gear and grenades are safe.");
+		return;
+	}
+	choice = gear_loadout_choice(&run->gear);
+	if (!choice)
+	{
+		if (run->gear.pending)
+		{
+			extraction_block(run, "STASH PENDING | Wait for the existing save to finish; no new discard was submitted.");
+			return;
+		}
+		run->discard_deadline = 0;
+		extraction_tell(run, "NO STORED WEAPON | No compatible saved weapon is available to discard.");
+		return;
+	}
+	memcpy(run->discard_id, choice->id, GEAR_ID_BYTES);
+	run->discard_generation = run->gear.record.generation; run->discard_unit = unit_index;
+	run->discard_after = now + TICKS_PER_SECOND; run->discard_deadline = now + 10 * TICKS_PER_SECOND;
+	snprintf(text, sizeof(text), "DISCARD %.20s (%d/%d ammo)? Wait 1s; release/use again while crouched within 10s. Stand-use cancels.",
+		extraction_item_name(choice->equipment.tag_path), (int)choice->equipment.rounds_loaded[0], (int)choice->equipment.rounds_reserve[0]);
+	extraction_tell(run, text);
+}
+
 boolean extraction_control_touched(long control_index, long unit_index)
 {
 	struct object_datum *control;
@@ -412,9 +471,10 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
 		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name))) return FALSE;
-	if (extraction.suspended) return TRUE;
+	if (extraction.suspended || cinematic_in_progress()) return TRUE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
-	if (!unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) return TRUE;
+	if (!unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		extraction_medical_incapacitated(unit_index)) return TRUE;
 	player = player_try_and_get(unit->unit.player_index);
 	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
 	if (!player || player->unit_index != unit_index || player->quit_out_of_game || !VALID_INDEX(slot, NUMBEROF(extraction_runs))) return TRUE;
@@ -430,6 +490,33 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		if (extraction_open_gear(run, player))
 		{
+			/* Standing cancels a preview, but cannot undo an already published
+			 * confirmed deletion. Finish only that exact pending transaction. */
+			if (run->discard_deadline && run->gear.pending &&
+				run->gear.record.generation == run->discard_generation + 1)
+			{
+				if (!gear_discard(&run->gear, run->discard_id, run->discard_generation))
+				{
+					extraction_block(run, "DISCARD PENDING | Already confirmed; retry this terminal to finish saving.");
+					return TRUE;
+				}
+				run->discard_deadline = 0; run->blocked = FALSE;
+				extraction_tell(run, "DISCARD COMPLETE | The previously confirmed weapon was removed.");
+				extraction_loadout_notice(run);
+				return TRUE;
+			}
+			if (TEST_FLAG(unit->unit.control_flags, _unit_control_crouch_modifier_bit))
+			{
+				extraction_discard_choice(run, unit_index);
+				return TRUE;
+			}
+			if (run->discard_deadline)
+			{
+				run->discard_deadline = 0;
+				extraction_tell(run, "DISCARD CANCELLED | Your stored gear is safe.");
+				extraction_loadout_notice(run);
+				return TRUE;
+			}
 			if (run->loadout_seen && !gear_cycle_loadout(&run->gear))
 			{
 				extraction_block(run, "LOADOUT CHOICE PENDING | Retry this terminal to confirm the saved choice before deploying.");
@@ -473,6 +560,17 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 {
 	struct unit_datum *unit;
 	byte owner[GEAR_ID_BYTES];
+	if (run->discard_deadline)
+	{
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		if (now > run->discard_deadline || !unit || player->unit_index != run->discard_unit ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE ||
+			extraction_medical_incapacitated(player->unit_index) || cinematic_in_progress() ||
+			!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index) ||
+			scenario_trigger_volume_test_object(extraction.zone, player->unit_index) ||
+			!extraction_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES))
+			run->discard_deadline = 0;
+	}
 	if (run->phase == _extraction_settling || run->phase == _extraction_losing || run->phase == _extraction_cancelling)
 	{
 		if ((unsigned long)now - (unsigned long)run->retry_tick < TICKS_PER_SECOND) return;

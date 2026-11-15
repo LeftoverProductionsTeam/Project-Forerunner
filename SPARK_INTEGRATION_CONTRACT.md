@@ -564,6 +564,14 @@ that cache's items through `gear.c::gear_cycle_loadout` and its existing locked,
 atomic version-1 record. Reopening and same-cache Survival reuse the choice;
 failed grants restore it and returned carried gear stays ready for redeployment.
 An uncertain published choice is flushed on retry rather than cycled again.
+The same optional control now supports bounded stash management: crouch-use
+previews the chosen stored weapon and ammo, then release/use again after one
+second within ten seconds to discard exactly that item. Stand-use cancels a
+preview. A previously confirmed, published save is finished on retry, never
+presented as undone. Identity/body/life/hub changes invalidate previews. This
+uses `gear_loadout_choice` / `gear_discard` and the existing atomic owner record;
+it awards nothing, changes no grenades and does not touch deployed reservations.
+Spark needs no new marker/schema or editor subsystem for this interaction.
 `extraction.c::extraction_control_touched` / `extraction_loadout_notice` own the
 terminal interaction and error/readback. Existing four-marker maps use the saved
 compatible order, or the first pair for a new record, without requiring that

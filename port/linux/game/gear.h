@@ -54,6 +54,11 @@ boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *
 /* Rotate the next compatible lead weapon to the front through the existing
  * atomic record. Stash order is the durable choice, shared by both modes. */
 boolean gear_cycle_loadout(struct gear_session *session);
+/* Host UI preview, valid only until the next bank operation. */
+struct gear_item const *gear_loadout_choice(struct gear_session *session);
+/* Discard only the confirmed idle-stash item at the previewed generation.
+ * Retrying a published deletion confirms it without removing another item. */
+boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation);
 boolean gear_reserve(struct gear_session *session);
 boolean gear_cancel_reservation(struct gear_session *session);
 boolean gear_lose(struct gear_session *session);
