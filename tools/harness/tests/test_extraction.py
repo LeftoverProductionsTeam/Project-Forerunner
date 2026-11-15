@@ -59,6 +59,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'confirmation-outage', 'confirmation-published',
                                  'reservation-published',
                                  'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls',
+                                 'account-host', 'account-host-unbound', 'account-host-role',
                                  'mission-complete', 'mission-pending', 'mission-signature', 'mission-return-type', 'mission-restore',
                                  'shared-cache', 'shared-cache-reject', 'shared-cache-failure', 'shared-cache-discard',
                                  'restore', 'pending', 'binding', 'disconnect',

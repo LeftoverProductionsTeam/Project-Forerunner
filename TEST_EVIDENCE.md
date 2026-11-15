@@ -12,6 +12,23 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, authenticated host ownership (base `25767db94e`): original
+`extraction_owner` selects a local-profile stash even for a verified Delta host,
+while that same account joining remotely selects an account stash. The connected
+real-code reproduction fails before the fix. Delta hosts now use the same bound
+account lookup as remote players, and missing/unbound proofs cannot fall back to
+profile ownership. Offline/local profile records retain their existing owner.
+All 77 connected Extraction cases pass, including host/account identity,
+unbound-host refusal and host recovery followed by remote redeployment with the
+exact same recovered item ID. Existing refund, pending-death, transfer, survival,
+medical and completion cases pass unchanged. Windows64 builds incrementally
+(`build/native-account-owner-build.log`), SHA-256
+`9543508eced47d7237d69310915f4f78344b248b83686c7e2cafe82ba9e6b17b`.
+The identity proof/transport is a fixture boundary here. Read-only installed
+Chupathingy metadata confirms existing device key/certificate files and original
+runtime account/Steam-link log entries; no private contents were printed or
+credentials copied. Actual authenticated Delta banking/restart remains open.
+
 15 November, independent native peers and CE unload (base `4564360a48`):
 `build/native-six-instances` runs one host and five distinct clients, one local
 player each, on isolated loopback endpoints. All five pass unchanged player

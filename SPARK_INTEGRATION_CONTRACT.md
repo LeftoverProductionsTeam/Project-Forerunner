@@ -542,16 +542,21 @@ Persistence reuse review: pinned Faber `e4ffe0fe` has per-profile statistics in
 Its `write_xbox_text_file` uses an in-place Win32 `CREATE_ALWAYS` write; the record
 tracks stats, not owned item reservations/settlement. Reuse the existing native
 saved-profile boundary, not that writer as a crash-safe cross-platform stash.
-Forerunner binds a local run to `player_ui_get_active_player_profile_index`
+Forerunner binds an offline/local-profile run to `player_ui_get_active_player_profile_index`
 and the native enclosing directory returned by
 `player_ui_get_path_to_local_player_profile_directory`. The index is an
 enumeration slot (`saved_game_files.c`), so `extraction.c` also compares that
 directory before publishing a return. Deployment needs an available saved
 profile; losing/changing that identity settles the deployed run as lost. Remote
-players require the inherited `delta_peer_game_player_identity(machine,controller)`
+players and the local host of a Delta session require the inherited
+`delta_peer_game_player_identity(machine,controller)`
 with verified host-bound proof (`identity.bound`), not player names or self-reported
 account claims. It already exists in `delta_peer_game.c`; the declaration is now
-shared through `delta_peer.h`. Local profile and verified account owner domains
+shared through `delta_peer.h`. The host now uses its verified account too, so
+hosting versus joining does not select different account stashes. A missing or
+unbound host proof cannot fall back to profile storage. This is compiled and
+connected-test-verified; real authenticated banking is not yet accepted.
+Local profile and verified account owner domains
 are distinct; this does not promise portable client-managed or cross-host stashes.
 `xbox_files.c::CreateFileA` currently ignores `share_mode`; Faber's sharing-zero
 open therefore supplies no process exclusivity here. `port_config.c` now checks

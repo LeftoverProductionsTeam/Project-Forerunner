@@ -222,16 +222,12 @@ void extraction_restored(void)
 
 static boolean extraction_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES])
 {
-	if (player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
-	{
-		char directory[MAXIMUM_FILENAME_LENGTH + 1];
-		if (player_ui_get_active_player_profile_index(player->local_player_index) == NONE ||
-			!player_ui_get_path_to_local_player_profile_directory(player->local_player_index, directory) || !directory[0]) return FALSE;
-		gear_profile_owner(directory, owner);
-		return TRUE;
-	}
+	boolean local = player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS;
 #ifdef HALO_GAME_BROWSER
-	if (game_connection() == _game_connection_network_server)
+	/* Hosting and joining must resolve the same verified account to the same
+	 * stash. A Delta host without its bound proof waits; it must not fall
+	 * back to an unrelated offline profile owner while authentication loads. */
+	if (game_connection() == _game_connection_network_server && (!local || delta_peer_game_on_delta()))
 	{
 		struct delta_peer_identity identity;
 		long machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
@@ -241,6 +237,14 @@ static boolean extraction_owner(struct player_datum const *player, long player_i
 		return TRUE;
 	}
 #endif
+	if (local)
+	{
+		char directory[MAXIMUM_FILENAME_LENGTH + 1];
+		if (player_ui_get_active_player_profile_index(player->local_player_index) == NONE ||
+			!player_ui_get_path_to_local_player_profile_directory(player->local_player_index, directory) || !directory[0]) return FALSE;
+		gear_profile_owner(directory, owner);
+		return TRUE;
+	}
 	return FALSE;
 }
 

@@ -15,6 +15,17 @@ account/Steam setup for testing. Its key/certificate files and original-runtime
 signed-in/Steam-linked log entries are present; Forerunner authenticated banking
 has not yet been verified with them. Preserve originals and ownership safeguards.
 
+Authenticated banking source (base `25767db94e`): `extraction_owner` now uses a
+verified, bound Delta account for the host as well as remote players. A Delta
+host cannot fall back to a local profile while its proof is unavailable. Offline
+profile records remain separate and untouched. The former source reproduces the
+host/account split; 77 existing connected Extraction workflows and Windows64
+compilation pass, including host-to-client redeployment with the same recovered
+item ID. This is compiled/automated evidence, not Milestone A native acceptance.
+Next: use the authorized real account/device flow and private Delta session for
+actual bank/disconnect/process-restart/redeployment; do not clone account IDs or
+substitute Steam sign-in for verified bound Delta proofs.
+
 Six independent instances (base `4564360a48`): one host/five clients pass the
 native movement/switch/item smoke. Full authored fixture combat reaches rescue,
 collection, Flood containment, defense and extraction availability. It exposed

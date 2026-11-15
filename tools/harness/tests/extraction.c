@@ -105,6 +105,8 @@ static unsigned int epoch=1;
 static int native_kills;
 void platform_log(char const *format, ...) { (void)format; }
 static byte remote_account[16] = {1};
+static byte host_account[16] = {2};
+static boolean delta_session;
 static int local_notices, remote_notices, respawns;
 static char local_notice_history[4][63];
 static char last_remote_notice[128];
@@ -190,12 +192,13 @@ static void hud_print_message(short local,wchar_t const *text) {
  local_notice_history[local_notices%4][i]=0;local_notices++;
 }
 short distributed_client_machines(long *machines,short max) { machines[0]=1; return 1; }
-long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return slot==1 ? 1 : NONE; }
+long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return slot==1 ? 1 : delta_session ? (players[0].local_player_index==NONE?1:0) : NONE; }
 void distributed_send_notice_to_machine(long machine,char const *text) { CHECK(machine==1,"wrong remote notice"); remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text); }
 static long player_ui_get_active_player_profile_index(short local) { return profile ? 0 : NONE; }
 static boolean player_ui_get_path_to_local_player_profile_directory(short local,char *path) { strcpy(path,"owned/profile"); return TRUE; }
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
-{ CHECK(machine==1 && controller==2,"wrong authenticated controller"); memcpy(id->account,remote_account,16); id->bound=verified; return TRUE; }
+{ CHECK((machine==1 && controller==2)||(delta_session && machine==0 && controller==0),"wrong authenticated controller"); memcpy(id->account,machine==0?host_account:remote_account,16); id->bound=verified; return TRUE; }
+static boolean delta_peer_game_on_delta(void) { return delta_session; }
 static long object_index_from_name_index(short index) { return index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
 static struct control_definition *control_definition_get(long h) { return &control_tag; }
@@ -883,6 +886,25 @@ int main(int argc,char **argv)
   director=FALSE; extraction_reset(); names[2].name[0]=0; advance(1);
   CHECK(extraction_owns_map(),"optional terminal required"); controls[2].object.name_index=NONE;
   CHECK(!extraction_control_touched(control_handles[2],unit_handles[0]),"unnamed ordinary control intercepted");
+ } else if(!strncmp(case_name,"account-host",12)) {
+  byte expected[16],item[GEAR_ID_BYTES];
+  delta_session=TRUE;
+  if(!strcmp(case_name,"account-host-unbound")) {
+   verified=FALSE;touch(0,0);
+   CHECK(!file_count&&run(0)->phase==_extraction_hub,"unbound Delta host fell back to a local profile stash");
+  } else {
+   if(!strcmp(case_name,"account-host-role"))memcpy(host_account,remote_account,16);
+   gear_account_owner(host_account,expected);touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&!memcmp(run(0)->owner,expected,16),"Delta host used profile ownership instead of its verified account");
+   if(!strcmp(case_name,"account-host-role")) {
+    pickup(0,1);escape(0);CHECK(run(0)->gear.record.count==1,"host recovery missing");
+    memcpy(item,run(0)->gear.record.items[0].id,GEAR_ID_BYTES);
+    extraction_reset();players[0].local_player_index=NONE;players[0].network_player_data.controller_index=2;
+    advance(1);touch(0,0);
+    CHECK(run(0)->phase==_extraction_deployed&&!memcmp(run(0)->owner,expected,16),"joining changed the same verified account's owner: phase %d, owner mismatch %d, notice %s",run(0)->phase,memcmp(run(0)->owner,expected,16),last_remote_notice);
+    CHECK(run(0)->gear.record.reserved_count==1&&!memcmp(run(0)->gear.record.reserved[0].id,item,GEAR_ID_BYTES),"host-to-client role change lost or duplicated banked equipment");
+   }
+  }
  } else if(!strcmp(case_name,"authority")) {
   client=TRUE; connection=_game_connection_network_client; advance(1); CHECK(!extraction_owns_map() && !file_count,"client storage access");
   client=FALSE; connection=_game_connection_network_server; profile=FALSE; verified=FALSE;
