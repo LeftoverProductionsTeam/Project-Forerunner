@@ -786,8 +786,8 @@ cache and its native resource banks for that existing startup path, or review
 the existing MCC launch path separately; do not advertise format compatibility
 from the disposable CE fixture alone.
 This supersedes the older statement that Black Echo authoring was absent.
-Read-only refresh at Spark `cfe6832525e35975717981edbb7498471e3265f1`
-finds `src/haloScript.ts` now implements `weaponOwned` by scanning actual native
+Read-only refresh at Spark `ac3f1440fad9d7a854f1627202efeb481b2b996c`:
+`src/haloScript.ts` implements `weaponOwned` by scanning actual native
 player inventories, and `forerunnerExtractionSettled` by a guarded dormant
 `forerunner_extraction_complete` callback. It powers `extraction_activate` off
 until earlier objectives finish. `creative.rs::verify_native_mission` requires
@@ -795,11 +795,17 @@ CE609 for that callback, actual placed technology with the exact weapon tag ID,
 and nonempty starting profiles with technology absent from every initial loadout.
 These source interfaces match Forerunner's current native ownership/settlement
 path; Spark need not implement its own stash writer or revive a manual volume
-substitute. Its latest native collection proof uses the older input-only CE609
-baseline, not a delivered new Black Echo mission. Next: build and retain the
-actual CE609 candidate with these hooks, resource banks, usable native controls,
-valid hub starts and reachable encounter/navigation/technology placements for
-Forerunner's existing launch path. Spark's
+substitute. Its actual native editor/build candidate is now
+`08389ed43814960ddfdfcb401746f277f6a038e2e413e2a26ac8339703cec514`, CE609 solo,
+106,368,008B. Forerunner reproduced the exact cache and independent scenario/HSC
+readbacks using the committed `scripts/test-firefight-native.mjs` recipe. The
+two-account operation in `build/native-spark-black-echo` passes native combat,
+rescue, ownership-based collection, optional Flood, defense, escape/bank/callback
+and process-restart equipment redeployment. This supersedes the missing-CE-cache
+blocker above, without certifying the older MCC package or full expanded mission.
+The current candidate has no vehicles or vehicle palette. Next authoring gate:
+native transport/seat/pilot/flight/camera content, then actual faction gameplay.
+Spark's
 scenario globals are shared world state, not independently scoped squad quests.
 Do not substitute editor-only JSON, shared global scripts or a second quest VM
 for independent authoritative squads.
@@ -830,6 +836,24 @@ new body requiring the operation's role assignment. These calls do not select
 a biped, grant faction equipment, establish independent squad objectives or
 choose a dropship. The full selection/role policy and those gameplay gates remain
 engine work; do not expose this as completed UNSC/Covenant operation support.
+Optional transport contract (source/Windows64/connected-harness verified only):
+name native vehicles `extraction_pelican` and/or `extraction_spirit`. Declaring
+either enables mandatory boarding for Extraction evacuation; invalid/duplicate
+vehicle bindings refuse admission. Native player/human teams use the Pelican;
+Covenant uses the Spirit; a missing faction craft never falls back to foot escape.
+`extraction.c::{extraction_player_dropship,extraction_return_ready,extraction_at_return}`
+requires a live, correctly named vehicle and a valid actual native seat while
+the craft is in `extraction_zone`, then continued boarding until the craft reaches
+`extraction_return` outside the LZ and the native cinematic has ended. Ship identity
+uses the full salted handle; leaving/changing ships or factions cancels boarding
+credit. The existing escrow/consumption/bank path then runs once per player.
+Spark owns the real approach, usable seat entry, pilot/flight, camera/audio and
+insertion/objective scripts. Keep the craft alive at the return hub through the
+cinematic and settlement; release/unload it only after the existing completion
+callback. No new JSON, launcher, camera system or quest/reward writer. Current
+hub-only prototypes retain their old path and are not finished dropship Extraction.
+No playable aircraft, faction selector/biped/loadout workflow or independent-squad
+cinematic is implied by these new source gates; native transport acceptance is open.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.

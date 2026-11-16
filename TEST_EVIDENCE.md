@@ -12,6 +12,57 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, exact Spark candidate and transport source (base `71b761be02`):
+Spark revision `ac3f1440fad9d7a854f1627202efeb481b2b996c` records CE609 candidate
+`08389ed43814960ddfdfcb401746f277f6a038e2e413e2a26ac8339703cec514` (106,368,008B).
+Existing Invader tools reproduce it exactly inside Forerunner, including Spark's
+Flood-start correction and three-second defense preparation. Independent scenario
+and recovered-HSC SHA-256 match Spark's `032e9462...`/`93fe5527...` readbacks.
+`build/spark-black-echo-native/provenance.json` retains exact inputs and hashes.
+
+PASS: `build/native-spark-black-echo/result.json` verifies two bound Delta accounts
+starting with fresh private gear records, actual spawning/equipment, control-driven
+deployment, AI combat, Marine navigation/rescue, native technology pickup, optional
+Flood containment, defense, both native ten-second activations and physical hub
+returns, durable banking and the authored settlement/completion callback. Fresh
+processes redeploy the same four unique serialized saved items, with both native
+views reading equipment. The unchanged comparators pass: 139 player seconds,
+AI damage/state comparisons and 144 item snapshots; all 12 new host items appear
+on the client, zero item mismatches, no native exception. Native starter-ammo
+pickups can change live ammunition after grant; saved item records match exactly.
+No console objective setters or forced mission success. Original identity files
+are unchanged; runtime/map copies and private invites are removed. Six lossless
+PNGs remain; 191,694,906B of BMP scratch and 143,509,738B of build-input scratch
+were removed. The existing owned regression cache and exact Spark candidate remain.
+
+FAILURES: no engine/gameplay failure in that operation. Setup initially asserted
+a guessed SDK particle-tag count and then assumed MP globals were absent; both
+assumptions were rejected before mutation. Native CE extraction already supplied
+valid globals/particle sources, and the native rebuild reproduced the known
+`91151b1a...` baseline before applying Spark's two edits. No speculative engine
+patch was made for setup assumptions. A transient diagnostic script variable
+error affected its summary print only, not successful dependency readback.
+
+UNVERIFIED: human acceptance, rescue-failure/alternate branches, revival in this
+session, repeated mission objectives after redeployment, faction UI/bipeds,
+dropship insertion/boarding/flight/cinematics, independent squads and other targets.
+This candidate derives from the earlier owned fixture through Spark's actual
+native editing/build workflow; it is not the complete expanded Black Echo vision.
+Its native vehicle and vehicle-palette counts are both zero.
+
+Transport implementation then adds optional native named-vehicle boarding to
+`extraction.c`, reusing the existing run, gear escrow and native callback. No
+packet/save-format change. MSVC passes 89 connected Extraction/gear/medical and
+transport workflows, including both native factions, invalid/duplicate bindings,
+bad seats, stale handles, wrong/missing faction transports, destroyed ships,
+disembarkation, changed allegiance/replaced ships, in-flight/local coordinates,
+cinematic delay and exactly-once recovery. Removing the cinematic gate is detected.
+Windows64 passes (`build/native-dropship-build.log`), SHA-256
+`f77c5958dadef144165780d75090519df0787573de9d77e960028b19af96aada`.
+The actual Spark operation above used the prior native-tested `1fcc7563...` binary;
+do not claim that it exercised these new aircraft gates. No actual dropship
+gameplay acceptance, new renderer or replacement test framework is claimed.
+
 15 November, native co-op allegiance handoff (base `1b5bbaaa67`):
 `network_objects.c` uses the existing reliable object description for changed
 native teams, including the same salted handle; replay now applies that field.

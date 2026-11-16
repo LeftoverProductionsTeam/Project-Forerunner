@@ -20,7 +20,7 @@
 #define NETWORK_RULES_TIME_WINDOW_TICKS 450
 #define csmemset memset
 #define TAG_BLOCK_GET_ELEMENT(block,index,type) (&((type *)(block)->address)[index])
-enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4,
+enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _object_mask_vehicle=8, _object_type_vehicle=1,
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
  _scenario_type_solo=0, _object_die_act_of_god_bit=1,
  _object_die_act_of_god_silent_bit=2, _object_die_act_of_god_no_statistics_bit=3,
@@ -32,13 +32,14 @@ enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4,
  _collision_test_front_facing_surfaces_bit=2, _collision_test_back_facing_surfaces_bit=3,
  _delta_capability_coop=6, _delta_capability_object_sync=17 };
 struct tag_block { long count; void *address; };
+#include "native_teams.inc"
 #include "medical_hud_types.inc"
 #include "equipment_ownership.inc"
 struct object_fields { long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
- struct { long player_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index;
+ struct { long player_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags; } unit; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { unsigned long flags; } item;
@@ -55,7 +56,8 @@ struct game_globals_grenade { short maximum_count; };
 struct game_globals { struct tag_block grenades; };
 struct control_definition { struct { short triggers_when,type;real call_value;
  struct {long index;} on_effect,off_effect,denied_effect; } control; };
-struct scenario_object_name { char name[32]; };
+struct scenario_object_name { char name[32]; short runtime_object_type; };
+struct unit_definition { struct { struct tag_block seats; } unit; };
 struct scenario_trigger_volume { char name[32]; };
 #include "mission_types.inc"
 struct player_starting_location { real_point3d position; };
@@ -71,6 +73,11 @@ static struct player_datum players[8];
 static long player_handles[8] = { 0x10000, 0x10001, 0x10002, 0x10003, 0x10004, 0x10005, 0x10006, 0x10007 };
 static long unit_handles[8] = { 0x1000a, 0x1000b, 0x1000c, 0x1000d, 0x1000e, 0x1000f, 0x10010, 0x10011 };
 static struct unit_datum units[8];
+static struct unit_datum dropships[2];
+static long dropship_handles[2]={0x10014,0x10015};
+static struct unit_definition dropship_tag={{{2,NULL}}};
+static boolean native_cinematic;
+static struct unit_definition *unit_definition_get(long index) { CHECK(index==300,"native vehicle definition");return &dropship_tag; }
 static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
@@ -88,7 +95,8 @@ static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
 static long missing_tag = NONE, unusable_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
 static struct game_globals globals = { { 2, grenades } };
-static struct scenario_object_name names[3] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"} };
+static struct scenario_object_name names[5] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
+ {"extraction_pelican",_object_type_vehicle},{"extraction_spirit",_object_type_vehicle} };
 static struct scenario_trigger_volume volumes[2] = { {"extraction_zone"}, {"extraction_return"} };
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
@@ -126,15 +134,16 @@ static void *object_try_and_get_and_verify_type(long h,long mask)
 {
  short i;
  if(h==NONE) return NULL;
+ for(i=0;i<2;i++) if(h==dropship_handles[i] && (mask&_object_mask_vehicle)) return &dropships[i];
  for(i=0;i<active_players;i++) if(h==unit_handles[i] && (mask&_object_mask_biped)) return &units[i];
  for(i=0;i<3;i++) if(h==control_handles[i] && (mask&_object_mask_control)) return &controls[i];
  for(i=0;i<weapon_count;i++) if(h==weapons[i].handle && (mask&_object_mask_weapon)) return &weapons[i].datum;
  return NULL;
 }
-static struct unit_datum *unit_get(long h) { void *p=object_try_and_get_and_verify_type(h,_object_mask_biped); CHECK(p,"invalid unit"); return p; }
+static struct unit_datum *unit_get(long h) { void *p=object_try_and_get_and_verify_type(h,_object_mask_biped|_object_mask_vehicle); CHECK(p,"invalid unit"); return p; }
 static struct weapon_datum *weapon_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_weapon); }
 static struct weapon_datum *weapon_get(long h) { struct weapon_datum *p=weapon_try_and_get(h); CHECK(p,"invalid weapon"); return p; }
-static boolean cinematic_in_progress(void) { return FALSE; }
+static boolean cinematic_in_progress(void) { return native_cinematic; }
 static boolean unit_controllable(long h) { return !(unit_get(h)->object.damage_flags & 1); }
 static boolean unit_is_busy(long h) { return FALSE; }
 static void object_deplete_shield(long h) { unit_get(h)->object.shield_vitality=0.f; }
@@ -200,7 +209,7 @@ static boolean player_ui_get_path_to_local_player_profile_directory(short local,
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
 { CHECK((machine==1 && controller==2)||(delta_session && machine==players[0].network_player_data.machine_index && controller==players[0].network_player_data.controller_index),"wrong authenticated controller"); memcpy(id->account,machine==1?remote_account:host_account,16); id->bound=verified; return TRUE; }
 static boolean delta_peer_game_on_delta(void) { return delta_session; }
-static long object_index_from_name_index(short index) { return index>=0 && index<3 ? control_handles[index] : NONE; }
+static long object_index_from_name_index(short index) { return index>=3 && index<5 ? dropship_handles[index-3] : index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
 static struct control_definition *control_definition_get(long h) { return &control_tag; }
 static struct control_datum *control_get(long h) { struct control_datum *c=control_try_and_get(h);CHECK(c,"invalid control");return c; }
@@ -295,6 +304,61 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strncmp(case_name,"transport-",10)) {
+  short faction=!strcmp(case_name,"transport-covenant")?1:0;
+  long craft=dropship_handles[faction],loot;
+  extraction_reset();scenario.object_names.count=5;
+  if(!strcmp(case_name,"transport-binding"))names[3].runtime_object_type=0;
+  if(!strcmp(case_name,"transport-duplicate"))strcpy(names[4].name,"extraction_pelican");
+  if(!strcmp(case_name,"transport-missing-faction"))scenario.object_names.count=4;
+  for(a=0;a<2;a++) {
+   dropships[a].definition_index=300;dropships[a].object.body_vitality=1;
+   dropships[a].object.position.x=20;
+  }
+  advance(1);
+  if(!strcmp(case_name,"transport-binding")||!strcmp(case_name,"transport-duplicate")) {
+   CHECK(!extraction_owns_map(),"malformed transport binding admitted as a foot return");return 0;
+  }
+  CHECK(extraction_owns_map(),"native transport map refused");
+  units[0].object.owner_team_index=faction?_game_team_covenant:_game_team_player;
+  touch(0,0);loot=pickup(0,1);units[0].object.position.x=20;touch(1,0);advance(300);
+  CHECK(run(0)->phase==_extraction_ready&&run(0)->gear.record.phase==_gear_deployed,"activation incorrectly settled transport loot");
+  units[0].object.position.x=0;advance(1);
+  CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"foot return bypassed physical boarding");
+  units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
+  if(!strcmp(case_name,"transport-seat"))units[0].unit.parent_seat_index=2;
+  if(!strcmp(case_name,"transport-stale"))units[0].object.parent_object_index=craft+0x10000;
+  if(!strcmp(case_name,"transport-wrong-faction")||!strcmp(case_name,"transport-missing-faction"))units[0].object.owner_team_index=_game_team_covenant;
+  if(!strcmp(case_name,"transport-dead"))dropships[0].object.damage_flags=FLAG(_object_dead_bit);
+  advance(1);
+  if(!strcmp(case_name,"transport-seat")||!strcmp(case_name,"transport-stale")||
+   !strcmp(case_name,"transport-wrong-faction")||!strcmp(case_name,"transport-missing-faction")||!strcmp(case_name,"transport-dead")) {
+   CHECK(run(0)->dropship==NONE&&run(0)->phase==_extraction_ready,"invalid native seat/ship/faction received boarding credit");
+   dropships[faction].object.position.x=0;advance(1);
+   CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),"invalid transport banked owned equipment");return 0;
+  }
+  CHECK(run(0)->dropship==craft&&run(0)->phase==_extraction_ready,"real assigned LZ seat not recorded");
+  advance(900);CHECK(run(0)->phase==_extraction_ready,"time alone extracted seated passengers");
+  if(!strcmp(case_name,"transport-disembark"))units[0].object.parent_object_index=NONE;
+  if(!strcmp(case_name,"transport-team-change"))units[0].object.owner_team_index=_game_team_flood;
+  if(!strcmp(case_name,"transport-replaced")) {
+   dropship_handles[faction]+=0x10000;units[0].object.parent_object_index=dropship_handles[faction];
+  }
+  if(!strcmp(case_name,"transport-disembark")||!strcmp(case_name,"transport-team-change")||!strcmp(case_name,"transport-replaced")) {
+   advance(1);CHECK(run(0)->dropship==NONE,"lost seat/body/faction kept stale boarding receipt");
+   dropships[faction].object.position.x=0;units[0].object.parent_object_index=dropship_handles[faction];
+   units[0].object.owner_team_index=faction?_game_team_covenant:_game_team_player;advance(1);
+   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"reboarding at destination bypassed the landing zone");return 0;
+  }
+  dropships[faction].object.position.x=7;advance(1);
+  CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"in-flight/local body position caused early recovery");
+  dropships[faction].object.position.x=0;native_cinematic=TRUE;advance(1);
+  CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"cinematic banked before departure sequence ended");
+  native_cinematic=FALSE;advance(1);
+  CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==1&&!weapon_try_and_get(loot),"boarded arrival did not bank exactly once");
+  advance(30);CHECK(run(0)->gear.record.count==1,"arrived passenger duplicated loot");
+  extraction_reset();return 0;
+ }
  if(!strcmp(case_name,"notice-complete")) {
   touch(0,0);pickup(0,1);escape(0);
   CHECK(strstr(local_notice_history[(local_notices-1)%4],"RUN COMPLETE | Stash"),"bank report headline not queued first for display");

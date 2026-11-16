@@ -9,7 +9,10 @@ void extraction_reset(void);
 void extraction_restored(void);
 void extraction_update(void);
 /* A valid opted-in hub/run stays on its map for return and redeployment.
-   Requires native hub markers; remote gear needs a host-bound identity. */
+   Requires native hub markers; remote gear needs a host-bound identity.
+   Maps naming extraction_pelican/extraction_spirit additionally require a real
+   assigned seat at the LZ, continuous boarding to the return hub and an ended
+   native cinematic. Transport gameplay remains UNVERIFIED. */
 boolean extraction_owns_map(void);
 /* TRUE handles a real host-owned wipe without rewinding the world. If allocation
    fails, the caller retains its native loss timer and retries. */

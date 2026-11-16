@@ -24,6 +24,7 @@
 #include "tag_files/files.h"
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
+#include "units/unit_definitions.h"
 #include "extraction.h"
 #include "network_coop.h"
 #include "network_distributed.h"
@@ -60,6 +61,8 @@ struct extraction_run
 	byte discard_id[GEAR_ID_BYTES];
 	unsigned long discard_generation;
 	long discard_unit, discard_after, discard_deadline;
+	long dropship;
+	short dropship_team;
 	struct gear_session gear;
 };
 
@@ -68,6 +71,7 @@ static struct
 	boolean bound, admitted, suspended, suspension_announced;
 	boolean survival, evacuation, completion_notified;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
+	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	long last_tick;
 } extraction;
 static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
@@ -196,6 +200,7 @@ static void extraction_run_close(struct extraction_run *run)
 	}
 	memset(run, 0, sizeof(*run));
 	run->player = run->unit = NONE;
+	run->dropship = NONE;
 	run->local_player = NONE;
 	run->gear.descriptor = -1;
 }
@@ -206,6 +211,7 @@ void extraction_reset(void)
 	for (index = 0; index < NUMBEROF(extraction_runs); index++) extraction_run_close(&extraction_runs[index]);
 	memset(&extraction, 0, sizeof(extraction));
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.zone = extraction.return_zone = NONE;
+	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.last_tick = NONE;
 	gear_world_reset();
 	extraction_medical_reset();
@@ -276,6 +282,7 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 
 static void extraction_lose_run(struct extraction_run *run)
 {
+	run->dropship = NONE;
 	run->phase = _extraction_losing;
 	run->activation_ticks = 0;
 	run->retry_tick = game_time_get();
@@ -311,6 +318,7 @@ static void extraction_bind(void)
 	extraction.admitted = FALSE;
 	extraction.evacuation = FALSE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
+	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
 	if (!extraction.survival && config_boolean("network.firefight_encounter"))
 	{
@@ -325,6 +333,15 @@ static void extraction_bind(void)
 	{
 		struct scenario_object_name *name = TAG_BLOCK_GET_ELEMENT(
 			&global_scenario->object_names, index, struct scenario_object_name);
+		short faction;
+
+		for (faction = 0; faction < 2; faction++)
+			if (!strcmp(name->name, faction ? "extraction_spirit" : "extraction_pelican"))
+			{
+				if (extraction.dropship_names[faction] != NONE || name->runtime_object_type != _object_type_vehicle)
+					unique = FALSE;
+				extraction.dropship_names[faction] = index;
+			}
 
 		if (!strcmp(name->name, "extraction_deploy"))
 		{
@@ -385,9 +402,10 @@ static void extraction_bind(void)
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
 finished:
-	platform_log("extraction: native hub %s; deploy %d activate %d return %d zone %d",
+	platform_log("extraction: native hub %s; deploy %d activate %d return %d zone %d pelican %d spirit %d",
 		extraction.admitted ? "admitted" : "unavailable", extraction.deploy_name,
-		extraction.activate_name, extraction.return_zone, extraction.zone);
+		extraction.activate_name, extraction.return_zone, extraction.zone,
+		extraction.dropship_names[0], extraction.dropship_names[1]);
 	if (extraction.survival)
 	{
 		/* Reuse the native controls, volumes and settlement. Finite encounters
@@ -411,7 +429,7 @@ finished:
 	if (extraction.admitted && !extraction.suspended)
 		extraction_notice("FIELD TERMINAL | Use the deployment control to begin. No raid timer.");
 	else if (!extraction.admitted)
-		extraction_notice("Extraction unavailable: use unique deployment/activation controls (touched by player) and extraction/return zones.");
+		extraction_notice("Extraction unavailable: check native hub controls/zones, hub starts and named dropship vehicle bindings.");
 }
 
 
@@ -468,6 +486,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	}
 	gear_track_reserved(&run->gear, created);
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
+	run->dropship = NONE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	extraction_tell(run, extraction.survival ?
 		"SURVIVAL DEPLOYED | Gear is at risk. Recover through an available evacuation point or finite victory." :
@@ -619,6 +638,69 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	return TRUE;
 }
 
+/* Native seats, not a trigger/client claim, identify the assigned transport.
+ * A named vehicle may be created by HaloScript after the extraction call. */
+static long extraction_player_dropship(struct unit_datum const *unit)
+{
+	short faction, name;
+	long index;
+	struct unit_datum *vehicle;
+	if (unit->object.owner_team_index == _game_team_covenant) faction = 1;
+	else if (unit->object.owner_team_index == _game_team_player || unit->object.owner_team_index == _game_team_human) faction = 0;
+	else return NONE;
+	name = extraction.dropship_names[faction];
+	if (name == NONE || unit->unit.parent_seat_index < 0) return NONE;
+	index = object_index_from_name_index(name);
+	if (index == NONE || unit->object.parent_object_index != index) return NONE;
+	vehicle = (struct unit_datum *)object_try_and_get_and_verify_type(index, _object_mask_vehicle);
+	if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) || vehicle->object.body_vitality <= 0.0f ||
+		unit->unit.parent_seat_index >= unit_definition_get(vehicle->definition_index)->unit.seats.count) return NONE;
+	return index;
+}
+
+static boolean extraction_at_return(struct extraction_run const *run, long unit_index)
+{
+	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	long location = unit_index;
+	if (!unit) return FALSE;
+	/* Attached units' coordinates are not a substitute for the actual ship's
+	 * destination. After disembarkation, the body must really be in the hub. */
+	if (run->dropship != NONE && extraction_player_dropship(unit) == run->dropship) location = run->dropship;
+	return scenario_trigger_volume_test_object(extraction.return_zone, location) &&
+		!scenario_trigger_volume_test_object(extraction.zone, location);
+}
+
+static boolean extraction_return_ready(struct extraction_run *run, struct unit_datum const *unit)
+{
+	long dropship;
+	if (extraction.dropship_names[0] == NONE && extraction.dropship_names[1] == NONE)
+		return extraction_at_return(run, run->unit); /* existing hub-only maps */
+	dropship = extraction_player_dropship(unit);
+	if (dropship == NONE || (run->dropship != NONE &&
+		(run->dropship != dropship || run->dropship_team != unit->object.owner_team_index)))
+	{
+		if (run->dropship != NONE)
+			extraction_tell(run, "BOARDING CANCELLED | Return to your assigned dropship at the landing zone. Gear remains at risk.");
+		run->dropship = NONE;
+		return FALSE;
+	}
+	if (run->dropship == NONE)
+	{
+		if (extraction_medical_incapacitated(run->unit) ||
+			!scenario_trigger_volume_test_object(extraction.zone, dropship) ||
+			scenario_trigger_volume_test_object(extraction.return_zone, dropship)) return FALSE;
+		run->dropship = dropship;
+		run->dropship_team = unit->object.owner_team_index;
+		extraction_tell(run, "BOARDED | Stay aboard through departure. Recovery follows arrival and the authored cinematic.");
+		return FALSE;
+	}
+	/* The authored native pilot/flight and camera scripts own departure. Do
+	 * not bank a timer, a walk into the hub, a new ship reusing a slot, or a
+	 * passenger who left the transport. Keep it alive at the hub until the
+	 * cinematic ends and the existing settlement callback releases it. */
+	return !cinematic_in_progress() && extraction_at_return(run, run->unit);
+}
+
 static void extraction_finish_return(struct extraction_run *run)
 {
 	char text[128];
@@ -636,6 +718,7 @@ static void extraction_finish_return(struct extraction_run *run)
 static void extraction_update_run(struct extraction_run *run, struct player_datum const *player, long now)
 {
 	struct unit_datum *unit;
+	boolean return_ready = FALSE;
 	byte owner[GEAR_ID_BYTES];
 	if (run->discard_deadline)
 	{
@@ -670,6 +753,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		extraction_lose_run(run); return;
 	}
 	if (extraction_unit_pending_death(unit)) return; /* Native death decides the loss next tick. */
+	if (run->phase == _extraction_ready) return_ready = extraction_return_ready(run, unit);
 	if (extraction_medical_incapacitated(run->unit))
 	{
 		if (run->phase == _extraction_activating)
@@ -688,13 +772,15 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		else if (--run->activation_ticks <= 0)
 		{
 			run->phase = _extraction_ready;
-			extraction_tell(run, "EXTRACTION SIGNAL READY | Reach the return point alive.");
+			extraction_tell(run, extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE ?
+				"EXTRACTION SIGNAL READY | Board your assigned dropship in the landing zone and stay aboard through departure." :
+				"EXTRACTION SIGNAL READY | Reach the return point alive.");
+			return_ready = extraction_return_ready(run, unit);
 		}
 	}
 	if (run->phase == _extraction_ready &&
 		((extraction.survival && coop_enemies_firefight_outcome() == 1) ||
-		 ((!extraction.survival || extraction.evacuation) && scenario_trigger_volume_test_object(extraction.return_zone, run->unit) &&
-		  !scenario_trigger_volume_test_object(extraction.zone, run->unit))) &&
+		 ((!extraction.survival || extraction.evacuation) && return_ready)) &&
 		unit->unit.grenade_throw_state == _unit_grenade_throw_idle)
 	{
 		struct game_modes_inventory equipment;
@@ -847,8 +933,7 @@ static boolean extraction_players_returned(void)
 		if (extraction_unit_pending_death(unit)) return FALSE;
 		if (!VALID_INDEX(slot, NUMBEROF(extraction_runs)) || extraction_runs[slot].player != iterator.datum_index ||
 			extraction_runs[slot].phase != _extraction_returned || extraction_medical_incapacitated(player->unit_index) ||
-			!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index) ||
-			scenario_trigger_volume_test_object(extraction.zone, player->unit_index)) return FALSE;
+			!extraction_at_return(&extraction_runs[slot], player->unit_index)) return FALSE;
 		survivors++;
 	}
 	return survivors > 0;

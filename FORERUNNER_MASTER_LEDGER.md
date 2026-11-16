@@ -16,6 +16,28 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Current checkpoint (base `71b761be02`): Spark `ac3f144` now supplies a reproducible
+CE609 candidate. Forerunner reproduced its exact `08389ed4...` cache and independent
+scenario/HSC readbacks, then completed the two-account native operation with fresh
+isolated gear: deployment, combat, Marine rescue, actual technology ownership,
+optional Flood, defense, both activations/returns/banks, settled callback, process
+restart and the same four unique saved items redeployed. Player/AI/item comparisons
+pass; see `build/native-spark-black-echo` and `TEST_EVIDENCE.md`. This accepts the
+current candidate's bounded automated native path, not expanded Black Echo,
+human play, revival in this session, dropships or independent squads.
+
+Transport source now extends the existing Extraction settlement: optional native
+`extraction_pelican`/`extraction_spirit` names require a valid faction-assigned seat
+at the LZ, continued boarding to the return hub and an ended native cinematic.
+Walking/timing alone, stale ships, wrong seats/factions and disembarkation cannot
+bank. Existing hub-only maps and finite Survival rewards retain their paths.
+Windows64 and 89 connected workflows plus a cinematic fault control pass; actual
+transport gameplay is UNVERIFIED. The tested Spark candidate has zero vehicles
+and zero vehicle-palette entries. Next: native transport flight/seat/camera content
+under `SPARK_INTEGRATION_CONTRACT.md`, plus faction selection/bipeds/loadouts and
+insertion. No new inventory, director, protocol or launcher. Owned runtime and
+source-build scratch is removed; compact native evidence and six PNGs remain.
+
 Native allegiance handoff (base `1b5bbaaa67`): existing reliable object
 descriptions now announce live team changes and apply them to reused objects.
 Native co-op player attachment and authored `ai_attach`/`ai_set_team` reconcile
