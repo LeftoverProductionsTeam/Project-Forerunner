@@ -4,7 +4,8 @@
 ; vehicle_load_magic below loads only the Marine pilot, never a player.
 ; Not Spark's Black Echo, faction selection or final transport acceptance.
 ; Native scenario requirements: named Pelican/Spirit, front passenger seats,
-; Marine native_squad, hub/LZ volumes, deploy/activate controls and two cameras.
+; Marine native_squad, hub/LZ volumes, deploy/activate controls, two cameras
+; and dedicated native device group extraction_pelican_boarded (initially zero).
 ; tf_field/home/hold are authored native flight commands; tf_wait uses a short
 ; pause followed by a native loop, not a pause that overflows a 16-bit timer.
 
@@ -14,6 +15,14 @@
   (or
     (vehicle_test_seat_list extraction_pelican "P-riderLF" (players))
     (vehicle_test_seat_list extraction_pelican "P-riderRF" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderLM" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderRM" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderLB" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderRB" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderLB01" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderRB01" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderLB02" (players))
+    (vehicle_test_seat_list extraction_pelican "P-riderRB02" (players))
   )
 )
 
@@ -66,7 +75,8 @@
   (print "transport: prepare loadout at deployment control")
   (sleep_until (>= (device_get_position extraction_deploy) 0.5) 1)
   (print "transport: board Pelican passenger seat for insertion")
-  (sleep_until (tf_player_seated) 1)
+  (sleep_until (and (tf_player_seated)
+    (>= (device_group_get extraction_pelican_boarded) 0.5)) 1)
   (print "transport: insertion passenger physically seated")
   (unit_set_enterable_by_player extraction_pelican false)
   (unit_close extraction_pelican)
@@ -103,7 +113,8 @@
   (print "transport: extraction landed; board passenger seat")
   (unit_set_enterable_by_player extraction_pelican true)
   (unit_open extraction_pelican)
-  (sleep_until (tf_player_seated) 1)
+  (sleep_until (and (tf_player_seated)
+    (>= (device_group_get extraction_pelican_boarded) 0.5)) 1)
   (print "transport: extraction passenger physically seated")
   (unit_set_enterable_by_player extraction_pelican false)
   (unit_close extraction_pelican)

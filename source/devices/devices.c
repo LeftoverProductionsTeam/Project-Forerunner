@@ -853,6 +853,28 @@ void device_one_sided_set(
 	return;
 }
 
+/* port: reuse native group definitions and capacity for optional named outputs.
+ * Duplicate or unavailable bindings fail without selecting an arbitrary group. */
+boolean device_group_find_named(char const *name, short *group_index)
+{
+	struct scenario *scenario = global_scenario_get();
+	short index, found = NONE;
+	if (!scenario || !name || !group_index || !device_groups_data ||
+		scenario->device_groups.count < 0 || scenario->device_groups.count > SHORT_MAX) return FALSE;
+	for (index = 0; index < scenario->device_groups.count; index++)
+	{
+		struct scenario_device_group const *definition = TAG_BLOCK_GET_ELEMENT(
+			&scenario->device_groups, index, struct scenario_device_group);
+		if (!strncmp(definition->name, name, sizeof(definition->name)))
+		{
+			if (found != NONE || index >= device_groups_data->maximum_count) return FALSE;
+			found = index;
+		}
+	}
+	*group_index = found;
+	return TRUE;
+}
+
 real device_group_get_value(
 	short group_index)
 {

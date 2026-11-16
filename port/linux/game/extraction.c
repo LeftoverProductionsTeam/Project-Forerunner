@@ -74,6 +74,7 @@ static struct
 	boolean survival, evacuation, completion_notified;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
+	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
 	long dropship_completed[2]; /* full native handles; rearmed by actual LZ boarding */
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	long last_tick;
@@ -222,6 +223,7 @@ void extraction_reset(void)
 	memset(&extraction, 0, sizeof(extraction));
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
@@ -325,7 +327,7 @@ static void extraction_bind(void)
 {
 	short index, faction;
 	boolean unique = TRUE;
-	struct control_datum *deploy, *activate, *loadout;
+	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
 
 	extraction.bound = TRUE;
@@ -333,6 +335,7 @@ static void extraction_bind(void)
 	extraction.evacuation = FALSE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
@@ -384,6 +387,10 @@ static void extraction_bind(void)
 			extraction.activate_name = index;
 		}
 	}
+	for (faction = 0; faction < 2; faction++)
+		if (!device_group_find_named(faction ? "extraction_spirit_boarded" : "extraction_pelican_boarded",
+			&extraction.dropship_boarding_groups[faction]) ||
+			(extraction.dropship_boarding_groups[faction] != NONE && extraction.dropship_names[faction] == NONE)) unique = FALSE;
 	if (extraction.faction_names[0] != NONE || extraction.faction_names[1] != NONE)
 	{
 		if (global_scenario->starting_profiles.count > SHORT_MAX) goto finished;
@@ -448,6 +455,19 @@ static void extraction_bind(void)
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
 finished:
+	if (extraction.admitted)
+		for (faction = 0; faction < 2; faction++)
+			if (extraction.dropship_boarding_groups[faction] != NONE)
+			{
+				struct control_datum *inputs[5] = {deploy, activate, loadout, choices[0], choices[1]};
+				for (index = 0; index < NUMBEROF(inputs); index++)
+					if (inputs[index] && (inputs[index]->device.position_group_index == extraction.dropship_boarding_groups[faction] ||
+						inputs[index]->device.power_group_index == extraction.dropship_boarding_groups[faction])) extraction.admitted = FALSE;
+			}
+	if (extraction.admitted)
+		for (faction = 0; faction < 2; faction++)
+			if (extraction.dropship_boarding_groups[faction] != NONE)
+				device_group_set_actual_value(extraction.dropship_boarding_groups[faction], 0.f);
 	platform_log("extraction: native hub %s; deploy %d activate %d return %d zone %d pelican %d spirit %d",
 		extraction.admitted ? "admitted" : "unavailable", extraction.deploy_name,
 		extraction.activate_name, extraction.return_zone, extraction.zone,
@@ -464,6 +484,7 @@ finished:
 			extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 			extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 			extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
+			extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 			extraction.zone = extraction.return_zone = NONE;
 		}
 		if (extraction.admitted && !extraction.suspended)
@@ -927,6 +948,51 @@ static boolean extraction_wake_completion(char const *name)
 	return FALSE;
 }
 
+static boolean extraction_transport_boarded(short faction)
+{
+	long ship;
+	short index, passengers = 0;
+	boolean at_hub, at_lz;
+	if (extraction.suspended || cinematic_in_progress() || extraction.dropship_names[faction] == NONE) return FALSE;
+	ship = object_index_from_name_index(extraction.dropship_names[faction]);
+	if (ship == NONE || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
+	at_hub = scenario_trigger_volume_test_object(extraction.return_zone, ship);
+	at_lz = scenario_trigger_volume_test_object(extraction.zone, ship);
+	if (at_hub == at_lz) return FALSE;
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run const *run = &extraction_runs[index];
+		struct player_datum *player = player_try_and_get(run->player);
+		struct unit_datum *unit;
+		if (!player || player->quit_out_of_game) continue;
+		if (run->dropship == ship && (run->phase == _extraction_settling || run->phase == _extraction_losing)) return FALSE;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		if (!unit || extraction_faction(unit->object.owner_team_index) != faction) continue;
+		if (at_lz && run->phase == _extraction_activating) return FALSE;
+		if (at_lz ? run->phase != _extraction_ready :
+			(run->phase != _extraction_deployed || (unit->object.parent_object_index != ship &&
+				!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index)))) continue;
+		passengers++;
+		if (run->unit != player->unit_index || unit->unit.player_index != run->player ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
+			extraction_medical_incapacitated(player->unit_index) || extraction_player_dropship(unit) != ship ||
+			(at_lz && run->dropship != ship)) return FALSE;
+	}
+	return passengers > 0;
+}
+
+static void extraction_transport_readiness(void)
+{
+	short faction;
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.dropship_boarding_groups[faction] != NONE)
+		{
+			real ready = extraction_transport_boarded(faction) ? 1.f : 0.f;
+			if (device_group_get_value(extraction.dropship_boarding_groups[faction]) != ready)
+				device_group_set_actual_value(extraction.dropship_boarding_groups[faction], ready);
+		}
+}
+
 static void extraction_transport_completions(void)
 {
 	short faction, index;
@@ -1026,6 +1092,7 @@ void extraction_update(void)
 		player = player_try_and_get(extraction_runs[index].player);
 		if (extraction_runs[index].player != NONE && (!player || player->quit_out_of_game)) extraction_run_close(&extraction_runs[index]);
 	}
+	extraction_transport_readiness();
 	extraction_transport_completions();
 	/* The optional authored continuation runs once per fresh map, after actual
 	 * native consumption and durable banking for every living survivor. It

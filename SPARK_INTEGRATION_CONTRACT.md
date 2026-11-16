@@ -862,6 +862,28 @@ fixture HSC compilation pass; in-engine aircraft/callback acceptance is unverifi
 Release/unload a returning craft after its crew callback; the owned Pelican script
 now uses it. No new JSON, launcher, camera system or quest/reward writer. Current
 hub-only prototypes retain their old path and are not finished dropship Extraction.
+Optional native device groups `extraction_pelican_boarded` / `extraction_spirit_boarded`
+provide host-derived boarding readiness to ordinary `device_group_get`. Author
+unique dedicated groups, initially zero, with matching named ships; do not share
+them with deployment/activation/loadout/faction controls' power or position groups.
+At the hub, all deployed players still there must actually occupy the assigned
+craft. At the LZ, all players requesting that faction's evacuation must finish
+activation and hold valid boarding receipts/seats. Other factions and unrelated
+field operations are excluded. Empty crews, pending death, incapacitation, invalid
+ownership, cinematics and flight between pads do not authorize a new departure.
+The signal only coordinates flight; it grants no equipment or banking authority.
+Source: `extraction.c::{extraction_transport_boarded,extraction_transport_readiness}`
+and native `devices.c::device_group_find_named`. Existing device replication is
+reused; no protocol, custom HaloScript opcode or map format is introduced.
+The owned aircraft HSC now waits for this signal and recognizes all ten native
+Pelican passenger labels. Two real Delta accounts in
+`build/native-delta-crew-boarding` verify the first passenger waits 90 ticks with
+output zero, then both board normally, insert, and disembark. Unchanged comparisons
+pass for 54 player seconds and 58 item snapshots, with no native exception or item
+mismatch. Windows64/native HSC/cache compilation, nine new connected cases and
+three defect controls pass. Spirit and evacuation-flight readiness, six remote
+crew members and other platforms remain unverified. Maps omitting these groups
+retain their prior authored coordination; Spark can adopt the native bindings.
 The native Pelican fixture now verifies normal passenger boarding, pilot-driven
 insertion, LZ arrival, disembarkation and extraction activation. Its recall route
 does not reach the LZ. Extraction boarding/departure/banking and Spirit flight

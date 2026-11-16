@@ -16,7 +16,22 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `f1cea96764`): native hub faction controls now connect
+Current checkpoint (base `d201275d55`): native dedicated device groups
+now coordinate boarding with existing HaloScript. A first passenger cannot depart
+without other deployed hub crew or same-faction requested evacuation crew actually
+aboard. The existing aircraft script consumes the signal and covers all ten native
+Pelican passenger seats. Windows64/native HSC/cache compilation, nine new connected
+cases (115 workflows across this cycle) and three defect controls pass.
+`build/native-delta-crew-boarding` proves two bound Delta accounts deploying,
+first passenger waiting 90 ticks with native output zero, second physical boarding,
+synchronized insertion and both disembarking. Player/item comparisons pass (54
+seconds/58 snapshots), no native exception, original identity files unchanged.
+Runtime/map copies and BMP scratch are removed; compact evidence remains. This
+advances real two-player insertion, not recall/departure, Spirit, six independent
+clients, VR or full aircraft banking acceptance. The failed recall route was not
+rerun. Continue actual authored approach/landing and departure content next.
+
+Accepted faction/loadout checkpoint (base `f1cea96764`): native hub faction controls now connect
 per-player allegiance, authored starting kits, recovered-loadout priority and the
 existing reservation/bank/redeployment transaction. Windows64 compilation, 100
 connected workflows and a grenade-stacking defect control pass. Two real bound

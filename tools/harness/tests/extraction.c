@@ -63,7 +63,7 @@ struct scenario_trigger_volume { char name[32]; };
 struct tag_reference {long index;};
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups; };
 struct object_placement_data { long definition_index; real_point3d position; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -87,7 +87,7 @@ static boolean fail_refund, fail_confirm, publish_confirm;
 static struct control_datum controls[5];
 static long control_handles[5] = { 0x10003, 0x10004, 0x10005, 0x10006, 0x10007 };
 static struct control_definition control_tag;
-static struct device_group_datum device_groups[10];
+static struct device_group_datum device_groups[12];
 static struct data_array device_group_table;
 static struct data_array *device_groups_data=&device_group_table;
 static int control_updates[5],control_effects[5];
@@ -116,6 +116,12 @@ static boolean hs_wake_by_name(char const *name)
 }
 static struct scenario *global_scenario = &scenario;
 static struct scenario *global_scenario_get(void) {return global_scenario;}
+#include "device_binding.inc"
+static struct scenario_device_group authored_groups[12];
+static short boarding_changes;
+static real device_group_get_value(short index) {CHECK(index>=0&&index<12,"invalid native group read");return device_groups[index].actual_value;}
+static void device_group_set_actual_value(short index,real value)
+{CHECK(index>=0&&index<12,"invalid native group output");device_groups[index].actual_value=value;boarding_changes++;}
 static boolean extra_grenades;
 static boolean mcc_grenades_active(void) {return extra_grenades;}
 static short mcc_grenades_type_count(void) {return extra_grenades?4:2;}
@@ -436,6 +442,18 @@ int main(int argc,char **argv)
   short faction=!strcmp(case_name,"transport-covenant")?1:0;
   long craft=dropship_handles[faction],loot;
   extraction_reset();scenario.object_names.count=5;
+  if(!strncmp(case_name,"transport-boarded",17)) {
+   scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[10].name,"extraction_pelican_boarded");
+   strcpy(authored_groups[11].name,"extraction_spirit_boarded");
+   device_groups[10].actual_value=device_groups[11].actual_value=1.f;
+   if(!strcmp(case_name,"transport-boarded-duplicate"))strcpy(authored_groups[11].name,authored_groups[10].name);
+   if(!strcmp(case_name,"transport-boarded-capacity"))device_group_table.maximum_count=10;
+   if(!strcmp(case_name,"transport-boarded-missing"))scenario.object_names.count=3;
+   if(!strcmp(case_name,"transport-boarded-alias")) {
+    strcpy(authored_groups[0].name,authored_groups[10].name);authored_groups[10].name[0]=0;
+   }
+  }
   if(!strcmp(case_name,"transport-binding"))names[3].runtime_object_type=0;
   if(!strcmp(case_name,"transport-duplicate"))strcpy(names[4].name,"extraction_pelican");
   if(!strcmp(case_name,"transport-missing-faction"))scenario.object_names.count=4;
@@ -444,6 +462,25 @@ int main(int argc,char **argv)
    dropships[a].object.position.x=20;
   }
   advance(1);
+  if(!strcmp(case_name,"transport-boarded-duplicate")||!strcmp(case_name,"transport-boarded-capacity")||
+     !strcmp(case_name,"transport-boarded-missing")||!strcmp(case_name,"transport-boarded-alias")) {
+   CHECK(!extraction_owns_map()&&!boarding_changes,"invalid output binding changed native controls or admitted the hub");return 0;
+  }
+  if(!strncmp(case_name,"transport-boarded",17)) {
+   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"authored stale boarding outputs survived binding");
+   units[0].object.owner_team_index=units[1].object.owner_team_index=_game_team_player;
+   if(!strcmp(case_name,"transport-boarded-hub")) {
+    dropships[0].object.position.x=0;touch(0,0);touch(0,1);
+    units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
+    CHECK(!device_groups[10].actual_value,"first insertion passenger abandoned deployed hub teammate");
+    units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
+    CHECK(device_groups[10].actual_value==1.f,"fully boarded insertion crew not ready");
+    before=boarding_changes;advance(5);CHECK(boarding_changes==before,"unchanged readiness repeatedly snapped native groups");
+    units[1].object.parent_object_index=NONE;advance(1);
+    CHECK(!device_groups[10].actual_value,"disembarking insertion passenger retained readiness");
+    extraction_reset();return 0;
+   }
+  }
   if(!strcmp(case_name,"transport-binding")||!strcmp(case_name,"transport-duplicate")) {
    CHECK(!extraction_owns_map(),"malformed transport binding admitted as a foot return");return 0;
   }
@@ -466,6 +503,31 @@ int main(int argc,char **argv)
    CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),"invalid transport banked owned equipment");return 0;
   }
   CHECK(run(0)->dropship==craft&&run(0)->phase==_extraction_ready,"real assigned LZ seat not recorded");
+  if(!strncmp(case_name,"transport-boarded",17)) {
+   boolean other=!strcmp(case_name,"transport-boarded-other")||!strcmp(case_name,"transport-boarded-identity");
+   CHECK(device_groups[10].actual_value==1.f,"single requested evacuation was not ready");
+   units[1].object.owner_team_index=other?_game_team_covenant:_game_team_player;
+   touch(0,1);units[1].object.position.x=20;touch(1,1);advance(1);
+   CHECK(device_groups[10].actual_value==(other?1.f:0.f),"activation crew/faction readiness incorrect");
+   advance(300);CHECK(device_groups[10].actual_value==(other?1.f:0.f),"unboarded requesting crew counted as seated");
+   units[1].object.parent_object_index=dropship_handles[other?1:0];units[1].unit.parent_seat_index=1;advance(1);
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==(other?1.f:0.f),"native crew boarding did not publish independent readiness");
+   if(!strcmp(case_name,"transport-boarded-pending")) {
+    units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);advance(1);
+    CHECK(!device_groups[10].actual_value,"pending native death authorized departure");
+   } else if(!strcmp(case_name,"transport-boarded-identity")) {
+    units[0].unit.player_index=NONE;advance(1);
+    CHECK(!device_groups[10].actual_value,"unowned body authorized departure");
+   } else {
+    units[0].object.parent_object_index=NONE;advance(1);
+    CHECK(!device_groups[10].actual_value,"lost seat retained departure readiness");
+    units[0].object.parent_object_index=craft;native_cinematic=TRUE;advance(1);
+    CHECK(!device_groups[10].actual_value,"cinematic authorized a new departure");
+    native_cinematic=FALSE;advance(1);CHECK(device_groups[10].actual_value==1.f,"normal boarding did not recover readiness");
+    dropships[0].object.position.x=7;advance(1);CHECK(!device_groups[10].actual_value,"in-flight ship remained ready at a landing pad");
+   }
+   extraction_reset();return 0;
+  }
   if(!strncmp(case_name,"transport-callback",18)) {
    boolean other=!strcmp(case_name,"transport-callback-other");
    boolean field=!strcmp(case_name,"transport-callback-field");

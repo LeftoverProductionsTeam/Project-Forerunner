@@ -158,6 +158,8 @@ void device_group_change_only_once_more_set(
 	boolean change_only_once_more);
 real device_group_get_value(
 	short device_group_index);
+/* port: unique optional native authoring binding; NONE means absent. */
+boolean device_group_find_named(char const *name, short *group_index);
 void device_touched(
 	long device_index,
 	long unit_index);

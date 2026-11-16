@@ -47,6 +47,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('medical_hud.inc', function(hud, 'hud_render_medical_nav_points')))
     devices = read('source/devices/devices.c')
     controls = read('source/devices/device_controls.c')
+    files.append(('device_binding.inc', structure(devices, 'scenario_device_group') + '\n' +
+                  function(devices, 'device_group_find_named')))
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
     files.append(('controls.inc', '\n'.join((function(devices, 'device_can_change_position'),
                                             function(controls, 'control_toggle'), function(controls, 'control_touched')))))
@@ -87,6 +89,9 @@ def test_extraction_workflow(case):
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
     'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
     'transport-callback-pending', 'transport-callback-signature', 'transport-callback-replaced',
+    'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
+    'transport-boarded-pending', 'transport-boarded-identity', 'transport-boarded-duplicate',
+    'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
 ])
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)
@@ -99,6 +104,20 @@ def test_native_transport_settlement(case):
 ])
 def test_native_transport_release_negative_control(before, after, case):
     files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('file,before,after,case', [
+    ('extraction.inc', 'extraction_player_dropship(unit) != ship ||', 'FALSE ||', 'transport-boarded-hub'),
+    ('extraction.inc', 'if (at_lz && run->phase == _extraction_activating) return FALSE;',
+     'if (FALSE) return FALSE;', 'transport-boarded-lz'),
+    ('device_binding.inc', 'found != NONE || index >= device_groups_data->maximum_count',
+     'index >= device_groups_data->maximum_count', 'transport-boarded-duplicate'),
+])
+def test_native_transport_boarding_negative_control(file, before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == file else (name, text)
                   for name, text in generated())
     status, output = run(build('extraction', files), case)
     assert status == CHECK_FAILED, output
