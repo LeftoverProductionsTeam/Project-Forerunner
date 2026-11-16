@@ -832,6 +832,17 @@ Spark's
 scenario globals are shared world state, not independently scoped squad quests.
 Do not substitute editor-only JSON, shared global scripts or a second quest VM
 for independent authoritative squads.
+Faction guidance uses existing `activate_team_nav_point_flag/object` and matching
+deactivation calls. Forerunner now retains received markers in its existing
+co-op cache and refreshes the changed local viewer after faction selection:
+`network_coop.c::{network_coop_note_nav_point,coop_refresh_nav_points}` and
+`hud_nav_points.c::hud_clear_player_nav_points`. No packet or authoring schema
+changes. Windows64, 12 connected cases/four defect controls and two real Delta
+owners' native selection/swapping pass; the final 54-second/58-item comparison
+has no divergence. First attachment, same-team respawn and recovery preserve
+native guidance (focused checks; native restore acceptance remains open).
+Team markers are shared by faction; this does not provide independent six-member
+squad membership, separate quest globals or squad-specific objective text.
 Native authoring requirements demonstrated by the disposable CE mission:
 transplanted multiplayer content does not automatically make human-team Marines
 friendly to player-team Spartans. Supply native `(ai_allegiance player human)`

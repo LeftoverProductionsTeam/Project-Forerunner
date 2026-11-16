@@ -16,7 +16,24 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `ea5409a3c6`): personal native debrief now connects
+Current checkpoint (base `b813f9611e`): faction selection now refreshes only that
+local viewer's native objective markers from the existing co-op HUD cache.
+Clients retain received markers in the same cache; no packet, squad manager or
+quest state was added. First attachment, same-team respawn and recovery preserve
+the native HUD rather than clearing checkpoint-restored guidance. Windows64,
+12 connected cases and four defect controls pass. Final two-account native
+`build/native-delta-faction-guidance-aim` verifies normal Covenant/UNSC selection
+and swapped roles: each view replaces the previous faction's marker, without
+deployment or banking. Comparisons pass (54 player seconds/58 item snapshots),
+no exception; original identities unchanged. A preceding armed/banked swap also
+passes (190/194); the first final-input probe missed the high human control while
+aiming horizontally as a Grunt, corrected without rebuilding the binary/map.
+Runtime/map staging, 49,152,540B of BMP scratch and the 110,030,744B derivative
+cache are removed; original faction cache unchanged. Native checkpoint/respawn,
+other platforms, independent squad membership/objectives and dropship flight
+remain separate acceptance gates. Continue the gameplay roadmap, not UI polish.
+
+Accepted debrief checkpoint (base `ea5409a3c6`): personal native debrief now connects
 confirmed recovery/loss, item details, combat totals and next deployment through
 the existing gear transaction and native control/chat UI. No save or packet
 format changed. `build/native-delta-debrief-complete` passes two verified Delta

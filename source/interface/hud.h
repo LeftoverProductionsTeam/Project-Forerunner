@@ -48,6 +48,10 @@ void hud_initialize_nav_points(
 	void);
 void hud_initialize_nav_points_for_new_map(
 	void);
+/* port: refresh one local player's authored co-op guidance after a faction change. */
+void hud_clear_player_nav_points(long player_index);
+void hud_activate_nav_point_with_flag(short nav_index, long player_index, short flag_index, float vertical_offset);
+void hud_activate_nav_point_with_object(short nav_index, long player_index, long object_index, float vertical_offset);
 void hud_dispose_nav_points_from_old_map(
 	void);
 void hud_dispose_nav_points(

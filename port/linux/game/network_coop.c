@@ -501,6 +501,12 @@ static struct
 	boolean playing;
 	long newest_time;
 	long played_time;
+	/* Local HUD identity only; no squad membership or replicated game state. */
+	struct
+	{
+		long player, team;
+		boolean seen;
+	} nav_players[MAXIMUM_LOCAL_PLAYERS];
 } coop_presentation;
 
 /* host: events still to be sent; client: the last one applied */
@@ -1311,7 +1317,8 @@ static struct
 } host_attachments[MAXIMUM_ATTACHMENTS];
 static short host_attachment_count;
 
-/* host: the HUD state the scripts set that a late joiner would lack: the
+/* Host-authored HUD state, retained on both peers for local role/body changes.
+The host also resends it to late joiners: the
 objective, and the nav points active (their kind, nav index, target, marker
 and offset as the note was given), resent by host_send_hud_state */
 enum
@@ -2973,9 +2980,9 @@ void network_coop_note_nav_point(
 {
 	short index;
 
-	if (!coop_host())
+	if (!coop_host() && !coop_client())
 		return;
-	send_nav_point(kind, nav_index, target, marker, vertical_offset);
+	if (coop_host()) send_nav_point(kind, nav_index, target, marker, vertical_offset);
 	for (index = 0; index < host_hud_state.nav_point_count; index++)
 	{
 		if (host_hud_state.nav_points[index].kind == kind && host_hud_state.nav_points[index].target == target &&
@@ -3001,6 +3008,49 @@ void network_coop_note_nav_point(
 	host_hud_state.nav_points[index].target = target;
 	host_hud_state.nav_points[index].marker = marker;
 	host_hud_state.nav_points[index].vertical_offset = vertical_offset;
+}
+
+/* Team activation affects the viewers present at that moment. Rebuild a
+ * viewer changing faction from the retained script state. First attachment,
+ * same-team respawn and checkpoint recovery retain the native HUD as restored. */
+static void coop_refresh_nav_points(void)
+{
+	short local, index;
+	for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
+	{
+		long player_index = local_player_get_player_index(local);
+		struct player_datum *player = player_try_and_get(player_index);
+		if (!VALID_INDEX(local, MAXIMUM_LOCAL_PLAYERS) || !player || player->quit_out_of_game) continue;
+		if (!coop_presentation.nav_players[local].seen || coop_presentation.nav_players[local].player != player_index)
+		{
+			coop_presentation.nav_players[local].seen = TRUE;
+			coop_presentation.nav_players[local].player = player_index;
+			coop_presentation.nav_players[local].team = player->team_index;
+			continue;
+		}
+		if (coop_presentation.nav_players[local].team == player->team_index) continue;
+		coop_presentation.nav_players[local].team = player->team_index;
+		hud_clear_player_nav_points(player_index);
+		for (index = 0; index < host_hud_state.nav_point_count; index++)
+		{
+			short kind = host_hud_state.nav_points[index].kind;
+			long target = host_hud_state.nav_points[index].target;
+			long marker = host_hud_state.nav_points[index].marker;
+			short nav = host_hud_state.nav_points[index].nav_index;
+			real offset = host_hud_state.nav_points[index].vertical_offset;
+			boolean team = kind == _coop_nav_point_team_flag || kind == _coop_nav_point_team_object;
+			boolean flag = kind == _coop_nav_point_team_flag || kind == _coop_nav_point_unit_flag;
+			if (team ? target != player->team_index : target != player->unit_index) continue;
+			if (nav < 0 || nav >= hud_globals->waypoint.arrows.count) continue;
+			if (flag)
+			{
+				if (marker >= 0 && marker < global_scenario_get()->cutscene_flags.count)
+					hud_activate_nav_point_with_flag(nav, player_index, (short)marker, offset);
+			}
+			else if (object_try_and_get_and_verify_type(marker, _object_mask_all))
+				hud_activate_nav_point_with_object(nav, player_index, marker, offset);
+		}
+	}
 }
 
 /* host: the active nav points again (host_resend), and the objective to a
@@ -3479,6 +3529,7 @@ void network_coop_host_tick(
 	host_send_attachments();
 	host_send_looping_sounds();
 	host_send_hud_state();
+	coop_refresh_nav_points();
 	host_send_broken_surfaces();
 	host_send_events();
 }
@@ -3491,6 +3542,7 @@ void network_coop_client_tick(
 	if (!coop_client())
 		return;
 	client_play_presentation();
+	coop_refresh_nav_points();
 	players_vitality_keep();
 	if (game_time_get() - coop_presentation.heard_time > PRESENTATION_SILENCE_TICKS)
 	{

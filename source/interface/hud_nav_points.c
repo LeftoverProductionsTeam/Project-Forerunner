@@ -475,6 +475,17 @@ void hud_dispose_nav_points_from_old_map(
 	return;
 }
 
+/* port: network_coop.c rebuilds only this viewer's retained authored markers. */
+void hud_clear_player_nav_points(long player_index)
+{
+	struct player_datum *player = player_try_and_get(player_index);
+	if (player && player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
+	{
+		struct hud_nav_point_player_datum *datum = get_nav_point_datum(player->local_player_index);
+		csmemset(datum, NONE, sizeof(*datum));
+	}
+}
+
 void hud_dispose_nav_points(
 	void)
 {
