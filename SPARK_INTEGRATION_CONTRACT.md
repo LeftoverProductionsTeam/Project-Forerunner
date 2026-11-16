@@ -852,8 +852,40 @@ insertion/objective scripts. Keep the craft alive at the return hub through the
 cinematic and settlement; release/unload it only after the existing completion
 callback. No new JSON, launcher, camera system or quest/reward writer. Current
 hub-only prototypes retain their old path and are not finished dropship Extraction.
-No playable aircraft, faction selector/biped/loadout workflow or independent-squad
-cinematic is implied by these new source gates; native transport acceptance is open.
+The native Pelican fixture now verifies normal passenger boarding, pilot-driven
+insertion, LZ arrival, disembarkation and extraction activation. Its recall route
+does not reach the LZ. Extraction boarding/departure/banking and Spirit flight
+remain unverified; do not replace them with a timer or foot return.
+
+Optional faction controls (16 November): author unique native touched controls
+(`triggers_when == 0`) named `extraction_unsc` and/or `extraction_covenant`, each
+with a unique native starting profile of the same name. Keep their names distinct
+from deployment, activation and loadout controls. Profiles are equipment-only:
+zero health/shield modifiers, loaded native weapon references with valid ammo,
+and the two native grenade types. Expanded MCC grenade profiles are refused.
+Maps without these controls retain their existing behavior. Source:
+`extraction.c::{extraction_bind,extraction_control_touched,extraction_loadout}` and
+`game_modes.c::game_modes_inventory_starting_profile` in `port/linux/game/`.
+An authenticated player chooses on foot in the hub with an idle stash. Selection
+changes that player's native human/Covenant allegiance through existing replication;
+it grants no gear and does not toggle shared device position or attach a new AI.
+Deployment preserves selected recovered weapons first, then fills vacant kit slots.
+Saved ammo is not replenished; grenades top up to the authored minimum without
+stacking each run. The existing reservation/grant/confirmation/refund and successful
+escape/bank paths own all equipment; Spark must not award a second copy.
+
+Windows64 compilation, 100 connected workflows and a grenade-stacking defect control
+pass. `build/native-delta-faction-workflow` verifies two distinct bound Delta accounts
+choosing opposing factions through native controls, receiving plasma rifle/assault
+rifle kits, escaping, banking, restarting and redeploying the same two unique items.
+Player comparisons match for 97 operation and 14 restart seconds; item comparisons
+have no mismatches and native logs have no exception. This component fixture uses
+hub return, not transport evacuation. Models, faction objectives, independent squads,
+legacy-peer/platform parity and completed aircraft extraction remain unverified.
+Spark's next authored handoff should include these controls/profiles, compatible
+native bipeds/equipment, faction objectives, and actual Pelican/Spirit flight, seats
+and cameras. The current selector does not replace the map's player biped. No new
+capability version, save format, launcher or multiplayer packet is introduced.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.

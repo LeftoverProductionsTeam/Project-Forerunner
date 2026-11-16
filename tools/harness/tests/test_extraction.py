@@ -13,13 +13,15 @@ from harness.tests.test_gear import generated as gear_generated
 def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
     inventory = read('port/linux/game/game_modes.c')
-    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'apply', 'revoke', 'consume')
+    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
     if fault:
         equipment = mutated(equipment, *fault)
     files.append(('equipment.inc', equipment))
     files.append(('equipment_flags.inc', enum_with(read('source/items/weapon_definitions.h'), '_weapon_must_be_readied_bit')))
     files.append(('native_teams.inc', enum_with(read('source/game/game.h'), 'NUMBER_OF_SOLO_CAMPAIGN_TEAMS,')))
+    files.append(('profile_types.inc', structure(read('source/scenario/scenario_definitions.h'), 'scenario_starting_profile_weapon') +
+                  '\n' + structure(read('source/scenario/scenario_definitions.h'), 'scenario_starting_profile')))
     files.append(('equipment_ownership.inc', enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit') +
                   '\n' + enum_with(read('source/objects/objects.h'), '_object_connected_to_map_bit')))
     files.append(('mission_types.inc', enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') +
@@ -87,6 +89,23 @@ def test_extraction_workflow(case):
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)
     assert status == 0, output
+
+
+@pytest.mark.parametrize('case', [
+    'faction-choice', 'faction-state', 'faction-kit', 'faction-saved',
+    'faction-confirm', 'faction-reserve', 'faction-invalid',
+    'faction-binding', 'faction-duplicate', 'faction-alias', 'faction-transport',
+])
+def test_native_faction_workflow(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+def test_faction_starter_grenade_stacking_negative_control():
+    status, output = run(build('extraction', generated(fault=(
+        'next.grenades[index] = MAX(next.grenades[index], starter);',
+        'next.grenades[index] += starter;'))), 'faction-saved')
+    assert status == CHECK_FAILED, output
 
 
 def test_native_transport_cinematic_negative_control():

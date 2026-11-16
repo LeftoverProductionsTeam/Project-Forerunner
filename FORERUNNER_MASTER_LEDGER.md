@@ -16,7 +16,21 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `71b761be02`): Spark `ac3f144` now supplies a reproducible
+Current checkpoint (base `f1cea96764`): native hub faction controls now connect
+per-player allegiance, authored starting kits, recovered-loadout priority and the
+existing reservation/bank/redeployment transaction. Windows64 compilation, 100
+connected workflows and a grenade-stacking defect control pass. Two real bound
+Delta accounts choose Covenant/UNSC through normal controls, deploy with plasma
+rifle/assault rifle, escape/bank, restart and redeploy the same two unique saved
+items. Captured player comparisons pass (97 operation/14 restart seconds), item
+comparisons show zero mismatches, and no native exception occurs. Evidence:
+`build/native-delta-faction-workflow`; original identity files are unchanged.
+This is hub-return component acceptance, not aircraft, changed character models,
+faction objectives or full Black Echo acceptance. The first readback attempt had
+a probe regex error, corrected without rebuilding or modifying the native map.
+Contract updated in place; continue playable transport boarding/departure next.
+
+Accepted Black Echo checkpoint (base `71b761be02`): Spark `ac3f144` supplies a reproducible
 CE609 candidate. Forerunner reproduced its exact `08389ed4...` cache and independent
 scenario/HSC readbacks, then completed the two-account native operation with fresh
 isolated gear: deployment, combat, Marine rescue, actual technology ownership,

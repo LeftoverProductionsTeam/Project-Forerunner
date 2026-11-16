@@ -39,7 +39,7 @@ struct object_fields { long parent_object_index, owner_player_index; unsigned lo
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
- struct { long player_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
+ struct { long player_index, actor_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags; } unit; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { unsigned long flags; } item;
@@ -48,7 +48,7 @@ struct control_datum { long definition_index; struct object_fields object;
  struct {short position_group_index,power_group_index;unsigned short flags;} device; };
 #define device_datum control_datum
 struct device_group_datum {real actual_value;unsigned short flags;};
-struct player_datum { long unit_index; short local_player_index; boolean quit_out_of_game;
+struct player_datum { long unit_index,team_index; short local_player_index; boolean quit_out_of_game;
  struct { short machine_index, controller_index; } network_player_data; };
 struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum, rounds_total_initial; };
@@ -60,8 +60,10 @@ struct scenario_object_name { char name[32]; short runtime_object_type; };
 struct unit_definition { struct { struct tag_block seats; } unit; };
 struct scenario_trigger_volume { char name[32]; };
 #include "mission_types.inc"
+struct tag_reference {long index;};
+#include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles; };
 struct object_placement_data { long definition_index; real_point3d position; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -82,21 +84,23 @@ static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
 static boolean fail_refund, fail_confirm, publish_confirm;
-static struct control_datum controls[3];
-static long control_handles[3] = { 0x10003, 0x10004, 0x10005 };
+static struct control_datum controls[5];
+static long control_handles[5] = { 0x10003, 0x10004, 0x10005, 0x10006, 0x10007 };
 static struct control_definition control_tag;
-static struct device_group_datum device_groups[6];
+static struct device_group_datum device_groups[10];
 static struct data_array device_group_table;
 static struct data_array *device_groups_data=&device_group_table;
-static int control_updates[3],control_effects[3];
+static int control_updates[5],control_effects[5];
 #include "controls_types.inc"
 static struct weapon_magazine_definition magazine = { 20, 200, 0 };
 static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
 static long missing_tag = NONE, unusable_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
 static struct game_globals globals = { { 2, grenades } };
-static struct scenario_object_name names[5] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
- {"extraction_pelican",_object_type_vehicle},{"extraction_spirit",_object_type_vehicle} };
+static struct scenario_object_name names[7] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
+ {"extraction_pelican",_object_type_vehicle},{"extraction_spirit",_object_type_vehicle},
+ {"extraction_unsc"},{"extraction_covenant"} };
+static struct scenario_starting_profile faction_profiles[2];
 static struct scenario_trigger_volume volumes[2] = { {"extraction_zone"}, {"extraction_return"} };
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
@@ -105,6 +109,13 @@ static short completion_wakes;
 static boolean hs_wake_by_name(char const *name)
 { CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;return TRUE; }
 static struct scenario *global_scenario = &scenario;
+static struct scenario *global_scenario_get(void) {return global_scenario;}
+static boolean extra_grenades;
+static boolean mcc_grenades_active(void) {return extra_grenades;}
+static short mcc_grenades_type_count(void) {return extra_grenades?4:2;}
+static int team_updates,actor_team_updates;
+static void actor_set_team(long actor,short team) {CHECK(actor==7,"unexpected faction actor");actor_team_updates++;}
+static void ai_update_team_status(void) {team_updates++;}
 static void *player_data;
 static long tick;
 static boolean enabled=TRUE, director, profile=TRUE, verified=TRUE;
@@ -136,7 +147,7 @@ static void *object_try_and_get_and_verify_type(long h,long mask)
  if(h==NONE) return NULL;
  for(i=0;i<2;i++) if(h==dropship_handles[i] && (mask&_object_mask_vehicle)) return &dropships[i];
  for(i=0;i<active_players;i++) if(h==unit_handles[i] && (mask&_object_mask_biped)) return &units[i];
- for(i=0;i<3;i++) if(h==control_handles[i] && (mask&_object_mask_control)) return &controls[i];
+ for(i=0;i<NUMBEROF(controls);i++) if(h==control_handles[i] && (mask&_object_mask_control)) return &controls[i];
  for(i=0;i<weapon_count;i++) if(h==weapons[i].handle && (mask&_object_mask_weapon)) return &weapons[i].datum;
  return NULL;
 }
@@ -209,19 +220,19 @@ static boolean player_ui_get_path_to_local_player_profile_directory(short local,
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
 { CHECK((machine==1 && controller==2)||(delta_session && machine==players[0].network_player_data.machine_index && controller==players[0].network_player_data.controller_index),"wrong authenticated controller"); memcpy(id->account,machine==1?remote_account:host_account,16); id->bound=verified; return TRUE; }
 static boolean delta_peer_game_on_delta(void) { return delta_session; }
-static long object_index_from_name_index(short index) { return index>=3 && index<5 ? dropship_handles[index-3] : index>=0 && index<3 ? control_handles[index] : NONE; }
+static long object_index_from_name_index(short index) { return index>=5 && index<7 ? control_handles[index-2] : index>=3 && index<5 ? dropship_handles[index-3] : index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
 static struct control_definition *control_definition_get(long h) { return &control_tag; }
 static struct control_datum *control_get(long h) { struct control_datum *c=control_try_and_get(h);CHECK(c,"invalid control");return c; }
 static struct device_datum *device_get(long h) { return control_get(h); }
 static boolean device_group_set_desired_value(short index,real value)
 {
- CHECK(index>=0&&index<3,"invalid position group");
+ CHECK((index>=0&&index<3)||index==6||index==7,"invalid position group");
  if((device_groups[index].flags&FLAG(_device_group_can_change_only_once_bit))&&
     (device_groups[index].flags&FLAG(_device_group_changed_once_bit)))return FALSE;
- device_groups[index].actual_value=value;device_groups[index].flags|=FLAG(_device_group_changed_once_bit);control_updates[index]++;return TRUE;
+ device_groups[index].actual_value=value;device_groups[index].flags|=FLAG(_device_group_changed_once_bit);control_updates[index<3?index:index-3]++;return TRUE;
 }
-static void device_effect_new(long control,long effect) { for(short i=0;i<3;i++)if(control_handles[i]==control){control_effects[i]=(int)effect;return;}CHECK(FALSE,"invalid effect owner"); }
+static void device_effect_new(long control,long effect) { for(short i=0;i<NUMBEROF(controls);i++)if(control_handles[i]==control){control_effects[i]=(int)effect;return;}CHECK(FALSE,"invalid effect owner"); }
 static void display_assert(void *unused,char const *path,int line,boolean fatal) { (void)unused;(void)path;(void)line;(void)fatal;abort(); }
 static void system_exit(long code) { (void)code;abort(); }
 boolean device_can_change_position(long control_index);
@@ -277,16 +288,18 @@ static void escape(short player)
 static void initialize(void)
 {
  short i,j; connection=_game_connection_network_server;firefight.wave_limit=3;
- device_group_table.data=(byte *)device_groups;device_group_table.size=sizeof(device_groups[0]);device_group_table.maximum_count=6;
+ device_group_table.data=(byte *)device_groups;device_group_table.size=sizeof(device_groups[0]);device_group_table.maximum_count=NUMBEROF(device_groups);
  for(i=0;i<2;i++) {
   players[i].unit_index=unit_handles[i]; players[i].local_player_index=i ? NONE : 0;
   players[i].network_player_data.controller_index=i ? 2 : 0; units[i].unit.player_index=player_handles[i];
   units[i].object.body_vitality=units[i].object.shield_vitality=1.f;
   units[i].object.parent_object_index=NONE;
+  units[i].unit.actor_index=NONE;
   units[i].unit.current_weapon_index=0; units[i].unit.grenade_counts[0]=1;
   for(j=0;j<4;j++) units[i].unit.weapon_object_indices[j]=NONE;
  }
  for(i=0;i<3;i++) {controls[i].object.name_index=i;controls[i].device.position_group_index=i;controls[i].device.power_group_index=i+3;device_groups[i+3].actual_value=1.f;}
+ for(i=3;i<5;i++) {controls[i].object.name_index=i+2;controls[i].device.position_group_index=i+3;controls[i].device.power_group_index=i+5;device_groups[i+5].actual_value=1.f;}
  control_tag.control.on_effect.index=1;control_tag.control.off_effect.index=2;control_tag.control.denied_effect.index=3;
  extraction_reset(); advance(1); CHECK(extraction_owns_map(),"valid authored hub refused");
 }
@@ -300,10 +313,119 @@ static void treat(short count,boolean hit_last)
   extraction_update();
  }
 }
+static void enable_factions(boolean ships)
+{
+ short i;
+ extraction_reset();scenario.object_names.count=7;
+ if(!ships)names[3].name[0]=names[4].name[0]=0;
+ scenario.starting_profiles.count=2;scenario.starting_profiles.address=faction_profiles;
+ memset(faction_profiles,0,sizeof(faction_profiles));
+ for(i=0;i<2;i++) {
+  strcpy(faction_profiles[i].name,i?"extraction_covenant":"extraction_unsc");
+  faction_profiles[i].primary_weapon.weapon.index=i+1;
+  faction_profiles[i].primary_weapon.rounds_loaded=10;faction_profiles[i].primary_weapon.rounds_total=40;
+  faction_profiles[i].secondary_weapon.weapon.index=NONE;
+  faction_profiles[i].grenade_counts[i]=i?2:1;
+  units[i].object.owner_team_index=_game_team_player;players[i].team_index=_game_team_player;
+  dropships[i].definition_index=300;dropships[i].object.body_vitality=1;
+ }
+}
 int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strncmp(case_name,"faction-",8)) {
+  struct gear_record saved;long old_count;
+  if(!strcmp(case_name,"faction-saved")||!strcmp(case_name,"faction-confirm")||!strcmp(case_name,"faction-reserve")) {
+   touch(0,0);a=pickup(0,1);weapon_get(a)->weapon.magazines[0].rounds_loaded=3;
+   weapon_get(a)->weapon.magazines[0].rounds_total=37;escape(0);
+  }
+  enable_factions(!strcmp(case_name,"faction-transport"));
+  if(!strcmp(case_name,"faction-binding"))scenario.starting_profiles.count=1;
+  if(!strcmp(case_name,"faction-duplicate"))strcpy(faction_profiles[1].name,faction_profiles[0].name);
+  if(!strcmp(case_name,"faction-alias"))control_handles[3]=control_handles[0];
+  advance(1);
+  if(!strcmp(case_name,"faction-binding")||!strcmp(case_name,"faction-duplicate")||!strcmp(case_name,"faction-alias")) {
+   CHECK(!extraction_owns_map(),"ambiguous/missing faction interface admitted");return 0;
+  }
+  CHECK(extraction_owns_map(),"valid native faction hub refused");
+  if(!strcmp(case_name,"faction-invalid")) {
+   faction_profiles[1].starting_health_modifier=1;touch(4,0);
+   CHECK(players[0].team_index==_game_team_player&&!weapon_count,"unsupported vitality profile changed role or granted gear");
+   faction_profiles[1].starting_health_modifier=0;faction_profiles[1].primary_weapon.rounds_loaded=21;touch(4,0);
+   CHECK(players[0].team_index==_game_team_player&&!weapon_count,"over-capacity kit changed role");
+   faction_profiles[1].primary_weapon.rounds_loaded=10;extra_grenades=TRUE;touch(4,0);
+   CHECK(players[0].team_index==_game_team_player&&!weapon_count,"expanded grenades silently narrowed into a faction kit");
+   extra_grenades=FALSE;faction_profiles[1].primary_weapon.weapon.index=NONE;touch(4,0);
+   CHECK(players[0].team_index==_game_team_player&&!weapon_count,"missing kit tag changed role");return 0;
+  }
+  if(!strcmp(case_name,"faction-state")) {
+   units[0].object.position.x=20;touch(4,0);CHECK(!team_updates,"field player changed faction");
+   units[0].object.position.x=0;units[0].object.parent_object_index=55;touch(4,0);
+   CHECK(!team_updates,"seated player changed faction");units[0].object.parent_object_index=NONE;
+   units[0].unit.grenade_throw_state=1;touch(4,0);CHECK(!team_updates,"throwing player changed faction");
+   units[0].unit.grenade_throw_state=_unit_grenade_throw_idle;
+   device_groups[9].actual_value=0;touch(4,0);CHECK(!team_updates,"unpowered choice changed faction");
+   device_groups[9].actual_value=1;
+  }
+  if(!strcmp(case_name,"faction-choice"))units[0].unit.actor_index=7;
+  before=weapon_count;
+  touch(4,0);touch(3,1);
+  CHECK(players[0].team_index==_game_team_covenant&&units[0].object.owner_team_index==_game_team_covenant&&
+   players[1].team_index==_game_team_human&&units[1].object.owner_team_index==_game_team_human,
+   "per-player faction choice changed another player or missed native allegiance");
+  CHECK(!control_updates[3]&&!control_updates[4]&&weapon_count==before,
+   "selection toggled shared state or granted a starter kit");
+  if(!strcmp(case_name,"faction-choice")) {
+   CHECK(team_updates==2&&actor_team_updates==1,"native actor allegiance refresh not reused");return 0;
+  }
+  if(!strcmp(case_name,"faction-transport")) {
+   units[0].object.parent_object_index=dropship_handles[1];units[0].unit.parent_seat_index=0;
+   CHECK(extraction_player_dropship(&units[0])==dropship_handles[1],"Covenant choice did not select Spirit");
+   touch(3,0);CHECK(players[0].team_index==_game_team_covenant,"seated passenger switched factions");
+   units[0].object.parent_object_index=dropship_handles[0];
+   CHECK(extraction_player_dropship(&units[0])==NONE,"Covenant choice boarded UNSC transport");return 0;
+  }
+  old_count=weapon_count;
+  if(!strcmp(case_name,"faction-reserve")) {
+   fail_write=TRUE;touch(0,0);CHECK(weapon_count==old_count&&run(0)->phase==_extraction_hub,
+    "failed reservation issued starter equipment");return 0;
+  }
+  if(!strcmp(case_name,"faction-confirm")) {
+   fail_confirm=TRUE;touch(0,0);
+   CHECK(run(0)->phase==_extraction_cancelling&&run(0)->gear.record.phase==_gear_reserved,
+    "failed confirmation issued a faction run");
+   for(a=0;a<4;a++)CHECK(units[0].unit.weapon_object_indices[a]==NONE,"failed confirmation left kit or saved weapon usable");
+   CHECK(!units[0].unit.grenade_counts[1],"failed confirmation left starter grenades");
+   fail_confirm=fail_write=FALSE;advance(120);
+   CHECK(run(0)->gear.record.phase==_gear_idle&&run(0)->gear.record.count==1,"saved weapon refund lost after kit rollback");return 0;
+  }
+  touch(0,0);CHECK(run(0)->phase==_extraction_deployed,"valid faction deployment refused");
+  CHECK(weapon_get(units[0].unit.weapon_object_indices[!strcmp(case_name,"faction-saved")?1:0])->definition_index==2,
+   "Covenant kit not granted through native inventory");
+  CHECK(units[0].unit.grenade_counts[1]==2,"Covenant grenade kit missing");
+  touch(3,0);CHECK(players[0].team_index==_game_team_covenant,"deployed player changed faction");
+  if(!strcmp(case_name,"faction-kit")) {
+   touch(0,1);CHECK(run(1)->phase==_extraction_deployed&&weapon_get(units[1].unit.weapon_object_indices[0])->definition_index==1,
+    "UNSC player did not receive its separate native kit");
+   CHECK(units[1].unit.grenade_counts[0]==1,"starter grenades stacked with currently carried grenades");return 0;
+  }
+  if(!strcmp(case_name,"faction-state"))return 0;
+  CHECK(!strcmp(case_name,"faction-saved"),"unknown faction case");
+  CHECK(run(0)->gear.record.reserved_count==1&&weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==1,
+   "starter kit displaced or reserved itself as owned gear");
+  CHECK(weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_loaded==3&&
+   weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_total==37,
+   "starter kit overwrote saved weapon ammunition");
+  escape(0);CHECK(run(0)->gear.record.count==2,"faction escape failed to bank owned and recovered equipment");
+  saved=run(0)->gear.record;touch(0,0);CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.reserved_count==2,
+   "faction equipment did not redeploy");
+  CHECK(run(0)->gear.record.reserved_grenades[1]==2&&units[0].unit.grenade_counts[1]==2,
+   "starter kit stacked with recovered grenades on redeployment");
+  escape(0);CHECK(run(0)->gear.record.count==2&&!memcmp(saved.items[0].id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES)&&
+   !memcmp(saved.items[1].id,run(0)->gear.record.items[1].id,GEAR_ID_BYTES),"redeployment duplicated faction equipment identities");
+  return 0;
+ }
  if(!strncmp(case_name,"transport-",10)) {
   short faction=!strcmp(case_name,"transport-covenant")?1:0;
   long craft=dropship_handles[faction],loot;

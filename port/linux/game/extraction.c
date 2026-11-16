@@ -5,6 +5,8 @@
 #include "cseries.h"
 #include "devices/device_controls.h"
 #include "devices/devices.h"
+#include "ai/ai.h"
+#include "ai/actors.h"
 #include "game/game.h"
 #include "game/players.h"
 #include "hs/hs.h"
@@ -72,6 +74,7 @@ static struct
 	boolean survival, evacuation, completion_notified;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
+	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	long last_tick;
 } extraction;
 static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
@@ -104,6 +107,12 @@ static boolean extraction_requested(void)
 		global_scenario->type == _scenario_type_solo &&
 		(game_connection() == _game_connection_local ||
 		(game_connection() == _game_connection_network_server && network_coop_active()));
+}
+
+static short extraction_faction(short team)
+{
+	if (team == _game_team_player || team == _game_team_human) return 0;
+	return team == _game_team_covenant ? 1 : NONE;
 }
 
 boolean extraction_owns_map(void)
@@ -212,6 +221,8 @@ void extraction_reset(void)
 	memset(&extraction, 0, sizeof(extraction));
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
+	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.last_tick = NONE;
 	gear_world_reset();
 	extraction_medical_reset();
@@ -310,15 +321,18 @@ boolean extraction_respawn_after_loss(void)
 
 static void extraction_bind(void)
 {
-	short index;
+	short index, faction;
 	boolean unique = TRUE;
 	struct control_datum *deploy, *activate, *loadout;
+	struct control_datum *choices[2] = {NULL, NULL};
 
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
 	extraction.evacuation = FALSE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
+	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
 	if (!extraction.survival && config_boolean("network.firefight_encounter"))
 	{
@@ -333,15 +347,21 @@ static void extraction_bind(void)
 	{
 		struct scenario_object_name *name = TAG_BLOCK_GET_ELEMENT(
 			&global_scenario->object_names, index, struct scenario_object_name);
-		short faction;
 
 		for (faction = 0; faction < 2; faction++)
+		{
+			if (!strcmp(name->name, faction ? "extraction_covenant" : "extraction_unsc"))
+			{
+				if (extraction.faction_names[faction] != NONE) unique = FALSE;
+				extraction.faction_names[faction] = index;
+			}
 			if (!strcmp(name->name, faction ? "extraction_spirit" : "extraction_pelican"))
 			{
 				if (extraction.dropship_names[faction] != NONE || name->runtime_object_type != _object_type_vehicle)
 					unique = FALSE;
 				extraction.dropship_names[faction] = index;
 			}
+		}
 
 		if (!strcmp(name->name, "extraction_deploy"))
 		{
@@ -359,6 +379,21 @@ static void extraction_bind(void)
 			if (extraction.activate_name != NONE)
 				unique = FALSE;
 			extraction.activate_name = index;
+		}
+	}
+	if (extraction.faction_names[0] != NONE || extraction.faction_names[1] != NONE)
+	{
+		if (global_scenario->starting_profiles.count > SHORT_MAX) goto finished;
+		for (index = 0; index < global_scenario->starting_profiles.count; index++)
+		{
+			struct scenario_starting_profile *profile = TAG_BLOCK_GET_ELEMENT(
+				&global_scenario->starting_profiles, index, struct scenario_starting_profile);
+			for (faction = 0; faction < 2; faction++)
+				if (!strcmp(profile->name, faction ? "extraction_covenant" : "extraction_unsc"))
+				{
+					if (extraction.faction_profiles[faction] != NONE) unique = FALSE;
+					extraction.faction_profiles[faction] = index;
+				}
 		}
 	}
 	for (index = 0; index < global_scenario->trigger_volumes.count; index++)
@@ -390,6 +425,14 @@ static void extraction_bind(void)
 		control_definition_get(activate->definition_index)->control.triggers_when == 0;
 	if (extraction.loadout_name != NONE && (!loadout || loadout == deploy || loadout == activate ||
 		control_definition_get(loadout->definition_index)->control.triggers_when != 0)) extraction.admitted = FALSE;
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.faction_names[faction] != NONE)
+		{
+			choices[faction] = control_try_and_get(object_index_from_name_index(extraction.faction_names[faction]));
+			if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout ||
+				(faction && choices[1] == choices[0]) || extraction.faction_profiles[faction] == NONE ||
+				control_definition_get(choices[faction]->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
+		}
 	/* Every authored start must return a dead/late-joining player to this hub.
 	   A nonempty encounter map with field starts is not an admitted hub. */
 	if (!global_scenario->players.count) extraction.admitted = FALSE;
@@ -416,6 +459,8 @@ finished:
 		{
 			extraction.admitted = TRUE;
 			extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
+			extraction.faction_names[0] = extraction.faction_names[1] = NONE;
+			extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 			extraction.zone = extraction.return_zone = NONE;
 		}
 		if (extraction.admitted && !extraction.suspended)
@@ -429,7 +474,7 @@ finished:
 	if (extraction.admitted && !extraction.suspended)
 		extraction_notice("FIELD TERMINAL | Use the deployment control to begin. No raid timer.");
 	else if (!extraction.admitted)
-		extraction_notice("Extraction unavailable: check native hub controls/zones, hub starts and named dropship vehicle bindings.");
+		extraction_notice("Extraction unavailable: check native hub controls/zones, starts, dropships and optional faction controls/profiles.");
 }
 
 
@@ -440,16 +485,32 @@ static char const *extraction_item_name(char const *path)
 	return slash ? slash + 1 : path;
 }
 
+static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout)
+{
+	struct player_datum *player;
+	struct unit_datum *unit;
+	short faction;
+	if (!gear_loadout(&run->gear, loadout)) return FALSE;
+	if (extraction.faction_names[0] == NONE && extraction.faction_names[1] == NONE) return TRUE;
+	player = player_try_and_get(run->player);
+	unit = player ? (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped) : NULL;
+	if (!unit || unit->unit.player_index != run->player) return FALSE;
+	faction = extraction_faction(unit->object.owner_team_index);
+	return faction != NONE && extraction.faction_names[faction] != NONE &&
+		game_modes_inventory_starting_profile(extraction.faction_profiles[faction], GEAR_LOADOUT_WEAPONS,
+			run->gear.grenade_room, loadout);
+}
+
 static void extraction_loadout_notice(struct extraction_run *run)
 {
 	struct game_modes_inventory loadout;
 	char text[128];
-	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !gear_loadout(&run->gear, &loadout))
+	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !extraction_loadout(run, &loadout))
 	{
 		extraction_block(run, "LOADOUT PENDING | Native equipment or stash unavailable. Retry at the terminal."); return;
 	}
 	run->blocked = FALSE;
-	snprintf(text, sizeof(text), "STASH %d/%d | %.20s / %.20s | +%d frag +%d plasma. Use: change; crouch-use: discard.",
+	snprintf(text, sizeof(text), "LOADOUT | Stash %d/%d | %.18s / %.18s | +%d frag +%d plasma. Use: change; crouch-use: discard.",
 		(int)run->gear.record.count, GEAR_CAPACITY,
 		loadout.weapon_count > 0 ? extraction_item_name(loadout.weapons[0].tag_path) : "carried gear",
 		loadout.weapon_count > 1 ? extraction_item_name(loadout.weapons[1].tag_path) : "-",
@@ -464,7 +525,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	run->discard_deadline = 0;
 	if (!extraction_open_gear(run, player) || !game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
-		!gear_loadout(&run->gear, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
+		!extraction_loadout(run, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
 	{
 		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
 	}
@@ -555,12 +616,15 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct player_datum *player;
 	struct extraction_run *run;
 	long slot;
+	short faction;
 	boolean in_hub;
 
 	if (!extraction_owns_map() && !(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested())) return FALSE;
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
-		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name))) return FALSE;
+		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name) &&
+		(extraction.faction_names[0] == NONE || control->object.name_index != extraction.faction_names[0]) &&
+		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]))) return FALSE;
 	if (extraction.suspended || cinematic_in_progress() ||
 		(extraction.survival && coop_enemies_firefight_outcome() != 0)) return TRUE;
 	/* Recheck authored power, usability and one-use locks on the host before
@@ -579,6 +643,41 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	}
 	in_hub = scenario_trigger_volume_test_object(extraction.return_zone, unit_index) &&
 		!scenario_trigger_volume_test_object(extraction.zone, unit_index);
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.faction_names[faction] != NONE && control->object.name_index == extraction.faction_names[faction])
+		{
+			struct game_modes_inventory loadout;
+			short team = faction ? _game_team_covenant : _game_team_human;
+			if (!in_hub || unit->object.parent_object_index != NONE || unit->unit.grenade_throw_state != _unit_grenade_throw_idle ||
+				(run->phase != _extraction_hub && run->phase != _extraction_lost && run->phase != _extraction_returned))
+			{
+				extraction_tell(run, "FACTION LOCKED | Choose on foot at the hub before deployment or after settling a run.");
+				return TRUE;
+			}
+			if (!extraction_open_gear(run, player) || run->gear.record.phase != _gear_idle ||
+				!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !gear_loadout(&run->gear, &loadout) ||
+				!game_modes_inventory_starting_profile(extraction.faction_profiles[faction], GEAR_LOADOUT_WEAPONS,
+					run->gear.grenade_room, &loadout))
+			{
+				extraction_block(run, "FACTION UNAVAILABLE | Starter equipment is unavailable or stash recovery is pending. No equipment granted.");
+				return TRUE;
+			}
+			/* Reuse native allegiance and its existing object replication. Never
+			 * attach a new AI controller or change the whole encounter's team. */
+			if (unit->unit.actor_index != NONE) actor_set_team(unit->unit.actor_index, team);
+			unit->object.owner_team_index = team;
+			player->team_index = team;
+			ai_update_team_status();
+			run->discard_deadline = 0; run->loadout_seen = FALSE; run->blocked = FALSE; run->dropship = NONE;
+			extraction_tell(run, faction ?
+				(extraction.dropship_names[1] != NONE ?
+					"COVENANT SELECTED | Recovered gear takes priority over the starter kit. Evacuate aboard your Spirit." :
+					"COVENANT SELECTED | Recovered gear takes priority over the starter kit. This operation returns through the hub.") :
+				(extraction.dropship_names[0] != NONE ?
+					"UNSC SELECTED | Recovered gear takes priority over the starter kit. Evacuate aboard your Pelican." :
+					"UNSC SELECTED | Recovered gear takes priority over the starter kit. This operation returns through the hub."));
+			return TRUE; /* Per-player choice, not a shared device-position flag. */
+		}
 	if (control->object.name_index == extraction.loadout_name && in_hub &&
 		(run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned))
 	{
@@ -645,9 +744,8 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 	short faction, name;
 	long index;
 	struct unit_datum *vehicle;
-	if (unit->object.owner_team_index == _game_team_covenant) faction = 1;
-	else if (unit->object.owner_team_index == _game_team_player || unit->object.owner_team_index == _game_team_human) faction = 0;
-	else return NONE;
+	faction = extraction_faction(unit->object.owner_team_index);
+	if (faction == NONE) return NONE;
 	name = extraction.dropship_names[faction];
 	if (name == NONE || unit->unit.parent_seat_index < 0) return NONE;
 	index = object_index_from_name_index(name);

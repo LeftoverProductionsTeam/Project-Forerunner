@@ -39,11 +39,13 @@ of their own (menu_functions.c's OPENCE).
 #include "tag_files/tag_files.h"
 #include "tag_files/tag_groups.h"
 #include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "text/unicode.h"
 #include "units/units.h"
 #include "game_modes.h"
 #include "gun_game.h"
 #include "infection.h"
+#include "mcc_grenades.h"
 
 #include <string.h>
 
@@ -204,6 +206,65 @@ boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *in
 		struct game_modes_inventory_weapon const *item = &inventory->weapons[index];
 		if (item->slot != index || !game_modes_inventory_weapon_compatible(item)) return FALSE;
 	}
+	return TRUE;
+}
+
+boolean game_modes_inventory_starting_profile(short profile_index, short maximum_weapons,
+	short const grenade_room[2], struct game_modes_inventory *inventory)
+{
+	struct scenario *scenario = global_scenario_get();
+	struct game_globals *globals = scenario_get_game_globals();
+	struct scenario_starting_profile const *profile;
+	struct scenario_starting_profile_weapon const *weapons[2];
+	struct game_modes_inventory next;
+	short index, slot;
+	if (!scenario || !globals || globals->grenades.count < 2 || !grenade_room || !VALID_INDEX(profile_index, scenario->starting_profiles.count) ||
+		maximum_weapons < 0 || maximum_weapons > GAME_MODES_INVENTORY_WEAPONS ||
+		!game_modes_inventory_loadout_valid(inventory) || inventory->weapon_count > maximum_weapons ||
+		(mcc_grenades_active() && mcc_grenades_type_count() > 2)) return FALSE;
+	profile = TAG_BLOCK_GET_ELEMENT(&scenario->starting_profiles, profile_index, struct scenario_starting_profile);
+	if (profile->starting_health_modifier != 0.f || profile->starting_shield_modifier != 0.f) return FALSE;
+	weapons[0] = &profile->primary_weapon;
+	weapons[1] = &profile->secondary_weapon;
+	next = *inventory;
+	for (index = 0; index < NUMBEROF(weapons); index++)
+	{
+		struct game_modes_inventory_weapon item;
+		char const *path;
+		if (weapons[index]->weapon.index == NONE)
+		{
+			if (weapons[index]->rounds_loaded || weapons[index]->rounds_total) return FALSE;
+			continue;
+		}
+		path = tag_get_name(weapons[index]->weapon.index);
+		if (!path || strlen(path) >= sizeof(item.tag_path) ||
+			tag_loaded(WEAPON_DEFINITION_TAG, path) != weapons[index]->weapon.index) return FALSE;
+		csmemset(&item, 0, sizeof(item));
+		strcpy(item.tag_path, path);
+		item.rounds_loaded[0] = weapons[index]->rounds_loaded;
+		item.rounds_reserve[0] = weapons[index]->rounds_total;
+		if (!game_modes_inventory_weapon_compatible(&item)) return FALSE;
+		for (slot = 0; slot < next.weapon_count; slot++)
+			if (!strcmp(next.weapons[slot].tag_path, path)) break;
+		if (slot < next.weapon_count || next.weapon_count == maximum_weapons) continue;
+		item.slot = next.weapon_count;
+		next.weapons[next.weapon_count++] = item;
+	}
+	for (index = 0; index < NUMBEROF(next.grenades); index++)
+	{
+		short starter = (unsigned char)profile->grenade_counts[index];
+		struct game_globals_grenade *definition = TAG_BLOCK_GET_ELEMENT(&globals->grenades, index, struct game_globals_grenade);
+		short maximum = definition->maximum_count;
+		if (starter > 127 || maximum < 0 || maximum > 127 || grenade_room[index] < next.grenades[index] ||
+			grenade_room[index] > maximum) return FALSE;
+		/* Top up to the authored kit, rather than adding it again to carried
+		 * or recovered grenades on every deployment. Never clip saved gear. */
+		starter = MAX(0, MIN(starter, maximum) - (maximum - grenade_room[index]));
+		next.grenades[index] = MAX(next.grenades[index], starter);
+	}
+	if (next.selected_slot == NONE && next.weapon_count) next.selected_slot = 0;
+	if (!game_modes_inventory_loadout_valid(&next)) return FALSE;
+	*inventory = next;
 	return TRUE;
 }
 
