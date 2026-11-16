@@ -15,12 +15,12 @@ boolean coop_spectating(
 	void);
 
 /* the unit a dead local player watches (A switches teammate), or NONE if
-the player is alive or nobody else is */
+the player is alive or no eligible ally is alive */
 long coop_spectate_unit(
 	short local_player_index);
 
-/* whether a local player has nothing to look at: no unit of its own and
-no living teammate to watch (network_coop.c shows it the host's view) */
+/* No own unit or living ally, and all known players are allied: safe to use
+the host's joining camera. Mixed/unknown factions keep their own dead camera. */
 boolean coop_spectate_nothing_to_watch(
 	short local_player_index);
 

@@ -54,6 +54,20 @@ repositions. Existing actor readback reports native seat geometry without
 moving/boarding players. No repeat of the accepted Spark mission or gear suite.
 Continue the native flight/landing path; do not substitute a timer or foot return.
 
+Faction spectator checkpoint (base `bb83c1c7a7`): co-op selection, cycling and
+HUD now require mutually non-hostile native teams and recheck live body ownership.
+Mixed/unknown factions cannot fall through to the host's joining camera, including
+a dead enemy host. Ordinary allied co-op retains its joining view and death delay.
+The existing connected spectator checks pass, including seven defect controls;
+Windows64 compiles. Native probes under `build/native-faction-spectator-*` expose
+the real director target through existing opt-in readback. The final probe assigns
+native teams and kills the intended player, but hub respawn precedes the expected
+spectator observation: mixed-faction camera gameplay acceptance is INCONCLUSIVE.
+Earlier setup probes hit an empty initial clock, console buffering and incorrect
+player-list/timing assumptions; no simulation or respawn safeguard was weakened.
+Native faction selection/bipeds, independent squads and transport recall remain
+open. Advance their existing paths; do not repeat this unchanged hub probe.
+
 Native allegiance handoff (base `1b5bbaaa67`): existing reliable object
 descriptions now announce live team changes and apply them to reused objects.
 Native co-op player attachment and authored `ai_attach`/`ai_set_team` reconcile

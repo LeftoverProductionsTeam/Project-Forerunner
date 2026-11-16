@@ -3861,7 +3861,8 @@ static void client_presentation_apply(
 	too: the cutscene's camera wins over spectating (shots filmed by a moving
 	Pelican follow this machine's copy of it: camera_object_offset). Spectate
 	instead only when the cutscene leaves the camera with the player. A
-	player with no unit and nobody to watch also gets the host's view,
+	player with no unit and nobody to watch also gets the host's view when
+	all known player allegiances permit it (never an enemy host's view),
 	rather than a dead camera at the world origin. A camera that never moved
 	(a dedicated server of an earlier build's: client_host_camera_unmoved)
 	is not looked through: the cutscene's camera watches its actors instead

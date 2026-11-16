@@ -18,6 +18,7 @@ is touch_cinematic.c's).
 #include "camera/dead_camera.h"
 #include "game/game.h"
 #include "game/game_engine.h"
+#include "game/game_allegiance.h"
 #include "game/players.h"
 #include "input/input.h"
 #include "interface/hud_messaging.h"
@@ -84,20 +85,29 @@ byte input_abstraction_port_accept(short controller_index);
 
 /* ---------- private code */
 
+static boolean spectate_teams_allied(long viewer, long target)
+{
+	return viewer >= 0 && viewer < NUMBER_OF_SOLO_CAMPAIGN_TEAMS &&
+		target >= 0 && target < NUMBER_OF_SOLO_CAMPAIGN_TEAMS &&
+		!game_team_is_enemy(viewer, target) && !game_team_is_enemy(target, viewer);
+}
+
 /* A player slot alone does not own a usable view after death, departure or
  * body replacement. Keep downed-but-alive teammates eligible. */
-static long spectate_player_unit(long player_index)
+static long spectate_player_unit(long viewer_index, long player_index)
 {
+	struct player_datum *viewer = player_try_and_get(viewer_index);
 	struct player_datum *player = player_try_and_get(player_index);
 	struct unit_datum *unit;
-	if (!player || player->quit_out_of_game || player->unit_index == NONE) return NONE;
+	if (!viewer || !player || player->quit_out_of_game || player->unit_index == NONE) return NONE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 	return unit && unit->unit.player_index == player_index &&
+		spectate_teams_allied(viewer->team_index, unit->object.owner_team_index) &&
 		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ? player->unit_index : NONE;
 }
 
-/* The next living player after `after` (or the first, if `after` is NONE),
-skipping `self` and wrapping around. NONE if nobody else is alive. */
+/* The next living ally after `after` (or the first, if `after` is NONE),
+skipping `self` and wrapping around. NONE if no eligible ally is alive. */
 static long next_living_player(long self, long after)
 {
 	struct data_iterator iterator;
@@ -108,7 +118,7 @@ static long next_living_player(long self, long after)
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
-		if (iterator.datum_index == self || spectate_player_unit(iterator.datum_index) == NONE)
+		if (iterator.datum_index == self || spectate_player_unit(self, iterator.datum_index) == NONE)
 			continue;
 		if (first == NONE)
 			first = iterator.datum_index;
@@ -205,12 +215,12 @@ long coop_spectate_unit(
 	/* the retail dead camera on the player's own body first */
 	if (showing_own_body(&coop_spectate_deaths[local_player_index], player->dead_unit_index, game_time_get()))
 		return NONE;
-	if (spectate_player_unit(*watched) == NONE || next)
+	if (spectate_player_unit(self, *watched) == NONE || next)
 	{
 		*watched = next_living_player(self, *watched);
 	}
 
-	return spectate_player_unit(*watched);
+	return spectate_player_unit(self, *watched);
 }
 
 boolean coop_spectate_nothing_to_watch(
@@ -218,11 +228,30 @@ boolean coop_spectate_nothing_to_watch(
 {
 	long self;
 	struct player_datum *player;
+	struct player_datum *other;
+	struct data_iterator iterator;
+	struct unit_datum *unit;
+	long team;
 
 	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS) return FALSE;
 	self = local_player_get_player_index(local_player_index);
 	player = player_try_and_get(self);
-	return player && !player->quit_out_of_game && player->unit_index == NONE && next_living_player(self, NONE) == NONE;
+	if (!player || player->quit_out_of_game || player->unit_index != NONE || next_living_player(self, NONE) != NONE)
+		return FALSE;
+	/* The host's fallback camera carries no viewer-specific faction identity.
+	 * Keep the classic joining view only while all known players are allied;
+	 * otherwise it could expose an enemy host, even after that host dies. */
+	data_iterator_new(&iterator, player_data);
+	while ((other = data_iterator_next(&iterator)) != NULL)
+	{
+		if (other->quit_out_of_game) continue;
+		team = other->team_index;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(other->unit_index, _object_mask_biped);
+		if (unit && unit->unit.player_index == iterator.datum_index) team = unit->object.owner_team_index;
+		if (!spectate_teams_allied(player->team_index, team))
+			return FALSE;
+	}
+	return TRUE;
 }
 
 void coop_spectate_camera(
@@ -303,12 +332,12 @@ void coop_spectate_draw(
 	{
 		return;
 	}
-	/* nobody to watch yet (still joining): network_coop.c shows the host's
-	view from behind instead */
-	if (spectate_player_unit(watched) == NONE)
+	/* Still joining may use an allied host's view. Mixed-faction games wait
+	 * on the player's own dead camera until an eligible teammate is alive. */
+	if (spectate_player_unit(self, watched) == NONE)
 	{
-		if (coop_spectate_nothing_to_watch(local_player_index))
-			draw_bottom_text(L"JOINING THE GAME");
+		draw_bottom_text(coop_spectate_nothing_to_watch(local_player_index) ?
+			L"JOINING THE GAME" : L"WAITING FOR A TEAMMATE");
 		return;
 	}
 	if (!players_coop_waiting_to_start(self))

@@ -147,6 +147,7 @@ network_test_update, which does nothing there */
 #include "scenario/scenario_definitions.h"
 #include "tag_files/tag_files.h"
 #include "camera/observer.h"
+#include "camera/director.h"
 #include "cache/cache_files.h"
 #include "halo_map_families.h"
 #include "../src/map_download.h"
@@ -783,6 +784,14 @@ static void network_test_log_players(
 		{
 			network_test_append(line, (int)sizeof(line), &length, " player %ld: dead",
 				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index));
+		}
+		if (network_test.actors_interval > 0.0f && player->unit_index == NONE &&
+			player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
+		{
+			/* Observe the actual director, without evaluating spectator input. */
+			platform_log("network test: spectator %ld %ld target %08lx", game_time_get(),
+				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index),
+				(unsigned long)director_get_followed_unit(player->local_player_index));
 		}
 		/* the game type's score and the kills and deaths */
 		network_test_append(line, (int)sizeof(line), &length, " s%ld k%d d%d f%d t%ld m%d",

@@ -85,7 +85,8 @@ def test_own_body_first():
 
 def _spectator_unit(fault=None):
     text = SPECTATE_C.read_text()
-    names = ('static long spectate_player_unit(', 'static long next_living_player(',
+    names = ('static boolean spectate_teams_allied(',
+             'static long spectate_player_unit(', 'static long next_living_player(',
              'static boolean next_pressed(', 'static boolean showing_own_body(',
              'long coop_spectate_unit(', 'boolean coop_spectate_nothing_to_watch(',
              'void coop_spectate_draw(')
@@ -96,6 +97,14 @@ def _spectator_unit(fault=None):
         code = code.replace('player->quit_out_of_game || ', '')
     elif fault == 'ownership':
         code = code.replace('unit->unit.player_index == player_index &&', 'TRUE &&')
+    elif fault == 'faction':
+        code = code.replace('spectate_teams_allied(viewer->team_index, unit->object.owner_team_index) &&', 'TRUE &&')
+    elif fault == 'host-fallback':
+        code = code.replace('if (!spectate_teams_allied(player->team_index, team))', 'if (FALSE)')
+    elif fault == 'mutual':
+        code = code.replace(' && !game_team_is_enemy(target, viewer)', '')
+    elif fault == 'team-wrap':
+        code = code.replace('spectate_teams_allied(long viewer, long target)', 'spectate_teams_allied(short viewer, short target)')
     return PRELUDE + r'''
 #include <string.h>
 #include <wchar.h>
@@ -109,9 +118,10 @@ def _spectator_unit(fault=None):
 #define TEST_FLAG(value,bit) ((value)&(1UL<<(bit)))
 #define NUMBEROF(value) (sizeof(value)/sizeof((value)[0]))
 #define SPECTATE_DEATH_TICKS (3*TICKS_PER_SECOND)
-struct player_datum {long unit_index,dead_unit_index;boolean quit_out_of_game;
+#define NUMBER_OF_SOLO_CAMPAIGN_TEAMS 10
+struct player_datum {long unit_index,dead_unit_index,team_index;boolean quit_out_of_game;
  struct {short controller_index;} network_player_data;wchar_t name[12];};
-struct unit_datum {struct {long damage_flags;} object;struct {long player_index;} unit;};
+struct unit_datum {struct {long damage_flags;short owner_team_index;} object;struct {long player_index;} unit;};
 struct data_iterator {short next;long datum_index;};
 struct gamepad_state {unsigned char buttons[16];};
 struct coop_spectate_death {long dead_unit_index,dead_since;};
@@ -121,7 +131,12 @@ static long locals[4]={0x10000,NONE,NONE,NONE},tick=100;
 static long coop_spectate_watched[4]={NONE,NONE,NONE,NONE};
 static struct coop_spectate_death coop_spectate_deaths[4];
 static void *player_data;static struct gamepad_state pad[4];static unsigned char jump[4];
-static int draws,joining,labels;static wchar_t named[12];
+static int draws,joining,waiting,labels;static wchar_t named[12];
+static boolean betrayed;
+static boolean game_team_is_enemy(short viewer,short target) {
+ assert(viewer>=0&&viewer<10&&target>=0&&target<10);
+ return (viewer==3)!=(target==3) || (betrayed&&viewer==2&&target==1);
+}
 static struct player_datum *player_try_and_get(long h) {int i;for(i=0;i<3;i++)if(handles[i]==h)return &players[i];return NULL;}
 static struct player_datum *player_get(long h) {struct player_datum *p=player_try_and_get(h);assert(p);return p;}
 static long local_player_get_player_index(short local) {assert(local>=0&&local<4);return locals[local];}
@@ -132,7 +147,10 @@ static struct gamepad_state const *input_get_gamepad_state(short controller) {re
 static unsigned char input_abstraction_port_accept(short controller) {return jump[controller];}
 static long game_time_get(void) {return tick;}
 static boolean players_coop_waiting_to_start(long player) {(void)player;return FALSE;}
-static void draw_bottom_text(wchar_t const *text) {draws++;if(!wcscmp(text,L"JOINING THE GAME"))joining++;}
+static void draw_bottom_text(wchar_t const *text) {
+ draws++;if(!wcscmp(text,L"JOINING THE GAME"))joining++;
+ if(!wcscmp(text,L"WAITING FOR A TEAMMATE"))waiting++;
+}
 static int usnprintf(wchar_t *out,size_t count,wchar_t const *format,...) {
  va_list args;wchar_t const *name;va_start(args,format);name=va_arg(args,wchar_t const *);
  wcsncpy(named,name,11);named[11]=0;va_end(args);labels++;wcsncpy(out,L"SPECTATING",count);return 0;
@@ -142,6 +160,7 @@ int main(void) {
  int i;
  for(i=0;i<3;i++) {
   players[i].unit_index=bodies[i];players[i].dead_unit_index=NONE;units[i].unit.player_index=handles[i];
+  players[i].team_index=1;units[i].object.owner_team_index=1;
   players[i].network_player_data.controller_index=(short)i;players[i].name[0]=(wchar_t)('A'+i);
  }
  players[0].unit_index=NONE;players[2].unit_index=NONE;
@@ -171,6 +190,34 @@ int main(void) {
  assert(coop_spectate_unit(0)==NONE);tick++;assert(coop_spectate_unit(0)==bodies[2]);
  players[0].unit_index=bodies[0];assert(coop_spectate_unit(0)==NONE);
  i=draws;coop_spectate_draw(0);assert(draws==i);
+ /* Opposing factions never enter the view or HUD, including live changes. */
+ players[0].unit_index=NONE;players[0].dead_unit_index=NONE;
+ players[1].quit_out_of_game=FALSE;units[1].object.owner_team_index=3;players[1].team_index=3;
+ coop_spectate_watched[0]=handles[1];assert(coop_spectate_unit(0)==bodies[2]);
+ jump[0]=1;assert(coop_spectate_unit(0)==bodies[2]);jump[0]=0;coop_spectate_unit(0);
+ units[2].object.owner_team_index=3;players[2].team_index=3;
+ i=labels;coop_spectate_draw(0);assert(labels==i&&waiting==1);
+ assert(coop_spectate_unit(0)==NONE&&!coop_spectate_nothing_to_watch(0));
+ /* A dead enemy still must not expose the host's fallback camera. */
+ players[1].unit_index=NONE;players[2].unit_index=NONE;
+ assert(!coop_spectate_nothing_to_watch(0));
+ /* The body's native team wins while player metadata catches up. */
+ players[1].team_index=1;players[2].quit_out_of_game=TRUE;players[1].unit_index=bodies[1];
+ assert(!coop_spectate_nothing_to_watch(0));
+ /* The viewer changing allegiance retargets; asymmetric hostility refuses. */
+ players[0].team_index=3;assert(coop_spectate_unit(0)==bodies[1]);
+ players[0].team_index=1;players[1].team_index=2;units[1].object.owner_team_index=2;
+ betrayed=TRUE;assert(coop_spectate_unit(0)==NONE&&!coop_spectate_nothing_to_watch(0));betrayed=FALSE;
+ assert(coop_spectate_unit(0)==bodies[1]);
+ /* Unknown/native teams are refused before narrowing long player metadata. */
+ players[0].team_index=0x10001;assert(coop_spectate_unit(0)==NONE&&!coop_spectate_nothing_to_watch(0));
+ players[0].team_index=1;units[1].object.owner_team_index=-1;
+ assert(coop_spectate_unit(0)==NONE&&!coop_spectate_nothing_to_watch(0));
+ units[1].object.owner_team_index=10;
+ assert(coop_spectate_unit(0)==NONE&&!coop_spectate_nothing_to_watch(0));
+ units[1].object.owner_team_index=1;players[1].team_index=1;
+ assert(coop_spectate_unit(0)==bodies[1]);
+ players[0].unit_index=bodies[0];i=draws;
  /* Missing/recycled local handles and invalid split-screen slots are safe. */
  locals[0]+=0x10000;assert(coop_spectate_unit(0)==NONE&&!coop_spectate_nothing_to_watch(0));
  coop_spectate_draw(0);assert(draws==i);
@@ -186,7 +233,7 @@ def test_spectator_selection_and_hud(tmp_path):
     run_c(tmp_path, _spectator_unit())
 
 
-@pytest.mark.parametrize('fault', ['wrap', 'departure', 'ownership'])
+@pytest.mark.parametrize('fault', ['wrap', 'departure', 'ownership', 'faction', 'host-fallback', 'mutual', 'team-wrap'])
 def test_spectator_negative_control(tmp_path, fault):
     with pytest.raises(subprocess.CalledProcessError):
         run_c(tmp_path, _spectator_unit(fault))
