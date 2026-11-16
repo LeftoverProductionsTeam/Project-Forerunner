@@ -849,16 +849,39 @@ uses the full salted handle; leaving/changing ships or factions cancels boarding
 credit. The existing escrow/consumption/bank path then runs once per player.
 Spark owns the real approach, usable seat entry, pilot/flight, camera/audio and
 insertion/objective scripts. Keep the craft alive at the return hub through the
-cinematic and settlement. Optional dormant-void scripts `forerunner_pelican_complete`
+cinematic and settlement. Optional void scripts `forerunner_pelican_complete`
 and `forerunner_spirit_complete` receive a wake only after that actual ship's
 boarded crew has durably settled. Pending banking/loss delays release; unrelated
 field players and another craft do not. Full salted handles prevent replacement
 ships inheriting completion; actual LZ boarding rearms the next trip. Authored
 handlers must remain wakeable for repeat trips; a finished one-shot script is not
-restarted by native `wake`. The existing whole-operation callback is unchanged.
+restarted by native `wake`. These crew handlers may be dormant, or continuous
+with `(sleep -1)` first on each pass. The whole-operation callback remains
+dormant-only and one-shot. The aircraft template uses sleeping continuous crew/
+camera handlers, one startup pilot setup and a continuous trip coordinator. It
+keeps boarding closed at return until the previous passengers have disembarked;
+the next insertion follows actual gear/seat readiness rather than a stale shared
+deployment-control position. An already-cleared player on foot at the LZ may
+reuse the powered native call control to recall a transport without another gear
+transaction/countdown. Use an on-button call control for an idempotent script
+signal; ordinary native switch behavior is preserved.
 Source: `extraction.c::{extraction_transport_completions,extraction_wake_completion}`.
 Windows64 compilation, six connected crew cases/two defect controls and native
 fixture HSC compilation pass; in-engine aircraft/callback acceptance is unverified.
+Missing faction craft bindings now refuse selection/recall without reserving gear
+or promising a hub escape. Hub-only prototypes retain their existing role choices.
+The repeat-trip continuation passes 19 focused workflows/two defect controls and
+Windows64/native script/cache compilation. `build/native-delta-crew-cycle` verifies
+two-account insertion plus three explicit presentation-only camera wakes: insertion
+repeats and departure plays twice, with both clients entering/leaving cinematics.
+Native settlement remains parked/false and gear stays at risk. Comparisons pass
+for 73 player seconds/77 item snapshots. These camera probes do not prove aircraft
+departure, return banking or a complete second flight.
+Final missing-craft guards are compiled/automated only. Spark read-only revision
+`d8136fabadb342725b652cb0e1dd387660a56549` adds native camera/patrol authoring and
+rebuild workflows; its `src/nativeCutsceneCamera.ts` preserves native radian
+orientation/FOV. Forerunner consumes native cameras through the existing path;
+authored approach/landing/departure content is still required for flight acceptance.
 Release/unload a returning craft after its crew callback; the owned Pelican script
 now uses it. No new JSON, launcher, camera system or quest/reward writer. Current
 hub-only prototypes retain their old path and are not finished dropship Extraction.

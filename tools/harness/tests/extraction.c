@@ -352,7 +352,8 @@ int main(int argc,char **argv)
    touch(0,0);a=pickup(0,1);weapon_get(a)->weapon.magazines[0].rounds_loaded=3;
    weapon_get(a)->weapon.magazines[0].rounds_total=37;escape(0);
   }
-  enable_factions(!strcmp(case_name,"faction-transport"));
+  enable_factions(!strcmp(case_name,"faction-transport")||!strcmp(case_name,"faction-transport-missing"));
+  if(!strcmp(case_name,"faction-transport-missing"))names[4].name[0]=0;
   if(!strcmp(case_name,"faction-binding"))scenario.starting_profiles.count=1;
   if(!strcmp(case_name,"faction-duplicate"))strcpy(faction_profiles[1].name,faction_profiles[0].name);
   if(!strcmp(case_name,"faction-alias"))control_handles[3]=control_handles[0];
@@ -361,6 +362,11 @@ int main(int argc,char **argv)
    CHECK(!extraction_owns_map(),"ambiguous/missing faction interface admitted");return 0;
   }
   CHECK(extraction_owns_map(),"valid native faction hub refused");
+  if(!strcmp(case_name,"faction-transport-missing")) {
+   touch(4,0);
+   CHECK(players[0].team_index==_game_team_player&&!file_count&&!weapon_count,"missing Spirit changed faction or reserved gear");
+   touch(3,0);CHECK(players[0].team_index==_game_team_human,"available Pelican faction was refused");return 0;
+  }
   if(!strcmp(case_name,"faction-invalid")) {
    faction_profiles[1].starting_health_modifier=1;touch(4,0);
    CHECK(players[0].team_index==_game_team_player&&!weapon_count,"unsupported vitality profile changed role or granted gear");
@@ -488,6 +494,30 @@ int main(int argc,char **argv)
   units[0].object.owner_team_index=faction?_game_team_covenant:_game_team_player;
   touch(0,0);loot=pickup(0,1);units[0].object.position.x=20;touch(1,0);advance(300);
   CHECK(run(0)->phase==_extraction_ready&&run(0)->gear.record.phase==_gear_deployed,"activation incorrectly settled transport loot");
+  if(!strcmp(case_name,"transport-recall")||!strcmp(case_name,"transport-recall-state")||!strcmp(case_name,"transport-recall-missing")) {
+   unsigned long generation=run(0)->gear.record.generation;
+   control_tag.control.type=1;device_group_set_actual_value(1,0.f);
+   if(!strcmp(case_name,"transport-recall-missing")) {
+    extraction.dropship_names[1]=NONE;units[0].object.owner_team_index=_game_team_covenant;touch(1,0);
+    CHECK(!device_groups[1].actual_value&&run(0)->gear.record.generation==generation,"missing faction transport accepted recall");
+    extraction_reset();return 0;
+   }
+   if(!strcmp(case_name,"transport-recall-state")) {
+    units[0].object.parent_object_index=craft;touch(1,0);
+    CHECK(!device_groups[1].actual_value,"seated player recalled the aircraft");units[0].object.parent_object_index=NONE;
+    native_cinematic=TRUE;touch(1,0);CHECK(!device_groups[1].actual_value,"cinematic recalled the aircraft");native_cinematic=FALSE;
+    units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);touch(1,0);
+    CHECK(!device_groups[1].actual_value,"pending death recalled the aircraft");units[0].object.damage_flags=0;
+    units[0].object.position.x=0;touch(1,0);CHECK(!device_groups[1].actual_value,"hub walk recalled the aircraft");units[0].object.position.x=20;
+    device_groups[4].actual_value=0;touch(1,0);CHECK(!device_groups[1].actual_value,"unpowered control recalled the aircraft");device_groups[4].actual_value=1;
+   }
+   touch(1,0);
+   CHECK(device_groups[1].actual_value==1.f&&run(0)->phase==_extraction_ready&&!run(0)->activation_ticks,
+    "already-cleared player could not recall without another countdown");
+   CHECK(run(0)->gear.record.phase==_gear_deployed&&run(0)->gear.record.generation==generation&&weapon_try_and_get(loot),
+    "transport recall changed ownership, gear or rewards");
+   extraction_reset();return 0;
+  }
   units[0].object.position.x=0;advance(1);
   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"foot return bypassed physical boarding");
   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
@@ -537,7 +567,8 @@ int main(int argc,char **argv)
     strcpy(transport_scripts[i].name,i==0?"forerunner_pelican_complete":i==1?"forerunner_spirit_complete":"forerunner_extraction_complete");
     transport_scripts[i].script_type=_hs_script_dormant;transport_scripts[i].return_type=_hs_type_void;
    }
-   if(!strcmp(case_name,"transport-callback-signature"))transport_scripts[0].script_type=_hs_script_continuous;
+   if(!strcmp(case_name,"transport-callback-signature"))transport_scripts[0].script_type=_hs_script_startup;
+   if(!strcmp(case_name,"transport-callback-continuous"))transport_scripts[0].script_type=_hs_script_continuous;
    scenario.hs_scripts.count=3;scenario.hs_scripts.address=transport_scripts;
    units[1].object.owner_team_index=other?_game_team_covenant:_game_team_player;
    touch(0,1);pickup(1,2);units[1].object.position.x=20;

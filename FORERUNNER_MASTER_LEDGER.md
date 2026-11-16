@@ -16,7 +16,24 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `d201275d55`): native dedicated device groups
+Current checkpoint (base `0c32af94de`): repeatable aircraft scripts now separate
+one-time pilot setup from the trip loop, park continuous camera/crew handlers until
+woken, wait for old passengers to disembark and reuse native gear/seat readiness.
+Cleared players can recall through the powered LZ control without another gear
+transaction/countdown. Legacy whole-mission completion stays dormant-only/one-shot.
+Missing faction craft bindings now refuse selection/recall without reserving gear
+or falsely promising hub escape; those final guards are compiled/automated only.
+Windows64/native HSC/cache compilation, 19 focused workflows and two defect controls
+pass. `build/native-delta-crew-cycle` verifies two-account insertion and presentation
+handler reactivation (three explicit camera wakes); both peers enter/leave each
+cinematic. Settlement stays parked/false and gear remains at risk. Captured player/
+item comparisons pass (73 seconds/77 snapshots), no native exception, original
+identity files unchanged. Runtime/maps and 103,220,334B of BMP scratch are removed;
+two lossless probe frames remain. Actual recall flight, departure/bank, full second
+trip and Spirit remain unverified. Spark `d8136fa` was inspected read-only at this
+milestone: native camera/patrol authoring advances; no Spark rebuild/write occurred.
+
+Accepted boarding checkpoint (base `d201275d55`): native dedicated device groups
 now coordinate boarding with existing HaloScript. A first passenger cannot depart
 without other deployed hub crew or same-faction requested evacuation crew actually
 aboard. The existing aircraft script consumes the signal and covers all ten native

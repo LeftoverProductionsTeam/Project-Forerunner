@@ -3,13 +3,14 @@
 ; Uses native AI driving, seats, controls and cameras. Players board normally;
 ; vehicle_load_magic below loads only the Marine pilot, never a player.
 ; Not Spark's Black Echo, faction selection or final transport acceptance.
-; Native scenario requirements: named Pelican/Spirit, front passenger seats,
+; Native scenario requirements: named Pelican/Spirit, native passenger seats,
 ; Marine native_squad, hub/LZ volumes, deploy/activate controls, two cameras
 ; and dedicated native device group extraction_pelican_boarded (initially zero).
 ; tf_field/home/hold are authored native flight commands; tf_wait uses a short
 ; pause followed by a native loop, not a pause that overflows a 16-bit timer.
 
 (global boolean tf_banked false)
+(global boolean tf_initialized false)
 
 (script static boolean tf_player_seated
   (or
@@ -26,7 +27,9 @@
   )
 )
 
-(script dormant forerunner_pelican_complete
+(script continuous forerunner_pelican_complete
+  ; Park first, including on map start. Only durable native settlement wakes us.
+  (sleep -1)
   (set tf_banked true)
   (print "transport: Pelican crew native equipment banked")
 )
@@ -35,7 +38,9 @@
   (print "transport: all surviving crews native equipment banked")
 )
 
-(script dormant tf_insertion_camera
+(script continuous tf_insertion_camera
+  (sleep -1)
+  (print "transport: insertion camera started")
   (cinematic_start)
   (player_enable_input false)
   (camera_control true)
@@ -44,9 +49,12 @@
   (camera_control false)
   (player_enable_input true)
   (cinematic_stop)
+  (print "transport: insertion camera complete")
 )
 
-(script dormant tf_departure_camera
+(script continuous tf_departure_camera
+  (sleep -1)
+  (print "transport: departure camera started")
   (cinematic_start)
   (player_enable_input false)
   (camera_control true)
@@ -55,9 +63,10 @@
   (camera_control false)
   (player_enable_input true)
   (cinematic_stop)
+  (print "transport: departure camera complete")
 )
 
-(script startup tf_operation
+(script startup tf_initialize
   (ai_allegiance player human)
   (device_set_power extraction_activate 0)
   (vehicle_hover extraction_pelican true)
@@ -72,8 +81,19 @@
   (sleep_until (vehicle_test_seat_list extraction_pelican "P-driver" (ai_actors be_marines/native_squad)) 1)
   (print "transport: native Marine pilot physically seated")
   (ai_command_list be_marines/native_squad tf_wait)
+  (set tf_initialized true)
+)
+
+(script continuous tf_operation
+  (sleep_until tf_initialized 1)
+  (set tf_banked false)
+  (device_set_power extraction_activate 0)
+  (device_set_position extraction_activate 0)
+  (unit_open extraction_pelican)
+  (unit_set_enterable_by_player extraction_pelican true)
   (print "transport: prepare loadout at deployment control")
-  (sleep_until (>= (device_get_position extraction_deploy) 0.5) 1)
+  ; Real confirmed gear and seats drive readiness, including a crew that
+  ; prepared its next loadout before this coordinator reached the next cycle.
   (print "transport: board Pelican passenger seat for insertion")
   (sleep_until (and (tf_player_seated)
     (>= (device_group_get extraction_pelican_boarded) 0.5)) 1)
@@ -126,6 +146,9 @@
   (vehicle_hover extraction_pelican true)
   (unit_open extraction_pelican)
   (sleep_until tf_banked 1)
-  (unit_set_enterable_by_player extraction_pelican true)
-  (print "transport: arrived and banked; native loadout terminal remains available")
+  ; Keep boarding closed until the old crew has left. Earlier passengers may
+  ; prepare their next loadout without reboarding before debrief is complete.
+  (print "transport: arrived and banked; disembark and prepare the next operation")
+  (sleep_until (not (tf_player_seated)) 1)
+  (print "transport: crew disembarked; next deployment ready")
 )

@@ -89,6 +89,7 @@ def test_extraction_workflow(case):
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
     'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
     'transport-callback-pending', 'transport-callback-signature', 'transport-callback-replaced',
+    'transport-callback-continuous', 'transport-recall', 'transport-recall-state', 'transport-recall-missing',
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
     'transport-boarded-pending', 'transport-boarded-identity', 'transport-boarded-duplicate',
     'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
@@ -123,10 +124,23 @@ def test_native_transport_boarding_negative_control(file, before, after, case):
     assert status == CHECK_FAILED, output
 
 
+@pytest.mark.parametrize('before,after,case', [
+    ('control->object.name_index == extraction.activate_name && run->phase == _extraction_ready',
+     'control->object.name_index == extraction.activate_name && FALSE', 'transport-recall'),
+    ('(reusable && script->script_type == _hs_script_continuous)',
+     '(script->script_type == _hs_script_continuous)', 'mission-signature'),
+])
+def test_native_transport_cycle_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
 @pytest.mark.parametrize('case', [
     'faction-choice', 'faction-state', 'faction-kit', 'faction-saved',
     'faction-confirm', 'faction-reserve', 'faction-invalid',
-    'faction-binding', 'faction-duplicate', 'faction-alias', 'faction-transport',
+    'faction-binding', 'faction-duplicate', 'faction-alias', 'faction-transport', 'faction-transport-missing',
 ])
 def test_native_faction_workflow(case):
     status, output = run(build('extraction', generated()), case)

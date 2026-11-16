@@ -678,6 +678,12 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				extraction_tell(run, "FACTION LOCKED | Choose on foot at the hub before deployment or after settling a run.");
 				return TRUE;
 			}
+			if ((extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE) &&
+				extraction.dropship_names[faction] == NONE)
+			{
+				extraction_tell(run, "FACTION UNAVAILABLE | This operation has no extraction transport for that side.");
+				return TRUE;
+			}
 			if (!extraction_open_gear(run, player) || run->gear.record.phase != _gear_idle ||
 				!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !gear_loadout(&run->gear, &loadout) ||
 				!game_modes_inventory_starting_profile(extraction.faction_profiles[faction], GEAR_LOADOUT_WEAPONS,
@@ -756,6 +762,22 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		run->phase = _extraction_activating; run->activation_ticks = 10 * TICKS_PER_SECOND;
 		extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
+		return FALSE;
+	}
+	if (control->object.name_index == extraction.activate_name && run->phase == _extraction_ready && run->unit == unit_index &&
+		unit->object.parent_object_index == NONE && scenario_trigger_volume_test_object(extraction.zone, unit_index) &&
+		(extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE))
+	{
+		/* An earlier flight may have departed with another crew. Reuse the
+		 * authored call control without another countdown or gear transaction. */
+		faction = extraction_faction(unit->object.owner_team_index);
+		if (faction == NONE || extraction.dropship_names[faction] == NONE)
+		{
+			extraction_tell(run, "TRANSPORT UNAVAILABLE | This operation has no dropship for your faction. Gear remains at risk.");
+			return TRUE;
+		}
+		run->dropship = NONE;
+		extraction_tell(run, "TRANSPORT RECALLED | Wait for your assigned dropship, then board at the landing zone. Gear remains at risk.");
 		return FALSE;
 	}
 	return TRUE;
@@ -936,13 +958,14 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 }
 
-static boolean extraction_wake_completion(char const *name)
+static boolean extraction_wake_completion(char const *name, boolean reusable)
 {
 	short index;
 	for (index = 0; index < MIN(global_scenario->hs_scripts.count, SHORT_MAX); index++)
 	{
 		struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&global_scenario->hs_scripts, index, struct hs_script);
-		if (!strcmp(script->name, name) && script->script_type == _hs_script_dormant && script->return_type == _hs_type_void)
+		if (!strcmp(script->name, name) && script->return_type == _hs_type_void &&
+			(script->script_type == _hs_script_dormant || (reusable && script->script_type == _hs_script_continuous)))
 			return hs_wake_by_name(name);
 	}
 	return FALSE;
@@ -1020,7 +1043,7 @@ static void extraction_transport_completions(void)
 		}
 		if (!returned || pending) continue;
 		extraction.dropship_completed[faction] = ship;
-		if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete"))
+		if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
 			platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
 	}
 }
@@ -1100,7 +1123,7 @@ void extraction_update(void)
 	if (!extraction.survival && !extraction.completion_notified && extraction_players_returned())
 	{
 		extraction.completion_notified = TRUE;
-		if (extraction_wake_completion("forerunner_extraction_complete"))
+		if (extraction_wake_completion("forerunner_extraction_complete", FALSE))
 			platform_log("extraction: all survivors banked; authored completion woken");
 	}
 }
