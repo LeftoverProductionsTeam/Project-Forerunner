@@ -897,6 +897,26 @@ activation and hold valid boarding receipts/seats. Other factions and unrelated
 field operations are excluded. Empty crews, pending death, incapacitation, invalid
 ownership, cinematics and flight between pads do not authorize a new departure.
 The signal only coordinates flight; it grants no equipment or banking authority.
+Optional dedicated groups `extraction_pelican_called` / `extraction_spirit_called`
+separate requests made at the shared activation control. The host derives each
+output from living, correctly owned, same-faction activating/ready players still
+at the LZ (on foot or in their receipted ship). Cancellation, departure, loss and
+settlement clear the request; pending gear never requests flight. Use unique
+groups initially zero, with matching ships and no control power/position aliases.
+Source: `extraction.c::extraction_transport_called` and the existing readiness
+update. The aircraft HSC consumes its Pelican request while native activation
+continues; only the separate boarded signal authorizes departure. This optional
+binding requires a Forerunner runtime containing that function; older runtimes do
+not drive it. Existing maps without these groups keep their previous script path.
+Windows64 and native HSC/cache compilation, 44 focused transport workflows and
+two defect controls pass. `build/native-pelican-faction-call-deployed` verifies
+one authenticated player's confirmed deployment, physical boarding, insertion,
+disembarkation and real request consumed by the Pelican script. The corrected
+probe requires the actual deployed gear record; the earlier stale prompt-based
+driver boarded without deployment and correctly could not depart. The successful
+probe stops at recall initiation, with gear still deployed and no bank/exception.
+Spirit requests and independent factions have automated coverage only; completed
+recall/evacuation, multi-client signal acceptance and other platforms remain open.
 Source: `extraction.c::{extraction_transport_boarded,extraction_transport_readiness}`
 and native `devices.c::device_group_find_named`. Existing device replication is
 reused; no protocol, custom HaloScript opcode or map format is introduced.

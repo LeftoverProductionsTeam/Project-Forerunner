@@ -5,7 +5,8 @@
 ; Not Spark's Black Echo, faction selection or final transport acceptance.
 ; Native scenario requirements: named Pelican/Spirit, native passenger seats,
 ; Marine native_squad, hub/LZ volumes, deploy/activate controls, two cameras
-; and dedicated native device group extraction_pelican_boarded (initially zero).
+; and dedicated native device groups extraction_pelican_boarded and
+; extraction_pelican_called (initially zero, not bound to control power/position).
 ; tf_field/home/hold are authored native flight commands; tf_wait uses a short
 ; pause followed by a native loop, not a pause that overflows a 16-bit timer.
 
@@ -120,11 +121,14 @@
   (unit_close extraction_pelican)
   (vehicle_hover extraction_pelican false)
   (ai_command_list be_marines/native_squad tf_hold)
-  (sleep_until (>= (device_get_position extraction_activate) 0.5) 1)
+  ; A shared call control can be used by either faction. Only a real current
+  ; UNSC request may recall the Pelican; Spirit scripts consume their own
+  ; extraction_spirit_called group through the same native runtime path.
+  (sleep_until (>= (device_group_get extraction_pelican_called) 0.5) 1)
   (print "transport: extraction called; native pilot approaching")
-  ; Presentation delay for the existing ten-second activation. This script
-  ; grants no reward: native per-player activation/boarding/settlement own it.
-  (sleep 300)
+  ; Native activation continues while the pilot approaches. Boarding readiness
+  ; still requires every requesting passenger's countdown and actual seat;
+  ; this call signal alone never authorizes departure or recovery.
   (sleep_until (not (volume_test_objects extraction_zone extraction_pelican)) 1)
   (ai_command_list be_marines/native_squad tf_field)
   (sleep_until (volume_test_objects extraction_zone extraction_pelican) 1)

@@ -113,6 +113,27 @@ def test_native_transport_settlement(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', [
+    'transport-called-loop', 'transport-called-ownership', 'transport-called-duplicate',
+    'transport-called-capacity', 'transport-called-missing', 'transport-called-alias',
+])
+def test_native_faction_transport_calls(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('extraction_faction((short)player->team_index) != faction', 'FALSE', 'transport-called-ownership'),
+    ('(run->phase != _extraction_activating && run->phase != _extraction_ready) || run->gear.pending',
+     '(run->phase != _extraction_ready) || run->gear.pending', 'transport-called-loop'),
+])
+def test_native_faction_transport_call_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
 @pytest.mark.parametrize('before,after,case', [
     ('if (!returned || pending) continue;', 'if (!returned) continue;', 'transport-callback-pending'),
     ('if (run->dropship != ship) continue;', 'if (FALSE) continue;', 'transport-callback-other'),

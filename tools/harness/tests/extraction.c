@@ -642,6 +642,18 @@ int main(int argc,char **argv)
   short faction=!strcmp(case_name,"transport-covenant")?1:0;
   long craft=dropship_handles[faction],loot;
   extraction_reset();scenario.object_names.count=5;
+  if(!strncmp(case_name,"transport-called",16)) {
+   scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[10].name,"extraction_pelican_called");
+   strcpy(authored_groups[11].name,"extraction_spirit_called");
+   device_groups[10].actual_value=device_groups[11].actual_value=1.f;
+   if(!strcmp(case_name,"transport-called-duplicate"))strcpy(authored_groups[11].name,authored_groups[10].name);
+   if(!strcmp(case_name,"transport-called-capacity"))device_group_table.maximum_count=10;
+   if(!strcmp(case_name,"transport-called-missing"))scenario.object_names.count=3;
+   if(!strcmp(case_name,"transport-called-alias")) {
+    strcpy(authored_groups[1].name,authored_groups[10].name);authored_groups[10].name[0]=0;
+   }
+  }
   if(!strncmp(case_name,"transport-boarded",17)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
@@ -662,6 +674,51 @@ int main(int argc,char **argv)
    dropships[a].object.position.x=20;
   }
   advance(1);
+  if(!strncmp(case_name,"transport-called",16)) {
+   if(!strcmp(case_name,"transport-called-duplicate")||!strcmp(case_name,"transport-called-capacity")||
+      !strcmp(case_name,"transport-called-missing")||!strcmp(case_name,"transport-called-alias")) {
+    CHECK(!extraction_owns_map()&&!boarding_changes,"invalid call output admitted map or changed native groups");return 0;
+   }
+   CHECK(extraction_owns_map()&&!device_groups[10].actual_value&&!device_groups[11].actual_value,"stale call outputs survived binding");
+   units[0].object.owner_team_index=_game_team_player;players[0].team_index=_game_team_player;
+   units[1].object.owner_team_index=_game_team_covenant;players[1].team_index=_game_team_covenant;
+   touch(0,0);touch(0,1);units[0].object.position.x=units[1].object.position.x=20;
+   advance(1);CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"mere deployment called a dropship");
+   touch(1,0);advance(1);
+   CHECK(device_groups[10].actual_value==1.f&&!device_groups[11].actual_value,"UNSC request called Spirit or missed Pelican");
+   /* Both players touch the same native switch. Its position must not choose
+    * a faction or cancel the other player's active request. */
+   touch(1,1);advance(1);
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"shared switch lost independent faction calls");
+   if(!strcmp(case_name,"transport-called-ownership")) {
+    players[0].team_index=_game_team_covenant;extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value&&device_groups[11].actual_value==1.f,"stale player faction called a transport");
+    players[0].team_index=_game_team_player;units[0].unit.player_index=NONE;extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"unowned native body called a transport");
+    units[0].unit.player_index=player_handles[0];run(0)->gear.pending=TRUE;extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"unconfirmed gear called a transport");
+    run(0)->gear.pending=FALSE;units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"pending death called a transport");
+    units[0].object.damage_flags=0;players[0].quit_out_of_game=TRUE;extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"departed player called a transport");
+    players[0].quit_out_of_game=FALSE;
+   } else {
+    units[0].object.position.x=7;advance(1);
+    CHECK(!device_groups[10].actual_value&&device_groups[11].actual_value==1.f,"cancelled request recalled wrong craft");
+    advance(300);CHECK(run(1)->phase==_extraction_ready&&device_groups[11].actual_value==1.f,"finished activation lost the pending Spirit request");
+    units[1].object.parent_object_index=dropship_handles[1];units[1].unit.parent_seat_index=0;advance(1);
+    CHECK(device_groups[11].actual_value==1.f,"real LZ boarding lost the call before the flight script could consume it");
+    dropships[1].object.position.x=7;advance(1);
+    CHECK(!device_groups[11].actual_value&&run(1)->gear.record.phase==_gear_deployed,"flight retained call or banked before arrival");
+    dropships[1].object.position.x=0;advance(1);
+    CHECK(run(1)->phase==_extraction_returned&&!device_groups[10].actual_value&&!device_groups[11].actual_value,"banked crew retained a recall signal");
+    units[1].object.parent_object_index=NONE;units[1].object.position.x=0;touch(0,1);
+    CHECK(run(1)->phase==_extraction_deployed,"settled crew could not redeploy");
+    units[1].object.position.x=20;touch(1,1);advance(1);
+    CHECK(device_groups[11].actual_value==1.f&&!device_groups[10].actual_value,"next operation failed to rearm its faction call");
+   }
+   extraction_reset();return 0;
+  }
   if(!strcmp(case_name,"transport-boarded-duplicate")||!strcmp(case_name,"transport-boarded-capacity")||
      !strcmp(case_name,"transport-boarded-missing")||!strcmp(case_name,"transport-boarded-alias")) {
    CHECK(!extraction_owns_map()&&!boarding_changes,"invalid output binding changed native controls or admitted the hub");return 0;

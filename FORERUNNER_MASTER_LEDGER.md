@@ -16,7 +16,24 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `265a333e20`): equipment-only faction profiles no longer
+Current checkpoint (base `66092de992`): optional native Pelican/Spirit call groups
+now distinguish real faction requests at the shared extraction control. They reuse
+the existing device-group binding/replication and host run/seat ownership; no new
+state manager or protocol. The existing aircraft HSC consumes the Pelican request
+while native activation continues, retaining the separate physical-crew departure
+gate. Windows64/native HSC/cache compilation, 44 focused transport workflows and
+two defect controls pass. `build/native-pelican-faction-call-deployed` verifies
+authenticated deployment, physical boarding, insertion, disembarkation and the
+native pilot script consuming the request. It intentionally stops at recall
+initiation: no aircraft bank, no exception, gear still deployed. One earlier stale
+driver mistook the script prompt for deployment and correctly remained parked;
+the corrected probe uses the actual durable deployment record, same binary/cache.
+Owned runtime/map staging is removed. Spirit/multi-client request signals and full
+recall/landing/departure/banking remain unverified. Unfinished debrief source is
+preserved separately; it has not passed native UI acceptance. Return to actual
+aircraft flight/content work rather than extending the report UI.
+
+Accepted casualties checkpoint (base `265a333e20`): equipment-only faction profiles no longer
 clear a freshly spawned biped's native health/shield values. The existing
 Extraction hub respawn override is preserved, with no new respawn controller.
 Windows64 compilation and actual two-account native casualties/re-entry pass:
