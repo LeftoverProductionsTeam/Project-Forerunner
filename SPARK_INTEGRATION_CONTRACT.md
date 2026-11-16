@@ -815,6 +815,21 @@ called. An explicit native `ai_migrate` to a return squad is another supported
 authoring route; it must still physically reach the volume. Preserve native
 allegiance, combat and movement; do not globally force factions friendly or
 replace rescue/technology ownership checks with volume entry.
+Native faction-team handoff now preserves authored `ai_attach <unit> <encounter>`
+and `ai_set_team <encounter> <team>` assignments in co-op. Exact runtime paths:
+`source/ai/actors.c::{actor_attach_unit,actor_set_team}`,
+`source/game/players.c::{network_player_reconcile_coop_team,network_player_attach_unit}`
+and `port/linux/game/network_objects.c::{distributed_host_update_objects,distributed_client_apply_change}`.
+The existing reliable description carries the native team; no new packet or
+editor save format. The two-account native command smoke in
+`build/native-delta-allegiance-rejoin` verifies assignment, live changes, rejoin
+and restoration of ordinary co-op, not a finished faction mission. Spark must
+use valid native encounters/actor dependencies and host-owned player references;
+`(players)` list order is not a network-slot identifier. A reconnect creates a
+new body requiring the operation's role assignment. These calls do not select
+a biped, grant faction equipment, establish independent squad objectives or
+choose a dropship. The full selection/role policy and those gameplay gates remain
+engine work; do not expose this as completed UNSC/Covenant operation support.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.

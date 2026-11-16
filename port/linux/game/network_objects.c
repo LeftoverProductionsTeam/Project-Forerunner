@@ -381,6 +381,7 @@ struct distributed_inventory_message
 /* the host: the objects it has told its clients of, by absolute index
 (the object's datum index), NONE for none */
 static long objects_host_told[MAXIMUM_TRACKED_OBJECTS];
+static short objects_host_told_team[MAXIMUM_TRACKED_OBJECTS];
 /* ... the next object at rest to send, round them all */
 static long objects_host_resting_cursor;
 /* ... past the highest of them */
@@ -1327,7 +1328,8 @@ static void distributed_change_from_object(
 	}
 }
 
-/* the objects made and deleted since the last time, to every client */
+/* The objects made/deleted or given a new allegiance, to every client. The
+   existing reliable description already carries the native team. */
 static void distributed_host_update_objects(
 	void)
 {
@@ -1347,10 +1349,11 @@ static void distributed_host_update_objects(
 			continue;
 		absolute_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index);
 		seen[absolute_index] = TRUE;
-		if (objects_host_told[absolute_index] == iterator.index)
+		if (objects_host_told[absolute_index] == iterator.index &&
+			objects_host_told_team[absolute_index] == object_get(iterator.index)->object.owner_team_index)
 			continue;
 		/* (another object in the same place: that one is gone) */
-		if (objects_host_told[absolute_index] != NONE)
+		if (objects_host_told[absolute_index] != NONE && objects_host_told[absolute_index] != iterator.index)
 		{
 			csmemset(&message.changes[count], 0, sizeof(message.changes[count]));
 			message.changes[count].change = _object_change_delete;
@@ -1365,6 +1368,7 @@ static void distributed_host_update_objects(
 			}
 		}
 		objects_host_told[absolute_index] = iterator.index;
+		objects_host_told_team[absolute_index] = object_get(iterator.index)->object.owner_team_index;
 		if (absolute_index >= objects_host_told_count)
 			objects_host_told_count = absolute_index + 1;
 		objects_statistics.creates++;
@@ -1385,6 +1389,7 @@ static void distributed_host_update_objects(
 		message.changes[count].change = _object_change_delete;
 		message.changes[count].object_index = objects_host_told[absolute_index];
 		objects_host_told[absolute_index] = NONE;
+		objects_host_told_team[absolute_index] = NONE;
 		objects_statistics.deletes++;
 		if (++count == limit)
 		{
@@ -3435,6 +3440,8 @@ static boolean distributed_client_change_valid(
 	}
 	if (!TEST_FLAG(NETWORKED_OBJECT_TYPES, type) || !tag_index_is_group(change->definition_index, group_tag))
 		return FALSE;
+	if (network_coop_active() && TEST_FLAG(_object_mask_unit, type))
+		team_count = NUMBER_OF_SOLO_CAMPAIGN_TEAMS;
 	/* (a flag's or ball's team names the game type's flag or ball: an index
 	of its arrays; weapon_is_flag's bit) */
 	if (type == _object_type_weapon && ((weapon_definition_get(change->definition_index)->weapon.flags >> 3) & 1))
@@ -3472,6 +3479,10 @@ static void distributed_client_apply_change(
 	struct distributed_object_change const *change)
 {
 	struct object_datum *object = object_get(object_index);
+
+	object->object.owner_team_index = change->owner_team_index;
+	if (TEST_FLAG(_object_mask_unit, object->object.type))
+		network_player_reconcile_coop_team(object_index);
 
 	csmemcpy(object->object.base_change_colors, change->change_colors, sizeof(object->object.base_change_colors));
 	if (change->forced_shader_permutation_index)
@@ -5282,6 +5293,7 @@ void network_objects_new_game(
 	for (absolute_index = 0; absolute_index < MAXIMUM_TRACKED_OBJECTS; absolute_index++)
 	{
 		objects_host_told[absolute_index] = NONE;
+		objects_host_told_team[absolute_index] = NONE;
 		objects_client_has[absolute_index] = NONE;
 	}
 	objects_host_told_count = 0;

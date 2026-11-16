@@ -705,6 +705,10 @@ static void network_test_log_players(
 			struct object_datum *placed = object->object.parent_object_index != NONE ?
 				object_get(object->object.parent_object_index) : object;
 
+			if (network_test.actors_interval > 0.0f)
+				platform_log("network test: allegiance %ld %ld %08lx %ld %d",
+					game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index),
+					(unsigned long)player->unit_index, player->team_index, (int)unit->object.owner_team_index);
 			network_test_append(line, (int)sizeof(line), &length, " player %ld: (%.3f %.3f %.3f) h%.2f/%.2f%s%s g%d/%d w",
 				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index), placed->object.position.x,
 				placed->object.position.y, placed->object.position.z, object->object.body_vitality,

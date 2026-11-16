@@ -646,6 +646,9 @@ void actor_set_team(
 	else if (actor->meta.unit_index != NONE)
 	{
 		unit_get(actor->meta.unit_index)->object.owner_team_index = team_index;
+		/* port: native ai_attach/ai_set_team may assign a controlled co-op
+		   Spartan. Damage, revival and radio read the player's team too. */
+		network_player_reconcile_coop_team(actor->meta.unit_index);
 	}
 
 	return;
@@ -3887,6 +3890,8 @@ void actor_attach_unit(
 
 		actor->meta.team_index = unit->object.owner_team_index;
 
+		/* port: keep an authored co-op player's allegiance with its unit. */
+		network_player_reconcile_coop_team(unit_index);
 		if (unit->object.variant_number >= 100)
 		{
 			actor->meta.unique_leader = TRUE;

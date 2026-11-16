@@ -340,6 +340,8 @@ void player_control_permanent_impulse(
 
 /* ---------- prototypes/PLAYERS.C */
 
+void network_player_reconcile_coop_team(
+	long unit_index);
 void players_initialize(
 	void);
 /* (network_game_manager.c calls it; without a prototype C89 assumes it

@@ -1585,6 +1585,23 @@ static void player_spawn(
 	return;
 }
 
+/* port: A co-op unit's native allegiance is authoritative. Descriptions can arrive
+   before player attachment, or update the same body after an authored change. */
+void network_player_reconcile_coop_team(
+	long unit_index)
+{
+	struct unit_datum *unit = unit_get(unit_index);
+	struct player_datum *player;
+
+	if (!network_coop_active() || unit->unit.player_index == NONE ||
+		unit->object.owner_player_index != unit->unit.player_index ||
+		unit->object.owner_team_index < 0 || unit->object.owner_team_index >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS)
+		return;
+	player = datum_try_and_get(player_data, unit->unit.player_index);
+	if (player && player->unit_index == unit_index)
+		player->team_index = unit->object.owner_team_index;
+}
+
 /* the distributed netcode (port/linux/game/network_distributed.c): a
 client's player takes the unit the host spawned it with (the host's object,
 at the host's index, with the host's weapons), as player_spawn gives a
@@ -1601,9 +1618,10 @@ void network_player_attach_unit(
 	if (game_engine_has_teams() && unit->object.owner_team_index >= 0 && unit->object.owner_team_index < 2)
 		player->team_index = unit->object.owner_team_index;
 	unit->object.owner_player_index = player_index;
-	unit->object.owner_team_index = (short)player->team_index;
 	unit->unit.player_index = player_index;
 	player->unit_index = unit_index;
+	network_player_reconcile_coop_team(unit_index);
+	unit->object.owner_team_index = (short)player->team_index;
 	/* port: Infection's role, which may have come before the unit */
 	infection_reconcile_player(player_index);
 	unit_set_actively_controlled(unit_index, TRUE);

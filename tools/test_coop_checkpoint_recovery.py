@@ -64,7 +64,9 @@ def generated(fault=None):
                           re.M)
     config.append(f"#define MAXIMUM_OBJECTS_PER_MAP {capacity[-1]}")
     types = "\n".join([
+        enum_with(read("source/game/game.h"), "NUMBER_OF_SOLO_CAMPAIGN_TEAMS,"),
         enum_with(distributed_h, "_distributed_message_player_prediction ="),
+        enum_with(distributed_h, "_distributed_to_host_reliably,"),
         enum_with(distributed_h, "_network_vehicle_write_change,"),
         structure(distributed_h, "distributed_message_header"),
         enum_with(read("source/objects/object_types.h"), "_object_mask_all ="),
@@ -123,7 +125,7 @@ def generated(fault=None):
     code += "\n" + "\n".join(function(objects, name) for name in (
         "distributed_vector_valid", "distributed_transform_valid", "network_objects_client_has"))
     code += "\n" + "\n".join(function(players, name) for name in (
-        "network_player_detach_unit", "network_player_attach_unit"))
+        "network_player_detach_unit", "network_player_reconcile_coop_team", "network_player_attach_unit"))
     code += "\n" + function(read("port/linux/game/network_test.c"), "network_test_item_holder")
     code += "\n" + "\n".join(function(units, name) for name in (
         "unit_kill", "unit_kill_silent", "unit_kill_no_statistics",
@@ -147,6 +149,7 @@ def generated(fault=None):
         "distributed_client_retry_inventory", "distributed_client_forget_retried_inventory",
         "distributed_client_apply_inventory", "distributed_client_apply_retried_inventories"))
     code += "\n" + "\n".join(function(objects, name) for name in (
+        "distributed_host_update_objects",
         "distributed_state_from_object", "distributed_client_dead_biped"))
     code += "\n" + "\n".join(function(damage, name) for name in (
         "distributed_damage_to_data", "distributed_damage_indices_valid",
@@ -200,6 +203,28 @@ def test_reconstructed_unit_rejects_old_life_kill():
 def test_replica_controls(case):
     status, output = run(build("coop_checkpoint_recovery", generated()), case)
     assert status == 0, output
+
+
+@pytest.mark.parametrize("case", [
+    "team-host-live", "team-coop-attach", "team-coop-live", "team-coop-invalid",
+    "team-coop-owner", "team-coop-stale", "team-coop-other-body",
+    "team-mp-attach", "team-mp-ffa", "team-mp-live",
+])
+def test_native_allegiance(case):
+    status, output = run(build("coop_checkpoint_recovery", generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize("before,after,case", [
+    ("objects_host_told[absolute_index] == iterator.index &&\n\t\t\tobjects_host_told_team[absolute_index] == object_get(iterator.index)->object.owner_team_index",
+     "objects_host_told[absolute_index] == iterator.index", "team-host-live"),
+    ("object->object.owner_team_index = change->owner_team_index;", "(void)change;", "team-coop-live"),
+    ("network_player_reconcile_coop_team(unit_index);\n\tunit->object.owner_team_index = (short)player->team_index;",
+     "unit->object.owner_team_index = (short)player->team_index;", "team-coop-attach"),
+])
+def test_native_allegiance_negative_control(before, after, case):
+    status, output = run(build("coop_checkpoint_recovery", generated((before, after))), case)
+    assert status == 1, output
 
 
 @pytest.mark.parametrize("case", ["inventory-orphan", "inventory-other-owner", "inventory-readied-orphan"])

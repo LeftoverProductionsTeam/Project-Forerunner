@@ -12,6 +12,36 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, native co-op allegiance handoff (base `1b5bbaaa67`):
+`network_objects.c` uses the existing reliable object description for changed
+native teams, including the same salted handle; replay now applies that field.
+`players.c::network_player_reconcile_coop_team` requires matching full owner/body
+links and a native campaign team. Attachment and native `actors.c` team/attach
+callers use the same reconciliation. Classic MP assignment remains separate.
+The existing replica harness passes 76 replica/allegiance cases, related focused
+inventory/drop cases and three controls restoring the original send/replay/attach
+defects. Incremental Windows64 passes (`build/native-allegiance-build.log`),
+executable SHA-256 `1fcc7563e10c713cdf36d77fed9be494b3970b912f83267f4b4e6cb9e60e5f7a`.
+
+`build/native-delta-allegiance-rejoin/result.json` verifies actual native player
+and unit teams on both peers after ordinary host HaloScript `ai_attach` and
+`ai_set_team` commands: network slots 0/1 are Covenant/Human at tick 300, then
+Human/Covenant at 360. The guest disconnects/rejoins the same host; the host's
+body/allegiance survive, the new guest initially has the ordinary player team,
+native reassignment matches on both peers at 1290 and both return to player
+team at 1380. Three bound account proofs cover the two distinct accounts and
+rejoin. No native exception; original identity hashes unchanged; owned runtime,
+copied credentials, map staging and invite removed. Compact evidence remains.
+The unchanged player comparator passes the first leg. The reconnect leg has no
+player divergences but is shorter than its 10-second acceptance window; do not
+call that a movement-comparison pass. Item comparisons pass on both legs (13/7
+snapshots, zero mismatches). `build/native-delta-allegiance` retains the initial
+driver failure: it incorrectly equated HaloScript list order with network slots;
+host/client actually agreed on the reversed assignment. No engine patch was
+needed for that driver correction. This smoke does not prove combat allegiance,
+revival/radio policy, persistent faction selection, distinct biped/loadout assets,
+dropship missions, independent squads, other platforms or mixed-version peers.
+
 15 November, authenticated native death/loot/bank (base `f9b6d8dc5f`):
 `build/native-delta-death-loot` uses normal controller grenade inputs and observes
 real death, loss, hub respawn/new deployment and survivor pickup. Its input driver

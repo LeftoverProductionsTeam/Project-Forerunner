@@ -16,6 +16,19 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Native allegiance handoff (base `1b5bbaaa67`): existing reliable object
+descriptions now announce live team changes and apply them to reused objects.
+Native co-op player attachment and authored `ai_attach`/`ai_set_team` reconcile
+the matching player's team with its actual body, preserving classic MP handling
+and rejecting invalid co-op team values. No new packet or faction manager.
+Focused replica/ownership regressions, original-defect controls and Windows64
+compilation pass. `build/native-delta-allegiance-rejoin` observes both verified
+accounts receiving distinct native teams, reversed teams, live rejoin retaining
+the host's allegiance/body, reassignment of the new guest and restored ordinary
+co-op. This is a bounded native HaloScript command smoke, not authored faction
+mission acceptance. Faction selection, equipment/objective/transport rules and
+independent squad outcomes remain open; see `TEST_EVIDENCE.md` for exact limits.
+
 Authenticated operations: local host and remote players use verified, bound Delta
 accounts; offline profile owners remain separate. `37bdd12f3a` fixes host lookup
 and NPC loot authority; `f9b6d8dc5f` retains authored hub starts on live rejoin while

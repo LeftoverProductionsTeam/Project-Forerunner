@@ -39,7 +39,6 @@ typedef struct { real red, green, blue; } real_rgb_color;
 #define MAXIMUM_TRACKED_PLAYERS 2
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 2
 enum {_game_connection_network_client=1,_game_connection_network_server=2};
-enum {_distributed_to_host_reliably};
 #include "config.inc"
 enum { _player_action_result_reload, _netgame_flag_teleporter_source };
 enum { OBJECT_DEFINITION_TAG=1, BIPED_DEFINITION_TAG, VEHICLE_DEFINITION_TAG,
@@ -130,6 +129,8 @@ static int objects_client_ask_again,objects_client_synchronized=1;
 static int objects_client_new_object_count,objects_client_check_all;
 static struct { int creates,deletes,create_failures; } objects_statistics;
 static int client=1,coop=1,now=1000,constructed,deleted,controls_changed;
+static int team_game;
+static int capture_host_changes;
 static int damage_updates;
 static struct { long object_index,time; } objects_client_dead[MAXIMUM_TRACKED_OBJECTS];
 static unsigned long distributed_checkpoint_epoch=1;
@@ -176,6 +177,7 @@ static void unit_kill_silent(long index);
 static void unit_kill_no_statistics(long index);
 static short objects_client_retried_inventory_count;
 static long objects_host_told[MAXIMUM_TRACKED_OBJECTS],objects_host_told_count;
+static short objects_host_told_team[MAXIMUM_TRACKED_OBJECTS];
 /* (port, this fork: and the epoch the machine was last told the objects at) */
 static struct {long time,player_indices[MAXIMUM_LOCAL_PLAYERS];unsigned int epoch;} objects_host_machines[2];
 #define _error_log 3
@@ -227,7 +229,7 @@ static int network_game_distributed_client(void) {return client;}
 static int network_coop_active(void) {return coop;}
 static long game_time_get(void) {return now;}
 static int game_engine_running(void) {return 0;}
-static int game_engine_has_teams(void) {return 0;}
+static int game_engine_has_teams(void) {return team_game;}
 static void *game_engine_get_variant(void) {return &variant;}
 #define game_engine_get_variant() (&variant)
 static int weapon_is_flag(long index) {(void)index;return 0;}
@@ -237,6 +239,9 @@ static void *object_iterator_next(struct object_iterator *it) {
     while(it->next<world_capacity){int slot=it->next++;struct object_header *h=(struct object_header *)object_header_data->data+slot;
         if(h->identifier&&TEST_FLAG(it->mask,h->datum->object.type)){it->index=DATUM_INDEX_NEW(slot,h->identifier);return h->datum;}}
     return NULL;
+}
+static boolean distributed_object_networked(long index) {
+    return object_try_and_get(index)!=NULL;
 }
 /* Bounded fake-world graph operations; the network's decisions about which
    children survive are the real distributed_client_delete implementation. */
@@ -366,10 +371,11 @@ static void damage_replay_static(long index,struct damage_data *data,short node,
 static long *machine_get_player_list(long machine) {
     static long list[MAXIMUM_LOCAL_PLAYERS];CHECK(machine==1,"snapshot recipient");return list;
 }
-static void distributed_host_update_objects(void) { }
+static void distributed_host_update_objects(void);
 static void distributed_change_from_object(long index,struct distributed_object_change *change) {
     struct object_datum *object=object_get(index);
     *change=description(index);change->definition_index=object->definition_index;
+    change->owner_team_index=object->object.owner_team_index;
     SET_FLAG(change->flags,_distributed_object_dead_bit,TEST_FLAG(object->object.damage_flags,_object_dead_bit));
 }
 static void distributed_send_to_machine_reliably(long machine,void *message,short type,short count,word size) {
@@ -385,6 +391,11 @@ static void distributed_checkpoint_to_machine(long machine) {
 static long local_player_get_player_index(short local) {return local==0?DATUM_INDEX_NEW(0,7):NONE;}
 static int client_ready_sends,prediction_ticks;
 static void distributed_send(void *message,short type,short count,word size,short destination) {
+    if(type==_distributed_message_object_changes) {
+        CHECK(destination==_distributed_to_clients_reliably,"host allegiance uses existing reliable messages");
+        if(capture_host_changes)distributed_send_to_machine_reliably(1,message,type,count,size);
+        return;
+    }
     if(type==_distributed_message_hit_reports){
         struct distributed_hit_report_message *reports=message;
         CHECK(distributed_checkpoint_synchronized&&destination==_distributed_to_host_reliably&&count>0&&
@@ -590,6 +601,62 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strncmp(name,"team-host-",10)) {
+        struct distributed_object_change_message *message;
+        client=FALSE;capture_host_changes=TRUE;corpse->object.owner_team_index=_game_team_player;
+        distributed_host_update_objects();CHECK(snapshot_count==1,"initial host description");
+        snapshot_count=0;distributed_host_update_objects();CHECK(!snapshot_count,"unchanged allegiance stays silent");
+        corpse->object.owner_team_index=_game_team_covenant;
+        distributed_host_update_objects();CHECK(snapshot_count==1,"live allegiance reliably announced once");
+        message=(void *)snapshot_packets[0].bytes;
+        CHECK(message->header.count==1&&message->changes[0].change==_object_change_create&&
+            message->changes[0].object_index==index&&message->changes[0].owner_team_index==_game_team_covenant,
+            "same body update preserves identifier without delete/recreate");
+        snapshot_count=0;distributed_host_update_objects();CHECK(!snapshot_count,"settled allegiance stays silent");
+        object_delete(index);distributed_host_update_objects();CHECK(snapshot_count==1,"host deletion preserved");
+        message=(void *)snapshot_packets[0].bytes;
+        CHECK(message->header.count==1&&message->changes[0].change==_object_change_delete,"exact host delete");
+        snapshot_count=0;index=DATUM_INDEX_NEW(3,0x1235);change=description(index);
+        change.owner_team_index=_game_team_flood;distributed_client_create(&change);
+        distributed_host_update_objects();CHECK(snapshot_count==1,"reused slot announces new body");
+        message=(void *)snapshot_packets[0].bytes;
+        CHECK(message->header.count==1&&message->changes[0].object_index==index&&
+            message->changes[0].owner_team_index==_game_team_flood,"reused slot cannot inherit cached allegiance");
+        return 0;
+    }
+    if(!strncmp(name,"team-",5)) {
+        struct player_datum *player=player_get(player_index);
+        long expected=_game_team_covenant;
+        player->team_index=_game_team_player;corpse->object.owner_team_index=_game_team_player;
+        if(!strcmp(name,"team-coop-attach"))corpse->object.owner_team_index=_game_team_covenant;
+        if(!strncmp(name,"team-mp-",8))coop=FALSE;
+        if(!strcmp(name,"team-mp-attach")||!strcmp(name,"team-mp-live"))team_game=TRUE;
+        if(!strcmp(name,"team-mp-ffa"))corpse->object.owner_team_index=_game_team_covenant;
+        network_player_attach_unit(player_index,index);
+        if(!strcmp(name,"team-coop-attach")) {
+            CHECK(player->team_index==expected&&corpse->object.owner_team_index==expected,
+                "initial co-op attachment preserves host native allegiance");return 0;
+        }
+        if(!strcmp(name,"team-mp-attach")||!strcmp(name,"team-mp-ffa")) {
+            CHECK(player->team_index==_game_team_player&&corpse->object.owner_team_index==_game_team_player,
+                "classic team/FFA attachment unchanged");return 0;
+        }
+        change.owner_team_index=_game_team_covenant;
+        if(!strcmp(name,"team-mp-live"))change.owner_team_index=expected=_team_red;
+        if(!strcmp(name,"team-coop-invalid")) {
+            change.owner_team_index=NUMBER_OF_SOLO_CAMPAIGN_TEAMS;expected=_game_team_player;
+        }
+        if(!strcmp(name,"team-coop-owner"))corpse->object.owner_player_index=DATUM_INDEX_NEW(0,8);
+        if(!strcmp(name,"team-coop-stale"))corpse->unit.player_index=DATUM_INDEX_NEW(0,8);
+        if(!strcmp(name,"team-coop-other-body"))player->unit_index=NONE;
+        network_objects_handle_changes(&change,1);
+        CHECK(constructed==1&&deleted==0&&object_get(index)==corpse,"allegiance retains actual body");
+        CHECK(corpse->object.owner_team_index==expected,"validated native allegiance applied to existing body");
+        if(!strcmp(name,"team-mp-live")||!strcmp(name,"team-coop-owner")||
+            !strcmp(name,"team-coop-stale")||!strcmp(name,"team-coop-other-body"))expected=_game_team_player;
+        CHECK(player->team_index==expected,"only matching current co-op owner follows allegiance");
+        return 0;
+    }
     if(!strncmp(name,"item-holder-",12)) {
         long expected=index;
         long secondary=add_replica(5,_object_type_weapon);
@@ -912,7 +979,7 @@ static int exercise(char const *name) {
     if(!strncmp(name,"invalid-",8)||!strcmp(name,"outside-pool")){
         struct object_datum before=*corpse;
         if(!strcmp(name,"invalid-tag"))change.definition_index=99;
-        else if(!strcmp(name,"invalid-team"))change.owner_team_index=MAXIMUM_TRACKED_PLAYERS;
+        else if(!strcmp(name,"invalid-team"))change.owner_team_index=NUMBER_OF_SOLO_CAMPAIGN_TEAMS;
         else if(!strcmp(name,"invalid-color"))change.change_colors[2].red=NAN;
         else if(!strcmp(name,"invalid-position"))change.position.x=NAN;
         else if(!strcmp(name,"invalid-axes"))change.up=change.forward;
