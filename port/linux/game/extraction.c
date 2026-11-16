@@ -31,6 +31,7 @@
 #include "items/weapons.h"
 #include "items/weapon_definitions.h"
 #include "units/units.h"
+#include "units/vehicles.h"
 #include "units/unit_definitions.h"
 #include "extraction.h"
 #include "network_coop.h"
@@ -93,6 +94,7 @@ static struct
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
+	short dropship_landing_groups[2]; /* optional physical landing output/gate */
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
 	long dropship_completed[2]; /* full native handles; rearmed by actual LZ boarding */
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
@@ -259,6 +261,7 @@ void extraction_reset(void)
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
+	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
@@ -408,6 +411,7 @@ static void extraction_bind(void)
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
+	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
@@ -492,6 +496,9 @@ static void extraction_bind(void)
 		if (!device_group_find_named(faction ? "extraction_spirit_boarded" : "extraction_pelican_boarded",
 			&extraction.dropship_boarding_groups[faction]) ||
 			(extraction.dropship_boarding_groups[faction] != NONE && extraction.dropship_names[faction] == NONE)) unique = FALSE;
+		if (!device_group_find_named(faction ? "extraction_spirit_landed" : "extraction_pelican_landed",
+			&extraction.dropship_landing_groups[faction]) ||
+			(extraction.dropship_landing_groups[faction] != NONE && extraction.dropship_names[faction] == NONE)) unique = FALSE;
 		if (!device_group_find_named(faction ? "extraction_spirit_called" : "extraction_pelican_called",
 			&extraction.dropship_call_groups[faction]) ||
 			(extraction.dropship_call_groups[faction] != NONE && extraction.dropship_names[faction] == NONE)) unique = FALSE;
@@ -570,7 +577,8 @@ finished:
 	if (extraction.admitted)
 		for (faction = 0; faction < 2; faction++)
 		{
-			short outputs[2] = {extraction.dropship_boarding_groups[faction], extraction.dropship_call_groups[faction]};
+			short outputs[3] = {extraction.dropship_boarding_groups[faction], extraction.dropship_call_groups[faction],
+				extraction.dropship_landing_groups[faction]};
 			short output;
 			for (output = 0; output < NUMBEROF(outputs); output++)
 			if (outputs[output] != NONE)
@@ -588,6 +596,8 @@ finished:
 				device_group_set_actual_value(extraction.dropship_boarding_groups[faction], 0.f);
 			if (extraction.dropship_call_groups[faction] != NONE)
 				device_group_set_actual_value(extraction.dropship_call_groups[faction], 0.f);
+			if (extraction.dropship_landing_groups[faction] != NONE)
+				device_group_set_actual_value(extraction.dropship_landing_groups[faction], 0.f);
 		}
 	platform_log("extraction: native hub %s; deploy %d activate %d return %d zone %d pelican %d spirit %d",
 		extraction.admitted ? "admitted" : "unavailable", extraction.deploy_name,
@@ -608,6 +618,7 @@ finished:
 			extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 			extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 			extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
+			extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
 			extraction.zone = extraction.return_zone = NONE;
 		}
 		if (extraction.admitted && !extraction.suspended)
@@ -1064,7 +1075,13 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	if (!unit) return FALSE;
 	/* Attached units' coordinates are not a substitute for the actual ship's
 	 * destination. After disembarkation, the body must really be in the hub. */
-	if (run->dropship != NONE && extraction_player_dropship(unit) == run->dropship) location = run->dropship;
+	if (run->dropship != NONE && extraction_player_dropship(unit) == run->dropship)
+	{
+		short faction = extraction_faction(unit->object.owner_team_index);
+		location = run->dropship;
+		if (faction != NONE && extraction.dropship_landing_groups[faction] != NONE &&
+			!vehicle_is_landed(location)) return FALSE;
+	}
 	return scenario_trigger_volume_test_object(extraction.return_zone, location) &&
 		!scenario_trigger_volume_test_object(extraction.zone, location);
 }
@@ -1247,6 +1264,7 @@ static boolean extraction_transport_boarded(short faction)
 	if (extraction.suspended || cinematic_in_progress() || extraction.dropship_names[faction] == NONE) return FALSE;
 	ship = object_index_from_name_index(extraction.dropship_names[faction]);
 	if (ship == NONE || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
+	if (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship)) return FALSE;
 	at_hub = scenario_trigger_volume_test_object(extraction.return_zone, ship);
 	at_lz = scenario_trigger_volume_test_object(extraction.zone, ship);
 	if (at_hub == at_lz) return FALSE;
@@ -1304,6 +1322,13 @@ static void extraction_transport_readiness(void)
 	short faction;
 	for (faction = 0; faction < 2; faction++)
 	{
+		if (extraction.dropship_landing_groups[faction] != NONE)
+		{
+			long ship = object_index_from_name_index(extraction.dropship_names[faction]);
+			real landed = !extraction.suspended && ship != NONE && vehicle_is_landed(ship) ? 1.f : 0.f;
+			if (device_group_get_value(extraction.dropship_landing_groups[faction]) != landed)
+				device_group_set_actual_value(extraction.dropship_landing_groups[faction], landed);
+		}
 		if (extraction.dropship_boarding_groups[faction] != NONE)
 		{
 			real ready = extraction_transport_boarded(faction) ? 1.f : 0.f;

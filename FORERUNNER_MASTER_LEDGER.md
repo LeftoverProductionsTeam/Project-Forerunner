@@ -16,7 +16,42 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `b813f9611e`): faction selection now refreshes only that
+Current P0 checkpoint (base `3f8cb80f3c`): physical landing/settlement handoff
+is source-implemented and Windows64 compiled. Optional native `*_landed` groups
+use collision-grounded state, upright attitude and settled motion, preserve native
+grounded hover parking, reject pending destruction, and gate boarding readiness
+and seated hub banking. Existing receipt, cinematic, identity and gear gates remain.
+51 focused connected transport workflows pass, now exercising the actual native
+landing predicate (transient/tilted/sliding/rotating/airborne-hover refusal and
+grounded parking), output isolation and delayed banking. The existing HSC template
+waits for both pad volume and touchdown before opening doors. No new packet,
+save format, pilot engine or test framework.
+
+Configured native human-plane AI now uses authored hull clearance, approach/turn
+throttle, bounded pitch, native final stopping and grounded descent/leveling.
+These pilot controls remain partially native-verified, NOT a completed shuttle.
+Native diagnosis identified real grounded-rollover ejection, a cruise-power/orbit
+problem and heading-dependent final touchdown; collision/ejection remain enabled.
+Intermediate owned runs demonstrate normal boarding, insertion landing and
+disembarkation; the final candidate `build/native-pelican-final-pad` (map
+`74e9373ce81eef4f62bdbbbf7929e7b13ecfee48548a1ee41a0bc68a50aa0b4a`)
+stops at insertion: actual craft settles around (80.78,-133.41), outside the LZ's
+Y>=-133 boundary. Pilot remains seated, no exception; no evacuation seat receipt,
+departure, aircraft banking or next deployment is accepted. Do not turn this into
+a pass by widening a settlement gate. Finish repeatable pilot/aircraft touchdown
+before two-account flight and Spark aircraft acceptance. Source checks are not
+hardware/gameplay proof. Owned runtime/map staging and stopped BMP scratch are
+removed; compact logs/PNG evidence retained; original fn_native SHA remains
+`09c939b9b440dd25a8c139dea7283253dcb9ea227bb7f0bfd845bee82ba2e4b3`.
+
+Read-only Spark `da48414` still leaves its full aircraft-equipped Black Echo CE609
+delivery unfinished. Exact next authoring requirements and native source references
+are in `SPARK_INTEGRATION_CONTRACT.md`. Previously accepted two-account actual
+Black Echo combat/rescue/technology/Flood/defense and on-foot banking/restart remain
+accepted; they do not prove aircraft evacuation. P0 remains open; continue playable
+dropship work, not another audit, graphics pass or repeated unrelated tests.
+
+Previous accepted checkpoint (base `b813f9611e`): faction selection now refreshes only that
 local viewer's native objective markers from the existing co-op HUD cache.
 Clients retain received markers in the same cache; no packet, squad manager or
 quest state was added. First attachment, same-team respawn and recovery preserve

@@ -59,6 +59,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('device_binding.inc', structure(devices, 'scenario_device_group') + '\n' +
                   function(devices, 'device_group_find_named')))
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
+    files.append(('vehicle_landing_types.inc', enum_with(read('source/units/vehicles.h'), '_vehicle_hovering_bit')))
+    files.append(('vehicle_landing.inc', function(read('source/units/vehicles.c'), 'vehicle_is_landed')))
     files.append(('native_seat_animation_types.inc', enum_with(read('source/units/units.h'), '_unit_seat_animation_airborne_dead')))
     files.append(('native_seats.inc', '\n'.join(function(read('source/units/units.c'), name) for name in (
         'unit_can_enter_seat', 'unit_get_seat_entrance_point'))))
@@ -97,6 +99,7 @@ def test_extraction_workflow(case):
 
 @pytest.mark.parametrize('case', [
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
+    'transport-landed-loop', 'transport-landed-alias',
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-missing-faction', 'transport-seat', 'transport-stale', 'transport-wrong-faction',

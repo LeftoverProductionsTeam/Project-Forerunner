@@ -716,6 +716,21 @@ void actor_move_get_avoidance_direction(
 	return;
 }
 
+/* port: stock recorded planes and legacy fighters retain their original control. */
+static struct vehicle_definition *actor_move_plane_definition(struct actor_datum const *actor)
+{
+	struct unit_datum *vehicle;
+	struct vehicle_definition *plane;
+	if (actor->input.vehicle_driver_type != _actor_vehicle_driver_directional_flying ||
+		actor->input.vehicle_index == NONE || !vehicle_is_human_plane(actor->input.vehicle_index)) return NULL;
+	vehicle = vehicle_get(actor->input.vehicle_index);
+	plane = vehicle_specific_definition_get(vehicle->definition_index);
+	if (!(plane->ai_steering_max_throttle > 0.f && plane->ai_steering_max_throttle <= 1.f &&
+		plane->ai_avoidance_distance > 0.f && plane->ai_avoidance_distance <= 12.f &&
+		plane->ai_pathfinding_radius > 0.f && plane->ai_pathfinding_radius <= 12.f)) return NULL;
+	return plane;
+}
+
 static void actor_move_avoidance_setup(
 	struct vector_avoidance_data *avoidance_data)
 {
@@ -1435,6 +1450,19 @@ static void actor_move_vector_avoidance(
 		cross_product3d(&object->object.up, &object->object.forward, &avoidance_data.left);
 		avoidance_data.avoid_distance = 12.f;
 		avoidance_data.avoid_width = 1.f;
+		/* port: authored plane AI needs its own finite clearance, not a
+		 * fighter's fixed look-ahead that prevents approaching a low pad.
+		 * Retain a positive hull margin, normal ray tests and native physics. */
+		{
+			struct vehicle_definition *plane = actor_move_plane_definition(actor);
+			if (plane)
+			{
+				real distance = plane->ai_avoidance_distance;
+				if (actor->control.path.path.valid && !actor->control.path.destination_orders.keep_moving)
+					distance = MIN(distance, magnitude3d(movement_direction));
+				avoidance_data.avoid_distance = MAX(distance, plane->ai_pathfinding_radius);
+			}
+		}
 		actor_move_avoidance_setup(&avoidance_data);
 
 		maximum_sense_emergency = 0.f;
@@ -2211,7 +2239,9 @@ void actor_destination_update(
 			actor->control.path.path.valid = FALSE;
 		}
 	}
-	else if (actor->input.vehicle_driver_type == _actor_vehicle_driver_directional_flying)
+	else if (actor->input.vehicle_driver_type == _actor_vehicle_driver_directional_flying &&
+		!(actor_move_plane_definition(actor) && actor->control.path.at_destination &&
+			!actor->control.path.destination_orders.keep_moving))
 	{
 		boolean reverse =
 			actor->control.vector_avoidance_rotation_emergency_instantaneous > 0.9f;
@@ -2393,6 +2423,7 @@ static void actor_move_calculate_movement(
 {
 	struct actor_datum *actor = actor_get(actor_index);
 	struct actor_definition *definition = actor_definition_get(actor->meta.definition_index);
+	struct vehicle_definition *plane = actor_move_plane_definition(actor);
 	real_vector3d facing_vector;
 	real_vector3d throttle;
 	real_vector3d free_throttle;
@@ -2642,6 +2673,24 @@ static void actor_move_calculate_movement(
 		actor_index,
 		&current_stopping_distance,
 		&maximum_stopping_distance);
+	/* port: an explicitly configured human plane must slow for its native
+	 * waypoint and turn, rather than orbit it forever at fighter throttle.
+	 * Keep cruise power above the landing approach floor so it can climb.
+	 * Only control input changes; authored paths, physics and landing gates stay. */
+	if (plane && actor->control.path.path.valid)
+	{
+		struct unit_datum *vehicle = vehicle_get(actor->input.vehicle_index);
+		real_vector2d forward = {vehicle->object.forward.i, vehicle->object.forward.j};
+		real_vector2d toward = {facing_vector.i, facing_vector.j};
+		real minimum = actor->control.path.destination_orders.keep_moving ? 0.5f : 0.15f;
+		real approach = PIN(square_root(movement_distance_squared) / (2.f * MAX(plane->ai_avoidance_distance, plane->ai_pathfinding_radius)), minimum, 1.f);
+		if (normalize2d(&forward) > 0.f && normalize2d(&toward) > 0.f)
+		{
+			real alignment = PIN(dot_product2d(&forward, &toward), 0.f, 1.f);
+			approach = MIN(approach, MAX(minimum, alignment * alignment));
+		}
+		maximum_throttle *= approach;
+	}
 	if (!actor->control.path.destination_orders.keep_moving &&
 		movement_distance_squared < current_stopping_distance*current_stopping_distance)
 	{
@@ -2820,6 +2869,31 @@ static void actor_move_calculate_movement(
 						angle_adjustment);
 				}
 			}
+		}
+	}
+
+	/* port: fighter aiming may point straight down at an arrival point. A
+	 * configured transport glides within its authored upper steering angle
+	 * (30 degrees by default), leaving collision and ground contact native. */
+	if (plane)
+	{
+		real pitch = plane->ai_oversteer_angle_upper_bound;
+		real limit;
+		if (!(pitch > 0.f && pitch <= _pi / 4.f)) pitch = _pi / 6.f;
+		limit = sine(pitch);
+		if (facing_vector.k > limit || facing_vector.k < -limit)
+		{
+			real_vector2d horizon = {facing_vector.i, facing_vector.j};
+			real horizontal_scale = square_root(1.f - limit * limit);
+			if (normalize2d(&horizon) == 0.f)
+			{
+				struct unit_datum *vehicle = vehicle_get(actor->input.vehicle_index);
+				horizon.i = vehicle->object.forward.i; horizon.j = vehicle->object.forward.j;
+				if (normalize2d(&horizon) == 0.f) { horizon.i = 1.f; horizon.j = 0.f; }
+			}
+			facing_vector.i = horizon.i * horizontal_scale;
+			facing_vector.j = horizon.j * horizontal_scale;
+			facing_vector.k = facing_vector.k < 0.f ? -limit : limit;
 		}
 	}
 
@@ -3021,6 +3095,7 @@ void actor_move_update(
 	real oversteer_minimum_angle = 0.f;
 	real rotation_emergency_amount = 0.f;
 	real maximum_throttle = 1.f;
+	boolean plane_landing = FALSE;
 
 	match_assert_valid_real_normal3d(
 		"c:\\halo\\SOURCE\\ai\\actor_moving.c",
@@ -3408,6 +3483,31 @@ void actor_move_update(
 		actor->control.free_facing_vector = FALSE;
 	}
 
+	/* A transport at a native stop point levels and settles under normal
+	 * physics instead of retaining its last descending flight attitude. */
+	{
+		struct vehicle_definition *plane = actor_move_plane_definition(actor);
+		if (plane)
+		{
+			struct unit_datum *ship = vehicle_get(actor->input.vehicle_index);
+			real arrival = 2.f * MAX(plane->ai_avoidance_distance, plane->ai_pathfinding_radius);
+			plane_landing = !actor->control.moving ||
+				(actor->control.path.path.valid && !actor->control.path.destination_orders.keep_moving &&
+				 TEST_FLAG(ship->object.flags, _object_on_ground_bit) &&
+				 magnitude_squared3d(&actor->control.moving_towards_vector) <= arrival * arrival);
+		}
+	}
+	if (plane_landing)
+	{
+		real_vector3d level = actor->input.facing_vector;
+		level.k = 0.f;
+		if (normalize3d(&level) > 0.f)
+			actor->control.desired_facing_vector = level;
+		actor->output.throttle.i = actor->output.throttle.j = 0.f;
+		actor->control.optional_facing_vector = FALSE;
+		actor->control.free_facing_vector = FALSE;
+	}
+
 	match_assert_valid_real_normal3d(
 		"c:\\halo\\SOURCE\\ai\\actor_moving.c",
 		655,
@@ -3423,6 +3523,11 @@ void actor_move_update(
 	{
 		crouch = FALSE;
 	}
+
+	/* Native plane descent control removes cruise lift at a completed stop.
+	 * Ground friction then arrests the craft; no position/velocity is forced. */
+	if (plane_landing)
+		crouch = TRUE;
 
 	if (game_connection() == _game_connection_local && ai_debug.force_crouch)
 		crouch = TRUE;

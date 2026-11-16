@@ -6,7 +6,10 @@
 ; Native scenario requirements: named Pelican/Spirit, native passenger seats,
 ; Marine native_squad, hub/LZ volumes, deploy/activate controls, two cameras
 ; and dedicated native device groups extraction_pelican_boarded and
-; extraction_pelican_called (initially zero, not bound to control power/position).
+; extraction_pelican_called and extraction_pelican_landed (initially zero,
+; not bound to control power/position). Landed is native ground/attitude feedback.
+; tf_field/home require aircraft-scale cruise radii and precise final landing
+; points; validate each physical touchdown against its unchanged pad volume.
 ; tf_field/home are authored native flight commands; tf_wait uses a short
 ; pause followed by a native loop, not a pause that overflows a 16-bit timer.
 
@@ -70,11 +73,10 @@
 (script startup tf_initialize
   (ai_allegiance player human)
   (device_set_power extraction_activate 0)
-  (vehicle_hover extraction_pelican true)
+  (unit_set_enterable_by_player extraction_pelican false)
   (vehicle_hover extraction_spirit true)
   (unit_open extraction_pelican)
   (unit_open extraction_spirit)
-  (unit_set_enterable_by_player extraction_pelican true)
   (unit_set_enterable_by_player extraction_spirit true)
   (ai_place be_marines/native_squad)
   (ai_set_team be_marines human)
@@ -82,6 +84,9 @@
   (sleep_until (vehicle_test_seat_list extraction_pelican "P-driver" (ai_actors be_marines/native_squad)) 1)
   (print "transport: native Marine pilot physically seated")
   (ai_command_list be_marines/native_squad tf_wait)
+  (sleep_until (>= (device_group_get extraction_pelican_landed) 0.5) 1)
+  (vehicle_hover extraction_pelican true)
+  (unit_set_enterable_by_player extraction_pelican true)
   (set tf_initialized true)
 )
 
@@ -106,7 +111,8 @@
   ; Watch the landing volume while the camera plays. A blocking camera call
   ; can miss the landing altogether on short native flight paths.
   (wake tf_insertion_camera)
-  (sleep_until (volume_test_objects extraction_zone extraction_pelican) 1)
+  (sleep_until (and (volume_test_objects extraction_zone extraction_pelican)
+    (>= (device_group_get extraction_pelican_landed) 0.5)) 1)
   (ai_command_list be_marines/native_squad tf_wait)
   (vehicle_hover extraction_pelican true)
   (unit_open extraction_pelican)
@@ -121,13 +127,11 @@
   (unit_close extraction_pelican)
   (vehicle_hover extraction_pelican false)
   (ai_command_list be_marines/native_squad tf_home)
-  (sleep_until (volume_test_objects extraction_return extraction_pelican) 1)
+  (sleep_until (and (volume_test_objects extraction_return extraction_pelican)
+    (>= (device_group_get extraction_pelican_landed) 0.5)) 1)
   (ai_command_list be_marines/native_squad tf_wait)
   (vehicle_hover extraction_pelican true)
   (print "transport: empty craft staged; waiting for extraction request")
-  ; A queued request can already be high. Yield so native physics samples the
-  ; hover brake before pickup clears it again; this does not authorize recovery.
-  (sleep 1)
   ; A shared call control can be used by either faction. Only a real current
   ; UNSC request may recall the Pelican; Spirit scripts consume their own
   ; extraction_spirit_called group through the same native runtime path.
@@ -138,7 +142,8 @@
   ; this call signal alone never authorizes departure or recovery.
   (vehicle_hover extraction_pelican false)
   (ai_command_list be_marines/native_squad tf_field)
-  (sleep_until (volume_test_objects extraction_zone extraction_pelican) 1)
+  (sleep_until (and (volume_test_objects extraction_zone extraction_pelican)
+    (>= (device_group_get extraction_pelican_landed) 0.5)) 1)
   (ai_command_list be_marines/native_squad tf_wait)
   (vehicle_hover extraction_pelican true)
   (print "transport: extraction landed; board passenger seat")
@@ -152,7 +157,8 @@
   (vehicle_hover extraction_pelican false)
   (ai_command_list be_marines/native_squad tf_home)
   (wake tf_departure_camera)
-  (sleep_until (volume_test_objects extraction_return extraction_pelican) 1)
+  (sleep_until (and (volume_test_objects extraction_return extraction_pelican)
+    (>= (device_group_get extraction_pelican_landed) 0.5)) 1)
   (ai_command_list be_marines/native_squad tf_wait)
   (vehicle_hover extraction_pelican true)
   (unit_open extraction_pelican)

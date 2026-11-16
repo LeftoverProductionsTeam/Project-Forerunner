@@ -135,6 +135,7 @@ network_test_update, which does nothing there */
 #include "devices/devices.h"
 #include "objects/objects.h"
 #include "units/units.h"
+#include "units/vehicles.h"
 #include "units/unit_definitions.h"
 #include "items/weapons.h"
 #include "items/weapon_definitions.h"
@@ -1653,6 +1654,19 @@ static void network_test_log_actors(
 				object->object.bounding_sphere_center.x, object->object.bounding_sphere_center.y,
 				object->object.bounding_sphere_center.z, object->object.bounding_sphere_radius,
 				device_can_change_position(objects.index));
+		}
+		object_iterator_new(&objects, _object_mask_vehicle, 0);
+		while (object_iterator_next(&objects))
+		{
+			struct unit_datum *ship = unit_get(objects.index);
+			if (vehicle_is_human_plane(objects.index))
+				platform_log("network test: aircraft %ld %ld ground %d rest %d landed %d up %.3f motion %.4f spin %.4f throttle %.3f facing %.3f %.3f %.3f",
+					now, DATUM_INDEX_TO_ABSOLUTE_INDEX(objects.index),
+					TEST_FLAG(ship->object.flags, _object_on_ground_bit),
+					TEST_FLAG(ship->object.flags, _object_at_rest_bit), vehicle_is_landed(objects.index), ship->object.up.k,
+					magnitude3d(&ship->object.translational_velocity), magnitude3d(&ship->object.angular_velocity),
+					ship->unit.throttle.i, ship->unit.desired_facing_vector.i,
+					ship->unit.desired_facing_vector.j, ship->unit.desired_facing_vector.k);
 		}
 		data_iterator_new(&players, player_data);
 		while ((player = data_iterator_next(&players)) != NULL)

@@ -931,6 +931,36 @@ activation and hold valid boarding receipts/seats. Other factions and unrelated
 field operations are excluded. Empty crews, pending death, incapacitation, invalid
 ownership, cinematics and flight between pads do not authorize a new departure.
 The signal only coordinates flight; it grants no equipment or banking authority.
+Optional dedicated groups `extraction_pelican_landed` / `extraction_spirit_landed`
+publish actual native ground contact (five ticks before parking), upright attitude
+and settled linear/angular motion. Native hover preserves the actual grounded
+collision flag and parked pose; it does not manufacture a touchdown. They are host outputs, initially zero, with the same
+unique matching-vehicle and control-group isolation rules. Binding one also
+requires that faction's aircraft to be landed for boarding readiness and seated
+hub banking; maps without these optional groups retain the existing contract.
+Spark must wait for both the correct pad volume and this landed output before
+opening doors or reporting arrival. A volume, hover command or elapsed timer
+does not establish a landing. Source: `source/units/vehicles.c::vehicle_is_landed`,
+`extraction.c::{extraction_at_return,extraction_transport_boarded,extraction_transport_readiness}`.
+No packet/save version or second pilot system is added. Native pilot support is
+opted in through existing human-plane tag AI throttle (>0..1), positive avoidance
+distance and pathfinding radius (at most 12 units): authored hull clearance,
+slower final approach, bounded pitch and native stop/descent controls. Legacy
+fighters and unconfigured/recorded planes retain their previous control.
+Use native keep-moving cruise points followed by a stop-at-point landing route;
+author final coordinates for the pilot body, not the aircraft's bounding center.
+The tracked `tools/fixtures/extraction_transport_native.hsc` illustrates the
+handoff; complete flight/settlement acceptance is recorded in the current checkpoint.
+Read-only Spark review at `da48414` finds native route authoring/readback and
+HSC-symbol compilation, but its current runtime handoff explicitly leaves the
+complete aircraft-equipped Black Echo CE609 package uncompiled/unaccepted.
+Next Spark delivery: matching reviewed native tag inputs, real hub/LZ placements,
+Marine pilot/crew, usable Pelican/Spirit seats, measured approach/landing/return
+routes, these dedicated device groups and native boarding/camera/settlement
+scripts in the complete mission. Synthetic route coordinates and a two-vehicle
+binding fixture are not that delivery. Forerunner's older accepted actual Black
+Echo run remains on-foot extraction, not proof of aircraft evacuation.
+
 Optional dedicated groups `extraction_pelican_called` / `extraction_spirit_called`
 separate requests made at the shared activation control. The host derives each
 output from living, correctly owned, same-faction activating/ready players still

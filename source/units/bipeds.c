@@ -4345,6 +4345,13 @@ boolean biped_update(
 					vehicle_is_flipped(biped->object.parent_object_index) : vehicle->object.up.k < 0.f) &&
 				TEST_FLAG(vehicle->object.flags, _object_on_ground_bit))
 			{
+				/* port: existing AI command diagnostics identify actual flight exits. */
+				if (ai_debug.print_command_lists)
+					error(_error_silent, "native grounded rollover exit: tick %ld unit %08lx vehicle %08lx at %.3f %.3f %.3f up %.3f %.3f %.3f forward %.3f %.3f %.3f",
+						game_time_get(), (unsigned long)biped_index, (unsigned long)biped->object.parent_object_index,
+						vehicle->object.position.x, vehicle->object.position.y, vehicle->object.position.z,
+						vehicle->object.up.i, vehicle->object.up.j, vehicle->object.up.k,
+						vehicle->object.forward.i, vehicle->object.forward.j, vehicle->object.forward.k);
 				unit_exit_seat_end(biped_index);
 			}
 		}

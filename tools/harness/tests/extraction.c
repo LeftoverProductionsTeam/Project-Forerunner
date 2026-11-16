@@ -44,12 +44,13 @@ struct tag_reference {long index;};
 #include "medical_hud_types.inc"
 #include "equipment_ownership.inc"
 struct object_fields { long first_child_object_index, next_object_index; short type; long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
- real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up; };
+ real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
  struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags,flags;
-  real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth; } unit; };
+  real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth; } unit;
+ struct { unsigned long flags; unsigned char on_ground_ticks; } vehicle; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { unsigned long flags; } item;
  struct { struct { short rounds_loaded, rounds_total; } magazines[2]; float age; } weapon; };
@@ -74,7 +75,7 @@ struct scenario_trigger_volume { char name[32]; };
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
 struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; };
-struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up; };
+struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
 struct player_action { unsigned long control_flags; real primary_trigger; struct {real i,j;} throttle;
@@ -304,6 +305,11 @@ static boolean player_ui_get_path_to_local_player_profile_directory(short local,
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
 { CHECK((machine==1 && controller==2)||(delta_session && machine==players[0].network_player_data.machine_index && controller==players[0].network_player_data.controller_index),"wrong authenticated controller"); memcpy(id->account,machine==1?remote_account:host_account,16); id->bound=verified; return TRUE; }
 static boolean delta_peer_game_on_delta(void) { return delta_session; }
+#include "vehicle_landing_types.inc"
+static real magnitude_squared3d(real_vector3d const *v) { return v->i*v->i+v->j*v->j+v->k*v->k; }
+#define vehicle_datum unit_datum
+#include "vehicle_landing.inc"
+#undef vehicle_datum
 static long object_index_from_name_index(short index) { return index>=5 && index<7 ? control_handles[index-2] : index>=3 && index<5 ? dropship_handles[index-3] : index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
 static struct control_definition *control_definition_get(long h) { return &control_tag; }
@@ -762,14 +768,47 @@ int main(int argc,char **argv)
     strcpy(authored_groups[0].name,authored_groups[10].name);authored_groups[10].name[0]=0;
    }
   }
+  if(!strncmp(case_name,"transport-landed",16)) {
+   scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[10].name,"extraction_pelican_landed");
+   strcpy(authored_groups[11].name,"extraction_spirit_landed");
+   if(!strcmp(case_name,"transport-landed-alias")) {
+    strcpy(authored_groups[0].name,authored_groups[10].name);authored_groups[10].name[0]=0;
+   }
+  }
   if(!strcmp(case_name,"transport-binding"))names[3].runtime_object_type=0;
   if(!strcmp(case_name,"transport-duplicate"))strcpy(names[4].name,"extraction_pelican");
   if(!strcmp(case_name,"transport-missing-faction"))scenario.object_names.count=4;
   for(a=0;a<2;a++) {
    dropships[a].definition_index=300;dropships[a].object.body_vitality=1;
-   dropships[a].object.position.x=20;
+   dropships[a].object.position.x=20;dropships[a].object.up.k=1;
+   dropships[a].object.flags|=FLAG(_object_on_ground_bit);dropships[a].vehicle.on_ground_ticks=5;
   }
   advance(1);
+  if(!strcmp(case_name,"transport-landed-alias")) {
+   CHECK(!extraction_owns_map()&&!boarding_changes,"landing output aliased a player input");return 0;
+  }
+  if(!strncmp(case_name,"transport-landed",16)) {
+   CHECK(device_groups[10].actual_value==1.f,"physical landing not published");
+   dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);advance(1);
+   CHECK(!device_groups[10].actual_value,"pending destruction reported landing");
+   dropships[0].object.damage_flags=0;
+   dropships[0].vehicle.on_ground_ticks=4;advance(1);
+   CHECK(!device_groups[10].actual_value,"transient contact reported landing");
+   dropships[0].vehicle.on_ground_ticks=5;dropships[0].object.up.k=.94f;advance(1);
+   CHECK(!device_groups[10].actual_value,"tilted craft reported landing");
+   dropships[0].object.up.k=1;dropships[0].object.translational_velocity.i=.006f;advance(1);
+   CHECK(!device_groups[10].actual_value,"sliding craft reported landing");
+   dropships[0].object.translational_velocity.i=0;dropships[0].object.angular_velocity.k=.02f;advance(1);
+   CHECK(!device_groups[10].actual_value,"rotating craft reported landing");
+   dropships[0].object.angular_velocity.k=0;
+   dropships[0].vehicle.flags=FLAG(_vehicle_hovering_bit);dropships[0].vehicle.on_ground_ticks=0;
+   advance(1);CHECK(device_groups[10].actual_value==1.f,"native grounded parking lost landing feedback");
+   dropships[0].object.flags&=~FLAG(_object_on_ground_bit);advance(1);
+   CHECK(!device_groups[10].actual_value,"airborne contact retained landing output");
+   dropships[0].vehicle.flags=0;dropships[0].vehicle.on_ground_ticks=5;
+   dropships[0].object.flags|=FLAG(_object_on_ground_bit);
+  }
   if(!strncmp(case_name,"transport-called",16)) {
    if(!strcmp(case_name,"transport-called-duplicate")||!strcmp(case_name,"transport-called-capacity")||
       !strcmp(case_name,"transport-called-missing")||!strcmp(case_name,"transport-called-alias")) {
@@ -1044,7 +1083,13 @@ int main(int argc,char **argv)
   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"in-flight/local body position caused early recovery");
   dropships[faction].object.position.x=0;native_cinematic=TRUE;advance(1);
   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"cinematic banked before departure sequence ended");
-  native_cinematic=FALSE;advance(1);
+  native_cinematic=FALSE;
+  if(!strncmp(case_name,"transport-landed",16)) {
+   dropships[0].object.flags&=~FLAG(_object_on_ground_bit);advance(1);
+   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"airborne hub arrival banked equipment");
+   dropships[0].object.flags|=FLAG(_object_on_ground_bit);
+  }
+  advance(1);
   CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==1&&!weapon_try_and_get(loot),"boarded arrival did not bank exactly once");
   advance(30);CHECK(run(0)->gear.record.count==1,"arrived passenger duplicated loot");
   extraction_reset();return 0;
