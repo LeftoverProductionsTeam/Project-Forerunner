@@ -289,6 +289,7 @@ symbols in this file:
 #include "cseries/cseries_windows.h"
 #endif
 #include "mcc_scripts.h"
+#include "extraction.h" /* port: port/linux/game/extraction.c */
 
 /* port: bipeds.c's; cheats.c's (hs_evaluate_set) */
 extern boolean rider_ejection;
@@ -3071,6 +3072,11 @@ static void hs_script_evaluate(
 	(hs_scenario_functions_check) */
 	if (hs_scenario_script_disabled(script_index))
 		hs_return(thread_index, hs_type_default_value(script->return_type));
+	/* port: reserved squad queries use ordinary static HSC stubs, the native
+	 * object-list pool and the existing authoritative Extraction participants. */
+	else if (script->script_type == _hs_script_static && script->return_type == _hs_type_object_list &&
+		extraction_script_players(script->name, result))
+		hs_return(thread_index, *result);
 	else if (initialize)
 		hs_evaluate(thread_index, script->root_expression_index, result);
 	else

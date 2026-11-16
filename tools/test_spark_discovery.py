@@ -50,7 +50,8 @@ def test_native_discovery_without_game_data(runtime):
     assert reply["schema"] == "spark-forerunner.runtime-capabilities"
     assert reply["contract_version"] == 1 and reply["engine"] == "Forerunner"
     assert reply["simulation_hz"] == 30
-    assert reply["network"] == {"advertised_version": 44, "native_layout_version": 44}
+    # The accepted authenticated 44/45 bridge advertises 45 and retains layout 44.
+    assert reply["network"] == {"advertised_version": 45, "native_layout_version": 44}
     assert reply["operations"] == ["runtime.discover"]
     assert reply["build"]["commit"] not in ("", "unknown")
     assert {"OpenCE", "ChupathingyCE", "FractumSeraph/OpenCE"} <= set(reply["upstream_projects"])
@@ -83,6 +84,22 @@ def test_reference_client_negotiates_supported_operation(runtime):
 
     _, executable = runtime
     assert discover(executable, ["runtime.discover"])["contract_version"] == 1
+
+
+def test_reference_client_requires_native_squad_objectives(runtime):
+    from spark_runtime import discover
+
+    _, executable = runtime
+    reply = discover(executable, required_features=["extraction.squad_objectives.v1"])
+    assert "extraction.squad_objectives.v1" in reply["native_features"]
+
+
+def test_reference_client_refuses_unknown_native_feature(runtime):
+    from spark_runtime import RuntimeContractError, discover
+
+    _, executable = runtime
+    with pytest.raises(RuntimeContractError, match="unsupported required native feature.*extraction.squad_objectives.v2"):
+        discover(executable, required_features=["extraction.squad_objectives.v2"])
 
 
 def test_reference_client_refuses_unimplemented_editing(runtime):

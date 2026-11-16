@@ -3,6 +3,16 @@
 ; Native controls/profiles are authored in the owned disposable CE scenario.
 ; The runtime owns per-player selection, deployment, activation and banking.
 
+; Reserved native queries. Stock runtimes return no object from this fallback.
+; Mission logic uses a nonempty list before testing objectives for a squad.
+(script static object_list forerunner_squad_01_players
+  (list_get (players) 32767)
+)
+
+(script static object_list forerunner_squad_02_players
+  (list_get (players) 32767)
+)
+
 (script startup faction_hub_ready
   (ai_allegiance player human)
   (print "faction fixture: native hub ready")

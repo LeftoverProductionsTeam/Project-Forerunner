@@ -1,5 +1,7 @@
 #include "harness.h"
 #include <ctype.h>
+/* Keep the bounded adapter distinct from the Windows CRT declaration. */
+#define strlwr fixture_strlwr
 typedef unsigned short word;
 #define NUMBEROF(a) (sizeof(a) / sizeof((a)[0]))
 struct player_datum

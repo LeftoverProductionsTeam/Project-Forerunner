@@ -69,6 +69,11 @@ static boolean coop_scripts_adaptations_active(void)
 	return coop_scripts_host() && coop_scripts_adaptations;
 }
 
+boolean coop_scripts_native_player_actions(void)
+{
+	return !coop_scripts_adaptations_active();
+}
+
 /* the seat label to look for when boarding a follower: player0's own up to
 and including "rider" (Pelicans have "p-riderlf", "p-riderrf", "p-riderlb"
 and so on), else up to the '-' ("b-driver" gives "b-") */

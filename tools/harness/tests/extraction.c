@@ -339,6 +339,17 @@ static void *data_iterator_next(struct data_iterator *i) { if(i->next>=active_pl
 
 #include "equipment_flags.inc"
 #include "equipment.inc"
+/* Native object-list adapters; list allocation/provenance itself is exercised
+ * with the real pool code in coop_gate and script_stale_objects. */
+static boolean authored_player_actions=TRUE,list_used[8],list_players[8];
+static short list_sizes[8],list_failure_at;
+static long list_units[8][6];
+static boolean list_allocation_failure;
+static boolean coop_scripts_native_player_actions(void){return authored_player_actions;}
+static long object_list_new(void){if(list_allocation_failure)return NONE;for(short i=0;i<8;i++)if(!list_used[i]){list_used[i]=TRUE;list_sizes[i]=0;list_players[i]=FALSE;return i;}return NONE;}
+static boolean object_list_add(long l,long u){if(l==NONE||list_sizes[l]==6||list_sizes[l]+1==list_failure_at)return FALSE;list_units[l][list_sizes[l]++]=u;return TRUE;}
+static void object_list_mark_players(long l){if(l!=NONE)list_players[l]=TRUE;}
+static void object_list_delete(long l){if(l!=NONE)list_used[l]=FALSE;}
 #include "extraction.inc"
 static struct object_datum *object_get(long index) {return (struct object_datum *)unit_get(index);}
 #include "native_seat_animation_types.inc"
@@ -476,8 +487,16 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"squad-duplicate"))strcpy(names[10].name,names[9].name);
   if(!strcmp(case_name,"squad-alias"))control_handles[6]=control_handles[5];
   if(!strcmp(case_name,"squad-missing"))control_handles[6]=NONE;
+  if(!strncmp(case_name,"squad-objective-",16)) {
+   scenario.device_groups.count=10;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[8].name,"extraction_squad_01_ready");strcpy(authored_groups[9].name,"extraction_squad_02_ready");
+   device_groups[8].actual_value=device_groups[9].actual_value=1;
+   if(!strcmp(case_name,"squad-objective-alias"))controls[5].device.power_group_index=8;
+   if(!strcmp(case_name,"squad-objective-duplicate"))strcpy(authored_groups[9].name,authored_groups[8].name);
+  }
   advance(1);
-  if(!strcmp(case_name,"squad-duplicate")||!strcmp(case_name,"squad-alias")||!strcmp(case_name,"squad-missing")) {
+  if(!strcmp(case_name,"squad-duplicate")||!strcmp(case_name,"squad-alias")||!strcmp(case_name,"squad-missing")||
+   !strcmp(case_name,"squad-objective-alias")||!strcmp(case_name,"squad-objective-duplicate")) {
    CHECK(!extraction_owns_map(),"ambiguous or missing squad terminal admitted");return 0;
   }
   CHECK(extraction_owns_map(),"valid squad hub refused");
@@ -507,6 +526,47 @@ int main(int argc,char **argv)
   }
   if(!strcmp(case_name,"squad-leave")) {
    touch(5,0);CHECK(run(0)->squad==NONE&&run(0)->gear.record.phase==_gear_idle,"leave changed gear ownership or retained membership");return 0;
+  }
+  if(!strncmp(case_name,"squad-query",11)) {
+   long list=42;short j;
+   CHECK(!extraction_script_players("ordinary_players",&list)&&list==42,"ordinary static script intercepted");
+   CHECK(extraction_script_players("forerunner_squad_01_players",&list)&&list==NONE,"undeployed members exposed to objective");
+   touch(!strcmp(case_name,"squad-query-storage")?5:6,1);touch(0,0);touch(0,1);
+   CHECK(run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,"query participants not deployed");
+   if(!strcmp(case_name,"squad-query-storage")) {
+    list_failure_at=2;extraction_script_players("forerunner_squad_01_players",&list);CHECK(list==NONE,"partial player list escaped reference exhaustion");
+    for(j=0;j<8;j++)CHECK(!list_used[j],"partial query list leaked");
+    list_failure_at=0;list_allocation_failure=TRUE;extraction_script_players("forerunner_squad_01_players",&list);CHECK(list==NONE,"allocation failure exposed participants");return 0;
+   }
+   if(!strcmp(case_name,"squad-query-policy")) {
+    authored_player_actions=FALSE;extraction_script_players("forerunner_squad_01_players",&list);CHECK(list==NONE&&extraction.squad_script_warning,"legacy follower policy accepted for scoped mission");authored_player_actions=TRUE;
+   }
+   CHECK(extraction_script_players("forerunner_squad_01_players",&list)&&list!=NONE&&list_players[list]&&list_sizes[list]==1&&list_units[list][0]==unit_handles[0],"squad query crossed ownership or lost provenance");object_list_delete(list);
+   if(!strcmp(case_name,"squad-query-state")) {
+    units[0].object.damage_flags=FLAG(_object_die_act_of_god_silent_bit);extraction_script_players("forerunner_squad_01_players",&list);CHECK(list!=NONE&&!list_sizes[list],"pending death advanced objective");object_list_delete(list);units[0].object.damage_flags=0;
+    player_handles[0]+=0x10000;extraction_script_players("forerunner_squad_01_players",&list);CHECK(list!=NONE&&!list_sizes[list],"recycled player inherited objective membership");object_list_delete(list);player_handles[0]-=0x10000;
+    profile=FALSE;extraction_script_players("forerunner_squad_01_players",&list);CHECK(list!=NONE&&!list_sizes[list],"unverified owner advanced objective");object_list_delete(list);profile=TRUE;
+   }
+   escape(0);extraction_script_players("forerunner_squad_01_players",&list);CHECK(list!=NONE&&list_sizes[list]==1,"durably returned participant absent from callback query");object_list_delete(list);
+   touch(0,0);extraction_script_players("forerunner_squad_01_players",&list);CHECK(list!=NONE&&list_sizes[list]==1&&run(0)->squad_operation==2,"fresh operation query lost member");object_list_delete(list);
+   extraction_restored();extraction_script_players("forerunner_squad_01_players",&list);CHECK(list==NONE,"saved-world query continued operation");return 0;
+  }
+  if(!strncmp(case_name,"squad-objective-",16)) {
+   CHECK(extraction.squads[0].ready_group==8&&device_groups[8].actual_value==0,"stale authored objective admitted");
+   touch(6,1);touch(0,0);touch(0,1);a=pickup(0,1);
+   units[0].object.position.x=units[1].object.position.x=20;
+   touch(1,0);CHECK(run(0)->phase==_extraction_deployed&&!control_updates[1],"incomplete objective activated extraction");
+   device_groups[8].actual_value=.5f;touch(1,0);CHECK(run(0)->phase==_extraction_deployed,"partial objective signal admitted");
+   device_groups[8].actual_value=1;touch(1,0);touch(1,1);CHECK(run(0)->phase==_extraction_activating&&run(1)->phase==_extraction_deployed,"squad objective unlocked other squad");
+   device_groups[8].actual_value=0;advance(1);CHECK(run(0)->phase==_extraction_deployed&&!run(0)->activation_ticks,"objective revocation did not cancel countdown");
+   device_groups[8].actual_value=1;touch(1,0);advance(300);
+   if(!strcmp(case_name,"squad-objective-escrow")) {
+    units[0].object.position.x=0;publish_failure=TRUE;advance(1);CHECK(run(0)->phase==_extraction_settling,"escrow not pending");
+    device_groups[8].actual_value=0;publish_failure=FALSE;advance(30);CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==1,"revocation rewound committed native consumption");return 0;
+   }
+   device_groups[8].actual_value=0;units[0].object.position.x=0;advance(1);CHECK(run(0)->phase==_extraction_deployed&&!run(0)->gear.record.count&&weapon_try_and_get(a),"revoked objective banked gear");
+   device_groups[8].actual_value=1;escape(0);CHECK(run(0)->gear.record.count==1&&run(1)->phase==_extraction_deployed,"scoped objective escape changed other squad");
+   touch(0,0);CHECK(run(0)->phase==_extraction_deployed&&device_groups[8].actual_value==0,"new operation inherited old mission success");return 0;
   }
   touch(!strcmp(case_name,"squad-independent")?6:5,1);
   CHECK(run(1)->squad==(!strcmp(case_name,"squad-independent")?1:0),"second member not assigned");

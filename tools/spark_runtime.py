@@ -20,7 +20,7 @@ class RuntimeContractError(ValueError):
     pass
 
 
-def discover(executable, required=(), version=1):
+def discover(executable, required=(), version=1, required_features=()):
     if type(version) is not int or version != 1:
         raise RuntimeContractError("this reference client supports Spark contract version 1")
     executable = Path(executable).resolve()
@@ -55,6 +55,12 @@ def discover(executable, required=(), version=1):
     missing = sorted(set(required) - set(operations))
     if missing:
         raise RuntimeContractError("unsupported required operation(s): " + ", ".join(missing))
+    features = reply.get("native_features", [])
+    if not isinstance(features, list) or any(not isinstance(feature, str) for feature in features):
+        raise RuntimeContractError("engine discovery has no valid native feature list")
+    missing = sorted(set(required_features) - set(features))
+    if missing:
+        raise RuntimeContractError("unsupported required native feature(s): " + ", ".join(missing))
     return reply
 
 
@@ -62,10 +68,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--engine", required=True, type=Path)
     parser.add_argument("--require", action="append", default=[])
+    parser.add_argument("--require-feature", action="append", default=[])
     parser.add_argument("--contract-version", type=int, default=1)
     args = parser.parse_args()
     try:
-        reply = discover(args.engine, args.require, args.contract_version)
+        reply = discover(args.engine, args.require, args.contract_version, required_features=args.require_feature)
     except (RuntimeContractError, OSError, subprocess.SubprocessError) as error:
         print(f"spark_runtime: {error}", file=sys.stderr)
         return 2

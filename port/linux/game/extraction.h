@@ -14,6 +14,10 @@ void extraction_update(void);
    assigned seat at the LZ, continuous boarding to the return hub and an ended
    native cinematic. Transport gameplay remains UNVERIFIED. */
 boolean extraction_owns_map(void);
+/* Optional reserved static object_list helpers, compiled as ordinary HSC.
+ * TRUE handles the name, returning only this operation's living participants
+ * or NONE when unavailable. Requires exact authored co-op script policy. */
+boolean extraction_script_players(char const *name, long *object_list);
 /* TRUE handles a real host-owned wipe without rewinding the world. If allocation
    fails, the caller retains its native loss timer and retries. */
 boolean extraction_respawn_after_loss(void);

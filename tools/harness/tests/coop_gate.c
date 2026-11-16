@@ -8,12 +8,12 @@ typedef unsigned short word;
 static struct object_list_header_datum headers[8];
 static int used[8], fail_allocate;
 static struct {long value,next;} refs[2048];
-static int references;
+static int references, fail_reference;
 static void *object_list_header_data,*object_list_data;
 #define object_list_header_get(i) (&headers[(i)])
 #define datum_new gate_datum_new
 static long gate_datum_new(void *data){int i;if(fail_allocate)return NONE;for(i=0;i<8;i++)if(!used[i]){used[i]=1;return i;}return NONE;}
-static void reference_list_add(void *data,long *head,long object){long p=references++;CHECK(p<2048,"fixture references");refs[p].value=object;refs[p].next=*head;*head=p;}
+static void reference_list_add(void *data,long *head,long object){if(fail_reference)return;long p=references++;CHECK(p<2048,"fixture references");refs[p].value=object;refs[p].next=*head;*head=p;}
 static long object_list_get_first(long list,long *ref){if(list==NONE)return NONE;*ref=headers[list].first_reference_index;if(*ref==NONE)return NONE;long v=refs[*ref].value;*ref=refs[*ref].next;return v;}
 static long object_list_get_next(long list,long *ref){if(*ref==NONE)return NONE;long v=refs[*ref].value;*ref=refs[*ref].next;return v;}
 static short object_list_count(long list){return list==NONE?0:headers[list].count;}
@@ -70,11 +70,18 @@ static boolean gate(long list){boolean r=hs_trigger_volume_test_objects_all(107,
 static int all_inside(void){int i;for(i=0;i<player_count;i++)if(people[i].unit_index!=NONE&&!scenario_trigger_volume_test_object(107,people[i].unit_index))return FALSE;return TRUE;}
 int main(int argc,char **argv){char const *name=argc>1?argv[1]:"";long list;int n;
  CHECK(sizeof(struct object_list_header_datum)==12,"checkpoint ABI changed");
- if(!strcmp(name,"map-policy")){
+ if(!strcmp(name,"reference-exhaustion")){
+  reset(2);list=object_list_new();object_list_mark_players(list);fail_reference=TRUE;
+  CHECK(!object_list_add(list,0)&&headers[list].count==0&&object_list_is_players(list),"failed reference allocation invented membership or lost provenance");
+  fail_reference=FALSE;CHECK(object_list_add(list,0)&&headers[list].count==1&&!object_list_is_players(list),"valid reference add failed");
+  CHECK(!object_list_add(NONE,0),"unallocated list accepted an object");
+ }else if(!strcmp(name,"map-policy")){
   reset(6);long selected=object_list_new();object_list_add(selected,0);viewer=5;
+  CHECK(!coop_scripts_native_player_actions(),"legacy map lost follower policy");
   adaptations=FALSE;
   CHECK(hs_objects_can_see_flag(selected,1,45),"live config change interrupted legacy cutscene policy");
   coop_scripts_new_game();
+  CHECK(coop_scripts_native_player_actions(),"loaded authored map did not expose native action policy");
   CHECK(!hs_objects_can_see_flag(selected,1,45),"new map did not select authored script semantics");
   adaptations=TRUE;
   CHECK(!hs_objects_can_see_flag(selected,1,45),"live config change broadened an authored objective");

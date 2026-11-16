@@ -171,25 +171,30 @@ void object_list_delete(
 	return;
 }
 
-void object_list_add(
+boolean object_list_add(
 	long object_list_index,
 	long object_index)
 {
 	struct object_list_header_datum *list;
+	long first;
 
 	/* port: no list (object_list_new found none free): the objects are
 	not listed, as when the listed objects run out, rather than the game
 	halting */
 	if (object_list_index == NONE)
-		return;
+		return FALSE;
 
 	list = object_list_header_get(object_list_index);
+	first = list->first_reference_index;
+	reference_list_add(object_list_data, &list->first_reference_index, object_index);
+	/* port: a failed reference allocation must not invent a list member or
+	 * discard provenance. Callers needing the whole list can refuse a subset. */
+	if (list->first_reference_index == first) return FALSE;
 	/* port: a changed list no longer has hs_players' provenance. */
 	list->flags = 0;
-	reference_list_add(object_list_data, &list->first_reference_index, object_index);
 	list->count++;
 
-	return;
+	return TRUE;
 }
 
 long object_list_get_next(

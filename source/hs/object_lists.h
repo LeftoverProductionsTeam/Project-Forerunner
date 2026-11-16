@@ -36,7 +36,8 @@ long object_list_new(void);
 void object_list_mark_players(long list_index);
 boolean object_list_is_players(long list_index);
 void object_list_delete(long list_index);
-void object_list_add(long object_list_index, long object_index);
+/* port: FALSE leaves the list unchanged when reference storage is exhausted. */
+boolean object_list_add(long object_list_index, long object_index);
 long object_list_get_first(
 	long object_list_index,
 	long *reference_index);

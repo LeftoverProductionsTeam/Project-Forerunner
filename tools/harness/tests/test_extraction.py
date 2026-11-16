@@ -107,9 +107,32 @@ def test_native_squad_workflow(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', [
+    'squad-query-loop', 'squad-query-state', 'squad-query-policy', 'squad-query-storage',
+    'squad-objective-loop', 'squad-objective-escrow', 'squad-objective-alias', 'squad-objective-duplicate',
+])
+def test_squad_native_objectives(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('if (run->squad != squad || run->squad_operation != extraction.squads[squad].operation ||',
+     'if (FALSE || run->squad_operation != extraction.squads[squad].operation ||', 'squad-query-loop'),
+    ('if (control->object.name_index == extraction.activate_name && !extraction_squad_objectives_ready(run))',
+     'if (FALSE)', 'squad-objective-loop'),
+])
+def test_squad_objective_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
 @pytest.mark.parametrize('before,after,case', [
     ('members >= EXTRACTION_SQUAD_MEMBERS', 'members > EXTRACTION_SQUAD_MEMBERS', 'squad-capacity'),
-    ('run->squad != squad ||', 'FALSE ||', 'squad-independent'),
+    ('if (run->player != iterator.datum_index || run->squad != squad ||',
+     'if (run->player != iterator.datum_index || FALSE ||', 'squad-independent'),
 ])
 def test_native_squad_negative_control(before, after, case):
     files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)

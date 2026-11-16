@@ -72,8 +72,9 @@ The response has these fields:
 | `engine` | `Forerunner` |
 | `build` | Upstream version, exact build commit/snapshot identity, platform, architecture |
 | `simulation_hz` | Classic simulation rate, currently 30 |
-| `network` | Compiled advertised version and native-layout version; both currently 44 |
+| `network` | Compiled advertised version 45 and native layout 44; preserve the accepted 44/45 bridge |
 | `operations` | Currently only `runtime.discover` |
+| `native_features` | Optional native desktop CE feature identifiers. `extraction.squad_objectives.v1` covers the binding below, not an RPC or platform/gameplay certification. Older/unsupported target builds omit it. |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
 | `startup_map` | Optional new unverified desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Absent on the accepted old executable and non-desktop/server builds. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
@@ -94,6 +95,11 @@ It first checks the runtime's `--help` advertisement, so an older engine that
 ignores an unknown flag is refused before it could accidentally launch a game.
 It validates the response schema/version and required operation names. Requiring
 `world.object.create` currently fails explicitly; no object edit is attempted.
+Maps requiring squad objective gates must also use
+`--require-feature extraction.squad_objectives.v1` (or require that exact string
+in `native_features` in Spark's existing discovery client). Missing fields mean
+unsupported; the actual preceding executable is refused. Contract version and
+RPC operations are unchanged. Version-1 clients may ignore the additive field.
 The separate Spark session can use this contract without depending on private C
 structures. Standalone server/mobile/browser builds have not passed this adapter's
 acceptance; do not infer their support from the desktop executable.
@@ -465,11 +471,40 @@ survivors never produces success. Reuse a continuous script beginning with
 `extraction_update` and `extraction_players_returned_for_squad` own the gate.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
-not add squad objective queries, alliances, scoped presentation, multiple aircraft
+not add alliances, scoped presentation, multiple aircraft
 per faction or reconnect-persistent squad membership. Existing discovery version
 1 and legacy clients do not imply those capabilities; maps requiring this binding
 must target a runtime containing these helpers. No new packet/save format or
 editor subsystem is requested. Spark's next full mission handoff remains below.
+
+Squad objective extension (`extraction.squad_objectives.v1`): declare an ordinary
+`(script static object_list forerunner_squad_01_players (list_get (players) 32767))`
+for each authored squad's two-digit number. `hs_runtime.c::hs_script_evaluate`
+delegates those exact static/object_list names to `extraction_script_players`;
+unrelated scripts and `(players)` are unchanged. The fallback selects beyond the
+bounded player list; negative indices select its first object. The loaded map
+requires existing `network.coop_script_adaptations=false`, otherwise queries return
+NONE with one diagnostic. Guard ALL objectives with a nonzero `list_count`.
+Queries are snapshots: requery after deployment, respawn or membership changes.
+They include living current-operation participants, including downed players and
+returned survivors for callbacks; exclude unissued hub members, lost/old runs,
+stale bodies, pending death and changed/unverified owners. Allocation failure
+refuses partial lists. A restored world cannot query.
+
+Optional native `extraction_squad_01_ready` groups (and corresponding numbers)
+admit extraction only at exactly 1. Each requires its squad terminal; duplicate
+groups and aliases to other squad-ready groups, known hub inputs or transport
+outputs refuse admission. The runtime clears readiness on binding and a new
+confirmed squad operation. Native HSC sets it to 1 after real objectives.
+Revocation cancels activation/ready escape before escrow; native consumption
+already in escrow finishes its existing durable transaction. Missing groups retain
+previous maps' behavior. Native globals, triggers, actors, rescue and terminals
+remain the mission tools; no quest format or reward writer is added. Two real
+Delta clients pass separate HSC volume objectives and gated banking/redeployment
+in `build/native-delta-squad-script-objectives/result.json`. This is a fixture,
+not full Black Echo or scoped presentation acceptance. Spark next: require this
+feature through existing discovery and emit these declarations/groups through
+its existing mission HSC path for independent squad objectives.
 
 A candidate needs
 live scenario **control** objects named `extraction_deploy` and
@@ -1041,9 +1076,10 @@ do not force players into seats or bypass graph compatibility. The owned Spirit'
 AI throttle budget is 0.30 after measured coast at 0.65; tune each real aircraft/
 route against its physics and actual pads instead of copying a universal speed.
 
-Read-only Spark `a2d0aa0` already implements reviewed aircraft append/readback,
+Read-only Spark `bb8e906` adds recovered objective/native mission composition
+work and already implements reviewed aircraft append/readback,
 `src/haloScript.ts` `returnAfterInsertion` empty hub return/recall and native route/
-landing-pad authoring/readback. Its current isolated composite cache is
+landing-pad authoring/readback. The earlier isolated composite cache is
 `e5711810ca6b2deba4b7802fce4e07c9eff851029b554029c7c7482f61122e71`.
 Reuse this source work. Its `docs/RUNTIME_INTEGRATION_20261107.md` explicitly
 separates that fixture's route/endpoint/pad admission from observed landing and

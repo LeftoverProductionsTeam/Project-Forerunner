@@ -169,7 +169,7 @@ void *datum_get(struct data_array *data, long index);
 void *object_try_and_get_and_verify_type(long object_index, unsigned long valid_type_flags);
 void *object_get_and_verify_type(long object_index, unsigned long valid_type_flags);
 long object_list_new(void);
-void object_list_add(long object_list_index, long object_index);
+boolean object_list_add(long object_list_index, long object_index);
 long object_list_get_first(long object_list_index, long *reference_index);
 long object_list_get_next(long object_list_index, long *reference_index);
 short object_list_count(long object_list_index);
@@ -599,6 +599,7 @@ int main(int argc, char **argv)
 		CHECK(hs_object_list_get_element(list, 0)==first, "element 0");
 		CHECK(hs_object_list_get_element(list, 1)==third, "element 1");
 		CHECK(hs_object_list_get_element(list, 2)==NONE, "element 2");
+		CHECK(hs_object_list_get_element(list, 32767)==NONE, "reserved query fallback must select no participant");
 		CHECK(object_list_count(list)==3, "%d entries", object_list_count(list));
 		return 0;
 	}

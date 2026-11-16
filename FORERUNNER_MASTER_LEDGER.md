@@ -16,7 +16,40 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current squad checkpoint (source base `b10d91264e`): optional native hub terminals
+Current authored squad-objective checkpoint (source base `39c45fc17b`): ordinary
+static HSC helpers select only living, verified participants in the squad's current
+operation. Existing authored co-op policy is required. Optional native readiness
+groups gate extraction independently, cancel revoked readiness before escrow and
+rearm at a new confirmed deployment. Native HSC still owns objectives, with no new
+quest/save/packet system. Native list allocation now reports reference exhaustion
+without inventing members, allowing queries to discard incomplete lists safely.
+
+Windows64 compiles (`build/squad-objective-build.log`). The existing Extraction,
+co-op gate/action and stale-object harnesses cover 322 cases across the regression
+run and focused corrections. Test adapter signatures, Windows CRT naming and an
+ambiguous fault anchor were corrected; no production protection was weakened.
+The real native accessor verifies the safe fallback index 32767; negative indices
+select the first object and are not used. Native HSC/cache compilation passes.
+`build/native-delta-squad-script-objectives/result.json` passes two authenticated
+Delta clients' separate native volume objectives, readiness, physical return,
+banking, callbacks and same-ID redeployment while the other squad remains deployed.
+Each owner banks one distinct item. Player comparison: 166 seconds, zero
+divergences, position max 0.075134, no aim mismatch. Items: 170 snapshots, zero out
+of step, all four new host items seen. Original identity files are unchanged.
+Cache SHA256 `0ee91a31da3ef28725f98e4a1dbf0d3a4fa172766b09c9dc3f0baf9355470616`;
+gameplay binary `4ffa99f1bdb0fffa7e2983005b3458457d657099e3d8a173bd6fc1dfa7a60b87`.
+Existing discovery/reference client now negotiate `extraction.squad_objectives.v1`;
+the actual preceding executable lacking its advertisement is refused. Twelve
+discovery cases pass across the main run and corrected stale network expectation.
+Advertised protocol 45/native layout 44 remain unchanged. Metadata-only final
+build SHA256 `20259a4d2143d83cdb37b6d153da6e52cff865338232f23650fee91fddad6310`;
+gameplay was not repeated for that metadata change. Stopped native/discovery copies
+are removed; owned source/reusable fixtures remain. This accepts two single-member
+squads' trigger objectives/settlement, not full Black Echo, six clients, rescue/
+combat here, alliances, scoped presentation, per-squad aircraft, persistent squad
+membership, other platforms or hardware. The complete roadmap remains active.
+
+Accepted squad checkpoint (source base `b10d91264e`): optional native hub terminals
 select host-owned six-member squads inside existing Extraction runs. Membership
 requires existing gear identity/locking, matching factions and ordinary powered
 control use. Gear remains per owner. Active members cannot switch squads/factions
@@ -150,7 +183,9 @@ The owner must retain an account Actions $0 budget with Stop usage enabled;
 the repository connection cannot inspect or change billing. Do not bypass this
 external block or claim hosted verification. Continue local engine development.
 
-Read-only Spark `a2d0aa0` includes reviewed aircraft append/cache readback,
+Read-only Spark `bb8e906` adds recovered objective/native mission composition;
+its checkpoint still requires full Black Echo composition and fixes to out-of-BSP
+AI/flight points. It also includes reviewed aircraft append/cache readback,
 `returnAfterInsertion` empty-return/recall controller authoring and native route/
 landing-pad authoring/readback. Geometric endpoint admission is not observed flight.
 Its current handoff still explicitly lacks the complete combined Black Echo CE609 flight

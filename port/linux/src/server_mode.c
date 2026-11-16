@@ -209,6 +209,12 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "--probe");
 	server_json_array_end(&json);
 #if defined(HALO_CUSTOM_EDITION) && !defined(HALO_SERVER) && !defined(HALO_ANDROID) && !defined(HALO_WEB) && !defined(HALO_BROWSER)
+#if !defined(HALO_CONSOLE)
+	/* Optional native gameplay contract, not a live RPC or platform acceptance. */
+	server_json_array_begin(&json, "native_features");
+	server_json_string(&json, NULL, "extraction.squad_objectives.v1");
+	server_json_array_end(&json);
+#endif
 	/* Optional local startup metadata, not a gameplay or editing operation. */
 	server_json_object_begin(&json, "startup_map");
 	server_json_string(&json, "setting", "game.start_map");
