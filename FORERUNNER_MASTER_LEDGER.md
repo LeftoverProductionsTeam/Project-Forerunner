@@ -30,6 +30,14 @@ faction objectives or full Black Echo acceptance. The first readback attempt had
 a probe regex error, corrected without rebuilding or modifying the native map.
 Contract updated in place; continue playable transport boarding/departure next.
 
+Transport continuation: native recorded-flight chaining now preserves the unit's
+original controllability and clears the previous flight's kill/delete/hover flags
+when reused before cleanup. Four connected lifecycle checks and both original-
+defect controls pass; incremental Windows64 compilation passes. Source:
+`source/cutscene/recorded_animations.c`; build log `build/native-recorded-flight-build.log`.
+This is compiled/automated evidence, not native flight acceptance. The fixture's
+AI recall still misses the LZ; actual authored flight/landing data remains needed.
+
 Accepted Black Echo checkpoint (base `71b761be02`): Spark `ac3f144` supplies a reproducible
 CE609 candidate. Forerunner reproduced its exact `08389ed4...` cache and independent
 scenario/HSC readbacks, then completed the two-account native operation with fresh

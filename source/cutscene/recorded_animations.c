@@ -667,6 +667,7 @@ static boolean recorded_animation_play_internal(
 	word extra_flags)
 {
 	boolean result = FALSE;
+	boolean was_controlled;
 	long thread_index;
 	struct animation_thread *thread;
 	struct recorded_animation_definition const *animation;
@@ -705,6 +706,8 @@ static boolean recorded_animation_play_internal(
 			}
 			else if (!recorded_animation_controlling_unit(unit_index))
 			{
+				was_controlled = thread ? TEST_FLAG(thread->flags, _recording_thread_unit_was_controlled_bit) :
+					unit_controllable(unit_index);
 				if (!thread)
 				{
 					thread_index = datum_new(animation_threads);
@@ -714,6 +717,10 @@ static boolean recorded_animation_play_internal(
 
 				if (thread)
 				{
+					/* port: a script can chain flights after recording_time reaches
+					 * zero, or kill and replace one before the next cleanup tick.
+					 * Keep the original control state; the old recording currently
+					 * owns the unit. Do not inherit its delete/hover/killed flags. */
 					match_assert(
 						"c:\\halo\\SOURCE\\cutscene\\recorded_animations.c",
 						233,
@@ -735,7 +742,7 @@ static boolean recorded_animation_play_internal(
 					debug->animation_index = animation_index;
 
 					thread->version = animation->version - 1;
-					SET_FLAG(thread->flags, _recording_thread_finished_bit, FALSE);
+					thread->flags = extra_flags;
 
 					playback = playback_codec[thread->version];
 					playback->initialize_event_stream(
@@ -753,12 +760,11 @@ static boolean recorded_animation_play_internal(
 					SET_FLAG(
 						thread->flags,
 						_recording_thread_unit_was_controlled_bit,
-						unit_controllable(unit_index));
+						was_controlled);
 
 					unit_set_controllable(unit_index, FALSE);
 					unit_set_possessed(unit_index, TRUE);
 					object_set_automatic_deactivation(unit_index, FALSE);
-					thread->flags |= extra_flags;
 					result = TRUE;
 				}
 				else
