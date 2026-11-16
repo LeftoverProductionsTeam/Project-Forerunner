@@ -934,7 +934,30 @@ insertion, LZ arrival, disembarkation and extraction activation. Its recall rout
 does not reach the LZ. Extraction boarding/departure/banking and Spirit flight
 remain unverified; do not replace them with a timer or foot return.
 
-Transport checkpoint, 16 November: the crew-readiness implementation is committed
+Transport checkpoint, 16 November: recovery also rejects all three native
+scheduled-death flags in `extraction.c::extraction_player_dropship`, shared by
+return and crew-readiness checks (commit `51883fce31`). This is
+compiled and automated-verified: 49 connected transport workflows and an
+original-defect control cover dying ships, salted replacements, fresh physical
+boarding, cinematic-gated settlement and redeployment. Native crash/rescue and
+full aircraft banking are not accepted by those checks.
+
+The latest owned `build/native-pelican-pilot-arrival/result.json` passes actual
+deployment, passenger boarding, pilot-driven insertion and disembarkation, but
+FAILS empty-craft hub arrival; pickup never begins and no gear is banked.
+Both native go-to commands were accepted, but command completion did not imply
+the vehicle entered the authored return volume. Spark must supply physically
+flyable approach/landing/departure routes and volumes that the actual vehicle
+reaches; do not weaken the runtime bank gate to accommodate a missed landing.
+The opt-in existing AI readback in `network_actors.c::network_actors_log_units`
+exposes driver type, throttle and facing. Existing command-list diagnostics in
+`source/ai/action_obey.c::action_obey_command_begin` distinguish a rejected path.
+These change neither network packets nor native aircraft control. Windows64
+compilation, 12 readback cases and two ownership/authority defect controls pass.
+Owned runtime and map staging are removed. This is not completed aircraft
+Extraction, Spirit flight, human acceptance or cross-platform verification.
+
+The crew-readiness implementation is committed
 at `0c32af94de`, repeat-trip/missing-craft guards at `5442b04906`, and native
 faction/seat admission at `265a333e20`. These are existing runtime code, not pending
 Spark editor work. The two-account insertion and physical Pelican/Spirit boarding

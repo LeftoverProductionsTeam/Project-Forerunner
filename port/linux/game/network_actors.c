@@ -659,14 +659,17 @@ void network_actors_log_units(
 		{
 			struct actor_datum *actor = actor_try_and_get(unit->unit.actor_index);
 			if (actor && actor->meta.unit_index == units[index])
-				platform_log("network test: ai control %ld %08lx active %d dormant %d action %d default %d squad %d moving %d destination %d arrived %d path %d/%d/%d distance %.3f target %.3f %.3f %.3f",
+				platform_log("network test: ai control %ld %08lx active %d dormant %d action %d default %d squad %d moving %d destination %d arrived %d path %d/%d/%d distance %.3f target %.3f %.3f %.3f driver %d throttle %.3f %.3f %.3f facing %.3f %.3f %.3f",
 					now, (unsigned long)units[index], (int)actor->meta.active, (int)actor->meta.dormant,
 					(int)actor->state.action, (int)actor->state.default_state, (int)actor->meta.squad_index,
 					(int)actor->control.moving, (int)actor->orders.move.destination.destination_type,
 					(int)actor->control.path.at_destination, (int)actor->control.path.path.valid,
 					(int)actor->control.path.path.step_index, (int)actor->control.path.path.step_count,
 					actor->control.path.destination_distance, actor->control.moving_towards_point.x,
-					actor->control.moving_towards_point.y, actor->control.moving_towards_point.z);
+					actor->control.moving_towards_point.y, actor->control.moving_towards_point.z,
+					(int)actor->input.vehicle_driver_type, actor->output.throttle.i, actor->output.throttle.j,
+					actor->output.throttle.k, actor->output.facing_vector.i, actor->output.facing_vector.j,
+					actor->output.facing_vector.k);
 		}
 	}
 	platform_log("network test: actors %ld %s %d cinematic %d bsp %d", now, role, (int)count,

@@ -2465,6 +2465,14 @@ static boolean action_obey_command_begin(
 		if (ai_debug.print_command_lists)
 		{
 			char actor_description[256];
+			/* port: distinguish rejected native flight paths from completed commands. */
+			if (!result && (command->atom_type == _ai_atom_go_to || command->atom_type == _ai_atom_go_to_and_face))
+			{
+				error(_error_silent, "go_to rejected: complex %d point %d/%ld start %.3f %.3f %.3f",
+					complex_control != NULL, (int)command->point1_index, command_list->points.count,
+					actor->input.position.body_position.x, actor->input.position.body_position.y,
+					actor->input.position.body_position.z);
+			}
 
 			if (actor->meta.encounter_index == NONE)
 			{

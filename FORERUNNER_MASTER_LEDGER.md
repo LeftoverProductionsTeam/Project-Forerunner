@@ -16,7 +16,21 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `4ec42be17a`): bounded two-account native Marine
+Current checkpoint (base `818c305537`): transport safety gates are already
+committed, including scheduled-death rejection at `51883fce31`; the Spark
+contract now identifies their exact verification boundary and native flight
+handoff. Existing pilot diagnostics expose driver/throttle/facing and native
+go-to rejection without changing control or packets. Windows64 compilation,
+12 readback cases and two authority/ownership defect controls pass. Latest
+single-account `build/native-pelican-pilot-arrival` passes physical boarding,
+insertion and disembarkation, but empty-craft return misses the hub volume.
+No pickup, aircraft banking or redeployment is accepted; no native exception.
+The native go-to completed without actual vehicle arrival, so further work
+must address physical flight/landing rather than weaken the gate. Owned runtime
+and map staging are removed. Pending debrief source remains separate; continue
+playable dropships rather than extending documentation or repeating this route.
+
+Accepted follow checkpoint (base `4ec42be17a`): bounded two-account native Marine
 following/return now passes. `build/native-delta-encounter-follow-ground` verifies
 the nearby field player retains the same Marine while another player stays at
 the hub, then the Marine changes group and walks from (54.843,-85.471) to

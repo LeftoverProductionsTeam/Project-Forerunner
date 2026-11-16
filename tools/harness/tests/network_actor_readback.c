@@ -24,6 +24,8 @@ static struct actor_datum {
  struct {boolean moving;real_point3d moving_towards_point;
   struct {boolean at_destination;real destination_distance;struct {boolean valid;short step_index,step_count;} path;} path;} control;
  struct {struct {struct {short destination_type;} destination;} move;} orders;
+ struct {short vehicle_driver_type;} input;
+ struct {real_vector3d throttle,facing_vector;} output;
 } native_actor;
 static struct actor_datum *actor_try_and_get(long index) { return index==0x56780000 ? &native_actor : NULL; }
 static struct unit_datum world[8];
@@ -98,7 +100,9 @@ int main(int argc,char **argv)
 		native_actor.state.action=3;native_actor.state.default_state=9;native_actor.control.path.path.valid=1;
 		native_actor.control.path.path.step_count=2;native_actor.control.path.destination_distance=6;
 		native_actor.orders.move.destination.destination_type=1;native_actor.control.moving_towards_point.x=12;
+		native_actor.input.vehicle_driver_type=4;native_actor.output.throttle.i=.5f;native_actor.output.facing_vector.k=-.25f;
 		network_actors_log_units();expect("ai control 30 12340000 active 1 dormant 0 action 3 default 9 squad 2 moving 0 destination 1 arrived 0 path 1/0/2 distance 6.000 target 12.000");
+		expect("driver 4 throttle 0.500 0.000 0.000 facing 0.000 0.000 -0.250");
 		clear_output();native_actor.meta.unit_index+=0x10000;network_actors_log_units();
 		CHECK(!strstr(output,"ai control"),"reused unit ownership emitted stale AI state");
 		clear_output();native_actor.meta.unit_index=world_ids[0];world[0].unit.actor_index+=0x10000;network_actors_log_units();
