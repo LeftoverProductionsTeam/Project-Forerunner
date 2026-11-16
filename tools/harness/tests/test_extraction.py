@@ -176,6 +176,32 @@ def test_native_seat_entrance_workflow(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', [
+    'debrief-empty', 'debrief-success', 'debrief-loss', 'debrief-pending', 'debrief-auto',
+    'debrief-stats-reset', 'debrief-owner', 'debrief-remote', 'debrief-restart',
+    'debrief-redeploy', 'debrief-field', 'debrief-battery',
+])
+def test_native_debrief_workflow(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('if (run->gear.pending || run->phase == _extraction_settling || run->phase == _extraction_losing ||\n'
+     '\t\trun->phase == _extraction_cancelling)', 'if (FALSE)', 'debrief-pending'),
+    ('if (report->staged && !memcmp(report->run, run->gear.run, GEAR_ID_BYTES)) return;',
+     'if (FALSE) return;', 'debrief-pending'),
+    ('if (definition != NONE &&\n\t\t\t\tTEST_FLAG',
+     'if (definition != NONE && !weapon_definition_get(definition)->weapon.magazines.count &&\n\t\t\t\tTEST_FLAG',
+     'debrief-battery'),
+])
+def test_native_debrief_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
 def test_native_seat_entrance_negative_control():
     files = tuple((name, mutated(text,
         'if (animation_index == NONE && unit->unit.player_index != NONE &&',

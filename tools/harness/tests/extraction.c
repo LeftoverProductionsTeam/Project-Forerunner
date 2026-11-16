@@ -59,6 +59,7 @@ struct control_datum { long definition_index; struct object_fields object;
 struct device_group_datum {real actual_value;unsigned short flags;};
 struct player_datum { long unit_index,team_index,dead_unit_index,action_result,action_object_index; short local_player_index; boolean quit_out_of_game;
  short powerup_durations[NUMBER_OF_PLAYER_POWERUPS];
+ struct {short kills[4],deaths;} statistics;
  struct { short machine_index, controller_index; } network_player_data; };
 struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum, rounds_total_initial; };
@@ -162,7 +163,7 @@ static byte host_account[16] = {2};
 static boolean delta_session;
 static int local_notices, remote_notices, respawns;
 static char local_notice_history[4][63];
-static char last_remote_notice[128];
+static char last_remote_notice[128],remote_notice_history[4][128];
 
 static boolean config_boolean(char const *name)
 { return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
@@ -289,7 +290,15 @@ static void hud_print_message(short local,wchar_t const *text) {
 short distributed_client_machines(long *machines,short max) { machines[0]=1; return 1; }
 /* Native distributed_host_tick maps remote clients only, never the host. */
 long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return players[slot].local_player_index==NONE ? 1 : NONE; }
-void distributed_send_notice_to_machine(long machine,char const *text) { CHECK(machine==1,"wrong remote notice"); remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text); }
+void distributed_send_notice_to_machine(long machine,char const *text) {
+ if(machine==NONE) {
+  CHECK(strlen(text)<63,"host report notice exceeds native row");
+  snprintf(local_notice_history[local_notices++%4],sizeof(local_notice_history[0]),"%s",text);return;
+ }
+ CHECK(machine==1,"wrong remote notice");
+ snprintf(remote_notice_history[remote_notices%4],sizeof(remote_notice_history[0]),"%s",text);
+ remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text);
+}
 static long player_ui_get_active_player_profile_index(short local) { return profile ? 0 : NONE; }
 static boolean player_ui_get_path_to_local_player_profile_directory(short local,char *path) { strcpy(path,"owned/profile"); return TRUE; }
 static boolean delta_peer_game_player_identity(int machine,int controller,struct delta_peer_identity *id)
@@ -443,6 +452,93 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before,i;
  initialize();
+ if(!strncmp(case_name,"debrief-",8)) {
+  struct gear_record before;struct game_modes_inventory captured;long carried[GAME_MODES_INVENTORY_WEAPONS];
+  short j,k;int messages;char page[256];struct extraction_run *r;
+  strcpy(names[2].name,"extraction_debrief");extraction_reset();advance(1);
+  CHECK(extraction_owns_map()&&extraction.debrief_name==2,"native debrief binding unavailable");
+  if(!strcmp(case_name,"debrief-empty")) {
+   touch(2,0);CHECK(run(0)->gear.record.count==0&&!run(0)->report.ready,"empty debrief created a reward");
+   for(j=0;j<4;j++)CHECK(!strstr(local_notice_history[j],"RECOVERED"),"empty report claimed recovery");
+   return 0;
+  }
+  if(!strcmp(case_name,"debrief-remote")) {
+   touch(0,1);a=pickup(1,2);escape(1);before=run(1)->gear.record;messages=remote_notices;
+   touch(2,1);CHECK(remote_notices==messages+4&&strstr(remote_notice_history[messages%4],"P3 | DEBRIEF")&&
+    strstr(remote_notice_history[messages%4],"RECOVERED"),"remote personal report missing");
+   CHECK(!memcmp(&before,&run(1)->gear.record,sizeof(before)),"remote report modified banking");
+   verified=FALSE;touch(2,1);CHECK(strstr(last_remote_notice,"BLOCKED")&&!strstr(last_remote_notice,"RECOVERED"),"unverified remote read personal report");
+   return 0;
+  }
+  players[0].statistics.kills[0]=2;players[0].statistics.deaths=1;
+  touch(0,0);a=pickup(0,1);players[0].statistics.kills[0]=5;
+  if(!strcmp(case_name,"debrief-battery")) {
+   /* Native plasma pistol tags retain a magazine despite using age as charge. */
+   weapon_tag.weapon.flags|=FLAG(_weapon_cannot_fire_at_maximum_age_bit);
+   weapon_get(a)->weapon.age=.375f;
+  }
+  r=run(0);
+  if(!strcmp(case_name,"debrief-pending")) {
+   CHECK(game_modes_inventory_capture(player_handles[0],&captured),"report capture unavailable");
+   memcpy(carried,units[0].unit.weapon_object_indices,sizeof(carried));
+   CHECK(gear_prepare_escape(&r->gear,&captured,carried)&&game_modes_inventory_consume(player_handles[0],&captured,carried),"native escrow preparation failed");
+   r->phase=_extraction_settling;publish_failure=TRUE;extraction_finish_return(r);
+   CHECK(r->gear.record.phase==_gear_idle&&r->gear.pending&&r->report.staged&&!r->report.ready,"uncertain bank exposed a report or kept escrow unexpectedly");
+   before=r->gear.record;touch(2,0);
+   CHECK(!r->report.ready&&!memcmp(&before,&r->gear.record,sizeof(before)),"reading pending report changed settlement");
+   messages=0;for(j=0;j<4;j++) {
+    if(strstr(local_notice_history[j],"DEBRIEF PENDING"))messages++;
+    CHECK(!strstr(local_notice_history[j],"LAST RUN RECOVERED"),"uncertain write reported confirmed recovery");
+   }
+   CHECK(messages,"pending debrief did not explain settlement");
+   publish_failure=FALSE;advance(31);
+   CHECK(r->report.ready&&r->report.weapon_count==1&&r->gear.record.count==1,"flush retry lost recovered report details or duplicated gear");
+  } else {
+   if(!strcmp(case_name,"debrief-stats-reset"))players[0].statistics.kills[0]=0;
+   escape(0);
+  }
+  CHECK(r->report.ready&&r->report.outcome==_gear_escaped&&r->report.weapon_count==1,"confirmed recovery report missing");
+  if(!strcmp(case_name,"debrief-loss")) {
+   touch(0,0);players[0].statistics.deaths++;units[0].object.damage_flags=FLAG(_object_dead_bit);advance(1);
+   CHECK(r->phase==_extraction_lost&&r->report.ready&&r->report.outcome==_gear_lost&&r->report.weapon_count==1,"confirmed ownership loss missing from report");
+   CHECK(r->report.deaths==1&&!r->gear.record.count&&!r->gear.record.reserved_count,"death report awarded gear or miscounted deaths");
+   units[0].object.damage_flags=0;
+  } else if(!strcmp(case_name,"debrief-restart")) {
+   extraction_reset();advance(1);r=run(0);touch(2,0);
+   CHECK(!r->report.ready&&r->gear.record.outcome==_gear_escaped&&r->gear.record.count==1,"restart invented details or lost confirmed outcome");
+   return 0;
+  } else if(!strcmp(case_name,"debrief-field")) {
+   units[0].object.position.x=20;messages=local_notices;touch(2,0);
+   CHECK(local_notices>messages&&!r->report_page,"field report advanced pages");
+   units[0].object.position.x=0;units[0].object.parent_object_index=dropship_handles[0];touch(2,0);
+   CHECK(!r->report_page,"seated report advanced pages");return 0;
+  } else if(!strcmp(case_name,"debrief-redeploy"))touch(0,0);
+  else if(!strcmp(case_name,"debrief-owner")) {
+   delta_session=TRUE;host_account[0]++;touch(2,0);
+   CHECK(!r->report.ready&&r->gear.record.count==0,"new owner saw old owner's report/stash");return 0;
+  }
+  if(!strcmp(case_name,"debrief-auto")) {
+   messages=local_notices;advance(1);
+   CHECK(r->report.announced&&r->report_page==1&&local_notices==messages+4,"confirmed on-foot hub report not announced once");
+   messages=local_notices;advance(2);CHECK(local_notices==messages,"auto debrief repeated");
+  }
+  r->report_page=0;before=r->gear.record;
+  for(k=0;k<r->report.weapon_count+2;k++) {
+   touch(2,0);page[0]=0;
+   for(j=0;j<4;j++){CHECK(strlen(local_notice_history[j])<=62,"report row exceeds native remote-prefix budget");strcat(page,local_notice_history[j]);}
+   CHECK(strstr(page,"DEBRIEF")&&strstr(page,"Loadout terminal"),"report page lost navigation/headline");
+   if(k==1) {
+    CHECK(strstr(page,"rifle"),"weapon name missing from report");
+    if(!strcmp(case_name,"debrief-battery"))CHECK(strstr(page,"battery: 62%")&&!strstr(page,"ammo:"),"native battery weapon with placeholder magazine reported ammunition");
+    else CHECK(strstr(page,"ammo"),"weapon ammunition missing from report");
+   }
+   if(k==r->report.weapon_count+1)CHECK(strstr(page,!strcmp(case_name,"debrief-stats-reset")?"unavailable":"eliminations")!=NULL,"personal combat report missing");
+   CHECK(!memcmp(&before,&r->gear.record,sizeof(before)),"report viewing mutated gear transaction");
+  }
+  CHECK(!r->report_page,"report pages did not wrap");
+  if(!strcmp(case_name,"debrief-stats-reset"))CHECK(!r->report.statistics,"native stat reset produced invented totals");
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"seat-entrance-",14)) {
   real_point3d entry={1,2,3},seat={1,2,3},hint={1,2,3};boolean expected;
   dropships[0].definition_index=300;dropship_tag.unit.seats.count=1;dropship_tag.unit.seats.address=&native_seat;

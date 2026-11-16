@@ -489,6 +489,29 @@ A valid return persists escape escrow before consuming the exact native weapons
 and grenades, banks it once, and shows a post-run summary. Use the deploy control
 again to reserve a compatible native-cache loadout before restoring its original
 ammo/battery quantities. Native
+personal debrief is optional: author a unique touched-by-player control named
+`extraction_debrief` in the safe hub, with usable native approach/aim geometry for
+each supported biped. Keep its power/position groups separate from transport
+outputs and its object distinct from the other Extraction controls. Ordinary
+Use pages through the owner's completed-run summary, recovered/lost loadout and
+native personal kills/deaths. The first summary appears after durable settlement,
+on foot at the hub and outside cinematics. Pending writes never claim recovery;
+reading a report neither grants nor consumes equipment. Detailed run pages last
+for the session; restart fallback shows only the persisted outcome/current stash,
+without inventing previous-run item history. Maps omitting the control retain
+their existing notices. Older runtimes do not implement this optional name.
+Source: `extraction.c::{extraction_bind,extraction_control_touched,
+extraction_report_stage,extraction_debrief,extraction_update_run}`. No new save,
+network packet, launcher, asset format or discovery operation.
+Windows64 compilation, 12 connected report cases, three defect controls and
+49 transport regressions pass. `build/native-delta-debrief-complete` verifies two
+real bound owners reading native recovery/loss pages, unchanged gear while
+reading, same-item redeployment and one casualty without altering the other
+stash. Player/item comparisons pass (275 seconds/279 snapshots). The discovered
+plasma battery/placeholder-magazine display correction is compiled/automated;
+its final visual recheck, full aircraft loop and platform parity remain open.
+
+Native
 campaign `game_won` calls do not leave an admitted Extraction map:
 `extraction.c::extraction_owns_map` gates both `main.c::main_won_map` and its
 deferred transition. This includes wins scheduled by first-tick scripts before

@@ -28,6 +28,8 @@
 #include "tag_files/tag_groups.h"
 #include "tag_files/tag_files.h"
 #include "units/biped_definitions.h"
+#include "items/weapons.h"
+#include "items/weapon_definitions.h"
 #include "units/units.h"
 #include "units/unit_definitions.h"
 #include "extraction.h"
@@ -56,6 +58,16 @@ enum extraction_phase
 	_extraction_losing, _extraction_cancelling, _extraction_lost
 };
 
+/* Read-only view of one completed transaction, never a second gear authority.
+ * Detailed reports live for this session; persistent outcome/stash remain in gear. */
+struct extraction_report
+{
+	boolean staged, ready, statistics, announced;
+	byte run[GEAR_ID_BYTES];
+	short outcome, weapon_count, grenades[2], kills, deaths;
+	struct game_modes_inventory_weapon weapons[GAME_MODES_INVENTORY_WEAPONS];
+};
+
 struct extraction_run
 {
 	long player, unit, activation_ticks, retry_tick;
@@ -68,6 +80,9 @@ struct extraction_run
 	long discard_unit, discard_after, discard_deadline;
 	long dropship;
 	short dropship_team;
+	short report_page, start_kills, start_deaths;
+	boolean statistics_started;
+	struct extraction_report report;
 	struct gear_session gear;
 };
 
@@ -75,7 +90,7 @@ static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
 	boolean survival, evacuation, completion_notified;
-	short deploy_name, activate_name, loadout_name, zone, return_zone;
+	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
@@ -240,7 +255,7 @@ void extraction_reset(void)
 	short index;
 	for (index = 0; index < NUMBEROF(extraction_runs); index++) extraction_run_close(&extraction_runs[index]);
 	memset(&extraction, 0, sizeof(extraction));
-	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.zone = extraction.return_zone = NONE;
+	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
@@ -301,7 +316,12 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 		extraction_block(run, "DEPLOYMENT BLOCKED | Select a saved profile locally, or verify your multiplayer identity.");
 		return FALSE;
 	}
-	if (memcmp(run->owner, owner, GEAR_ID_BYTES)) run->discard_deadline = 0;
+	if (memcmp(run->owner, owner, GEAR_ID_BYTES))
+	{
+		run->discard_deadline = 0;
+		memset(&run->report, 0, sizeof(run->report));
+		run->report_page = 0; run->statistics_started = FALSE;
+	}
 	if (run->gear.opened && memcmp(run->owner, owner, GEAR_ID_BYTES))
 	{
 		gear_lose(&run->gear); gear_close(&run->gear);
@@ -317,14 +337,43 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 	return TRUE;
 }
 
+static void extraction_report_stage(struct extraction_run *run, short outcome)
+{
+	struct extraction_report *report = &run->report;
+	struct gear_record const *record = &run->gear.record;
+	struct player_datum *player;
+	short index;
+	if (report->staged && !memcmp(report->run, run->gear.run, GEAR_ID_BYTES)) return;
+	memset(report, 0, sizeof(*report)); run->report_page = 0;
+	if ((outcome == _gear_escaped && record->phase != _gear_escrow) ||
+		(outcome == _gear_lost && record->phase != _gear_deployed)) return;
+	report->staged = TRUE; report->outcome = outcome;
+	memcpy(report->run, run->gear.run, GEAR_ID_BYTES);
+	report->weapon_count = outcome == _gear_escaped ? record->escrow_count : record->reserved_count;
+	memcpy(report->grenades, outcome == _gear_escaped ? record->escrow_grenades : record->reserved_grenades, sizeof(report->grenades));
+	for (index = 0; index < report->weapon_count; index++)
+		report->weapons[index] = (outcome == _gear_escaped ? record->escrow[index] : record->reserved[index]).equipment;
+	player = player_try_and_get(run->player);
+	if (player && run->statistics_started && run->start_kills >= 0 && run->start_deaths >= 0 &&
+		player->statistics.kills[0] >= run->start_kills && player->statistics.deaths >= run->start_deaths)
+	{
+		report->statistics = TRUE;
+		report->kills = player->statistics.kills[0] - run->start_kills;
+		report->deaths = player->statistics.deaths - run->start_deaths;
+	}
+}
+
 static void extraction_lose_run(struct extraction_run *run)
 {
 	run->dropship = NONE;
 	run->phase = _extraction_losing;
 	run->activation_ticks = 0;
 	run->retry_tick = game_time_get();
+	extraction_report_stage(run, _gear_lost);
 	if (gear_lose(&run->gear))
 	{
+		if (run->report.staged && run->report.outcome == _gear_lost &&
+			!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
 		run->phase = _extraction_lost;
 		run->blocked = FALSE;
 		extraction_tell(run, extraction.survival ?
@@ -349,13 +398,13 @@ static void extraction_bind(void)
 {
 	short index, faction;
 	boolean unique = TRUE;
-	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL;
+	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL, *debrief = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
 
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
 	extraction.evacuation = FALSE;
-	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
+	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
@@ -426,6 +475,11 @@ static void extraction_bind(void)
 			if (extraction.loadout_name != NONE) unique = FALSE;
 			extraction.loadout_name = index;
 		}
+		else if (!strcmp(name->name, "extraction_debrief"))
+		{
+			if (extraction.debrief_name != NONE) unique = FALSE;
+			extraction.debrief_name = index;
+		}
 		else if (!strcmp(name->name, "extraction_activate"))
 		{
 			if (extraction.activate_name != NONE)
@@ -478,6 +532,7 @@ static void extraction_bind(void)
 	deploy = extraction.deploy_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.deploy_name)) : NULL;
 	activate = extraction.activate_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.activate_name)) : NULL;
 	loadout = extraction.loadout_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.loadout_name)) : NULL;
+	debrief = extraction.debrief_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.debrief_name)) : NULL;
 	/* Match Spark's native touched-by-player tag requirement. Other trigger
 	   kinds never reach extraction_control_touched through control_touched. */
 	extraction.admitted = unique && extraction.zone != NONE && extraction.return_zone != NONE &&
@@ -486,11 +541,13 @@ static void extraction_bind(void)
 		control_definition_get(activate->definition_index)->control.triggers_when == 0;
 	if (extraction.loadout_name != NONE && (!loadout || loadout == deploy || loadout == activate ||
 		control_definition_get(loadout->definition_index)->control.triggers_when != 0)) extraction.admitted = FALSE;
+	if (extraction.debrief_name != NONE && (!debrief || debrief == deploy || debrief == activate || debrief == loadout ||
+		control_definition_get(debrief->definition_index)->control.triggers_when != 0)) extraction.admitted = FALSE;
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.faction_names[faction] != NONE)
 		{
 			choices[faction] = control_try_and_get(object_index_from_name_index(extraction.faction_names[faction]));
-			if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout ||
+			if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout || choices[faction] == debrief ||
 				(faction && choices[1] == choices[0]) || extraction.faction_profiles[faction] == NONE ||
 				control_definition_get(choices[faction]->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
 		}
@@ -518,7 +575,7 @@ finished:
 			for (output = 0; output < NUMBEROF(outputs); output++)
 			if (outputs[output] != NONE)
 			{
-				struct control_datum *inputs[5] = {deploy, activate, loadout, choices[0], choices[1]};
+				struct control_datum *inputs[6] = {deploy, activate, loadout, debrief, choices[0], choices[1]};
 				for (index = 0; index < NUMBEROF(inputs); index++)
 					if (inputs[index] && (inputs[index]->device.position_group_index == outputs[output] ||
 						inputs[index]->device.power_group_index == outputs[output])) extraction.admitted = FALSE;
@@ -545,7 +602,7 @@ finished:
 		if (!extraction.admitted && !coop_enemies_firefight_endless())
 		{
 			extraction.admitted = TRUE;
-			extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
+			extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = NONE;
 			extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 			extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 			extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
@@ -573,6 +630,93 @@ static char const *extraction_item_name(char const *path)
 	char const *slash = strrchr(path, '\\'), *other = strrchr(path, '/');
 	if (!slash || (other && other > slash)) slash = other;
 	return slash ? slash + 1 : path;
+}
+
+static void extraction_report_line(struct extraction_run const *run, char const *text)
+{
+	struct player_datum *player = player_try_and_get(run->player);
+	if (!player || player->quit_out_of_game) return;
+	if (player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
+	{
+		char notice[64];
+		snprintf(notice, sizeof(notice), "P%d | %.57s", (int)player->local_player_index + 1, text);
+		/* Campaign bipeds may have no unit HUD after their weapons are banked.
+		 * Use the same existing notice/chat layer as remote players. */
+		distributed_send_notice_to_machine(NONE, notice);
+	}
+	else extraction_tell(run, text);
+}
+
+static void extraction_debrief(struct extraction_run *run)
+{
+	struct extraction_report const *report = &run->report;
+	char lines[4][58]; /* Keep the existing remote controller prefix within 62 characters. */
+	short page, pages, index;
+	if (run->gear.pending || run->phase == _extraction_settling || run->phase == _extraction_losing ||
+		run->phase == _extraction_cancelling)
+	{
+		extraction_report_line(run, "DEBRIEF PENDING | Settlement must finish before results.");
+		return;
+	}
+	memset(lines, 0, sizeof(lines));
+	if (!report->ready)
+	{
+		snprintf(lines[0], sizeof(lines[0]), "DEBRIEF | %s",
+			run->gear.record.outcome == _gear_escaped ? "LAST RUN RECOVERED" :
+			run->gear.record.outcome == _gear_lost ? "LAST RUN LOST" : "NO COMPLETED RUN");
+		snprintf(lines[1], sizeof(lines[1]), "Current stash: %d/%d weapons | %d frag | %d plasma",
+			(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
+		snprintf(lines[2], sizeof(lines[2]), "%s", run->gear.record.outcome == _gear_no_outcome ?
+			"No completed operation yet. Deploy from the hub." : "Previous-session item details are unavailable.");
+		snprintf(lines[3], sizeof(lines[3]), "Use the loadout terminal to prepare your next run.");
+	}
+	else
+	{
+		run->report.announced = TRUE;
+		pages = report->weapon_count + 2;
+		page = run->report_page % pages;
+		snprintf(lines[0], sizeof(lines[0]), "DEBRIEF %d/%d | LAST RUN %s", (int)page + 1, (int)pages,
+			report->outcome == _gear_escaped ? "RECOVERED" : "PERSONAL GEAR LOST");
+		if (!page)
+		{
+			snprintf(lines[1], sizeof(lines[1]), "%s: %d weapons | %d frag | %d plasma",
+				report->outcome == _gear_escaped ? "Secured" : "Owned loadout lost",
+				(int)report->weapon_count, (int)report->grenades[0], (int)report->grenades[1]);
+			snprintf(lines[2], sizeof(lines[2]), "Current stash: %d/%d weapons", (int)run->gear.record.count, GEAR_CAPACITY);
+		}
+		else if (page <= report->weapon_count)
+		{
+			struct game_modes_inventory_weapon const *weapon = &report->weapons[page - 1];
+			long definition = tag_loaded(WEAPON_DEFINITION_TAG, weapon->tag_path);
+			snprintf(lines[1], sizeof(lines[1]), "Weapon: %.45s", extraction_item_name(weapon->tag_path));
+			/* Native plasma weapons can retain a placeholder magazine. Use the
+			 * same age-limited flag that native firing checks for battery depletion. */
+			if (definition != NONE &&
+				TEST_FLAG(weapon_definition_get(definition)->weapon.flags, _weapon_cannot_fire_at_maximum_age_bit))
+				snprintf(lines[2], sizeof(lines[2]), "%s battery: %d%%",
+					report->outcome == _gear_escaped ? "Recovered" : "Lost",
+					(int)PIN((1.0f - weapon->age) * 100.0f, 0.0f, 100.0f));
+			else
+				snprintf(lines[2], sizeof(lines[2]), "%s ammo: %d/%d loaded, %d/%d spare",
+					report->outcome == _gear_escaped ? "Recovered" : "Lost",
+					(int)weapon->rounds_loaded[0], (int)weapon->rounds_loaded[1],
+					(int)weapon->rounds_reserve[0], (int)weapon->rounds_reserve[1]);
+		}
+		else if (report->statistics)
+		{
+			snprintf(lines[1], sizeof(lines[1]), "Personal eliminations: %d | Deaths: %d", (int)report->kills, (int)report->deaths);
+			snprintf(lines[2], sizeof(lines[2]), "Your equipment and combat results for this operation.");
+		}
+		else
+		{
+			snprintf(lines[1], sizeof(lines[1]), "Combat totals unavailable for this run.");
+			snprintf(lines[2], sizeof(lines[2]), "No combat totals are inferred from recovered equipment.");
+		}
+		snprintf(lines[3], sizeof(lines[3]), "Use: next page | Loadout terminal: prepare next run");
+		run->report_page = (page + 1) % pages;
+	}
+	/* Existing chat draws newer rows below older ones on desktop. */
+	for (index = 0; index < 4; index++) extraction_report_line(run, lines[index]);
 }
 
 static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout)
@@ -636,6 +780,8 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		return FALSE;
 	}
 	gear_track_reserved(&run->gear, created);
+	run->start_kills = player->statistics.kills[0]; run->start_deaths = player->statistics.deaths;
+	run->statistics_started = TRUE; run->report_page = 0;
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->dropship = NONE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
@@ -713,10 +859,11 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
 		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name) &&
+		(extraction.debrief_name == NONE || control->object.name_index != extraction.debrief_name) &&
 		(extraction.faction_names[0] == NONE || control->object.name_index != extraction.faction_names[0]) &&
 		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]))) return FALSE;
 	if (extraction.suspended || cinematic_in_progress() ||
-		(extraction.survival && coop_enemies_firefight_outcome() != 0)) return TRUE;
+		(extraction.survival && coop_enemies_firefight_outcome() != 0 && control->object.name_index != extraction.debrief_name)) return TRUE;
 	/* Recheck authored power, usability and one-use locks on the host before
 	 * reserving gear or accepting activation. A queued action may be stale. */
 	if (!device_can_change_position(control_index)) return TRUE;
@@ -733,6 +880,13 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	}
 	in_hub = scenario_trigger_volume_test_object(extraction.return_zone, unit_index) &&
 		!scenario_trigger_volume_test_object(extraction.zone, unit_index);
+	if (extraction.debrief_name != NONE && control->object.name_index == extraction.debrief_name)
+	{
+		if (!in_hub || unit->object.parent_object_index != NONE)
+			extraction_report_line(run, "DEBRIEF LOCKED | Read your report on foot at the hub.");
+		else if (extraction_open_gear(run, player)) extraction_debrief(run);
+		return TRUE; /* Per-player pages never toggle a shared native device. */
+	}
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.faction_names[faction] != NONE && control->object.name_index == extraction.faction_names[faction])
 		{
@@ -951,10 +1105,13 @@ static void extraction_finish_return(struct extraction_run *run)
 {
 	char text[128];
 	run->retry_tick = game_time_get();
+	extraction_report_stage(run, _gear_escaped);
 	if (!gear_finish_escape(&run->gear))
 	{
 		extraction_block(run, "RECOVERY PENDING | Escaped gear secured in escrow; banking will retry."); return;
 	}
+	if (run->report.staged && run->report.outcome == _gear_escaped &&
+		!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
 	run->phase = _extraction_returned; run->blocked = FALSE;
 	snprintf(text, sizeof(text), "RUN COMPLETE | Stash %d/%d weapons, %d frag, %d plasma. Compatible recovered gear is ready for your next run.",
 		(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
@@ -989,6 +1146,16 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 			extraction_tell(run, "LOADOUT RETURNED | Retry deployment when ready.");
 		}
 		return;
+	}
+	if ((run->phase == _extraction_returned || run->phase == _extraction_lost) &&
+		extraction.debrief_name != NONE && run->report.ready && !run->report.announced && !run->gear.pending &&
+		!cinematic_in_progress() && extraction_owner(player, run->player, owner) && !memcmp(owner, run->owner, GEAR_ID_BYTES))
+	{
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		if (unit && unit->unit.player_index == run->player && unit->object.parent_object_index == NONE &&
+			!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) && !extraction_unit_pending_death(unit) &&
+			!extraction_medical_incapacitated(player->unit_index) && extraction_at_return(run, player->unit_index))
+			extraction_debrief(run);
 	}
 	if (run->phase != _extraction_deployed && run->phase != _extraction_activating && run->phase != _extraction_ready) return;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(run->unit, _object_mask_biped);

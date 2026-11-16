@@ -16,7 +16,25 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `818c305537`): transport safety gates are already
+Current checkpoint (base `ea5409a3c6`): personal native debrief now connects
+confirmed recovery/loss, item details, combat totals and next deployment through
+the existing gear transaction and native control/chat UI. No save or packet
+format changed. `build/native-delta-debrief-complete` passes two verified Delta
+owners banking, reading separate report pages without changing gear, redeploying
+the same saved items, and native death/loss with the other stash unchanged.
+Comparisons pass: 275 player seconds, 279 item snapshots, all nine new items
+seen, no divergence or exception. The earlier UI probe used the wrong distance/
+aim for the Grunt; normal close-range input renders all four rows. Native readback
+exposed plasma battery misclassification from a placeholder magazine; the native
+age-limited flag fixes it. Final Windows64 compilation, 12 debrief cases, three
+defect controls and 49 transport workflows pass. That last battery correction
+is compiled/automated, not yet visually rechecked. Runtime/map copies and
+44,237,286B of converted BMP scratch are removed; original identities preserved.
+This accepts the hub-return results component, not full Black Echo, aircraft
+return/banking, human play or platform parity. The pilot left its seat during the
+failed aircraft return; keep native collision/ejection and the bank gate intact.
+
+Accepted transport checkpoint (base `818c305537`): transport safety gates are already
 committed, including scheduled-death rejection at `51883fce31`; the Spark
 contract now identifies their exact verification boundary and native flight
 handoff. Existing pilot diagnostics expose driver/throttle/facing and native
