@@ -1548,7 +1548,8 @@ static boolean extraction_transport_boarded(short faction)
 {
 	long ship;
 	short index, passengers = 0;
-	boolean at_hub, at_lz;
+	unsigned long crew_squads = 0;
+	boolean at_hub, at_lz, legacy_crew = FALSE;
 	if (extraction.suspended || cinematic_in_progress() || extraction.dropship_names[faction] == NONE) return FALSE;
 	ship = object_index_from_name_index(extraction.dropship_names[faction]);
 	if (ship == NONE || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
@@ -1556,6 +1557,29 @@ static boolean extraction_transport_boarded(short faction)
 	at_hub = scenario_trigger_volume_test_object(extraction.return_zone, ship);
 	at_lz = scenario_trigger_volume_test_object(extraction.zone, ship);
 	if (at_hub == at_lz) return FALSE;
+	/* Actual passengers identify participating squads without another flight
+	 * registry. Unboarded independent operations cannot veto this departure.
+	 * Unsquadded maps retain the existing whole-faction wait. */
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run const *run = &extraction_runs[index];
+		struct player_datum *player = player_try_and_get(run->player);
+		struct unit_datum *unit;
+		if (!player || player->quit_out_of_game ||
+			(at_lz ? run->phase != _extraction_ready && run->phase != _extraction_activating : run->phase != _extraction_deployed)) continue;
+		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+		if (!unit || extraction_player_dropship(unit) != ship) continue;
+		if (run->unit != player->unit_index || unit->unit.player_index != run->player ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
+			extraction_medical_incapacitated(player->unit_index)) return FALSE;
+		if (run->squad == NONE) legacy_crew = TRUE;
+		else
+		{
+			if (!VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) || extraction.squads[run->squad].name == NONE ||
+				!run->squad_operation || run->squad_operation != extraction.squads[run->squad].operation) return FALSE;
+			crew_squads |= FLAG(run->squad);
+		}
+	}
 	for (index = 0; index < NUMBEROF(extraction_runs); index++)
 	{
 		struct extraction_run const *run = &extraction_runs[index];
@@ -1565,6 +1589,8 @@ static boolean extraction_transport_boarded(short faction)
 		if (run->dropship == ship && (run->phase == _extraction_settling || run->phase == _extraction_losing)) return FALSE;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (!unit || extraction_faction(unit->object.owner_team_index) != faction) continue;
+		if (!legacy_crew && (!VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) || !(crew_squads & FLAG(run->squad)) ||
+			run->squad_operation != extraction.squads[run->squad].operation)) continue;
 		if (at_lz && run->phase == _extraction_activating) return FALSE;
 		if (at_lz ? run->phase != _extraction_ready :
 			(run->phase != _extraction_deployed || (unit->object.parent_object_index != ship &&

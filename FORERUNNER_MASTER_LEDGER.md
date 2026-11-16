@@ -16,7 +16,53 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current crowded-rescue checkpoint (source base `f7bdca9d02`): held Action keeps
+Current shared-transport checkpoint (source base `0f73f18e05`): existing boarded
+outputs now derive participating squads from physical passengers/current operation
+epochs. Another unboarded squad of the same faction cannot veto departure at the
+hub or LZ. Requesting members of an aboard squad still wait for activation/seats;
+mixed actual crews participate, stale operation passengers refuse departure and
+unsquadded crews retain the previous whole-faction behavior. No flight registry,
+packet, gear authority or native boarding/collision limit was added or weakened.
+
+The existing native HSC fixture reuses its insertion/extraction legs as static
+helpers. Its existing loop can serve another insertion while a squad stays in
+the field, or an outstanding pickup after return without a fresh insertion. It
+keeps the call control available and still waits for durable banking and actual
+disembarkation before reuse. This is one shared aircraft, not concurrent private
+aircraft/cinematics. Seventy focused transport cases pass (69 in the main run,
+one added stale-operation case); Windows64 compiles and the owned native HSC/CE609
+cache compiles. Initial new fixture setup bypassed the ordinary owner-open step,
+which correctly cleared unowned membership; the fixture now opens gear before
+assigning its test membership. The corrected baseline reproduces three departure
+veto failures before the runtime fix; same-squad waiting already passed.
+
+`build/native-delta-squad-transport-fixed/result.json` has PARTIAL native acceptance:
+two authenticated squads physically complete separate insertion trips. Squad 1
+then physically evacuates/banks two items while squad 2 stays ready in the field.
+After the first crew's normal disembarkation, the pilot accepts the waiting second
+call and lands for pickup without another insertion. Squad 2's boarding/banking
+is UNVERIFIED: its steering retained a seat-4 approach after the native nearest
+seat changed to 1 and stopped outside the preserved <1.0 interaction distance
+(>=1.10). The aircraft is landed/unlocked/healthy and the diagnostic's native seat
+admission succeeds; no engine interaction regression is established. An exhausted
+approach will be replanned when the selected seat changes; that adapter correction
+is unverified. No third unchanged route run or speculative boarding-radius patch.
+An earlier partial run was stopped to fix driver phase accounting before later
+evacuation, rather than treating old insertion counters as an exit instruction.
+
+Stopped-log comparison passes 582 player seconds and 586 item snapshots, zero
+divergences/out-of-step items, position max 0.866070 and no aim mismatch beyond
+one degree. Durable records show one owner banked and the other still deployed;
+overall workflow completion remains false. Binary SHA256
+`d67daf2ea6bd9cde361c53caedc32be6d0862bccd5b2961fd535654b8b1d2f33`;
+cache `23a8f945f5b0d056d7b693cc82651a66b40a8111c28b39abc82d9773ebcfa746`.
+Original identities/source are unchanged and stopped runtime/map copies removed.
+Full Black Echo, both squads' completed serial recovery, six independent clients,
+Spirit dispatch replay, private presentation and other platforms remain open.
+The complete engine goal stays active; continue independent engine work rather
+than repeating this unchanged steering case.
+
+Accepted crowded-rescue checkpoint (source base `f7bdca9d02`): held Action keeps
 an existing valid treatment stable and selects the nearest available allied
 casualty for a new treatment. Lower player slots no longer divert it. Busy
 caregivers, native faction/collision/range, damage, pending death, interruption

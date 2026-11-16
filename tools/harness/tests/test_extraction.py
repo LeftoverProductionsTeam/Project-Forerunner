@@ -157,6 +157,9 @@ def test_native_squad_negative_control(before, after, case):
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
     'transport-boarded-pending', 'transport-boarded-ship', 'transport-boarded-identity', 'transport-boarded-duplicate',
     'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
+    'transport-boarded-squad-field', 'transport-boarded-squad-hub',
+    'transport-boarded-squad-wait', 'transport-boarded-squad-mixed',
+    'transport-boarded-squad-stale',
 ])
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)

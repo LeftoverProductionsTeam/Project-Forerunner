@@ -1147,6 +1147,36 @@ int main(int argc,char **argv)
   if(!strncmp(case_name,"transport-boarded",17)) {
    boolean other=!strcmp(case_name,"transport-boarded-other")||!strcmp(case_name,"transport-boarded-identity");
    CHECK(device_groups[10].actual_value==1.f,"single requested evacuation was not ready");
+   if(!strncmp(case_name,"transport-boarded-squad-",23)) {
+    boolean same=!strcmp(case_name,"transport-boarded-squad-wait");
+    boolean hub=!strcmp(case_name,"transport-boarded-squad-hub");
+    extraction.squads[0].name=9;extraction.squads[1].name=10;
+    extraction.squads[0].operation=1;run(0)->squad=0;run(0)->squad_operation=1;
+    CHECK(extraction_open_gear(run(1),&players[1]),"fixture second owner could not open existing gear");
+    run(1)->squad=same?0:1;touch(0,1);
+    CHECK(run(1)->phase==_extraction_deployed,"second squad could not prepare its existing gear");
+    if(hub) {
+     dropships[0].object.position.x=0;run(0)->phase=_extraction_deployed;run(0)->dropship=NONE;
+     advance(1);
+     CHECK(device_groups[10].actual_value==1.f,"another squad on foot at the hub blocked a seated insertion crew");
+    } else {
+     units[1].object.position.x=20;touch(1,1);advance(1);
+     CHECK(device_groups[10].actual_value==(same?0.f:1.f),"unboarded squad activation controlled another squad's departure");
+     advance(300);
+     CHECK(device_groups[10].actual_value==(same?0.f:1.f),"another ready field squad blocked the boarded crew");
+     units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
+     CHECK(device_groups[10].actual_value==1.f,"actual joint boarding failed to admit both participating squads");
+     if(!strcmp(case_name,"transport-boarded-squad-stale")) {
+      run(1)->squad_operation++;advance(1);
+      CHECK(!device_groups[10].actual_value,"stale operation authorized a shared transport departure");
+     }
+     if(!strcmp(case_name,"transport-boarded-squad-mixed")) {
+      units[1].object.parent_object_index=NONE;advance(1);
+      CHECK(device_groups[10].actual_value==1.f,"a squad that left the shared craft retained its departure veto");
+     }
+    }
+    extraction_reset();return 0;
+   }
    units[1].object.owner_team_index=other?_game_team_covenant:_game_team_player;
    touch(0,1);units[1].object.position.x=20;touch(1,1);advance(1);
    CHECK(device_groups[10].actual_value==(other?1.f:0.f),"activation crew/faction readiness incorrect");

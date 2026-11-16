@@ -122,19 +122,7 @@
   (set tf_initialized true)
 )
 
-(script continuous tf_operation
-  (sleep_until tf_initialized 1)
-  (set tf_banked false)
-  (device_set_power extraction_activate 0)
-  (device_set_position extraction_activate 0)
-  (unit_open (tf_ship))
-  (unit_set_enterable_by_player (tf_ship) true)
-  (print "transport: prepare loadout at deployment control")
-  ; Real confirmed gear and seats drive readiness, including a crew that
-  ; prepared its next loadout before this coordinator reached the next cycle.
-  (print "transport: board assigned passenger seat for insertion")
-  (sleep_until (and (tf_player_seated)
-    (>= (device_group_get tf_boarded) 0.5)) 1)
+(script static void tf_insert_crew
   (print "transport: insertion passenger physically seated")
   (unit_set_enterable_by_player (tf_ship) false)
   (unit_close (tf_ship))
@@ -164,6 +152,9 @@
   (ai_command_list tf_pilot tf_wait)
   (vehicle_hover (tf_ship) true)
   (print "transport: empty craft staged; waiting for extraction request")
+)
+
+(script static void tf_extract_crew
   ; A shared call control can be used by either faction. Only a real current
   ; request for this assigned craft may recall it. The matching call group
   ; comes from the same native faction/ownership rules for Pelican or Spirit.
@@ -172,6 +163,8 @@
   ; Native activation continues while the pilot approaches. Boarding readiness
   ; still requires every requesting passenger's countdown and actual seat;
   ; this call signal alone never authorizes departure or recovery.
+  (unit_set_enterable_by_player (tf_ship) false)
+  (unit_close (tf_ship))
   (vehicle_hover (tf_ship) false)
   (ai_command_list tf_pilot tf_field)
   (sleep_until (and (volume_test_object extraction_zone (tf_ship))
@@ -200,4 +193,20 @@
   (print "transport: arrived and banked; disembark and prepare the next operation")
   (sleep_until (not (tf_player_seated)) 1)
   (print "transport: crew disembarked; next deployment ready")
+)
+
+(script continuous tf_operation
+  (sleep_until tf_initialized 1)
+  (set tf_banked false)
+  (unit_open (tf_ship))
+  (unit_set_enterable_by_player (tf_ship) true)
+  ; Keep the call control available to squads already in the field. Initial
+  ; activation power is enabled by the first real insertion/disembarkation.
+  (print "transport: waiting for seated insertion crew or field extraction call")
+  (sleep_until (or (and (tf_player_seated)
+    (>= (device_group_get tf_boarded) 0.5))
+    (>= (device_group_get tf_called) 0.5)) 1)
+  (if (and (tf_player_seated) (>= (device_group_get tf_boarded) 0.5))
+    (tf_insert_crew)
+    (tf_extract_crew))
 )

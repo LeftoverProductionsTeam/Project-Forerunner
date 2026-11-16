@@ -1037,12 +1037,26 @@ Optional native device groups `extraction_pelican_boarded` / `extraction_spirit_
 provide host-derived boarding readiness to ordinary `device_group_get`. Author
 unique dedicated groups, initially zero, with matching named ships; do not share
 them with deployment/activation/loadout/faction controls' power or position groups.
-At the hub, all deployed players still there must actually occupy the assigned
-craft. At the LZ, all players requesting that faction's evacuation must finish
-activation and hold valid boarding receipts/seats. Other factions and unrelated
+At the hub, deployed members of the participating crew still there must occupy the assigned
+craft. At the LZ, requesting members of a participating crew must finish
+activation and hold valid boarding receipts/seats. With authored squad selection,
+the actual passengers identify participating squads and their current operation
+epochs. An unboarded independent squad of the same faction cannot hold this
+departure at either pad. Squads that actually share the craft still participate;
+stale operation passengers refuse departure. Unsquadded crews retain the previous
+whole-faction wait. The runtime derives this through existing run/seat state,
+without a flight registry or new packet. Other factions and unrelated
 field operations are excluded. Empty crews, pending death, incapacitation, invalid
 ownership, cinematics and flight between pads do not authorize a new departure.
 The signal only coordinates flight; it grants no equipment or banking authority.
+Seventy focused transport cases and Windows64/native HSC compilation pass.
+`build/native-delta-squad-transport-fixed/result.json` verifies two authenticated
+squads' separate insertions, the first squad's independent evacuation/bank and
+the waiting second pickup without another insertion. Native player/item
+synchronization passes. Second boarding remains unverified: the input adapter
+kept an obsolete seat approach and did not reach the unchanged native interaction
+distance. This is partial fixture acceptance, not full Black Echo, both serial
+recoveries, six clients, Spirit dispatch replay or private presentation.
 Optional dedicated groups `extraction_pelican_landed` / `extraction_spirit_landed`
 publish actual native ground contact (five ticks before parking), upright attitude
 and settled linear/angular motion. Native hover preserves the actual grounded
@@ -1068,6 +1082,13 @@ horizontal aircraft-origin distance and actual collision contact. Idle descent
 does not cancel a valid native recovery path. Author final stop radii appropriate
 to the physical hull (four units for the owned Pelican), without enlarging hub/LZ
 settlement volumes. The tracked `tools/fixtures/extraction_transport_native.hsc`
+reuses its insertion and extraction legs as native static helpers. At the hub its
+existing loop serves a seated insertion crew or a pending field call, allowing
+another insertion while a squad remains deployed and a later pickup without a
+new insertion. Keep the call control available to deployed squads; do not reset
+it every time another trip starts. Native readiness still precedes departure,
+and durable banking plus actual disembarkation precede reuse. This is a shared
+aircraft sequence, not concurrent per-squad aircraft or private cinematics. It
 uses native object-relative insertion/departure cameras. Invader angle/FOV inputs
 are radians; derive orientation using Halo's `matrix4x3_rotation_to_angles`
 convention for the desired forward/up vectors rather than assuming yaw/pitch/zero
