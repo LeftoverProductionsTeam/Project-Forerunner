@@ -98,6 +98,27 @@ def test_extraction_workflow(case):
 
 
 @pytest.mark.parametrize('case', [
+    'squad-loop', 'squad-independent', 'squad-pending', 'squad-loss', 'squad-restore',
+    'squad-capacity', 'squad-state', 'squad-identity', 'squad-faction', 'squad-leave',
+    'squad-duplicate', 'squad-alias', 'squad-missing',
+])
+def test_native_squad_workflow(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('members >= EXTRACTION_SQUAD_MEMBERS', 'members > EXTRACTION_SQUAD_MEMBERS', 'squad-capacity'),
+    ('run->squad != squad ||', 'FALSE ||', 'squad-independent'),
+])
+def test_native_squad_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('case', [
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
     'transport-landed-loop', 'transport-landed-alias',
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
@@ -134,7 +155,7 @@ def test_native_faction_transport_calls(case):
 
 
 @pytest.mark.parametrize('before,after,case', [
-    ('extraction_faction((short)player->team_index) != faction', 'FALSE', 'transport-called-ownership'),
+    ('extraction_faction((short)player->team_index) != faction) continue;', 'FALSE) continue;', 'transport-called-ownership'),
     ('(run->phase != _extraction_activating && run->phase != _extraction_ready) || run->gear.pending',
      '(run->phase != _extraction_ready) || run->gear.pending', 'transport-called-loop'),
 ])
@@ -146,7 +167,7 @@ def test_native_faction_transport_call_negative_control(before, after, case):
 
 
 @pytest.mark.parametrize('before,after,case', [
-    ('if (!returned || pending) continue;', 'if (!returned) continue;', 'transport-callback-pending'),
+    ('if (!returned || pending) continue;', 'if (!returned || (pending && FALSE)) continue;', 'transport-callback-pending'),
     ('if (run->dropship != ship) continue;', 'if (FALSE) continue;', 'transport-callback-other'),
 ])
 def test_native_transport_release_negative_control(before, after, case):
@@ -388,7 +409,11 @@ def test_departed_refund_negative_control():
         '\t\t\tif (!gear_cancel_reservation(&run->gear))\n'
         '\t\t\t\tplatform_log("extraction: ungranted loadout refund failed before session close");\n'
         '\t\t}\n\t\telse\n\t\t\tgear_lose(&run->gear);',
-        'gear_lose(&run->gear);')) if name == 'extraction.inc' else (name, text)
+        'gear_lose(&run->gear);')) if name == 'extraction.inc' else
+        # gear_lose also protects unissued reservations. Remove both refund
+        # paths to model loss; removing only the caller is now harmless.
+        (name, mutated(text, 'if (session->record.phase == _gear_reserved) return gear_cancel_reservation(session);', ''))
+        if name == 'under_test.inc' else (name, text)
         for name, text in generated())
     status, output = run(build('extraction', files), 'refund-disconnect')
     assert status == CHECK_FAILED, output

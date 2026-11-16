@@ -59,6 +59,12 @@ enum extraction_phase
 	_extraction_losing, _extraction_cancelling, _extraction_lost
 };
 
+enum
+{
+	EXTRACTION_SQUAD_MEMBERS = 6,
+	EXTRACTION_SQUADS = (HALO_PORT_MAXIMUM_NETWORK_PLAYERS + EXTRACTION_SQUAD_MEMBERS - 1) / EXTRACTION_SQUAD_MEMBERS
+};
+
 /* Read-only view of one completed transaction, never a second gear authority.
  * Detailed reports live for this session; persistent outcome/stash remain in gear. */
 struct extraction_report
@@ -83,6 +89,8 @@ struct extraction_run
 	short dropship_team;
 	short report_page, start_kills, start_deaths;
 	boolean statistics_started;
+	short squad;
+	unsigned long squad_operation;
 	struct extraction_report report;
 	struct gear_session gear;
 };
@@ -101,6 +109,9 @@ static struct
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
 	long last_tick;
+	/* Optional hub choices only; native scripts still own mission objectives,
+	 * and every member keeps their existing independent gear transaction. */
+	struct { short name; unsigned long operation; boolean notified; } squads[EXTRACTION_SQUADS];
 } extraction;
 static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 
@@ -117,6 +128,7 @@ static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
 static boolean extraction_players_returned(void);
+static boolean extraction_players_returned_for_squad(short squad);
 
 /* Match Halo's three native forced-death requests. Do not consume the flags,
  * clear death, or substitute settlement for native death and loot disposal. */
@@ -249,6 +261,7 @@ static void extraction_run_close(struct extraction_run *run)
 	run->player = run->unit = NONE;
 	run->dropship = NONE;
 	run->local_player = NONE;
+	run->squad = NONE;
 	run->gear.descriptor = -1;
 }
 
@@ -257,6 +270,7 @@ void extraction_reset(void)
 	short index;
 	for (index = 0; index < NUMBEROF(extraction_runs); index++) extraction_run_close(&extraction_runs[index]);
 	memset(&extraction, 0, sizeof(extraction));
+	for (index = 0; index < NUMBEROF(extraction.squads); index++) extraction.squads[index].name = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
@@ -321,6 +335,7 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 	}
 	if (memcmp(run->owner, owner, GEAR_ID_BYTES))
 	{
+		run->squad = NONE; run->squad_operation = 0;
 		run->discard_deadline = 0;
 		memset(&run->report, 0, sizeof(run->report));
 		run->report_page = 0; run->statistics_started = FALSE;
@@ -399,7 +414,7 @@ boolean extraction_respawn_after_loss(void)
 
 static void extraction_bind(void)
 {
-	short index, faction;
+	short index, faction, squad;
 	boolean unique = TRUE;
 	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL, *debrief = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
@@ -407,6 +422,7 @@ static void extraction_bind(void)
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
 	extraction.evacuation = FALSE;
+	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++) extraction.squads[squad].name = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
@@ -430,6 +446,17 @@ static void extraction_bind(void)
 	{
 		struct scenario_object_name *name = TAG_BLOCK_GET_ELEMENT(
 			&global_scenario->object_names, index, struct scenario_object_name);
+		if (!extraction.survival)
+			for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+			{
+				char choice[32];
+				snprintf(choice, sizeof(choice), "extraction_squad_%02d", squad + 1);
+				if (!strcmp(name->name, choice))
+				{
+					if (extraction.squads[squad].name != NONE) unique = FALSE;
+					extraction.squads[squad].name = index;
+				}
+			}
 
 		for (faction = 0; faction < 2; faction++)
 		{
@@ -574,6 +601,30 @@ static void extraction_bind(void)
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
 finished:
+	if (extraction.admitted)
+		for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+			if (extraction.squads[squad].name != NONE)
+			{
+				struct control_datum *choice = control_try_and_get(object_index_from_name_index(extraction.squads[squad].name));
+				short other;
+				if (!choice || choice->object.name_index != extraction.squads[squad].name ||
+					choice == deploy || choice == activate || choice == loadout || choice == debrief ||
+					choice == choices[0] || choice == choices[1] ||
+					control_definition_get(choice->definition_index)->control.triggers_when != 0)
+				{ extraction.admitted = FALSE; continue; }
+				for (other = 0; other < squad; other++)
+					if (extraction.squads[other].name != NONE &&
+						object_index_from_name_index(extraction.squads[other].name) == object_index_from_name_index(extraction.squads[squad].name))
+						extraction.admitted = FALSE;
+				for (faction = 0; faction < 2; faction++)
+				{
+					short outputs[3] = {extraction.dropship_boarding_groups[faction], extraction.dropship_call_groups[faction],
+						extraction.dropship_landing_groups[faction]};
+					for (other = 0; other < NUMBEROF(outputs); other++)
+						if (outputs[other] != NONE && (choice->device.position_group_index == outputs[other] ||
+							choice->device.power_group_index == outputs[other])) extraction.admitted = FALSE;
+				}
+			}
 	if (extraction.admitted)
 		for (faction = 0; faction < 2; faction++)
 		{
@@ -773,13 +824,104 @@ static void extraction_loadout_notice(struct extraction_run *run)
 	extraction_tell(run, text);
 }
 
+static boolean extraction_squad_busy(short squad, struct extraction_run const *except)
+{
+	short index;
+	if (!VALID_INDEX(squad, NUMBEROF(extraction.squads))) return FALSE;
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run const *member = &extraction_runs[index];
+		struct player_datum *player;
+		if (member == except || member->squad != squad || !member->squad_operation ||
+			member->squad_operation != extraction.squads[squad].operation) continue;
+		player = player_try_and_get(member->player);
+		if (!player || player->quit_out_of_game) continue;
+		if (member->phase != _extraction_hub && member->phase != _extraction_returned && member->phase != _extraction_lost)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static void extraction_squad_notice(short squad, char const *text)
+{
+	short index;
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+		if (extraction_runs[index].squad == squad) extraction_tell(&extraction_runs[index], text);
+}
+
+static void extraction_squad_choose(struct extraction_run *run, struct player_datum const *player,
+	short squad, boolean in_hub)
+{
+	short index, members = 0;
+	short faction = extraction_faction((short)player->team_index);
+	char text[128];
+	if (!in_hub || unit_get(player->unit_index)->object.parent_object_index != NONE ||
+		(run->phase != _extraction_hub && run->phase != _extraction_lost && run->phase != _extraction_returned) ||
+		extraction_squad_busy(run->squad, run))
+	{
+		extraction_tell(run, "SQUAD LOCKED | Choose on foot at the hub before the squad deploys, or after its operation ends."); return;
+	}
+	if (!extraction_open_gear(run, player)) return;
+	if (run->squad == squad)
+	{
+		run->squad = NONE; run->squad_operation = 0;
+		extraction_tell(run, "SQUAD LEFT | Your stash and recovered gear remain yours. Choose a squad before deployment."); return;
+	}
+	if (faction == NONE || extraction_faction(unit_get(player->unit_index)->object.owner_team_index) != faction)
+	{
+		extraction_tell(run, "SQUAD UNAVAILABLE | Select a compatible native faction first."); return;
+	}
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run const *member = &extraction_runs[index];
+		struct player_datum *other;
+		if (member->squad != squad) continue;
+		other = player_try_and_get(member->player);
+		if (!other || other->quit_out_of_game) continue;
+		if (extraction_faction((short)other->team_index) != faction)
+		{
+			extraction_tell(run, "SQUAD FACTION MISMATCH | Join members of your faction or choose another squad."); return;
+		}
+		members++;
+	}
+	if (members >= EXTRACTION_SQUAD_MEMBERS)
+	{
+		extraction_tell(run, "SQUAD FULL | Six members maximum. Choose another squad."); return;
+	}
+	run->squad = squad; run->squad_operation = 0;
+	platform_log("extraction: player %ld joined squad %d", DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), squad + 1);
+	snprintf(text, sizeof(text), "SQUAD %02d | %d/6 members. Gear stays individually owned. Use this squad terminal again to leave at the hub.",
+		squad + 1, members + 1);
+	extraction_squad_notice(squad, text);
+}
+
+static boolean extraction_squad_deployment_ready(struct extraction_run *run)
+{
+	short squad;
+	if (VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) && extraction.squads[run->squad].name != NONE)
+	{
+		if (run->squad_operation == extraction.squads[run->squad].operation && extraction_squad_busy(run->squad, run))
+		{
+			extraction_tell(run, "SQUAD IN FIELD | Wait for your current operation to finish before redeploying."); return FALSE;
+		}
+		return TRUE;
+	}
+	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+		if (extraction.squads[squad].name != NONE)
+		{
+			extraction_tell(run, "CHOOSE SQUAD | Use a squad terminal at the hub before deployment."); return FALSE;
+		}
+	return TRUE; /* Older maps retain their existing ungrouped operation. */
+}
+
 static boolean extraction_deploy(struct extraction_run *run, struct player_datum const *player)
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	run->discard_deadline = 0;
-	if (!extraction_open_gear(run, player) || !game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
+	if (!extraction_open_gear(run, player) || !extraction_squad_deployment_ready(run)) return FALSE;
+	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
 		!extraction_loadout(run, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
 	{
 		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
@@ -801,6 +943,15 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		return FALSE;
 	}
 	gear_track_reserved(&run->gear, created);
+	if (VALID_INDEX(run->squad, NUMBEROF(extraction.squads)))
+	{
+		if (!extraction_squad_busy(run->squad, run))
+		{
+			if (!++extraction.squads[run->squad].operation) ++extraction.squads[run->squad].operation;
+			extraction.squads[run->squad].notified = FALSE;
+		}
+		run->squad_operation = extraction.squads[run->squad].operation;
+	}
 	run->start_kills = player->statistics.kills[0]; run->start_deaths = player->statistics.deaths;
 	run->statistics_started = TRUE; run->report_page = 0;
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
@@ -873,16 +1024,19 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct player_datum *player;
 	struct extraction_run *run;
 	long slot;
-	short faction;
+	short faction, squad = NONE, index;
 	boolean in_hub;
 
 	if (!extraction_owns_map() && !(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested())) return FALSE;
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
+	if (control)
+		for (index = 0; index < NUMBEROF(extraction.squads); index++)
+			if (extraction.squads[index].name != NONE && control->object.name_index == extraction.squads[index].name) squad = index;
 	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
 		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name) &&
 		(extraction.debrief_name == NONE || control->object.name_index != extraction.debrief_name) &&
 		(extraction.faction_names[0] == NONE || control->object.name_index != extraction.faction_names[0]) &&
-		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]))) return FALSE;
+		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]) && squad == NONE)) return FALSE;
 	if (extraction.suspended || cinematic_in_progress() ||
 		(extraction.survival && coop_enemies_firefight_outcome() != 0 && control->object.name_index != extraction.debrief_name)) return TRUE;
 	/* Recheck authored power, usability and one-use locks on the host before
@@ -901,6 +1055,11 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	}
 	in_hub = scenario_trigger_volume_test_object(extraction.return_zone, unit_index) &&
 		!scenario_trigger_volume_test_object(extraction.zone, unit_index);
+	if (squad != NONE)
+	{
+		extraction_squad_choose(run, player, squad, in_hub);
+		return TRUE; /* Membership is per player; do not toggle a shared switch. */
+	}
 	if (extraction.debrief_name != NONE && control->object.name_index == extraction.debrief_name)
 	{
 		if (!in_hub || unit->object.parent_object_index != NONE)
@@ -914,6 +1073,10 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			struct game_modes_inventory loadout;
 			short team = faction ? _game_team_covenant : _game_team_human;
 			short dropped = 0;
+			if (run->squad != NONE && extraction_faction((short)player->team_index) != faction)
+			{
+				extraction_tell(run, "LEAVE SQUAD FIRST | Change faction at the hub, then join a compatible squad."); return TRUE;
+			}
 			if (!in_hub || unit->object.parent_object_index != NONE || unit->unit.grenade_throw_state != _unit_grenade_throw_idle ||
 				(run->phase != _extraction_hub && run->phase != _extraction_lost && run->phase != _extraction_returned))
 			{
@@ -1455,6 +1618,18 @@ void extraction_update(void)
 	}
 	extraction_transport_readiness();
 	extraction_transport_completions();
+	for (index = 0; index < NUMBEROF(extraction.squads); index++)
+		if (!extraction.survival && extraction.squads[index].operation && !extraction.squads[index].notified &&
+			extraction_players_returned_for_squad(index))
+		{
+			char script[32], text[128];
+			extraction.squads[index].notified = TRUE;
+			snprintf(script, sizeof(script), "forerunner_squad_%02d_complete", index + 1);
+			platform_log("extraction: squad %d operation %lu settled; authored completion %s", index + 1,
+				extraction.squads[index].operation, extraction_wake_completion(script, TRUE) ? "woken" : "absent or unsupported");
+			snprintf(text, sizeof(text), "SQUAD %02d RETURNED | Recovered equipment is banked. Read your individual debrief and prepare the next deployment.", index + 1);
+			extraction_squad_notice(index, text);
+		}
 	/* The optional authored continuation runs once per fresh map, after actual
 	 * native consumption and durable banking for every living survivor. It
 	 * owns objectives only; gear remains owned by the existing settlement. */
@@ -1481,7 +1656,7 @@ boolean extraction_survival_settlement_pending(void)
 	return FALSE;
 }
 
-static boolean extraction_players_returned(void)
+static boolean extraction_players_returned_for_squad(short squad)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
@@ -1492,6 +1667,16 @@ static boolean extraction_players_returned(void)
 		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
 		struct unit_datum *unit;
 		if (player->quit_out_of_game) continue;
+		if (squad != NONE)
+		{
+			struct extraction_run const *run;
+			if (!VALID_INDEX(slot, NUMBEROF(extraction_runs))) continue;
+			run = &extraction_runs[slot];
+			if (run->player != iterator.datum_index || run->squad != squad ||
+				run->squad_operation != extraction.squads[squad].operation) continue;
+			if (run->phase == _extraction_lost) continue;
+			if (run->phase != _extraction_returned || run->gear.pending) return FALSE;
+		}
 		if (player->unit_index == NONE) continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (!unit || unit->unit.player_index != iterator.datum_index) return FALSE;
@@ -1503,6 +1688,11 @@ static boolean extraction_players_returned(void)
 		survivors++;
 	}
 	return survivors > 0;
+}
+
+static boolean extraction_players_returned(void)
+{
+	return extraction_players_returned_for_squad(NONE);
 }
 
 boolean extraction_survival_evacuation_ready(void)

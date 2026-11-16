@@ -11,3 +11,15 @@
 (script dormant forerunner_extraction_complete
   (print "faction fixture: native recovery complete")
 )
+
+; Optional squad hub terminals select membership in the runtime, not in globals.
+; These reusable callbacks may run while another squad remains in the field.
+(script continuous forerunner_squad_01_complete
+  (sleep -1)
+  (print "faction fixture: squad 01 durable recovery complete")
+)
+
+(script continuous forerunner_squad_02_complete
+  (sleep -1)
+  (print "faction fixture: squad 02 durable recovery complete")
+)

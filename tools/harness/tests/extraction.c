@@ -100,20 +100,20 @@ static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
 static boolean fail_refund, fail_confirm, publish_confirm;
-static struct control_datum controls[5];
-static long control_handles[5] = { 0x10003, 0x10004, 0x10005, 0x10006, 0x10007 };
+static struct control_datum controls[7];
+static long control_handles[7] = { 0x10003, 0x10004, 0x10005, 0x10006, 0x10007, 0x10008, 0x10009 };
 static struct control_definition control_tag;
 static struct device_group_datum device_groups[12];
 static struct data_array device_group_table;
 static struct data_array *device_groups_data=&device_group_table;
-static int control_updates[5],control_effects[5];
+static int control_updates[7],control_effects[7];
 #include "controls_types.inc"
 static struct weapon_magazine_definition magazine = { 20, 200, 0 };
 static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
 static long missing_tag = NONE, unusable_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
 static struct game_globals globals = { { 2, grenades } };
-static struct scenario_object_name names[9] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
+static struct scenario_object_name names[11] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
  {"extraction_pelican",_object_type_vehicle},{"extraction_spirit",_object_type_vehicle},
  {"extraction_unsc"},{"extraction_covenant"}, {"extraction_unsc_body",_object_type_biped,0},{"extraction_covenant_body",_object_type_biped,1} };
 static struct scenario_starting_profile faction_profiles[2];
@@ -125,10 +125,14 @@ static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes},
 static struct hs_script completion_script;
 static struct hs_script transport_scripts[3];
 static short completion_wakes, transport_wakes[2];
+static struct hs_script squad_scripts[2];
+static short squad_wakes[2];
 static boolean hs_wake_by_name(char const *name)
 {
  if(!strcmp(name,"forerunner_pelican_complete"))transport_wakes[0]++;
  else if(!strcmp(name,"forerunner_spirit_complete"))transport_wakes[1]++;
+ else if(!strcmp(name,"forerunner_squad_01_complete"))squad_wakes[0]++;
+ else if(!strcmp(name,"forerunner_squad_02_complete"))squad_wakes[1]++;
  else {CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;}
  return TRUE;
 }
@@ -310,21 +314,21 @@ static real magnitude_squared3d(real_vector3d const *v) { return v->i*v->i+v->j*
 #define vehicle_datum unit_datum
 #include "vehicle_landing.inc"
 #undef vehicle_datum
-static long object_index_from_name_index(short index) { return index>=5 && index<7 ? control_handles[index-2] : index>=3 && index<5 ? dropship_handles[index-3] : index>=0 && index<3 ? control_handles[index] : NONE; }
+static long object_index_from_name_index(short index) { return index>=9 && index<11 ? control_handles[index-4] : index>=5 && index<7 ? control_handles[index-2] : index>=3 && index<5 ? dropship_handles[index-3] : index>=0 && index<3 ? control_handles[index] : NONE; }
 static struct control_datum *control_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_control); }
 static struct control_definition *control_definition_get(long h) { return &control_tag; }
 static struct control_datum *control_get(long h) { struct control_datum *c=control_try_and_get(h);CHECK(c,"invalid control");return c; }
 static struct device_datum *device_get(long h) { return control_get(h); }
 static boolean device_group_set_desired_value(short index,real value)
 {
- CHECK((index>=0&&index<3)||index==6||index==7,"invalid position group");
+ CHECK((index>=0&&index<3)||index==6||index==7||index==10,"invalid position group");
  if((device_groups[index].flags&FLAG(_device_group_can_change_only_once_bit))&&
     (device_groups[index].flags&FLAG(_device_group_changed_once_bit)))return FALSE;
- device_groups[index].actual_value=value;device_groups[index].flags|=FLAG(_device_group_changed_once_bit);control_updates[index<3?index:index-3]++;return TRUE;
+ device_groups[index].actual_value=value;device_groups[index].flags|=FLAG(_device_group_changed_once_bit);control_updates[index==10?5:index<3?index:index-3]++;return TRUE;
 }
 static void device_effect_new(long control,long effect) { for(short i=0;i<NUMBEROF(controls);i++)if(control_handles[i]==control){control_effects[i]=(int)effect;return;}CHECK(FALSE,"invalid effect owner"); }
-static void display_assert(void *unused,char const *path,int line,boolean fatal) { (void)unused;(void)path;(void)line;(void)fatal;abort(); }
-static void system_exit(long code) { (void)code;abort(); }
+static void __attribute__((noreturn)) display_assert(void *unused,char const *path,int line,boolean fatal) { (void)unused;(void)path;(void)line;(void)fatal;abort(); }
+static void __attribute__((noreturn)) system_exit(long code) { (void)code;abort(); }
 boolean device_can_change_position(long control_index);
 static boolean scenario_trigger_volume_test_point(short zone,real_point3d const *p) { return zone==0 ? p->x>10.f : p->x<5.f; }
 static boolean scenario_trigger_volume_test_object(short zone,long h) { return scenario_trigger_volume_test_point(zone,&unit_get(h)->object.position); }
@@ -458,6 +462,83 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before,i;
  initialize();
+ if(!strncmp(case_name,"squad-",6)) {
+  extraction_reset();
+  names[3].name[0]=names[4].name[0]=names[5].name[0]=names[6].name[0]=names[7].name[0]=names[8].name[0]=0;
+  scenario.object_names.count=11;
+  for(i=0;i<2;i++) {
+   snprintf(names[9+i].name,32,"extraction_squad_%02d",i+1);
+   controls[5+i].object.name_index=9+i;controls[5+i].device.position_group_index=10;controls[5+i].device.power_group_index=11;
+   snprintf(squad_scripts[i].name,32,"forerunner_squad_%02d_complete",i+1);
+   squad_scripts[i].return_type=_hs_type_void;squad_scripts[i].script_type=_hs_script_continuous;
+  }
+  device_groups[11].actual_value=1;scenario.hs_scripts.count=2;scenario.hs_scripts.address=squad_scripts;
+  if(!strcmp(case_name,"squad-duplicate"))strcpy(names[10].name,names[9].name);
+  if(!strcmp(case_name,"squad-alias"))control_handles[6]=control_handles[5];
+  if(!strcmp(case_name,"squad-missing"))control_handles[6]=NONE;
+  advance(1);
+  if(!strcmp(case_name,"squad-duplicate")||!strcmp(case_name,"squad-alias")||!strcmp(case_name,"squad-missing")) {
+   CHECK(!extraction_owns_map(),"ambiguous or missing squad terminal admitted");return 0;
+  }
+  CHECK(extraction_owns_map(),"valid squad hub refused");
+  for(i=0;i<2;i++)players[i].team_index=units[i].object.owner_team_index=_game_team_player;
+  touch(0,0);CHECK(run(0)->phase==_extraction_hub&&!weapon_count,"ungrouped player deployed without squad selection");
+  if(!strcmp(case_name,"squad-capacity")) {
+   active_players=7;
+   /* Membership capacity only: six bounded existing players, not six real accounts or banks. */
+   for(i=1;i<7;i++) {players[i].team_index=_game_team_player;players[i].local_player_index=NONE;run(i)->player=player_handles[i];run(i)->squad=0;}
+   touch(5,0);CHECK(run(0)->squad==NONE,"seventh member admitted");
+   touch(6,0);CHECK(run(0)->squad==1,"independent squad blocked by full squad");
+   players[6].quit_out_of_game=TRUE;touch(5,0);CHECK(run(0)->squad==0,"departed player retained a live membership slot");return 0;
+  }
+  if(!strcmp(case_name,"squad-state")) {
+   units[0].object.position.x=20;touch(5,0);CHECK(run(0)->squad==NONE,"field squad join");units[0].object.position.x=0;
+   units[0].object.parent_object_index=dropship_handles[0];touch(5,0);CHECK(run(0)->squad==NONE,"seated squad join");units[0].object.parent_object_index=NONE;
+   device_groups[11].actual_value=0;touch(5,0);CHECK(run(0)->squad==NONE,"unpowered squad join");device_groups[11].actual_value=1;
+   connection=_game_connection_network_client;touch(5,0);CHECK(run(0)->squad==NONE,"client chose authoritative membership");connection=_game_connection_network_server;return 0;
+  }
+  touch(5,0);CHECK(run(0)->squad==0&&!control_updates[5],"squad choice missing or shared native switch toggled");
+  if(!strcmp(case_name,"squad-identity")) {
+   verified=FALSE;touch(5,1);CHECK(run(1)->squad==NONE,"unverified remote identity joined");return 0;
+  }
+  if(!strcmp(case_name,"squad-faction")) {
+   players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
+   touch(5,1);CHECK(run(1)->squad==NONE,"opposing factions joined one squad");touch(6,1);CHECK(run(1)->squad==1,"opposing independent squad refused");return 0;
+  }
+  if(!strcmp(case_name,"squad-leave")) {
+   touch(5,0);CHECK(run(0)->squad==NONE&&run(0)->gear.record.phase==_gear_idle,"leave changed gear ownership or retained membership");return 0;
+  }
+  touch(!strcmp(case_name,"squad-independent")?6:5,1);
+  CHECK(run(1)->squad==(!strcmp(case_name,"squad-independent")?1:0),"second member not assigned");
+  touch(0,0);touch(0,1);
+  CHECK(run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,"squad did not deploy");
+  if(!strcmp(case_name,"squad-independent")) {
+   a=pickup(0,1);escape(0);CHECK(squad_wakes[0]==1&&!squad_wakes[1],"another deployed squad blocked or received completion");
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.record.phase==_gear_deployed,"another squad's settlement changed gear");
+   touch(0,0);CHECK(run(0)->phase==_extraction_deployed&&run(0)->squad_operation==2,"independent redeploy blocked");
+   escape(0);CHECK(squad_wakes[0]==2&&!squad_wakes[1],"fresh operation callback absent or crossed squads");
+   a=pickup(1,2);escape(1);CHECK(squad_wakes[1]==1&&run(1)->gear.record.count==1,"other squad did not bank separately");return 0;
+  }
+  CHECK(run(0)->squad_operation==run(1)->squad_operation,"same squad did not share operation epoch");
+  touch(6,0);CHECK(run(0)->squad==0,"deployed member changed squad");
+  a=pickup(0,1);escape(0);CHECK(!squad_wakes[0],"partial squad return notified completion");
+  touch(0,0);CHECK(run(0)->phase==_extraction_returned,"returned member redeployed into an unfinished operation");
+  touch(6,0);CHECK(run(0)->squad==0,"returned member abandoned unfinished squad");
+  units[1].object.position.x=20;touch(1,1);advance(300);units[1].object.position.x=0;
+  if(!strcmp(case_name,"squad-pending")) {
+   publish_failure=TRUE;advance(1);CHECK(run(1)->phase==_extraction_settling&&!squad_wakes[0],"pending banking completed squad");publish_failure=FALSE;advance(30);
+  } else if(!strcmp(case_name,"squad-loss")) {
+   units[1].object.damage_flags=FLAG(_object_dead_bit);advance(1);
+  } else {advance(1);}
+  CHECK(squad_wakes[0]==1&&!squad_wakes[1]&&run(0)->gear.record.count==1,"durable squad completion or individual stash wrong");
+  advance(30);CHECK(squad_wakes[0]==1,"same operation repeated completion");
+  if(!strcmp(case_name,"squad-restore")) {
+   extraction_restored();advance(1);CHECK(squad_wakes[0]==1,"saved-world replay completed squad again");return 0;
+  }
+  touch(0,0);CHECK(run(0)->phase==_extraction_deployed&&run(0)->squad_operation==2,"finished squad could not redeploy");
+  escape(0);CHECK(squad_wakes[0]==2,"old return blocked fresh operation or callback did not rearm");
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"debrief-",8)) {
   struct gear_record before;struct game_modes_inventory captured;long carried[GAME_MODES_INVENTORY_WEAPONS];
   short j,k;int messages;char page[256];struct extraction_run *r;

@@ -16,7 +16,42 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current usability checkpoint (source base `9eb95de7e8`): Server Setup -> Co-op
+Current squad checkpoint (source base `b10d91264e`): optional native hub terminals
+select host-owned six-member squads inside existing Extraction runs. Membership
+requires existing gear identity/locking, matching factions and ordinary powered
+control use. Gear remains per owner. Active members cannot switch squads/factions
+or redeploy over unfinished squad operations. Reusable squad completion callbacks
+follow actual durable survivor settlement; another deployed squad does not block
+them. Disconnect/slot reuse and owner changes do not inherit membership.
+
+Windows64 compiles (`build/native-squad-build.log`). The existing Extraction
+harness covers admission, capacity, pending writes, loss, independent callbacks,
+redeployment and legacy behavior. The regression run and focused corrections/
+negative controls cover 232 cases; compact logs are `build/native-squad-*.log`.
+Test adapters now declare fatal exits correctly, and the old departed-refund fault
+removes both existing refund protections instead of falsely expecting one removal
+to lose equipment. No production refund/transport protection was changed.
+
+`build/native-delta-squad-settlement/result.json` passes two real authenticated
+Delta clients normally selecting different squads and deploying. Squad 1 banks
+two unique items, wakes its native HSC callback and redeploys those same saved IDs
+while squad 2 remains deployed. Squad 2 then banks its own distinct item and wakes
+its own callback while squad 1 remains deployed. Player comparison: 122 seconds,
+zero divergences, maximum position difference 0.086464, no aim mismatch. Item
+comparison: 126 snapshots, zero out of step; all five new host items seen.
+Cache SHA256 `25d28447a49aa4ddf849729f1890b1ccaad78bb4b9c55be30c2bbc4ba1a45196`;
+binary `06f50ed1253d89334f81e767219467938fa94afc2a58b0dacec4fb61d8c1e696`.
+Original identity files are unchanged; all stopped runtime/map copies are removed.
+One reusable compiled fixture remains with its existing owned source tags.
+Earlier input attempts exposed a terminal beside a parked aircraft, cabinet
+approach and an over-eager log assertion; corrected in disposable authoring/input,
+with collision, normal interaction and all settlement gates preserved.
+This accepts two single-member squads' native selection/settlement/redeployment,
+not six independent clients, squad objectives/alliances, scoped cinematics/audio,
+same-faction aircraft scheduling, persistent squad membership, full Black Echo,
+other platforms or human/headset acceptance. Those requirements remain open.
+
+Accepted usability checkpoint (source base `9eb95de7e8`): Server Setup -> Co-op
 Options -> GAMEPLAY now selects CLASSIC, FIREFIGHT or EXTRACTION through the
 existing settings writer. The latter two are exclusive host choices; Classic
 preserves authored HaloScript encounters. Extraction still requires a compatible

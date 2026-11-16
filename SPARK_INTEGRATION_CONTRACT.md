@@ -437,6 +437,40 @@ reopen, Cancel and mode transitions pass; Windows64 and 14 focused cases pass
 wire format or Spark authoring interface changed. Bounded native transport and
 earlier on-foot mission acceptance are recorded below; complete combined
 Spark-authored aircraft/mission gameplay remains UNVERIFIED.
+
+Optional squad hub binding: native controls named `extraction_squad_01`,
+`extraction_squad_02`, etc. select transient host-owned membership in existing
+Extraction runs (`extraction.c::extraction_squad_choose`). The bound is
+`EXTRACTION_SQUADS`, derived from the runtime's existing player capacity, with at
+most six connected members per squad. This is not 128-player acceptance. Each
+choice must uniquely resolve to a live touched-by-player control with usable
+native power/position groups, distinct from the other hub controls and transport
+output groups. Put it on reachable ground in the return hub, clear of aircraft
+and cabinets. Duplicate/missing/aliased bindings refuse hub admission.
+When any such choice is authored, players must join a compatible faction squad
+before deployment; maps with none retain the existing ungrouped path. Normal use
+of one's selected terminal leaves the squad when its operation is finished.
+Selection consumes the action without toggling a shared device group. Existing
+verified identities and gear locks remain mandatory; membership does not transfer
+stash ownership. Active operations freeze existing members' squad/faction changes
+and repeated deployment. A returning squad can redeploy independently of another.
+
+`forerunner_squad_01_complete`, `forerunner_squad_02_complete`, etc. are optional
+native void callbacks after that operation's living survivors physically return
+and finish durable banking. Other squads and hub members who have not deployed
+in that operation are excluded. Pending banking/death blocks completion; zero
+survivors never produces success. Reuse a continuous script beginning with
+`(sleep -1)` for later operations, as in the existing
+`tools/fixtures/extraction_factions_native.hsc`. These callbacks never award gear.
+`extraction_update` and `extraction_players_returned_for_squad` own the gate.
+The two-account native fixture proves separate selection, callbacks, banking and
+same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
+not add squad objective queries, alliances, scoped presentation, multiple aircraft
+per faction or reconnect-persistent squad membership. Existing discovery version
+1 and legacy clients do not imply those capabilities; maps requiring this binding
+must target a runtime containing these helpers. No new packet/save format or
+editor subsystem is requested. Spark's next full mission handoff remains below.
+
 A candidate needs
 live scenario **control** objects named `extraction_deploy` and
 `extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named
