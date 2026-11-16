@@ -16,42 +16,62 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current P0 checkpoint (base `cd816ed391`): single authenticated native physical
-transport roundtrip PASSES in `build/native-pelican-physical-roundtrip`. Actual
-deploy/normal boarding, native pilot insertion/landing/disembarkation, empty hub
-return, real control request, pickup landing/normal evacuation boarding, departure
-camera, loaded hub arrival, durable banking of two unique actual equipment items,
-normal disembarkation and same-ID redeployment complete without a native exception.
-Candidate CE609 SHA256 `6b77d8ba6f32a5d17cc9c8c0854fcf9568b1210d17740f30957d4ef135cccc86`.
-This is owned transport-fixture execution on Windows64/GL, not Spark's complete
-mission, two-client flight, combat/rescue acceptance in this cache or VR proof.
+Current P0 checkpoint (source base `a3c820a142`): two distinct authenticated Delta
+clients complete the physical Pelican roundtrip in the owned Windows64/GL fixture
+`build/native-delta-transport-complete-crew/result.json`. Both normally board,
+fly/land/disembark, request extraction, board the returning aircraft, depart through
+the native camera, arrive at the actual hub and bank four unique items across two
+owner records. Fresh processes redeploy both owners with the same saved item IDs.
+Player comparison: 244 player seconds in the operation and nine after restart,
+zero divergences under the existing tolerances. Item comparison: 248/13 snapshots,
+zero out of step. Original identity files are unchanged. Native CE609 SHA256
+`dccd58c9d9703ae5702aaf6df363d163f38b7dc4c7b28940fd6a417447ab2c2b`;
+binary `54414ece225094553a99beb42345fcfc21eeaa4b120aa5ca1736e1d8951f10cd`.
+This is bounded native transport execution, not the complete Spark mission,
+combat/rescue in this fixture, Spirit flight, human acceptance or VR proof.
 
-The root correction samples configured human-plane movement from the aircraft's
-native world origin/heading/velocity, preserving the pilot's real eyes. The old
-offset seat made final arrival depend on heading; no teleport, player force-boarding,
-collision bypass or settlement-volume expansion is used. Legacy fighters,
-unconfigured planes and non-driver samples remain unchanged. Windows64 and 13
-focused actor/readback cases pass, including the real sampler and legacy/eyes
-invariants. Existing 51 transport checks from the prior checkpoint remain accepted.
-Detailed aircraft diagnostics reuse the existing boarding traversal; the unrelated
-actor-only diagnostic no longer takes on vehicle traversal dependencies.
+Configured human-plane movement uses the aircraft's native world origin while
+preserving pilot perception. Final grounded settling uses the existing authored
+destination tolerance, not an invented clearance multiplier, and does not interrupt
+a valid recovery path. The fixture's four-unit final radius matches its native
+aircraft physics radius; unchanged hub/LZ volumes and real collision/boarding/
+settlement checks remain mandatory. Camera offsets are object-relative; native
+Invader angles are radians, with orientation derived through Halo's native Euler
+convention. Departure frames from both clients show the aircraft. Earlier mistaken
+degree/angle assumptions are corrected in the existing owned source profile;
+historical failed evidence remains. No taxi controller or new flight engine remains.
+Windows64 compiled (`build/native-plane-native-radius-build.log`); previous 13
+actor/readback and 51 transport checks remain accepted, not repeatedly rerun.
+The earlier serial-boarding probe banked gear but failed full acceptance because
+one player's input path left the hub before insertion; the final ordinary-input
+route keeps both initial boarding approaches within the unchanged hub.
+Stopped runtime/map staging and BMP scratch are removed; compact logs/PNG/gear
+evidence remain. Original fn_native SHA remains
+`09c939b9b440dd25a8c139dea7283253dcb9ea227bb7f0bfd845bee82ba2e4b3`.
 
-The preceding `native-pelican-aircraft-reference` run reached pickup but timed out
-because the input driver chased an exact seat marker despite the native entry
-prompt. Using ordinary Use on that actual prompt completes the flight; no gameplay
-seat admission changed. Earlier failed flight evidence is retained. Stopped runtime/
-map staging and BMP scratch are removed, compact logs/PNG/gear evidence retained;
-original fn_native SHA remains `09c939b9b440dd25a8c139dea7283253dcb9ea227bb7f0bfd845bee82ba2e4b3`.
-Next: reuse this exact candidate for two authenticated crew members, synchronized
-flight/banking and fresh-process redeployment. Full roadmap/P0 mission acceptance
-remain open; do not repeat unchanged fixture investigations.
+CI startup is externally blocked, not a compiler failure: the owner supplied
+GitHub's failed-payment/spending-limit annotation for Build `43918366727`,
+gate job `133478596699` (runner 0, no steps). No account spending is authorized.
+Local commit `569487db0d` makes Build/Web/Server Image manual-only, excludes
+Forerunner label runners and blocks its hosted cache writes, fixing inherited
+unguarded/duplicate cache actions. Twelve focused workflow cases pass, with the
+Web cache follow-up passing; the complete trust gate is unchanged. No hosted job
+was dispatched, rerun or pushed. These source restrictions only affect GitHub
+after the founder publishes them. The latest inspected repository state has no
+running/queued jobs or successful runs and no artifacts from the two inspected
+failed runs; account-wide charges and retained storage are not verified.
+The owner must retain an account Actions $0 budget with Stop usage enabled;
+the repository connection cannot inspect or change billing. Do not bypass this
+external block or claim hosted verification. Continue local engine development.
 
 Read-only Spark `da48414` still leaves its full aircraft-equipped Black Echo CE609
-delivery unfinished. Exact next authoring requirements and native source references
-are in `SPARK_INTEGRATION_CONTRACT.md`. Previously accepted two-account actual
-Black Echo combat/rescue/technology/Flood/defense and on-foot banking/restart remain
-accepted; they do not prove aircraft evacuation. P0 remains open; continue playable
-dropship work, not another audit, graphics pass or repeated unrelated tests.
+delivery unfinished. Exact next authoring requirements and source references are
+in `SPARK_INTEGRATION_CONTRACT.md`. Previously accepted actual Black Echo two-account
+combat/rescue/technology/Flood/defense and on-foot banking/restart remain accepted;
+they do not prove aircraft evacuation. Next native milestone: the real aircraft-
+equipped Spark mission and compatible Spirit roundtrip, then independent squads
+and the complete roadmap. Preserve this passing fixture rather than rebuilding
+or rerunning it without a changed dependency or reproduced regression.
 
 Previous accepted checkpoint (base `b813f9611e`): faction selection now refreshes only that
 local viewer's native objective markers from the existing co-op HUD cache.

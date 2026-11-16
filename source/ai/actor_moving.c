@@ -3503,11 +3503,16 @@ void actor_move_update(
 		if (plane)
 		{
 			struct unit_datum *ship = vehicle_get(actor->input.vehicle_index);
-			real arrival = 2.f * MAX(plane->ai_avoidance_distance, plane->ai_pathfinding_radius);
-			plane_landing = !actor->control.moving ||
-				(actor->control.path.path.valid && !actor->control.path.destination_orders.keep_moving &&
-				 TEST_FLAG(ship->object.flags, _object_on_ground_bit) &&
-				 magnitude_squared3d(&actor->control.moving_towards_vector) <= arrival * arrival);
+			plane_landing = !actor->control.moving && !actor->control.path.path.valid;
+			if (actor->control.path.path.valid && !actor->control.path.destination_orders.keep_moving &&
+				TEST_FLAG(ship->object.flags, _object_on_ground_bit))
+			{
+				real radius = actor_destination_tolerance(actor_index);
+				real remaining = distance_squared2d(
+					(real_point2d const *)&actor->input.position.body_position,
+					(real_point2d const *)&actor->control.path.destination.point);
+				plane_landing = remaining <= radius * radius;
+			}
 		}
 	}
 	if (plane_landing)

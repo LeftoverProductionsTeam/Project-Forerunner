@@ -9,7 +9,8 @@
 ; extraction_pelican_called and extraction_pelican_landed (initially zero,
 ; not bound to control power/position). Landed is native ground/attitude feedback.
 ; tf_field/home require aircraft-scale cruise radii and precise final landing
-; points; validate each physical touchdown against its unchanged pad volume.
+; points in aircraft world-origin coordinates; validate each physical touchdown
+; against its unchanged pad volume. Both cameras use native object-relative offsets.
 ; tf_field/home are authored native flight commands; tf_wait uses a short
 ; pause followed by a native loop, not a pause that overflows a 16-bit timer.
 
@@ -48,7 +49,7 @@
   (cinematic_start)
   (player_enable_input false)
   (camera_control true)
-  (camera_set tf_insertion 0)
+  (camera_set_relative tf_insertion 0 extraction_pelican)
   (sleep 120)
   (camera_control false)
   (player_enable_input true)
@@ -62,7 +63,7 @@
   (cinematic_start)
   (player_enable_input false)
   (camera_control true)
-  (camera_set tf_departure 0)
+  (camera_set_relative tf_departure 0 extraction_pelican)
   (sleep 120)
   (camera_control false)
   (player_enable_input true)

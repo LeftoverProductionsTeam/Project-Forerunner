@@ -951,13 +951,31 @@ Use native keep-moving cruise points followed by a stop-at-point landing route;
 author cruise/final coordinates for the configured aircraft's native world origin,
 not its offset pilot seat. `actor_moving.c::actor_move_sample_plane_position` is
 called from the current native driver-input update; eyes/perception stay native.
-The tracked `tools/fixtures/extraction_transport_native.hsc` illustrates the
-handoff. Windows64/GL `build/native-pelican-physical-roundtrip` passes one
-authenticated player's physical insertion, pilot return/recall, evacuation boarding,
-departure camera, durable two-item bank and same-ID redeployment on the owned
-CE609 transport candidate `6b77d8ba6f32a5d17cc9c8c0854fcf9568b1210d17740f30957d4ef135cccc86`.
-No settlement volumes were widened; actual collision/boarding/settlement gates
-remain. Two-account flight/restart and Spark mission acceptance are still open.
+Final grounded arrival uses the existing native `actor_destination_tolerance`,
+horizontal aircraft-origin distance and actual collision contact. Idle descent
+does not cancel a valid native recovery path. Author final stop radii appropriate
+to the physical hull (four units for the owned Pelican), without enlarging hub/LZ
+settlement volumes. The tracked `tools/fixtures/extraction_transport_native.hsc`
+uses native object-relative insertion/departure cameras. Invader angle/FOV inputs
+are radians; derive orientation using Halo's `matrix4x3_rotation_to_angles`
+convention for the desired forward/up vectors rather than assuming yaw/pitch/zero
+roll preserves a level camera. Spark's existing `engine_machinima.rs` and
+`scenario_logic_readback.rs` already use native radian camera data.
+
+Windows64/GL `build/native-delta-transport-complete-crew/result.json` passes two
+distinct authenticated players' normal boarding, seated insertion, native pilot
+return/recall/landing, evacuation boarding, departure camera, durable four-unique-
+item banking across two owners and same-ID redeployment after fresh processes.
+CE609 SHA256 `dccd58c9d9703ae5702aaf6df363d163f38b7dc4c7b28940fd6a417447ab2c2b`;
+binary `54414ece225094553a99beb42345fcfc21eeaa4b120aa5ca1736e1d8951f10cd`;
+source base `a3c820a142` plus the grounded-arrival/camera changes. Existing
+comparison: 244/9 player seconds, zero divergences; 248/13 item snapshots, zero
+out of step. Both departure PNGs were inspected; original credentials are unchanged.
+This accepts the owned Pelican transport fixture, not Spark's full mission,
+Spirit, other platforms, human gameplay or headset acceptance. No settlement
+volumes, physics/boarding rules, owner identity or durable settlement gates were
+bypassed. Current checkpoint and hosted CI/billing limits are recorded once in
+`FORERUNNER_MASTER_LEDGER.md`.
 Read-only Spark review at `da48414` finds native route authoring/readback and
 HSC-symbol compilation, but its current runtime handoff explicitly leaves the
 complete aircraft-equipped Black Echo CE609 package uncompiled/unaccepted.
