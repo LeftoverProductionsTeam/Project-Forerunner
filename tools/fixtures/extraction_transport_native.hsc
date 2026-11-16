@@ -7,7 +7,7 @@
 ; Marine native_squad, hub/LZ volumes, deploy/activate controls, two cameras
 ; and dedicated native device groups extraction_pelican_boarded and
 ; extraction_pelican_called (initially zero, not bound to control power/position).
-; tf_field/home/hold are authored native flight commands; tf_wait uses a short
+; tf_field/home are authored native flight commands; tf_wait uses a short
 ; pause followed by a native loop, not a pause that overflows a 16-bit timer.
 
 (global boolean tf_banked false)
@@ -114,13 +114,20 @@
   (unit_set_enterable_by_player extraction_pelican true)
   (sleep_until (not (tf_player_seated)) 1)
   (print "transport: passenger disembarked; native pilot departing")
-  ; Calling extraction must not depend on the pilot reaching its holding
-  ; waypoint. Keep the flight/boarding gate separate from the native control.
+  ; Keep calls available while the empty craft returns to staging. A real
+  ; per-player request stays asserted until pickup; no extra queue is needed.
   (device_set_power extraction_activate 1)
   (unit_set_enterable_by_player extraction_pelican false)
   (unit_close extraction_pelican)
   (vehicle_hover extraction_pelican false)
-  (ai_command_list be_marines/native_squad tf_hold)
+  (ai_command_list be_marines/native_squad tf_home)
+  (sleep_until (volume_test_objects extraction_return extraction_pelican) 1)
+  (ai_command_list be_marines/native_squad tf_wait)
+  (vehicle_hover extraction_pelican true)
+  (print "transport: empty craft staged; waiting for extraction request")
+  ; A queued request can already be high. Yield so native physics samples the
+  ; hover brake before pickup clears it again; this does not authorize recovery.
+  (sleep 1)
   ; A shared call control can be used by either faction. Only a real current
   ; UNSC request may recall the Pelican; Spirit scripts consume their own
   ; extraction_spirit_called group through the same native runtime path.
@@ -129,7 +136,7 @@
   ; Native activation continues while the pilot approaches. Boarding readiness
   ; still requires every requesting passenger's countdown and actual seat;
   ; this call signal alone never authorizes departure or recovery.
-  (sleep_until (not (volume_test_objects extraction_zone extraction_pelican)) 1)
+  (vehicle_hover extraction_pelican false)
   (ai_command_list be_marines/native_squad tf_field)
   (sleep_until (volume_test_objects extraction_zone extraction_pelican) 1)
   (ai_command_list be_marines/native_squad tf_wait)
