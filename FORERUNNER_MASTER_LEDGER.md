@@ -16,7 +16,42 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current P0 checkpoint (source base `a3c820a142`): two distinct authenticated Delta
+Current P0 checkpoint (source base `39ca3cd9a7`): the existing native transport
+HSC now shares one configurable flight/boarding/settlement loop for Pelican or
+Spirit. It resolves the named craft when used (globals initialize before objects
+are placed), tests the single aircraft directly, recognizes both native passenger
+seat families and exports both existing durable-completion callbacks. Rejected
+hub bindings now report the actual faction/profile/body/signal indices; no
+admission, identity, flight, collision or bank gate was weakened.
+
+Windows64 compiles (`build/native-spirit-admission-build.log`); both native HSC
+bindings compile. `build/native-delta-spirit-normal-controls/result.json` passes
+two distinct authenticated Delta players selecting Covenant/Grunt, preparing real
+equipment, normal boarding, seated insertion, native landing/disembarkation, empty
+hub return, recall, pickup landing, physical evacuation boarding, departure camera,
+loaded hub return and banking one unique item per owner. Fresh native processes
+redeploy the same two saved IDs with matching actual weapons. Existing comparison:
+390/89 player seconds, no divergences under its existing tolerances; one transient
+18-degree aiming mismatch in the operation, none after restart. Item comparison:
+394/93 snapshots, zero out of step. Both departure PNGs were inspected.
+CE609 SHA256 `bc2b80b52d519e166c318bd1d8c24a585c1b94a7965222a3fb10524ddc2b5f25`;
+binary `a6360793da5abebfc251268bf1a95959c9bb5335432419d5b3906c1730d12650`.
+This accepts the owned transport fixture, not the complete Spark mission, combat/
+rescue in this cache, opposing simultaneous squads, other platforms or human/VR
+acceptance. The previously accepted Pelican cache and original fn_native are unchanged.
+
+The owned Spirit uses its actual native model/animation/collision/physics, a
+compatible Grunt pilot variant whose graph supports its exact driver label, and
+a measured AI throttle budget of 0.30. The initial 0.65 approach coasted outside
+the pad. Hub/LZ volumes were not enlarged. Authored duplicate groups and a missing
+pilot animation label were corrected in disposable content. Input-driver repairs
+(crew preparation order, ordinary button approach and stick-step tolerance) are
+verification overhead, not engine features; no new test framework was added.
+All stopped runtime/map staging and BMP scratch are removed; compact logs, PNGs,
+owned source tags and gear evidence remain. Original identity files are unchanged.
+No hosted CI run, push or publication was requested. Full roadmap remains active.
+
+Accepted Pelican checkpoint (source base `a3c820a142`): two distinct authenticated Delta
 clients complete the physical Pelican roundtrip in the owned Windows64/GL fixture
 `build/native-delta-transport-complete-crew/result.json`. Both normally board,
 fly/land/disembark, request extraction, board the returning aircraft, depart through
@@ -64,12 +99,14 @@ The owner must retain an account Actions $0 budget with Stop usage enabled;
 the repository connection cannot inspect or change billing. Do not bypass this
 external block or claim hosted verification. Continue local engine development.
 
-Read-only Spark `da48414` still leaves its full aircraft-equipped Black Echo CE609
-delivery unfinished. Exact next authoring requirements and source references are
+Read-only Spark `e2879a6` now includes reviewed aircraft append/cache readback
+and `returnAfterInsertion` empty-return/recall controller authoring. Its own current
+handoff still explicitly lacks the complete combined Black Echo CE609 flight
+package; marker caches and controller-syntax probes are separate evidence. Exact next authoring requirements and source references are
 in `SPARK_INTEGRATION_CONTRACT.md`. Previously accepted actual Black Echo two-account
 combat/rescue/technology/Flood/defense and on-foot banking/restart remain accepted;
 they do not prove aircraft evacuation. Next native milestone: the real aircraft-
-equipped Spark mission and compatible Spirit roundtrip, then independent squads
+equipped Spark mission, then independent squads
 and the complete roadmap. Preserve this passing fixture rather than rebuilding
 or rerunning it without a changed dependency or reproduced regression.
 

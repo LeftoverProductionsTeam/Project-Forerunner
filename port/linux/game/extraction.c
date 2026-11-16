@@ -603,6 +603,16 @@ finished:
 		extraction.admitted ? "admitted" : "unavailable", extraction.deploy_name,
 		extraction.activate_name, extraction.return_zone, extraction.zone,
 		extraction.dropship_names[0], extraction.dropship_names[1]);
+	if (!extraction.admitted)
+	{
+		platform_log("extraction: rejected hub bindings unique %d loadout %d debrief %d starts %ld",
+			unique, loadout != NULL, debrief != NULL, global_scenario->players.count);
+		for (faction = 0; faction < 2; faction++)
+			platform_log("extraction: faction %d choice %d profile %d body %08lx boarded %d called %d landed %d",
+				faction, choices[faction] != NULL, extraction.faction_profiles[faction],
+				(unsigned long)extraction.faction_bipeds[faction], extraction.dropship_boarding_groups[faction],
+				extraction.dropship_call_groups[faction], extraction.dropship_landing_groups[faction]);
+	}
 	if (extraction.survival)
 	{
 		/* Reuse the native controls, volumes and settlement. Finite encounters

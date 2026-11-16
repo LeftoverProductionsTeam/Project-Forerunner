@@ -976,15 +976,40 @@ Spirit, other platforms, human gameplay or headset acceptance. No settlement
 volumes, physics/boarding rules, owner identity or durable settlement gates were
 bypassed. Current checkpoint and hosted CI/billing limits are recorded once in
 `FORERUNNER_MASTER_LEDGER.md`.
-Read-only Spark review at `da48414` finds native route authoring/readback and
-HSC-symbol compilation, but its current runtime handoff explicitly leaves the
-complete aircraft-equipped Black Echo CE609 package uncompiled/unaccepted.
-Next Spark delivery: matching reviewed native tag inputs, real hub/LZ placements,
-Marine pilot/crew, usable Pelican/Spirit seats, measured approach/landing/return
-routes, these dedicated device groups and native boarding/camera/settlement
-scripts in the complete mission. Synthetic route coordinates and a two-vehicle
-binding fixture are not that delivery. Forerunner's older accepted actual Black
-Echo run remains on-foot extraction, not proof of aircraft evacuation.
+The same tracked HSC now configures the craft, AI squad/team, exact driver-seat
+label and matching boarded/called/landed groups without a second controller. Its
+native vehicle getter resolves the name after placement and on later calls; do
+not cache a vehicle in a global initializer before objects exist. Single-aircraft
+arrival uses native `volume_test_object`, avoiding temporary object-list casts.
+Both native bindings compile; Windows64/GL `build/native-delta-spirit-normal-controls`
+also passes two authenticated Covenant/Grunt players' complete physical Spirit
+trip, durable banking of two distinct items and fresh-process same-ID redeployment.
+The current checkpoint records exact cache/binary hashes, synchronization figures,
+the transient aiming mismatch and the distinction from full mission acceptance.
+
+Pilot admission remains native `source/units/units.c::{vehicle_scripting_load_magic,
+unit_set_or_test_seat_and_weapon_label}`. Its animation graph must contain the
+vehicle's exact driver label. Stock Grunts have Spirit passenger poses, not
+`c_dropship driver`. The owned probe uses an isolated pilot biped/actor variant
+and a native passenger-seat animation alias in its copied graph, leaving original
+tags and player Grunt animations untouched. Author an equivalent compatible pilot;
+do not force players into seats or bypass graph compatibility. The owned Spirit's
+AI throttle budget is 0.30 after measured coast at 0.65; tune each real aircraft/
+route against its physics and actual pads instead of copying a universal speed.
+
+Read-only Spark `e2879a6` already implements reviewed aircraft append/readback
+and `src/haloScript.ts` `returnAfterInsertion` empty hub return/recall authoring.
+Reuse it. Its `docs/RUNTIME_INTEGRATION_20261107.md` explicitly separates the
+aircraft-append marker cache `214f2cb6...` and compiled controller syntax from a
+new complete Black Echo cache. Next Spark delivery: compose these existing
+controllers with the real mission, compatible pilots and seats, measured hub/LZ/
+approach/departure routes, native relative cameras and mission objectives; fix
+the reported off-BSP Flood start; compile and independently read back that combined
+CE609 package. Reuse existing signal groups uniquely instead of appending duplicates.
+Synthetic marker coordinates and syntax-only probes do not satisfy this handoff.
+Previously accepted actual Black Echo combat/rescue/technology/Flood/defense and
+on-foot banking/restart remain accepted; aircraft evacuation in that mission,
+independent squads, other platforms and human/headset acceptance remain open.
 
 Optional dedicated groups `extraction_pelican_called` / `extraction_spirit_called`
 separate requests made at the shared activation control. The host derives each
