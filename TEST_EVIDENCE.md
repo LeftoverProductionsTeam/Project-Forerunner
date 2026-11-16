@@ -12,6 +12,42 @@ recorded. Full gameplay, stress, VR hardware, MegaWorld and release acceptance
 remain separate final-phase gates. Current work prioritizes native operations
 gameplay, authoritative gear, revival and co-op stability.
 
+15 November, authenticated native death/loot/bank (base `f9b6d8dc5f`):
+`build/native-delta-death-loot` uses normal controller grenade inputs and observes
+real death, loss, hub respawn/new deployment and survivor pickup. Its input driver
+initially mistakes an unparented holstered weapon for a ground item, then the
+bounded run stops before the second bank. Player/AI comparison passes, but the
+unchanged item checker fails: at tick 360, held technology item 5 appears 100.2
+world units apart because the old log prints scene parent NONE for both copies
+and compares their meaningless stowed positions. This is retained failure evidence.
+
+`network_test.c::network_test_item_holder` now reads the actual native inventory
+for holstered weapons, requiring attached/nonworld state, matching player ownership
+and a unique carrier. A readied weapon without its scene attachment remains unheld;
+ground items, stale full-owner handles and ambiguous claims are not normalized away.
+No gameplay state, comparison tolerance, packet or protocol version changes.
+The existing replica harness passes 35 related cases including nine holder cases;
+old-parent-only and hidden-readied-orphan fault controls both fail as required.
+Incremental Windows64 passes (`build/native-item-holder-build.log`), executable
+SHA-256 `ebe2064750c43173b3126c18b44e3215e833a3cc304b6259743a5ad5af09ef65`.
+
+`build/native-delta-death-bank/result.json` then verifies two distinct bound Delta
+accounts through controller-caused death at tick 1110, authored hub respawn at
+1200, explicit new deployment and survivor ownership of the original dropped
+object at 1530. The original failed run is lost; both new/current runs physically
+activate extraction, return, bank and wake the native settled-survivor callback.
+The original technology item's saved ID occurs once under the survivor's different
+account and nowhere in the former owner's bank. Fresh engine processes reserve the
+same four unique serialized item records; both native views show both equipped
+living players with matching ammo after the grants. Comparison passes unchanged:
+103 player seconds, 108 actor snapshots/510 unit comparisons, 107 item snapshots,
+zero item mismatches, 17/19 new host items sampled; no native exception. Original
+identity files remain unchanged. Runtime/map copies and 595.3 MiB of BMP scratch
+from both runs are removed, retaining six exact PNGs and compact logs/records.
+This seeds previously banked disposable fixture records and uses a bankable empty
+technology weapon placeholder. It does not certify fresh Spark quest collection,
+revival, opposing PvPvE/factions, broad crash recovery or other platforms/VR.
+
 15 November, Extraction live rejoin (base `37bdd12f3a`):
 `build/native-delta-live-reconnect` proves hub-disconnect bank preservation and
 authenticated live rejoin, but its movement driver is blocked by the host's body.

@@ -16,36 +16,33 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Authenticated banking (base `839a1a7962`): actual deployment exposed a host lookup
-through `distributed_player_machine`, whose native table contains remote clients
-only. `extraction_owner` now uses the local host's authoritative native machine
-membership and still requires a verified, bound Delta proof. The corrected fixture
-reproduces the old refusal; 77 connected workflows and incremental Windows64
-compilation pass. `build/native-delta-extraction-inputs` completes two-account
-deployment/combat/rescue/collection/Flood/defense, ten-second extraction activation,
-physical return and durable banking; fresh processes reserve the exact four unique
-item records again (each owner generation 4 idle 2/0/0 to generation 6 deployed
-0/2/0). `build/native-delta-extraction-readback` additionally waits for both native
-clients to observe the redeployed weapons and matching ammunition. A refused host
-confirmation write safely refunds/retries; the final host generation is 8, client
-6, with the same four serialized items and no extra stash/reservation. Ordinary
-starter-weapon ammo pickups after deployment are distinct from saved quantities.
-Both authenticated combat runs pass existing player/AI/item checks. This is the
-owned CE regression fixture, not Spark's finished Black Echo. Actual-death/crash,
-broader reconnect and faction dropship acceptance remain open.
+Authenticated operations: local host and remote players use verified, bound Delta
+accounts; offline profile owners remain separate. `37bdd12f3a` fixes host lookup
+and NPC loot authority; `f9b6d8dc5f` retains authored hub starts on live rejoin while
+preserving campaign/intro/cinematic gates. Existing refund, pending-death, inventory,
+medical and disconnect safeguards remain; no identity fallback or new protocol.
+`build/native-delta-extraction-readback` verifies two-account combat/escape/bank/
+process-restart/redeployment. `build/native-delta-hub-reconnect` verifies bank
+preservation on hub disconnect, hub rejoin while the host stays in the field,
+deployment, disconnect loss and another rejoin without refund.
 
-Live reconnect (base `37bdd12f3a`): the first-life co-op path still relocated new
-players beside field teammates despite Extraction's existing hub death/wipe path.
-It now retains authored hub starts and does not wait for room beside teammates;
-level-opening and cinematic waits remain. Existing death-timing/spawn-policy checks
-and incremental Windows64 pass. `build/native-delta-hub-reconnect` verifies a
-private live host with two actual Delta accounts: hub disconnect preserves both
-seeded native bank records; rejoin spawns at the hub while the host stays in the
-field; deployment uses the same saved item bytes; deployed disconnect settles an
-explicit lost outcome; another rejoin refunds nothing and leaves the host's stash
-unchanged. This uses previous owned native bank records as fixtures, not a new
-mission completion. Original identity files remain unchanged and scratch runtimes/
-maps are removed. Spark mission, actual death and cross-platform acceptance remain open.
+`build/native-delta-death-bank` extends the owned native fixture through actual
+grenade death, explicit loss, hub respawn/new deployment, survivor pickup of the
+original dropped object, both physical escapes/banks, process restart and native
+equipment readback. That item's saved identity changes accounts exactly once;
+four unique banked item records redeploy byte-identically. Unchanged player/AI/item
+comparisons pass (103 player seconds, 107 item snapshots, zero mismatches).
+The necessary source repair is diagnostic: native holstered items have no scene
+parent, so the existing logger now resolves their actual inventory carrier while
+leaving readied orphans and bad/ambiguous ownership visible. Thirty-five related
+native helper cases, two fault controls and incremental Windows64 pass. Gameplay
+rules and packet formats are unchanged. Earlier failures remain in `TEST_EVIDENCE.md`.
+These runs seed earlier owned native bank records, not original user inventories;
+the bankable technology weapon is a regression placeholder, not Spark's accepted
+quest content. Original identity files stay unchanged; runtime/map/BMP scratch is
+removed with compact native evidence retained. Spark's actual mission, broader
+crash/reconnect, factions/dropships, independent squads and other-platform/VR
+acceptance remain open.
 
 Six independent instances: the NPC drop repair now passes the unchanged native
 player/AI/item comparisons on all five clients in

@@ -124,6 +124,7 @@ def generated(fault=None):
         "distributed_vector_valid", "distributed_transform_valid", "network_objects_client_has"))
     code += "\n" + "\n".join(function(players, name) for name in (
         "network_player_detach_unit", "network_player_attach_unit"))
+    code += "\n" + function(read("port/linux/game/network_test.c"), "network_test_item_holder")
     code += "\n" + "\n".join(function(units, name) for name in (
         "unit_kill", "unit_kill_silent", "unit_kill_no_statistics",
         "unit_drop_current_weapon", "unit_drop_inventory_weapons",
@@ -184,6 +185,8 @@ def test_reconstructed_unit_rejects_old_life_kill():
 
 
 @pytest.mark.parametrize("case", [
+    "item-holder-readied", "item-holder-stowed", "item-holder-orphan", "item-holder-ground", "item-holder-unmarked",
+    "item-holder-owner", "item-holder-ambiguous", "item-holder-corpse", "item-holder-vehicle",
     "inventory-ammo-firing", "inventory-ammo-reload", "inventory-ammo-second-local",
     "death-grenades-client", "death-grenades-host", "death-grenades-extra-client", "death-grenades-extra-host",
     "weapon-drop-client", "weapon-drop-host", "weapon-drop-local", "weapon-drop-player", "weapon-drop-vehicle",
@@ -262,6 +265,10 @@ def test_feigned_state_negative_control(before, after, case):
 
 
 @pytest.mark.parametrize("before,after,case", [
+    ("if (holder != NONE || object->object.type != _object_type_weapon)",
+     "if (TRUE || object->object.type != _object_type_weapon)", "item-holder-stowed"),
+    ("slot == unit->unit.current_weapon_index || unit->unit.weapon_object_indices[slot] != object_index",
+     "unit->unit.weapon_object_indices[slot] != object_index", "item-holder-orphan"),
     ("!distributed_client_change_valid(change, &forward, &up)",
      "(forward=change->forward, up=change->up, FALSE)", "invalid-tag"),
     ("objects_client_has[absolute_index] == change->object_index)", "TRUE)", "stale-delete"),

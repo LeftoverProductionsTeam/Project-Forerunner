@@ -1602,6 +1602,45 @@ static void network_test_log_actors(
 	}
 }
 
+/* Native holstered weapons are in an inventory without a scene parent.
+ * Report their unique actual carrier; their stored position is not a world
+ * position. Readied weapons still need their scene attachment. Ground items
+ * and stale/ambiguous inventory claims stay unheld. */
+static long network_test_item_holder(long object_index)
+{
+	struct object_datum *object = object_get(object_index);
+	struct weapon_datum *weapon;
+	struct object_iterator iterator;
+	long holder = object->object.parent_object_index;
+
+	if (holder != NONE || object->object.type != _object_type_weapon)
+		return holder;
+	weapon = weapon_get(object_index);
+	if (!TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit) ||
+		TEST_FLAG(object->object.flags, _object_connected_to_map_bit))
+		return NONE;
+	object_iterator_new(&iterator, _object_mask_unit, 0);
+	while (object_iterator_next(&iterator))
+	{
+		struct unit_datum *unit = unit_get(iterator.index);
+		short slot;
+
+		if (unit->unit.player_index != NONE &&
+			(!TEST_FLAG(weapon->item.flags, _item_belongs_to_player_bit) ||
+			 object->object.owner_player_index != unit->unit.player_index))
+			continue;
+		for (slot = 0; slot < MAXIMUM_WEAPONS_PER_UNIT; slot++)
+		{
+			if (slot == unit->unit.current_weapon_index || unit->unit.weapon_object_indices[slot] != object_index)
+				continue;
+			if (holder != NONE && holder != iterator.index)
+				return NONE;
+			holder = iterator.index;
+		}
+	}
+	return holder;
+}
+
 /* debug.network_test_items: every weapon, equipment and vehicle this
 machine has ("network test: item <game time> <absolute index> <x> <y> <z>
 <holder's absolute index or -1> <at rest> <tag>"), and the host's the
@@ -1639,7 +1678,7 @@ static void network_test_log_items(
 	while (object_iterator_next(&iterator))
 	{
 		struct object_datum *object = object_get(iterator.index);
-		long parent = object->object.parent_object_index;
+		long parent = network_test_item_holder(iterator.index);
 
 		platform_log("network test: item %ld %ld %.2f %.2f %.2f %ld %d %s", time,
 			(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index), (double)object->object.position.x,

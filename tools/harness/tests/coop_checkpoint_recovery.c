@@ -590,6 +590,40 @@ static int exercise(char const *name) {
     setup();change=description(index);
     network_objects_handle_changes(&change,1);finish_snapshot();CHECK(constructed==1,"initial replica");
     corpse=object_get(index);state=live_state(index);
+    if(!strncmp(name,"item-holder-",12)) {
+        long expected=index;
+        long secondary=add_replica(5,_object_type_weapon);
+        weapon=add_replica(4,_object_type_weapon);inventory=inventory_for(index,weapon);
+        inventory.weapon_indices[1]=secondary;
+        distributed_client_apply_inventory(&inventory);
+        corpse->unit.player_index=player_index;
+        object_get(weapon)->object.owner_player_index=player_index;
+        SET_FLAG(object_get(weapon)->item.flags,_item_attached_to_unit_bit,TRUE);
+        SET_FLAG(object_get(weapon)->item.flags,_item_belongs_to_player_bit,TRUE);
+        SET_FLAG(object_get(weapon)->object.flags,_object_connected_to_map_bit,FALSE);
+        corpse->unit.current_weapon_index=!strcmp(name,"item-holder-readied")||!strcmp(name,"item-holder-orphan")?0:1;
+        if(strcmp(name,"item-holder-readied"))object_detach(weapon);
+        if(!strcmp(name,"item-holder-orphan"))expected=NONE;
+        if(!strcmp(name,"item-holder-ground")) {
+            SET_FLAG(object_get(weapon)->object.flags,_object_connected_to_map_bit,TRUE);expected=NONE;
+        }
+        if(!strcmp(name,"item-holder-unmarked")) {
+            SET_FLAG(object_get(weapon)->item.flags,_item_attached_to_unit_bit,FALSE);expected=NONE;
+        }
+        if(!strcmp(name,"item-holder-owner")) {
+            object_get(weapon)->object.owner_player_index=player_index^0x10000;expected=NONE;
+        }
+        if(!strcmp(name,"item-holder-ambiguous")) {
+            long other=add_replica(6,_object_type_biped);
+            unit_get(other)->unit.weapon_object_indices[0]=weapon;expected=NONE;
+        }
+        if(!strcmp(name,"item-holder-corpse")) {
+            corpse->unit.player_index=NONE;SET_FLAG(corpse->object.damage_flags,_object_dead_bit,TRUE);
+        }
+        if(!strcmp(name,"item-holder-vehicle"))corpse->object.type=_object_type_vehicle;
+        CHECK(network_test_item_holder(weapon)==expected,"native item readback confused stowed, world or stale ownership");
+        return 0;
+    }
     if(!strncmp(name,"weapon-drop-",12)) {
         long secondary=add_replica(5,_object_type_weapon);
         boolean authoritative=!strcmp(name,"weapon-drop-client")||!strcmp(name,"weapon-drop-corpse");
