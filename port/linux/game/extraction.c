@@ -860,6 +860,30 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 	return index;
 }
 
+boolean extraction_transport_can_board(long unit_index, long vehicle_index)
+{
+	struct unit_datum *unit, *vehicle;
+	struct player_datum *player;
+	short faction;
+	if (!extraction_requested() || !extraction.bound || !extraction.admitted) return TRUE;
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.dropship_names[faction] != NONE &&
+			object_index_from_name_index(extraction.dropship_names[faction]) == vehicle_index) break;
+	if (faction == 2) return TRUE; /* No restrictions on ordinary native vehicles. */
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_unit);
+	if (!unit) return FALSE;
+	if (unit->unit.player_index == NONE) return TRUE; /* Authored NPC crews. */
+	player = player_try_and_get(unit->unit.player_index);
+	vehicle = (struct unit_datum *)object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle);
+	return player && player->unit_index == unit_index && !player->quit_out_of_game &&
+		vehicle && !TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) && !extraction_unit_pending_death(vehicle) &&
+		vehicle->object.body_vitality > 0.0f &&
+		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
+		!extraction_unit_pending_death(unit) && !extraction_medical_incapacitated(unit_index) &&
+		extraction_faction(unit->object.owner_team_index) == faction &&
+		extraction_faction((short)player->team_index) == faction;
+}
+
 static boolean extraction_at_return(struct extraction_run const *run, long unit_index)
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);

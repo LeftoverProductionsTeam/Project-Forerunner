@@ -1302,6 +1302,29 @@ boolean unit_get_seat_entrance_point(
 							&animation_seat->animations)
 								[_unit_seat_animation_seat_enter].animation_index;
 
+						short root_frame = 0;
+						boolean exit_only = FALSE;
+						/* port: campaign passengers can have only an exit clip.
+						 * Native unit_enter_seat already handles no entry animation;
+						 * expose its real approach using the existing exit endpoint.
+						 * NPC behavior and authored entry clips stay unchanged. */
+						if (animation_index == NONE && unit->unit.player_index != NONE &&
+							animation_seat->animations.count > _unit_seat_animation_seat_exit)
+						{
+							short exit_index = animation_graph_animation_index_get(&animation_seat->animations)
+								[_unit_seat_animation_seat_exit].animation_index;
+							if (VALID_INDEX(exit_index, animation_graph->animations.count))
+							{
+								struct animation *exit_animation = TAG_BLOCK_GET_ELEMENT(
+									&animation_graph->animations, exit_index, struct animation);
+								if (exit_animation->frame_count > 0)
+								{
+									animation_index = exit_index;
+									root_frame = exit_animation->frame_count - 1;
+									exit_only = TRUE;
+								}
+							}
+						}
 						/* port: an animation the graph has (a map's index) */
 						if (VALID_INDEX(animation_index, animation_graph->animations.count))
 						{
@@ -1310,12 +1333,12 @@ boolean unit_get_seat_entrance_point(
 								animation_index,
 								struct animation);
 
-							object_get_marker_by_name(
+							if (object_get_marker_by_name(
 								target_unit_index,
 								seat->marker_name,
 								&seat_marker,
-								1);
-							animation_get_root_matrix(model, animation, 0, &root_matrix);
+								1) <= 0 && exit_only) break;
+							animation_get_root_matrix(model, animation, root_frame, &root_matrix);
 							matrix4x3_multiply(
 								&seat_marker.matrix,
 								&root_matrix,
@@ -3110,6 +3133,15 @@ boolean unit_can_enter_seat(
 	long occupant_index = NONE;
 	boolean result = TRUE;
 	long child_object_index;
+
+	/* port: optional Extraction transports use the same faction assignment
+	 * for physical admission and banking. Refusal exposes no occupied seat
+	 * that the native interaction path could offer to evict an NPC from. */
+	if (!extraction_transport_can_board(unit_index, target_unit_index))
+	{
+		if (occupant_unit_index) *occupant_unit_index = NONE;
+		return FALSE;
+	}
 
 	if (unit_index==target_unit_index)
 	{

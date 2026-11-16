@@ -664,6 +664,10 @@ static void network_test_log_boarding(long player_index, long unit_index)
 	struct unit_datum *unit = unit_get(unit_index);
 	struct object_iterator iterator;
 	struct unit_datum *vehicle;
+	if (unit->object.parent_object_index != NONE)
+		platform_log("network test: seated %ld %ld %08lx seat %d",
+			game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index),
+			(unsigned long)unit->object.parent_object_index, (int)unit->unit.parent_seat_index);
 	object_iterator_new(&iterator, _object_mask_vehicle, 0);
 	while ((vehicle = object_iterator_next(&iterator)) != NULL)
 	{
@@ -685,11 +689,12 @@ static void network_test_log_boarding(long player_index, long unit_index)
 					distance = candidate; closest = seat_index; best_entrance = entrance; best_seat = seat;
 				}
 			}
-		platform_log("network test: boarding %ld %ld %08lx seat %d distance %.3f entrance %.3f %.3f %.3f target %.3f %.3f %.3f speed %.3f turning %.3f up %.3f locked %d action %d",
+		platform_log("network test: boarding %ld %ld %08lx seat %d distance %.3f entrance %.3f %.3f %.3f target %.3f %.3f %.3f speed %.3f turning %.3f up %.3f locked %d action %d health %.3f damage %08lx",
 			game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index), (unsigned long)iterator.index,
 			(int)closest, distance, best_entrance.x, best_entrance.y, best_entrance.z, best_seat.x, best_seat.y, best_seat.z,
 			magnitude3d(&unit->object.translational_velocity), magnitude3d(&vehicle->object.angular_velocity), vehicle->object.up.k,
-			TEST_FLAG(vehicle->unit.flags, _unit_not_enterable_by_player_bit) ? 1 : 0, (int)player_get(player_index)->action_result);
+			TEST_FLAG(vehicle->unit.flags, _unit_not_enterable_by_player_bit) ? 1 : 0, (int)player_get(player_index)->action_result,
+			vehicle->object.body_vitality, (unsigned long)vehicle->object.damage_flags);
 	}
 }
 

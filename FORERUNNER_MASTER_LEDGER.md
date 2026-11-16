@@ -16,22 +16,25 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `5442b04906`): native faction body selection now connects
-authored not-automatic biped templates, existing player attachment/replication,
-compatible original weapon transfers, body-aware stash selection/reservation and
-native respawn profiles. Incompatible saved gear stays available for a later
-compatible character; no save/protocol version changes. Windows64 compilation,
-134 connected workflows, 18 gear transactions and two defect controls pass.
-`build/native-delta-faction-body-banking` verifies two authenticated clients
-choosing Spartan/Grunt, receiving AR/plasma-pistol kits, banking, restarting and
-redeploying the same two saved IDs. Player comparisons pass for 143/55 seconds,
-items for 147/59 snapshots; no mismatch/exception, original identity files unchanged.
-Two driver issues were corrected without engine patches/rebuilding the candidate.
-Owned runtime/map copies and 619,322,004B of stopped-run BMP scratch are removed;
-two lossless frames retained. Actual respawn, other bipeds/platforms/VR, faction
-objectives and aircraft compatibility remain unverified. Contract updated in place.
-Next transport requirement remains authored approach/landing/departure and real
-boarding/banking acceptance, including Spirit; no new flight manager or editor.
+Current checkpoint (base `770f0c65b2`): actual faction-specific native boarding
+now works for Spartan/Pelican and Grunt/Spirit. Native seat admission enforces the
+assigned craft; campaign passenger graphs with no entry clip reuse their real exit
+endpoint and Halo's existing attachment path. Ordinary entry clips/NPC behavior
+remain unchanged. Windows64, focused admission/geometry regressions and two
+original-defect controls pass. `build/native-delta-faction-boarding-sync` verifies
+two authenticated players choosing their bodies/kits, physically boarding separate
+craft and normally disembarking. Both views agree on full parent handles/seats;
+player comparisons pass for 92 seconds, items for 96 snapshots, no mismatch/halt.
+Gear bytes stay deployed/unchanged: boarding grants no bank/reward. Single-owner
+Spirit smoke also passes; the earlier stale input and missing-entry-clip defect
+are preserved in compact evidence. Original identity files unchanged; owned
+runtime/maps and 393,220,320B of BMP scratch removed, two lossless frames retained.
+The previously accepted two-account body/kit banking/restart remains at
+`build/native-delta-faction-body-banking` and commit `770f0c65b2`.
+Next: authored approach/landing/departure and full aircraft banking/cinematic
+acceptance; static boarding is not that milestone. Spirit flight, native faction
+respawn, other bodies/platforms, human play and VR remain unverified. Contract
+updated in place; no new controller, renderer, inventory or multiplayer protocol.
 
 Accepted transport repeat checkpoint (base `0c32af94de`): repeatable aircraft scripts now separate
 one-time pilot setup from the trip loop, park continuous camera/crew handlers until

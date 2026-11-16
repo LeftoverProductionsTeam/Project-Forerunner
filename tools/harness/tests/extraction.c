@@ -43,7 +43,7 @@ struct tag_reference {long index;};
 #include "native_teams.inc"
 #include "medical_hud_types.inc"
 #include "equipment_ownership.inc"
-struct object_fields { long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
+struct object_fields { long first_child_object_index, next_object_index; short type; long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
@@ -67,7 +67,7 @@ struct game_globals { struct tag_block grenades; };
 struct control_definition { struct { short triggers_when,type;real call_value;
  struct {long index;} on_effect,off_effect,denied_effect; } control; };
 struct scenario_object_name { char name[32]; short runtime_object_type,runtime_scenario_datum_index; };
-struct unit_definition { struct { struct tag_block seats; } unit; };
+struct unit_definition {struct {struct tag_block seats;} unit;struct {struct tag_reference model,animation_graph;} object;};
 struct scenario_trigger_volume { char name[32]; };
 #include "mission_types.inc"
 #include "profile_types.inc"
@@ -91,9 +91,9 @@ static short body_creations,fail_body_create;
 static long incompatible_body_weapon=NONE;
 static struct unit_datum dropships[2];
 static long dropship_handles[2]={0x10014,0x10015};
-static struct unit_definition dropship_tag={{{2,NULL}}};
+static struct unit_definition dropship_tag={{{2,NULL}}},character_tag;
 static boolean native_cinematic;
-static struct unit_definition *unit_definition_get(long index) { CHECK(index==300,"native vehicle definition");return &dropship_tag; }
+static struct unit_definition *unit_definition_get(long index) { if(index==4||index==5)return &character_tag;CHECK(index==300,"native vehicle definition");return &dropship_tag; }
 static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
 static short weapon_count, fail_allocate, fail_attach;
@@ -321,6 +321,37 @@ static void *data_iterator_next(struct data_iterator *i) { if(i->next>=active_pl
 #include "equipment_flags.inc"
 #include "equipment.inc"
 #include "extraction.inc"
+static struct object_datum *object_get(long index) {return (struct object_datum *)unit_get(index);}
+#include "native_seat_animation_types.inc"
+#define TAG_STRING_LENGTH 32
+#define csstrncpy strncpy
+#define csstrcat strcat
+typedef struct {real_point3d position;} real_matrix4x3;
+struct object_marker {real_matrix4x3 matrix;};
+struct model {int unused;};
+struct animation {short frame_count;};
+struct animation_graph_animation_index {short animation_index;};
+struct animation_graph_unit_seat {char label[32];struct tag_block animations;};
+struct animation_graph {struct tag_block unit_seats,animations;};
+struct unit_seat {char label[32],marker_name[32];};
+static struct unit_seat native_seat;
+static struct animation_graph_unit_seat native_animation_seat;
+static struct animation_graph_animation_index native_animation_indices[12];
+static struct animation native_animations[2];
+static struct animation_graph native_animation_graph;
+static struct model native_model;
+static short observed_root_frame=NONE;
+static boolean native_seat_marker=TRUE;
+static struct model *model_definition_get(long index) {(void)index;return &native_model;}
+static struct animation_graph *animation_graph_definition_get(long index) {(void)index;return &native_animation_graph;}
+static struct animation_graph_animation_index *animation_graph_animation_index_get(struct tag_block *block) {return block->address;}
+static long object_get_marker_by_name(long index,char const *name,struct object_marker *marker,short count)
+{(void)index;(void)name;(void)count;marker->matrix.position=(real_point3d){10,20,30};return native_seat_marker?1:0;}
+static void animation_get_root_matrix(struct model *model,struct animation *animation,short frame,real_matrix4x3 *root)
+{(void)model;CHECK(frame>=0&&frame<animation->frame_count,"root frame outside native clip");observed_root_frame=frame;root->position=(real_point3d){(real)frame,0,0};}
+static void matrix4x3_multiply(real_matrix4x3 const *a,real_matrix4x3 const *b,real_matrix4x3 *out)
+{out->position=(real_point3d){a->position.x+b->position.x,a->position.y+b->position.y,a->position.z+b->position.z};}
+#include "native_seats.inc"
 #include "controls.inc"
 
 static struct hud_waypoint_arrow medical_arrows[2]={{"default"},{"target_blue"}};
@@ -410,8 +441,32 @@ static void enable_factions(boolean ships)
 }
 int main(int argc,char **argv)
 {
- char const *case_name=argv[1]; long a; short before;
+ char const *case_name=argv[1]; long a; short before,i;
  initialize();
+ if(!strncmp(case_name,"seat-entrance-",14)) {
+  real_point3d entry={1,2,3},seat={1,2,3},hint={1,2,3};boolean expected;
+  dropships[0].definition_index=300;dropship_tag.unit.seats.count=1;dropship_tag.unit.seats.address=&native_seat;
+  strcpy(native_seat.label,"CD-passengerL01");strcpy(native_seat.marker_name,"CD-passengerL01");
+  strcpy(native_animation_seat.label,native_seat.label);
+  native_animation_seat.animations.count=12;native_animation_seat.animations.address=native_animation_indices;
+  for(i=0;i<12;i++)native_animation_indices[i].animation_index=NONE;
+  native_animation_indices[_unit_seat_animation_seat_exit].animation_index=0;
+  native_animations[0].frame_count=native_animations[1].frame_count=10;
+  native_animation_graph.unit_seats=(struct tag_block){1,&native_animation_seat};
+  native_animation_graph.animations=(struct tag_block){2,native_animations};
+  if(!strcmp(case_name,"seat-entrance-normal")||!strcmp(case_name,"seat-entrance-normal-marker"))native_animation_indices[_unit_seat_animation_seat_enter].animation_index=1;
+  if(!strcmp(case_name,"seat-entrance-npc"))units[0].unit.player_index=NONE;
+  if(!strcmp(case_name,"seat-entrance-corrupt"))native_animation_indices[_unit_seat_animation_seat_enter].animation_index=2;
+  if(!strcmp(case_name,"seat-entrance-missing"))native_animation_indices[_unit_seat_animation_seat_exit].animation_index=NONE;
+  if(!strcmp(case_name,"seat-entrance-zero"))native_animations[0].frame_count=0;
+  if(!strcmp(case_name,"seat-entrance-marker")||!strcmp(case_name,"seat-entrance-normal-marker"))native_seat_marker=FALSE;
+  expected=!strcmp(case_name,"seat-entrance-exit")||!strcmp(case_name,"seat-entrance-normal")||!strcmp(case_name,"seat-entrance-normal-marker");
+  CHECK(unit_get_seat_entrance_point(unit_handles[0],dropship_handles[0],0,&entry,&seat,&hint)==expected,"native exit-only admission differs");
+  if(expected)CHECK(observed_root_frame==(!strncmp(case_name,"seat-entrance-normal",20)?0:9)&&
+   entry.x==10+observed_root_frame&&seat.x==10&&hint.x==10,"native entrance used the wrong endpoint/marker");
+  else CHECK(entry.x==1&&seat.x==1&&hint.x==1&&observed_root_frame==NONE,"refused seat changed output or read invalid frames");
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"body-",5)) {
   long old=players[0].unit_index,b,body;struct unit_datum *unit;short i,profile,variant;long definition;
   byte saved_id[GEAR_ID_BYTES];unsigned long generation;
@@ -610,6 +665,44 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"transport-boarded-duplicate")||!strcmp(case_name,"transport-boarded-capacity")||
      !strcmp(case_name,"transport-boarded-missing")||!strcmp(case_name,"transport-boarded-alias")) {
    CHECK(!extraction_owns_map()&&!boarding_changes,"invalid output binding changed native controls or admitted the hub");return 0;
+  }
+  if(!strncmp(case_name,"transport-admission-",20)) {
+   long occupant=77;
+   for(a=0;a<2;a++){dropships[a].object.first_child_object_index=NONE;units[a].object.first_child_object_index=NONE;}
+   players[0].team_index=_game_team_player;units[0].object.owner_team_index=_game_team_player;
+   if(!strcmp(case_name,"transport-admission-npc")) {
+    units[0].unit.player_index=NONE;units[0].object.owner_team_index=_game_team_covenant;
+    CHECK(unit_can_enter_seat(unit_handles[0],dropship_handles[0],0,NULL)&&unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"authored NPC pilot admission changed");
+   } else if(!strcmp(case_name,"transport-admission-authority")) {
+    connection=_game_connection_network_client;
+    CHECK(unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"client rejected authoritative seat replay");
+    connection=_game_connection_network_server;enabled=FALSE;
+    CHECK(unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"disabled Extraction changed native admission");
+   } else if(!strcmp(case_name,"transport-admission-owner")) {
+    players[0].unit_index=unit_handles[1];CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"stale player body boarded");
+    players[0].unit_index=unit_handles[0];players[0].quit_out_of_game=TRUE;CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"departed owner boarded");
+    players[0].quit_out_of_game=FALSE;units[0].unit.player_index=player_handles[0]+0x10000;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"reused player salt boarded");
+   } else if(!strcmp(case_name,"transport-admission-death")) {
+    units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"pending death boarded");
+    units[0].object.damage_flags=0;dropships[0].object.damage_flags=FLAG(_object_dead_bit);
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"dead transport admitted passengers");
+   } else if(!strcmp(case_name,"transport-admission-ordinary")) {
+    CHECK(unit_can_enter_seat(unit_handles[0],unit_handles[1],0,NULL),"ordinary native target admission changed");
+   } else if(!strcmp(case_name,"transport-admission-occupied")) {
+    dropships[0].object.first_child_object_index=unit_handles[1];units[1].object.next_object_index=NONE;
+    units[1].unit.parent_seat_index=0;units[1].unit.player_index=NONE;
+    units[0].object.owner_team_index=_game_team_covenant;players[0].team_index=_game_team_covenant;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,&occupant)&&occupant==NONE,"wrong faction exposed an occupied seat to NPC eviction");
+    units[0].object.owner_team_index=_game_team_player;players[0].team_index=_game_team_player;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,&occupant)&&occupant==unit_handles[1],"native occupied-seat reporting changed");
+   } else {
+    CHECK(unit_can_enter_seat(unit_handles[0],craft,0,NULL)&&!unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"UNSC could board wrong faction transport");
+    units[0].object.owner_team_index=_game_team_covenant;players[0].team_index=_game_team_covenant;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL)&&unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"Covenant could board wrong faction transport");
+    players[0].team_index=_game_team_player;CHECK(!unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"inconsistent native allegiance boarded");
+   }
+   extraction_reset();return 0;
   }
   if(!strncmp(case_name,"transport-boarded",17)) {
    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"authored stale boarding outputs survived binding");

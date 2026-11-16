@@ -24,6 +24,9 @@ boolean extraction_player_spawn_profile(long player_index, long *biped, short *p
  * actions. FALSE preserves ordinary controls and the authored state/effect
  * transition after successful deployment or activation, for native HaloScript. */
 boolean extraction_control_touched(long control_index, long unit_index);
+/* Host-only admission for opted-in named transports. Ordinary vehicles, NPC
+ * pilots and authoritative client seat replay keep the native path. */
+boolean extraction_transport_can_board(long unit_index, long vehicle_index);
 /* The existing Firefight director delays lobby return only while a living
  * winner's shared gear recovery is pending. No extra wave/lives director. */
 boolean extraction_survival_settlement_pending(void);

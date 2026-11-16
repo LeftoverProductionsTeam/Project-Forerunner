@@ -59,6 +59,9 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('device_binding.inc', structure(devices, 'scenario_device_group') + '\n' +
                   function(devices, 'device_group_find_named')))
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
+    files.append(('native_seat_animation_types.inc', enum_with(read('source/units/units.h'), '_unit_seat_animation_airborne_dead')))
+    files.append(('native_seats.inc', '\n'.join(function(read('source/units/units.c'), name) for name in (
+        'unit_can_enter_seat', 'unit_get_seat_entrance_point'))))
     files.append(('controls.inc', '\n'.join((function(devices, 'device_can_change_position'),
                                             function(controls, 'control_toggle'), function(controls, 'control_touched')))))
     return tuple(files)
@@ -94,6 +97,8 @@ def test_extraction_workflow(case):
 
 @pytest.mark.parametrize('case', [
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
+    'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
+    'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-missing-faction', 'transport-seat', 'transport-stale', 'transport-wrong-faction',
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
     'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
@@ -130,6 +135,33 @@ def test_native_transport_boarding_negative_control(file, before, after, case):
     files = tuple((name, mutated(text, before, after)) if name == file else (name, text)
                   for name, text in generated())
     status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('case', [
+    'seat-entrance-exit', 'seat-entrance-normal', 'seat-entrance-normal-marker', 'seat-entrance-npc',
+    'seat-entrance-corrupt', 'seat-entrance-missing', 'seat-entrance-zero', 'seat-entrance-marker',
+])
+def test_native_seat_entrance_workflow(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+def test_native_seat_entrance_negative_control():
+    files = tuple((name, mutated(text,
+        'if (animation_index == NONE && unit->unit.player_index != NONE &&',
+        'if (FALSE &&')) if name == 'native_seats.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), 'seat-entrance-exit')
+    assert status == CHECK_FAILED, output
+
+
+def test_native_transport_admission_negative_control():
+    files = tuple((name, mutated(text,
+        'if (!extraction_transport_can_board(unit_index, target_unit_index))',
+        'if (FALSE)')) if name == 'native_seats.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), 'transport-admission-factions')
     assert status == CHECK_FAILED, output
 
 

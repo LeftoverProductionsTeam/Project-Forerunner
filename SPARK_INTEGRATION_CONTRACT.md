@@ -969,10 +969,34 @@ are unchanged; runtime/map copies and BMP scratch are removed, two lossless
 frames retained. Earlier driver probes failed to finish: Spartan-height aiming,
 then a stuck input phase; neither required an engine patch or candidate rebuild.
 Stash filtering/rollback and respawn selection are automated evidence; native
-death/respawn, other bipeds, faction objectives, aircraft seat/flight compatibility,
+death/respawn, other bipeds, faction objectives, completed aircraft flights,
 other platforms and VR remain unverified. First-person hands/HUD stay map-native.
 Spark must supply compatible character animations, native seat labels, faction
 objectives and actual approach/landing/departure content for transport acceptance.
+
+Physical boarding continuation (base `770f0c65b2`, 16 November): existing native
+`unit_can_enter_seat` now enforces assigned Pelican/Spirit factions for actual
+player bodies through `extraction.c::extraction_transport_can_board`. NPC crews,
+ordinary vehicles and authoritative client replay retain their native paths.
+For player-controlled campaign bodies with a missing entry clip but a valid exit
+clip/seat marker, `units.c::unit_get_seat_entrance_point` uses the exit endpoint
+as the approach. Native proximity, Use, actual attachment, seating and exit still
+own the interaction; entry without a clip uses Halo's existing immediate attachment.
+Authored entry clips and NPC behavior are preserved. Spark should retain native
+seat labels/markers and compatible animation graphs; no new tag format or protocol.
+
+Windows64 compilation, focused regression cases and two original-defect controls
+pass. `build/native-delta-faction-boarding-sync` verifies two authenticated clients
+choosing Grunt/Spartan, deploying their kits, normally boarding separate Spirit/
+Pelican seats and disembarking. Both views agree on exact full parent handles and
+seat indices; player comparisons pass for 92 seconds, item comparisons for 96
+snapshots, with no mismatch/exception. Gear bytes remain deployed/unchanged, with
+no banking. A single-owner Spirit smoke also passes. Earlier stale probe input
+and the native exit-only entry defect are recorded separately. Original identity
+files are unchanged; runtime/map copies and 393,220,320B of BMP scratch are removed,
+two lossless frames retained. This accepts bounded Windows native boarding only;
+approach/landing flight, cinematics, return banking, Spirit insertion, human play,
+other bodies/platforms and VR acceptance remain open.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.
