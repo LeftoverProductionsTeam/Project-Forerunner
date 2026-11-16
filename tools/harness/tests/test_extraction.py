@@ -85,10 +85,23 @@ def test_extraction_workflow(case):
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
     'transport-missing-faction', 'transport-seat', 'transport-stale', 'transport-wrong-faction',
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
+    'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
+    'transport-callback-pending', 'transport-callback-signature', 'transport-callback-replaced',
 ])
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)
     assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('if (!returned || pending) continue;', 'if (!returned) continue;', 'transport-callback-pending'),
+    ('if (run->dropship != ship) continue;', 'if (FALSE) continue;', 'transport-callback-other'),
+])
+def test_native_transport_release_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
 
 
 @pytest.mark.parametrize('case', [

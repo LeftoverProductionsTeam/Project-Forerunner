@@ -38,6 +38,16 @@ defect controls pass; incremental Windows64 compilation passes. Source:
 This is compiled/automated evidence, not native flight acceptance. The fixture's
 AI recall still misses the LZ; actual authored flight/landing data remains needed.
 
+Transport crew continuation (base `4ab2ec2c31`): native Pelican/Spirit settlement
+wakes are now independent of whole-operation completion. Real boarded receipts
+group each crew; pending durable settlement/loss waits, and another craft or field
+player cannot hold its release. The owned aircraft HSC consumes the Pelican wake.
+Windows64 compilation, six new connected cases (106 total workflows), two defect
+controls and native HSC compilation pass. Build evidence is
+`build/native-transport-release-build.log` and the existing aircraft fixture's
+`transport-release-script.log`. Actual flight/callback gameplay remains unverified;
+the unchanged recall route was not rerun. No new protocol or flight manager.
+
 Accepted Black Echo checkpoint (base `71b761be02`): Spark `ac3f144` supplies a reproducible
 CE609 candidate. Forerunner reproduced its exact `08389ed4...` cache and independent
 scenario/HSC readbacks, then completed the two-account native operation with fresh

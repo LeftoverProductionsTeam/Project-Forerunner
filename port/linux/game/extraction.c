@@ -74,6 +74,7 @@ static struct
 	boolean survival, evacuation, completion_notified;
 	short deploy_name, activate_name, loadout_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
+	long dropship_completed[2]; /* full native handles; rearmed by actual LZ boarding */
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	long last_tick;
 } extraction;
@@ -221,6 +222,7 @@ void extraction_reset(void)
 	memset(&extraction, 0, sizeof(extraction));
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.last_tick = NONE;
@@ -331,6 +333,7 @@ static void extraction_bind(void)
 	extraction.evacuation = FALSE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
@@ -789,6 +792,7 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 			scenario_trigger_volume_test_object(extraction.return_zone, dropship)) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
+		extraction.dropship_completed[extraction_faction(run->dropship_team)] = NONE;
 		extraction_tell(run, "BOARDED | Stay aboard through departure. Recovery follows arrival and the authored cinematic.");
 		return FALSE;
 	}
@@ -911,6 +915,50 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 }
 
+static boolean extraction_wake_completion(char const *name)
+{
+	short index;
+	for (index = 0; index < MIN(global_scenario->hs_scripts.count, SHORT_MAX); index++)
+	{
+		struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&global_scenario->hs_scripts, index, struct hs_script);
+		if (!strcmp(script->name, name) && script->script_type == _hs_script_dormant && script->return_type == _hs_type_void)
+			return hs_wake_by_name(name);
+	}
+	return FALSE;
+}
+
+static void extraction_transport_completions(void)
+{
+	short faction, index;
+	for (faction = 0; faction < 2; faction++)
+	{
+		long ship;
+		boolean returned = FALSE, pending = FALSE;
+		if (extraction.dropship_names[faction] == NONE) continue;
+		ship = object_index_from_name_index(extraction.dropship_names[faction]);
+		if (ship == NONE || ship == extraction.dropship_completed[faction] ||
+			!object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) continue;
+		/* Only this ship's actual boarded crew participates. Other squads,
+		 * unboarded field players and another craft do not own its release.
+		 * A failed/departed run grants nothing; uncertain banking still waits. */
+		for (index = 0; index < NUMBEROF(extraction_runs); index++)
+		{
+			struct extraction_run const *run = &extraction_runs[index];
+			struct player_datum *player;
+			if (run->dropship != ship) continue;
+			player = player_try_and_get(run->player);
+			if (!player || player->quit_out_of_game) continue;
+			if (run->phase == _extraction_returned) returned = TRUE;
+			else if (run->phase == _extraction_ready || run->phase == _extraction_settling ||
+				run->phase == _extraction_losing) pending = TRUE;
+		}
+		if (!returned || pending) continue;
+		extraction.dropship_completed[faction] = ship;
+		if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete"))
+			platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
+	}
+}
+
 void extraction_update(void)
 {
 	struct data_iterator iterator;
@@ -978,23 +1026,15 @@ void extraction_update(void)
 		player = player_try_and_get(extraction_runs[index].player);
 		if (extraction_runs[index].player != NONE && (!player || player->quit_out_of_game)) extraction_run_close(&extraction_runs[index]);
 	}
+	extraction_transport_completions();
 	/* The optional authored continuation runs once per fresh map, after actual
 	 * native consumption and durable banking for every living survivor. It
 	 * owns objectives only; gear remains owned by the existing settlement. */
 	if (!extraction.survival && !extraction.completion_notified && extraction_players_returned())
 	{
 		extraction.completion_notified = TRUE;
-		for (index = 0; index < MIN(global_scenario->hs_scripts.count, SHORT_MAX); index++)
-		{
-			struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&global_scenario->hs_scripts, index, struct hs_script);
-			if (!strcmp(script->name, "forerunner_extraction_complete") &&
-				script->script_type == _hs_script_dormant && script->return_type == _hs_type_void)
-			{
-				if (hs_wake_by_name("forerunner_extraction_complete"))
-					platform_log("extraction: all survivors banked; authored completion woken");
-				break;
-			}
-		}
+		if (extraction_wake_completion("forerunner_extraction_complete"))
+			platform_log("extraction: all survivors banked; authored completion woken");
 	}
 }
 

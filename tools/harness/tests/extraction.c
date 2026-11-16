@@ -105,9 +105,15 @@ static struct scenario_trigger_volume volumes[2] = { {"extraction_zone"}, {"extr
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
 static struct hs_script completion_script;
-static short completion_wakes;
+static struct hs_script transport_scripts[3];
+static short completion_wakes, transport_wakes[2];
 static boolean hs_wake_by_name(char const *name)
-{ CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;return TRUE; }
+{
+ if(!strcmp(name,"forerunner_pelican_complete"))transport_wakes[0]++;
+ else if(!strcmp(name,"forerunner_spirit_complete"))transport_wakes[1]++;
+ else {CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;}
+ return TRUE;
+}
 static struct scenario *global_scenario = &scenario;
 static struct scenario *global_scenario_get(void) {return global_scenario;}
 static boolean extra_grenades;
@@ -460,6 +466,52 @@ int main(int argc,char **argv)
    CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),"invalid transport banked owned equipment");return 0;
   }
   CHECK(run(0)->dropship==craft&&run(0)->phase==_extraction_ready,"real assigned LZ seat not recorded");
+  if(!strncmp(case_name,"transport-callback",18)) {
+   boolean other=!strcmp(case_name,"transport-callback-other");
+   boolean field=!strcmp(case_name,"transport-callback-field");
+   boolean pending=!strcmp(case_name,"transport-callback-pending");
+   short i;
+   for(i=0;i<3;i++) {
+    strcpy(transport_scripts[i].name,i==0?"forerunner_pelican_complete":i==1?"forerunner_spirit_complete":"forerunner_extraction_complete");
+    transport_scripts[i].script_type=_hs_script_dormant;transport_scripts[i].return_type=_hs_type_void;
+   }
+   if(!strcmp(case_name,"transport-callback-signature"))transport_scripts[0].script_type=_hs_script_continuous;
+   scenario.hs_scripts.count=3;scenario.hs_scripts.address=transport_scripts;
+   units[1].object.owner_team_index=other?_game_team_covenant:_game_team_player;
+   touch(0,1);pickup(1,2);units[1].object.position.x=20;
+   if(!field) {
+    touch(1,1);advance(300);
+    units[1].object.parent_object_index=dropship_handles[other?1:0];units[1].unit.parent_seat_index=1;advance(1);
+    CHECK(run(1)->dropship==dropship_handles[other?1:0],"second crew member did not board natively");
+   }
+   CHECK(!transport_wakes[0]&&!transport_wakes[1]&&!completion_wakes,"boarding alone released a transport");
+   dropships[0].object.position.x=0;
+   native_cinematic=TRUE;advance(1);
+   CHECK(!transport_wakes[0]&&!transport_wakes[1],"transport released during cinematic");
+   native_cinematic=FALSE;
+   if(pending) {
+    extraction_update_run(run(0),&players[0],++tick);
+    CHECK(run(0)->phase==_extraction_returned,"first crew member failed to bank");
+    fail_write=TRUE;advance(1);
+    CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[0],"unbanked same-ship crew released the aircraft");
+    fail_write=FALSE;advance(30);
+   } else if(!strcmp(case_name,"transport-callback-replaced")) {
+    dropship_handles[0]+=0x10000;
+    advance(1);
+    CHECK(!transport_wakes[0]&&run(0)->phase==_extraction_ready,"replacement ship inherited old crew settlement");
+    extraction_reset();return 0;
+   } else advance(1);
+   CHECK(run(0)->phase==_extraction_returned,"first transport did not bank crew");
+   CHECK(transport_wakes[0]==(!strcmp(case_name,"transport-callback-signature")?0:1),"wrong Pelican completion count");
+   CHECK(!transport_wakes[1],"Pelican released Spirit");
+   if(other||field)CHECK(!completion_wakes&&run(1)->phase!=_extraction_returned,"independent player completed the whole mission");
+   if(other) {
+    dropships[1].object.position.x=0;advance(1);
+    CHECK(transport_wakes[1]==1&&completion_wakes==1,"Spirit crew did not complete independently");
+   }
+   advance(60);CHECK(transport_wakes[0]<=1&&transport_wakes[1]<=1,"same arrival repeated a transport callback");
+   extraction_reset();return 0;
+  }
   advance(900);CHECK(run(0)->phase==_extraction_ready,"time alone extracted seated passengers");
   if(!strcmp(case_name,"transport-disembark"))units[0].object.parent_object_index=NONE;
   if(!strcmp(case_name,"transport-team-change"))units[0].object.owner_team_index=_game_team_flood;

@@ -17,9 +17,13 @@
   )
 )
 
-(script dormant forerunner_extraction_complete
+(script dormant forerunner_pelican_complete
   (set tf_banked true)
-  (print "transport: native equipment banked")
+  (print "transport: Pelican crew native equipment banked")
+)
+
+(script dormant forerunner_extraction_complete
+  (print "transport: all surviving crews native equipment banked")
 )
 
 (script dormant tf_insertion_camera

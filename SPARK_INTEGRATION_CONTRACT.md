@@ -849,8 +849,18 @@ uses the full salted handle; leaving/changing ships or factions cancels boarding
 credit. The existing escrow/consumption/bank path then runs once per player.
 Spark owns the real approach, usable seat entry, pilot/flight, camera/audio and
 insertion/objective scripts. Keep the craft alive at the return hub through the
-cinematic and settlement; release/unload it only after the existing completion
-callback. No new JSON, launcher, camera system or quest/reward writer. Current
+cinematic and settlement. Optional dormant-void scripts `forerunner_pelican_complete`
+and `forerunner_spirit_complete` receive a wake only after that actual ship's
+boarded crew has durably settled. Pending banking/loss delays release; unrelated
+field players and another craft do not. Full salted handles prevent replacement
+ships inheriting completion; actual LZ boarding rearms the next trip. Authored
+handlers must remain wakeable for repeat trips; a finished one-shot script is not
+restarted by native `wake`. The existing whole-operation callback is unchanged.
+Source: `extraction.c::{extraction_transport_completions,extraction_wake_completion}`.
+Windows64 compilation, six connected crew cases/two defect controls and native
+fixture HSC compilation pass; in-engine aircraft/callback acceptance is unverified.
+Release/unload a returning craft after its crew callback; the owned Pelican script
+now uses it. No new JSON, launcher, camera system or quest/reward writer. Current
 hub-only prototypes retain their old path and are not finished dropship Extraction.
 The native Pelican fixture now verifies normal passenger boarding, pilot-driven
 insertion, LZ arrival, disembarkation and extraction activation. Its recall route
