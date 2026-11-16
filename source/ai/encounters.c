@@ -312,6 +312,7 @@ symbols in this file:
 #include "structures/structure_bsp_definitions.h"
 #include "units/units.h"
 #include "coop_enemies.h" /* port: port/linux/game/coop_enemies.c */
+#include "extraction.h" /* port: opted-in operations retain nearby live player followers */
 
 #include <stddef.h>
 
@@ -3620,6 +3621,9 @@ static void encounter_update_follow(
 	long follow_unit_index = NONE;
 	short target_count = 0;
 	real_point3d follow_position;
+	/* Classic encounter follow ordering is preserved. Independent operations
+	 * opt into nearest live player selection through their existing hub. */
+	boolean operation_players = extraction_owns_map() && encounter->follow_target_type == _follow_target_players;
 
 	switch (encounter->follow_target_type)
 	{
@@ -3632,7 +3636,15 @@ static void encounter_update_follow(
 			while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 			{
 				if (player->unit_index != NONE && target_count < MAXIMUM_FOLLOW_TARGET_UNITS)
+				{
+					if (operation_players)
+					{
+						struct unit_datum *unit = unit_try_and_get(player->unit_index);
+						if (!unit || player->quit_out_of_game || unit->unit.player_index != iterator.datum_index ||
+							TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) continue;
+					}
 					target_unit_indices[target_count++] = player->unit_index;
+				}
 			}
 		}
 		break;
@@ -3754,6 +3766,7 @@ static void encounter_update_follow(
 			{
 				real target_distances_squared[MAXIMUM_FOLLOW_TARGET_UNITS];
 				real_point3d target_positions[MAXIMUM_FOLLOW_TARGET_UNITS];
+				real best_target_distance_squared = REAL_MAX;
 				struct encounter_actor_iterator iterator;
 				struct actor_datum *actor;
 				short target_index;
@@ -3782,8 +3795,9 @@ static void encounter_update_follow(
 
 				for (target_index = 0; target_index < target_count; target_index++)
 				{
-					if (target_distances_squared[target_index] < REAL_MAX)
+					if (target_distances_squared[target_index] < best_target_distance_squared)
 					{
+						if (operation_players) best_target_distance_squared = target_distances_squared[target_index];
 						follow_unit_index = target_unit_indices[target_index];
 						follow_position = target_positions[target_index];
 					}

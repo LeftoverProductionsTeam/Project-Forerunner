@@ -16,7 +16,24 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `f01c33a11b`): existing passenger receipts now reject
+Current checkpoint (base `51883fce31`): opted-in Extraction encounters using native
+`ai_follow_target_players` now choose the nearest living, correctly owned body.
+Classic campaign target ordering and explicit unit/AI targets remain unchanged;
+the native eight-target bound is retained. Windows64 compilation, 12 connected
+follow/migration cases (six simulated players, death/respawn, stale ownership,
+ties/tolerance and legacy behavior) and two defect controls pass. No squad manager,
+quest engine or network format was added. `build/native-delta-encounter-follow-native-guard`
+proves two authenticated clients and the expected field/hub encounter-group choices;
+unchanged player/item checks pass for 69 player seconds. Physical Marine return
+FAILS: net displacement 0.0108 units, and the unchanged actor comparator returns
+ERROR for no common tracked AI movement. Firing-context and guard-state fixture
+corrections did not solve movement; cause remains unresolved. Do not rerun this
+candidate without new navigation/state evidence. This is not a completed escort,
+independent squad objective system or six-client acceptance. Originals/identities
+are preserved; owned runtime/map staging and derivative follow cache are removed.
+The existing pending debrief source remains uncommitted and native-UI unverified.
+
+Accepted transport-crash checkpoint (base `f01c33a11b`): existing passenger receipts now reject
 all three native scheduled-death flags on their ship, matching physical admission.
 This closes an automated reproduction of banking a dying craft at the return pad.
 Windows64 compilation, 49 focused transport workflows and an original-defect

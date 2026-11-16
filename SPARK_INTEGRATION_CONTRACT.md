@@ -1046,6 +1046,16 @@ admission. The other player and unselected stash are preserved; issued gear is l
 the same binary and retained records. Detailed comparisons/cleanup and the corrected
 restart probe are in the current checkpoint and those run results. This is bounded
 Windows native acceptance; full aircraft, other bodies/platforms and human/VR remain open.
+Native follow continuation: admitted Extraction maps opt into nearest living,
+owned-player selection in `source/ai/encounters.c::encounter_update_follow`.
+Classic ordering, explicit unit/AI targets and the native eight-target limit remain.
+`ai_follow_target_players` / `ai_follow_target_unit` bind the whole encounter
+(`ai_script.c`), so separate escort groups need separate native encounters, not
+an assumed per-squad follow API. Windows64/12 connected cases/two defect controls
+pass; two authenticated clients verify group choices, but physical return fails
+in the owned fixture even with guard contexts/state. Navigation cause remains
+unresolved; independent Spartan squad membership/objectives are not implemented
+by this change. No new compiler opcode, discovery capability or protocol.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.
