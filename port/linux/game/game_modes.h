@@ -114,6 +114,8 @@ boolean game_modes_inventory_grenade_room(long player_index, short room[2]);
 /* Checks an already loaded weapon definition and exact carried quantities;
  * no tag import, ownership claim or grant. The current map owns its behavior. */
 boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapon const *item);
+/* Native animation/weapon admission for a staged or current body; no grant. */
+boolean game_modes_inventory_weapon_for_unit(long unit_index, struct game_modes_inventory_weapon const *item);
 boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *inventory);
 /* Add an authored equipment-only native profile after selected recovered gear.
  * No grants or stash changes; stored quantities take priority over starter kit.
@@ -121,6 +123,11 @@ boolean game_modes_inventory_loadout_valid(struct game_modes_inventory const *in
  * systems and are refused here, rather than silently changing their meaning. */
 boolean game_modes_inventory_starting_profile(short profile_index, short maximum_weapons,
 	short const grenade_room[2], struct game_modes_inventory *inventory);
+/* Idle hub character change: move original compatible weapons, leave incompatible
+ * carried items in the native world, and validate the next loadout before switching. */
+struct gear_session;
+boolean game_modes_player_change_biped(long player_index, long definition_index, short variant, short team,
+	short profile, struct gear_session *gear, short *dropped);
 boolean game_modes_inventory_apply(long player_index, struct game_modes_inventory const *inventory,
 	long created[GAME_MODES_INVENTORY_WEAPONS]);
 /* Same game-thread grant only: remove its exact provisional objects and, when

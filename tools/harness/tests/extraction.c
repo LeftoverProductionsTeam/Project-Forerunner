@@ -1,6 +1,7 @@
 /* Real Extraction + shared gear + native inventory operations in one bounded
  * world. No native rendering, packets, identity proof or AI is simulated here. */
 #define GEAR_FIXTURE_ONLY
+#define EXTRACTION_FIXTURE
 #include "gear.c"
 #include <wchar.h>
 #include <math.h>
@@ -17,12 +18,17 @@
 #define MAXIMUM_WEAPONS_PER_UNIT 4
 #define TICKS_PER_SECOND 30
 #define WEAPON_DEFINITION_TAG 1
+#define BIPED_DEFINITION_TAG 2
+typedef unsigned short word;
+typedef struct {real yaw,pitch,roll;} real_euler_angles3d;
+typedef struct {real r,g,b;} real_rgb_color;
 #define NETWORK_RULES_TIME_WINDOW_TICKS 450
 #define csmemset memset
 #define TAG_BLOCK_GET_ELEMENT(block,index,type) (&((type *)(block)->address)[index])
-enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _object_mask_vehicle=8, _object_type_vehicle=1,
+enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _object_mask_vehicle=8, _object_type_vehicle=1, _object_type_biped=0,
+ _object_mask_unit=_object_mask_biped|_object_mask_vehicle,
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
- _scenario_type_solo=0, _object_die_act_of_god_bit=1,
+ _object_die_act_of_god_bit=1,
  _object_die_act_of_god_silent_bit=2, _object_die_act_of_god_no_statistics_bit=3,
  _unit_control_crouch_modifier_bit=0, _unit_control_action_bit=6,
  _unit_control_weapon_reload_bit=10, _unit_control_weapon_primary_trigger_bit=11,
@@ -32,15 +38,18 @@ enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _obj
  _collision_test_front_facing_surfaces_bit=2, _collision_test_back_facing_surfaces_bit=3,
  _delta_capability_coop=6, _delta_capability_object_sync=17 };
 struct tag_block { long count; void *address; };
+struct tag_reference {long index;};
+#include "body_types.inc"
 #include "native_teams.inc"
 #include "medical_hud_types.inc"
 #include "equipment_ownership.inc"
 struct object_fields { long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
- real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; };
+ real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_datum { long definition_index; struct object_fields object;
- struct { long player_index, actor_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
-  signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags; } unit; };
+ struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
+  signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags,flags;
+  real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth; } unit; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { unsigned long flags; } item;
  struct { struct { short rounds_loaded, rounds_total; } magazines[2]; float age; } weapon; };
@@ -48,7 +57,8 @@ struct control_datum { long definition_index; struct object_fields object;
  struct {short position_group_index,power_group_index;unsigned short flags;} device; };
 #define device_datum control_datum
 struct device_group_datum {real actual_value;unsigned short flags;};
-struct player_datum { long unit_index,team_index; short local_player_index; boolean quit_out_of_game;
+struct player_datum { long unit_index,team_index,dead_unit_index,action_result,action_object_index; short local_player_index; boolean quit_out_of_game;
+ short powerup_durations[NUMBER_OF_PLAYER_POWERUPS];
  struct { short machine_index, controller_index; } network_player_data; };
 struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum, rounds_total_initial; };
@@ -56,15 +66,14 @@ struct game_globals_grenade { short maximum_count; };
 struct game_globals { struct tag_block grenades; };
 struct control_definition { struct { short triggers_when,type;real call_value;
  struct {long index;} on_effect,off_effect,denied_effect; } control; };
-struct scenario_object_name { char name[32]; short runtime_object_type; };
+struct scenario_object_name { char name[32]; short runtime_object_type,runtime_scenario_datum_index; };
 struct unit_definition { struct { struct tag_block seats; } unit; };
 struct scenario_trigger_volume { char name[32]; };
 #include "mission_types.inc"
-struct tag_reference {long index;};
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups; };
-struct object_placement_data { long definition_index; real_point3d position; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; };
+struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
 struct player_action { unsigned long control_flags; real primary_trigger; struct {real i,j;} throttle;
@@ -75,6 +84,11 @@ static struct player_datum players[8];
 static long player_handles[8] = { 0x10000, 0x10001, 0x10002, 0x10003, 0x10004, 0x10005, 0x10006, 0x10007 };
 static long unit_handles[8] = { 0x1000a, 0x1000b, 0x1000c, 0x1000d, 0x1000e, 0x1000f, 0x10010, 0x10011 };
 static struct unit_datum units[8];
+static struct unit_datum model_bodies[4];
+static long model_handles[4];
+static boolean original_deleted[8];
+static short body_creations,fail_body_create;
+static long incompatible_body_weapon=NONE;
 static struct unit_datum dropships[2];
 static long dropship_handles[2]={0x10014,0x10015};
 static struct unit_definition dropship_tag={{{2,NULL}}};
@@ -97,10 +111,12 @@ static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
 static long missing_tag = NONE, unusable_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
 static struct game_globals globals = { { 2, grenades } };
-static struct scenario_object_name names[7] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
+static struct scenario_object_name names[9] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
  {"extraction_pelican",_object_type_vehicle},{"extraction_spirit",_object_type_vehicle},
- {"extraction_unsc"},{"extraction_covenant"} };
+ {"extraction_unsc"},{"extraction_covenant"}, {"extraction_unsc_body",_object_type_biped,0},{"extraction_covenant_body",_object_type_biped,1} };
 static struct scenario_starting_profile faction_profiles[2];
+static struct scenario_object_datum body_placements[2];
+static struct scenario_object_palette_entry body_palette[2];
 static struct scenario_trigger_volume volumes[2] = { {"extraction_zone"}, {"extraction_return"} };
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
@@ -116,6 +132,12 @@ static boolean hs_wake_by_name(char const *name)
 }
 static struct scenario *global_scenario = &scenario;
 static struct scenario *global_scenario_get(void) {return global_scenario;}
+static struct tag_block *scenario_get_object_type_scenario_datums(struct scenario *s,short type,long *size)
+{CHECK(type==_object_type_biped,"unexpected template type");*size=sizeof(struct scenario_object_datum);return &s->bipeds;}
+static struct tag_block *scenario_get_object_type_scenario_palette(struct scenario *s,short type)
+{CHECK(type==_object_type_biped,"unexpected template palette");return &s->biped_palette;}
+static void *tag_block_get_element_with_size(struct tag_block *block,long index,long size)
+{CHECK(VALID_INDEX(index,block->count),"template outside native block");return (byte *)block->address+index*size;}
 #include "device_binding.inc"
 static struct scenario_device_group authored_groups[12];
 static short boarding_changes;
@@ -158,7 +180,8 @@ static void *object_try_and_get_and_verify_type(long h,long mask)
  short i;
  if(h==NONE) return NULL;
  for(i=0;i<2;i++) if(h==dropship_handles[i] && (mask&_object_mask_vehicle)) return &dropships[i];
- for(i=0;i<active_players;i++) if(h==unit_handles[i] && (mask&_object_mask_biped)) return &units[i];
+ for(i=0;i<active_players;i++) if(h==unit_handles[i] && !original_deleted[i] && (mask&_object_mask_biped)) return &units[i];
+ for(i=0;i<4;i++) if(model_handles[i]!=NONE && h==model_handles[i] && (mask&_object_mask_biped)) return &model_bodies[i];
  for(i=0;i<NUMBEROF(controls);i++) if(h==control_handles[i] && (mask&_object_mask_control)) return &controls[i];
  for(i=0;i<weapon_count;i++) if(h==weapons[i].handle && (mask&_object_mask_weapon)) return &weapons[i].datum;
  return NULL;
@@ -178,9 +201,10 @@ static boolean collision_test_vector(unsigned long flags,real_point3d const *fro
 { result->object_index=NONE; return wall; }
 static boolean weapon_is_flag(long h)
 { short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) return weapons[i].flag; return FALSE; }
-static char const *tag_get_name(long tag) { return tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
+static char const *tag_get_name(long tag) { return tag==4 ? "characters\\human" : tag==5 ? "characters\\covenant" : tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
 static long tag_loaded(long group,char const *path)
-{ long tag=!strcmp(path,tag_get_name(1)) ? 1 : !strcmp(path,tag_get_name(2)) ? 2 : NONE;
+{ long tag=group==BIPED_DEFINITION_TAG ? (!strcmp(path,tag_get_name(4))?4:!strcmp(path,tag_get_name(5))?5:NONE) :
+  !strcmp(path,tag_get_name(1)) ? 1 : !strcmp(path,tag_get_name(2)) ? 2 : NONE;
  return tag==missing_tag ? NONE : tag; }
 static struct weapon_definition *weapon_definition_get(long tag) { return &weapon_tag; }
 static struct game_globals *scenario_get_game_globals(void) { return &globals; }
@@ -188,15 +212,34 @@ static void object_placement_data_new(struct object_placement_data *p,long tag,l
 static long object_new(struct object_placement_data const *p)
 {
  short i;
+ if(p->definition_index==4 || p->definition_index==5) {
+  short j;struct unit_datum *u;
+  if(fail_body_create && !--fail_body_create)return NONE;
+  for(i=0;i<4;i++)if(model_handles[i]==NONE)break;
+  CHECK(i<4,"body pool full");u=&model_bodies[i];memset(u,0,sizeof(*u));
+  model_handles[i]=0x50060+(++body_creations)*0x10000+i;
+  u->definition_index=p->definition_index;u->object.position=p->position;u->object.bounding_sphere_center=p->position;
+  u->object.forward=p->forward;u->object.up=p->up;u->object.parent_object_index=NONE;
+  u->object.owner_player_index=p->owner_player_index;u->object.owner_team_index=p->owner_team_index;
+  u->object.body_vitality=u->object.shield_vitality=1;
+  u->unit.player_index=u->unit.actor_index=u->unit.equipment_object_index=NONE;
+  u->unit.current_weapon_index=u->unit.desired_weapon_index=u->unit.parent_seat_index=NONE;
+  for(j=0;j<4;j++)u->unit.weapon_object_indices[j]=NONE;
+  return model_handles[i];
+ }
  if(fail_allocate && !--fail_allocate) return NONE;
  i=weapon_count++; CHECK(i<96,"world full"); weapons[i].handle=0x10020+i;
  weapons[i].datum.definition_index=p->definition_index; weapons[i].datum.object.parent_object_index=NONE;
  weapons[i].datum.object.position=p->position; return weapons[i].handle;
 }
 static void object_delete(long h)
-{ short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) { weapons[i].handle=NONE; return; } }
+{ short i,j;for(i=0;i<4;i++)if(model_handles[i]!=NONE&&model_handles[i]==h) {
+   for(j=0;j<4;j++)CHECK(model_bodies[i].unit.weapon_object_indices[j]==NONE,"body deletion erased an original weapon");model_handles[i]=NONE;return;
+  }
+ for(i=0;i<active_players;i++)if(unit_handles[i]==h) {for(j=0;j<4;j++)CHECK(units[i].unit.weapon_object_indices[j]==NONE,"old body erased gear");original_deleted[i]=TRUE;return;}
+ for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) { weapons[i].handle=NONE; return; } }
 static boolean unit_can_use_weapon(long u,long w)
-{ unit_get(u); return weapon_get(w)->definition_index!=unusable_tag; }
+{ return weapon_get(w)->definition_index!=unusable_tag && !(unit_get(u)->definition_index==5 && weapon_get(w)->definition_index==incompatible_body_weapon); }
 static boolean unit_drop_weapon(long u,long w)
 {
  short i; struct unit_datum *unit=unit_get(u); struct weapon_datum *weapon=weapon_try_and_get(w);
@@ -217,6 +260,26 @@ static boolean unit_add_weapon_to_inventory(long u,long w,long mode)
   if(fail_confirm)fail_write=TRUE;if(publish_confirm)publish_failure=TRUE;return TRUE; }
  return FALSE;
 }
+static void unit_delete_all_weapons(long u)
+{short i;struct unit_datum *unit=unit_get(u);for(i=0;i<4;i++)if(unit->unit.weapon_object_indices[i]!=NONE) {
+ long w=unit->unit.weapon_object_indices[i];CHECK(unit_drop_weapon(u,w),"default weapon drop failed");object_delete(w);}}
+static void item_in_unit_inventory(long w,long u)
+{struct weapon_datum *item=weapon_get(w);item->object.owner_player_index=unit_get(u)->unit.player_index;
+ item->item.flags=FLAG(_item_attached_to_unit_bit)|(unit_get(u)->unit.player_index!=NONE?FLAG(_item_belongs_to_player_bit):0);}
+static real_rgb_color *game_engine_player_get_change_color(real_rgb_color *color,long player)
+{(void)player;color->r=color->g=color->b=1;return color;}
+static void placement_data_set_change_color(struct object_placement_data *placement,real_rgb_color const *color)
+{(void)placement;(void)color;}
+static boolean game_engine_has_teams(void) {return FALSE;}
+static void infection_reconcile_player(long player) {(void)player;}
+static void unit_set_actively_controlled(long unit,boolean enabled) {(void)enabled;unit_get(unit);}
+static void player_control_new_unit(short local,long unit) {(void)local;(void)unit;}
+static void observer_obsolete_position(short local) {(void)local;}
+static long local_player_get_player_index(short local);
+static long player_control_get_unit_index(short local) {return player_get(local_player_get_player_index(local))->unit_index;}
+#define datum_try_and_get(data,index) player_try_and_get(index)
+#include "body_binding.inc"
+#undef datum_try_and_get
 static short local_player_get_next(short index) { return index==NONE ? 0 : NONE; }
 static void hud_print_message(short local,wchar_t const *text) {
  short i;CHECK(local==0,"wrong local notice");CHECK(wcslen(text)<63,"native HUD record truncated a notice");
@@ -279,7 +342,7 @@ static short medical_markers(short local) {medical_draws=medical_traces=0;hud_re
 static void firefight_notice(char const *text) { extraction_notice(text); }
 #include "evacuation.inc"
 static void advance(short count) { while(count--) { tick++; extraction_update();firefight_try_evacuation(tick); } }
-static void touch(short control,short player) { control_touched(control_handles[control],unit_handles[player]); }
+static void touch(short control,short player) { control_touched(control_handles[control],players[player].unit_index); }
 static struct extraction_run *run(short player) { return &extraction_runs[player]; }
 static long pickup(short player,long tag)
 {
@@ -287,22 +350,25 @@ static long pickup(short player,long tag)
  object_placement_data_new(&p,tag,NONE); h=object_new(&p); CHECK(h!=NONE,"pickup allocation failed");
  weapon=weapon_get(h); weapon->weapon.age=.25f; weapon->weapon.magazines[0].rounds_loaded=7;
  weapon->weapon.magazines[0].rounds_total=63;
- CHECK(unit_add_weapon_to_inventory(unit_handles[player],h,0),"pickup failed"); return h;
+ CHECK(unit_add_weapon_to_inventory(players[player].unit_index,h,0),"pickup failed"); return h;
 }
 static void escape(short player)
 {
- units[player].object.position.x=20.f; touch(1,player); advance(300);
+ unit_get(players[player].unit_index)->object.position.x=20.f; touch(1,player); advance(300);
  CHECK(run(player)->phase==_extraction_ready,"signal not ready");
  advance(900); CHECK(run(player)->phase==_extraction_ready,"mandatory raid timer expired");
- units[player].object.position.x=0.f; advance(1);
+ unit_get(players[player].unit_index)->object.position.x=0.f; advance(1);
  CHECK(run(player)->phase==_extraction_returned,"escape did not settle");
 }
 static void initialize(void)
 {
  short i,j; connection=_game_connection_network_server;firefight.wave_limit=3;
+ for(i=0;i<4;i++)model_handles[i]=NONE;
  device_group_table.data=(byte *)device_groups;device_group_table.size=sizeof(device_groups[0]);device_group_table.maximum_count=NUMBEROF(device_groups);
  for(i=0;i<2;i++) {
   players[i].unit_index=unit_handles[i]; players[i].local_player_index=i ? NONE : 0;
+  units[i].definition_index=4;units[i].unit.equipment_object_index=NONE;
+  units[i].object.forward.i=1;units[i].object.up.k=1;
   players[i].network_player_data.controller_index=i ? 2 : 0; units[i].unit.player_index=player_handles[i];
   units[i].object.body_vitality=units[i].object.shield_vitality=1.f;
   units[i].object.parent_object_index=NONE;
@@ -346,6 +412,79 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before;
  initialize();
+ if(!strncmp(case_name,"body-",5)) {
+  long old=players[0].unit_index,b,body;struct unit_datum *unit;short i,profile,variant;long definition;
+  byte saved_id[GEAR_ID_BYTES];unsigned long generation;
+  if(!strcmp(case_name,"body-stash")) {touch(0,0);pickup(0,1);escape(0);memcpy(saved_id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES);}
+  enable_factions(FALSE);scenario.object_names.count=9;
+  scenario.bipeds.count=scenario.biped_palette.count=2;scenario.bipeds.address=body_placements;scenario.biped_palette.address=body_palette;
+  for(i=0;i<2;i++) {body_placements[i].name_index=7+i;body_placements[i].palette_entry_index=i;
+   body_placements[i].placement_flags=FLAG(_scenario_object_placement_not_automatic_bit);body_palette[i].reference.index=4+i;}
+  if(!strcmp(case_name,"body-binding"))names[8].runtime_object_type=_object_type_vehicle;
+  if(!strcmp(case_name,"body-placement"))body_placements[1].placement_flags=0;
+  if(!strcmp(case_name,"body-palette"))body_placements[1].palette_entry_index=2;
+  if(!strcmp(case_name,"body-duplicate"))strcpy(names[7].name,names[8].name);
+  if(!strcmp(case_name,"body-profile"))scenario.starting_profiles.count=1;
+  advance(1);
+  if(!strcmp(case_name,"body-binding")||!strcmp(case_name,"body-placement")||!strcmp(case_name,"body-palette")||
+     !strcmp(case_name,"body-duplicate")||!strcmp(case_name,"body-profile")) {
+   CHECK(!extraction_owns_map()&&!body_creations,"bad character binding admitted or created a body");return 0;
+  }
+  CHECK(extraction_owns_map(),"valid native character bindings refused");
+  if(!strcmp(case_name,"body-stash")) {
+   incompatible_body_weapon=1;touch(4,0);
+   CHECK(players[0].unit_index!=old&&run(0)->gear.record.count==1&&!run(0)->gear.record.reserved_count&&
+    !memcmp(saved_id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES),"character selection lost/reserved incompatible stash");
+   CHECK(unit_get(players[0].unit_index)->definition_index==5,"compatible kit could not change character");
+   touch(0,0);CHECK(run(0)->gear.record.count==1&&!run(0)->gear.record.reserved_count,"incompatible stash was reserved for a different body");
+   escape(0);CHECK(run(0)->gear.record.count==2&&gear_has(run(0)->gear.record.items,run(0)->gear.record.count,saved_id),"character run overwrote unselected stored gear");
+   touch(3,0);CHECK(unit_get(players[0].unit_index)->definition_index==4,"UNSC reselect failed");
+   touch(0,0);CHECK(gear_has(run(0)->gear.record.reserved,run(0)->gear.record.reserved_count,saved_id),"compatible body could not redeploy original stash item");
+   escape(0);CHECK(run(0)->gear.record.count==2&&gear_has(run(0)->gear.record.items,run(0)->gear.record.count,saved_id),"recovered original was duplicated/lost");
+   extraction_reset();return 0;
+  }
+  a=pickup(0,1);b=pickup(0,2);units[0].unit.current_weapon_index=1;
+  units[0].object.body_vitality=.4f;units[0].object.shield_vitality=.3f;
+  units[0].unit.grenade_counts[0]=2;units[0].unit.grenade_counts[1]=1;
+  units[0].unit.flags=FLAG(_unit_active_camouflaged_bit)|FLAG(_unit_super_camouflaged_bit);
+  units[0].unit.active_camouflage=.6f;players[0].powerup_durations[0]=300;
+  if(!strcmp(case_name,"body-local"))connection=_game_connection_local;
+  if(!strcmp(case_name,"body-allocation"))fail_body_create=1;
+  if(!strcmp(case_name,"body-preview"))unusable_tag=2;
+  if(!strcmp(case_name,"body-transfer"))fail_attach=1;
+  if(!strcmp(case_name,"body-flag"))weapons[0].flag=TRUE;
+  if(!strcmp(case_name,"body-item"))units[0].unit.equipment_object_index=0x700;
+  incompatible_body_weapon=1;touch(4,0);
+  if(!strcmp(case_name,"body-allocation")||!strcmp(case_name,"body-preview")||!strcmp(case_name,"body-transfer")||
+     !strcmp(case_name,"body-flag")||!strcmp(case_name,"body-item")) {
+   CHECK(players[0].unit_index==old&&players[0].team_index==_game_team_player&&!original_deleted[0],"failed model change replaced original player");
+   CHECK(weapon_try_and_get(a)&&weapon_try_and_get(b)&&run(0)->gear.record.phase==_gear_idle&&!run(0)->gear.record.reserved_count,
+    "failed model change erased originals or reserved gear");extraction_reset();return 0;
+  }
+  body=players[0].unit_index;unit=unit_get(body);
+  CHECK(body!=old&&unit->definition_index==5&&unit->unit.player_index==player_handles[0]&&players[0].team_index==_game_team_covenant&&original_deleted[0],"native player did not adopt selected body");
+  CHECK(weapon_get(a)->object.parent_object_index==NONE&&unit->unit.weapon_object_indices[0]==b&&weapon_get(b)->object.owner_player_index==player_handles[0],"character change copied, erased or misowned actual weapons");
+  CHECK(weapon_get(a)->weapon.magazines[0].rounds_loaded==7&&weapon_get(b)->weapon.magazines[0].rounds_total==63&&
+   unit->unit.desired_weapon_index==0,"character change refilled ammo or lost selected compatible weapon");
+  CHECK(unit->object.body_vitality==.4f&&unit->object.shield_vitality==.3f&&unit->unit.grenade_counts[0]==2&&unit->unit.grenade_counts[1]==1&&
+   unit->unit.active_camouflage==.6f&&TEST_FLAG(unit->unit.flags,_unit_super_camouflaged_bit)&&players[0].powerup_durations[0]==300,"character change healed, restocked or lost native powerup state");
+  before=body_creations;generation=run(0)->gear.record.generation;touch(4,0);
+  CHECK(players[0].unit_index==body&&body_creations==before&&run(0)->gear.record.generation==generation,"same selection recreated body or mutated stash");
+  if(!strcmp(case_name,"body-spawn")) {
+   definition=4;profile=NONE;variant=0;
+   CHECK(extraction_player_spawn_profile(player_handles[0],&definition,&profile,&variant)&&definition==5&&profile==1,"respawn lost native faction body/profile");
+   client=TRUE;connection=_game_connection_network_client;
+   CHECK(!extraction_player_spawn_profile(player_handles[0],&definition,&profile,&variant),"client overrode native spawn profile");
+   client=FALSE;connection=_game_connection_network_server;
+  } else {
+   touch(0,0);escape(0);CHECK(run(0)->gear.record.count==1,"selected character failed to bank native kit");
+   memcpy(saved_id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES);
+   touch(3,0);CHECK(unit_get(players[0].unit_index)->definition_index==4,"UNSC body could not be restored");
+   touch(0,0);CHECK(run(0)->gear.record.reserved_count==1&&!memcmp(saved_id,run(0)->gear.record.reserved[0].id,GEAR_ID_BYTES),"body change lost banked item identity");
+   escape(0);CHECK(run(0)->gear.record.count==2&&!memcmp(saved_id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES),"native role/deploy/bank loop duplicated or erased saved gear");
+  }
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"faction-",8)) {
   struct gear_record saved;long old_count;
   if(!strcmp(case_name,"faction-saved")||!strcmp(case_name,"faction-confirm")||!strcmp(case_name,"faction-reserve")) {

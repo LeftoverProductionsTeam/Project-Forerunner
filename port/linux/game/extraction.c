@@ -19,12 +19,15 @@
 #include "interface/hud_messaging.h"
 #include "interface/player_ui.h"
 #include "objects/objects.h"
+#include "objects/object_types.h"
 #include "objects/damage.h"
 #include "physics/collisions.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "tag_files/files.h"
 #include "tag_files/tag_groups.h"
+#include "tag_files/tag_files.h"
+#include "units/biped_definitions.h"
 #include "units/units.h"
 #include "units/unit_definitions.h"
 #include "extraction.h"
@@ -77,6 +80,8 @@ static struct
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
 	long dropship_completed[2]; /* full native handles; rearmed by actual LZ boarding */
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
+	long faction_bipeds[2];
+	short faction_variants[2]; /* optional nonautomatic native biped placements */
 	long last_tick;
 } extraction;
 static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
@@ -120,6 +125,19 @@ static short extraction_faction(short team)
 boolean extraction_owns_map(void)
 {
 	return config_boolean("game.extraction") && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
+}
+
+boolean extraction_player_spawn_profile(long player_index, long *biped, short *profile, short *variant)
+{
+	struct player_datum *player = player_try_and_get(player_index);
+	short faction;
+	if (!player || !biped || !profile || !variant || !extraction.bound || !extraction.admitted ||
+		extraction.suspended || !extraction_requested()) return FALSE;
+	faction = extraction_faction((short)player->team_index);
+	if (faction == NONE || extraction.faction_bipeds[faction] == NONE) return FALSE;
+	*biped = extraction.faction_bipeds[faction]; *profile = extraction.faction_profiles[faction];
+	*variant = extraction.faction_variants[faction];
+	return TRUE;
 }
 
 static void extraction_local_notice(short local, char const *text)
@@ -227,6 +245,7 @@ void extraction_reset(void)
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
+	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.last_tick = NONE;
 	gear_world_reset();
 	extraction_medical_reset();
@@ -291,6 +310,7 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 		return FALSE;
 	}
 	memcpy(run->owner, owner, GEAR_ID_BYTES);
+	run->gear.loadout_unit = (extraction.faction_bipeds[0] != NONE || extraction.faction_bipeds[1] != NONE) ? player->unit_index : NONE;
 	run->blocked = FALSE;
 	return TRUE;
 }
@@ -339,6 +359,7 @@ static void extraction_bind(void)
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
+	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
 	if (!extraction.survival && config_boolean("network.firefight_encounter"))
 	{
@@ -356,6 +377,28 @@ static void extraction_bind(void)
 
 		for (faction = 0; faction < 2; faction++)
 		{
+			if (!strcmp(name->name, faction ? "extraction_covenant_body" : "extraction_unsc_body"))
+			{
+				long size;
+				struct tag_block *placements, *palette;
+				struct scenario_object_datum *body;
+				struct scenario_object_palette_entry *entry;
+				char const *path;
+				if (extraction.faction_bipeds[faction] != NONE || name->runtime_object_type != _object_type_biped)
+				{ unique = FALSE; continue; }
+				placements = scenario_get_object_type_scenario_datums(global_scenario, _object_type_biped, &size);
+				palette = scenario_get_object_type_scenario_palette(global_scenario, _object_type_biped);
+				if (!VALID_INDEX(name->runtime_scenario_datum_index, placements->count)) { unique = FALSE; continue; }
+				body = tag_block_get_element_with_size(placements, name->runtime_scenario_datum_index, size);
+				if (body->name_index != index || !TEST_FLAG(body->placement_flags, _scenario_object_placement_not_automatic_bit) ||
+					!VALID_INDEX(body->palette_entry_index, palette->count)) { unique = FALSE; continue; }
+				entry = TAG_BLOCK_GET_ELEMENT(palette, body->palette_entry_index, struct scenario_object_palette_entry);
+				if (entry->reference.index == NONE) { unique = FALSE; continue; }
+				path = tag_get_name(entry->reference.index);
+				if (!path || tag_loaded(BIPED_DEFINITION_TAG, path) != entry->reference.index) { unique = FALSE; continue; }
+				extraction.faction_bipeds[faction] = entry->reference.index;
+				extraction.faction_variants[faction] = body->variant_number;
+			}
 			if (!strcmp(name->name, faction ? "extraction_covenant" : "extraction_unsc"))
 			{
 				if (extraction.faction_names[faction] != NONE) unique = FALSE;
@@ -443,6 +486,10 @@ static void extraction_bind(void)
 				(faction && choices[1] == choices[0]) || extraction.faction_profiles[faction] == NONE ||
 				control_definition_get(choices[faction]->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
 		}
+	/* Optional character templates share the existing faction controls/profiles. */
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.faction_bipeds[faction] != NONE &&
+			(extraction.faction_names[faction] == NONE || extraction.faction_profiles[faction] == NONE)) extraction.admitted = FALSE;
 	/* Every authored start must return a dead/late-joining player to this hub.
 	   A nonempty encounter map with field starts is not an admitted hub. */
 	if (!global_scenario->players.count) extraction.admitted = FALSE;
@@ -484,6 +531,7 @@ finished:
 			extraction.deploy_name = extraction.activate_name = extraction.loadout_name = NONE;
 			extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 			extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
+			extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 			extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 			extraction.zone = extraction.return_zone = NONE;
 		}
@@ -672,6 +720,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		{
 			struct game_modes_inventory loadout;
 			short team = faction ? _game_team_covenant : _game_team_human;
+			short dropped = 0;
 			if (!in_hub || unit->object.parent_object_index != NONE || unit->unit.grenade_throw_state != _unit_grenade_throw_idle ||
 				(run->phase != _extraction_hub && run->phase != _extraction_lost && run->phase != _extraction_returned))
 			{
@@ -692,6 +741,14 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				extraction_block(run, "FACTION UNAVAILABLE | Starter equipment is unavailable or stash recovery is pending. No equipment granted.");
 				return TRUE;
 			}
+			if (extraction.faction_bipeds[faction] != NONE && !game_modes_player_change_biped(run->player,
+				extraction.faction_bipeds[faction], extraction.faction_variants[faction], team,
+				extraction.faction_profiles[faction], &run->gear, &dropped))
+			{
+				extraction_block(run, "CHARACTER UNAVAILABLE | Check compatible loadout. Carried gear remains with you or beside the terminal.");
+				return TRUE;
+			}
+			unit = unit_get(player->unit_index);
 			/* Reuse native allegiance and its existing object replication. Never
 			 * attach a new AI controller or change the whole encounter's team. */
 			if (unit->unit.actor_index != NONE) actor_set_team(unit->unit.actor_index, team);
@@ -706,6 +763,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				(extraction.dropship_names[0] != NONE ?
 					"UNSC SELECTED | Recovered gear takes priority over the starter kit. Evacuate aboard your Pelican." :
 					"UNSC SELECTED | Recovered gear takes priority over the starter kit. This operation returns through the hub."));
+			if (dropped) extraction_tell(run, "FACTION SELECTED | Incompatible carried weapons are beside you. Saved gear is unchanged.");
 			return TRUE; /* Per-player choice, not a shared device-position flag. */
 		}
 	if (control->object.name_index == extraction.loadout_name && in_hub &&

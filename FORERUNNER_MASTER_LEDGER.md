@@ -16,7 +16,24 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `0c32af94de`): repeatable aircraft scripts now separate
+Current checkpoint (base `5442b04906`): native faction body selection now connects
+authored not-automatic biped templates, existing player attachment/replication,
+compatible original weapon transfers, body-aware stash selection/reservation and
+native respawn profiles. Incompatible saved gear stays available for a later
+compatible character; no save/protocol version changes. Windows64 compilation,
+134 connected workflows, 18 gear transactions and two defect controls pass.
+`build/native-delta-faction-body-banking` verifies two authenticated clients
+choosing Spartan/Grunt, receiving AR/plasma-pistol kits, banking, restarting and
+redeploying the same two saved IDs. Player comparisons pass for 143/55 seconds,
+items for 147/59 snapshots; no mismatch/exception, original identity files unchanged.
+Two driver issues were corrected without engine patches/rebuilding the candidate.
+Owned runtime/map copies and 619,322,004B of stopped-run BMP scratch are removed;
+two lossless frames retained. Actual respawn, other bipeds/platforms/VR, faction
+objectives and aircraft compatibility remain unverified. Contract updated in place.
+Next transport requirement remains authored approach/landing/departure and real
+boarding/banking acceptance, including Spirit; no new flight manager or editor.
+
+Accepted transport repeat checkpoint (base `0c32af94de`): repeatable aircraft scripts now separate
 one-time pilot setup from the trip loop, park continuous camera/crew handlers until
 woken, wait for old passengers to disembark and reuse native gear/seat readiness.
 Cleared players can recall through the powered LZ control without another gear

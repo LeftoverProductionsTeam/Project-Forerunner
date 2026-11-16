@@ -747,6 +747,10 @@ static void network_test_log_players(
 				platform_log("network test: allegiance %ld %ld %08lx %ld %d",
 					game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index),
 					(unsigned long)player->unit_index, player->team_index, (int)unit->object.owner_team_index);
+				platform_log("network test: body %ld %ld %08lx %08lx %s",
+					game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index),
+					(unsigned long)player->unit_index, (unsigned long)unit->definition_index,
+					tag_get_name(unit->definition_index));
 				network_test_log_boarding(iterator.datum_index, player->unit_index);
 			}
 			network_test_append(line, (int)sizeof(line), &length, " player %ld: (%.3f %.3f %.3f) h%.2f/%.2f%s%s g%d/%d w",

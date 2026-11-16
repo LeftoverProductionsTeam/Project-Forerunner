@@ -1426,6 +1426,7 @@ static void player_spawn(
 	long unit_index;
 	long starting_equipment_count;
 	short starting_location_index;
+	short faction_profile = NONE, faction_variant = 0;
 
 	/* port: only the Firefight host limits respawns; ordinary co-op is unchanged. */
 	if (!coop_enemies_firefight_can_spawn(player_index))
@@ -1506,10 +1507,15 @@ static void player_spawn(
 					unit_definition_index = player_information->player_unit.index;
 				}
 
+				/* port: opt-in Extraction characters reuse native spawn/equipment.
+				 * Other maps and classic multiplayer retain their definitions. */
+				if (!game_engine_running()) extraction_player_spawn_profile(player_index,
+					&unit_definition_index, &faction_profile, &faction_variant);
 				object_placement_data_new(
 					&placement_data,
 					unit_definition_index,
 					NONE);
+				if (faction_profile != NONE) placement_data.variant_number = faction_variant;
 				placement_data.position = starting_location->position;
 				vector3d_from_angle(
 					&placement_data.forward,
@@ -1547,7 +1553,9 @@ static void player_spawn(
 							scenario = global_scenario_get();
 							starting_equipment_count =
 								*(long *)((byte *)scenario + 0x348);
-							if (starting_equipment_count > 1 &&
+							if (faction_profile != NONE)
+								player_add_equipment(player2->unit_index, faction_profile, TRUE);
+							else if (starting_equipment_count > 1 &&
 								*(short *)((byte *)player2 + 0xAA) > 0)
 							{
 								player_add_equipment(

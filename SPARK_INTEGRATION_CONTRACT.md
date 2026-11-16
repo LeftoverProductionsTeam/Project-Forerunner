@@ -939,8 +939,40 @@ hub return, not transport evacuation. Models, faction objectives, independent sq
 legacy-peer/platform parity and completed aircraft extraction remain unverified.
 Spark's next authored handoff should include these controls/profiles, compatible
 native bipeds/equipment, faction objectives, and actual Pelican/Spirit flight, seats
-and cameras. The current selector does not replace the map's player biped. No new
-capability version, save format, launcher or multiplayer packet is introduced.
+and cameras. No new capability version, save format, launcher or multiplayer
+packet is introduced.
+
+Optional native character bindings (base `5442b04906`, 16 November): author unique
+not-automatic biped placements named `extraction_unsc_body` and/or
+`extraction_covenant_body`, with loaded native biped palette references and native
+permutations. Each requires its matching faction control/profile above. The host
+uses existing player attachment/replication to change the actual character on foot
+at the idle hub, preserving native vitality, grenades, powerups and compatible
+original weapon objects; incompatible carried weapons remain beside the terminal.
+Selected stored gear is filtered through native weapon/animation admission before
+both preview and reservation. Incompatible saved items stay in the same stash,
+available again after a compatible character choice; record version/IDs do not
+change. Native respawn uses the selected faction's body and starting profile.
+Sources: `extraction.c::{extraction_bind,extraction_control_touched,extraction_open_gear,
+extraction_player_spawn_profile}`, `game_modes.c::{game_modes_player_change_biped,
+game_modes_inventory_weapon_for_unit}`, `gear.c::gear_selected`, and
+`source/game/players.c::player_spawn`. No new character controller or inventory system.
+
+Windows64 compilation, 134 connected workflows, 18 gear transactions and two
+original-defect controls pass. `build/native-delta-faction-body-banking` verifies
+two bound Delta accounts choosing cyborg_mp/Grunt with AR/plasma-pistol kits,
+banking, process restart and redeployment of the same two saved item identities.
+Both native views read back the actual bodies/allegiances/equipment; player
+comparisons pass for 143 operation/55 restart seconds and item comparisons for
+147/59 snapshots, with no mismatch or native exception. Original identity files
+are unchanged; runtime/map copies and BMP scratch are removed, two lossless
+frames retained. Earlier driver probes failed to finish: Spartan-height aiming,
+then a stuck input phase; neither required an engine patch or candidate rebuild.
+Stash filtering/rollback and respawn selection are automated evidence; native
+death/respawn, other bipeds, faction objectives, aircraft seat/flight compatibility,
+other platforms and VR remain unverified. First-person hands/HUD stay map-native.
+Spark must supply compatible character animations, native seat labels, faction
+objectives and actual approach/landing/departure content for transport acceptance.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.

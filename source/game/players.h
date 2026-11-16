@@ -375,6 +375,9 @@ boolean local_player_exists(
 	long local_player_index);
 long local_player_get_player_index(
 	short local_player_index);
+struct object_placement_data;
+void placement_data_set_change_color(struct object_placement_data *placement_data, real_rgb_color const *change_color);
+
 void players_set_local_player_unit(
 	short local_player_index,
 	long unit_index);

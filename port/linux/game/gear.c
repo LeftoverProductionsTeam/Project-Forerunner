@@ -296,6 +296,7 @@ boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
 	session->descriptor = posix_gear_lock(lock);
 	if (session->descriptor < 0) return FALSE;
 	session->opened = TRUE;
+	session->loadout_unit = NONE;
 	read = posix_gear_read(session->path, buffer, sizeof(buffer), &size);
 	if (read < 0 || (read && !gear_decode(buffer, size, owner, &session->record))) goto failed;
 	if (!read)
@@ -324,10 +325,11 @@ failed:
 
 /* Exact-cache defaults remain available. Shared gear resolves only definitions
  * already in the target map; it never imports content or changes stored items. */
-static boolean gear_item_available(struct gear_item const *item)
+static boolean gear_item_available(struct gear_session const *session, struct gear_item const *item)
 {
 	char const *map = cache_file_loaded_map_name();
 	if (!map) return FALSE;
+	if (session->loadout_unit != NONE && !game_modes_inventory_weapon_for_unit(session->loadout_unit, &item->equipment)) return FALSE;
 	if (config_boolean("game.shared_gear"))
 		return game_modes_inventory_weapon_compatible(&item->equipment);
 	return item->map_checksum == cache_files_get_checksum() && !strcmp(item->map_name, map);
@@ -339,7 +341,7 @@ static short gear_selected(struct gear_session const *session, short indices[GEA
 
 	for (index = 0; index < session->record.count && count < GEAR_LOADOUT_WEAPONS; index++)
 	{
-		if (gear_item_available(&session->record.items[index]))
+		if (gear_item_available(session, &session->record.items[index]))
 			indices[count++] = index;
 	}
 	return count;
@@ -356,7 +358,7 @@ boolean gear_cycle_loadout(struct gear_session *session)
 	if (pending) return TRUE;
 	for (index = 0; index < session->record.count; index++)
 	{
-		if (gear_item_available(&session->record.items[index]))
+		if (gear_item_available(session, &session->record.items[index]))
 			indices[count++] = index;
 	}
 	if (count < 2) return TRUE;
@@ -388,7 +390,7 @@ boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES],
 	{
 		struct gear_item const *item = &session->record.items[index];
 		if (memcmp(item->id, id, GEAR_ID_BYTES)) continue;
-		if (!gear_item_available(item)) return FALSE;
+		if (!gear_item_available(session, item)) return FALSE;
 		next = session->record;
 		memmove(next.items + index, next.items + index + 1, (next.count - index - 1) * sizeof(next.items[0]));
 		next.count--;

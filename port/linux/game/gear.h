@@ -39,6 +39,7 @@ struct gear_session
 	int descriptor;
 	boolean opened, pending;
 	short grenade_room[2]; /* native capacity minus the currently carried count */
+	long loadout_unit; /* transient native body filter; NONE preserves legacy selection */
 	char path[1024];
 	byte run[GEAR_ID_BYTES];
 	struct gear_record record;
@@ -52,7 +53,8 @@ boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
 void gear_close(struct gear_session *session);
 /* Read selected gear before reserving it. Default is exact-cache admission;
  * optional game.shared_gear resolves compatible paths/quantities against the
- * current native cache. Missing/incompatible items stay safely in the stash. */
+ * current native cache. An optional transient native body filter also applies
+ * to selection and reservation. Incompatible items stay safely in the stash. */
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory);
 /* Rotate the next compatible lead weapon to the front through the existing
  * atomic record. Stash order is the durable choice, shared by both modes. */

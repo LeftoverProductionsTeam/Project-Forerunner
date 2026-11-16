@@ -42,7 +42,9 @@ of their own (menu_functions.c's OPENCE).
 #include "scenario/scenario_definitions.h"
 #include "text/unicode.h"
 #include "units/units.h"
+#include "units/biped_definitions.h"
 #include "game_modes.h"
+#include "gear.h"
 #include "gun_game.h"
 #include "infection.h"
 #include "mcc_grenades.h"
@@ -268,14 +270,168 @@ boolean game_modes_inventory_starting_profile(short profile_index, short maximum
 	return TRUE;
 }
 
+static boolean game_modes_inventory_stage(long unit_index, struct game_modes_inventory const *inventory,
+	long created[GAME_MODES_INVENTORY_WEAPONS])
+{
+	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	struct object_placement_data placement;
+	short index, magazine;
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++) created[index] = NONE;
+	if (!unit || !game_modes_inventory_loadout_valid(inventory)) return FALSE;
+	for (index = 0; index < inventory->weapon_count; index++)
+	{
+		struct weapon_datum *weapon;
+		object_placement_data_new(&placement, tag_loaded(WEAPON_DEFINITION_TAG, inventory->weapons[index].tag_path), NONE);
+		placement.position = unit_get(unit_index)->object.position;
+		created[index] = object_new(&placement);
+		if (created[index] == NONE || weapon_is_flag(created[index]) || !unit_can_use_weapon(unit_index, created[index])) goto failed;
+		weapon = weapon_get(created[index]);
+		weapon->weapon.age = inventory->weapons[index].age;
+		for (magazine = 0; magazine < NUMBEROF(weapon->weapon.magazines); magazine++)
+		{
+			weapon->weapon.magazines[magazine].rounds_loaded = inventory->weapons[index].rounds_loaded[magazine];
+			weapon->weapon.magazines[magazine].rounds_total = inventory->weapons[index].rounds_reserve[magazine];
+		}
+	}
+	return TRUE;
+failed:
+	game_modes_inventory_revoke(unit_index, NULL, created);
+	return FALSE;
+}
+
+boolean game_modes_inventory_weapon_for_unit(long unit_index, struct game_modes_inventory_weapon const *item)
+{
+	struct game_modes_inventory inventory;
+	long created[GAME_MODES_INVENTORY_WEAPONS];
+	char const *map = cache_file_loaded_map_name();
+	if (!item || !map || strlen(map) >= sizeof(inventory.map_name)) return FALSE;
+	memset(&inventory, 0, sizeof(inventory));
+	strcpy(inventory.map_name, map);
+	inventory.map_checksum = cache_files_get_checksum();
+	inventory.weapon_count = 1; inventory.selected_slot = 0;
+	inventory.weapons[0] = *item; inventory.weapons[0].slot = 0;
+	if (!game_modes_inventory_stage(unit_index, &inventory, created)) return FALSE;
+	game_modes_inventory_revoke(unit_index, NULL, created);
+	return TRUE;
+}
+
+boolean game_modes_player_change_biped(long player_index, long definition_index, short variant, short team,
+	short profile, struct gear_session *gear, short *dropped)
+{
+	struct game_modes_inventory carried, loadout;
+	struct player_datum *player;
+	struct unit_datum *old, *next;
+	struct object_placement_data placement;
+	long previous, replacement, selected, old_filter, weapons[GAME_MODES_INVENTORY_WEAPONS], preview[GAME_MODES_INVENTORY_WEAPONS];
+	real_rgb_color color;
+	short powerups[NUMBER_OF_PLAYER_POWERUPS], index, slot;
+	char const *path;
+	void network_player_detach_unit(long player);
+	void network_player_attach_unit(long player, long unit);
+	if (!gear || !dropped || !game_modes_inventory_capture(player_index, &carried)) return FALSE;
+	old_filter = gear->loadout_unit;
+	*dropped = 0;
+	player = player_get(player_index); previous = player->unit_index; old = unit_get(previous);
+	if (old->object.parent_object_index != NONE || old->unit.equipment_object_index != NONE ||
+		old->unit.grenade_throw_state != _unit_grenade_throw_idle ||
+		(game_connection() == _game_connection_local && player->local_player_index == NONE)) return FALSE;
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)
+		if (old->unit.weapon_object_indices[index] != NONE && weapon_is_flag(old->unit.weapon_object_indices[index])) return FALSE;
+	if (old->definition_index == definition_index && old->object.owner_team_index == team)
+	{
+		gear->loadout_unit = previous;
+		return TRUE;
+	}
+	path = tag_get_name(definition_index);
+	if (!path || tag_loaded(BIPED_DEFINITION_TAG, path) != definition_index) return FALSE;
+	object_placement_data_new(&placement, definition_index, NONE);
+	placement.position = old->object.position;
+	placement.forward = old->object.forward; placement.up = old->object.up;
+	placement.owner_player_index = player_index; placement.owner_team_index = team; placement.variant_number = variant;
+	placement_data_set_change_color(&placement, game_engine_player_get_change_color(&color, player_index));
+	replacement = object_new(&placement);
+	if (replacement == NONE) return FALSE;
+	next = (struct unit_datum *)object_try_and_get_and_verify_type(replacement, _object_mask_biped);
+	if (!next) { object_delete(replacement); return FALSE; }
+	if (next->unit.actor_index != NONE || next->unit.equipment_object_index != NONE) { object_delete(replacement); return FALSE; }
+	/* Only the new, unissued body's defaults are removed. Validate selected
+	 * recovered gear and its kit before releasing any actual carried object. */
+	unit_delete_all_weapons(replacement);
+	gear->loadout_unit = replacement;
+	if (!gear_loadout(gear, &loadout) ||
+		!game_modes_inventory_starting_profile(profile, GEAR_LOADOUT_WEAPONS, gear->grenade_room, &loadout) ||
+		!game_modes_inventory_stage(replacement, &loadout, preview))
+	{
+		gear->loadout_unit = old_filter;
+		object_delete(replacement); return FALSE;
+	}
+	game_modes_inventory_revoke(replacement, NULL, preview);
+	old = unit_get(previous); next = unit_get(replacement);
+	memcpy(weapons, old->unit.weapon_object_indices, sizeof(weapons));
+	selected = VALID_INDEX(old->unit.current_weapon_index, GAME_MODES_INVENTORY_WEAPONS) ? weapons[old->unit.current_weapon_index] : NONE;
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)
+		if (weapons[index] != NONE)
+		{
+			boolean compatible = unit_can_use_weapon(replacement, weapons[index]);
+			if (!unit_drop_weapon(previous, weapons[index])) goto failed;
+			if (compatible)
+			{
+				if (!unit_add_weapon_to_inventory(replacement, weapons[index], _unit_add_weapon_starting)) goto failed;
+			}
+			else (*dropped)++; /* Same native world item, never a copied or erased weapon. */
+		}
+	next->object.body_vitality = old->object.body_vitality;
+	next->object.shield_vitality = old->object.shield_vitality;
+	next->unit.flags = (next->unit.flags & ~(FLAG(_unit_active_camouflaged_bit) | FLAG(_unit_super_camouflaged_bit))) |
+		(old->unit.flags & (FLAG(_unit_active_camouflaged_bit) | FLAG(_unit_super_camouflaged_bit)));
+	next->unit.active_camouflage = old->unit.active_camouflage;
+	next->unit.active_camouflage_super_amount = old->unit.active_camouflage_super_amount;
+	next->unit.cause_for_camo_regrowth = old->unit.cause_for_camo_regrowth;
+	memcpy(next->unit.grenade_counts, old->unit.grenade_counts, sizeof(next->unit.grenade_counts));
+	memcpy(powerups, player->powerup_durations, sizeof(powerups));
+	/* Reuse the same native attachment path as MCC possession. No new
+	 * controller, identity, body replication message or equipment snapshot. */
+	if (game_connection() == _game_connection_local)
+		players_set_local_player_unit(player->local_player_index, replacement);
+	else
+	{
+		network_player_detach_unit(player_index);
+		network_player_attach_unit(player_index, replacement);
+	}
+	player->dead_unit_index = NONE;
+	memcpy(player->powerup_durations, powerups, sizeof(powerups));
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)
+		if (next->unit.weapon_object_indices[index] != NONE)
+		{
+			item_in_unit_inventory(next->unit.weapon_object_indices[index], replacement);
+			if (next->unit.weapon_object_indices[index] == selected) next->unit.desired_weapon_index = index;
+		}
+	object_delete(previous);
+	return TRUE;
+failed:
+	gear->loadout_unit = old_filter;
+	/* Native drop is deterministic for an inventory member. Restore originals
+	 * through the same pickup path; a refused pickup remains real world loot. */
+	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)
+		if (weapons[index] != NONE)
+		{
+			for (slot = 0; slot < GAME_MODES_INVENTORY_WEAPONS; slot++)
+				if (next->unit.weapon_object_indices[slot] == weapons[index]) unit_drop_weapon(replacement, weapons[index]);
+			for (slot = 0; slot < GAME_MODES_INVENTORY_WEAPONS; slot++)
+				if (old->unit.weapon_object_indices[slot] == weapons[index]) break;
+			if (slot == GAME_MODES_INVENTORY_WEAPONS) unit_add_weapon_to_inventory(previous, weapons[index], _unit_add_weapon_starting);
+		}
+	object_delete(replacement);
+	return FALSE;
+}
+
 boolean game_modes_inventory_apply(long player_index, struct game_modes_inventory const *inventory,
 	long created[GAME_MODES_INVENTORY_WEAPONS])
 {
 	struct game_modes_inventory previous;
 	struct player_datum *player;
 	struct unit_datum *unit;
-	struct object_placement_data placement;
-	short room[2], index, magazine;
+	short room[2], index;
 
 	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++) created[index] = NONE;
 	if (!game_modes_inventory_loadout_valid(inventory) || !game_modes_inventory_capture(player_index, &previous) ||
@@ -288,25 +444,8 @@ boolean game_modes_inventory_apply(long player_index, struct game_modes_inventor
 	for (index = 0; index < MAXIMUM_WEAPONS_PER_UNIT; index++)
 		if (unit->unit.weapon_object_indices[index] != NONE && weapon_is_flag(unit->unit.weapon_object_indices[index])) return FALSE;
 	/* Allocate all recovered objects before releasing any existing equipment. */
-	for (index = 0; index < inventory->weapon_count; index++)
-	{
-		struct weapon_datum *weapon;
-		object_placement_data_new(&placement, tag_loaded(WEAPON_DEFINITION_TAG, inventory->weapons[index].tag_path), NONE);
-		placement.position = unit->object.position;
-		created[index] = object_new(&placement);
-		/* Check this body's native seat/weapon animation and gametype rules
-		 * before dropping any carried gear. A loaded tag alone does not mean
-		 * a different playable biped can equip it. Failed grants are refunded. */
-		if (created[index] == NONE || weapon_is_flag(created[index]) ||
-			!unit_can_use_weapon(player->unit_index, created[index])) goto failed;
-		weapon = weapon_get(created[index]);
-		weapon->weapon.age = inventory->weapons[index].age;
-		for (magazine = 0; magazine < NUMBEROF(weapon->weapon.magazines); magazine++)
-		{
-			weapon->weapon.magazines[magazine].rounds_loaded = inventory->weapons[index].rounds_loaded[magazine];
-			weapon->weapon.magazines[magazine].rounds_total = inventory->weapons[index].rounds_reserve[magazine];
-		}
-	}
+	if (!game_modes_inventory_stage(player->unit_index, inventory, created)) return FALSE;
+	unit = unit_get(player->unit_index);
 	if (inventory->weapon_count)
 		for (index = 0; index < MAXIMUM_WEAPONS_PER_UNIT; index++)
 		{

@@ -17,6 +17,9 @@ boolean extraction_owns_map(void);
 /* TRUE handles a real host-owned wipe without rewinding the world. If allocation
    fails, the caller retains its native loss timer and retries. */
 boolean extraction_respawn_after_loss(void);
+/* Optional authored native character/profile for this faction's hub respawn.
+ * False preserves the ordinary campaign/multiplayer spawn definition. */
+boolean extraction_player_spawn_profile(long player_index, long *biped, short *profile, short *variant);
 /* Called by the native control-use path. TRUE consumes refused or storage
  * actions. FALSE preserves ordinary controls and the authored state/effect
  * transition after successful deployment or activation, for native HaloScript. */

@@ -13,8 +13,9 @@ from harness.tests.test_gear import generated as gear_generated
 def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
     inventory = read('port/linux/game/game_modes.c')
-    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'apply', 'revoke', 'consume')
+    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'stage', 'weapon_for_unit', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
+    equipment += '\n' + function(inventory, 'game_modes_player_change_biped')
     if fault:
         equipment = mutated(equipment, *fault)
     files.append(('equipment.inc', equipment))
@@ -22,6 +23,14 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('native_teams.inc', enum_with(read('source/game/game.h'), 'NUMBER_OF_SOLO_CAMPAIGN_TEAMS,')))
     files.append(('profile_types.inc', structure(read('source/scenario/scenario_definitions.h'), 'scenario_starting_profile_weapon') +
                   '\n' + structure(read('source/scenario/scenario_definitions.h'), 'scenario_starting_profile')))
+    files.append(('body_types.inc', enum_with(read('source/game/players.h'), 'NUMBER_OF_PLAYER_POWERUPS') + '\n' +
+                  enum_with(read('source/game/players.h'), '_player_action_result_reload') + '\n' +
+                  enum_with(read('source/units/units.h'), '_unit_active_camouflaged_bit') + '\n' +
+                  enum_with(read('source/scenario/scenario_definitions.h'), '_scenario_object_placement_not_automatic_bit') + '\n' +
+                  structure(read('source/scenario/scenario_definitions.h'), 'scenario_object_datum') + '\n' +
+                  structure(read('source/scenario/scenario_definitions.h'), 'scenario_object_palette_entry')))
+    files.append(('body_binding.inc', '\n'.join(function(read('source/game/players.c'), name) for name in (
+        'network_player_reconcile_coop_team', 'network_player_attach_unit', 'network_player_detach_unit', 'players_set_local_player_unit'))))
     files.append(('equipment_ownership.inc', enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit') +
                   '\n' + enum_with(read('source/objects/objects.h'), '_object_connected_to_map_bit')))
     files.append(('mission_types.inc', enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') +
@@ -147,6 +156,32 @@ def test_native_faction_workflow(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', [
+    'body-loop', 'body-local', 'body-allocation', 'body-preview', 'body-transfer',
+    'body-binding', 'body-placement', 'body-palette', 'body-duplicate', 'body-profile',
+    'body-spawn', 'body-flag', 'body-item', 'body-stash',
+])
+def test_native_faction_body_workflow(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+def test_native_faction_body_owner_negative_control():
+    status, output = run(build('extraction', generated(fault=(
+        'item_in_unit_inventory(next->unit.weapon_object_indices[index], replacement);',
+        '/* lost ownership refresh */'))), 'body-loop')
+    assert status == CHECK_FAILED, output
+
+
+def test_native_faction_body_stash_negative_control():
+    files = tuple((name, mutated(text,
+        'if (session->loadout_unit != NONE && !game_modes_inventory_weapon_for_unit(session->loadout_unit, &item->equipment)) return FALSE;',
+        '/* body admission omitted */')) if name == 'under_test.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), 'body-stash')
+    assert status == CHECK_FAILED, output
+
+
 def test_faction_starter_grenade_stacking_negative_control():
     status, output = run(build('extraction', generated(fault=(
         'next.grenades[index] = MAX(next.grenades[index], starter);',
@@ -211,7 +246,7 @@ def test_pending_native_death_negative_control(file, before, after, case):
 
 def test_biped_admission_negative_control():
     status, output = run(build('extraction', generated((
-        '!unit_can_use_weapon(player->unit_index, created[index])',
+        '!unit_can_use_weapon(unit_index, created[index])',
         'FALSE'))), 'biped-second')
     assert status == CHECK_FAILED, output
 

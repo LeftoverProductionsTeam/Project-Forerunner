@@ -66,6 +66,10 @@ static int posix_gear_replace(char const *path, void const *buffer, posix_ulong 
 #endif
 #include "sha.inc"
 #define config_boolean(name) shared_cache
+#ifndef EXTRACTION_FIXTURE
+boolean game_modes_inventory_weapon_for_unit(long unit_index, struct game_modes_inventory_weapon const *item)
+{ (void)unit_index; return game_modes_inventory_weapon_compatible(item); }
+#endif
 #include "under_test.inc"
 #undef config_boolean
 
