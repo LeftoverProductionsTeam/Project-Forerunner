@@ -16,7 +16,51 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current squad-guidance checkpoint (source base `b27833e172`): the existing co-op
+Current crowded-rescue checkpoint (source base `f7bdca9d02`): held Action keeps
+an existing valid treatment stable and selects the nearest available allied
+casualty for a new treatment. Lower player slots no longer divert it. Busy
+caregivers, native faction/collision/range, damage, pending death, interruption
+and once-per-tick progress remain protected. Existing medical/inventory owners
+remain; no squad-only rescue restriction, new state manager or packet was added.
+
+Native execution exposed another real defect: scripted current-vitality repair
+still reached every player despite the existing authored-action policy, silently
+repairing the first casualty during second-casualty preparation. The current
+setter now respects that policy; default legacy party-wide repair is preserved.
+Maximum-vitality scaling remains campaign-wide, not a newly supported per-player
+replication capability. Actual before-fix failures cover both targeting defects
+and the repair-routing defect. Thirty focused medical cases (including corrected
+negative controls) and eighteen existing co-op action cases pass. Windows64
+compiles (`build/medical-target-vitality-build.log`). The initial nearest-target
+negative mutation caused an unused-variable compile failure; its corrected fault
+keeps the variable read and reaches the intended failing gameplay assertion.
+
+`build/native-medical-target-selection-fixed/result.json` records three local
+native split-screen bodies. Ordinary held Action treats player 2 first despite
+player 1 becoming eligible closer to the healer, then treats player 1. Both
+five-second revivals preserve the original bodies. Tick 630 reads healer health
+1.00 and both recovered players 0.25. Original identity hashes are unchanged;
+no credentials were copied into this offline probe. The screenshot wait FAILS:
+the probe omitted its destination directory. Its overall runner result remains
+false, while health/treatment-log acceptance is separate; no image or independent
+client acceptance is claimed. Future probe setup creates that directory; no
+third native run merely repeats these completed rescues. The first failed probe
+also incorrectly assumed an offline runtime could not generate its own local
+identity file; cleanup was completed and that assertion removed. Stopped runtime/
+map copies are removed. Native fixture source is retained; the reusable squad
+source is restored to its prior accepted hash. Existing banking and authenticated
+two-client evidence remain accepted without repeating them.
+
+Read-only Spark `4249bb5` now reports a composed seven-objective native core,
+with repaired Flood/route BSP diagnostics, rather than the earlier two-beat work.
+It still explicitly requires creation of the not-automatically-placed technology
+weapon after retiring the original startup, plus full pilot/crew and aircraft
+controller composition before delivering the combined CE609 mission. The existing
+contract is updated; Spark files were not modified or rebuilt. Full mission,
+independent six-client, maximum-health-per-player and other platform/hardware
+acceptance stay open. The complete engine goal remains active.
+
+Accepted squad-guidance checkpoint (source base `b27833e172`): the existing co-op
 nav cache now retains the configured players' and native teams' four-marker
 budgets. Two six-member squads' two markers each previously retained only 16/24;
 both host/client failures are reproduced before the fix. The native four-marker

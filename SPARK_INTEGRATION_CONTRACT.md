@@ -1109,8 +1109,12 @@ do not force players into seats or bypass graph compatibility. The owned Spirit'
 AI throttle budget is 0.30 after measured coast at 0.65; tune each real aircraft/
 route against its physics and actual pads instead of copying a universal speed.
 
-Read-only Spark `bb8e906` adds recovered objective/native mission composition
-work and already implements reviewed aircraft append/readback,
+Read-only Spark `4249bb5` advances recovered seven-objective native mission
+composition, retaining original source indices and script ownership. Its existing
+checkpoint reports core CE609 cache
+`7dea5596e3ab9c7d6b349fc1ce0fc11c69ff316713f9e355cc3e6e8b2e9383f7`;
+this is compiled fixture/readback evidence, not a delivered complete dropship
+mission or Forerunner execution. It already implements reviewed aircraft append/readback,
 `src/haloScript.ts` `returnAfterInsertion` empty hub return/recall and native route/
 landing-pad authoring/readback. The earlier isolated composite cache is
 `e5711810ca6b2deba4b7802fce4e07c9eff851029b554029c7c7482f61122e71`.
@@ -1118,8 +1122,13 @@ Reuse this source work. Its `docs/RUNTIME_INTEGRATION_20261107.md` explicitly
 separates that fixture's route/endpoint/pad admission from observed landing and
 a complete Black Echo cache. Next Spark delivery: compose these existing
 controllers with the real mission, compatible pilots and seats, measured hub/LZ/
-approach/departure routes, native relative cameras and mission objectives; fix
-the reported off-BSP Flood start; compile and independently read back that combined
+approach/departure routes, native relative cameras and mission objectives. Its
+Flood-start/route BSP diagnostics are now repaired in source/readback; actual
+hull/landing clearance still needs gameplay proof. Explicitly create the native
+`be_technology` weapon at its intended objective: it is not placed automatically,
+and the retired original startup supplied that creation. Finish pilot/crew,
+outbound, empty return and recall controller composition, then compile and
+independently read back that combined
 CE609 package. Reuse existing signal groups uniquely instead of appending duplicates.
 Synthetic marker coordinates and syntax-only probes do not satisfy this handoff.
 Previously accepted actual Black Echo combat/rescue/technology/Flood/defense and
@@ -1379,6 +1388,21 @@ Runtime ally guidance now reuses `source/interface/hud_nav_points.c` and
 with native `target_blue`/`default` HUD arrows when present. It consumes no authored
 nav-point slot, new scenario marker, editor format or wire capability. Custom
 HUDs without either arrow omit the marker; private medical instructions remain.
+
+Crowded treatment now keeps an existing valid healer/target binding stable and
+selects the nearest available allied casualty for a new hold. Another healer's
+active treatment remains reserved; damage, walls, range and true-death checks
+remain authoritative. Existing authored `network.coop_script_adaptations=false`
+also keeps `unit_set_current_vitality` repairs specific to the named unit through
+`network_coop.c::network_coop_set_players_vitality`. Default legacy current-health
+sharing is preserved. Maximum-vitality scaling remains campaign-wide; this does
+not add per-player maximum-health replication or a new packet/capability.
+Focused checks and Windows64 compilation pass. Three local native players in
+`build/native-medical-target-selection-fixed/result.json` verify two timed
+rescues in order with original bodies and the healer's health unchanged. The
+probe's screenshot wait failed because its output directory was omitted; native
+health/treatment logs are accepted, images and independent-client acceptance of
+this change are not. No competing revival controller is requested from Spark.
 
 Desktop network use requires room-wide negotiated Delta `coop` and `object_sync`;
 `network_objects.c` sends versioned epoch/tick metadata in existing reserved

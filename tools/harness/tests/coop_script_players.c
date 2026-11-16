@@ -110,6 +110,7 @@ struct biped_datum
 	{
 		long parent_object_index;
 		unsigned long damage_flags;
+		real body_vitality, shield_vitality;
 	} object;
 	struct { unsigned long flags; } biped;
 };
@@ -149,6 +150,17 @@ static struct biped_datum *biped_try_and_get(long unit)
 }
 static boolean ai_port_enemies_can_see_unit(long unit) { return FALSE; }
 #include "actions.inc"
+static struct {boolean set;real maximum_body,maximum_shield;} players_vitality;
+static boolean coop_host(void) {return host;}
+static void *object_try_and_get(long unit)
+{long slot=player_index_from_unit_index(unit);return slot==NONE?NULL:&objects[slot];}
+static void object_initialize_vitality(long unit,real const *body,real const *shield)
+{calls[player_index_from_unit_index(unit)]++;}
+static void unit_scripting_set_current_vitality_of(long unit,real body,real shield)
+{long slot=player_index_from_unit_index(unit);CHECK(slot!=NONE,"invalid vitality target");objects[slot].object.body_vitality=body;objects[slot].object.shield_vitality=shield;calls[slot]++;}
+#define object_datum biped_datum
+#include "vitality.inc"
+#undef object_datum
 static int script_units(long *units)
 {
 	int n = 0;
@@ -201,7 +213,25 @@ int main(int argc, char **argv)
 	long units[128], out[128];
 	real_point3d destination = {1, 2, 3};
 	object_list_data = game_state_data_new("test refs", 128, sizeof(struct data_reference));
-	if (!strcmp(name, "counts"))
+	if (strstr(name,"vitality"))
+	{
+		adaptations=strcmp(name,"native-current-vitality")!=0;reset(3);
+		for(i=0;i<3;i++)objects[i].object.body_vitality=objects[i].object.shield_vitality=1.f;
+		if(!strcmp(name,"legacy-maximum-vitality"))
+		{
+			CHECK(network_coop_set_players_vitality(people[2].unit_index,TRUE,70.f,90.f),"legacy maximum was not shared");
+			CHECK(players_vitality.set&&players_vitality.maximum_body==70.f&&players_vitality.maximum_shield==90.f,"legacy late-spawn maximum lost");
+			for(i=0;i<3;i++)CHECK(calls[i]==1,"legacy maximum missed a player");
+		}
+		else
+		{
+			unit_scripting_set_current_vitality(people[2].unit_index,.2f,.3f);
+			CHECK(!players_vitality.set,"current repair changed late-spawn maximum");
+			for(i=0;i<3;i++)CHECK(calls[i]==(adaptations||i==2),"scripted repair changed an unrelated player under native policy");
+			CHECK(objects[2].object.body_vitality==.2f&&objects[2].object.shield_vitality==.3f,"targeted current repair was lost");
+		}
+	}
+	else if (!strcmp(name, "counts"))
 	{
 		for (n = 0; n <= 128; n++)
 		{

@@ -2739,7 +2739,9 @@ boolean network_coop_set_players_vitality(
 	struct data_iterator iterator;
 	struct player_datum *player;
 
-	if (!coop_host() || player_index_from_unit_index(unit_index) == NONE)
+	/* Authored current-health repairs name one player. Keep campaign-wide
+	 * maximum scaling and the default legacy repair behavior unchanged. */
+	if (!coop_host() || (!maximum && coop_scripts_native_player_actions()) || player_index_from_unit_index(unit_index) == NONE)
 		return FALSE;
 	if (maximum)
 	{

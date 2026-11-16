@@ -1594,7 +1594,40 @@ int main(int argc,char **argv)
  }
  if(!strncmp(case_name,"medical-",8)) {
   enabled=FALSE; medical_setting=TRUE; extraction_reset(); advance(1);
-  if(!strcmp(case_name,"medical-pending-lethal")) {
+  if(!strncmp(case_name,"medical-target-",15)) {
+   struct player_action action;
+   active_players=4;
+   for(i=2;i<active_players;i++) {
+    players[i]=players[1];players[i].unit_index=unit_handles[i];
+    units[i]=units[1];units[i].unit.player_index=player_handles[i];
+   }
+   units[1].object.bounding_sphere_center.x=1.f;
+   units[2].object.bounding_sphere_center.x=.4f;
+   units[1].object.body_vitality=units[2].object.body_vitality=-.1f;
+   CHECK(extraction_medical_lethal(unit_handles[1])&&extraction_medical_lethal(unit_handles[2]),"crowded medical setup failed");
+   advance(60);
+   if(!strcmp(case_name,"medical-target-continue")||!strcmp(case_name,"medical-target-interrupt")) {
+    units[1].object.bounding_sphere_center.x=5.f;treat(30,FALSE);
+    CHECK(medical_players[2].progress==30,"initial treatment failed");
+    units[1].object.bounding_sphere_center.x=.2f;
+    if(!strcmp(case_name,"medical-target-interrupt"))extraction_medical_damaged(unit_handles[2]);
+    treat(1,FALSE);
+    if(!strcmp(case_name,"medical-target-continue"))
+     CHECK(medical_players[2].progress==31&&!medical_players[1].progress,"lower-slot casualty diverted active treatment");
+    else CHECK(medical_players[1].progress==1&&!medical_players[2].progress,"damaged casualty retained treatment instead of allowing another ally's rescue");
+   } else {
+    if(!strcmp(case_name,"medical-target-busy")) {
+     units[1].object.bounding_sphere_center.x=.1f;
+     medical_players[1].healer=player_handles[3];medical_players[1].healer_unit=unit_handles[3];
+     medical_players[1].last_control=tick;medical_players[1].progress=30;
+    }
+    treat(1,FALSE);
+    CHECK(medical_players[2].progress==1&&!medical_players[1].progress,"player-slot order overrode the nearest available casualty");
+    memset(&action,0,sizeof(action));action.control_flags=FLAG(_unit_control_swap_weapons_bit);
+    extraction_medical_control(player_handles[0],&action);
+    CHECK(medical_players[2].progress==1,"duplicate native control advanced treatment twice in one tick");
+   }
+  } else if(!strcmp(case_name,"medical-pending-lethal")) {
    short flags[]={_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
    short i;units[1].object.body_vitality=-.1f;
    for(i=0;i<3;i++) {

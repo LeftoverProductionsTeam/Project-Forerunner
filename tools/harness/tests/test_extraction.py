@@ -87,6 +87,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'evac-loop', 'evac-pending', 'evac-presence', 'evac-binding',
                                  'evac-finite-win', 'evac-finite-loss', 'evac-no-survivors',
                                  'medical-authority', 'medical-revive', 'medical-interrupt',
+                                 'medical-target-nearest', 'medical-target-continue',
+                                 'medical-target-busy', 'medical-target-interrupt',
                                  'medical-pending-target', 'medical-pending-healer',
                                  'medical-pending-lethal', 'medical-pending-final',
                                  'medical-guidance', 'medical-guidance-client', 'medical-guidance-budget',
@@ -423,6 +425,18 @@ def test_native_confirmation_negative_control(file, before, after, case):
 ])
 def test_medical_guidance_negative_control(file, before, after, case):
     files = tuple((name, mutated(text, before, after)) if name == file else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), case)
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('distance >= nearest', 'distance >= nearest - 100.f', 'medical-target-nearest'),
+    ('continuing = medical_players[target].healer == player_index',
+     'continuing = FALSE && medical_players[target].healer == player_index', 'medical-target-continue'),
+])
+def test_medical_target_negative_control(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
                   for name, text in generated())
     status, output = run(build('extraction', files), case)
     assert status == CHECK_FAILED, output

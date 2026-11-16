@@ -1993,7 +1993,8 @@ void extraction_medical_control(long player_index, struct player_action *action)
 {
 	struct player_datum *player = player_try_and_get(player_index);
 	struct unit_datum *unit;
-	long slot, target, now = game_time_get();
+	long slot, target, choice = NONE, now = game_time_get();
+	real nearest = 0.f;
 	unsigned long combat = FLAG(_unit_control_weapon_primary_trigger_bit) | FLAG(_unit_control_weapon_secondary_trigger_bit) |
 		FLAG(_unit_control_throw_grenade_bit) | FLAG(_unit_control_use_equipment_bit) | FLAG(_unit_control_weapon_reload_bit) |
 		FLAG(_unit_control_user_animation1_bit);
@@ -2020,40 +2021,57 @@ void extraction_medical_control(long player_index, struct player_action *action)
 		action->desired_weapon_index != unit->unit.current_weapon_index)) return;
 	for (target = 0; target < NUMBEROF(medical_players); target++)
 	{
+		struct unit_datum *casualty;
+		real_vector3d delta;
+		real distance;
+		boolean continuing;
 		if (!medical_players[target].downed || !extraction_medical_incapacitated(medical_players[target].unit) ||
 			extraction_unit_pending_death(unit_get(medical_players[target].unit)) ||
-			now - medical_players[target].last_damage < 2 * TICKS_PER_SECOND ||
+			now - medical_players[target].last_damage < 2 * TICKS_PER_SECOND) continue;
+		continuing = medical_players[target].healer == player_index && medical_players[target].healer_unit == player->unit_index &&
+			now - medical_players[target].last_control <= 1;
+		if (!continuing && medical_players[target].healer != NONE && now - medical_players[target].last_control <= 1) continue;
+		casualty = unit_get(medical_players[target].unit);
+		delta.i = casualty->object.bounding_sphere_center.x - unit->object.bounding_sphere_center.x;
+		delta.j = casualty->object.bounding_sphere_center.y - unit->object.bounding_sphere_center.y;
+		delta.k = casualty->object.bounding_sphere_center.z - unit->object.bounding_sphere_center.z;
+		distance = delta.i * delta.i + delta.j * delta.j + delta.k * delta.k;
+		if (!(distance <= 2.25f) || (!continuing && choice != NONE && distance >= nearest) ||
 			!extraction_medical_reach(player->unit_index, medical_players[target].unit)) continue;
-		if (!(action->control_flags & FLAG(_unit_control_swap_weapons_bit)))
-		{
-			/* Consume the initial press near the casualty, before native
-			 * reload/pickup handling. Treatment waits for an actual hold. */
-			action->control_flags = 0;
-			return;
-		}
-		if (medical_players[target].healer != player_index || medical_players[target].healer_unit != player->unit_index ||
-			now - medical_players[target].last_control > 1)
-		{
-			if (medical_players[target].healer != NONE && now - medical_players[target].last_control <= 1) continue;
-			medical_players[target].healer = player_index; medical_players[target].healer_unit = player->unit_index;
-			medical_players[target].progress = 0;
-			platform_log("medical: player %ld begins biofoam for player %ld", slot, target);
-		}
-		if (medical_players[target].last_control == now) return;
-		medical_players[target].last_control = now;
-		/* Held Action also generates the native weapon-swap gesture. Consume
-		 * it with treatment; a separate weapon selection above still cancels. */
-		action->control_flags = 0; action->throttle.i = action->throttle.j = action->primary_trigger = 0.f;
-		medical_players[target].progress++;
-		if (medical_players[target].progress % TICKS_PER_SECOND == 0 &&
-			medical_players[target].progress < medical_seconds * TICKS_PER_SECOND)
-		{
-			char message[128];
-			snprintf(message, sizeof(message), "BIOFOAM | %ld/%ld seconds. Hold Action; stay close, avoid combat.",
-				medical_players[target].progress / TICKS_PER_SECOND, medical_seconds);
-			extraction_player_notice(player_index, message);
-		}
+		choice = target; nearest = distance;
+		/* Keep a valid treatment stable when another casualty approaches.
+		 * A new hold selects the nearest available ally, not the lowest slot. */
+		if (continuing) break;
+	}
+	if (choice == NONE) return;
+	target = choice;
+	if (!(action->control_flags & FLAG(_unit_control_swap_weapons_bit)))
+	{
+		/* Consume the initial press near the casualty, before native
+		 * reload/pickup handling. Treatment waits for an actual hold. */
+		action->control_flags = 0;
 		return;
+	}
+	if (medical_players[target].healer != player_index || medical_players[target].healer_unit != player->unit_index ||
+		now - medical_players[target].last_control > 1)
+	{
+		medical_players[target].healer = player_index; medical_players[target].healer_unit = player->unit_index;
+		medical_players[target].progress = 0;
+		platform_log("medical: player %ld begins biofoam for player %ld", slot, target);
+	}
+	if (medical_players[target].last_control == now) return;
+	medical_players[target].last_control = now;
+	/* Held Action also generates the native weapon-swap gesture. Consume
+	 * it with treatment; a separate weapon selection above still cancels. */
+	action->control_flags = 0; action->throttle.i = action->throttle.j = action->primary_trigger = 0.f;
+	medical_players[target].progress++;
+	if (medical_players[target].progress % TICKS_PER_SECOND == 0 &&
+		medical_players[target].progress < medical_seconds * TICKS_PER_SECOND)
+	{
+		char message[128];
+		snprintf(message, sizeof(message), "BIOFOAM | %ld/%ld seconds. Hold Action; stay close, avoid combat.",
+			medical_players[target].progress / TICKS_PER_SECOND, medical_seconds);
+		extraction_player_notice(player_index, message);
 	}
 }
 

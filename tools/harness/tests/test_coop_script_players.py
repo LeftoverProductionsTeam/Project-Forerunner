@@ -15,6 +15,7 @@ def generated(fault=None):
         followers = mutated(followers, 'player_count - NAMED_PLAYERS - 1', 'player_count - 2')
     policy = 'static boolean coop_scripts_adaptations;\n' + function(port, 'coop_scripts_new_game')
     policy += '\n' + function(port, 'coop_scripts_adaptations_active')
+    policy += '\n' + function(port, 'coop_scripts_native_player_actions')
     if fault == 'adaptations':
         policy = mutated(policy, 'config_boolean("network.coop_script_adaptations")', 'TRUE')
     return (
@@ -28,10 +29,13 @@ def generated(fault=None):
             'coop_scripts_teleport_followers', 'coop_scripts_suspend_followers',
             'coop_scripts_exit_followers', 'follower_seat_name',
             'coop_scripts_board_followers', 'coop_scripts_player_add_equipment', 'coop_scripts_safe_to_save'])),
+        ('vitality.inc', function(read('port/linux/game/network_coop.c'), 'network_coop_set_players_vitality') + '\n' +
+         function(read('source/units/unit_scripting_commands.c'), 'unit_scripting_set_current_vitality')),
     )
 
 
-@pytest.mark.parametrize('case', ['counts', 'gaps', 'respawn', 'bounded', 'nonhost', 'teleport', 'suspend', 'exit', 'board', 'equipment', 'native-actions', 'native-save'])
+@pytest.mark.parametrize('case', ['counts', 'gaps', 'respawn', 'bounded', 'nonhost', 'teleport', 'suspend', 'exit', 'board', 'equipment', 'native-actions', 'native-save',
+                                 'native-current-vitality', 'legacy-current-vitality', 'legacy-maximum-vitality'])
 def test_script_players(case):
     status, output = run(build('coop_script_players', generated()), case)
     assert status == 0, output
