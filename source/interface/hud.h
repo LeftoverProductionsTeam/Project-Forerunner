@@ -10,6 +10,12 @@ header included in hcex build.
 
 /* ---------- constants */
 
+/* port: share the unchanged per-viewer budget with co-op marker replay. */
+enum
+{
+	MAXIMUM_NUMBER_OF_NAV_POINTS = 4
+};
+
 /* ---------- macros */
 
 /* ---------- structures */

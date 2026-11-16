@@ -16,7 +16,44 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current return-feedback checkpoint (source base `8ed77de466`): normal network
+Current squad-guidance checkpoint (source base `b27833e172`): the existing co-op
+nav cache now retains the configured players' and native teams' four-marker
+budgets. Two six-member squads' two markers each previously retained only 16/24;
+both host/client failures are reproduced before the fix. The native four-marker
+HUD/save layout is unchanged. Existing event replay sends at most eight markers
+per tick, keeps its cursor across refreshes and retries queue congestion without
+starving later squads. No new packet, marker manager, quest or identity system.
+
+Windows64 compiles (`build/squad-guidance-build.log`). Twenty-five existing
+marker-harness cases cover the enlarged bounded cache, per-view isolation,
+deactivation, busy-queue retry/fairness and three new negative controls; ten
+medical-guidance regressions pass after sharing the native constant through
+`hud.h`. These bounded source checks are not twelve independent clients.
+
+`build/native-delta-squad-guidance/result.json` passes two authenticated clients'
+separate objectives, durable banking and first-squad same-ID redeployment:
+170 player seconds/174 item snapshots, zero divergences/out-of-step items.
+Its visual guidance check FAILS: a waypoint on the shared collectible disappears
+after the first squad picks that weapon up. The exact cause belongs to this
+owned fixture's authoring, not Spark or an engine regression. Original HSC and
+failed client screenshot remain. Only that authored target was corrected to a
+native cutscene flag; no runtime rebuild or repeated banking test was needed.
+
+`build/native-delta-squad-guidance-flag/result.json` passes the focused native
+Windows/OpenGL check. Inspected PNGs show only the host's extraction marker
+(15.1m) and the client's still-active artifact marker (22.4m), after the first
+artifact pickup. Player/item comparison has zero divergences/out-of-step items.
+Both sessions use binary SHA256
+`1c38a681660ea2baab3e1e7e6ca578224c30abc9c26d2f9beacb05d3ba399d53`;
+corrected cache `e71943d678379b44decc2373e39ad89afde535ae42ab6c0ca9fd8b20aae871c3`.
+Original identities and accepted squad/objective caches are unchanged. Stopped
+runtime/map copies and raw BMPs are removed; four PNGs, compact evidence and the
+owned reusable fixture remain. Spark's contract now gives native marker calls,
+limits and the stable-location requirement. Full Black Echo, six independent
+clients, scoped audio/cinematics, native late joins under a full marker budget,
+VR and other platforms remain unverified. The complete engine goal stays active.
+
+Accepted return-feedback checkpoint (source base `8ed77de466`): normal network
 Extraction notices and debrief pages share the existing chat layout. Complete
 text/controller prefixes fit the existing notice packet; chat owns wrapping.
 The local native HUD remains the fallback for offline/hidden chat, with its

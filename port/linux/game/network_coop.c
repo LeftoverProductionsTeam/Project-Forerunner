@@ -1323,13 +1323,18 @@ objective, and the nav points active (their kind, nav index, target, marker
 and offset as the note was given), resent by host_send_hud_state */
 enum
 {
-	MAXIMUM_NAV_POINTS = 16,
+	/* Native unit markers can address every player separately; team markers
+	also remain available to players who select that team later. */
+	MAXIMUM_NAV_POINTS = (HALO_PORT_MAXIMUM_NETWORK_PLAYERS + NUMBER_OF_SOLO_CAMPAIGN_TEAMS) * MAXIMUM_NUMBER_OF_NAV_POINTS,
+	/* Leave room in the shared event queue for script actions and their retries. */
+	NAV_POINT_REFRESHES_PER_TICK = 8,
 };
 
 static struct
 {
 	short objective;
 	short nav_point_count;
+	short nav_refresh_next, nav_refresh_remaining;
 	struct
 	{
 		short kind;
@@ -2283,6 +2288,7 @@ void network_coop_new_game(
 	coop_scripts_new_game();
 	host_hud_state.objective = NONE;
 	host_hud_state.nav_point_count = 0;
+	host_hud_state.nav_refresh_next = host_hud_state.nav_refresh_remaining = 0;
 	skip_vote_clear();
 	skip_vote.offered = FALSE;
 	skip_vote.voters = 0;
@@ -2953,7 +2959,7 @@ void network_coop_note_player_effect(
 	event->reals[2] = c;
 }
 
-static void send_nav_point(
+static boolean send_nav_point(
 	short kind,
 	short nav_index,
 	long target,
@@ -2963,12 +2969,13 @@ static void send_nav_point(
 	struct distributed_coop_event *event = event_new(_coop_event_nav_point);
 
 	if (!event)
-		return;
+		return FALSE;
 	event->type = (byte)kind;
 	event->value = nav_index;
 	event->target = target;
 	event->object_index = marker;
 	event->reals[0] = vertical_offset;
+	return TRUE;
 }
 
 void network_coop_note_nav_point(
@@ -3058,10 +3065,8 @@ machine that joined (it shows on screen when it comes, so not more often) */
 static void host_send_hud_state(
 	void)
 {
-	short index;
+	short index, sent;
 
-	if (!host_resend.refresh)
-		return;
 	if (host_resend.joined && host_hud_state.objective != NONE)
 	{
 		struct distributed_coop_event *event = event_new(_coop_event_hud);
@@ -3072,11 +3077,23 @@ static void host_send_hud_state(
 			event->value = host_hud_state.objective;
 		}
 	}
-	for (index = 0; index < host_hud_state.nav_point_count; index++)
+	if (host_resend.refresh)
+		host_hud_state.nav_refresh_remaining = host_hud_state.nav_point_count;
+	if (!host_hud_state.nav_point_count)
+		host_hud_state.nav_refresh_remaining = 0;
+	for (sent = 0; sent < NAV_POINT_REFRESHES_PER_TICK && host_hud_state.nav_refresh_remaining > 0; sent++)
 	{
-		send_nav_point(host_hud_state.nav_points[index].kind, host_hud_state.nav_points[index].nav_index,
+		/* Keep the cursor across refreshes so a busy event queue cannot starve
+		the last squad. A removal may have shortened the retained array. */
+		if (host_hud_state.nav_refresh_next >= host_hud_state.nav_point_count)
+			host_hud_state.nav_refresh_next = 0;
+		index = host_hud_state.nav_refresh_next;
+		if (!send_nav_point(host_hud_state.nav_points[index].kind, host_hud_state.nav_points[index].nav_index,
 			host_hud_state.nav_points[index].target, host_hud_state.nav_points[index].marker,
-			host_hud_state.nav_points[index].vertical_offset);
+			host_hud_state.nav_points[index].vertical_offset))
+			break;
+		host_hud_state.nav_refresh_next++;
+		host_hud_state.nav_refresh_remaining--;
 	}
 }
 

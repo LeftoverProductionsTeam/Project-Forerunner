@@ -506,6 +506,39 @@ not full Black Echo or scoped presentation acceptance. Spark next: require this
 feature through existing discovery and emit these declarations/groups through
 its existing mission HSC path for independent squad objectives.
 
+Squad guidance reuses native unit-targeted nav points, not team markers (two
+squads may share a faction). For example, after checking the query is nonempty:
+`(activate_nav_point_flag default (unit (list_get (forerunner_squad_01_players) 0)) sq_artifact 1)`.
+Apply this to each returned member, at most six; remove the matching flag/object
+marker at the objective transition and durable-return callback. Requery after a
+body changes. Native HUD capacity remains four markers per viewer, shared with
+ordinary authored markers; this does not reserve four more for each squad.
+Use a stable scenario cutscene flag for a shared location objective. A marker
+on a collectible weapon follows that object and may disappear when another squad
+collects it; a location flag survives that pickup. Movable aircraft and other
+live targets may still use native object markers.
+
+`hud_nav_points.c::hud_unit_activate_nav_point_with_flag/object` and their native
+deactivation functions own local presentation; `network_coop.c::network_coop_note_nav_point`
+retains/relays the existing events. The current cache accommodates the configured
+player and native team budgets instead of the previous 16 bindings. Existing
+`host_send_hud_state` replays at most eight bindings per tick, retaining its cursor
+when the shared event queue is busy. Packets, protocol 44/45 compatibility,
+per-viewer HUD/save layout and ordinary script execution are unchanged. These
+markers are presentation targeting, not secret mission data or scoped audio/
+cinematics. Earlier query-capable builds still have the 16-binding cache; the
+current runtime checkpoint is required for larger authored marker sets.
+Windows64 compiles; the existing marker harness covers 24 independent unit
+bindings and bounded full-cache replay under congestion. Two authenticated native
+clients show separate objective-stage markers in
+`build/native-delta-squad-guidance-flag/result.json` (inspected host/client PNGs).
+The preceding object's-pickup failure and accepted banking/redeployment evidence
+are retained in `build/native-delta-squad-guidance/result.json`. This is not
+full Black Echo, six independent clients, scoped audio/cinematics or another
+platform's acceptance. Spark next: emit per-member calls through its existing
+HSC authoring path, using a stable flag for a shared location objective and
+deactivating the old marker when that squad advances.
+
 A candidate needs
 live scenario **control** objects named `extraction_deploy` and
 `extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named

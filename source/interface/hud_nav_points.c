@@ -135,11 +135,6 @@ symbols in this file:
 
 enum
 {
-	MAXIMUM_NUMBER_OF_NAV_POINTS = 4
-};
-
-enum
-{
 	_hud_nav_point_type_flag,
 	_hud_nav_point_type_object,
 	_hud_nav_point_type_game_engine_flag

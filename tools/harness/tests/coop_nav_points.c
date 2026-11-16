@@ -16,7 +16,13 @@ static void *object;
 static boolean stale,deleted;
 static int role=1,sent;
 static struct {struct tag_block cutscene_flags;} scenario;
-static struct {short objective,nav_point_count;struct {short kind,nav_index;long target,marker;real vertical_offset;} nav_points[MAXIMUM_NAV_POINTS];} host_hud_state;
+static struct {short objective,nav_point_count,nav_refresh_next,nav_refresh_remaining;struct {short kind,nav_index;long target,marker;real vertical_offset;} nav_points[MAXIMUM_NAV_POINTS];} host_hud_state;
+static struct {boolean refresh,joined;} host_resend;
+enum {_coop_event_hud,_coop_event_nav_point};
+enum {_coop_hud_objective};
+struct distributed_coop_event {byte type;short value;long target,object_index;real reals[1];};
+static struct distributed_coop_event events[MAXIMUM_QUEUED_EVENTS];
+static int queue_used,queue_limit=MAXIMUM_QUEUED_EVENTS;
 static struct {struct {long player,team;boolean seen;} nav_players[MAXIMUM_LOCAL_PLAYERS];} coop_presentation;
 struct data_iterator {int slot;long datum_index;};
 static void *player_data;
@@ -32,8 +38,8 @@ static struct hud_nav_point_player_datum *get_nav_point_datum(short local)
 {CHECK(VALID_INDEX(local,MAXIMUM_LOCAL_PLAYERS),"out of bounds local HUD");return &views[local];}
 static boolean coop_host(void){return role==1;}
 static boolean coop_client(void){return role==2;}
-static void send_nav_point(short kind,short nav,long target,long marker,real offset)
-{(void)kind;(void)nav;(void)target;(void)marker;(void)offset;sent++;}
+static struct distributed_coop_event *event_new(byte kind)
+{if(role!=1||queue_used==queue_limit)return NULL;if(kind==_coop_event_nav_point)sent++;return &events[queue_used++];}
 #define global_scenario_get() (&scenario)
 #define hud_globals (&hud_definition)
 static void *object_try_and_get_and_verify_type(long index,int mask)
@@ -46,7 +52,45 @@ static int contains(short local,long marker)
 int main(int argc,char **argv)
 {
  char const *name=argc>1?argv[1]:"host";struct hud_nav_point_player_datum other;int i;
- memset(views,NONE,sizeof(views));scenario.cutscene_flags.count=3;hud_definition.waypoint.arrows.count=2;
+ memset(views,NONE,sizeof(views));scenario.cutscene_flags.count=3;hud_definition.waypoint.arrows.count=2;host_hud_state.objective=NONE;
+ if(!strcmp(name,"replay")||!strcmp(name,"congested")||!strcmp(name,"shrinking")||!strcmp(name,"removed")){
+  int count=!strcmp(name,"replay")||!strcmp(name,"congested")?MAXIMUM_NAV_POINTS:24;
+  int seen[MAXIMUM_NAV_POINTS]={0},tick,unique=0,j,expected=count;
+  role=2;for(i=0;i<count;i++)network_coop_note_nav_point(_coop_nav_point_team_object,0,2,0x9100+i,0);
+  role=1;if(!strcmp(name,"congested"))queue_limit=3;
+  for(tick=0;tick<MAXIMUM_NAV_POINTS;tick++){
+   if(tick==1&&(!strcmp(name,"shrinking")||!strcmp(name,"removed"))){
+    expected=!strcmp(name,"removed")?0:2;
+    for(i=expected;i<count;i++)network_coop_note_nav_point(_coop_nav_point_team_object,NONE,2,0x9100+i,0);
+    memset(seen,0,sizeof(seen));unique=0;
+   }
+   queue_used=0;host_resend.refresh=tick==0||(!strcmp(name,"congested")&&tick%60==0);
+   host_send_hud_state();
+   CHECK(queue_used<=8,"marker replay monopolized the shared mission event queue");
+   for(j=0;j<queue_used;j++){
+    i=(int)(events[j].object_index-0x9100);
+    CHECK(i>=0&&i<expected,"removed or invalid marker was replayed");
+    if(!seen[i]){seen[i]=1;unique++;}
+   }
+   if(tick>0&&unique==expected)break;
+  }
+  CHECK(unique==expected,"busy event queue lost late squad guidance (%d/%d)",unique,expected);
+  if(!strcmp(name,"removed"))CHECK(!host_hud_state.nav_refresh_remaining,"empty cache retained pending replay");
+  return 0;
+ }
+ if(!strncmp(name,"squads-",7)){
+  if(!strcmp(name,"squads-client"))role=2;
+  for(i=0;i<12;i++){
+   network_coop_note_nav_point(_coop_nav_point_unit_flag,0,0x10010+i,0,1.f);
+   network_coop_note_nav_point(_coop_nav_point_unit_flag,1,0x10010+i,1,2.f);
+  }
+  CHECK(host_hud_state.nav_point_count==24,"two six-member squads lost native objective bindings (%d/24)",host_hud_state.nav_point_count);
+  players[0].unit_index=0x1001b;coop_refresh_nav_points();players[0].team_index=3;coop_refresh_nav_points();
+  CHECK(contains(0,0)&&contains(0,1),"the last squad member lost its own objective guidance");
+  CHECK(!contains(1,0)&&!contains(1,1),"unit guidance leaked into an unrelated local viewer");
+  CHECK(sent==(role==1?24:0),"client cache sent authoritative events");
+  return 0;
+ }
  if(!strcmp(name,"client"))role=2;
  if(!strcmp(name,"legacy"))role=0;
  hud_activate_team_nav_point_with_flag(0,2,0,.5f);
@@ -90,8 +134,8 @@ int main(int argc,char **argv)
   views[0].nav_points[0].reference_index=12345;views[0].nav_points[0].type=0;coop_refresh_nav_points();
   CHECK(contains(0,12345),"unchanged identity unnecessarily cleared the native HUD");
  }else if(!strcmp(name,"capacity")){
-  for(i=0;i<32;i++)network_coop_note_nav_point(_coop_nav_point_team_object,0,2,0x9100+i,0);
-  CHECK(host_hud_state.nav_point_count==16,"existing bounded marker cache overflowed");
+  for(i=0;i<MAXIMUM_NAV_POINTS+5;i++)network_coop_note_nav_point(_coop_nav_point_team_object,0,2,0x9100+i,0);
+  CHECK(host_hud_state.nav_point_count==MAXIMUM_NAV_POINTS,"bounded marker cache overflowed");
  }else CHECK(FALSE,"unknown case %s",name);
  CHECK(!memcmp(&other,&views[1],sizeof(other)),"refresh rewrote an unrelated split-screen viewer");
  return 0;

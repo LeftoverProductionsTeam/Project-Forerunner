@@ -52,7 +52,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('evacuation.inc', function(director, 'firefight_try_evacuation')))
     hud = read('source/interface/hud_nav_points.c')
     files.append(('medical_hud_types.inc', structure(hud, 'hud_waypoint_arrow') +
-                  '\n#define MAXIMUM_NUMBER_OF_NAV_POINTS %d' % constant(hud, 'MAXIMUM_NUMBER_OF_NAV_POINTS')))
+                  '\n#define MAXIMUM_NUMBER_OF_NAV_POINTS %d' % constant(read('source/interface/hud.h'), 'MAXIMUM_NUMBER_OF_NAV_POINTS')))
     files.append(('medical_hud.inc', function(hud, 'hud_render_medical_nav_points')))
     devices = read('source/devices/devices.c')
     controls = read('source/devices/device_controls.c')
