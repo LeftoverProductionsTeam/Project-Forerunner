@@ -15,8 +15,17 @@ struct unit_datum
 {
 	long definition_index;
 	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags;long parent_object_index;} object;
-	struct {long player_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
+	struct {long player_index,actor_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
 };
+static int actor_data=1;
+static struct actor_datum {
+ struct {long unit_index;short active,dormant,squad_index;} meta;
+ struct {short action,default_state;} state;
+ struct {boolean moving;real_point3d moving_towards_point;
+  struct {boolean at_destination;real destination_distance;struct {boolean valid;short step_index,step_count;} path;} path;} control;
+ struct {struct {struct {short destination_type;} destination;} move;} orders;
+} native_actor;
+static struct actor_datum *actor_try_and_get(long index) { return index==0x56780000 ? &native_actor : NULL; }
 static struct unit_datum world[8];
 static long world_ids[8];
 static struct {long unit_index;} host_actors[MAXIMUM_NETWORK_ACTORS],client_actors[MAXIMUM_NETWORK_ACTORS];
@@ -73,7 +82,7 @@ static long add(int slot)
 	world[slot].object.position=(real_point3d){1.25f+slot,2.5f,3.75f};
 	world[slot].object.body_vitality=.625f;world[slot].object.shield_vitality=.25f;
 	world[slot].object.parent_object_index=NONE;world[slot].unit.parent_seat_index=NONE;
-	world[slot].unit.player_index=NONE;return id;
+	world[slot].unit.player_index=world[slot].unit.actor_index=NONE;return id;
 }
 static void clear_output(void){used=0;output[0]=0;summaries=0;}
 static void expect(const char *text){CHECK(strstr(output,text)!=NULL,"missing '%s' in %s",text,output);}
@@ -82,7 +91,22 @@ int main(int argc,char **argv)
 	const char *case_name;int i;
 	CHECK(argc==2,"case required");case_name=argv[1];
 	for(i=0;i<8;i++)world_ids[i]=NONE;
-	CASE("host-world")
+	CASE("host-control")
+	{
+		host_actors[0].unit_index=add(0);host_actor_count=1;world[0].unit.actor_index=0x56780000;
+		native_actor.meta.unit_index=world_ids[0];native_actor.meta.active=1;native_actor.meta.squad_index=2;
+		native_actor.state.action=3;native_actor.state.default_state=9;native_actor.control.path.path.valid=1;
+		native_actor.control.path.path.step_count=2;native_actor.control.path.destination_distance=6;
+		native_actor.orders.move.destination.destination_type=1;native_actor.control.moving_towards_point.x=12;
+		network_actors_log_units();expect("ai control 30 12340000 active 1 dormant 0 action 3 default 9 squad 2 moving 0 destination 1 arrived 0 path 1/0/2 distance 6.000 target 12.000");
+		clear_output();native_actor.meta.unit_index+=0x10000;network_actors_log_units();
+		CHECK(!strstr(output,"ai control"),"reused unit ownership emitted stale AI state");
+		clear_output();native_actor.meta.unit_index=world_ids[0];world[0].unit.actor_index+=0x10000;network_actors_log_units();
+		CHECK(!strstr(output,"ai control"),"reused actor salt emitted stale AI state");
+		clear_output();world[0].unit.actor_index=0x56780000;connection=2;network_actors_log_units();
+		CHECK(!strstr(output,"ai control"),"client interpreted a host actor index locally");
+	}
+	else CASE("host-world")
 	{
 		host_actors[0].unit_index=add(0);host_actor_count=1;cinematic=1;
 		world[0].object.parent_object_index=0x98760001L;world[0].unit.parent_seat_index=2;

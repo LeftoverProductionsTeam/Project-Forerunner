@@ -1052,10 +1052,16 @@ Classic ordering, explicit unit/AI targets and the native eight-target limit rem
 `ai_follow_target_players` / `ai_follow_target_unit` bind the whole encounter
 (`ai_script.c`), so separate escort groups need separate native encounters, not
 an assumed per-squad follow API. Windows64/12 connected cases/two defect controls
-pass; two authenticated clients verify group choices, but physical return fails
-in the owned fixture even with guard contexts/state. Navigation cause remains
-unresolved; independent Spartan squad membership/objectives are not implemented
-by this change. No new compiler opcode, discovery capability or protocol.
+pass. `build/native-delta-encounter-follow-ground` verifies two authenticated
+clients, group choices and the same Marine physically walking toward the hub;
+unchanged player/item/AI comparisons pass for 24 player seconds. CE609 ground
+encounters need compiler-derived BSP-surface firing points, appropriate native
+guard/search groups and guard state. The earlier owned fixture retained an
+aircraft encounter's 3D firing-point flag; clearing it fixed movement with the
+same engine binary. Do not invent surface indices or weaken the ground selector's
+surface requirement (`actor_firing_position.c::actor_select_firing_position`).
+Independent Spartan squad membership/objectives and complete rescue missions
+remain open. No new compiler opcode, discovery capability or protocol.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.

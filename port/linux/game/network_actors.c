@@ -33,6 +33,7 @@ an AI unit the same way it kills a player's.
 /* ---------- headers */
 
 #include "cseries.h"
+#include "ai/actors.h"
 #include "game/game.h"
 #include "cutscene/cinematics.h"
 #include "networking/network_game_globals.h"
@@ -74,7 +75,7 @@ enum
 	or a leap (unit_leap_begin). */
 	_actor_action_melee = NUMBER_OF_UNIT_ANIMATION_IMPULSES,
 	_actor_action_leap,
-	NUMBER_OF_ACTOR_ACTIONS,
+	NUMBER_OF_NETWORK_ACTOR_ACTIONS,
 
 	/* control flags a unit acts on in one tick: a unit that sets one goes to
 	every client that tick, however far away, so the action isn't missed */
@@ -449,7 +450,7 @@ static boolean actor_state_apply(
 		state->animation_state >= NUMBER_OF_UNIT_ANIMATION_STATES ||
 		state->aiming_speed >= NUMBER_OF_UNIT_AIMING_SPEEDS ||
 		!VALID_FLAGS(state->control_flags, NUMBER_OF_UNIT_CONTROL_FLAGS) ||
-		(state->impulse != NO_IMPULSE && state->impulse >= NUMBER_OF_ACTOR_ACTIONS) ||
+		(state->impulse != NO_IMPULSE && state->impulse >= NUMBER_OF_NETWORK_ACTOR_ACTIONS) ||
 		(state->speech_sound != NONE && !distributed_tag_of_group(state->speech_sound, SOUND_DEFINITION_TAG)) ||
 		(state->user_animation_graph != NONE &&
 			!distributed_graph_animation(state->user_animation_graph, state->user_animation)) ||
@@ -652,6 +653,21 @@ void network_actors_log_units(
 			(unsigned long)unit->unit.weapon_object_indices[0], (unsigned long)unit->unit.weapon_object_indices[1],
 			(unsigned long)unit->unit.weapon_object_indices[2], (unsigned long)unit->unit.weapon_object_indices[3],
 			(int)unit->unit.current_weapon_index);
+		/* The host alone owns AI decisions. Keep this behind the existing
+		 * bounded readback; never interpret a client's actor index as local AI. */
+		if (host && actor_data && unit->unit.actor_index != NONE)
+		{
+			struct actor_datum *actor = actor_try_and_get(unit->unit.actor_index);
+			if (actor && actor->meta.unit_index == units[index])
+				platform_log("network test: ai control %ld %08lx active %d dormant %d action %d default %d squad %d moving %d destination %d arrived %d path %d/%d/%d distance %.3f target %.3f %.3f %.3f",
+					now, (unsigned long)units[index], (int)actor->meta.active, (int)actor->meta.dormant,
+					(int)actor->state.action, (int)actor->state.default_state, (int)actor->meta.squad_index,
+					(int)actor->control.moving, (int)actor->orders.move.destination.destination_type,
+					(int)actor->control.path.at_destination, (int)actor->control.path.path.valid,
+					(int)actor->control.path.path.step_index, (int)actor->control.path.path.step_count,
+					actor->control.path.destination_distance, actor->control.moving_towards_point.x,
+					actor->control.moving_towards_point.y, actor->control.moving_towards_point.z);
+		}
 	}
 	platform_log("network test: actors %ld %s %d cinematic %d bsp %d", now, role, (int)count,
 		cinematic_in_progress() ? 1 : 0, (int)global_structure_bsp_index_get());

@@ -9,10 +9,14 @@ from harness import CHECK_FAILED, build, function, mutated, read, run  # noqa: E
 
 ACTORS = 'port/linux/game/network_actors.c'
 TEST = 'port/linux/game/network_test.c'
-CASES = ['host-world', 'client-world', 'remember-death', 'deleted-reused',
+CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
          'cadence-rewind', 'cadence-delayed', 'interval-bounds']
 CONTROLS = {
+    'client-ai-state': ('if (host && actor_data && unit->unit.actor_index != NONE)',
+                        'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
+    'stale-ai-owner': ('if (actor && actor->meta.unit_index == units[index])',
+                       'if (actor)', 'host-control'),
     'stale-position': ('unit->object.position.x,', '0.0,', 'host-world'),
     'wrong-table': ('boolean host = game_connection() == _game_connection_network_server;',
                     'boolean host = TRUE;', 'client-world'),

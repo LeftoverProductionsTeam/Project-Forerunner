@@ -16,7 +16,25 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `51883fce31`): opted-in Extraction encounters using native
+Current checkpoint (base `4ec42be17a`): bounded two-account native Marine
+following/return now passes. `build/native-delta-encounter-follow-ground` verifies
+the nearby field player retains the same Marine while another player stays at
+the hub, then the Marine changes group and walks from (54.843,-85.471) to
+(49.138,-87.785). Unchanged player/item/AI comparison passes (24 player seconds),
+no exception; original identities stay unchanged. The earlier fixture inherited
+the aircraft encounter's 3D firing-point flag. Host AI readback proved active guard
+state with no destination/path; clearing that flag on the owned ground encounter
+let native compilation provide usable BSP-surface firing points. Existing guard
+contexts/state were retained. No pathfinding rejection, motion or mission gate
+was bypassed. The existing opt-in readback now exposes host action/destination/
+path state with full ownership checks; its private network-action count is named
+separately from the native AI enum, without changing wire values. Windows64,
+12 readback cases and two defect controls pass. Owned runtime/staging and derivative
+cache are removed. This accepts Windows two-client follow/navigation only, not
+full Black Echo rescue objectives, independent squads, six clients or dropship
+flight. Pending debrief source remains preserved and native-UI unverified.
+
+Earlier follow-target checkpoint (base `51883fce31`): opted-in Extraction encounters using native
 `ai_follow_target_players` now choose the nearest living, correctly owned body.
 Classic campaign target ordering and explicit unit/AI targets remain unchanged;
 the native eight-target bound is retained. Windows64 compilation, 12 connected
