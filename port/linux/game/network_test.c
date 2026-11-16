@@ -656,6 +656,42 @@ static void network_test_append(
 		*length = MIN(*length + written, size - 1);
 }
 
+/* Opt-in aircraft diagnosis from the same native geometry used by interaction.
+   Read-only: never position a player, evict a pilot or enter a seat here. */
+static void network_test_log_boarding(long player_index, long unit_index)
+{
+	struct unit_datum *unit = unit_get(unit_index);
+	struct object_iterator iterator;
+	struct unit_datum *vehicle;
+	object_iterator_new(&iterator, _object_mask_vehicle, 0);
+	while ((vehicle = object_iterator_next(&iterator)) != NULL)
+	{
+		short seat_index, closest = NONE;
+		real distance = REAL_MAX;
+		real_point3d entrance, seat, best_entrance = {0}, best_seat = {0};
+		struct unit_definition *definition;
+		if (distance_squared3d(&unit->object.bounding_sphere_center, &vehicle->object.bounding_sphere_center) > 100.0f)
+			continue;
+		definition = unit_definition_get(vehicle->definition_index);
+		for (seat_index = 0; seat_index < MIN(definition->unit.seats.count, SHORT_MAX); seat_index++)
+			if (unit_can_enter_seat(unit_index, iterator.index, seat_index, NULL) && unit_get_seat_entrance_point(
+				unit_index, iterator.index, seat_index, &entrance, &seat, NULL))
+			{
+				real candidate = MIN(distance3d(&entrance, &unit->object.bounding_sphere_center),
+					distance3d(&seat, &unit->object.bounding_sphere_center));
+				if (candidate < distance)
+				{
+					distance = candidate; closest = seat_index; best_entrance = entrance; best_seat = seat;
+				}
+			}
+		platform_log("network test: boarding %ld %ld %08lx seat %d distance %.3f entrance %.3f %.3f %.3f target %.3f %.3f %.3f speed %.3f turning %.3f up %.3f locked %d action %d",
+			game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index), (unsigned long)iterator.index,
+			(int)closest, distance, best_entrance.x, best_entrance.y, best_entrance.z, best_seat.x, best_seat.y, best_seat.z,
+			magnitude3d(&unit->object.translational_velocity), magnitude3d(&vehicle->object.angular_velocity), vehicle->object.up.k,
+			TEST_FLAG(vehicle->unit.flags, _unit_not_enterable_by_player_bit) ? 1 : 0, (int)player_get(player_index)->action_result);
+	}
+}
+
 /* every player's unit, as this machine sees it */
 static void network_test_log_players(
 	void)
@@ -706,9 +742,12 @@ static void network_test_log_players(
 				object_get(object->object.parent_object_index) : object;
 
 			if (network_test.actors_interval > 0.0f)
+			{
 				platform_log("network test: allegiance %ld %ld %08lx %ld %d",
 					game_time_get(), (long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index),
 					(unsigned long)player->unit_index, player->team_index, (int)unit->object.owner_team_index);
+				network_test_log_boarding(iterator.datum_index, player->unit_index);
+			}
 			network_test_append(line, (int)sizeof(line), &length, " player %ld: (%.3f %.3f %.3f) h%.2f/%.2f%s%s g%d/%d w",
 				(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index), placed->object.position.x,
 				placed->object.position.y, placed->object.position.z, object->object.body_vitality,

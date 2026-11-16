@@ -38,6 +38,22 @@ under `SPARK_INTEGRATION_CONTRACT.md`, plus faction selection/bipeds/loadouts an
 insertion. No new inventory, director, protocol or launcher. Owned runtime and
 source-build scratch is removed; compact native evidence and six PNGs remain.
 
+Native transport checkpoint (base `67b9b42fac`): the contract and mandatory
+boarding/arrival/cinematic banking gate are committed. The original native
+`tools/fixtures/extraction_transport_native.hsc` reuses Halo AI, seats, controls
+and cameras. Windows64 compilation and native script/cache compilation pass.
+`build/native-pelican-recall` verifies an authenticated player boarding normally,
+pilot-driven insertion, concurrent camera/arrival monitoring, LZ arrival,
+normal disembarkation and activation of the extraction control, with no native
+halt. The pilot's recall route fails to reach the LZ; extraction boarding,
+departure, banking, Spirit flights and faction gameplay remain UNVERIFIED.
+The earlier camera halt was a fixture FOV/radian authoring error; the missed
+initial arrival was a blocking camera script. Both are corrected without
+weakening engine validation. Activation now remains available while the pilot
+repositions. Existing actor readback reports native seat geometry without
+moving/boarding players. No repeat of the accepted Spark mission or gear suite.
+Continue the native flight/landing path; do not substitute a timer or foot return.
+
 Native allegiance handoff (base `1b5bbaaa67`): existing reliable object
 descriptions now announce live team changes and apply them to reused objects.
 Native co-op player attachment and authored `ai_attach`/`ai_set_team` reconcile
