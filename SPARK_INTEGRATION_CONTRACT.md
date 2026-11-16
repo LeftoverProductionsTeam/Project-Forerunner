@@ -948,9 +948,16 @@ distance and pathfinding radius (at most 12 units): authored hull clearance,
 slower final approach, bounded pitch and native stop/descent controls. Legacy
 fighters and unconfigured/recorded planes retain their previous control.
 Use native keep-moving cruise points followed by a stop-at-point landing route;
-author final coordinates for the pilot body, not the aircraft's bounding center.
+author cruise/final coordinates for the configured aircraft's native world origin,
+not its offset pilot seat. `actor_moving.c::actor_move_sample_plane_position` is
+called from the current native driver-input update; eyes/perception stay native.
 The tracked `tools/fixtures/extraction_transport_native.hsc` illustrates the
-handoff; complete flight/settlement acceptance is recorded in the current checkpoint.
+handoff. Windows64/GL `build/native-pelican-physical-roundtrip` passes one
+authenticated player's physical insertion, pilot return/recall, evacuation boarding,
+departure camera, durable two-item bank and same-ID redeployment on the owned
+CE609 transport candidate `6b77d8ba6f32a5d17cc9c8c0854fcf9568b1210d17740f30957d4ef135cccc86`.
+No settlement volumes were widened; actual collision/boarding/settlement gates
+remain. Two-account flight/restart and Spark mission acceptance are still open.
 Read-only Spark review at `da48414` finds native route authoring/readback and
 HSC-symbol compilation, but its current runtime handoff explicitly leaves the
 complete aircraft-equipped Black Echo CE609 package uncompiled/unaccepted.

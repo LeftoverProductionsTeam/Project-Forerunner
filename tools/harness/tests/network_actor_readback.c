@@ -14,7 +14,7 @@
 struct unit_datum
 {
 	long definition_index;
-	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags;long parent_object_index;} object;
+	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags;long parent_object_index;real_vector3d forward,translational_velocity;} object;
 	struct {long player_index,actor_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
 };
 static int actor_data=1;
@@ -24,7 +24,8 @@ static struct actor_datum {
  struct {boolean moving;real_point3d moving_towards_point;
   struct {boolean at_destination;real destination_distance;struct {boolean valid;short step_index,step_count;} path;} path;} control;
  struct {struct {struct {short destination_type;} destination;} move;} orders;
- struct {short vehicle_driver_type;} input;
+ struct {short vehicle_driver_type;long vehicle_index;
+  struct {real_point3d body_position,head_position;real_vector3d body_facing,velocity;} position;} input;
  struct {real_vector3d throttle,facing_vector;} output;
 } native_actor;
 static struct actor_datum *actor_try_and_get(long index) { return index==0x56780000 ? &native_actor : NULL; }
@@ -76,6 +77,17 @@ static void platform_log(const char *format,...)
 	CHECK(written>0&&(size_t)written+used+2<sizeof(output),"diagnostic output overflow");
 	used+=(size_t)written;output[used++]='\n';output[used]=0;
 }
+/* Native transport sampling over the same bounded actor/world adapters. */
+struct vehicle_definition {real ai_steering_max_throttle,ai_avoidance_distance,ai_pathfinding_radius;};
+static struct vehicle_definition plane_tag={.65f,4.f,1.8f};
+static boolean human_plane=TRUE;
+static struct actor_datum *actor_get(long index) { struct actor_datum *a=actor_try_and_get(index);CHECK(a,"unknown actor");return a; }
+static struct unit_datum *vehicle_get(long id) {return unit_get(id);}
+static boolean vehicle_is_human_plane(long id) {(void)id;return human_plane;}
+static struct vehicle_definition *vehicle_specific_definition_get(long index) {(void)index;return &plane_tag;}
+static void object_get_origin(long id,real_point3d *p) {*p=unit_get(id)->object.position;}
+static void object_get_orientation(long id,real_vector3d *f,real_vector3d *u) {(void)u;*f=unit_get(id)->object.forward;}
+static void object_get_velocities(long id,real_vector3d *v,real_vector3d *a) {(void)a;*v=unit_get(id)->object.translational_velocity;}
 #include "under_test.inc"
 static long add(int slot)
 {
@@ -93,7 +105,38 @@ int main(int argc,char **argv)
 	const char *case_name;int i;
 	CHECK(argc==2,"case required");case_name=argv[1];
 	for(i=0;i<8;i++)world_ids[i]=NONE;
-	CASE("host-control")
+	CASE("plane-waypoint-position")
+	{
+		long ship=add(1);
+		native_actor.input.vehicle_index=ship;
+		native_actor.input.vehicle_driver_type=_actor_vehicle_driver_directional_flying;
+		native_actor.input.position.body_position=(real_point3d){99,98,97};
+		native_actor.input.position.head_position=(real_point3d){9,8,7};
+		world[1].object.forward=(real_vector3d){-1,0,0};
+		world[1].object.translational_velocity=(real_vector3d){.1f,.2f,.3f};
+		actor_move_sample_plane_position(0x56780000);
+		CHECK(native_actor.input.position.body_position.x==world[1].object.position.x &&
+		      native_actor.input.position.body_position.z==world[1].object.position.z,"transport navigated from pilot seat");
+		CHECK(native_actor.input.position.body_facing.i==-1 &&
+		      native_actor.input.position.velocity.j==.2f,"transport kept seat motion/facing");
+		CHECK(native_actor.input.position.head_position.x==9 &&
+		      native_actor.input.position.head_position.z==7,"pilot sight was replaced by aircraft position");
+		world[1].object.position=(real_point3d){50,-110,3};
+		world[1].object.forward=(real_vector3d){0,1,0};
+		actor_move_sample_plane_position(0x56780000);
+		CHECK(native_actor.input.position.body_position.y==-110 &&
+		      native_actor.input.position.body_facing.j==1,"turn changed waypoint reference to the offset seat");
+		native_actor.input.position.body_position.x=99;human_plane=FALSE;
+		actor_move_sample_plane_position(0x56780000);
+		CHECK(native_actor.input.position.body_position.x==99,"legacy fighter sampling changed");
+		human_plane=TRUE;plane_tag.ai_avoidance_distance=0;
+		actor_move_sample_plane_position(0x56780000);
+		CHECK(native_actor.input.position.body_position.x==99,"unconfigured plane sampling changed");
+		plane_tag.ai_avoidance_distance=4;native_actor.input.vehicle_driver_type=_actor_vehicle_driver_none;
+		actor_move_sample_plane_position(0x56780000);
+		CHECK(native_actor.input.position.body_position.x==99,"passenger/on-foot sampling changed");
+	}
+	else CASE("host-control")
 	{
 		host_actors[0].unit_index=add(0);host_actor_count=1;world[0].unit.actor_index=0x56780000;
 		native_actor.meta.unit_index=world_ids[0];native_actor.meta.active=1;native_actor.meta.squad_index=2;

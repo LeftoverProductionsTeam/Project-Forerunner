@@ -1839,6 +1839,7 @@ static void actor_input_update(
 			unit_get_facing_vector(
 				actor->input.vehicle_index,
 				&actor->input.facing_vector);
+			actor_move_sample_plane_position(actor_index);
 		}
 		else
 		{

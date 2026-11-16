@@ -731,6 +731,19 @@ static struct vehicle_definition *actor_move_plane_definition(struct actor_datum
 	return plane;
 }
 
+/* Transport routes describe the aircraft, not an offset seat that sweeps
+ * around the destination as the pilot turns. Keep native eyes/perception. */
+void actor_move_sample_plane_position(long actor_index)
+{
+	struct actor_datum *actor = actor_get(actor_index);
+	if (actor_move_plane_definition(actor))
+	{
+		object_get_origin(actor->input.vehicle_index, &actor->input.position.body_position);
+		object_get_orientation(actor->input.vehicle_index, &actor->input.position.body_facing, NULL);
+		object_get_velocities(actor->input.vehicle_index, &actor->input.position.velocity, NULL);
+	}
+}
+
 static void actor_move_avoidance_setup(
 	struct vector_avoidance_data *avoidance_data)
 {

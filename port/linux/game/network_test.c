@@ -676,6 +676,14 @@ static void network_test_log_boarding(long player_index, long unit_index)
 		real distance = REAL_MAX;
 		real_point3d entrance, seat, best_entrance = {0}, best_seat = {0};
 		struct unit_definition *definition;
+		if (vehicle_is_human_plane(iterator.index))
+			platform_log("network test: aircraft %ld %ld ground %d rest %d landed %d up %.3f motion %.4f spin %.4f throttle %.3f facing %.3f %.3f %.3f",
+					game_time_get(), DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index),
+					TEST_FLAG(vehicle->object.flags, _object_on_ground_bit),
+					TEST_FLAG(vehicle->object.flags, _object_at_rest_bit), vehicle_is_landed(iterator.index), vehicle->object.up.k,
+					magnitude3d(&vehicle->object.translational_velocity), magnitude3d(&vehicle->object.angular_velocity),
+					vehicle->unit.throttle.i, vehicle->unit.desired_facing_vector.i,
+					vehicle->unit.desired_facing_vector.j, vehicle->unit.desired_facing_vector.k);
 		if (distance_squared3d(&unit->object.bounding_sphere_center, &vehicle->object.bounding_sphere_center) > 100.0f)
 			continue;
 		definition = unit_definition_get(vehicle->definition_index);
@@ -1654,19 +1662,6 @@ static void network_test_log_actors(
 				object->object.bounding_sphere_center.x, object->object.bounding_sphere_center.y,
 				object->object.bounding_sphere_center.z, object->object.bounding_sphere_radius,
 				device_can_change_position(objects.index));
-		}
-		object_iterator_new(&objects, _object_mask_vehicle, 0);
-		while (object_iterator_next(&objects))
-		{
-			struct unit_datum *ship = unit_get(objects.index);
-			if (vehicle_is_human_plane(objects.index))
-				platform_log("network test: aircraft %ld %ld ground %d rest %d landed %d up %.3f motion %.4f spin %.4f throttle %.3f facing %.3f %.3f %.3f",
-					now, DATUM_INDEX_TO_ABSOLUTE_INDEX(objects.index),
-					TEST_FLAG(ship->object.flags, _object_on_ground_bit),
-					TEST_FLAG(ship->object.flags, _object_at_rest_bit), vehicle_is_landed(objects.index), ship->object.up.k,
-					magnitude3d(&ship->object.translational_velocity), magnitude3d(&ship->object.angular_velocity),
-					ship->unit.throttle.i, ship->unit.desired_facing_vector.i,
-					ship->unit.desired_facing_vector.j, ship->unit.desired_facing_vector.k);
 		}
 		data_iterator_new(&players, player_data);
 		while ((player = data_iterator_next(&players)) != NULL)

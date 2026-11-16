@@ -16,33 +16,35 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current P0 checkpoint (base `3f8cb80f3c`): physical landing/settlement handoff
-is source-implemented and Windows64 compiled. Optional native `*_landed` groups
-use collision-grounded state, upright attitude and settled motion, preserve native
-grounded hover parking, reject pending destruction, and gate boarding readiness
-and seated hub banking. Existing receipt, cinematic, identity and gear gates remain.
-51 focused connected transport workflows pass, now exercising the actual native
-landing predicate (transient/tilted/sliding/rotating/airborne-hover refusal and
-grounded parking), output isolation and delayed banking. The existing HSC template
-waits for both pad volume and touchdown before opening doors. No new packet,
-save format, pilot engine or test framework.
+Current P0 checkpoint (base `cd816ed391`): single authenticated native physical
+transport roundtrip PASSES in `build/native-pelican-physical-roundtrip`. Actual
+deploy/normal boarding, native pilot insertion/landing/disembarkation, empty hub
+return, real control request, pickup landing/normal evacuation boarding, departure
+camera, loaded hub arrival, durable banking of two unique actual equipment items,
+normal disembarkation and same-ID redeployment complete without a native exception.
+Candidate CE609 SHA256 `6b77d8ba6f32a5d17cc9c8c0854fcf9568b1210d17740f30957d4ef135cccc86`.
+This is owned transport-fixture execution on Windows64/GL, not Spark's complete
+mission, two-client flight, combat/rescue acceptance in this cache or VR proof.
 
-Configured native human-plane AI now uses authored hull clearance, approach/turn
-throttle, bounded pitch, native final stopping and grounded descent/leveling.
-These pilot controls remain partially native-verified, NOT a completed shuttle.
-Native diagnosis identified real grounded-rollover ejection, a cruise-power/orbit
-problem and heading-dependent final touchdown; collision/ejection remain enabled.
-Intermediate owned runs demonstrate normal boarding, insertion landing and
-disembarkation; the final candidate `build/native-pelican-final-pad` (map
-`74e9373ce81eef4f62bdbbbf7929e7b13ecfee48548a1ee41a0bc68a50aa0b4a`)
-stops at insertion: actual craft settles around (80.78,-133.41), outside the LZ's
-Y>=-133 boundary. Pilot remains seated, no exception; no evacuation seat receipt,
-departure, aircraft banking or next deployment is accepted. Do not turn this into
-a pass by widening a settlement gate. Finish repeatable pilot/aircraft touchdown
-before two-account flight and Spark aircraft acceptance. Source checks are not
-hardware/gameplay proof. Owned runtime/map staging and stopped BMP scratch are
-removed; compact logs/PNG evidence retained; original fn_native SHA remains
-`09c939b9b440dd25a8c139dea7283253dcb9ea227bb7f0bfd845bee82ba2e4b3`.
+The root correction samples configured human-plane movement from the aircraft's
+native world origin/heading/velocity, preserving the pilot's real eyes. The old
+offset seat made final arrival depend on heading; no teleport, player force-boarding,
+collision bypass or settlement-volume expansion is used. Legacy fighters,
+unconfigured planes and non-driver samples remain unchanged. Windows64 and 13
+focused actor/readback cases pass, including the real sampler and legacy/eyes
+invariants. Existing 51 transport checks from the prior checkpoint remain accepted.
+Detailed aircraft diagnostics reuse the existing boarding traversal; the unrelated
+actor-only diagnostic no longer takes on vehicle traversal dependencies.
+
+The preceding `native-pelican-aircraft-reference` run reached pickup but timed out
+because the input driver chased an exact seat marker despite the native entry
+prompt. Using ordinary Use on that actual prompt completes the flight; no gameplay
+seat admission changed. Earlier failed flight evidence is retained. Stopped runtime/
+map staging and BMP scratch are removed, compact logs/PNG/gear evidence retained;
+original fn_native SHA remains `09c939b9b440dd25a8c139dea7283253dcb9ea227bb7f0bfd845bee82ba2e4b3`.
+Next: reuse this exact candidate for two authenticated crew members, synchronized
+flight/banking and fresh-process redeployment. Full roadmap/P0 mission acceptance
+remain open; do not repeat unchanged fixture investigations.
 
 Read-only Spark `da48414` still leaves its full aircraft-equipped Black Echo CE609
 delivery unfinished. Exact next authoring requirements and native source references

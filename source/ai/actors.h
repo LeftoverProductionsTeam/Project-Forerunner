@@ -1335,6 +1335,8 @@ boolean actor_path_at_destination(
 	long actor_index);
 void actor_destination_update(
 	long actor_index);
+void actor_move_sample_plane_position(
+	long actor_index);
 void actor_move_update(
 	long actor_index);
 

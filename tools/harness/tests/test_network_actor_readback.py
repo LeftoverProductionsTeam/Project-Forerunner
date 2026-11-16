@@ -5,13 +5,13 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, function, mutated, read, run  # noqa: E402
+from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run  # noqa: E402
 
 ACTORS = 'port/linux/game/network_actors.c'
 TEST = 'port/linux/game/network_test.c'
 CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
-         'cadence-rewind', 'cadence-delayed', 'interval-bounds']
+         'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position']
 CONTROLS = {
     'client-ai-state': ('if (host && actor_data && unit->unit.actor_index != NONE)',
                         'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
@@ -38,6 +38,10 @@ def generated(control=None):
     code = '\n'.join(function(actors, name) for name in
                      ('network_actors_new_game', 'actor_log_remember', 'network_actors_log_units'))
     code += '\n' + function(test, 'network_test_log_actors')
+    moving = read('source/ai/actor_moving.c')
+    code += '\n' + enum_with(read('source/ai/actors.h'), '_actor_vehicle_driver_directional_flying')
+    code += '\n' + '\n'.join(function(moving, name) for name in
+                                  ('actor_move_plane_definition', 'actor_move_sample_plane_position'))
     if control:
         before, after, _ = CONTROLS[control]
         code = mutated(code, before, after)
