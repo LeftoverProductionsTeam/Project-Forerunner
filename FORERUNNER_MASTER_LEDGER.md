@@ -16,7 +16,35 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current authored squad-objective checkpoint (source base `39c45fc17b`): ordinary
+Current return-feedback checkpoint (source base `8ed77de466`): normal network
+Extraction notices and debrief pages share the existing chat layout. Complete
+text/controller prefixes fit the existing notice packet; chat owns wrapping.
+The local native HUD remains the fallback for offline/hidden chat, with its
+record budget and opposite display order preserved. Global chat notices are
+queued once per machine, while native HUD fallback still addresses each local
+view. Return/squad summaries are shorter; the duplicate report formatter is gone.
+No new renderer, notification manager, packet, save or Spark input was introduced.
+
+Windows64 compiles (`build/extraction-notice-fallback-build.log`). Thirty-six
+focused notice/debrief/medical/identity cases are covered by the main run and
+the corrected native-prefix word-boundary expectation; tail fault controls pass.
+`build/native-delta-extraction-feedback/result.json` passes two authenticated
+clients' normal return displays: inspected host/client PNGs have readable reports
+without the overlapping large HUD text. Comparison: 94 player seconds/98 item
+snapshots, no divergences/out-of-step items. Its binary SHA256 is
+`c6019e385f93d88496410b6ee8a526412ccb97c08bf9dd60f52933b4c4c566fd`.
+`build/native-delta-extraction-feedback-fallback/result.json` separately verifies
+the hidden-chat host's four native HUD rows in correct order and the visible-chat
+client's report. Comparison: 123 seconds/127 snapshots, no divergences/out-of-step
+items; current binary `2a741d7f3861c4d1ee4c141fcd3ae31fc4309586ec1b5d947d8ef74ae59a20be`.
+Both use the unchanged accepted `25d28447...` cache. Original identity files are
+unchanged; stopped runtime/map copies and raw BMPs are removed, four lossless PNGs
+and compact evidence retained. These UI probes exercised normal banking; accepted
+restart/redeployment, objective and aircraft evidence was retained. Standalone offline
+startup, split-screen/VR/human acceptance remain open; remote hidden chat retains
+its inherited console behavior. The complete engine roadmap remains active.
+
+Accepted authored squad-objective checkpoint (source base `39c45fc17b`): ordinary
 static HSC helpers select only living, verified participants in the squad's current
 operation. Existing authored co-op policy is required. Optional native readiness
 groups gate extraction independently, cancel revoked readiness before escrow and

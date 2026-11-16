@@ -1859,6 +1859,11 @@ static void chat_send(
 	}
 }
 
+boolean network_chat_notice_visible(void)
+{
+	return chat_network_game() && chat_shown();
+}
+
 void network_chat_host_notice(
 	char const *text)
 {
@@ -1867,7 +1872,7 @@ void network_chat_host_notice(
 
 	/* (with the chat not shown, the console's red line, whatever
 	game.console_log says: the host's notices are for the players) */
-	if (!chat_network_game() || !chat_shown())
+	if (!network_chat_notice_visible())
 	{
 		terminal_printf(global_real_argb_red, "%s", text);
 		return;

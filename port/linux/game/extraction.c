@@ -16,8 +16,8 @@
 #include "game/game_allegiance.h"
 #include "cutscene/cinematics.h"
 #include "game_modes.h"
-#include "gear.h"
 #include "interface/hud_messaging.h"
+#include "gear.h"
 #include "interface/player_ui.h"
 #include "objects/objects.h"
 #include "objects/object_types.h"
@@ -36,6 +36,7 @@
 #include "units/unit_definitions.h"
 #include "extraction.h"
 #include "network_coop.h"
+#include "network_chat.h"
 #include "network_distributed.h"
 #include "network_rules.h"
 #include "coop_enemies.h"
@@ -225,15 +226,14 @@ boolean extraction_player_spawn_profile(long player_index, long *biped, short *p
 	return TRUE;
 }
 
-static void extraction_local_notice(short local, char const *text)
+static void extraction_hud_notice(short local, char const *text)
 {
 	wchar_t lines[4][63];
 	short start = 0, count = 0, end, split, index;
-	short length = (short)MIN(strlen(text), 127);
-	/* Native HUD records hold 62 characters plus NUL. Keep the existing
-	 * records/save layout and publish complete notices in word-sized parts.
-	 * Newer records draw first, so enqueue the headline last. */
-	do
+	short length = (short)MIN(strlen(text), 143);
+	/* Preserve the native 62-character record budget when chat is unavailable.
+	 * This backend draws new records first; enqueue each headline last. */
+	while (start < length && count < NUMBEROF(lines))
 	{
 		end = MIN(start + 62, length);
 		if (end < length && text[end] != ' ')
@@ -245,20 +245,42 @@ static void extraction_local_notice(short local, char const *text)
 		lines[count++][end-start] = 0;
 		start = end;
 		while (start < length && text[start] == ' ') start++;
-	} while (start < length && count < NUMBEROF(lines));
+	}
 	while (count > 0) hud_print_message(local, lines[--count]);
+}
+
+static void extraction_notice_to_machine(long machine, short controller, char const *text)
+{
+	char notice[144];
+	/* The existing chat/notice layer works after native weapons/HUD are banked.
+	 * Its 160-byte notice packet holds the complete existing 127-byte text and
+	 * controller prefix. Chat owns wrapping and drawing for every recipient. */
+	if (controller == NONE) snprintf(notice, sizeof(notice), "%.127s", text);
+	else snprintf(notice, sizeof(notice), "P%d | %.127s", controller + 1, text);
+	if (machine == NONE && !network_chat_notice_visible())
+	{
+		if (controller != NONE) extraction_hud_notice(controller, notice);
+		else
+		{
+			short local;
+			for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
+				extraction_hud_notice(local, notice);
+		}
+		return;
+	}
+	distributed_send_notice_to_machine(machine, notice);
 }
 
 static void extraction_notice(char const *text)
 {
 	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
-	short local, index, count;
-	for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
-		extraction_local_notice((short)local, text);
+	short index, count;
+	/* Chat is shared by this machine's views; global notices are shown once. */
+	if (local_player_get_next(NONE) != NONE) extraction_notice_to_machine(NONE, NONE, text);
 	if (game_connection() == _game_connection_network_server)
 	{
 		count = distributed_client_machines(machines, NUMBEROF(machines));
-		for (index = 0; index < count; index++) distributed_send_notice_to_machine(machines[index], text);
+		for (index = 0; index < count; index++) extraction_notice_to_machine(machines[index], NONE, text);
 	}
 }
 
@@ -266,18 +288,14 @@ static void extraction_player_notice(long player_index, char const *text)
 {
 	struct player_datum *player = player_try_and_get(player_index);
 	long machine;
-	char notice[128];
 	if (!player || player->quit_out_of_game) return;
 	if (player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
-		extraction_local_notice(player->local_player_index, text);
+		extraction_notice_to_machine(NONE, player->local_player_index, text);
 	else
 	{
 		machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
 		if (machine != NONE)
-		{
-			snprintf(notice, sizeof(notice), "P%d | %s", (int)player->network_player_data.controller_index + 1, text);
-			distributed_send_notice_to_machine(machine, notice);
-		}
+			extraction_notice_to_machine(machine, player->network_player_data.controller_index, text);
 	}
 }
 
@@ -789,30 +807,18 @@ static char const *extraction_item_name(char const *path)
 	return slash ? slash + 1 : path;
 }
 
-static void extraction_report_line(struct extraction_run const *run, char const *text)
-{
-	struct player_datum *player = player_try_and_get(run->player);
-	if (!player || player->quit_out_of_game) return;
-	if (player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
-	{
-		char notice[64];
-		snprintf(notice, sizeof(notice), "P%d | %.57s", (int)player->local_player_index + 1, text);
-		/* Campaign bipeds may have no unit HUD after their weapons are banked.
-		 * Use the same existing notice/chat layer as remote players. */
-		distributed_send_notice_to_machine(NONE, notice);
-	}
-	else extraction_tell(run, text);
-}
-
 static void extraction_debrief(struct extraction_run *run)
 {
 	struct extraction_report const *report = &run->report;
 	char lines[4][58]; /* Keep the existing remote controller prefix within 62 characters. */
 	short page, pages, index;
+	struct player_datum *player = player_try_and_get(run->player);
+	boolean reverse = player && player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS &&
+		!network_chat_notice_visible();
 	if (run->gear.pending || run->phase == _extraction_settling || run->phase == _extraction_losing ||
 		run->phase == _extraction_cancelling)
 	{
-		extraction_report_line(run, "DEBRIEF PENDING | Settlement must finish before results.");
+		extraction_tell(run, "DEBRIEF PENDING | Settlement must finish before results.");
 		return;
 	}
 	memset(lines, 0, sizeof(lines));
@@ -872,8 +878,8 @@ static void extraction_debrief(struct extraction_run *run)
 		snprintf(lines[3], sizeof(lines[3]), "Use: next page | Loadout terminal: prepare next run");
 		run->report_page = (page + 1) % pages;
 	}
-	/* Existing chat draws newer rows below older ones on desktop. */
-	for (index = 0; index < 4; index++) extraction_report_line(run, lines[index]);
+	/* The inherited HUD and chat backends have opposite record ordering. */
+	for (index = 0; index < 4; index++) extraction_tell(run, lines[reverse ? 3 - index : index]);
 }
 
 static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout)
@@ -1159,7 +1165,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (extraction.debrief_name != NONE && control->object.name_index == extraction.debrief_name)
 	{
 		if (!in_hub || unit->object.parent_object_index != NONE)
-			extraction_report_line(run, "DEBRIEF LOCKED | Read your report on foot at the hub.");
+			extraction_tell(run, "DEBRIEF LOCKED | Read your report on foot at the hub.");
 		else if (extraction_open_gear(run, player)) extraction_debrief(run);
 		return TRUE; /* Per-player pages never toggle a shared native device. */
 	}
@@ -1403,8 +1409,11 @@ static void extraction_finish_return(struct extraction_run *run)
 	if (run->report.staged && run->report.outcome == _gear_escaped &&
 		!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
 	run->phase = _extraction_returned; run->blocked = FALSE;
-	snprintf(text, sizeof(text), "RUN COMPLETE | Stash %d/%d weapons, %d frag, %d plasma. Compatible recovered gear is ready for your next run.",
-		(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
+	if (extraction.debrief_name != NONE)
+		snprintf(text, sizeof(text), "GEAR BANKED | Debrief available at the hub.");
+	else
+		snprintf(text, sizeof(text), "GEAR BANKED | Stash %d/%d | Frag %d Plasma %d",
+			(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
 	extraction_tell(run, text);
 }
 
@@ -1733,7 +1742,7 @@ void extraction_update(void)
 			snprintf(script, sizeof(script), "forerunner_squad_%02d_complete", index + 1);
 			platform_log("extraction: squad %d operation %lu settled; authored completion %s", index + 1,
 				extraction.squads[index].operation, extraction_wake_completion(script, TRUE) ? "woken" : "absent or unsupported");
-			snprintf(text, sizeof(text), "SQUAD %02d RETURNED | Recovered equipment is banked. Read your individual debrief and prepare the next deployment.", index + 1);
+			snprintf(text, sizeof(text), "SQUAD %02d READY | Survivors banked. Redeploy at the hub.", index + 1);
 			extraction_squad_notice(index, text);
 		}
 	/* The optional authored continuation runs once per fresh map, after actual

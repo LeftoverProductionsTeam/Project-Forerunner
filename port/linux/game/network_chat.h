@@ -38,6 +38,8 @@ chat's lines, in its notice colour (in more than one when it is longer than
 one holds), or with the chat not shown, as a red line of the console's,
 whatever game.console_log says */
 void network_chat_host_notice(char const *text);
+/* Whether host notices use the on-screen chat instead of the console. */
+boolean network_chat_notice_visible(void);
 /* ... sent past this machine's own checks of the host's settings, as a
 changed build could send it, for the host to refuse (network_test.c) */
 void network_chat_say_unchecked(short channel, char const *text);

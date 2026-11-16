@@ -167,8 +167,8 @@ static byte remote_account[16] = {1};
 static byte host_account[16] = {2};
 static boolean delta_session;
 static int local_notices, remote_notices, respawns;
-static char local_notice_history[4][63];
-static char last_remote_notice[128],remote_notice_history[4][128];
+static char local_notice_history[4][160];
+static char last_remote_notice[160],remote_notice_history[4][160];
 
 static boolean config_boolean(char const *name)
 { return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
@@ -286,9 +286,14 @@ static long player_control_get_unit_index(short local) {return player_get(local_
 #define datum_try_and_get(data,index) player_try_and_get(index)
 #include "body_binding.inc"
 #undef datum_try_and_get
-static short local_player_get_next(short index) { return index==NONE ? 0 : NONE; }
+static short local_views=1;
+static short local_player_get_next(short index) { return index+1<local_views ? index+1 : NONE; }
+static short native_hud_notices;
+static boolean notice_chat_visible=TRUE;
+static boolean network_chat_notice_visible(void){return notice_chat_visible;}
 static void hud_print_message(short local,wchar_t const *text) {
- short i;CHECK(local==0,"wrong local notice");CHECK(wcslen(text)<63,"native HUD record truncated a notice");
+ native_hud_notices++;
+ short i;CHECK(local>=0&&local<local_views,"wrong local notice");CHECK(wcslen(text)<63,"native HUD record truncated a notice");
  for(i=0;text[i];i++)local_notice_history[local_notices%4][i]=(char)text[i];
  local_notice_history[local_notices%4][i]=0;local_notices++;
 }
@@ -297,10 +302,11 @@ short distributed_client_machines(long *machines,short max) { machines[0]=1; ret
 long distributed_player_machine(short slot) { CHECK(slot>=0 && slot<active_players,"unsalted absolute player lookup"); return players[slot].local_player_index==NONE ? 1 : NONE; }
 void distributed_send_notice_to_machine(long machine,char const *text) {
  if(machine==NONE) {
-  CHECK(strlen(text)<63,"host report notice exceeds native row");
+  CHECK(strlen(text)<160,"host notice exceeds existing packet");
   snprintf(local_notice_history[local_notices++%4],sizeof(local_notice_history[0]),"%s",text);return;
  }
  CHECK(machine==1,"wrong remote notice");
+ CHECK(strlen(text)<160,"client notice exceeds existing packet");
  snprintf(remote_notice_history[remote_notices%4],sizeof(remote_notice_history[0]),"%s",text);
  remote_notices++;snprintf(last_remote_notice,sizeof(last_remote_notice),"%s",text);
 }
@@ -668,6 +674,11 @@ int main(int argc,char **argv)
    messages=local_notices;advance(1);
    CHECK(r->report.announced&&r->report_page==1&&local_notices==messages+4,"confirmed on-foot hub report not announced once");
    messages=local_notices;advance(2);CHECK(local_notices==messages,"auto debrief repeated");
+  }
+  if(!strcmp(case_name,"debrief-fallback")) {
+   notice_chat_visible=FALSE;r->report_page=0;messages=local_notices;short hud_before=native_hud_notices;
+   touch(2,0);CHECK(local_notices==messages+4&&native_hud_notices==hud_before+4,"offline/hidden-chat report lost native HUD fallback");
+   CHECK(strstr(local_notice_history[(local_notices-1)%4],"DEBRIEF")&&strstr(local_notice_history[(local_notices-2)%4],"Secured:"),"HUD report read in reverse order");return 0;
   }
   r->report_page=0;before=r->gear.record;
   for(k=0;k<r->report.weapon_count+2;k++) {
@@ -1235,10 +1246,44 @@ int main(int argc,char **argv)
   advance(30);CHECK(run(0)->gear.record.count==1,"arrived passenger duplicated loot");
   extraction_reset();return 0;
  }
+ if(!strcmp(case_name,"notice-routing")||!strcmp(case_name,"notice-controller")||!strcmp(case_name,"notice-broadcast")||!strcmp(case_name,"notice-fallback")) {
+  int host_before=local_notices,remote_before=remote_notices;short j;
+  char full[128],host_text[160]={0},remote_text[160]={0};
+  if(!strcmp(case_name,"notice-broadcast")) {
+   local_views=2;extraction_notice("Operation ready.");
+   CHECK(local_notices==host_before+1&&remote_notices==remote_before+1,"shared host chat received duplicate global notices");
+   CHECK(!strcmp(local_notice_history[host_before%4],remote_notice_history[remote_before%4]),"broadcast recipients saw different text");
+   local_views=0;extraction_notice("Operation ready.");CHECK(local_notices==host_before+1&&remote_notices==remote_before+2,"dedicated notice invented a local recipient");
+   CHECK(!native_hud_notices,"global notice used conflicting native HUD layout");return 0;
+  }
+  if(!strcmp(case_name,"notice-controller")) {
+   players[0].local_player_index=1;players[0].network_player_data.controller_index=3;
+   extraction_player_notice(player_handles[0],"Prepared gear is ready.");
+   CHECK(local_notices==host_before+1&&!strncmp(local_notice_history[host_before%4],"P2 | ",5)&&remote_notices==remote_before&&!native_hud_notices,"local notice used wrong view, recipient or renderer");return 0;
+  }
+  memset(full,'x',127);full[127]=0;
+  if(!strcmp(case_name,"notice-fallback")) {
+   notice_chat_visible=FALSE;extraction_player_notice(player_handles[0],full);extraction_player_notice(player_handles[1],full);
+   CHECK(local_notices==host_before+4&&remote_notices==remote_before+1&&native_hud_notices==4,"unavailable chat hid local feedback or changed remote routing");
+   for(j=3;j>=0;j--)strcat(host_text,local_notice_history[(host_before+j)%4]);
+   /* A native word boundary puts the prefix on its own line; the newline
+    * replaces its separating space, while every data character survives. */
+   CHECK(!strncmp(host_text,"P1 |",4)&&!strcmp(host_text+4,full),"native HUD fallback lost the controller or notice tail");
+   CHECK(!strncmp(remote_notice_history[remote_before%4],"P3 | ",5)&&!strcmp(remote_notice_history[remote_before%4]+5,full),"host visibility setting changed a remote notice");return 0;
+  }
+  extraction_player_notice(player_handles[0],full);extraction_player_notice(player_handles[1],full);
+  CHECK(local_notices==host_before+1&&remote_notices==remote_before+1&&!native_hud_notices,"long notice truncated or used conflicting layouts");
+  for(j=0;j<1;j++) {
+   char const *host=local_notice_history[(host_before+j)%4],*remote=remote_notice_history[(remote_before+j)%4];
+   CHECK(!strncmp(host,"P1 | ",5)&&!strncmp(remote,"P3 | ",5)&&!strcmp(host+5,remote+5),"host/client formatting or controller ownership differs");
+   strcat(host_text,host+5);strcat(remote_text,remote+5);
+  }
+  CHECK(!strcmp(host_text,full)&&!strcmp(remote_text,full),"packet splitting lost notice characters");return 0;
+ }
  if(!strcmp(case_name,"notice-complete")) {
   touch(0,0);pickup(0,1);escape(0);
-  CHECK(strstr(local_notice_history[(local_notices-1)%4],"RUN COMPLETE | Stash"),"bank report headline not queued first for display");
-  CHECK(strstr(local_notice_history[(local_notices-2)%4],"next run."),"bank report lost redeployment instructions");
+  CHECK(strstr(local_notice_history[(local_notices-1)%4],"GEAR BANKED | Stash"),"bank result missing from shared notice layout");
+  CHECK(!native_hud_notices,"return feedback overlapped the chat/debrief layout");
   extraction_reset();return 0;
  }
  if(!strncmp(case_name,"stowed-",7)) {

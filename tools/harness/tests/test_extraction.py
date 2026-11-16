@@ -70,7 +70,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 
 
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
-                                 'notice-complete',
+                                 'notice-complete', 'notice-routing', 'notice-controller', 'notice-broadcast', 'notice-fallback',
                                  'stowed-loop', 'stowed-owner', 'stowed-ground', 'stowed-unmarked', 'stowed-nonplayer', 'stowed-parent',
                                  'biped-first', 'biped-second', 'biped-survival',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
@@ -226,7 +226,7 @@ def test_native_seat_entrance_workflow(case):
 @pytest.mark.parametrize('case', [
     'debrief-empty', 'debrief-success', 'debrief-loss', 'debrief-pending', 'debrief-auto',
     'debrief-stats-reset', 'debrief-owner', 'debrief-remote', 'debrief-restart',
-    'debrief-redeploy', 'debrief-field', 'debrief-battery',
+    'debrief-redeploy', 'debrief-field', 'debrief-battery', 'debrief-fallback',
 ])
 def test_native_debrief_workflow(case):
     status, output = run(build('extraction', generated()), case)
@@ -340,10 +340,19 @@ def test_stowed_owner_negative_control():
 
 def test_notice_tail_negative_control():
     files = tuple((name, mutated(text,
+        '"P%d | %.127s"',
+        '"P%d | %.57s"')) if name == 'extraction.inc' else (name, text)
+        for name, text in generated())
+    status, output = run(build('extraction', files), 'notice-routing')
+    assert status == CHECK_FAILED, output
+
+
+def test_notice_hud_tail_negative_control():
+    files = tuple((name, mutated(text,
         'while (count > 0) hud_print_message(local, lines[--count]);',
         'hud_print_message(local, lines[0]);')) if name == 'extraction.inc' else (name, text)
         for name, text in generated())
-    status, output = run(build('extraction', files), 'notice-complete')
+    status, output = run(build('extraction', files), 'notice-fallback')
     assert status == CHECK_FAILED, output
 
 
