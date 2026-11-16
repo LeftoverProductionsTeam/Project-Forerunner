@@ -16,7 +16,21 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `66092de992`): optional native Pelican/Spirit call groups
+Current checkpoint (base `f01c33a11b`): existing passenger receipts now reject
+all three native scheduled-death flags on their ship, matching physical admission.
+This closes an automated reproduction of banking a dying craft at the return pad.
+Windows64 compilation, 49 focused transport workflows and an original-defect
+control pass: no premature bank/consumption/loss for a surviving passenger, no
+receipt inherited by a salted replacement at the hub, fresh physical LZ boarding,
+cinematic-gated recovery once and redeployment. Crew readiness also clears on a
+dying ship. Build evidence: `build/native-transport-crash-build.log`; connected
+cases: `tools/harness/tests/test_extraction.py`. These are compiled/automated
+results, not native crash/rescue or completed flight acceptance. Read-only Spark
+`6c5e9dc` adds native command-list editing; no completed flight handoff was found.
+Do not repeat the unchanged failed recall route. Preserve the unfinished debrief
+work; return to a different independently actionable engine requirement.
+
+Accepted faction-call checkpoint (base `66092de992`): optional native Pelican/Spirit call groups
 now distinguish real faction requests at the shared extraction control. They reuse
 the existing device-group binding/replication and host run/seat ownership; no new
 state manager or protocol. The existing aircraft HSC consumes the Pelican request

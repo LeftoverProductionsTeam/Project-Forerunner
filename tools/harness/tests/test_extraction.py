@@ -101,16 +101,24 @@ def test_extraction_workflow(case):
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-missing-faction', 'transport-seat', 'transport-stale', 'transport-wrong-faction',
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
+    'transport-crash-pending', 'transport-crash-silent', 'transport-crash-no-statistics', 'transport-crash-hub',
     'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
     'transport-callback-pending', 'transport-callback-signature', 'transport-callback-replaced',
     'transport-callback-continuous', 'transport-recall', 'transport-recall-state', 'transport-recall-missing',
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
-    'transport-boarded-pending', 'transport-boarded-identity', 'transport-boarded-duplicate',
+    'transport-boarded-pending', 'transport-boarded-ship', 'transport-boarded-identity', 'transport-boarded-duplicate',
     'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
 ])
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)
     assert status == 0, output
+
+
+def test_native_transport_crash_negative_control():
+    files = tuple((name, mutated(text, '\n\t\textraction_unit_pending_death(vehicle) ||', ''))
+                  if name == 'extraction.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'transport-crash-hub')
+    assert status == CHECK_FAILED, output
 
 
 @pytest.mark.parametrize('case', [

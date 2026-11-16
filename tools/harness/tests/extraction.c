@@ -822,6 +822,41 @@ int main(int argc,char **argv)
    CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),"invalid transport banked owned equipment");return 0;
   }
   CHECK(run(0)->dropship==craft&&run(0)->phase==_extraction_ready,"real assigned LZ seat not recorded");
+  if(!strncmp(case_name,"transport-crash-",16)) {
+   unsigned long generation=run(0)->gear.record.generation;
+   long replacement=craft+0x10000;
+   dropships[0].object.damage_flags=FLAG(!strcmp(case_name,"transport-crash-silent")?_object_die_act_of_god_silent_bit:
+    !strcmp(case_name,"transport-crash-no-statistics")?_object_die_act_of_god_no_statistics_bit:_object_die_act_of_god_bit);
+   if(!strcmp(case_name,"transport-crash-hub"))dropships[0].object.position.x=0;
+   advance(1);
+   CHECK(run(0)->dropship==NONE&&run(0)->phase==_extraction_ready,"dying transport retained boarding credit or banked during native destruction");
+   dropships[0].object.position.x=0;advance(1);
+   CHECK(run(0)->gear.record.phase==_gear_deployed&&run(0)->gear.record.generation==generation&&weapon_try_and_get(loot),
+    "failed flight consumed, lost or rewarded surviving player equipment");
+   /* Native salted replacement: neither a reused object slot nor a new seat
+    * at the hub substitutes for another actual LZ boarding. */
+   dropship_handles[0]=replacement;dropships[0].object.damage_flags=0;
+   units[0].object.parent_object_index=replacement;advance(1);
+   CHECK(run(0)->dropship==NONE&&run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),
+    "replacement ship inherited the failed trip's arrival receipt");
+   units[0].object.parent_object_index=NONE;units[0].object.position.x=20;
+   control_tag.control.type=1;device_group_set_actual_value(1,0.f);touch(1,0);
+   CHECK(device_groups[1].actual_value==1.f&&!run(0)->activation_ticks&&run(0)->gear.record.generation==generation,
+    "survivor could not recall replacement without reserving or rewarding gear again");
+   dropships[0].object.position.x=20;units[0].object.parent_object_index=replacement;advance(1);
+   CHECK(run(0)->dropship==replacement,"fresh physical LZ boarding did not rearm recovery after a crash");
+   dropships[0].object.position.x=7;advance(1);
+   CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),"replacement flight banked before arrival");
+   native_cinematic=TRUE;dropships[0].object.position.x=0;advance(1);
+   CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),"replacement banked during departure cinematic");
+   native_cinematic=FALSE;advance(1);
+   CHECK(run(0)->phase==_extraction_returned&&run(0)->gear.record.count==1&&!weapon_try_and_get(loot),
+    "successful replacement flight failed to consume and bank actual gear once");
+   units[0].object.parent_object_index=NONE;units[0].object.position.x=0;touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.reserved_count==1,
+    "recovered survivor equipment was not available for the next deployment");
+   extraction_reset();return 0;
+  }
   if(!strncmp(case_name,"transport-boarded",17)) {
    boolean other=!strcmp(case_name,"transport-boarded-other")||!strcmp(case_name,"transport-boarded-identity");
    CHECK(device_groups[10].actual_value==1.f,"single requested evacuation was not ready");
@@ -831,7 +866,10 @@ int main(int argc,char **argv)
    advance(300);CHECK(device_groups[10].actual_value==(other?1.f:0.f),"unboarded requesting crew counted as seated");
    units[1].object.parent_object_index=dropship_handles[other?1:0];units[1].unit.parent_seat_index=1;advance(1);
    CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==(other?1.f:0.f),"native crew boarding did not publish independent readiness");
-   if(!strcmp(case_name,"transport-boarded-pending")) {
+   if(!strcmp(case_name,"transport-boarded-ship")) {
+    dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);advance(1);
+    CHECK(!device_groups[10].actual_value&&run(0)->dropship==NONE,"dying aircraft retained crew readiness or passenger receipt");
+   } else if(!strcmp(case_name,"transport-boarded-pending")) {
     units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);advance(1);
     CHECK(!device_groups[10].actual_value,"pending native death authorized departure");
    } else if(!strcmp(case_name,"transport-boarded-identity")) {

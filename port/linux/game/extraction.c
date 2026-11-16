@@ -874,6 +874,7 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 	if (index == NONE || unit->object.parent_object_index != index) return NONE;
 	vehicle = (struct unit_datum *)object_try_and_get_and_verify_type(index, _object_mask_vehicle);
 	if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) || vehicle->object.body_vitality <= 0.0f ||
+		extraction_unit_pending_death(vehicle) ||
 		unit->unit.parent_seat_index >= unit_definition_get(vehicle->definition_index)->unit.seats.count) return NONE;
 	return index;
 }
