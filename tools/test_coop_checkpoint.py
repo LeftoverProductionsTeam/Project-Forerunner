@@ -11,6 +11,154 @@ from test_hud_button_style import run_c
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _faction_respawn_unit(fault=None):
+    source = (ROOT / "source/game/players.c").read_text()
+    actual = function((ROOT / "source/game/game_allegiance.c").read_text(),
+                      "game_solo_teams_are_friendly")
+    actual += "\n".join(function(source, name) for name in (
+        "players_coop_teammate", "players_coop_unit_where", "players_coop_session_count",
+        "players_coop_use_majority", "players_coop_near_count", "players_coop_respawn_unit",
+        "player_place_beside_teammate", "players_coop_respawn_beside", "players_respawn_network_coop"))
+    if fault == "faction":
+        actual = mutated(actual, "game_solo_teams_are_friendly(player->team_index, unit->object.owner_team_index)", "TRUE")
+    elif fault == "batch":
+        actual = actual.replace("tested[team]", "tested[0]").replace("safe_units[team]", "safe_units[0]")
+    elif fault == "blocked-faction":
+        actual = mutated(actual, "if (safe_unit_index == NONE)\n\t\t{\n\t\t\tresult = FALSE;\n\t\t\tcontinue;\n\t\t}",
+                         "if (safe_unit_index == NONE) return FALSE;")
+    elif fault == "ownership":
+        actual = mutated(actual, "unit->unit.player_index == other_index &&", "TRUE &&")
+    elif fault == "placement":
+        actual = mutated(actual, "if (players_coop_teammate(player_index, iterator.datum_index) && player_spawnable_beside(other)",
+                         "if (iterator.datum_index != player_index && player_spawnable_beside(other)")
+    return r'''
+#include <assert.h>
+#include <string.h>
+typedef int boolean;
+typedef float real;
+typedef struct {real x,y,z;} real_point3d;
+#define TRUE 1
+#define FALSE 0
+#define NONE (-1)
+#define FLAG(b) (1UL<<(b))
+#define VALID_INDEX(i,n) ((i)>=0&&(i)<(n))
+#define _object_mask_biped 1
+enum {_object_dead_bit,_object_die_act_of_god_bit,_object_die_act_of_god_silent_bit,_object_die_act_of_god_no_statistics_bit};
+#define NUMBER_OF_SOLO_CAMPAIGN_TEAMS 10
+#define NETWORK_GAME_MAXIMUM_PLAYER_COUNT 16
+#define COOP_MAJORITY_PLAYERS 5
+#define COOP_MAJORITY_RADIUS 30.0f
+#define COOP_RESPAWN_FALLBACK_TICKS 300
+#define COOP_RESPAWN_CHECK_TICKS 15
+#define COOP_LEVEL_START_TICKS 60
+struct player_datum {long unit_index,team_index,local_player_index;boolean quit_out_of_game;struct {long deaths;} statistics;};
+struct unit_datum {struct {real_point3d bounding_sphere_center;short owner_team_index;unsigned long damage_flags;} object;struct {long player_index;} unit;};
+struct data_iterator {int next;long datum_index;};
+static struct player_datum players[16];static struct unit_datum units[16];
+static long handles[16],bodies[16],spawn_anchor[16],teleported_to[16],blocked_target=NONE;
+static boolean safe[16],grounded[16],spawnable[16],hub,cinematic;
+static int count,safe_checks,teleports,hub_spawns;
+static long tick=1005,players_coop_spawn_beside_index=NONE;
+static struct {long respawn_wait_since;} players_coop_state;
+static void *player_data;
+static struct player_datum *player_try_and_get(long h) {int i;for(i=0;i<count;i++)if(handles[i]==h)return &players[i];return NULL;}
+static struct player_datum *player_get(long h) {struct player_datum *p=player_try_and_get(h);assert(p);return p;}
+static struct unit_datum *object_try_and_get_and_verify_type(long h,int mask) {int i;assert(mask==1);for(i=0;i<count;i++)if(bodies[i]==h)return &units[i];return NULL;}
+static struct unit_datum *object_get(long h) {struct unit_datum *u=object_try_and_get_and_verify_type(h,1);assert(u);return u;}
+static void data_iterator_new(struct data_iterator *it,void *data) {(void)data;it->next=0;}
+static struct player_datum *data_iterator_next(struct data_iterator *it) {if(it->next==count)return NULL;it->datum_index=handles[it->next];return &players[it->next++];}
+static boolean game_team_is_enemy(short a,short b) {assert(a>=0&&a<10&&b>=0&&b<10);return (a==3)!=(b==3);}
+static long game_time_get(void) {return tick;}
+static boolean players_coop_unit_safe(long h) {safe_checks++;return safe[h&65535];}
+static boolean players_coop_unit_grounded(long h) {return grounded[h&65535];}
+static boolean players_coop_unit_spawnable(long h) {return spawnable[h&65535];}
+static real distance_squared3d(real_point3d const *a,real_point3d const *b) {real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;return x*x+y*y+z*z;}
+static long player_spawnable_beside(struct player_datum const *p) {return p->unit_index!=NONE&&spawnable[p->unit_index&65535]?p->unit_index:NONE;}
+static boolean player_teleport(long player,long anchor,real_point3d const *p) {
+ int slot=(int)(player&65535);teleports++;teleported_to[slot]=anchor;
+ if(anchor==blocked_target)return FALSE;object_get(players[slot].unit_index)->object.bounding_sphere_center=*p;return TRUE;
+}
+static void player_spawn(long h) {
+ int i=(int)(h&65535);spawn_anchor[i]=players_coop_spawn_beside_index;bodies[i]+=65536;
+ players[i].unit_index=bodies[i];units[i].unit.player_index=h;units[i].object.owner_team_index=(short)players[i].team_index;
+ units[i].object.damage_flags=0;
+}
+static boolean extraction_owns_map(void) {return hub;}
+static void players_respawn_at_start(void) {int i;hub_spawns++;for(i=0;i<count;i++)if(players[i].unit_index==NONE&&!players[i].quit_out_of_game)player_spawn(handles[i]);}
+static boolean cinematic_in_progress(void) {return cinematic;}
+static boolean coop_enemies_firefight_can_spawn(long p) {(void)p;return TRUE;}
+static boolean players_coop_waiting_to_start(long p) {(void)p;return FALSE;}
+''' + actual + r'''
+static void setup(int n) {
+ int i;count=n;hub=cinematic=FALSE;safe_checks=teleports=hub_spawns=0;blocked_target=NONE;
+ memset(players,0,sizeof(players));memset(units,0,sizeof(units));
+ tick=1005;players_coop_state.respawn_wait_since=tick+1;players_coop_spawn_beside_index=NONE;
+ for(i=0;i<n;i++){handles[i]=0x10000+i;bodies[i]=0x20000+i;players[i].unit_index=bodies[i];
+  players[i].team_index=2;players[i].local_player_index=NONE;players[i].statistics.deaths=1;
+  units[i].unit.player_index=handles[i];units[i].object.owner_team_index=2;
+  units[i].object.bounding_sphere_center.x=(real)i;safe[i]=grounded[i]=spawnable[i]=TRUE;
+  spawn_anchor[i]=teleported_to[i]=NONE;}
+}
+static void team(int i,int value) {players[i].team_index=value;units[i].object.owner_team_index=(short)value;}
+int main(void) {
+ int i;long anchor;
+ /* Mixed factions use independent anchors, reusing a search within each batch. */
+ setup(6);players[0].unit_index=players[3].unit_index=players[5].unit_index=NONE;
+ team(1,3);team(3,3);team(4,3);players[1].local_player_index=0;
+ assert(players_respawn_network_coop(FALSE));
+ assert(spawn_anchor[0]==bodies[2]&&spawn_anchor[5]==bodies[2]&&spawn_anchor[3]==bodies[1]);
+ assert(safe_checks==2&&!players_coop_state.respawn_wait_since);
+ /* One faction with no survivors cannot prevent another from returning. */
+ setup(4);team(1,3);team(2,3);team(3,3);players[0].unit_index=players[3].unit_index=NONE;
+ assert(!players_respawn_network_coop(FALSE));assert(players[0].unit_index==NONE&&players[3].unit_index!=NONE);
+ /* Search/placement must reject stale ownership, death requests and teams. */
+ setup(3);players[0].unit_index=NONE;players[1].quit_out_of_game=TRUE;
+ units[2].unit.player_index=handles[1];assert(players_coop_respawn_unit(handles[0])==NONE);
+ units[2].unit.player_index=handles[2];
+ for(i=0;i<4;i++){units[2].object.damage_flags=FLAG(i);assert(players_coop_respawn_unit(handles[0])==NONE);}
+ units[2].object.damage_flags=0;players[0].team_index=0x10002;
+ assert(players_coop_respawn_unit(handles[0])==NONE);
+ players[0].team_index=2;assert(players_coop_respawn_unit(handles[0])==bodies[2]);
+ /* An unsafe ally waits; a safe enemy never bypasses the native delay. */
+ setup(3);players[0].unit_index=NONE;team(1,3);safe[2]=FALSE;
+ assert(players_coop_respawn_unit(handles[0])==NONE);tick+=COOP_RESPAWN_FALLBACK_TICKS;
+ assert(players_coop_respawn_unit(handles[0])==bodies[2]);
+ /* Majority choice considers only the requesting faction's roster/group. */
+ setup(8);players[0].unit_index=NONE;team(7,3);players[7].local_player_index=0;
+ units[4].object.bounding_sphere_center.x=100;units[5].object.bounding_sphere_center.x=101;
+ units[6].object.bounding_sphere_center.x=300;safe[1]=FALSE;
+ assert(players_coop_respawn_unit(handles[0])==bodies[2]);
+ for(i=1;i<7;i++)safe[i]=FALSE;
+ assert(players_coop_respawn_unit(handles[0])==NONE);tick+=COOP_RESPAWN_FALLBACK_TICKS;
+ assert(players_coop_respawn_unit(handles[0])==bodies[1]);
+ /* Failed placement retries friendly bodies, never a hostile nearest player. */
+ setup(4);team(1,3);blocked_target=bodies[2];
+ assert(!players_coop_respawn_beside(handles[0],bodies[1])&&!teleports);
+ assert(players_coop_respawn_beside(handles[0],bodies[2])&&teleported_to[0]==bodies[3]);
+ /* Stranded-player anchor searches use the same ownership/allegiance filter. */
+ assert(players_coop_unit_where(handles[0],players_coop_unit_grounded)==bodies[2]);
+ /* Classic allied co-op keeps host preference and one anchor search per batch. */
+ setup(4);players[0].unit_index=players[3].unit_index=NONE;players[2].local_player_index=0;
+ assert(players_respawn_network_coop(FALSE));anchor=bodies[2];
+ assert(spawn_anchor[0]==anchor&&spawn_anchor[3]==anchor&&safe_checks==2);
+ /* Extraction retains authored hub spawning without teammate anchoring. */
+ setup(3);players[0].unit_index=NONE;team(1,3);hub=TRUE;
+ assert(players_respawn_network_coop(FALSE)&&hub_spawns==1&&spawn_anchor[0]==NONE&&!safe_checks);
+ return 0;
+}
+'''
+
+
+def test_faction_respawn_and_placement(tmp_path):
+    run_c(tmp_path, _faction_respawn_unit())
+
+
+@pytest.mark.parametrize("fault", ["faction", "batch", "blocked-faction", "ownership", "placement"])
+def test_faction_respawn_negative_controls(tmp_path, fault):
+    with pytest.raises(subprocess.CalledProcessError):
+        run_c(tmp_path, _faction_respawn_unit(fault))
+
+
 def test_host_checkpoint_sends_loaded_peers_fresh_objects(tmp_path):
     actual = function((ROOT / "port/linux/game/network_objects.c").read_text(),
                       "network_objects_host_reverted")

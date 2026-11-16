@@ -250,6 +250,7 @@ symbols in this file:
 #include "game.h"
 #include "game/game_globals.h"
 #include "game_engine.h"
+#include "game_allegiance.h"
 #include "input.h"
 #include "interface/hud.h"
 #include "interface/hud_messaging.h"
@@ -2616,7 +2617,7 @@ static long player_spawnable_beside(
 static boolean player_place_beside_teammate(
 	long player_index);
 static long players_coop_respawn_unit(
-	void);
+	long player_index);
 static boolean players_coop_respawn_beside(
 	long player_index,
 	long anchor_unit_index);
@@ -2753,7 +2754,24 @@ static boolean players_coop_unit_safe(
 team follows the host: its players are the host machine's local ones), or
 NONE. A game of COOP_MAJORITY_PLAYERS or more respawns with
 players_coop_respawn_unit instead. */
+/* Port: every automatic co-op anchor must be a live, owned friendly body.
+ * Keep a dead player's native allegiance; an enemy survivor is not a spawn. */
+static boolean players_coop_teammate(long player_index, long other_index)
+{
+	struct player_datum *player = player_try_and_get(player_index);
+	struct player_datum *other = player_try_and_get(other_index);
+	struct unit_datum *unit;
+	if (!player || player->quit_out_of_game || !other || other->quit_out_of_game ||
+		player_index == other_index || other->unit_index == NONE) return FALSE;
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(other->unit_index, _object_mask_biped);
+	return unit && unit->unit.player_index == other_index &&
+		!(unit->object.damage_flags & (FLAG(_object_dead_bit) | FLAG(_object_die_act_of_god_bit) |
+			FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))) &&
+		game_solo_teams_are_friendly(player->team_index, unit->object.owner_team_index);
+}
+
 static long players_coop_unit_where(
+	long player_index,
 	boolean (*test)(long unit_index))
 {
 	struct data_iterator iterator;
@@ -2763,7 +2781,7 @@ static long players_coop_unit_where(
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
-		if (player->unit_index == NONE || !test(player->unit_index))
+		if (!players_coop_teammate(player_index, iterator.datum_index) || !test(player->unit_index))
 			continue;
 		if (player->local_player_index != NONE)
 			return player->unit_index;
@@ -2774,29 +2792,31 @@ static long players_coop_unit_where(
 	return found_index;
 }
 
-/* how many players are in this campaign game, not counting someone who quit */
+/* The requesting player's allied campaign roster, including dead teammates. */
 static short players_coop_session_count(
-	void)
+	long player_index)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
+	struct player_datum *viewer = player_try_and_get(player_index);
 	short count = 0;
 
+	if (!viewer || viewer->quit_out_of_game) return 0;
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
-		if (!player->quit_out_of_game)
+		if (!player->quit_out_of_game && game_solo_teams_are_friendly(viewer->team_index, player->team_index))
 			count++;
 	}
 
 	return count;
 }
 
-/* TRUE when respawns use the largest group */
+/* TRUE when this allied roster uses the largest group. */
 static boolean players_coop_use_majority(
-	void)
+	long player_index)
 {
-	return players_coop_session_count() >= COOP_MAJORITY_PLAYERS;
+	return players_coop_session_count(player_index) >= COOP_MAJORITY_PLAYERS;
 }
 
 /* TRUE when a player can be stood beside: on foot, or in a vehicle a player
@@ -2841,7 +2861,7 @@ player outside the group does not win. A dead host has no unit, so the same
 count applies to them. NONE while the group is still unsafe, or while
 nobody alive is standing in the BSP. */
 static long players_coop_respawn_unit(
-	void)
+	long player_index)
 {
 	long unit_indices[NETWORK_GAME_MAXIMUM_PLAYER_COUNT];
 	real_point3d positions[NETWORK_GAME_MAXIMUM_PLAYER_COUNT];
@@ -2855,14 +2875,14 @@ static long players_coop_respawn_unit(
 	short safe_count = 0;
 	short index;
 
-	if (!players_coop_use_majority())
+	if (!players_coop_use_majority(player_index))
 	{
-		long host_index = players_coop_unit_where(players_coop_unit_safe);
+		long host_index = players_coop_unit_where(player_index, players_coop_unit_safe);
 
 		if (host_index == NONE &&
 			game_time_get() + 1 - players_coop_state.respawn_wait_since >= COOP_RESPAWN_FALLBACK_TICKS)
 		{
-			host_index = players_coop_unit_where(players_coop_unit_grounded);
+			host_index = players_coop_unit_where(player_index, players_coop_unit_grounded);
 		}
 		return host_index;
 	}
@@ -2874,7 +2894,7 @@ static long players_coop_respawn_unit(
 		fight is people jumping, riding, or standing where the cluster is
 		none, and leaving them out made a lone safe player the whole group
 		or left nobody to fall back on */
-		if (player->unit_index == NONE)
+		if (!players_coop_teammate(player_index, iterator.datum_index))
 			continue;
 		unit_indices[count] = player->unit_index;
 		positions[count] = object_get(player->unit_index)->object.bounding_sphere_center;
@@ -3003,6 +3023,9 @@ static boolean players_respawn_network_coop(
 	struct data_iterator iterator;
 	struct player_datum *player;
 	long safe_unit_index;
+	long safe_units[NUMBER_OF_SOLO_CAMPAIGN_TEAMS];
+	boolean tested[NUMBER_OF_SOLO_CAMPAIGN_TEAMS] = {0};
+	short team;
 	boolean result = TRUE;
 
 	/* port: an admitted Extraction map places every native start in its hub.
@@ -3027,9 +3050,6 @@ static boolean players_respawn_network_coop(
 	walks all the map's projectiles, so twice a second is enough */
 	if (game_time_get() % COOP_RESPAWN_CHECK_TICKS != 0)
 		return FALSE;
-	safe_unit_index = players_coop_respawn_unit();
-	if (safe_unit_index == NONE)
-		return FALSE;
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
@@ -3050,6 +3070,25 @@ static boolean players_respawn_network_coop(
 		}
 		else if (players_coop_waiting_to_start(iterator.datum_index))
 		{
+			continue;
+		}
+		/* One anchor search per native faction in this batch. A faction with
+		 * no safe survivor waits without holding back another faction. */
+		if (!VALID_INDEX(player->team_index, NUMBER_OF_SOLO_CAMPAIGN_TEAMS))
+		{
+			result = FALSE;
+			continue;
+		}
+		team = (short)player->team_index;
+		if (!tested[team])
+		{
+			safe_units[team] = players_coop_respawn_unit(iterator.datum_index);
+			tested[team] = TRUE;
+		}
+		safe_unit_index = safe_units[team];
+		if (safe_unit_index == NONE)
+		{
+			result = FALSE;
 			continue;
 		}
 		players_coop_spawn_beside_index = safe_unit_index;
@@ -3223,9 +3262,9 @@ static void players_coop_rescue_stranded(
 			*since = game_time_get() + 1;
 		if (game_time_get() + 1 - *since < COOP_STRANDED_TICKS)
 			continue;
-		teammate_index = players_coop_unit_where(players_coop_unit_grounded);
+		teammate_index = players_coop_unit_where(iterator.datum_index, players_coop_unit_grounded);
 		if (teammate_index == NONE)
-			teammate_index = players_coop_unit_where(players_coop_unit_in_structure);
+			teammate_index = players_coop_unit_where(iterator.datum_index, players_coop_unit_in_structure);
 		if (teammate_index != NONE)
 		{
 			rescued = player_teleport(iterator.datum_index, teammate_index,
@@ -3380,7 +3419,7 @@ static boolean player_place_beside_teammate(
 	data_iterator_new(&iterator, player_data);
 	while ((other = data_iterator_next(&iterator)) != NULL)
 	{
-		if (iterator.datum_index != player_index && player_spawnable_beside(other) != NONE &&
+		if (players_coop_teammate(player_index, iterator.datum_index) && player_spawnable_beside(other) != NONE &&
 			player_teleport(player_index, other->unit_index, &object_get(other->unit_index)->object.bounding_sphere_center))
 		{
 			return TRUE;
@@ -3403,20 +3442,24 @@ static boolean players_coop_respawn_beside(
 	struct data_iterator iterator;
 	struct player_datum *other;
 	real radius_squared;
+	struct unit_datum *anchor;
 
 	if (player_get(player_index)->unit_index == NONE)
 		return FALSE;
+	anchor = (struct unit_datum *)object_try_and_get_and_verify_type(anchor_unit_index, _object_mask_biped);
+	if (!anchor || !players_coop_teammate(player_index, anchor->unit.player_index) ||
+		player_get(anchor->unit.player_index)->unit_index != anchor_unit_index) return FALSE;
 	anchor_position = object_get(anchor_unit_index)->object.bounding_sphere_center;
 	if (player_teleport(player_index, anchor_unit_index, &anchor_position))
 		return TRUE;
-	if (!players_coop_use_majority())
+	if (!players_coop_use_majority(player_index))
 		return player_place_beside_teammate(player_index);
 
 	radius_squared = COOP_MAJORITY_RADIUS * COOP_MAJORITY_RADIUS;
 	data_iterator_new(&iterator, player_data);
 	while ((other = data_iterator_next(&iterator)) != NULL)
 	{
-		if (iterator.datum_index == player_index || other->unit_index == NONE ||
+		if (!players_coop_teammate(player_index, iterator.datum_index) ||
 			other->unit_index == anchor_unit_index || player_spawnable_beside(other) == NONE)
 		{
 			continue;
@@ -5150,7 +5193,7 @@ void players_update_before_game(
 							if (!extraction_owns_map())
 								player_place_beside_teammate(iterator.datum_index);
 						}
-						else if (players_coop_use_majority() && !cinematic_in_progress() &&
+						else if (players_coop_use_majority(iterator.datum_index) && !cinematic_in_progress() &&
 							players_checkpoint.valid)
 						{
 							players_respawn_network_coop(TRUE);

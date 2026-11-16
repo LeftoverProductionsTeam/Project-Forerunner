@@ -85,13 +85,6 @@ byte input_abstraction_port_accept(short controller_index);
 
 /* ---------- private code */
 
-static boolean spectate_teams_allied(long viewer, long target)
-{
-	return viewer >= 0 && viewer < NUMBER_OF_SOLO_CAMPAIGN_TEAMS &&
-		target >= 0 && target < NUMBER_OF_SOLO_CAMPAIGN_TEAMS &&
-		!game_team_is_enemy(viewer, target) && !game_team_is_enemy(target, viewer);
-}
-
 /* A player slot alone does not own a usable view after death, departure or
  * body replacement. Keep downed-but-alive teammates eligible. */
 static long spectate_player_unit(long viewer_index, long player_index)
@@ -102,7 +95,7 @@ static long spectate_player_unit(long viewer_index, long player_index)
 	if (!viewer || !player || player->quit_out_of_game || player->unit_index == NONE) return NONE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 	return unit && unit->unit.player_index == player_index &&
-		spectate_teams_allied(viewer->team_index, unit->object.owner_team_index) &&
+		game_solo_teams_are_friendly(viewer->team_index, unit->object.owner_team_index) &&
 		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ? player->unit_index : NONE;
 }
 
@@ -248,7 +241,7 @@ boolean coop_spectate_nothing_to_watch(
 		team = other->team_index;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(other->unit_index, _object_mask_biped);
 		if (unit && unit->unit.player_index == iterator.datum_index) team = unit->object.owner_team_index;
-		if (!spectate_teams_allied(player->team_index, team))
+		if (!game_solo_teams_are_friendly(player->team_index, team))
 			return FALSE;
 	}
 	return TRUE;

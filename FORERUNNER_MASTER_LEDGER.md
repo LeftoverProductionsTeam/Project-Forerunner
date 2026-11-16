@@ -1,6 +1,6 @@
 # Forerunner engineering checkpoint
 
-Updated: 15 November 2026. The persistent engineering goal remains active.
+Updated: 16 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
 Owner's current acceptance order: A, two independent clients using verified Delta
@@ -67,6 +67,23 @@ Earlier setup probes hit an empty initial clock, console buffering and incorrect
 player-list/timing assumptions; no simulation or respawn safeguard was weakened.
 Native faction selection/bipeds, independent squads and transport recall remain
 open. Advance their existing paths; do not repeat this unchanged hub probe.
+
+Faction recovery checkpoint (base `0df008ab10`): existing co-op anchor search,
+majority grouping, placement retries and stranded-player rescue now filter live
+owned friendly bodies. Each native faction gets its own anchor in a respawn
+batch; a faction without a survivor cannot hold back another. The shared native
+team policy also serves spectating; no new protocol, roster or save format.
+Focused connected respawn/placement and spectator checks, defect controls and
+Windows64 compilation pass. `build/native-faction-respawn-active/result.json`
+verifies three local native network-co-op players: ordinary movement separates
+the opponent, a human death respawns 0.40 units from the ally and 15.28 from the
+opponent, the Covenant death stays out with no ally, its actual director keeps
+the corpse rather than either enemy, and another human death recovers while that
+faction waits. No inventory/account or mission outcome acceptance is implied.
+The first probe's paused-AI death did not complete; normal AI execution passes
+without changing death rules. Independent clients/squads, faction UI/bipeds,
+per-squad recovery rules and dropship recall remain open. Disposable runtime and
+screenshots are cleaned after stopping; compact native evidence is retained.
 
 Native allegiance handoff (base `1b5bbaaa67`): existing reliable object
 descriptions now announce live team changes and apply them to reused objects.

@@ -85,12 +85,13 @@ def test_own_body_first():
 
 def _spectator_unit(fault=None):
     text = SPECTATE_C.read_text()
-    names = ('static boolean spectate_teams_allied(',
-             'static long spectate_player_unit(', 'static long next_living_player(',
+    names = ('static long spectate_player_unit(', 'static long next_living_player(',
              'static boolean next_pressed(', 'static boolean showing_own_body(',
              'long coop_spectate_unit(', 'boolean coop_spectate_nothing_to_watch(',
              'void coop_spectate_draw(')
-    code = '\n'.join(_block(text, name) for name in names)
+    code = _block((ROOT / 'source/game/game_allegiance.c').read_text(),
+                  'boolean game_solo_teams_are_friendly(') + '\n'
+    code += '\n'.join(_block(text, name) for name in names)
     if fault == 'wrap':
         code = code.replace('return first;', 'return first == after ? NONE : first;')
     elif fault == 'departure':
@@ -98,13 +99,13 @@ def _spectator_unit(fault=None):
     elif fault == 'ownership':
         code = code.replace('unit->unit.player_index == player_index &&', 'TRUE &&')
     elif fault == 'faction':
-        code = code.replace('spectate_teams_allied(viewer->team_index, unit->object.owner_team_index) &&', 'TRUE &&')
+        code = code.replace('game_solo_teams_are_friendly(viewer->team_index, unit->object.owner_team_index) &&', 'TRUE &&')
     elif fault == 'host-fallback':
-        code = code.replace('if (!spectate_teams_allied(player->team_index, team))', 'if (FALSE)')
+        code = code.replace('if (!game_solo_teams_are_friendly(player->team_index, team))', 'if (FALSE)')
     elif fault == 'mutual':
-        code = code.replace(' && !game_team_is_enemy(target, viewer)', '')
+        code = code.replace(' && !game_team_is_enemy((short)second, (short)first)', '')
     elif fault == 'team-wrap':
-        code = code.replace('spectate_teams_allied(long viewer, long target)', 'spectate_teams_allied(short viewer, short target)')
+        code = code.replace('game_solo_teams_are_friendly(long first, long second)', 'game_solo_teams_are_friendly(short first, short second)')
     return PRELUDE + r'''
 #include <string.h>
 #include <wchar.h>

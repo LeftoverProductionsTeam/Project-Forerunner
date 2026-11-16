@@ -43,6 +43,9 @@ void game_allegiance_create(
 boolean game_team_is_enemy(
 	short team_index0,
 	short team_index1);
+/* Port: shared co-op placement/view policy. Reject invalid campaign teams
+ * before narrowing player metadata; one-way hostility is not mutual safety. */
+boolean game_solo_teams_are_friendly(long first, long second);
 boolean game_team_is_ally(
 	short our_team_index,
 	short other_team_index);

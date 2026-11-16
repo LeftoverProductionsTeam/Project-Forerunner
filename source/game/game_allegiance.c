@@ -53,6 +53,7 @@ symbols in this file:
 #include "cseries/cseries.h"
 #include "cseries/errors.h"
 #include "ai/ai.h"
+#include "game/game.h"
 #include "game/game_allegiance.h"
 #include "saved games/game_state.h"
 
@@ -213,6 +214,13 @@ boolean game_team_is_enemy(
 	}
 
 	return result;
+}
+
+boolean game_solo_teams_are_friendly(long first, long second)
+{
+	return first >= 0 && first < NUMBER_OF_SOLO_CAMPAIGN_TEAMS &&
+		second >= 0 && second < NUMBER_OF_SOLO_CAMPAIGN_TEAMS &&
+		!game_team_is_enemy((short)first, (short)second) && !game_team_is_enemy((short)second, (short)first);
 }
 
 boolean game_team_is_ally(
