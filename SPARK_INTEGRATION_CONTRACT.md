@@ -425,8 +425,18 @@ timer; an activation countdown is permitted. Spark owns the map/source/UX
 authoring; Forerunner owns authoritative gameplay and durable result settlement.
 
 `game.extraction` remains off by default and uses the existing native solo-map
-path, locally or on the native co-op host. Its connected implementation compiles
-and passes bounded source/OS checks; native Extraction gameplay remains UNVERIFIED.
+path, locally or on the native co-op host. The existing Server Setup -> Co-op
+Options -> GAMEPLAY selector offers CLASSIC, FIREFIGHT and EXTRACTION.
+`tools/port_settings.py::COOP_SETUP_SCREENS` generates the existing menu asset;
+`menu_functions.c::{gametype_option_setting_index,gametype_option_setting_write}`
+read/apply `game.extraction` and `network.firefight_encounter` exclusively through
+the existing settings writer. Classic keeps native authored encounters, including
+authored Firefight, without the separate wave director. Native offline save,
+reopen, Cancel and mode transitions pass; Windows64 and 14 focused cases pass
+(`build/native-operations-mode-menu/result.json`). No capability, launch handoff,
+wire format or Spark authoring interface changed. Bounded native transport and
+earlier on-foot mission acceptance are recorded below; complete combined
+Spark-authored aircraft/mission gameplay remains UNVERIFIED.
 A candidate needs
 live scenario **control** objects named `extraction_deploy` and
 `extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named
@@ -997,11 +1007,13 @@ do not force players into seats or bypass graph compatibility. The owned Spirit'
 AI throttle budget is 0.30 after measured coast at 0.65; tune each real aircraft/
 route against its physics and actual pads instead of copying a universal speed.
 
-Read-only Spark `e2879a6` already implements reviewed aircraft append/readback
-and `src/haloScript.ts` `returnAfterInsertion` empty hub return/recall authoring.
-Reuse it. Its `docs/RUNTIME_INTEGRATION_20261107.md` explicitly separates the
-aircraft-append marker cache `214f2cb6...` and compiled controller syntax from a
-new complete Black Echo cache. Next Spark delivery: compose these existing
+Read-only Spark `a2d0aa0` already implements reviewed aircraft append/readback,
+`src/haloScript.ts` `returnAfterInsertion` empty hub return/recall and native route/
+landing-pad authoring/readback. Its current isolated composite cache is
+`e5711810ca6b2deba4b7802fce4e07c9eff851029b554029c7c7482f61122e71`.
+Reuse this source work. Its `docs/RUNTIME_INTEGRATION_20261107.md` explicitly
+separates that fixture's route/endpoint/pad admission from observed landing and
+a complete Black Echo cache. Next Spark delivery: compose these existing
 controllers with the real mission, compatible pilots and seats, measured hub/LZ/
 approach/departure routes, native relative cameras and mission objectives; fix
 the reported off-BSP Flood start; compile and independently read back that combined

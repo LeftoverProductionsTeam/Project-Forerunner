@@ -14,7 +14,9 @@ def generated(fault=None):
     source = read('port/linux/game/menu_functions.c')
     # (OPENCE OPTIONS' rows name the modes: game_engine.h)
     code = enum_with(read('source/game/game_engine.h'), '_game_mode_none = 0') + '\n' + \
-        function(source, 'gametype_option_help')
+        function(source, 'gametype_option_help') + '\n' + \
+        function(source, 'gametype_option_setting_index') + '\n' + \
+        function(source, 'gametype_option_setting_write')
     if fault:
         code = mutated(code, *fault)
     return (('under_test.inc', code),)
@@ -22,6 +24,12 @@ def generated(fault=None):
 
 @pytest.mark.parametrize('case', ['layout', 'help', 'unrelated'])
 def test_case(case):
+    status, output = run(build('coop_scaling_menu', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['mode-loop', 'mode-write-failure', 'mode-unrelated'])
+def test_operations_mode(case):
     status, output = run(build('coop_scaling_menu', generated()), case)
     assert status == 0, output
 
@@ -61,10 +69,19 @@ def test_team_wipe_generated_screen():
     assert [item.get('text') for item in strings] == ['AUTO', 'REVERT CHECKPOINT', 'RESPAWN ONLY']
     menu = widgets[base + 'coop_options_menu']
     rows = [child for child in menu.findall('child') if '/op_coop_' in child.get('widget', '')]
-    assert len(rows) == 10
+    assert len(rows) == 11
     assert any(row.get('widget') == base + 'op_coop_team_wipe' for row in rows)
     help_top = int(widgets[base + 'coop_options_help'].get('top'))
     for row in rows:
         assert int(row.get('y')) + int(widgets[row.get('widget')].get('height')) < help_top
     committed = Path(__file__).resolve().parents[3] / 'port/assets/menus/ce' / name
     assert committed.read_text() == text
+
+
+def test_operations_mode_generated_screen():
+    text = '\n'.join(port_settings.multiplayer_files()['main_menu.multiplayer_type_select.server_settings.xml'])
+    root = ET.fromstring(text)
+    name = 'main_menu/multiplayer_type_select/server_settings/coop_options/coop_firefight_spinner'
+    spinner = next(widget for widget in root.findall('widget') if widget.get('name') == name)
+    strings = root.find(f"strings[@name='{spinner.get('string_list')}']")
+    assert [item.get('text') for item in strings] == ['CLASSIC', 'FIREFIGHT', 'EXTRACTION']

@@ -11052,8 +11052,10 @@ static struct gametype_option const gametype_options[] =
 		{ "stock", "glow", "light_show", "overshield", "glow_overshield", "light_show_overshield", "players" } },
 	/* co-op's options (Server Setup's CO-OP OPTIONS: tools/port_settings.py's
 	COOP_SETUP_SCREENS; coop_enemies.c) */
-	{ "coop_firefight_spinner", _option_setting, 0, 0, 2, { 0 }, "network.firefight_encounter",
-		{ "false", "true" } },
+	/* Keep the widget name for existing menu assets; Extraction and the
+	 * separate wave director are mutually exclusive host choices. */
+	{ "coop_firefight_spinner", _option_setting, 0, 0, 3, { 0 }, "network.firefight_encounter",
+		{ "false", "true", "false" } },
 	{ "coop_friendly_fire_spinner", _option_setting, 0, 0, 4, { 0 }, "network.coop_friendly_fire",
 		{ "off", "on", "shields_only", "explosives_only" } },
 	{ "coop_team_wipe_spinner", _option_setting, 0, 0, 3, { 0 }, "network.coop_team_wipe",
@@ -11105,6 +11107,8 @@ static short gametype_option_setting_index(struct gametype_option const *option)
 	char text[64];
 	short index;
 
+	if (!strcmp(option->spinner, "coop_firefight_spinner") && config_boolean("game.extraction"))
+		return 2;
 	csmemset(&setting, 0, sizeof(setting));
 	setting.setting = option->setting;
 	setting.value_count = option->count;
@@ -11113,6 +11117,21 @@ static short gametype_option_setting_index(struct gametype_option const *option)
 	if (!setting_text(option->setting, text, sizeof(text), FALSE))
 		return 0;
 	return setting_value_index(&setting, text);
+}
+
+static boolean gametype_option_setting_write(struct gametype_option const *option, short index)
+{
+	if (!strcmp(option->spinner, "coop_firefight_spinner"))
+	{
+		/* Disable the other mode first. A failed write must never enable two
+		 * authorities; native map admission still checks authored requirements. */
+		if (index == 2)
+			return setting_write("network.firefight_encounter", "false") &&
+				setting_write("game.extraction", "true");
+		return setting_write("game.extraction", "false") &&
+			setting_write("network.firefight_encounter", option->setting_values[index]);
+	}
+	return setting_write(option->setting, option->setting_values[index]);
 }
 
 /* (an instance's name is its definition's cut to 31 characters:
@@ -11237,10 +11256,11 @@ static void gametype_options_each(struct widget_instance *list, boolean save)
 					spinner->parameters.list.selected_index = text_chat_locked(option) ? TEXT_CHAT_OFF :
 						gametype_option_setting_index(option);
 				}
-				else if (!text_chat_locked(option) && index != gametype_option_setting_index(option) &&
-					!setting_write(option->setting, option->setting_values[index]))
+				else if (!text_chat_locked(option) &&
+					(index != gametype_option_setting_index(option) || !strcmp(option->spinner, "coop_firefight_spinner")) &&
+					!gametype_option_setting_write(option, index))
 				{
-					platform_log("menus: could not set %s", option->setting);
+					platform_log("menus: could not apply %s", option->spinner);
 				}
 				continue;
 			}
@@ -11281,10 +11301,11 @@ static void setting_options_each(struct widget_instance *list, boolean save)
 				spinner->parameters.list.selected_index = text_chat_locked(option) ? TEXT_CHAT_OFF :
 					gametype_option_setting_index(option);
 			}
-			else if (!text_chat_locked(option) && index != gametype_option_setting_index(option) &&
-				!setting_write(option->setting, option->setting_values[index]))
+			else if (!text_chat_locked(option) &&
+				(index != gametype_option_setting_index(option) || !strcmp(option->spinner, "coop_firefight_spinner")) &&
+				!gametype_option_setting_write(option, index))
 			{
-				platform_log("menus: could not set %s", option->setting);
+				platform_log("menus: could not apply %s", option->spinner);
 			}
 		}
 	}

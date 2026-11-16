@@ -21,6 +21,34 @@ game is listed: none here */
 #define TEXT_CHAT_SPINNER "text_chat_spinner"
 #define TEXT_CHAT_OFF 2
 static int p2p_hosting_listed(void){return 0;}
+/* The existing settings writer is the boundary; exercise the real mode
+ * read/apply helpers without another configuration format or menu framework. */
+#define csmemset memset
+struct gametype_option { char const *spinner; short count; char const *setting; char const *setting_values[3]; };
+struct pc_menu_setting { char const *setting; short value_count; char const *values[3]; };
+static boolean extraction_mode,firefight_mode,other_mode;
+static int setting_writes,fail_write;
+static boolean config_boolean(char const *name){return !strcmp(name,"game.extraction")?extraction_mode:firefight_mode;}
+static boolean setting_text(char const *name,char *text,unsigned int size,boolean defaults)
+{
+ boolean value=!strcmp(name,"test.bool")?other_mode:config_boolean(name);
+ (void)defaults;snprintf(text,size,"%s",value?"true":"false");return TRUE;
+}
+static short setting_value_index(struct pc_menu_setting const *setting,char const *text)
+{
+ for(short i=0;i<setting->value_count;i++)if(!strcmp(text,setting->values[i]))return i;
+ return 0;
+}
+static boolean setting_write(char const *name,char const *value)
+{
+ setting_writes++;if(setting_writes==fail_write)return FALSE;
+ boolean enabled=!strcmp(value,"true");
+ if(!strcmp(name,"game.extraction"))extraction_mode=enabled;
+ else if(!strcmp(name,"network.firefight_encounter"))firefight_mode=enabled;
+ else if(!strcmp(name,"test.bool"))other_mode=enabled;
+ else return FALSE;
+ return TRUE;
+}
 #include "under_test.inc"
 #define ROWS 10
 static char const *rows[]={"op_coop_friendly_fire","op_coop_extra_enemies","op_coop_extra_pickups","op_coop_extra_vehicles",
@@ -85,6 +113,30 @@ int main(int argc,char **argv)
  } else CASE("unrelated") {
   spinner[1].name="unrelated";list.name="other_options";gametype_option_help(&list);
   for(int i=0;i<ROWS;i++)CHECK(row[i].visible&&row[i].vertical_offset==73+30*i,"unrelated menu altered");
+ } else CASE("mode-loop") {
+  struct gametype_option option={"coop_firefight_spinner",3,"network.firefight_encounter",{"false","true","false"}};
+  for(int initial=0;initial<4;initial++)for(int choice=0;choice<3;choice++){
+   extraction_mode=(initial&2)!=0;firefight_mode=(initial&1)!=0;
+   CHECK(gametype_option_setting_index(&option)==(extraction_mode?2:firefight_mode?1:0),"mode readback");
+   setting_writes=fail_write=0;
+   CHECK(gametype_option_setting_write(&option,choice),"mode write failed");
+   CHECK(extraction_mode==(choice==2)&&firefight_mode==(choice==1),"competing mode left enabled");
+   CHECK(gametype_option_setting_index(&option)==choice,"saved mode did not reopen");
+  }
+ } else CASE("mode-write-failure") {
+  struct gametype_option option={"coop_firefight_spinner",3,"network.firefight_encounter",{"false","true","false"}};
+  for(int choice=0;choice<3;choice++)for(int failure=1;failure<=2;failure++){
+   extraction_mode=choice!=2;firefight_mode=choice==2;setting_writes=0;fail_write=failure;
+   CHECK(!gametype_option_setting_write(&option,choice),"write failure hidden");
+   CHECK(setting_writes==failure,"enable attempted after disabling failed");
+   CHECK(!(extraction_mode&&firefight_mode),"write failure enabled competing director");
+  }
+ } else CASE("mode-unrelated") {
+  struct gametype_option option={"other_spinner",2,"test.bool",{"false","true"}};
+  extraction_mode=TRUE;firefight_mode=FALSE;other_mode=FALSE;setting_writes=fail_write=0;
+  CHECK(gametype_option_setting_write(&option,1)&&other_mode,"ordinary setting not written");
+  CHECK(gametype_option_setting_index(&option)==1,"ordinary readback");
+  CHECK(extraction_mode&&!firefight_mode&&setting_writes==1,"ordinary setting changed operations mode");
  } else return 2;
  return 0;
 }

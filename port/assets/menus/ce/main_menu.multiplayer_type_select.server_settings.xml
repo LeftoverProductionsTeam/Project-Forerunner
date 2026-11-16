@@ -228,7 +228,7 @@
 		<string text="Friendly fire and team balance."/>
 		<string text="Anyone can join from the Server Browser."/>
 		<string text="Only players with your invite link can join."/>
-		<string text="Firefight, team wipes, friendly fire and extras,\nfor this game."/>
+		<string text="Gameplay mode, team wipes, friendly fire and extras,\nfor this game."/>
 		<string text="Voice chat, text chat and votes to kick a player,\nfor this game."/>
 		<string text="Required to join from the Server Browser."/>
 		<string text="Sharing Custom Edition maps and MCC packages\nwith joining players, and how fast."/>
@@ -279,8 +279,9 @@
 		<on event="left_mouse" run="mouse spinner 1wide click"/>
 	</widget>
 	<strings name="main_menu/multiplayer_type_select/server_settings/coop_options/var_coop_firefight">
-		<string text="OFF"/>
-		<string text="ON"/>
+		<string text="CLASSIC"/>
+		<string text="FIREFIGHT"/>
+		<string text="EXTRACTION"/>
 	</strings>
 	<widget name="main_menu/multiplayer_type_select/server_settings/coop_options/op_coop_friendly_fire" width="512" height="23" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<child widget="main_menu/multiplayer_type_select/server_settings/coop_options/coop_friendly_fire_label"/>
@@ -425,7 +426,7 @@
 		<string text="OFF"/>
 	</strings>
 	<strings name="main_menu/multiplayer_type_select/server_settings/coop_options/coop_options_labels">
-		<string text="FIREFIGHT:"/>
+		<string text="GAMEPLAY:"/>
 		<string text="FRIENDLY FIRE:"/>
 		<string text="EXTRA ENEMIES:"/>
 		<string text="EXTRA PICKUPS:"/>
@@ -438,8 +439,9 @@
 		<string text="VEHICLE RIDING:"/>
 	</strings>
 	<strings name="main_menu/multiplayer_type_select/server_settings/coop_options/cap_coop_options">
-		<string text="Play the map's own encounters and\nmission scripts."/>
-		<string text="Three survival waves after the opening.\nUses enemies already in the map. Leave OFF for\nmaps that have their own waves."/>
+		<string text="Play the map's own encounters and missions,\nincluding maps with authored survival waves."/>
+		<string text="Three survival waves after the opening.\nUses enemies already in the map. Choose CLASSIC\nfor maps that have their own waves."/>
+		<string text="Timerless operations with a deployment hub and\nextraction points. Requires a compatible map.\nRecover equipment, prepare a loadout and redeploy."/>
 		<string text="Players can not be hurt by weapons and explosives\nfired by the other players."/>
 		<string text="Players can be hurt by weapons or explosives\nfired by the other players."/>
 		<string text="Damage from the other players will only reduce\nshields. Health will be unaffected."/>

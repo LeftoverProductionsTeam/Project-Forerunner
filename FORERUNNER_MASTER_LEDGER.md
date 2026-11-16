@@ -16,7 +16,23 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current P0 checkpoint (source base `39ca3cd9a7`): the existing native transport
+Current usability checkpoint (source base `9eb95de7e8`): Server Setup -> Co-op
+Options -> GAMEPLAY now selects CLASSIC, FIREFIGHT or EXTRACTION through the
+existing settings writer. The latter two are exclusive host choices; Classic
+preserves authored HaloScript encounters. Extraction still requires a compatible
+native solo map. No new config format, director, launcher or packet was added.
+Fourteen focused existing menu cases pass (`build/operations-mode-menu-tests.log`),
+and the incremental Windows64 build passes (`build/native-operations-mode-build.log`).
+The actual offline native menu saves Extraction, reopens it after process restart,
+preserves it on Cancel, then saves Firefight and Classic with the competing mode
+disabled. Rendered selection/help and restart captures were inspected.
+`build/native-operations-mode-menu/result.json` records binary SHA256
+`d52975701a076279b6132e33980dfc5036f704db07ccf62b7ce509d87ccbb60e` and unchanged
+original UI inputs. This verifies menu/settings only, not a new mission or
+multiplayer acceptance. Stopped runtime/input copies and BMP scratch are removed;
+compact PNGs/logs remain. Accepted transport checks below were not repeated.
+
+Accepted transport checkpoint (source base `39ca3cd9a7`): the existing native transport
 HSC now shares one configurable flight/boarding/settlement loop for Pelican or
 Spirit. It resolves the named craft when used (globals initialize before objects
 are placed), tests the single aircraft directly, recognizes both native passenger
@@ -99,9 +115,10 @@ The owner must retain an account Actions $0 budget with Stop usage enabled;
 the repository connection cannot inspect or change billing. Do not bypass this
 external block or claim hosted verification. Continue local engine development.
 
-Read-only Spark `e2879a6` now includes reviewed aircraft append/cache readback
-and `returnAfterInsertion` empty-return/recall controller authoring. Its own current
-handoff still explicitly lacks the complete combined Black Echo CE609 flight
+Read-only Spark `a2d0aa0` includes reviewed aircraft append/cache readback,
+`returnAfterInsertion` empty-return/recall controller authoring and native route/
+landing-pad authoring/readback. Geometric endpoint admission is not observed flight.
+Its current handoff still explicitly lacks the complete combined Black Echo CE609 flight
 package; marker caches and controller-syntax probes are separate evidence. Exact next authoring requirements and source references are
 in `SPARK_INTEGRATION_CONTRACT.md`. Previously accepted actual Black Echo two-account
 combat/rescue/technology/Flood/defense and on-foot banking/restart remain accepted;
