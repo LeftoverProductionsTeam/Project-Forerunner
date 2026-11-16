@@ -836,7 +836,7 @@ new body requiring the operation's role assignment. These calls do not select
 a biped, grant faction equipment, establish independent squad objectives or
 choose a dropship. The full selection/role policy and those gameplay gates remain
 engine work; do not expose this as completed UNSC/Covenant operation support.
-Optional transport contract (source/Windows64/connected-harness verified only):
+Optional transport contract (verification is scoped below):
 name native vehicles `extraction_pelican` and/or `extraction_spirit`. Declaring
 either enables mandatory boarding for Extraction evacuation; invalid/duplicate
 vehicle bindings refuse admission. Native player/human teams use the Pelican;
@@ -867,7 +867,9 @@ transaction/countdown. Use an on-button call control for an idempotent script
 signal; ordinary native switch behavior is preserved.
 Source: `extraction.c::{extraction_transport_completions,extraction_wake_completion}`.
 Windows64 compilation, six connected crew cases/two defect controls and native
-fixture HSC compilation pass; in-engine aircraft/callback acceptance is unverified.
+fixture HSC compilation pass. Native insertion/boarding evidence is recorded below;
+evacuation flight, durable aircraft-return callbacks and full repeat trips remain
+unverified.
 Missing faction craft bindings now refuse selection/recall without reserving gear
 or promising a hub escape. Hub-only prototypes retain their existing role choices.
 The repeat-trip continuation passes 19 focused workflows/two defect controls and
@@ -911,6 +913,19 @@ The native Pelican fixture now verifies normal passenger boarding, pilot-driven
 insertion, LZ arrival, disembarkation and extraction activation. Its recall route
 does not reach the LZ. Extraction boarding/departure/banking and Spirit flight
 remain unverified; do not replace them with a timer or foot return.
+
+Transport checkpoint, 16 November: the crew-readiness implementation is committed
+at `0c32af94de`, repeat-trip/missing-craft guards at `5442b04906`, and native
+faction/seat admission at `265a333e20`. These are existing runtime code, not pending
+Spark editor work. The two-account insertion and physical Pelican/Spirit boarding
+results below are separate from automated settlement-gate coverage. Spark's next
+flight handoff must supply native approach/landing/departure content, usable seats,
+the dedicated boarding groups above and repeatable completion/camera handlers.
+Keep the craft alive at the return pad until settlement releases it. No additional
+discovery operation, protocol or launcher is required. The outstanding owned
+fixture failure is its pilot's recall approach missing the LZ; the engine must not
+bank that failed flight. This handoff has not yet passed end-to-end aircraft
+evacuation, cinematic departure, banking and redeployment.
 
 Optional faction controls (16 November): author unique native touched controls
 (`triggers_when == 0`) named `extraction_unsc` and/or `extraction_covenant`, each
