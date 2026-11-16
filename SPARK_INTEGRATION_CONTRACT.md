@@ -968,9 +968,10 @@ comparisons pass for 143 operation/55 restart seconds and item comparisons for
 are unchanged; runtime/map copies and BMP scratch are removed, two lossless
 frames retained. Earlier driver probes failed to finish: Spartan-height aiming,
 then a stuck input phase; neither required an engine patch or candidate rebuild.
-Stash filtering/rollback and respawn selection are automated evidence; native
-death/respawn, other bipeds, faction objectives, completed aircraft flights,
-other platforms and VR remain unverified. First-person hands/HUD stay map-native.
+Stash filtering/rollback and respawn selection have automated coverage; bounded
+native death/respawn acceptance is recorded below. Other bipeds, faction objectives,
+completed aircraft flights, other platforms and VR remain unverified.
+First-person hands/HUD stay map-native.
 Spark must supply compatible character animations, native seat labels, faction
 objectives and actual approach/landing/departure content for transport acceptance.
 
@@ -997,6 +998,19 @@ files are unchanged; runtime/map copies and 393,220,320B of BMP scratch are remo
 two lossless frames retained. This accepts bounded Windows native boarding only;
 approach/landing flight, cinematics, return banking, Spirit insertion, human play,
 other bodies/platforms and VR acceptance remain open.
+
+Native faction casualties/re-entry (base `265a333e20`, 16 November): faction
+equipment profiles retain zero vitality modifiers. `players.c::player_spawn`
+preserves the fresh biped's native health/shield around the existing equipment
+reset; ordinary campaign profiles and the existing hub respawn override retain
+their semantics. `build/native-delta-faction-respawn` verifies two bound owners'
+normal grenade deaths, correct-faction healthy hub respawn, durable loss and
+redeployment using real previously banked test records with shared native-cache
+admission. The other player and unselected stash are preserved; issued gear is lost.
+`build/native-delta-faction-loss-restart` verifies persistence/redeployment with
+the same binary and retained records. Detailed comparisons/cleanup and the corrected
+restart probe are in the current checkpoint and those run results. This is bounded
+Windows native acceptance; full aircraft, other bodies/platforms and human/VR remain open.
 The owned native CE fixture additionally demonstrates local saved-profile
 deployment, combat/rescue/collection, countdown/return, durable bank, the native
 completion callback and process-restart redeployment of exactly the banked gear.

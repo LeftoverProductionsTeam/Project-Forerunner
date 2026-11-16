@@ -16,25 +16,26 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current checkpoint (base `770f0c65b2`): actual faction-specific native boarding
-now works for Spartan/Pelican and Grunt/Spirit. Native seat admission enforces the
-assigned craft; campaign passenger graphs with no entry clip reuse their real exit
-endpoint and Halo's existing attachment path. Ordinary entry clips/NPC behavior
-remain unchanged. Windows64, focused admission/geometry regressions and two
-original-defect controls pass. `build/native-delta-faction-boarding-sync` verifies
-two authenticated players choosing their bodies/kits, physically boarding separate
-craft and normally disembarking. Both views agree on full parent handles/seats;
-player comparisons pass for 92 seconds, items for 96 snapshots, no mismatch/halt.
-Gear bytes stay deployed/unchanged: boarding grants no bank/reward. Single-owner
-Spirit smoke also passes; the earlier stale input and missing-entry-clip defect
-are preserved in compact evidence. Original identity files unchanged; owned
-runtime/maps and 393,220,320B of BMP scratch removed, two lossless frames retained.
-The previously accepted two-account body/kit banking/restart remains at
-`build/native-delta-faction-body-banking` and commit `770f0c65b2`.
-Next: authored approach/landing/departure and full aircraft banking/cinematic
-acceptance; static boarding is not that milestone. Spirit flight, native faction
-respawn, other bodies/platforms, human play and VR remain unverified. Contract
-updated in place; no new controller, renderer, inventory or multiplayer protocol.
+Current checkpoint (base `265a333e20`): equipment-only faction profiles no longer
+clear a freshly spawned biped's native health/shield values. The existing
+Extraction hub respawn override is preserved, with no new respawn controller.
+Windows64 compilation and actual two-account native casualties/re-entry pass:
+`build/native-delta-faction-respawn` uses previously banked real test gear and
+shared native-cache admission, normal grenade deaths, same-faction Grunt/Spartan
+hub respawns with fresh native health, confirmed losses and redeployment. The
+other player's body/gear stays intact. Incompatible stored gear survives unchanged;
+issued UNSC gear is lost and failed runs award nothing.
+`build/native-delta-faction-loss-restart` resumes the same binary/retained in-flight
+records and proves loss/stash preservation after process restart and redeployment.
+The first restart probe mistook old deployed records for a new deployment before
+faction selection; only that stage was repeated, with no rebuild. Player comparison
+has no persistent divergence (122 operation/50 restart seconds; one transient
+alive/grenade difference each in the death run); items match for 126/54 snapshots.
+Original identity files unchanged; owned runtime/maps and 235,932,192B of BMP
+scratch removed; two lossless frames retained. Native two-faction Pelican/Spirit
+boarding remains accepted at `265a333e20`. Full flight/departure/banking, other
+bodies/platforms, human play and VR remain open. Spark `11f5849` was inspected
+read-only: newer area authoring, no new flight handoff in its integration notes.
 
 Accepted transport repeat checkpoint (base `0c32af94de`): repeatable aircraft scripts now separate
 one-time pilot setup from the trip loop, park continuous camera/crew handlers until

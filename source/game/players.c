@@ -1554,7 +1554,17 @@ static void player_spawn(
 							starting_equipment_count =
 								*(long *)((byte *)scenario + 0x348);
 							if (faction_profile != NONE)
+							{
+								/* port: these profiles contain equipment only. The
+								 * native reset clears vitality before adding profile
+								 * modifiers; preserve this fresh biped's native values. */
+								real body_vitality = unit->object.body_vitality;
+								real shield_vitality = unit->object.shield_vitality;
 								player_add_equipment(player2->unit_index, faction_profile, TRUE);
+								unit = unit_get(player2->unit_index);
+								unit->object.body_vitality = body_vitality;
+								unit->object.shield_vitality = shield_vitality;
+							}
 							else if (starting_equipment_count > 1 &&
 								*(short *)((byte *)player2 + 0xAA) > 0)
 							{
