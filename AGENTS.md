@@ -1,5 +1,13 @@
 # Forerunner workspace rules
 
+The owner's [Final Master Directive](docs/forerunner/FINAL_MASTER_DIRECTIVE_2026-11-16.md)
+sets the current order: diagnose/repair the hosted CI startup gate, close native
+Pelican/Spirit Extraction and actual two-account Spark Black Echo, then finish
+the complete engine roadmap. Preserve the existing branch/history; do not change
+workflow safeguards to hide a provider/runner failure. Native fixture execution,
+authenticated multiplayer, human gameplay and hardware acceptance stay distinct.
+
+
 Current scope is the owner's complete Forerunner roadmap, not Firefight only.
 Flagships include synchronized Firefight/Zombie Survival, timerless single-map
 Extraction with shared persistent gear, genuine connected 19-region MegaWorld,
@@ -28,6 +36,10 @@ meaningful milestones. Spark source may be inspected read-only; modify only
 Forerunner. Do not add coordination services or repeatedly poll/rebuild Spark.
 
 The authoritative Forerunner source is this root repository on local `master`.
+The owner forbids billable hosted work. Keep automatic Forerunner runner requests
+disabled; do not dispatch/rerun hosted jobs or raise budgets. Local focused checks
+remain authorized. Repository source cannot verify or enforce account-wide billing;
+the owner must retain a $0 Actions budget with Stop usage enabled in GitHub settings.
 Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
 with actual Git status, source and running owned jobs before continuing.
 The complete user directive is preserved under `docs/forerunner/`.
@@ -94,7 +106,7 @@ end.
 | `pgo/` | Profile-guided optimisation profiles |
 | `deploy/` | Running OpenCE's dedicated server (`halo --server`): systemd, Docker, Pterodactyl, Helm, PufferPanel, MCSManager, example gametypes (ChupathingyCE's server's are `server/deploy/`) |
 | `assets/` | Game data for local runs (gitignored: `maps/`, `maps_ce/`, `maps_md/`, `maps_pc/`) |
-| `.github/workflows/` | CI: builds every platform on each push, publishes releases from `main` (`build.yml`); the browser build and the self-hosting kits (`web.yml`) |
+| `.github/workflows/` | Manual platform/browser packaging; automatic Forerunner hosted builds are disabled under the owner's zero-spend policy. Draft publication guards remain explicit. |
 
 ## Building
 

@@ -162,7 +162,14 @@ def test_forerunner_artifacts_do_not_activate_updates():
         expression = next(line.split(':', 1)[1] for line in LINES if line.startswith('  ' + name + ':'))
         assert expression_value(expression, values) == expected
     assert "  HALO_FORK_RELEASE: ''" in TEXT
-    assert '- master\n      - main' in TEXT
+    assert 'refs/gate/main|refs/gate/master' in TEXT
+    save = next(line.split(':', 1)[1] for line in LINES if line.startswith('  CACHE_SAVE:'))
+    cache_values = {'github.repository': 'LeftoverProductionsTeam/Project-Forerunner',
+                    'github.ref': 'refs/heads/main', 'inputs.version': '',
+                    'inputs.commit': '', 'github.sha': 'a' * 40}
+    assert expression_value(save, cache_values) == 'false'
+    assert expression_value(save, {**cache_values, 'github.repository': 'ChupathingyCE/chupathingyce'}) == 'true'
+    assert 'uses: actions/cache@' not in (WORKFLOW.parent / 'web.yml').read_text()
     index = (WORKFLOW.parent / 'map-index.yml').read_text().split('\n  publish:\n', 1)[1]
     assert '\n    if: false\n' in index
 
@@ -384,3 +391,22 @@ def test_cache_prune_keeps_mains_newest(fake_gh):
     # 5 or 6, main's newest of each, nor a release branch's or a key without
     # a hash)
     assert deleted == [1, 4, 7]
+
+
+@pytest.mark.parametrize('workflow', ['build.yml', 'web.yml', 'server-image.yml'])
+def test_forerunner_hosted_builds_are_manual_only(workflow):
+    text = (WORKFLOW.parent / workflow).read_text()
+    trigger = text.split('\non:\n', 1)[1]
+    trigger = re.split(r'\n[^ #\n][^\n]*:', trigger, maxsplit=1)[0]
+    assert re.findall(r'^  ([a-z_]+):', trigger, re.M) == ['workflow_dispatch']
+
+
+@pytest.mark.parametrize('workflow,job', [('full-build-label.yml', 'rerun'), ('pr-areas.yml', 'label')])
+def test_forerunner_label_events_do_not_allocate_runners(workflow, job):
+    text = (WORKFLOW.parent / workflow).read_text().split('\n  ' + job + ':\n', 1)[1]
+    expression = next(line.split('if:', 1)[1].strip().strip('"')
+                      for line in text.splitlines() if line.startswith('    if:'))
+    values = {'github.repository': 'LeftoverProductionsTeam/Project-Forerunner',
+              'github.event.label.name': 'ci: full'}
+    assert not expression_value(expression, values)
+    assert expression_value(expression, {**values, 'github.repository': 'ChupathingyCE/chupathingyce'})

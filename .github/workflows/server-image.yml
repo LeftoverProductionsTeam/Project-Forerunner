@@ -20,13 +20,11 @@ name: Server image
 #   cosign verify ghcr.io/opencommunityedition/opence-server:latest \
 #     --certificate-identity-regexp '^https://github\.com/OpenCommunityEdition/OpenCE/\.github/workflows/server-image\.yml@' \
 #     --certificate-oidc-issuer https://token.actions.githubusercontent.com
+# Owner zero-spend policy: hosted execution is manual-only. Keep the account's
+# $0 Actions budget / stop-usage setting enforced before requesting any run.
+# This does not turn blocked/unrun validation into a passing CI result.
+
 on:
-  workflow_run:
-    workflows: [Build]
-    types: [completed]
-    branches: [main]
-  schedule:
-    - cron: "23 5 * * 1"
   workflow_dispatch:
     inputs:
       release:

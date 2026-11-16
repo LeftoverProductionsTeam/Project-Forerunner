@@ -11,14 +11,11 @@ name: Web build
 # Every run retains development artifacts. A manual owner-repository request
 # may prepare a new review draft; it never replaces web-latest or existing files.
 # Publishing and updater activation require separate owner authorization.
+# Owner zero-spend policy: hosted execution is manual-only. Keep the account's
+# $0 Actions budget / stop-usage setting enforced before requesting any run.
+# This does not turn blocked/unrun validation into a passing CI result.
+
 on:
-  push:
-    paths-ignore:
-      - "**.md"
-      # (the approved map list, which the browser build does not read:
-      # map-index.yml publishes it)
-      - "port/assets/network/map_torrents.txt"
-  pull_request:
   workflow_dispatch:
     inputs:
       prepare_draft:
@@ -49,7 +46,7 @@ jobs:
 
       # the SDK, and Emscripten's cache with the SDL3 port built in it
       - name: Emscripten cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/emsdk
           key: emsdk-${{ env.EMSCRIPTEN_VERSION }}-${{ hashFiles('port/web/halo_sdl3.py') }}
@@ -121,7 +118,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Gateway cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ~/.cargo/registry

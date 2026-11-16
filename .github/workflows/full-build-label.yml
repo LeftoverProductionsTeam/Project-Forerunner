@@ -15,7 +15,8 @@ permissions:
 
 jobs:
   rerun:
-    if: "github.event.label.name == 'ci: full'"
+    # Forerunner never requests hosted minutes from a label change.
+    if: "github.repository != 'LeftoverProductionsTeam/Project-Forerunner' && github.event.label.name == 'ci: full'"
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

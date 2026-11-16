@@ -2,36 +2,17 @@ name: Build
 
 # Platform builds/packaging inherited from OpenCE, ChupathingyCE and
 # FractumSeraph/OpenCE. Existing platform configurations, caches and three-day
-# downloadable artifacts are retained. Pushes/PRs build development packages;
-# master and main are both supported. Profiling/debug choices remain explicit.
+# downloadable artifacts are retained. Manual runs build development packages;
+# master and main remain supported. Profiling/debug choices remain explicit.
 # Forerunner packages never enable inherited release/nightly update channels.
 # Manual prepare_draft may collect successful packages in the owner's repository
 # for review. It never publishes, moves existing tags or prunes old releases.
 # Public release, signing and update channels need separate owner authorization.
+# Owner zero-spend policy: hosted execution is manual-only. Keep the account's
+# $0 Actions budget / stop-usage setting enforced before requesting any run.
+# This does not turn blocked/unrun validation into a passing CI result.
+
 on:
-  push:
-    branches:
-      # Forerunner development artifacts on both existing branch names.
-      - master
-      - main
-      - "release-*"
-      - "release/**"
-    tags:
-      - "**"
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      # (the approved map list alone: published by map-index.yml, which the
-      # games fetch, without a release)
-      - "port/assets/network/map_torrents.txt"
-  pull_request:
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-  # (main's head each day, which keeps main's caches fresh for the pull
-  # requests: the only regular run that saves them)
-  schedule:
-    - cron: "41 7 * * *"
   workflow_dispatch:
     inputs:
       commit:
@@ -87,9 +68,10 @@ env:
   CCACHE_MAXSIZE: 1G
   # the caches (README of this file, "Kept cheap"): restored by every run
   # that builds no version; saved only by a run on main that builds main's
-  # own head (no commit given, or that commit) and no version
+  # own head (no commit given, or that commit) and no version. Forerunner
+  # never writes hosted caches under the owner's zero-spend policy.
   CACHE_RESTORE: ${{ inputs.version == '' && 'true' || 'false' }}
-  CACHE_SAVE: ${{ github.ref == 'refs/heads/main' && inputs.version == '' && (inputs.commit == '' || inputs.commit == github.sha) && 'true' || 'false' }}
+  CACHE_SAVE: ${{ github.repository != 'LeftoverProductionsTeam/Project-Forerunner' && github.ref == 'refs/heads/main' && inputs.version == '' && (inputs.commit == '' || inputs.commit == github.sha) && 'true' || 'false' }}
 
 jobs:
   gate:
@@ -258,12 +240,6 @@ jobs:
       - uses: actions/cache/restore@v4
         id: cache-2
         if: env.CACHE_RESTORE == 'true'
-        with:
-          path: build/linux/third_party
-          key: linux-third-party-${{ hashFiles('tools/linux_sysroot.py') }}
-
-      # the system root and SDL's source, which the build downloads
-      - uses: actions/cache@v4
         with:
           path: build/linux/third_party
           key: linux-third-party-${{ hashFiles('tools/linux_sysroot.py') }}
@@ -1075,24 +1051,28 @@ jobs:
       # (restored on every run, saved only on main: other branches' and pull
       # requests' runs start from main's and keep nothing of their own)
       - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: .ccache
           key: ccache-android-${{ github.sha }}
           restore-keys: ccache-android-
 
       # the FFmpeg source tarball (tools/download.py): kept so most runs fetch nothing
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: build/downloads
           key: ffmpeg-source-${{ hashFiles('tools/ffmpeg_build.py') }}
 
       # musl and SDL, which configure.py fetches
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: build/android/third_party
           key: android-third-party-${{ hashFiles('tools/android_build.py') }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: |
             ~/.gradle/caches
@@ -1178,7 +1158,7 @@ jobs:
           retention-days: 3
 
       - uses: actions/cache/save@v4
-        if: ${{ success() && github.ref == 'refs/heads/main' }}
+        if: ${{ success() && env.CACHE_SAVE == 'true' }}
         with:
           path: .ccache
           key: ccache-android-${{ github.sha }}
@@ -1362,18 +1342,21 @@ jobs:
       # (restored on every run, saved only on main: other branches' and pull
       # requests' runs start from main's and keep nothing of their own)
       - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: .ccache
           key: ccache-android32-${{ github.sha }}
           restore-keys: ccache-android32-
 
       # musl and SDL, which configure.py fetches
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: build/android/third_party
           key: android-third-party-${{ hashFiles('tools/android_build.py') }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: |
             ~/.gradle/caches
@@ -1439,7 +1422,7 @@ jobs:
           retention-days: 3
 
       - uses: actions/cache/save@v4
-        if: ${{ success() && github.ref == 'refs/heads/main' }}
+        if: ${{ success() && env.CACHE_SAVE == 'true' }}
         with:
           path: .ccache
           key: ccache-android32-${{ github.sha }}
@@ -1874,7 +1857,8 @@ jobs:
         with:
           ref: ${{ inputs.commit }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: ~/emsdk
           key: emsdk-${{ env.EMSDK_VERSION }}-${{ hashFiles('port/web/halo_sdl3.py') }}
@@ -1890,7 +1874,8 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q ninja-build ccache python3-pytest mosquitto
 
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        if: env.CACHE_RESTORE == 'true'
         with:
           path: .ccache
           key: ccache-web-${{ github.sha }}
