@@ -46,8 +46,11 @@ static boolean coop_scripts_host(void)
 	return host;
 }
 static boolean adaptations = TRUE;
+static boolean extraction = FALSE;
 static boolean config_boolean(char const *name)
 {
+	if (!strcmp(name, "game.extraction"))
+		return extraction;
 	CHECK(!strcmp(name, "network.coop_script_adaptations"), "unknown policy");
 	return adaptations;
 }
@@ -306,12 +309,15 @@ int main(int argc, char **argv)
 		native_safe = TRUE;
 		CHECK(coop_scripts_safe_to_save(), "native safe condition failed in authored mode");
 	}
-	else if (!strcmp(name, "native-actions"))
+	else if (!strcmp(name, "native-actions") || !strcmp(name, "extraction-actions"))
 	{
 		reset(6);
 		n = script_units(units);
-		adaptations = FALSE;
+		extraction = !strcmp(name, "extraction-actions");
+		adaptations = extraction;
 		coop_scripts_new_game();
+		extraction = FALSE;
+		CHECK(coop_scripts_native_player_actions(), "map-start native policy did not latch");
 		CHECK(!players_following(units[0], out, 128), "authored player0 acquired unrelated followers");
 		coop_scripts_teleport_followers(units[0], &destination);
 		coop_scripts_suspend_followers(units[0], TRUE);

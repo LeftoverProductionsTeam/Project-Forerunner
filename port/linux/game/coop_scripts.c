@@ -101,8 +101,11 @@ static void follower_seat_name(
 
 void coop_scripts_new_game(void)
 {
-	/* Do not change follower policy between a cutscene's suspend/resume. */
-	coop_scripts_adaptations = config_boolean("network.coop_script_adaptations");
+	/* Extraction scripts own their passengers, objectives and recipients.
+	 * Latch this for the operation just as for the classic campaign setting,
+	 * so the menu need not rewrite that setting for other sessions. */
+	coop_scripts_adaptations = config_boolean("network.coop_script_adaptations") &&
+		!config_boolean("game.extraction");
 }
 
 boolean coop_scripts_any_player_will_do(

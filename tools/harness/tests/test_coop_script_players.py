@@ -35,7 +35,7 @@ def generated(fault=None):
     )
 
 
-@pytest.mark.parametrize('case', ['counts', 'gaps', 'respawn', 'bounded', 'nonhost', 'teleport', 'suspend', 'exit', 'board', 'equipment', 'native-actions', 'native-save',
+@pytest.mark.parametrize('case', ['counts', 'gaps', 'respawn', 'bounded', 'nonhost', 'teleport', 'suspend', 'exit', 'board', 'equipment', 'native-actions', 'extraction-actions', 'native-save',
                                  'native-current-vitality', 'legacy-current-vitality', 'legacy-maximum-vitality', 'cooperative-identity'])
 def test_script_players(case):
     status, output = run(build('coop_script_players', generated()), case)

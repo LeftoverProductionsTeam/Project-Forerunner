@@ -24,10 +24,15 @@ launch profile, set network.coop_enemies_mode = "none" for this fixed-count
 mission. Default per-player scaling created two pilots while the authored
 startup correctly waits for exactly one. Forerunner's native/Extraction menu
 paths now apply that existing setting through gametype_option_setting_write;
-ordinary co-op menus retain optional scaling. Retain native encounter control,
-network.coop_script_adaptations=false and network.firefight_encounter=false.
-Spark must pass this existing profile setting on its own launch path; no new
-schema, identity or engine operation is required.
+ordinary co-op menus retain optional scaling. Retain native encounter control
+with network.firefight_encounter=false.
+Spark must pass the no-extra-enemies setting on its own launch path. The
+in-game Spark Missions > Host Extraction path starts this unchanged map through
+the native map, difficulty, setup and lobby screens. Its hub admission is
+verified in build/native-forerunner-spark-black-echo-launch/result.json.
+The runtime now latches native script actions for game.extraction=true even
+when the saved legacy co-op adaptation setting is true. Older builds still
+need the explicit network.coop_script_adaptations=false setting.
 
 build/native-spark-black-echo-authored-crew/result.json PASSES two actual Delta
 accounts: one pilot and one Marine, native p-driver/p-riderlf occupancy and
@@ -177,7 +182,7 @@ the ability to launch a process.
 | Spark `FirefightConfig` schema `1` | Authoring/preview only. **Forerunner has no importer for this JSON.** |
 | `game.solo_skulls` / `HALO_SOLO_SKULLS` | New unverified, empty-by-default source reuses the existing 17 implemented skull hooks for local native solo content, including CE. Applied at map start/restart; cleared on disposal. Unsupported names warn and are skipped. No automatic mapping from Spark rules, network support, scoring multiplier or new discovery operation. MCC retains its separate existing setting. |
 | Standard actor palettes, encounters/squads, player profiles, HaloScript | Existing native authoring/runtime boundary. Spark emits source; the inherited engine executes supported compiled caches. Specific generated maps still require gameplay acceptance. |
-| `network.coop_script_adaptations` / `HALO_NET_COOP_SCRIPT_ADAPTATIONS` | Host setting, default true for legacy campaigns, frozen at map start through `network_coop_new_game` / `coop_scripts_new_game`. Spark may set false in its private launch configuration for authored operations: native player lists/ALL gates, visibility recipients, individual transport/equipment actions and script save safety retain their authored semantics. Host script execution, existing replication, explicit native teleports and empty-player wait protection remain. Source: `port/linux/game/coop_scripts.c::coop_scripts_adaptations_active`, existing `source/hs/hs_library_external.c` callers, `port/linux/src/port_config.c`. Connected source checks and Windows64 compilation pass; specific authored mission/squad acceptance remains unverified. No new RPC, quest executor, squad membership or discovery capability. |
+| `network.coop_script_adaptations` / `HALO_NET_COOP_SCRIPT_ADAPTATIONS` | Host setting, default true for legacy campaigns, frozen at map start through `network_coop_new_game` / `coop_scripts_new_game`. Extraction uses native actions automatically. For other authored modes, Spark may set this to false in its private launch configuration: native player lists/ALL gates, visibility recipients, individual transport/equipment actions and script save safety retain their authored semantics. Host script execution, existing replication, explicit native teleports and empty-player wait protection remain. Source: `port/linux/game/coop_scripts.c::coop_scripts_adaptations_active`, existing `source/hs/hs_library_external.c` callers, `port/linux/src/port_config.c`. Connected source checks and Windows64 compilation pass; specific authored mission/squad acceptance remains unverified. No new RPC, quest executor, squad membership or discovery capability. |
 | Firefight combat/late-join status text | Changed host wave/phase, enemy/pending-spawn counts and score/lives, at most once per second. `coop_enemies.c::{firefight_notice,firefight_equipment_reports}` reuse `extraction.c::{extraction_notice,extraction_player_notice}` for chat, per-controller reports and the existing native-HUD fallback, independent of gear being enabled. Two authenticated native clients' wave/equipment rendering and focused hidden-chat fallback checks pass. Existing ready-message summary/terminal replay remains; late-join gameplay is unverified. No persistent panel, query RPC or structured HUD protocol. |
 | Tracked Firefight AI kill credit | New unverified host source credits the last damaging player's existing native kill counter once on final death. AI/environmental/no-statistics damage clears individual attribution; departed/reused player handles are refused. Existing statistics transport only; no individual point totals, assists, medals or new discovery operation. |
 | Live edits, runtime-state query, transactions/undo | Not implemented by this adapter. No private-memory/debug-console fallback. |
@@ -556,8 +561,8 @@ Squad objective extension (`extraction.squad_objectives.v1`): declare an ordinar
 for each authored squad's two-digit number. `hs_runtime.c::hs_script_evaluate`
 delegates those exact static/object_list names to `extraction_script_players`;
 unrelated scripts and `(players)` are unchanged. The fallback selects beyond the
-bounded player list; negative indices select its first object. The loaded map
-requires existing `network.coop_script_adaptations=false`, otherwise queries return
+bounded player list; negative indices select its first object. Extraction now
+latches native script actions at map start. Older runtimes require `network.coop_script_adaptations=false`, otherwise queries return
 NONE with one diagnostic. Guard ALL objectives with a nonzero `list_count`.
 Queries are snapshots: requery after deployment, respawn or membership changes.
 Native object-list element positions, including `(players)`, are not network

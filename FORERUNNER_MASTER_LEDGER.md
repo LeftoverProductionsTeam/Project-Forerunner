@@ -101,6 +101,25 @@ The full candidate's human boarding, round trip, objectives/combat, settlement
 and redeployment remain open. Owned accounts/maps unchanged; runtime copies and
 losslessly converted BMP scratch cleaned. No Spark writes, hosted jobs or push.
 
+Actual Black Echo insertion (17 November, base 1269d65324):
+Spark Missions > Host Extraction now reaches the real CE609 c388d3d6 hub from
+map/difficulty selection, setup and lobby (native-forerunner-spark-black-echo-launch).
+Extraction latches native script actions regardless of the saved legacy co-op
+follower setting. The focused harness verifies individual recipients, map-start
+latching and legacy restoration (20 checks). Windows64 compile/link PASS.
+
+native-spark-black-echo-native-passengers used two authenticated players and
+legacy adaptations configured true. Both selected UNSC and deployed, but only
+the host boarded before takeoff (tick 1560). The native Pelican landed in the
+field (73.760,-125.796,2.178) at tick 2460, up .992. The host and live Marine
+disembarked. The pilot flew the empty passenger cabin back to the hub and
+settled at (50.660,-107.165,1.774), up .990, by tick 4350. The second player
+deployed at tick 2100 and reached the returned ship after the authored script
+had locked it pending evacuation. 142 seconds/284 player observations, zero
+divergences. Both must deploy before boarding in the next run. Marine rescue,
+combat, two-passenger insertion, extraction banking and redeployment remain open.
+Full result stays failed. Source binary 97d80b9318323c8bdfdf5bf2f8b25bea9d7f9fde3cdaf02f07aa09996fdbaf60.
+
 Native vehicle-action repair (17 November, base `5f11113156`): read-only owned
 a10 tag readback confirms the cryotube and its CT-driver seat both reference the
 HUD table's placeholder entry zero. Missing/empty/placeholder vehicle names now
