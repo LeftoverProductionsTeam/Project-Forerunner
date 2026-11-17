@@ -16,6 +16,40 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Native Firefight setup (17 November): existing Server Setup now links a native
+Firefight Options screen for wave limit/endless, initial enemies, per-wave growth,
+shared lives, resupply and desktop persistent gear. It reuses the existing option
+writer and director; no new mode, configuration system or protocol. KEEP CURRENT
+preserves custom configured integers. Co-op-only entry visibility and shifted help
+indices are wired; generated XML matches its generator. Windows64 compilation and
+focused real-source/generated-menu checks pass. Native option-screen Save,
+reopen, Cancel, custom 999 preservation and returning to a preset PASS in
+`build/native-firefight-options-menu-config/result.json`; stable later PNGs inspected.
+An initial observer failed by requiring omitted default config keys; its run stays
+rejected. Initial cold-open PNGs can show briefly blank spinner values; later
+frames show the correct values. Full human/other-platform UI acceptance stays open.
+
+The saved configuration was consumed unchanged by a two-account native encounter:
+two then four Flood, score 600, resupply and three initial shared lives. Both
+players die once, use the native paid respawn/loss kit, and finish alive with one
+weapon each. Two checksum-valid escaped records each bank that one weapon with
+distinct IDs and no reservation/escrow left. This is the intended death-loss
+policy, not duplicated missing secondaries. Actual evidence is retained under
+`build/native-firefight-options-growth/result.json`: 45 player seconds/67 living
+observations, one transient alive mismatch/no persistent divergence; 49 item
+snapshots agree (18/19 new host items seen); AI comparisons pass with all six
+damage/death histories common. Its overall observer remains FAIL because it
+required two-weapon banks after casualties; a missing post-stop debug helper also
+raised, but outer cleanup retained the raw debug logs. No harness gate was relaxed,
+native outcome overridden or engine patch invented for those observer mistakes.
+Original accounts/cache remain unchanged; stopped-job runtime/maps and duplicate
+BMPs cleaned. This connects host setup to actual bounded wave growth and casualty
+banking, not a no-death two-pair run or the original Zombie Apocalypse experience.
+Black Echo's authored hub/pad correction remains with Spark; the original Zombie
+Demo still requires its reviewed native conversion. Linux native execution is not
+available on this machine (no installed WSL distribution); no cross-platform or
+large-horde claim is made. Full engine goal remains active; no hosted work/push.
+
 Infection and partial-install hosting (17 November): the inherited mode passes
 one bounded native Longest match with two verified Delta accounts, normal walking
 and skull melee, human conversion, zombie victory, real postgame/lobby return and

@@ -20,6 +20,7 @@ of their own, so that a row another platform has leaves no gap (_layout).
 """
 
 import re
+from typing import Optional
 import sys
 from pathlib import Path
 from xml.sax.saxutils import quoteattr
@@ -2351,7 +2352,8 @@ def _server_settings() -> list:
                     ['<on event="created" run="server settings init"/>'], extra)
     # (co-op's options' screens, and map sharing's)
     for key, title, _, screen_rows in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]:
-        lines += _setup_option_screen(f"{base}/{key}", key, screen_rows, fit=True)
+        lines += _setup_option_screen(f"{base}/{key}", key, screen_rows, fit=True,
+                                      text_title=title if key == "firefight_options" else None)
     # (no Defaults: the bar is START and CANCEL; B cancels the name's edit
     # first)
     lines = [line.replace(f'<child widget="{base}/button_defaults" y="1"/>', "") for line in lines]
@@ -2402,7 +2404,7 @@ COOP_SETUP_SCREENS = [
     ("coop_options", "CO-OP OPTIONS", "Gameplay mode, team wipes, friendly fire and extras,\\nfor this game.", [
         ("coop_firefight", "GAMEPLAY:", ["CLASSIC", "FIREFIGHT", "EXTRACTION"], [
             "Play the map's own encounters and missions,\\nincluding maps with authored survival waves.",
-            "Three survival waves after the opening.\\nUses enemies already in the map. Choose CLASSIC\\nfor maps that have their own waves.",
+            "Configured survival waves after the opening.\\nSet lives and wave growth in Firefight Options.\\nChoose CLASSIC for authored wave controllers.",
             "Timerless operations with a deployment hub and\\nextraction points. Requires a compatible map.\\nRecover equipment, prepare a loadout and redeploy.",
         ]),
         ("coop_friendly_fire", "FRIENDLY FIRE:", ["OFF", "ON", "SHIELD ONLY", "EXPLOSIVES ONLY"], [
@@ -2450,6 +2452,33 @@ COOP_SETUP_SCREENS = [
     ]),
     ("voice_options", "VOICE AND VOTING", "Voice chat, text chat and votes to kick a player,\\nfor this game.",
      TEAMPLAY_ROWS),
+    ("firefight_options", "FIREFIGHT OPTIONS", "Built-in encounter rules, fixed when the map starts.\\nSelect FIREFIGHT in Co-op Options; authored waves\\nkeep their own rules.", [
+        ("ff_waves", "WAVES:", ["3", "ENDLESS", "1", "2", "5", "10", "20", "KEEP CURRENT"], [
+            "Clear three waves to win. Gear recovery follows\\nthe Persistent Gear setting.",
+            "Waves continue until defeat or evacuation.\\nGear recovery requires compatible native hub markers.",
+            *[f"Clear {n} waves to win. Gear recovery follows\\nthe Persistent Gear setting." for n in (1, 2, 5, 10, 20)],
+            "Keep the current configured wave limit, including\\ncustom values. No raid timer is added.",
+        ]),
+        ("ff_enemies", "INITIAL ENEMIES:", ["2", "1", "4", "8", "16", "32", "KEEP CURRENT"], [
+            "Initial actors in each wave before growth.\\nNative carrier children share the 32-body budget."
+        ] * 6 + ["Keep the current configured initial population."]),
+        ("ff_growth", "GROWTH PER WAVE:", ["OFF", "+1", "+2", "+4", "+8", "+16", "+32", "KEEP CURRENT"], [
+            "Keep the same initial population each wave.",
+            *[f"Add {n} initial enemies after each cleared wave.\\nTotal initial actors stop at 32; carrier children\\nneed room in the same budget." for n in (1, 2, 4, 8, 16, 32)],
+            "Keep the current configured growth per wave.",
+        ]),
+        ("ff_lives", "SHARED LIVES:", ["7", "0", "1", "3", "5", "10", "20", "99", "KEEP CURRENT"], [
+            "Each player death spends one team life for a respawn.\\nNo lives left: a team wipe ends in defeat."
+        ] * 8 + ["Keep the current configured shared-life allowance."]),
+        ("ff_resupply", "WAVE RESUPPLY:", ["OFF", "ON"], [
+            "Keep ammunition earned and spent during combat.",
+            "Refill compatible native weapon reserves between\\nwaves. Existing magazines and reloads stay native.",
+        ]),
+        ("ff_gear", "PERSISTENT GEAR:", ["OFF", "ON"], [
+            "Do not use the persistent personal stash.",
+            "Use the shared stash. Death or disconnect loses gear;\\nvictory or valid evacuation recovers it. Requires\\na saved profile or verified account.",
+        ]),
+    ]),
 ]
 # Server Setup's map sharing (port/linux/game/map_share.c), for any game,
 # laid out as co-op's options are (its key, its title, its row's help and
@@ -2470,13 +2499,14 @@ MAP_SHARE_SETUP = ("map_share_options", "MAP SHARING",
 SETUP_OPTIONS_PLACE = 6
 # (their screens' titles)
 TITLES.update({f"{MT}/server_settings/{key}/header_{key}": title
-               for key, title, _, _ in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]})
+               for key, title, _, _ in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP] if key != "firefight_options"})
 # (the rows of a co-op options screen in one place, the one shown: PER
 # PLAYER's and MULTIPLIER's, by EXTRA ENEMIES')
 SETUP_OPTION_SAME_PLACE = set()
 
 
-def _setup_option_screen(base: str, key: str, rows: list, fit: bool = False) -> list:
+def _setup_option_screen(base: str, key: str, rows: list, fit: bool = False,
+                         text_title: Optional[str] = None) -> list:
     """a screen of options laid out as the gametype's are (Teamplay
     Options'), its spinners setting config.toml's settings (menu_functions.c's
     "port setup options init" and "port setup options save", OK), each
@@ -2486,7 +2516,13 @@ def _setup_option_screen(base: str, key: str, rows: list, fit: bool = False) -> 
                                             ("flags", "pass_unhandled_to_focused_child"),
                                             ("bitmap", "bitmaps/gradient")],
                     [f'<child widget="{base}/header_{key}"/>', f'<child widget="{base}/{key}_menu"/>'])
-    lines += _header(f"{base}/header_{key}", f"{base}/header_{key}")
+    if text_title is None:
+        lines += _header(f"{base}/header_{key}", f"{base}/header_{key}")
+    else:
+        lines += _widget(f"{base}/header_{key}", [("type", "text"), ("controller", 1), ("left", 35),
+                            ("top", 11), ("width", 500), ("height", 59), ("text", text_title),
+                            ("font", "ui\\large_ui"), ("color", "#FFFFFFFF"), ("text_y", 18),
+                            ("text_flags", "no_focus_test")], [])
     lines += _widget(f"{base}/{key}_help", [("type", "text"), ("controller", 1), ("left", 68), ("top", 341),
                                            ("width", 482), ("height", 79), ("string_list", f"{base}/cap_{key}"),
                                            ("font", "ui\\large_ui"), ("color", "#FFFFFFFF")], [])
@@ -2515,6 +2551,7 @@ def _setup_option_screen(base: str, key: str, rows: list, fit: bool = False) -> 
     for index, (row_key, label, strings, _) in enumerate(rows):
         lines += _widget(f"{base}/op_{row_key}", [("width", 512), ("height", min(28, spacing)),
                                                  ("flags", "pass_unhandled_to_focused_child"),
+                                                 ("platform", "desktop" if row_key == "ff_gear" else None),
                                                  ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
                          [f'<child widget="{base}/{row_key}_label"/>',
                           f'<child widget="{base}/{row_key}_spinner" x="286" y="1"/>'])

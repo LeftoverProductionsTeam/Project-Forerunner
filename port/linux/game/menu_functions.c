@@ -6338,12 +6338,13 @@ VOTING), PASSWORD's, MAP SHARING's and HOST OPTIONS' (its help_strings,
 tools/port_settings.py) */
 #define COOPERATIVE_OPTIONS_HELP 12
 #define COOPERATIVE_VOICE_OPTIONS_HELP 13
-#define SERVER_PASSWORD_HELP 14
-#define MAP_SHARE_OPTIONS_HELP 15
-#define SERVER_HOST_OPTIONS_HELP 16
+#define COOPERATIVE_FIREFIGHT_OPTIONS_HELP 14
+#define SERVER_PASSWORD_HELP 15
+#define MAP_SHARE_OPTIONS_HELP 16
+#define SERVER_HOST_OPTIONS_HELP 17
 /* (LISTING's PUBLIC on a machine with a publisher key: server_master.c; the
 last, after HOST OPTIONS') */
-#define SERVER_LISTING_PUBLISHER_HELP 17
+#define SERVER_LISTING_PUBLISHER_HELP 18
 
 /* whether this machine has a publisher key (read as Server Setup opens) */
 static boolean server_settings_publisher;
@@ -6508,10 +6509,13 @@ static void server_settings_update(struct widget_instance *list)
 
 			visible_set(named(list, "op_coop_options", 0), cooperative);
 			visible_set(named(list, "op_voice_options", 0), cooperative);
+			visible_set(named(list, "op_firefight_options", 0), cooperative);
 			if (help && list->focused_child == named(list, "op_coop_options", 0))
 				help->parameters.text_box.string_list_index = COOPERATIVE_OPTIONS_HELP;
 			else if (help && list->focused_child == named(list, "op_voice_options", 0))
 				help->parameters.text_box.string_list_index = COOPERATIVE_VOICE_OPTIONS_HELP;
+			else if (help && list->focused_child == named(list, "op_firefight_options", 0))
+				help->parameters.text_box.string_list_index = COOPERATIVE_FIREFIGHT_OPTIONS_HELP;
 			/* (MAP SHARING's, any game's: map_share.c) */
 			else if (help && list->focused_child == named(list, "op_map_share_options", 0))
 				help->parameters.text_box.string_list_index = MAP_SHARE_OPTIONS_HELP;
@@ -11056,6 +11060,17 @@ static struct gametype_option const gametype_options[] =
 	 * separate wave director are mutually exclusive host choices. */
 	{ "coop_firefight_spinner", _option_setting, 0, 0, 3, { 0 }, "network.firefight_encounter",
 		{ "false", "true", "false" } },
+	/* The final NULL choice keeps configured values outside these presets. */
+	{ "ff_waves_spinner", _option_setting, 0, 0, 8, { 0 }, "network.firefight_wave_limit",
+		{ "3", "0", "1", "2", "5", "10", "20", NULL } },
+	{ "ff_enemies_spinner", _option_setting, 0, 0, 7, { 0 }, "network.firefight_initial_enemies",
+		{ "2", "1", "4", "8", "16", "32", NULL } },
+	{ "ff_growth_spinner", _option_setting, 0, 0, 8, { 0 }, "network.firefight_wave_growth",
+		{ "0", "1", "2", "4", "8", "16", "32", NULL } },
+	{ "ff_lives_spinner", _option_setting, 0, 0, 9, { 0 }, "network.firefight_lives",
+		{ "7", "0", "1", "3", "5", "10", "20", "99", NULL } },
+	{ "ff_resupply_spinner", _option_setting, 0, 0, 2, { 0 }, "network.firefight_resupply", { "false", "true" } },
+	{ "ff_gear_spinner", _option_setting, 0, 0, 2, { 0 }, "network.firefight_gear", { "false", "true" } },
 	{ "coop_friendly_fire_spinner", _option_setting, 0, 0, 4, { 0 }, "network.coop_friendly_fire",
 		{ "off", "on", "shields_only", "explosives_only" } },
 	{ "coop_team_wipe_spinner", _option_setting, 0, 0, 3, { 0 }, "network.coop_team_wipe",
@@ -11109,6 +11124,14 @@ static short gametype_option_setting_index(struct gametype_option const *option)
 
 	if (!strcmp(option->spinner, "coop_firefight_spinner") && config_boolean("game.extraction"))
 		return 2;
+	/* Numeric presets must neither mislabel nor overwrite custom host values. */
+	if (option->count > 0 && !option->setting_values[option->count - 1])
+	{
+		if (setting_text(option->setting, text, sizeof(text), FALSE))
+			for (index = 0; index < option->count - 1; index++)
+				if (!strcmp(text, option->setting_values[index])) return index;
+		return option->count - 1;
+	}
 	csmemset(&setting, 0, sizeof(setting));
 	setting.setting = option->setting;
 	setting.value_count = option->count;
@@ -11121,6 +11144,7 @@ static short gametype_option_setting_index(struct gametype_option const *option)
 
 static boolean gametype_option_setting_write(struct gametype_option const *option, short index)
 {
+	if (!option->setting_values[index]) return TRUE; /* KEEP CURRENT: no write. */
 	if (!strcmp(option->spinner, "coop_firefight_spinner"))
 	{
 		/* Disable the other mode first. A failed write must never enable two

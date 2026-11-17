@@ -28,9 +28,11 @@ struct gametype_option { char const *spinner; short count; char const *setting; 
 struct pc_menu_setting { char const *setting; short value_count; char const *values[3]; };
 static boolean extraction_mode,firefight_mode,other_mode;
 static int setting_writes,fail_write;
+static long custom_number;
 static boolean config_boolean(char const *name){return !strcmp(name,"game.extraction")?extraction_mode:firefight_mode;}
 static boolean setting_text(char const *name,char *text,unsigned int size,boolean defaults)
 {
+ if(!strcmp(name,"test.number")){snprintf(text,size,"%ld",custom_number);return TRUE;}
  boolean value=!strcmp(name,"test.bool")?other_mode:config_boolean(name);
  (void)defaults;snprintf(text,size,"%s",value?"true":"false");return TRUE;
 }
@@ -42,6 +44,7 @@ static short setting_value_index(struct pc_menu_setting const *setting,char cons
 static boolean setting_write(char const *name,char const *value)
 {
  setting_writes++;if(setting_writes==fail_write)return FALSE;
+ if(!strcmp(name,"test.number")){custom_number=atol(value);return TRUE;}
  boolean enabled=!strcmp(value,"true");
  if(!strcmp(name,"game.extraction"))extraction_mode=enabled;
  else if(!strcmp(name,"network.firefight_encounter"))firefight_mode=enabled;
@@ -137,6 +140,15 @@ int main(int argc,char **argv)
   CHECK(gametype_option_setting_write(&option,1)&&other_mode,"ordinary setting not written");
   CHECK(gametype_option_setting_index(&option)==1,"ordinary readback");
   CHECK(extraction_mode&&!firefight_mode&&setting_writes==1,"ordinary setting changed operations mode");
+ } else CASE("custom-setting") {
+  struct gametype_option option={"ff_waves_spinner",3,"test.number",{"0","3",NULL}};
+  custom_number=999;setting_writes=fail_write=0;
+  CHECK(gametype_option_setting_index(&option)==2,"custom value shown as a preset");
+  CHECK(gametype_option_setting_write(&option,2),"keep-current failed");
+  CHECK(custom_number==999&&!setting_writes,"custom value overwritten");
+  CHECK(gametype_option_setting_write(&option,1),"preset failed");
+  CHECK(custom_number==3&&setting_writes==1&&gametype_option_setting_index(&option)==1,"preset did not reopen");
+  CHECK(gametype_option_setting_write(&option,2)&&custom_number==3&&setting_writes==1,"keep-current rewrote a preset");
  } else return 2;
  return 0;
 }
