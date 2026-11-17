@@ -698,7 +698,18 @@ advertise a persistence endpoint that Forerunner has not implemented. Extraction
 now consumes the shared weapon/grenade bank below. Finite built-in Survival can
 opt into that same bank at its actual victory milestone; native authored Survival
 can use the existing hub/evacuation controls with the built-in director OFF.
-Endless built-in evacuation and full Zombie progression remain unfinished.
+Endless built-in Survival also consumes the same native activation/return controls,
+without a mandatory match timer. Windows/OpenGL owned-fixture evidence at
+`build/native-delta-endless-evacuation-ready/result.json` records two authenticated
+clients' physical on-foot returns, four unique banked weapons and a team outcome
+only after both recovered. Its driver FAILS on a stricter occupied-point approach
+after banking; validated records/native logs prove those scoped results separately.
+`build/native-delta-endless-redeploy-ready/result.json` PASSES fresh-process
+redeployment of the exact IDs and actual native weapons/grenade ownership.
+Player/item/AI movement comparisons pass; original identity/seed files are
+unchanged. Native aircraft evacuation in endless Survival, full Zombie outbreak/
+progression, Spark mission composition, other platforms and human/hardware
+acceptance remain open. This changes no authoring format or capability token.
 
 The shared native gear reader in `game_modes.c` now feeds both Extraction return
 reports and Firefight wave-clear reports before optional resupply. It reads real

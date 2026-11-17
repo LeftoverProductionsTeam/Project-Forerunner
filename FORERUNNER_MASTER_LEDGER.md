@@ -16,7 +16,35 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current failed-BSP recovery checkpoint (source base `f729a63494`): the native
+Current endless-Survival acceptance checkpoint (source `46b23f5766`): the existing
+director/Extraction path already implements optional evacuation; no replacement
+or speculative engine patch was needed. `build/native-delta-endless-evacuation-ready/result.json`
+now records two verified Delta clients, native endless wave start, separate real
+control activations/ten-second holds, physical on-foot hub returns, two durable
+escaped outcomes and four unique banked weapon IDs. The first escape leaves the
+other living player's run active; only both completed banks end the director.
+`build/native-delta-endless-redeploy-ready/result.json` PASSES fresh-process native
+redeployment of those same four IDs and actual owned AR/pistol pairs, with stored
+grenade ownership conserved and original bank seeds unchanged.
+
+The operation driver overall FAILS after both native banks: it then requires the
+second player to reach a point already occupied by the first. That failure stays
+recorded; stopped logs/validated records separately prove the scoped native results.
+Initial preparation and first restart drivers also fail premature wave readiness
+and an incorrect zero-grenade assumption. Only unaccepted stages were retried,
+without rebuilding/repeating the completed evacuation. Player comparisons PASS
+62 operation/8 restart seconds (position max 0.075060, aim zero); item comparisons
+PASS 66/12 snapshots, zero out of step. Native AI movement/state PASS 67 snapshots,
+123 unit comparisons; no AI damage/death acceptance in this check. Binary
+`6b1148df...e49ba6`; unchanged owned CE609 cache `053f24c1...328329c`.
+Three retained PNGs inspected. Voice/VR off; originals/identities unchanged.
+Owned runtime/map copies and 24,576,270B of BMP scratch cleaned. No hosted jobs/push.
+This proves the existing on-foot endless evacuation/banking/redeployment slice,
+not full Zombies, aircraft, Spark Black Echo, human or other-platform acceptance.
+Read-only Spark `50837f2` advances native squad authoring; its combined mission
+delivery/gameplay acceptance remains open. Full engine roadmap remains active.
+
+Previous failed-BSP recovery checkpoint (source base `f729a63494`): the native
 loader already restores the old BSP when its destination cannot load or fails
 capacity validation. Its reconnect callbacks nevertheless consumed the pending
 destination gather, ejecting/moving a remote passenger even though the source
