@@ -251,7 +251,7 @@ void mcc_ui_network_campaign_won(char const *next)
         server->state != _network_game_server_state_ingame) return;
     if (next && (!mcc_level_name(next) || strlen(next) >= sizeof(mcc_campaign_ui_map))) return;
     round = server->game.number_of_games_played;
-    network_game_server_port_cooperative_won(next);
+    network_game_server_port_cooperative_won(next, 0);
     /* A manifest has already selected this mission. Ordinary postgame UI
      * opens multiplayer selection and pauses the countdown.
      * Preserve end-of-campaign and failure handling without replaying a level. */

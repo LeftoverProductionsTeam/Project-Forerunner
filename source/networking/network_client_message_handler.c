@@ -197,6 +197,7 @@ symbols in this file:
 #include "bungie_net/network/transport_endpoint_winsock.h"
 #include "game/game_engine.h"
 #include "game/players.h"
+#include "main/main.h"
 #include "networking/network_client_manager.h"
 #include "networking/network_client_message_handler.h"
 #include "networking/network_game_globals.h"
@@ -387,11 +388,6 @@ struct message_server_remove_player_ingame
 {
 	struct network_player player;
 	long reason;
-};
-
-struct message_server_game_over
-{
-	long unused;
 };
 
 struct message_server_switch_to_pregame
@@ -1897,7 +1893,7 @@ static boolean network_game_client_handle_message_server_game_over(
 	{
 		if (network_game_client_get_state(client, NULL) == _network_game_client_state_ingame)
 		{
-			struct message_server_game_over game_over;
+			struct message_server_game_over game_over = { 0 };
 			short packet_type = _message_server_game_over;
 			short packet_version = NETWORK_GAME_MESSAGE_VERSION;
 
@@ -1911,6 +1907,10 @@ static boolean network_game_client_handle_message_server_game_over(
 				_network_game_packet_class_ingame))
 			{
 				network_event("failed to decode a message_server_game_over message (not critical)");
+			}
+			else
+			{
+				main_coop_campaign_complete(game_over.campaign_completion);
 			}
 
 			network_game_client_switch_to_postgame(client);

@@ -109,10 +109,11 @@ every game the server sets up */
 void network_game_server_port_set_settings(
 	wchar_t const *name,
 	long maximum_players);
-/* port: a co-op level was won (main.c). Ends the round for everyone as in
-multiplayer; the next round is on next_map (NULL repeats the level). */
+/* Ends a won co-op round and picks its next map (NULL repeats the level).
+ * Pass zero for Firefight or a mission without stock campaign credit. */
 void network_game_server_port_cooperative_won(
-	char const *next_map);
+	char const *next_map,
+	long campaign_completion);
 /* port: co-op server settings: the difficulty, sent to clients, and the
 most players a co-op game starts with (Server Setup sets its own) */
 void network_game_server_port_set_cooperative(

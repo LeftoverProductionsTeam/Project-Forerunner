@@ -631,11 +631,6 @@ struct countdown_timer
 	unsigned long last_update_time;
 };
 
-struct message_server_game_over
-{
-	long unused;
-};
-
 struct message_server_begin_game
 {
 	long unused;
@@ -2800,14 +2795,15 @@ static void network_game_server_send_player_quit_messages_ingame(
 	return;
 }
 
-void network_game_server_switch_to_postgame(
-	struct network_game_server *server)
+static void network_game_server_end_round(
+	struct network_game_server *server,
+	long campaign_completion)
 {
 	match_assert(NETWORK_SERVER_MANAGER_FILE, 0x2FF, server);
 
 	if (server->state == _network_game_server_state_ingame)
 	{
-		struct message_server_game_over game_over = { 0 };
+		struct message_server_game_over game_over = { campaign_completion };
 		void *message;
 
 		server->state = _network_game_server_state_postgame;
@@ -2830,6 +2826,12 @@ void network_game_server_switch_to_postgame(
 	}
 
 	return;
+}
+
+void network_game_server_switch_to_postgame(
+	struct network_game_server *server)
+{
+	network_game_server_end_round(server, 0);
 }
 
 boolean network_game_server_graceful_shutdown(
@@ -5931,7 +5933,8 @@ void network_game_server_port_clear_queued_players(
 }
 
 void network_game_server_port_cooperative_won(
-	char const *next_map)
+	char const *next_map,
+	long campaign_completion)
 {
 	struct network_game_server *server = global_network_game_server_get();
 
@@ -5940,7 +5943,7 @@ void network_game_server_port_cooperative_won(
 	csstrncpy(network_game_server_cooperative_next_map, next_map ? next_map : server->game.map.name,
 		sizeof(network_game_server_cooperative_next_map) - 1);
 	network_game_server_cooperative_next_map[sizeof(network_game_server_cooperative_next_map) - 1] = 0;
-	network_game_server_switch_to_postgame(server);
+	network_game_server_end_round(server, campaign_completion);
 	/* Back to the lobby at once, with the next level set up there to start
 	or change. Multiplayer leaves the postgame when the host presses a button
 	on its scoreboard (game_engine.c); co-op has neither, and every machine

@@ -2707,6 +2707,46 @@ static void main_frame_rate_debug(
 	return;
 }
 
+static void main_credit_coop_campaign_players(short level)
+{
+	struct data_iterator iterator;
+	struct player_datum *player;
+
+	data_iterator_new(&iterator, player_data);
+	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
+		if (!player->quit_out_of_game && VALID_INDEX(player->local_player_index, MAXIMUM_LOCAL_PLAYERS))
+			player_profile_save_campaign_level_completed(player->local_player_index, level);
+}
+
+/* Encode the won stock mission and difficulty in the existing game-over
+ * field. Validate against the playing round before touching local profiles. */
+static long main_coop_campaign_completion_code(short level)
+{
+	short difficulty;
+
+	if (!VALID_INDEX(level, NUMBER_OF_SINGLE_PLAYER_LEVELS) || stubbs_mode_active() ||
+		!network_coop_active() || !game_in_progress() ||
+		extraction_owns_map() || coop_enemies_firefight_active())
+		return 0;
+	difficulty = game_difficulty_level_get();
+	if (!VALID_INDEX(difficulty, NUMBER_OF_GAME_DIFFICULTY_LEVELS))
+		return 0;
+	return 0x46524300L | (level << 4) | difficulty;
+}
+
+void main_coop_campaign_complete(long campaign_completion)
+{
+	struct network_game const *game;
+	short level;
+
+	if (!campaign_completion || game_connection() != _game_connection_network_client)
+		return;
+	game = network_game_get_game();
+	level = game ? main_get_solo_level_from_name(game->map.name) : NONE;
+	if (campaign_completion == main_coop_campaign_completion_code(level))
+		main_credit_coop_campaign_players(level);
+}
+
 static void main_won_map_private(
 	void)
 {
@@ -2732,7 +2772,7 @@ static void main_won_map_private(
 	if (coop_enemies_firefight_active())
 	{
 		main_globals.won_map = FALSE;
-		network_game_server_port_cooperative_won(NULL);
+		network_game_server_port_cooperative_won(NULL, 0);
 		return;
 	}
 
@@ -2751,24 +2791,14 @@ static void main_won_map_private(
 	if (game_connection() == _game_connection_network_server && network_coop_active())
 	{
 		struct network_game *game = network_game_get_game();
-		/* port: only participants on this machine own local profiles. */
-		struct data_iterator iterator;
-		struct player_datum *player;
 
 		main_globals.won_map = FALSE;
 		level = game ? main_get_solo_level_from_name(game->map.name) : NONE;
-		/* port: credit every current local participant for the actual network
-		mission. Neither player_spawn_count nor the solo menu describes this
-		machine's split-screen party; quit profiles must not receive credit. */
 		if (level != NONE)
-		{
-			data_iterator_new(&iterator, player_data);
-			while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
-				if (!player->quit_out_of_game && VALID_INDEX(player->local_player_index, MAXIMUM_LOCAL_PLAYERS))
-					player_profile_save_campaign_level_completed(player->local_player_index, level);
-		}
+			main_credit_coop_campaign_players(level);
 		network_game_server_port_cooperative_won(next[0] ? next : level != NONE ?
-			main_get_solo_level_name((level + 1) % NUMBER_OF_SINGLE_PLAYER_LEVELS) : NULL);
+			main_get_solo_level_name((level + 1) % NUMBER_OF_SINGLE_PLAYER_LEVELS) : NULL,
+			main_coop_campaign_completion_code(level));
 		return;
 	}
 	main_globals.want_to_be_at_main_menu = TRUE;

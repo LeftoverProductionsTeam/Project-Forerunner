@@ -60,6 +60,13 @@ enum network_game_message_type
 
 /* ---------- structures */
 
+/* Existing four-byte game-over field. Older peers ignore its value.
+ * Zero is the ordinary end-of-round message with no campaign credit. */
+struct message_server_game_over
+{
+	long campaign_completion;
+};
+
 /* ---------- prototypes */
 
 /* ---------- globals */
