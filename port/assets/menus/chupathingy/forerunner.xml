@@ -227,15 +227,21 @@
 		<child widget="forerunner/spark/choices" x="0" y="0" />
 	</widget>
 	<widget name="forerunner/spark/title" type="text" width="520" height="35" text="SPARK MISSIONS" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/spark/description" type="text" width="520" height="108" text="Play native missions created in Guilty Spark. Choose your installed\nmission and difficulty, then invite your squad." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/spark/description" type="text" width="520" height="108" text="Choose an installed Guilty Spark mission and invite your squad." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/spark/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
-		<child widget="forerunner/spark/native_create_inter" x="60" y="316" />
+		<child widget="forerunner/spark/native_create_inter" x="60" y="282" />
+		<child widget="forerunner/spark/extraction_create_inter" x="60" y="316" />
 		<child widget="forerunner/spark/join" x="60" y="350" />
 		<child widget="forerunner/spark/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/spark/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/spark/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST CO-OP" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/spark/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST EXTRACTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/spark/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
