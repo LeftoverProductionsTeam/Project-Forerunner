@@ -726,6 +726,26 @@ int main(int argc,char **argv)
    players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
    touch(5,1);CHECK(run(1)->squad==NONE,"opposing factions joined one squad");touch(6,1);CHECK(run(1)->squad==1,"opposing independent squad refused");return 0;
   }
+  if (!strcmp(case_name, "squad-join-active")) {
+   touch(0, 0);
+   CHECK(run(0)->phase == _extraction_deployed, "first squad did not deploy");
+   touch(5, 1);
+   CHECK(run(1)->squad == NONE, "hub player joined an active squad");
+   touch(0, 1);
+   CHECK(run(1)->phase == _extraction_hub, "late join inherited a deployment");
+   touch(6, 1);
+   CHECK(run(1)->squad == 1, "active operation locked another squad");
+   escape(0);
+   CHECK(run(0)->phase == _extraction_returned, "first squad could not settle");
+   touch(5, 1);
+   CHECK(run(1)->squad == 0, "finished squad did not accept a member");
+   touch(0, 0);
+   touch(0, 1);
+   CHECK(run(0)->phase == _extraction_deployed && run(1)->phase == _extraction_deployed &&
+    run(0)->squad_operation == 2 && run(1)->squad_operation == 2,
+    "members selected before departure could not deploy in sequence");
+   return 0;
+  }
   if(!strcmp(case_name,"squad-leave")) {
    touch(5,0);CHECK(run(0)->squad==NONE&&run(0)->gear.record.phase==_gear_idle,"leave changed gear ownership or retained membership");return 0;
   }

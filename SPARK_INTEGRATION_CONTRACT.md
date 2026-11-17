@@ -567,8 +567,10 @@ before deployment; maps with none retain the existing ungrouped path. Normal use
 of one's selected terminal leaves the squad when its operation is finished.
 Selection consumes the action without toggling a shared device group. Existing
 verified identities and gear locks remain mandatory; membership does not transfer
-stash ownership. Active operations freeze existing members' squad/faction changes
-and repeated deployment. A returning squad can redeploy independently of another.
+stash ownership. Active operations lock membership and faction selection for the
+squad. Choose a squad before its first member deploys. Members already selected
+can deploy in sequence, and a settled squad can admit members and redeploy
+independently of another.
 
 `forerunner_squad_01_complete`, `forerunner_squad_02_complete`, etc. are optional
 native void callbacks after that operation's living survivors physically return

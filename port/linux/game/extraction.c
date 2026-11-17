@@ -1082,7 +1082,8 @@ static void extraction_squad_choose(struct extraction_run *run, struct player_da
 	char text[128];
 	if (!in_hub || unit_get(player->unit_index)->object.parent_object_index != NONE ||
 		(run->phase != _extraction_hub && run->phase != _extraction_lost && run->phase != _extraction_returned) ||
-		extraction_squad_busy(run->squad, run))
+		extraction_squad_busy(run->squad, run) ||
+		(squad != run->squad && extraction_squad_busy(squad, run)))
 	{
 		extraction_tell(run, "SQUAD LOCKED | Choose on foot at the hub before the squad deploys, or after its operation ends."); return;
 	}

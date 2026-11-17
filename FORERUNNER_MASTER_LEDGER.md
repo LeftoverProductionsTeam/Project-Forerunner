@@ -88,6 +88,16 @@ build/native-forerunner-infection-menu-lobby/result.json and its two captures.
 Windows64 and 18 focused mode/setup checks passed. Infection gameplay rules
 were unchanged, so the previously accepted match was not rerun.
 
+Extraction squad admission (17 November): a live operation now locks both
+joining and leaving its roster. The focused reproduction failed on the original
+runtime. Windows64 and 48 squad/objective checks pass, including sequential
+deployment by existing members and membership reopening after settlement.
+build/native-extraction-squad-roster-lock-live/result.json verifies two bound
+clients: first squad deployed, second player received the host's SQUAD LOCKED
+reply at that terminal, then joined and deployed with their own squad. 65 native
+seconds and 130 player observations agree. The earlier driving attempt stopped
+before terminal use. Both test sessions' disposable runtimes/maps were removed.
+
 Native menu completion and Black Echo crew repair (17 November):
 63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
 two-hand settings directly to the native VR page, Save/Cancel and persistence.
