@@ -2598,6 +2598,7 @@ static int openxr_talk_binding;
 static unsigned int openxr_talk_reference;
 static BOOL openxr_layout_known, openxr_layout_wait;
 static int openxr_layout_weapon, openxr_layout_turn, openxr_layout_grab, openxr_layout_support;
+static unsigned int openxr_layout_reference;
 
 static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 {
@@ -2614,12 +2615,14 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	if (!vr_openxr_input_read(&frame))
 	{
 		openxr_talk_armed = FALSE;
-		openxr_layout_known = openxr_layout_wait = FALSE;
+		openxr_layout_known = FALSE;
+		openxr_layout_wait = TRUE;
 		return FALSE;
 	}
-	if (!frame.focused)
+	if (!frame.focused || (!menus && !frame.should_render))
 	{
 		openxr_talk_armed = FALSE;
+		openxr_layout_wait = TRUE;
 		return TRUE;
 	}
 	memset(&xr, 0, sizeof(xr));
@@ -2632,7 +2635,8 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	if (!menus)
 	{
 		if (openxr_layout_known && (weapon_hand != openxr_layout_weapon || turn_hand != openxr_layout_turn ||
-			grab != openxr_layout_grab || support != openxr_layout_support))
+			grab != openxr_layout_grab || support != openxr_layout_support ||
+			frame.reference_serial != openxr_layout_reference))
 		{
 			openxr_layout_wait = TRUE;
 			openxr_talk_armed = FALSE;
@@ -2642,9 +2646,11 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 		openxr_layout_turn = turn_hand;
 		openxr_layout_grab = grab;
 		openxr_layout_support = support;
+		openxr_layout_reference = frame.reference_serial;
 		if (openxr_layout_wait)
 		{
-			/* Rebinding cannot turn a held grenade control into fire. */
+			/* Rebinding or returning from menus/focus loss cannot turn a
+			   held control into fire, movement, pickup or microphone input. */
 			BOOL neutral = !(left | right);
 			for (index = 0; index < 2; index++)
 				neutral = neutral && frame.hand[index].trigger >= 0.f && frame.hand[index].trigger < 0.1f &&
@@ -2659,6 +2665,12 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 			}
 			openxr_layout_wait = FALSE;
 		}
+	}
+	else
+	{
+		/* Menu buttons remain usable, but gameplay requires a release. */
+		openxr_layout_wait = TRUE;
+		openxr_talk_armed = FALSE;
 	}
 	/* Index has no application menu button in the standard profile. Both
 	   stick clicks open Halo's pause/menu without binding reserved System. */
@@ -3346,7 +3358,11 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		}
 	}
 	else if (port == 0)
+	{
 		openxr_talk_armed = openxr_talk_held = FALSE;
+		openxr_layout_known = FALSE;
+		openxr_layout_wait = TRUE;
+	}
 #endif
 	/* Keep the opening chat press so even B can open it without immediately closing it. */
 	chat_pad_record((short)port, &physical);

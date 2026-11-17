@@ -1495,6 +1495,17 @@ upright touchdown must meet those existing values inside the unchanged native
 return/LZ volumes; a script-written landed flag cannot substitute for collision.
 Keep collision, boarding, landing-attitude and settlement gates;
 do not bypass them or claim an arbitrary alternate approach was disproved.
+Read-only Spark `456fb33` records a vehicle-only trial: Pelican (49,-80,0.35),
+yaw 14.323945 degrees, scenario SHA256
+`649a2118f085893d3d7395431710f205b6c261732a4c1119819d499d5129e143`,
+compiled SHA256 `92b0b4ae9df5b1202575b2984a5acb9961f042b1167802e144b6f0a013a2f9d5`.
+Its own checkpoint says Y=-80 lies outside the original return volume and that
+the trial/source/compiled outputs were disposed. This is not a delivered fix or
+flight acceptance. Spark next: coordinate hub/spawns, all five distinct controls
+(deploy, activate, loadout, UNSC, Covenant), both craft/pilots, approach/departure
+routes and matching return/LZ volumes; retain the resulting source-matched native
+review package for Forerunner. The original `31505afb…3ebab` remains unchanged;
+do not retest it or rebuild this incomplete trial as the final mission.
 Supply the revised cache with matching
 resource/source identities, native player/faction equipment, physically valid
 hub/LZ/routes, and returning camera/audio cues. Exercise normal pilot entry,

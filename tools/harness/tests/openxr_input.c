@@ -13,6 +13,7 @@ static char const *talk = "off", *voice = "push_to_talk";
 static char const *aim_mode="controller",*dominant="right",*swap_sticks="auto",*turn_mode="snap";
 static BOOL openxr_layout_known,openxr_layout_wait;
 static int openxr_layout_weapon,openxr_layout_turn,openxr_layout_grab,openxr_layout_support;
+static unsigned int openxr_layout_reference;
 static BOOL grab_enabled,support_enabled;
 static int config_boolean(char const *name){if(!strcmp(name,"vr.two_handed"))return support_enabled;CHECK(!strcmp(name,"vr.weapon_grab"),"unknown boolean %s",name);return grab_enabled;}
 static BOOL openxr_talk_armed, openxr_talk_held;
@@ -124,6 +125,7 @@ static void reset(void)
  openxr_talk_reference = 0;
  aim_mode="controller";dominant="right";swap_sticks="auto";turn_mode="snap";
  openxr_layout_known=openxr_layout_wait=FALSE;
+ openxr_layout_reference=0;
  memset(&stereo,0,sizeof(stereo));stereo.eye=NONE;stereo.aim_unit=NONE;
 }
 
@@ -292,6 +294,41 @@ int main(int argc, char **argv)
    "native trigger actions missing");
   CHECK(pad.sThumbLX == -32767 && pad.sThumbLY == 32767, "native walking axes wrong");
   CHECK(pad_used_ms == 100, "XR actions did not update the native input hint");
+ } else if(!strncmp(case_name,"resume-",7)) {
+  char const *boundary=case_name+7;
+  int hand=1;
+  if(!strncmp(boundary,"left-",5)) { dominant="left";hand=0;boundary+=5; }
+  talk="left_grip";
+  openxr_gamepad_read(&pad,FALSE);
+  input.hand[hand].trigger=1.f;input.hand[0].stick[1]=1.f;
+  input.hand[0].squeeze=1.f;input.hand[1].buttons=_vr_button_primary;
+  openxr_gamepad_read(&pad,FALSE);
+  CHECK(pad.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER]&&openxr_talk_held,"initial gameplay/PTT not active");
+  if(!strcmp(boundary,"focus")) { input.focused=FALSE;openxr_gamepad_read(&pad,FALSE);input.focused=TRUE; }
+  else if(!strcmp(boundary,"connection")) { connected=FALSE;openxr_gamepad_read(&pad,FALSE);connected=TRUE; }
+  else if(!strcmp(boundary,"render")) { input.should_render=FALSE;openxr_gamepad_read(&pad,FALSE);input.should_render=TRUE; }
+  else if(!strcmp(boundary,"menu")) {
+   openxr_gamepad_read(&pad,TRUE);
+   CHECK(pad.bAnalogButtons[XINPUT_GAMEPAD_A],"menu input was blocked");
+  }
+  else if(!strcmp(boundary,"reference")) input.reference_serial++;
+  else return 2;
+  for(binding=0;binding<3;binding++) {
+   openxr_gamepad_read(&pad,FALSE);
+   CHECK(!memcmp(&pad,&neutral,sizeof(pad))&&!openxr_talk_held,"held gameplay/PTT resumed after %s",boundary);
+  }
+  input.hand[0].buttons=input.hand[1].buttons=_vr_button_stick;
+  openxr_gamepad_read(&pad,FALSE);
+  CHECK(pad.wButtons==XINPUT_GAMEPAD_START&&!pad.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER],"resume gate lost pause or fired");
+  memset(input.hand,0,sizeof(input.hand));
+  input.hand[0].grip.valid=input.hand[1].grip.valid=TRUE;
+  input.hand[hand].trigger=nanf("");openxr_gamepad_read(&pad,FALSE);
+  CHECK(openxr_layout_wait,"invalid sample rearmed gameplay");
+  input.hand[hand].trigger=0.f;openxr_gamepad_read(&pad,FALSE);
+  input.hand[hand].trigger=1.f;input.hand[0].squeeze=1.f;input.hand[0].stick[1]=1.f;
+  openxr_gamepad_read(&pad,FALSE);
+  CHECK(pad.bAnalogButtons[XINPUT_GAMEPAD_RIGHT_TRIGGER]==255&&openxr_talk_held&&
+   (pad.sThumbLY||pad.sThumbRY),"released controls did not resume gameplay/PTT");
  } else CASE("focus") {
   input.hand[1].trigger = 1.f; input.hand[0].stick[1] = 1.f; input.hand[1].buttons = _vr_button_primary;
   input.focused = FALSE; openxr_talk_armed = openxr_talk_held = TRUE;

@@ -46,6 +46,13 @@ def test_native_actions(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('boundary', ['focus', 'connection', 'render', 'menu', 'reference'])
+@pytest.mark.parametrize('hand', ['', 'left-'])
+def test_gameplay_resume(boundary, hand):
+    status, output = run(build('openxr_input', generated()), 'resume-' + hand + boundary)
+    assert status == 0, output
+
+
 @pytest.mark.parametrize('case', ['pickup', 'left', 'reach', 'ownership', 'tracking', 'held', 'ptt', 'mapping',
                                  'reference', 'nonfinite', 'trigger', 'disabled'])
 def test_physical_weapon_grip(case):
@@ -62,7 +69,8 @@ def test_two_handed_weapon(case):
 
 
 def test_focus_negative_control():
-    status, output = run(build('openxr_input', generated(('if (!frame.focused)', 'if (FALSE)'))), 'focus')
+    guard = 'if (!frame.focused || (!menus && !frame.should_render))'
+    status, output = run(build('openxr_input', generated((guard, 'if (FALSE)'))), 'focus')
     assert status == CHECK_FAILED, output
 
 

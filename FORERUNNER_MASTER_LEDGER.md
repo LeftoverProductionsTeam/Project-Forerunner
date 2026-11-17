@@ -16,6 +16,34 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+VR input lifecycle repair (17 November, base `8e2ca5e0a2`): the existing OpenXR
+controller bridge can resume held fire/movement after focus loss or a menu.
+The retained focused reproduction fails on the original source. Reuse its existing
+layout neutral-input gate for focus/render loss, disconnected/stopped sessions,
+menu return and reference-space changes. Pause/menu remains available while
+waiting; valid release restores native gameplay and opt-in PTT. No settings,
+protocol, renderer, inventory or simulation changes. Windows64 incremental
+compile/link and 62 focused existing input checks PASS, including both hands,
+five resume boundaries and existing pickup/bracing/privacy regressions.
+`build/native-vr-resume-fallback/result.json` PASSES the native OpenGL desktop
+menu replay with grip/bracing enabled and XR explicitly disabled; final PNG
+inspected. Binary `b64d2a518f38d099e255949c9ed912762c1fb9ee9433883a2584e2aa101f4807`.
+This proves desktop fallback, not actual headset resume, interaction or stereo;
+VR hardware/mixed-client/platform acceptance remains open.
+
+Actual a10 mission progression attempts `native-campaign-a10-mission-approach`
+and `native-campaign-a10-mission-exit` remain FAILED, not campaign acceptance.
+Normal-input routes stop at cryobay geometry before weapons/combat/objectives;
+the first progress observer counts jump height, the second accepts a doorway
+corner too early. Neither establishes an engine defect. Stop repeating these
+routes or modifying production collision to compensate. Both accounts and owned
+maps unchanged; owned runtime/map copies removed. Byte-verified lossless PNGs
+retain both failures; 22,587,544B BMP/duplicate PNG scratch removed across these
+and the VR fallback. No live owned jobs, Spark writes, hosted jobs or push.
+Spark `456fb33` documents an aircraft-only placement trial, explicitly disposed
+and outside the original return volume, not a corrected delivered Black Echo.
+The exact coordinated authoring dependency remains in the existing contract.
+
 Native vehicle-action repair (17 November, base `5f11113156`): read-only owned
 a10 tag readback confirms the cryotube and its CT-driver seat both reference the
 HUD table's placeholder entry zero. Missing/empty/placeholder vehicle names now
