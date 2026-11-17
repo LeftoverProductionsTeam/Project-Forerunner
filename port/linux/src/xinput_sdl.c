@@ -1675,6 +1675,7 @@ static void test_input_menu_pointer(void)
 {
 	static Uint64 step_done = (Uint64)-1;
 	static Uint64 click_step = (Uint64)-1;
+	static Uint64 script_since = (Uint64)-1;
 	Uint64 elapsed;
 	Uint64 step;
 	const char *token = test_input_menu;
@@ -1685,6 +1686,13 @@ static void test_input_menu_pointer(void)
 
 	if (!test_input_menu[0])
 		return;
+	/* A new followed/file script starts its step numbers over. Once-only
+	 * actions belong to that script, not the preceding script's last step. */
+	if (script_since != test_input_menu_since)
+	{
+		script_since = test_input_menu_since;
+		step_done = click_step = (Uint64)-1;
+	}
 	elapsed = SDL_GetTicks() - test_input_menu_since;
 	step = elapsed / 1000;
 	for (;;)

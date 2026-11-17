@@ -1066,13 +1066,18 @@ field operations are excluded. Empty crews, pending death, incapacitation, inval
 ownership, cinematics and flight between pads do not authorize a new departure.
 The signal only coordinates flight; it grants no equipment or banking authority.
 Seventy focused transport cases and Windows64/native HSC compilation pass.
-`build/native-delta-squad-transport-fixed/result.json` verifies two authenticated
-squads' separate insertions, the first squad's independent evacuation/bank and
-the waiting second pickup without another insertion. Native player/item
-synchronization passes. Second boarding remains unverified: the input adapter
-kept an obsolete seat approach and did not reach the unchanged native interaction
-distance. This is partial fixture acceptance, not full Black Echo, both serial
-recoveries, six clients, Spirit dispatch replay or private presentation.
+`build/native-delta-squad-transport-seat/result.json` now verifies two authenticated
+one-player squads' separate insertions and both serial evacuations/banks. The
+first banks while the second stays ready in the field, then the pilot serves
+the waiting pickup without another insertion. Both owners bank two distinct
+items each and their own squad completion callbacks fire; 398 player seconds/
+402 item snapshots pass existing synchronization checks. Earlier fixed/replan
+attempts remain partial input evidence. The corrected controls preserve their
+initial route and approach the actual native seat point for evacuation; native
+`units.c::unit_find_nearby_seat` accepts either that or the entrance-animation
+point within the unchanged range. No boarding, collision or bank gate bypass.
+The second crew's final hub disembark/redeployment, full Black Echo, six clients,
+Spirit serial dispatch and private presentation remain unverified in this run.
 Optional dedicated groups `extraction_pelican_landed` / `extraction_spirit_landed`
 publish actual native ground contact (five ticks before parking), upright attitude
 and settled linear/angular motion. Native hover preserves the actual grounded
@@ -1174,9 +1179,11 @@ clearance or a playable faction mission. Reuse the existing matching groups and
 callbacks; no JSON importer, launcher or new protocol is requested. Spark's
 current empty-return controller serves one dispatched crew; additional concurrent
 squads must use the already supported boarded/called signals without resetting a
-field request. The regression fixture's two-squad steering remains unverified:
-the followup `build/native-delta-squad-transport-replan` also reset its initial
-approach when the nearest seat changed. No new engine interaction defect is proven.
+field request. Earlier regression-fixture steering attempts failed:
+the earlier `build/native-delta-squad-transport-replan` also reset its initial
+approach when the nearest seat changed. The newer seat-point run above closes
+both serial banks within its stated fixture scope; no engine interaction defect
+or relaxed admission was needed.
 
 `coop_enemies.c::coop_enemies_update` now retains queued extra dropship AI when
 native `actor_place` fails, retrying at the existing four-tick cadence without

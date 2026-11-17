@@ -8,7 +8,8 @@ typedef unsigned long long Uint64;
 typedef int BOOL;
 #define pthread_mutex_lock(lock) ((void)0)
 #define pthread_mutex_unlock(lock) ((void)0)
-static Uint64 SDL_GetTicks(void){return 0;}
+static Uint64 input_clock;
+static Uint64 SDL_GetTicks(void){return input_clock;}
 struct widget_instance {
  char const *name; struct widget_instance *parent, *child, *next;
  short type;
@@ -51,9 +52,44 @@ static void begin(short group)
  CHECK(control_capture_begin(&row),"no capture begun");
 }
 static boolean b(void){boolean deleted=FALSE;CHECK(controls_back(&screen,&deleted),"B not handled");return deleted;}
+
+/* Existing native test-input playback, not another capture backend. */
+#define HALO_CAPTURE 1
+#define SDL_BUTTON_LEFT 1
+#define SDL_BUTTON_RIGHT 3
+static char test_input_menu[4096];
+static Uint64 test_input_menu_since;
+static int screenshots,clips,pointer_moves,pointer_clicks,pointer_wheels;
+static BOOL halo_ui_point_to_window(short x,short y,float *out_x,float *out_y) {*out_x=x;*out_y=y;return TRUE;}
+static void halo_test_screenshot(void) {screenshots++;}
+static void capture_request_screenshot(void) {screenshots++;}
+static void capture_request_clip(void) {clips++;}
+static void platform_test_pointer_event(float x,float y,int button,int wheel) {
+ (void)x;(void)y;if(wheel)pointer_wheels+=wheel;else if(button)pointer_clicks++;else pointer_moves++;
+}
+#define platform_log(...) ((void)0)
+#include "test_pointer.inc"
+static void replay_input(char const *kind) {
+ char const *scripts[]={"shot","fireshot","click:20:30","rclick:20:30","wheel:2","capture","clip"};
+ int start=!strcmp(kind,"shot")?0:!strcmp(kind,"pointer")?2:5;
+ int end=!strcmp(kind,"shot")?2:!strcmp(kind,"pointer")?5:7;
+ int script,run;
+ for(script=start;script<end;script++)for(run=0;run<2;run++) {
+  int shots=screenshots,old_clips=clips,moves=pointer_moves,clicks=pointer_clicks,wheels=pointer_wheels;
+  test_input_menu_since+=10000;input_clock=test_input_menu_since;strcpy(test_input_menu,scripts[script]);
+  test_input_menu_pointer();test_input_menu_pointer();
+  if(script==1)CHECK(screenshots==shots,"fireshot captured before its firing delay");
+  input_clock+=650;test_input_menu_pointer();test_input_menu_pointer();
+  if(script<2||script==5)CHECK(screenshots==shots+1,"new script lost or duplicated a same-index screenshot");
+  if(script==6)CHECK(clips==old_clips+1,"new script lost or duplicated a clip");
+  if(script==2||script==3)CHECK(pointer_moves==moves+1&&pointer_clicks==clicks+1,"new script lost or duplicated its pointer move/click");
+  if(script==4)CHECK(pointer_wheels==wheels+2,"new script lost or duplicated its wheel action");
+ }
+}
 int main(int argc,char **argv)
 {
  const char *case_name=argc>1?argv[1]:"";
+ if(!strncmp(case_name,"replay-",7)) {replay_input(case_name+7);return 0;}
  controls_load(FALSE);
  short forward=control_named("controls.move_forward"),fire=control_named("controls.fire");
  CASE("cancel") {

@@ -26,7 +26,21 @@ def generated(fault=None):
                        'control_capture_poll', 'controls_back']) + '\n'
     if fault:
         code = mutated(code, *fault)
-    return (('under_test.inc', code),)
+    return (('under_test.inc', code),
+            ('test_pointer.inc', function(read('port/linux/src/xinput_sdl.c'), 'test_input_menu_pointer')))
+
+
+@pytest.mark.parametrize('case', ['shot', 'pointer', 'capture'])
+def test_scripted_input_replay(case):
+    status, output = run(build('controls_capture', generated()), 'replay-' + case)
+    assert status == 0, output
+
+
+def test_scripted_input_once_negative_control():
+    files = tuple((name, mutated(text, 'script_since = test_input_menu_since;', '(void)test_input_menu_since;'))
+                  if name == 'test_pointer.inc' else (name, text) for name, text in generated())
+    status, output = run(build('controls_capture', files), 'replay-shot')
+    assert status == CHECK_FAILED, output
 
 
 @pytest.mark.parametrize('case', CASES)

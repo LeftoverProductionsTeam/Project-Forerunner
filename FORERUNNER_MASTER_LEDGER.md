@@ -16,7 +16,45 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current stash checkpoint (source base `5ffba191bf`): the existing native debrief
+Current serial-transport checkpoint (source base `092ea348b3`): the unchanged
+native aircraft cache now passes both authenticated one-player squads' separate
+insertion, physical evacuation boarding, pilot return/landing and independent
+durable banking in one session. Squad 1 banks while squad 2 stays ready in the
+field; the shared pilot then accepts the waiting pickup without another insertion.
+Both owner records are idle with two items each, four distinct item IDs, and both
+native squad completion callbacks fire. This closes the earlier second-boarding
+input blocker, not six-client, full Black Echo or private-cinematic acceptance.
+
+The input correction preserves the previously working initial approach and stops
+restarting its circle when the nearest seat changes. Final evacuation approaches
+the native seat point rather than only its entry-animation endpoint, which was
+below the local floor in the failed run. `units.c::unit_find_nearby_seat` already
+accepts either point within the unchanged <1.0 distance. No engine range, collision,
+seat admission, pilot, cache, transport/settlement gate or player placement changed.
+`build/native-delta-squad-transport-seat/result.json` passes 398 player seconds/
+402 item snapshots, no divergences/out-of-step items, position max 0.551157 and
+aim max two degrees. Native final PNGs are inspected. Actual binary is the prior
+`704e303e...c2ff`; exact binary/cache hashes remain in that result. The second crew
+is still aboard after banking; its final hub disembark/redeployment was not driven.
+
+The reproduced screenshot replay failure is repaired in the existing optional
+test-input path: one-shot screenshot/capture/pointer actions reset when a new
+script starts instead of inheriting the preceding script's last step number.
+Three real-source baseline cases fail before the fix; all 17 existing/extended
+input checks pass, including a duplicate-action negative control. Windows64
+compiles (`build/input-replay-build.log`). `build/native-input-replay/result.json`
+passes two identical step-zero screenshot commands in an isolated native main menu
+on the new `65aeffbc...b27c8` binary. This is a test-control repair, not another
+capture backend or rendering/gameplay feature; no gameplay simulation changed.
+
+Original identity hashes are unchanged. Owned processes/copies are stopped and
+removed; four losslessly preserved BMPs (19,661,016B) and duplicate debug files
+removed. Earlier input failures and accepted banks remain preserved. Full Spark
+mission, six independent clients, Spirit serial dispatch, private presentation,
+other platforms/hardware and the complete engine roadmap remain open. No hosted
+jobs or push; the persistent goal remains active.
+
+Previous stash checkpoint (source base `5ffba191bf`): the existing native debrief
 now pages through every owned stored weapon after the run report, including gear
 unavailable to the current map/body. It shares `gear_item_available` with loadout
 selection. Crouch-use reviews that exact item; a separate delayed crouch-use
