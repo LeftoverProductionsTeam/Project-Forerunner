@@ -16,7 +16,33 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current gameplay checkpoint (source base `8256a166c7`): Spark `8fdfe91` delivered
+Current native Spirit transport/gear acceptance (source `565401afb8`):
+`build/native-delta-spirit-return-footpath/result.json` PASSES two authenticated
+clients in separate one-member Covenant squads through two native insertions,
+two queued physical evacuations, independent banks, normal hub exits and
+uninterrupted re-equipping of each exact banked weapon ID. Both native weapons
+and issued records agree; the two IDs remain distinct. No game/process restart,
+forced boarding, teleport, flight/settlement change or relaxed acceptance rule.
+The native cache is byte-identical to the previous `205f6a16…13dc8` candidate.
+Normal walking follows the already observed outward footpath in reverse instead
+of the earlier direct path into the parked hull/terrain. Player comparison:
+698 seconds / 1,396 observations, zero mismatches; 702 item snapshots agree,
+all five new host items seen. Binary SHA256
+`b428588dd363b066fe276798bda74a65dae0fae9c44ee9414909d969d187e1a9`.
+Two final native PNGs inspected. Original accounts and accepted source cache are
+unchanged; owned runtimes/maps and 126,318,721B of duplicate debug/BMP/derived-cache
+scratch removed. No engine build or unrelated regression run was repeated.
+
+The earlier departure-readiness failure is explained by its retained host chat:
+activation near tick 10,350, walking resumed at 10,470, then ACTIVATION CANCELLED
+near 10,530, before the ten-second hold finished. Later boarding could not create
+a receipt for that cancelled run. Current accepted calls/countdowns/receipts
+require no gate bypass or speculative engine patch. This closes the aircraft/
+same-session gear leg only: field combat/loot collection, a further playthrough,
+full Spark Black Echo, six independent clients, human/headset/platform acceptance
+and the whole engine goal remain OPEN. No hosted work, Spark writes or push.
+
+Previous gameplay checkpoint (source base `8256a166c7`): Spark `8fdfe91` delivered
 its retained combined Pelican/Black Echo review map, SHA256
 `31505afb15da14ff32af694afecc28362ff911bd6df6b79778195493c6c3ebab`.
 The unchanged Windows64 runtime loads it with two verified accounts and admits
@@ -136,9 +162,9 @@ Spirit scenario, with two ordinary squad terminals; no second flight controller.
 The earlier bounded `native-delta-spirit-squad-roundtrip-route` attempt corrects
 the hub walking route, but stops earlier: both insert, the first player physically
 boards at the LZ, and departure readiness never clears before the deadline.
-No evacuation/banking/redeployment pass is claimed for that attempt. The precise
-unmet readiness condition remains unresolved; retain its workflow/seat/pilot logs
-and inspected PNG before another run. Earlier pre-fix unarmed locomotion failure
+No evacuation/banking/redeployment pass is claimed for that attempt. Later direct
+readback of its retained host chat identifies the cancelled activation described
+in the current checkpoint. Earlier pre-fix unarmed locomotion failure
 and operator-stopped probe remain explicitly partial, not acceptance.
 
 Follow-through on `978169e0c3`: `extraction_tell` now records actual host notices
@@ -150,11 +176,11 @@ The corrected Windows64 build and 60 focused transport checks pass
 reading this string selector as a boolean, preventing that diagnostic mistake.
 `build/native-delta-spirit-control-ack-final/result.json` verifies both host-accepted
 calls, completed activation countdowns, boarding receipts, serial physical flights,
-separate banks and hub exits. No cancellation/retry occurred. The earlier departure
-block was not reproduced; the near-boundary explanation remains unproven.
+separate banks and hub exits. No cancellation/retry occurred. The earlier cancelled
+activation is now established from that older run's own retained host chat.
 Both players walk unarmed, but neither reaches redeployment before the bounded
-deadline: their walking routes encounter the aircraft/terrain. Full uninterrupted
-redeployment remains UNACCEPTED; do not repeat the flights with another guessed route.
+deadline: their walking routes encounter the aircraft/terrain. That run remains
+partial; the later accepted reverse-footpath run above closes the gear leg.
 Player comparison: 702 seconds / 1,404 observations, no sustained divergence;
 one transient aim mismatch. All 706 item snapshots match. Binary SHA256:
 `2f94e8631f7a6c5278a0f36eaa219cc9b7b89562c346827a231348e67a5682df`;

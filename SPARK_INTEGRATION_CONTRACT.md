@@ -1393,17 +1393,18 @@ Unarmed player exit now uses `units.c::unit_adjust_for_seat_change`'s existing
 native standing-class lookup when the graph lacks a named unarmed ground type,
 matching native seat entry. No Spark graph rewrite, granted weapon, tag format
 or capability change is needed. Windows64 and focused checks pass; the two-account
-Spirit squad fixture verifies both unarmed hub exits and remote same-ID weapon
-redeployment. Full same-session crew redeployment remains unaccepted: one input
-route hit the parked hull; an earlier corrected-route attempt stopped at LZ
-departure readiness. The subsequent host-notice trace verifies both countdowns,
-boarding receipts, serial evacuations, separate banks and hub exits, but walking
-routes still miss redeployment within the bounded run. The earlier readiness
-failure is not reproduced or explained by that pass. Existing `debug.network_test`
-enables the host's actual Extraction notices; default gameplay is unchanged.
-Exact partial results/cache/binary identities are in the current master checkpoint.
-Spark `40d115e` also records its recovered Save/HUD native output as disposed;
-the retained expanded mission package remains the requested handoff.
+Spirit squad fixture now verifies two normal hub exits and both players'
+uninterrupted same-ID re-equipping after separate native insertions/evacuations
+and independent banks (`build/native-delta-spirit-return-footpath/result.json`).
+It uses the unchanged reviewed cache/controller and the observed outward footpath
+in reverse, preserving collision and every boarding/ownership/settlement assertion.
+The older departure failure is explained by its own retained host chat: activation
+near tick 10,350 was cancelled near 10,530 after movement resumed before the
+ten-second hold. Boarding that cancelled run correctly could not authorize flight.
+Existing `debug.network_test` exposes the actual host notices; no new diagnostics
+or authoring interface is required. Exact accepted and rejected scopes/identities
+are in the current master checkpoint. This fixture does not prove field combat,
+loot collection, another mission playthrough or the actual Spark mission.
 Preserve boarding/landing/settlement gates;
 this does not accept the full authored Black Echo mission or private cinematics.
 
