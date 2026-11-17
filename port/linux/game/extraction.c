@@ -271,7 +271,7 @@ static void extraction_notice_to_machine(long machine, short controller, char co
 	distributed_send_notice_to_machine(machine, notice);
 }
 
-static void extraction_notice(char const *text)
+void extraction_notice(char const *text)
 {
 	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 	short index, count;
@@ -284,7 +284,7 @@ static void extraction_notice(char const *text)
 	}
 }
 
-static void extraction_player_notice(long player_index, char const *text)
+void extraction_player_notice(long player_index, char const *text)
 {
 	struct player_datum *player = player_try_and_get(player_index);
 	long machine;

@@ -293,21 +293,9 @@ boolean coop_enemies_firefight_out_of_lives(void)
 
 static void firefight_notice(char const *text)
 {
-	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
-	short count = distributed_client_machines(machines, NUMBEROF(machines));
-	short index;
-	long local;
-	wchar_t wide[128];
-
 	if (firefight.phase >= 4)
 		snprintf(firefight.outcome, sizeof(firefight.outcome), "%s", text);
-	for (index = 0; text[index] && index < NUMBEROF(wide) - 1; index++)
-		wide[index] = (wchar_t)(unsigned char)text[index];
-	wide[index] = 0;
-	for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
-		hud_print_message((short)local, wide);
-	for (index = 0; index < count; index++)
-		distributed_send_notice_to_machine(machines[index], text);
+	extraction_notice(text);
 	platform_log("firefight: %s", text);
 }
 
@@ -323,31 +311,12 @@ static void firefight_equipment_reports(void)
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 	{
 		char text[128];
-		long machine;
 
 		if (!game_modes_inventory_capture(iterator.datum_index, &inventory))
 			continue;
 		snprintf(text, sizeof(text), "Firefight wave %ld equipment: %d weapons, %d frag, %d plasma.",
 			firefight.wave, (int)inventory.weapon_count, (int)inventory.grenades[0], (int)inventory.grenades[1]);
-		if (distributed_player_is_local(iterator.datum_index))
-		{
-			wchar_t wide[128];
-			short index;
-			long local;
-
-			for (index = 0; text[index] && index < NUMBEROF(wide) - 1; index++)
-				wide[index] = (wchar_t)(unsigned char)text[index];
-			wide[index] = 0;
-			for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
-				if (local_player_get_player_index(local) == iterator.datum_index)
-					hud_print_message((short)local, wide);
-		}
-		else
-		{
-			machine = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index));
-			if (machine != NONE)
-				distributed_send_notice_to_machine(machine, text);
-		}
+		extraction_player_notice(iterator.datum_index, text);
 	}
 }
 
@@ -593,7 +562,7 @@ static boolean firefight_check_defeat(long now)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
-	short total = 0, alive = 0;
+	short total = 0, alive = 0, standing = 0;
 
 	data_iterator_new(&iterator, player_data);
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
@@ -604,12 +573,24 @@ static boolean firefight_check_defeat(long now)
 			continue;
 		total++;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_unit);
-		if (unit && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		if (unit && unit->unit.player_index == iterator.datum_index && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		{
 			alive++;
+			if (unit->object.body_vitality > 0.f && !(unit->object.damage_flags &
+				(FLAG(_object_die_act_of_god_bit) | FLAG(_object_die_act_of_god_silent_bit) |
+				 FLAG(_object_die_act_of_god_no_statistics_bit)))) standing++;
+		}
 	}
-	if (total > 0 && alive == 0 && coop_enemies_firefight_out_of_lives())
+	if (total > 0 && standing == 0)
 	{
-		if (!firefight.wipe_deadline)
+		/* Reuse the progression wait while living casualties or a paid spawn
+		 * can still return. Only actual exhausted deaths start defeat's grace. */
+		if (alive > 0 || !coop_enemies_firefight_out_of_lives())
+		{
+			firefight.wipe_deadline = NONE;
+			return FALSE;
+		}
+		if (firefight.wipe_deadline <= 0)
 			firefight.wipe_deadline = now + 3 * TICKS_PER_SECOND;
 		return now >= firefight.wipe_deadline;
 	}
@@ -1056,8 +1037,8 @@ static void firefight_update(void)
 		firefight_notice("Firefight: defeat - team eliminated, no shared lives");
 	}
 	/* A wave-clear countdown must not award victory or start reinforcements
-	while the eliminated team is waiting for its defeat notice. A live player
-	or paid respawn clears this wait through firefight_check_defeat. */
+	while nobody can act. Recovery or a paid respawn clears this wait;
+	actual elimination retains its separate defeat grace. */
 	if (firefight.phase < 4 && firefight.wipe_deadline)
 		return;
 	if (firefight.phase == 1 && now >= firefight.deadline)

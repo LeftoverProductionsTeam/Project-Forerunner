@@ -16,7 +16,54 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current shared-transport checkpoint (source base `0f73f18e05`): existing boarded
+Current Survival checkpoint (source base `5240fdad3b`): the existing director now
+holds wave progression while everybody is incapacitated, pending native death or
+awaiting a paid respawn. It verifies full player/body ownership. Only exhausted
+actual deaths start the full three-second defeat grace; a standing survivor
+resumes progress. Existing lives, spawn grants, outcome and gear owners remain.
+Firefight global/equipment notices now reuse Extraction's chat/native-HUD fallback
+and controller scope instead of duplicate overlapping HUD formatting. No new
+director, UI system, packet, persistence format or Spark authoring interface.
+
+Thirty-six focused Survival/evacuation/notice checks pass in the existing harness
+(`build/survival-notice-checks-checks.log`), including real-source paid-spawn,
+salted-owner, downed/death-grace cases and three negative controls. Five of seven
+new wipe cases fail before the fix. Windows64 compiles; the final incremental
+build is `build/survival-notice-build.log`. Existing Expat import warnings remain.
+
+`build/native-delta-survival-wipe-fire/result.json` passes a finite native two-wave
+Survival loop with two authenticated Delta clients: actual AI/projectile combat,
+two enemy deaths, six seconds all-downed without victory or bank, controlled
+authored aid, ordinary native biofoam revival, victory and both owners' durable
+unique recovered gear. The host then returns to pregame (native debug line 1366).
+Controlled authored damage/aid and diagnostic aim are fixture inputs, not human
+play or the finished Zombie map. Player comparison passes 27 seconds with zero
+divergences; 31 item snapshots have zero out-of-step items and all seven new host
+items appear. Native actor comparison passes 32 snapshots/65 unit comparisons,
+maximum position difference 0.242188, both peers seeing two damaged/killed enemies.
+Core binary `a9ae29054fc64bac1343ed3c981d625a75c2386dd3a085599d69b1ee9b5906ad`;
+owned CE609 cache `053f24c19f53e560c2ce4adc836d59077246942154f67ddbc0c724024328329c`.
+
+The first native setup (`build/native-delta-survival-wipe/result.json`) did not
+fire: its menu-wait input overrides the held-trigger diagnostic. It timed out
+without clearing waves; correcting ordinary trigger input, not engine behavior,
+produced the accepted run above. Its captures exposed overlapping native status
+text. After sharing the existing notice path, the short display-only followup
+`build/native-delta-survival-notices/result.json` passes: both inspected PNGs show
+readable wave/equipment chat, nine player seconds have no divergences, and no
+banking/restart acceptance was repeated. Final binary
+`694420187afef45ee28e7ca7d5754b3709c7565ee651f9685b596faa681b81d1`.
+The native device prompt's placeholder string belongs to the owned fixture.
+
+Original identities and reusable source inputs are unchanged. Owned processes
+are stopped; disposable runtime/map payloads and losslessly converted BMP scratch
+are removed, compact logs/PNGs retained. Native paid-respawn acceptance, full
+Zombie Apocalypse, late joins, human/hardware and other-platform acceptance remain
+open. Existing Spark aircraft-composition and second-squad steering limits below
+are unchanged; this cycle advances independent gameplay rather than rerunning them.
+No hosted runner, paid service, push or publication was requested.
+
+Previous shared-transport checkpoint (source base `0f73f18e05`): existing boarded
 outputs now derive participating squads from physical passengers/current operation
 epochs. Another unboarded squad of the same faction cannot veto departure at the
 hub or LZ. Requesting members of an aboard squad still wait for activation/seats;

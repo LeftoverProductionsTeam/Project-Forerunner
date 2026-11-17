@@ -175,7 +175,8 @@ static boolean config_boolean(char const *name)
   !strcmp(name,"game.shared_gear") ? shared_cache : director; }
 static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
 static boolean network_coop_active(void) { return TRUE; }
-static struct { boolean enabled, gear, victory; short phase; long wave_limit,deadline,wipe_deadline; } firefight;
+static struct { boolean enabled, gear, victory; short phase,lives; long wave,wave_limit,deadline,wipe_deadline;char outcome[128];
+ long respawn_players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS]; } firefight;
 #include "survival.inc"
 static long game_time_get(void) { return tick; }
 static struct player_datum *player_try_and_get(long handle)
@@ -342,6 +343,8 @@ static boolean players_are_all_dead(void) { return (units[0].object.damage_flags
 static void players_respawn_at_start(void) { respawns++; }
 static void data_iterator_new(struct data_iterator *i,void *data) { i->next=0; }
 static void *data_iterator_next(struct data_iterator *i) { if(i->next>=active_players) return NULL; i->datum_index=player_handles[i->next]; return &players[i->next++]; }
+static void firefight_notice(char const *text);
+#include "survival_lives.inc"
 
 #include "equipment_flags.inc"
 #include "equipment.inc"
@@ -406,7 +409,7 @@ static void custom_render_nav_point(short local,real_point3d const *p,short styl
 #include "medical_hud.inc"
 static short medical_markers(short local) {medical_draws=medical_traces=0;hud_render_medical_nav_points(local);CHECK(medical_draws==medical_traces,"marker did not use native line-of-sight/draw path");return medical_draws;}
 
-static void firefight_notice(char const *text) { extraction_notice(text); }
+#include "survival_notices.inc"
 #include "evacuation.inc"
 static void advance(short count) { while(count--) { tick++; extraction_update();firefight_try_evacuation(tick); } }
 static void touch(short control,short player) { control_touched(control_handles[control],players[player].unit_index); }
@@ -479,6 +482,66 @@ int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before,i;
  initialize();
+ if(!strncmp(case_name,"ff-notice-",10)) {
+  int host_before=local_notices,remote_before=remote_notices;char const *message="Firefight: wave cleared - recover and prepare.";
+  firefight.wave=2;firefight.phase=2;
+  if(!strcmp(case_name,"ff-notice-fallback"))notice_chat_visible=FALSE;
+  firefight_notice(message);firefight_equipment_reports();
+  CHECK(local_notices==host_before+2&&remote_notices==remote_before+2,"Survival notices lost or duplicated recipients");
+  CHECK(strstr(local_notice_history[host_before%4],message)&&strstr(local_notice_history[(host_before+1)%4],"P1 | Firefight wave 2 equipment"),"host Survival report lost shared layout/controller scope");
+  CHECK(strstr(remote_notice_history[(remote_before+1)%4],"P3 | Firefight wave 2 equipment"),"remote Survival equipment report lost controller scope");
+  CHECK(native_hud_notices==(!strcmp(case_name,"ff-notice-fallback")?2:0),"Survival ignored native fallback or overlapped visible chat");
+  if(!strcmp(case_name,"ff-notice-outcome")) {
+   firefight.phase=4;firefight_notice("Firefight: victory");
+   CHECK(!strcmp(firefight.outcome,"Firefight: victory"),"shared rendering lost the reconnect outcome");
+  }
+  return 0;
+ }
+ if(!strncmp(case_name,"ff-wipe-",8)) {
+  firefight.enabled=firefight.gear=TRUE;firefight.phase=3;firefight.lives=0;
+  memset(firefight.respawn_players,0xff,sizeof(firefight.respawn_players));
+  if(!strcmp(case_name,"ff-wipe-living")) {
+   units[1].object.damage_flags=FLAG(_object_dead_bit);
+   CHECK(!firefight_check_defeat(tick)&&!firefight.wipe_deadline,"living survivor blocked ordinary wave completion");return 0;
+  }
+  if(!strcmp(case_name,"ff-wipe-owner")) {
+   units[0].unit.player_index=player_handles[1];units[1].object.damage_flags=FLAG(_object_dead_bit);
+   CHECK(!firefight_check_defeat(tick)&&firefight.wipe_deadline,"orphaned unit authorized completion");return 0;
+  }
+  if(!strcmp(case_name,"ff-wipe-paid")||!strcmp(case_name,"ff-wipe-recycled")) {
+   firefight.lives=1;
+   units[0].object.damage_flags=units[1].object.damage_flags=FLAG(_object_dead_bit);
+   coop_enemies_firefight_player_died(unit_handles[0]);coop_enemies_firefight_player_died(unit_handles[1]);
+   CHECK(!firefight.lives&&firefight.respawn_players[0]==player_handles[0],"last life did not reserve its actual player");
+   if(!strcmp(case_name,"ff-wipe-recycled")) {
+    player_handles[0]+=0x10000;units[0].unit.player_index=player_handles[0];
+    CHECK(!coop_enemies_firefight_can_spawn(player_handles[0])&&coop_enemies_firefight_out_of_lives(),"recycled player inherited a paid respawn");return 0;
+   }
+   CHECK(!firefight_check_defeat(tick)&&firefight.wipe_deadline,"cleared wave could finish before the paid respawn");
+   CHECK(coop_enemies_firefight_can_spawn(player_handles[0])&&!coop_enemies_firefight_can_spawn(player_handles[1]),"waiting wave denied its paid spawn or granted a free one");
+   tick+=120;CHECK(!firefight_check_defeat(tick)&&firefight.wipe_deadline&&coop_enemies_firefight_can_spawn(player_handles[0]),"paid respawn wait became a timed defeat");
+   unit_handles[0]+=0x10000;players[0].unit_index=unit_handles[0];units[0].object.damage_flags=0;units[0].object.body_vitality=1.f;
+   coop_enemies_firefight_player_spawned(player_handles[0]);
+   CHECK(firefight.respawn_players[0]==NONE&&!firefight_check_defeat(++tick)&&!firefight.wipe_deadline,"new living paid body did not release progression");return 0;
+  }
+  medical_setting=TRUE;extraction_reset();
+  for(i=0;i<2;i++) {
+   if(!strcmp(case_name,"ff-wipe-pending"))units[i].object.damage_flags=FLAG(_object_die_act_of_god_bit);
+   else {units[i].object.body_vitality=-.1f;CHECK(extraction_medical_lethal(unit_handles[i]),"native living casualty setup failed");}
+   coop_enemies_firefight_player_died(unit_handles[i]);
+  }
+  CHECK(!firefight_check_defeat(tick)&&firefight.wipe_deadline,"team unable to act advanced the cleared wave");
+  tick+=120;CHECK(!firefight_check_defeat(tick),"living casualties became a premature defeat");
+  if(!strcmp(case_name,"ff-wipe-eliminated")) {
+   for(i=0;i<2;i++) {units[i].object.damage_flags=FLAG(_object_dead_bit);coop_enemies_firefight_player_died(unit_handles[i]);}
+   CHECK(!firefight_check_defeat(tick)&&firefight.wipe_deadline==tick+90,"downed wait shortened the true elimination grace");
+   CHECK(!firefight_check_defeat(tick+89)&&firefight_check_defeat(tick+90),"native elimination delay changed");
+  } else {
+   units[0].object.damage_flags=0;units[0].object.body_vitality=.25f;
+   CHECK(!firefight_check_defeat(++tick)&&!firefight.wipe_deadline,"standing native survivor did not resume progression");
+  }
+  CHECK(!firefight.victory&&coop_enemies_firefight_outcome()==0,"waiting state invented successful rewards");return 0;
+ }
  if(!strncmp(case_name,"squad-",6)) {
   extraction_reset();
   names[3].name[0]=names[4].name[0]=names[5].name[0]=names[6].name[0]=names[7].name[0]=names[8].name[0]=0;

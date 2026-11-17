@@ -8,6 +8,10 @@ void extraction_reset(void);
    stays disabled until a fresh map replaces that world. */
 void extraction_restored(void);
 void extraction_update(void);
+/* Shared operation/Survival notices use the existing chat and native-HUD
+ * fallback, independent of whether gear recovery is enabled. */
+void extraction_notice(char const *text);
+void extraction_player_notice(long player_index, char const *text);
 /* A valid opted-in hub/run stays on its map for return and redeployment.
    Requires native hub markers; remote gear needs a host-bound identity.
    Maps naming extraction_pelican/extraction_spirit additionally require a real

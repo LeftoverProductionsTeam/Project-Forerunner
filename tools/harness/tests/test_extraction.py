@@ -43,6 +43,10 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     if outcome_fault:
         survival = mutated(survival, 'firefight.victory ? 1 : -1', '1')
     files.append(('survival.inc', survival))
+    files.append(('survival_lives.inc', '\n'.join(function(director, name) for name in (
+        'firefight_respawn_reserved', 'coop_enemies_firefight_can_spawn', 'coop_enemies_firefight_out_of_lives',
+        'coop_enemies_firefight_player_died', 'coop_enemies_firefight_player_spawned', 'firefight_check_defeat'))))
+    files.append(('survival_notices.inc', function(director, 'firefight_notice') + '\n' + function(director, 'firefight_equipment_reports')))
     extraction = re.sub(r'^#include.*\n', '',
         read('port/linux/game/extraction.h') + '\n' + read('port/linux/game/extraction.c'), flags=re.M)
     if medical_fault:
@@ -96,6 +100,30 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'medical-bleed', 'medical-replica', 'medical-restore', 'medical-gear'])
 def test_extraction_workflow(case):
     status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['paid', 'downed', 'pending', 'eliminated', 'owner', 'living', 'recycled'])
+def test_survival_wipe(case):
+    status, output = run(build('extraction', generated()), 'ff-wipe-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('firefight.wipe_deadline = NONE;', 'firefight.wipe_deadline = 0;', 'downed'),
+    ('firefight.wipe_deadline <= 0', 'firefight.wipe_deadline == 0', 'eliminated'),
+    ('unit->unit.player_index == iterator.datum_index &&', '', 'owner'),
+])
+def test_survival_wipe_negative(before, after, case):
+    files = tuple((name, mutated(text, before, after)) if name == 'survival_lives.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), 'ff-wipe-' + case)
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('case', ['chat', 'fallback', 'outcome'])
+def test_survival_notices(case):
+    status, output = run(build('extraction', generated()), 'ff-notice-' + case)
     assert status == 0, output
 
 
