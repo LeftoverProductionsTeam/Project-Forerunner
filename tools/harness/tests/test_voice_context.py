@@ -34,6 +34,21 @@ def test_context(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['same', 'different', 'faction', 'far', 'unknown', 'mixed'])
+def test_operation_radio(case):
+    status, output = run(build('voice_context', generated()), 'operation-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('world.coop = 0;', 'world.coop = 1;', 'different'),
+    ('if (group != member->team) member->team = (unsigned char)isolated;', '(void)group;', 'mixed'),
+])
+def test_operation_radio_negative(before, after, case):
+    status, output = run(build('voice_context', generated((before, after))), 'operation-' + case)
+    assert status == CHECK_FAILED, output
+
+
 def test_coop_lobby_negative_control():
     status, output = run(build('voice_context', generated((
         'return network_game_client_in_game(global_network_game_client_get()) &&',

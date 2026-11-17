@@ -161,6 +161,32 @@ boolean extraction_owns_map(void)
 	return config_boolean("game.extraction") && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
 }
 
+typedef char extraction_voice_groups_fit_byte[
+	(2 + EXTRACTION_SQUADS + HALO_PORT_MAXIMUM_NETWORK_MACHINES <= 256) ? 1 : -1];
+
+short extraction_voice_group(long player_index, long machine_index)
+{
+	struct player_datum *player;
+	struct extraction_run const *run;
+	short isolated, faction;
+	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+	if (!game_in_progress() || game_connection() != _game_connection_network_server || !extraction_requested() ||
+		!VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES)) return NONE;
+	isolated = (short)(2 + EXTRACTION_SQUADS + machine_index);
+	/* Do not broadcast between operations while native admission is pending.
+	 * A rejected ordinary map then keeps the inherited co-op radio behavior. */
+	if (!extraction.bound) return isolated;
+	if (!extraction.admitted) return NONE;
+	if (extraction.suspended) return isolated;
+	player = player_try_and_get(player_index);
+	if (!player || player->quit_out_of_game) return isolated;
+	run = VALID_INDEX(slot, NUMBEROF(extraction_runs)) ? &extraction_runs[slot] : NULL;
+	if (run && run->player == player_index && VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) &&
+		extraction.squads[run->squad].name != NONE) return (short)(2 + run->squad);
+	faction = extraction_faction((short)player->team_index);
+	return faction != NONE ? faction : isolated;
+}
+
 boolean extraction_script_players(char const *name, long *object_list)
 {
 	short squad, index;
@@ -977,7 +1003,7 @@ static void extraction_squad_choose(struct extraction_run *run, struct player_da
 	if (run->squad == squad)
 	{
 		run->squad = NONE; run->squad_operation = 0;
-		extraction_tell(run, "SQUAD LEFT | Your stash and recovered gear remain yours. Choose a squad before deployment."); return;
+		extraction_tell(run, "SQUAD LEFT | TEAM radio: faction. Gear stays yours. Choose a squad before deployment."); return;
 	}
 	if (faction == NONE || extraction_faction(unit_get(player->unit_index)->object.owner_team_index) != faction)
 	{
@@ -1002,7 +1028,7 @@ static void extraction_squad_choose(struct extraction_run *run, struct player_da
 	}
 	run->squad = squad; run->squad_operation = 0;
 	platform_log("extraction: player %ld joined squad %d", DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), squad + 1);
-	snprintf(text, sizeof(text), "SQUAD %02d | %d/6 members. Gear stays individually owned. Use this squad terminal again to leave at the hub.",
+	snprintf(text, sizeof(text), "SQUAD %02d | %d/6 members. TEAM radio: squad. Gear stays individually owned. Use again at hub to leave.",
 		squad + 1, members + 1);
 	extraction_squad_notice(squad, text);
 }

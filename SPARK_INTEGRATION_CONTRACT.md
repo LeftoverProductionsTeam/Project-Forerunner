@@ -1533,6 +1533,28 @@ handedness build and preceding `4bde81ed08` control; the native position-state
 sampling/replication cause is unresolved. Keep this acceptance gate open rather
 than treating headset absence or successful compilation as gameplay proof.
 
+16 November operation-radio update: native TEAM follows existing named squad membership, with
+native UNSC/Covenant faction fallback for unsquadded players. No new marker,
+membership authority or packet is required. `extraction.c::extraction_voice_group`
+supplies read-only host labels; `voice_game.c::{player_place,host_world}` feeds
+them into the inherited `delta_peer.c::delta_peer_voice_route`. Admission-pending,
+missing/restored membership and mixed-group split-screen machines are isolated
+instead of broadcasting across operations. Ordinary co-op and party/proximity
+retain their existing rules. Privacy requires this updated host; older hosts keep
+whole-co-op TEAM behavior. This is player VOIP, distinct from Spark-authored
+mission dialogue/radio, vehicle cameras and cinematic work.
+
+Windows64 compiles and 35 focused existing/extended checks pass. Two real Delta
+accounts exchange synthetic Opus/Delta tone in native sessions: same-squad TEAM,
+separate-squad isolation, regrouping and distance-independent TEAM pass; nearby
+proximity passes and out-of-range proximity is refused. The two longer drivers
+fail after their completed radio phases at a missing log expectation and exact
+movement target; the final range-only run passes. Exact evidence/scopes remain
+in the current master checkpoint. No physical microphone was opened. Human
+audibility, headset, cross-region, browser and other-platform parity remain open;
+restored/mixed-local privacy is automated-only. Spark needs no authoring change
+for these routing labels; its next mission handoff requirements remain unchanged.
+
 Native proximity voice now has optional `audio.voice_obstruction` source
 and optional Windows64 `vr.push_to_talk` input source. The latter defaults off,
 requires native PTT mode, and assigns one existing Touch/Index grip or stick

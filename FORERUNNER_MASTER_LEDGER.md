@@ -16,7 +16,39 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current serial-transport checkpoint (source base `092ea348b3`): the unchanged
+Current operation-radio checkpoint (source base `a6f7b06bde`): native Delta TEAM
+radio now uses existing authoritative squad membership, or native faction when
+unsquadded, instead of broadcasting across all co-op operations. Unknown/pending
+or restored membership and mixed-group split-screen machines are isolated.
+Ordinary co-op, party/proximity, capture controls and native teams remain intact.
+No new transport, packet, membership manager or Spark marker. Existing squad
+notices/settings help explain the channel. Windows64 compiles; 35 focused checks
+pass, including native membership/restore and actual inherited routing tests.
+
+Two verified Delta accounts' synthetic-tone sessions prove faction/same-squad
+TEAM reception, separate-squad isolation, live regrouping and TEAM beyond the
+15-unit proximity range (minimum sampled separation 24.15). Existing evidence:
+`build/native-delta-squad-radio/result.json` and `build/native-delta-squad-radio-regroup/result.json`.
+Both drivers retain overall FAIL after those completed phases: respectively an
+unlogged leave-message expectation and an unreached exact movement target.
+No engine workaround was added for either driver. The final range-only run,
+`build/native-delta-squad-radio-range/result.json`, PASSES nearby proximity and
+refusal at 20.866 units with normal continued encoding. It uses the final restore
+privacy fix, binary `30a989a0...b7169`; exact hashes remain in each result.
+Player/item agreement passes 112/116, 124/128 and 28/32 seconds/snapshots,
+zero divergences/out-of-step items; largest position difference is 0.067268.
+The unchanged native cache is `23a8f945...fa746`. No duplicate transport/bank run.
+
+Tone replaces capture: neither physical microphone opened; original identities
+are unchanged. Owned jobs are stopped, disposable runtimes/maps/tone files and
+2,386,971B of duplicate debug logs removed. Human sound, headset/microphone/PTT,
+six independent clients, restored/mixed-local native behavior, browser, other
+platforms and cross-region acoustics remain unverified. Spark authoring is
+unchanged. Live GitHub workflows retain manual-only builds and guarded auxiliary
+jobs; the owner's billing-block annotation does not authorize raising budgets or
+starting hosted work. No hosted run, spending change or push. Full goal active.
+
+Previous serial-transport checkpoint (source base `092ea348b3`): the unchanged
 native aircraft cache now passes both authenticated one-player squads' separate
 insertion, physical evacuation boarding, pilot return/landing and independent
 durable banking in one session. Squad 1 banks while squad 2 stays ready in the

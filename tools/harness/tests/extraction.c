@@ -570,6 +570,37 @@ int main(int argc,char **argv)
   }
   CHECK(extraction_owns_map(),"valid squad hub refused");
   for(i=0;i<2;i++)players[i].team_index=units[i].object.owner_team_index=_game_team_player;
+  if(!strncmp(case_name,"squad-radio-",12)) {
+   short private0=extraction_voice_group(NONE,0),private1=extraction_voice_group(NONE,1);
+   CHECK(private0!=private1&&private0>=2+EXTRACTION_SQUADS&&private1<=255,"unknown radio groups collide");
+   CHECK(extraction_voice_group(player_handles[0],0)==0&&extraction_voice_group(player_handles[1],1)==0,"unsquadded UNSC radio missing");
+   if(!strcmp(case_name,"squad-radio-state")) {
+    extraction.bound=FALSE;CHECK(extraction_voice_group(player_handles[0],0)==private0,"unbound operation broadcast TEAM voice");extraction.bound=TRUE;
+    extraction.admitted=FALSE;CHECK(extraction_voice_group(player_handles[0],0)==NONE,"rejected classic map lost legacy radio");extraction.admitted=TRUE;
+    connection=_game_connection_network_client;CHECK(extraction_voice_group(player_handles[0],0)==NONE,"client authored voice authority");connection=_game_connection_network_server;
+    CHECK(extraction_voice_group(NONE,-1)==NONE&&extraction_voice_group(NONE,HALO_PORT_MAXIMUM_NETWORK_MACHINES)==NONE,"invalid machine got a radio group");return 0;
+   }
+   if(!strcmp(case_name,"squad-radio-faction")) {
+    players[1].team_index=_game_team_covenant;
+    CHECK(extraction_voice_group(player_handles[1],1)==1,"Covenant fallback shared UNSC radio");return 0;
+   }
+   touch(5,0);touch(!strcmp(case_name,"squad-radio-separate")?6:5,1);
+   CHECK(extraction_voice_group(player_handles[0],0)==2,"joined squad lost its host-owned radio label");
+   CHECK(extraction_voice_group(player_handles[1],1)==(!strcmp(case_name,"squad-radio-separate")?3:2),"radio labels crossed authoritative memberships");
+   if(!strcmp(case_name,"squad-radio-restored")) {
+    extraction_restored();advance(1);
+    CHECK(extraction_voice_group(player_handles[0],0)==private0&&extraction_voice_group(player_handles[1],1)==private1,"restored operation broadcast former squad radio");
+   } else if(!strcmp(case_name,"squad-radio-recycled")) {
+    player_handles[0]+=0x10000;
+    CHECK(extraction_voice_group(player_handles[0],0)==0,"recycled player inherited previous squad radio");
+   } else if(!strcmp(case_name,"squad-radio-dead")) {
+    units[0].object.damage_flags=FLAG(_object_dead_bit);
+    CHECK(extraction_voice_group(player_handles[0],0)==2,"death erased trusted squad radio membership");
+   } else if(!strcmp(case_name,"squad-radio-leave")) {
+    touch(5,0);CHECK(extraction_voice_group(player_handles[0],0)==0,"departed member retained private squad radio");
+   }
+   return 0;
+  }
   touch(0,0);CHECK(run(0)->phase==_extraction_hub&&!weapon_count,"ungrouped player deployed without squad selection");
   if(!strcmp(case_name,"squad-capacity")) {
    active_players=7;

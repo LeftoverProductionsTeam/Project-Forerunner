@@ -889,8 +889,12 @@ the site.
     a name or an ID), and nothing ever echoes it: a host never puts it in
     a roster or a VOICE_DOWN, and party teams' messages never send it back
     to other machines.
-  - **TEAM** (1): their team in the game; everyone in co-op; nobody in a
-    game without teams.
+  - **TEAM** (1): their team in the game; everyone in ordinary co-op;
+    nobody in a game without teams. On a Forerunner host running an admitted
+    native operation, this follows its assigned squad, or faction when
+    unsquadded. Different groups sharing one split-screen machine are isolated
+    from private TEAM radio. These are host-local routing labels, not new game
+    teams or a changed voice packet; older hosts retain their existing rules.
   - **PROXIMITY** (2): anyone within the host's proximity whose player is
     alive, the speaker too, played from where the speaker's player stands
     (route 2) through the listener's game sound: its distance, pan or

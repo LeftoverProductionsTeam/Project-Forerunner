@@ -127,6 +127,12 @@ def test_survival_notices(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['state', 'faction', 'same', 'separate', 'recycled', 'dead', 'leave', 'restored'])
+def test_native_squad_radio(case):
+    status, output = run(build('extraction', generated()), 'squad-radio-' + case)
+    assert status == 0, output
+
+
 @pytest.mark.parametrize('case', [
     'squad-loop', 'squad-independent', 'squad-pending', 'squad-loss', 'squad-restore',
     'squad-capacity', 'squad-state', 'squad-identity', 'squad-faction', 'squad-leave',

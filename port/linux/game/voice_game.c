@@ -14,7 +14,8 @@ relays each frame to the machines its rules allow, never decoding it.
 A player talks on one channel at a time (audio.voice_channel):
 - PARTY: their party, wherever its members' players are (the party code
   gives its tag: voice_game_set_party);
-- TEAM: their team in the game (everyone in co-op);
+- TEAM: their team in the game (everyone in ordinary co-op; an authored
+  operation's squad, or faction when unsquadded);
 - PROXIMITY: anyone near them in the game, heard from where they stand
   through the game's 3D sound;
 - EVERYONE: everyone in the game, only when the host allows it.
@@ -56,6 +57,7 @@ none. Nothing is ever recorded.
 #include "sound/sound_manager.h"
 #include "halo_keyboard.h"
 #include "network_coop.h"
+#include "extraction.h"
 #include "chat.h"
 #include "../src/delta_peer.h"
 #include "../src/delta_chat_game.h"
@@ -167,11 +169,12 @@ static boolean voice_in_game(void)
 
 /* a player of the game's list's unit's place: FALSE if it has none (dead,
 or no game) */
-static boolean player_place(long list_index, real_point3d *place)
+static boolean player_place(long list_index, real_point3d *place, long *player_index)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
 
+	if (player_index) *player_index = NONE;
 	if (list_index < 0 || !game_in_progress() || !player_data)
 		return FALSE;
 	data_iterator_new(&iterator, player_data);
@@ -180,6 +183,7 @@ static boolean player_place(long list_index, real_point3d *place)
 		if (!player->quit_out_of_game && player->network_player_data.player_list_index == list_index)
 		{
 			struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_unit);
+			if (player_index) *player_index = iterator.datum_index;
 			if (!unit || unit->unit.player_index != iterator.datum_index ||
 				TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 				return FALSE;
@@ -207,14 +211,34 @@ static void host_world(void)
 		struct delta_peer_voice_member *member;
 		real_point3d place;
 		long machine = player->machine_index;
+		long player_index = NONE;
+		short group, isolated;
+		boolean alive;
 
-		if (!network_player_is_valid(player) || machine < 0 || machine >= MACHINES || world.members[machine].present)
+		if (!network_player_is_valid(player) || machine < 0 || machine >= MACHINES)
 			continue;
 		member = &world.members[machine];
+		isolated = world.in_game ? extraction_voice_group(NONE, machine) : NONE;
+		if (member->present && isolated == NONE) continue;
+		alive = world.in_game && player_place(index, &place, &player_index);
+		group = isolated != NONE ? extraction_voice_group(player_index, machine) : NONE;
+		if (member->present)
+		{
+			/* One shared microphone/listener cannot privately represent two
+			 * operation squads. Keep TEAM isolated; party/proximity stay native. */
+			if (group != member->team) member->team = (unsigned char)isolated;
+			continue;
+		}
 		member->present = 1;
 		member->player = (unsigned char)index;
 		member->team = (unsigned char)player->team_index;
-		if (world.in_game && player_place(index, &place))
+		if (group != NONE)
+		{
+			world.coop = 0;
+			world.teams = 1;
+			member->team = (unsigned char)group;
+		}
+		if (alive)
 		{
 			member->alive = 1;
 			member->position[0] = place.x;
@@ -502,7 +526,7 @@ static void local_update(int role)
 
 		if (!voice_game.heard_time[machine] || now - voice_game.heard_time[machine] > PLACE_TIME)
 			continue;
-		if (player_place(voice_game.heard_player[machine], &place) &&
+		if (player_place(voice_game.heard_player[machine], &place, NULL) &&
 			sound_world_to_listener(listener, &place, &local))
 		{
 			float position[3];

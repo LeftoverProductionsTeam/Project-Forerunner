@@ -18,6 +18,10 @@ void extraction_player_notice(long player_index, char const *text);
    assigned seat at the LZ, continuous boarding to the return hub and an ended
    native cinematic. Transport gameplay remains UNVERIFIED. */
 boolean extraction_owns_map(void);
+/* Host-owned radio labels for an opted-in operation, not native game teams.
+ * NONE preserves ordinary co-op. A missing player gets a machine-private label
+ * that also isolates a machine whose local players belong to different groups. */
+short extraction_voice_group(long player_index, long machine_index);
 /* Optional reserved static object_list helpers, compiled as ordinary HSC.
  * TRUE handles the name, returning only this operation's living participants
  * or NONE when unavailable. Requires exact authored co-op script policy. */

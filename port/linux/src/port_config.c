@@ -1849,7 +1849,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Relay voice chat in games you host. Only players who turned voice on\n"
 		"talk or hear it." },
 	{ "network.voice_team", _config_boolean, "true", "HALO_NET_VOICE_TEAM", _environment_value, _platform_all,
-		"In games you host, players may talk to their team." },
+		"In games you host, players may talk to their team. Authored operations\n"
+		"use the assigned squad, or faction when unsquadded. All local players\n"
+		"sharing one machine must use the same group for private TEAM radio." },
 	{ "network.voice_proximity", _config_boolean, "true", "HALO_NET_VOICE_PROXIMITY", _environment_value,
 		_platform_all,
 		"In games you host, players may talk to anyone near them." },
