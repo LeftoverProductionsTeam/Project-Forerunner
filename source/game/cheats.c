@@ -272,8 +272,9 @@ long cheat_forge_target(void)
 /* port: Faber's native placement recipe (forge_3d_mode.c, e4ffe0fe), without
 tag injection or an editor session. Copy placement, never live ownership,
 inventory, AI, children or scenario-name bindings. */
-long cheat_forge_clone(
-	long object_index)
+static long forge_clone_at_position(
+	long object_index,
+	real_point3d const *position)
 {
 	struct object_datum *object;
 	struct object_placement_data placement;
@@ -314,11 +315,23 @@ long cheat_forge_clone(
 		console_warning("forge_clone needs supported native co-op for scaled network objects (scale >0 and <100; no Xbox)");
 		return NONE;
 	}
+	if (position)
+	{
+		struct location location;
+		if (!game_in_progress() || !valid_real_point3d(position))
+			return NONE;
+		scenario_location_from_point(&location, position);
+		if (location.cluster_index == NONE)
+		{
+			console_warning("forge_clone_at needs a position inside the active BSP");
+			return NONE;
+		}
+	}
 	if (!cheats_console_object_allowed())
 		return NONE;
 	object_placement_data_new(&placement, object->definition_index, NONE);
 	SET_FLAG(placement.flags, _new_object_never_automatically_delete_bit, TRUE);
-	placement.position = object->object.position;
+	placement.position = position ? *position : object->object.position;
 	placement.forward = object->object.forward;
 	placement.up = object->object.up;
 	placement.owner_team_index = object->object.owner_team_index;
@@ -331,6 +344,16 @@ long cheat_forge_clone(
 		return NONE;
 	objects_scripting_set_scale(clone_index, scale, 0);
 	return clone_index;
+}
+
+long cheat_forge_clone(long object_index)
+{
+	return forge_clone_at_position(object_index, NULL);
+}
+
+long cheat_forge_clone_at(long object_index, real_point3d const *position)
+{
+	return position ? forge_clone_at_position(object_index, position) : NONE;
 }
 
 /* port: what the map's own scripts set rider_ejection to (TRUE until they

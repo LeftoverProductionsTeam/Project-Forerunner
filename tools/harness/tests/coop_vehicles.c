@@ -89,7 +89,11 @@ static boolean collision_test_vector(unsigned long f,real_point3d const *p,real_
  (void)f;(void)p;(void)v;(void)ignored;hit->plane.n.k=1;return floor_present;
 }
 boolean collision_test_sphere(real_point3d const *p,float r,long ignored) {(void)p;(void)r;(void)ignored;return sphere_blocked;}
-static void scenario_location_from_point(struct location *l,real_point3d const *p) {(void)p;l->leaf_index=0;l->cluster_index=0;}
+static boolean clone_destination_outside;
+static void scenario_location_from_point(struct location *l,real_point3d const *p)
+{ (void)p;l->leaf_index=0;l->cluster_index=clone_destination_outside ? NONE : 0; }
+static boolean game_in_progress(void) { return TRUE; }
+static boolean valid_real_point3d(real_point3d const *p) { return isfinite(p->x)&&isfinite(p->y)&&isfinite(p->z); }
 static short objects_in_sphere(int f,unsigned long m,struct location const *l,real_point3d const *p,float r,long *indices,int max) {
  (void)f;(void)m;(void)l;(void)p;(void)r;(void)max;indices[0]=identifiers[9];return blocked || nearby;
 }
@@ -408,7 +412,22 @@ int main(int argc,char **argv) {
    for(i=0;i<4;i++){v->object.scale=invalid[i];CHECK(cheat_forge_clone(source)==NONE&&!new_count,"unsupported scale created a replica");}
    return 0;
   }
-  copy=cheat_forge_clone(source);
+  if(!strncmp(name,"position",8)) {
+   real_point3d destination={12.5f,-3.25f,4.0f};
+   real_point3d original=v->object.position;
+   if(!strcmp(name,"position-outside")){clone_destination_outside=TRUE;refused=TRUE;}
+   if(!strcmp(name,"position-nan")){destination.z=NAN;refused=TRUE;}
+   if(!strcmp(name,"position-client")){connection=1;refused=TRUE;}
+   copy=cheat_forge_clone_at(source,&destination);
+   if(!refused) {
+    CHECK(clone_placement.position.x==destination.x&&clone_placement.position.y==destination.y&&
+      clone_placement.position.z==destination.z,"native creation missed requested coordinates");
+    CHECK(v->object.position.x==original.x&&v->object.position.y==original.y&&
+      v->object.position.z==original.z,"positioned clone moved its source");
+   }
+  } else {
+   copy=cheat_forge_clone(source);
+  }
   if(refused){CHECK(copy==NONE&&!new_count,"refused clone created an object");return 0;}
   CHECK(copy!=NONE&&copy!=source&&new_count==1&&get(copy)->object.scale==v->object.scale,"native scaled clone missing");
   CHECK(clone_placement.owner_team_index==2&&clone_placement.variant_number==3&&
