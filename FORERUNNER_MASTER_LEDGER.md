@@ -16,7 +16,37 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current authoritative rival-loot checkpoint (unchanged engine `55a4c63b22`):
+Current optional VR pickup checkpoint (source base `cfdad7dcfd`):
+`vr.weapon_grab` / `HALO_VR_WEAPON_GRAB` is off by default. With controller aim,
+the dominant grip can submit native pickup/swap for the currently offered world
+weapon when the tracked hand is close enough. The native body range, exact object
+ownership and host admission still decide pickup. No inventory grants, packet
+changes, extra renderer or interaction manager. Adapts the credited OpenH1
+`vr_grab.c` / `vr.c` policy at `baed77571d53abe32b27434b4ba869f11db00fe9`.
+
+Release is required after focus/tracking/reference/body changes; held or firing
+input cannot start pickup. Active grip push-to-talk retains priority. Enabling
+pickup reserves the weapon-hand grip's native BLACK action during gameplay;
+face-button pickup and the default disabled mapping remain available.
+
+31 focused checks PASS in `build/vr-weapon-grab-final-checks.log`, including
+reach, ownership, handedness, focus/reference loss, voice priority and negative
+controls. Windows64 incremental compile/link PASS in
+`build/vr-weapon-grab-final-build.log`. The initial missing-header build failure
+was corrected before these final checks; no new toolchain was created.
+`build/native-weapon-grab-fallback/result.json` PASSES the bounded offline native
+Windows/OpenGL menu/input replay with XR explicitly disabled. Inspected PNGs
+show the native menu; this is desktop fallback evidence, not VR interaction.
+Binary SHA-256: `88b70c81fd210e5b271fb8c7c18e693c117df10b49aa05e6733604056b5d229f`.
+
+Physical headset pickup/calibration, stereo, mixed-client VR and other-platform
+acceptance remain UNVERIFIED. Physical reload/holsters and complete VR gunplay
+remain unfinished. Prior banking/multiplayer evidence was preserved, not rerun.
+Owned jobs stopped; disposable runtime/map copies and 9,830,508B BMP scratch
+removed, two lossless PNGs and compact traces retained. No original game assets,
+account material or Spark files edited; no hosted jobs, push or publication.
+
+Previous authoritative rival-loot checkpoint (unchanged engine `55a4c63b22`):
 two real verified accounts reverse host/client roles. The new Covenant/Grunt host
 owns an actual previously banked pistol, reserves that exact ID and deploys it;
 its incompatible rifle stays safely stored. The UNSC/Spartan rival in squad 2

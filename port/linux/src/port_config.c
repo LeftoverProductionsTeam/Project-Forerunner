@@ -981,6 +981,14 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"firing ray per eye. Grip calibration, physical scopes and interactions\n"
 		"remain unfinished or unverified.\n"
 		"Vehicle aiming keeps native controls." },
+	{ "vr.weapon_grab", _config_boolean, "false", "HALO_VR_WEAPON_GRAB", _environment_value, _platform_desktop,
+		"Optional controller aim: reach within 20 cm of the offered weapon and\n"
+		"squeeze the weapon-hand grip to submit Halo's normal pickup/swap.\n"
+		"Reserves that grip's native BLACK-button action; use existing bindings\n"
+		"for that action if needed. Face-button pickup remains available.\n"
+		"A grip assigned to push-to-talk stays reserved for voice, not pickup.\n"
+		"No extra pickup range, inventory grant or network format. Source only;\n"
+		"hand calibration and headset/gameplay acceptance are unverified." },
 	{ "vr.dominant_hand", _config_string, "\"right\"", "HALO_VR_DOMINANT_HAND", _environment_value, _platform_desktop,
 		"With controller aim, \"left\" uses the left hand for weapon aim, fire,\n"
 		"weapon posing and rumble. Default/right/unknown values keep the right.\n"

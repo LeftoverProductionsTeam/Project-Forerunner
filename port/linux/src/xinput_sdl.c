@@ -2597,7 +2597,7 @@ static BOOL openxr_talk_armed, openxr_talk_held;
 static int openxr_talk_binding;
 static unsigned int openxr_talk_reference;
 static BOOL openxr_layout_known, openxr_layout_wait;
-static int openxr_layout_weapon, openxr_layout_turn;
+static int openxr_layout_weapon, openxr_layout_turn, openxr_layout_grab;
 
 static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 {
@@ -2607,7 +2607,7 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	unsigned long buttons;
 	BOOL pause_combo, moved, left_grip, right_grip, talk_down = FALSE, talk_valid = FALSE;
 	char const *talk = config_string("vr.push_to_talk");
-	int index, talk_binding = 0, weapon_hand, turn_hand;
+	int index, talk_binding = 0, weapon_hand, turn_hand, grab;
 
 	memset(pad, 0, sizeof(*pad));
 	openxr_talk_held = FALSE;
@@ -2627,9 +2627,10 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	right = frame.hand[1].buttons;
 	weapon_hand = menus ? 1 : vr_openxr_weapon_hand();
 	turn_hand = menus ? 1 : vr_openxr_turn_hand();
+	grab = !menus && !strcmp(config_string("vr.aim"), "controller") && config_boolean("vr.weapon_grab");
 	if (!menus)
 	{
-		if (openxr_layout_known && (weapon_hand != openxr_layout_weapon || turn_hand != openxr_layout_turn))
+		if (openxr_layout_known && (weapon_hand != openxr_layout_weapon || turn_hand != openxr_layout_turn || grab != openxr_layout_grab))
 		{
 			openxr_layout_wait = TRUE;
 			openxr_talk_armed = FALSE;
@@ -2637,6 +2638,7 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 		openxr_layout_known = TRUE;
 		openxr_layout_weapon = weapon_hand;
 		openxr_layout_turn = turn_hand;
+		openxr_layout_grab = grab;
 		if (openxr_layout_wait)
 		{
 			/* Rebinding cannot turn a held grenade control into fire. */
@@ -2683,6 +2685,9 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	else if (talk_binding == 2) { talk_down = right_grip; right_grip = FALSE; }
 	else if (talk_binding == 3) { talk_down = (left & _vr_button_stick) != 0; left &= ~_vr_button_stick; }
 	else if (talk_binding == 4) { talk_down = (right & _vr_button_stick) != 0; right &= ~_vr_button_stick; }
+	/* Physical pickup reserves this squeeze; it must not also toggle the
+	 * native grip button. PTT remains its owner when assigned above. */
+	if (grab) { if (weapon_hand) right_grip = FALSE; else left_grip = FALSE; }
 	/* Keep the assigned button reserved during a tracking gap; it must not
 	   become a grenade/zoom action while its voice input is unavailable. */
 	if (!talk_binding || !talk_valid)

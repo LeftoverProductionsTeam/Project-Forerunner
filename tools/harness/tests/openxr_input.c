@@ -12,7 +12,9 @@ static BOOL connected = TRUE;
 static char const *talk = "off", *voice = "push_to_talk";
 static char const *aim_mode="controller",*dominant="right",*swap_sticks="auto",*turn_mode="snap";
 static BOOL openxr_layout_known,openxr_layout_wait;
-static int openxr_layout_weapon,openxr_layout_turn;
+static int openxr_layout_weapon,openxr_layout_turn,openxr_layout_grab;
+static BOOL grab_enabled;
+static int config_boolean(char const *name){CHECK(!strcmp(name,"vr.weapon_grab"),"unknown boolean %s",name);return grab_enabled;}
 static BOOL openxr_talk_armed, openxr_talk_held;
 static int openxr_talk_binding, mouse_lock;
 static unsigned int openxr_talk_reference;
@@ -39,10 +41,12 @@ static char const *config_string(char const *name)
 #define HALO_OPENXR 1
 #define ABS(x) ((x)<0?-(x):(x))
 #define MAX(a,b) ((a)>(b)?(a):(b))
+#define PIN(v,a,b) ((v)<(a)?(a):((v)>(b)?(b):(v)))
 #define _pi 3.14159265358979323846f
 #define _2pi (2.0*_pi)
 #define METRES_PER_WORLD_UNIT 3.048f
 #define _object_mask_biped 1
+#define _object_mask_weapon 2
 #define _object_dead_bit 0
 #define _director_perspective_first_person 0
 #define MAXIMUM_COLLISION_USER_STACK_DEPTH 8
@@ -54,7 +58,9 @@ typedef struct {real yaw,pitch;} real_euler_angles2d;
 typedef struct {real i,j;} real_vector2d;
 struct render_camera {real_point3d position;real_vector3d forward,up;};
 struct unit_datum {struct {long parent_object_index,damage_flags;} object;struct {long player_index;} unit;};
-struct player_datum {long unit_index;};
+struct player_datum {long unit_index;short action_result;long action_object_index;};
+struct object_datum {struct {long parent_object_index;real_point3d bounding_sphere_center;real bounding_sphere_radius;real_vector3d forward;} object;};
+static struct object_datum offered;
 struct collision_result {real_point3d point;};
 static struct unit_datum unit={{NONE,0},{1}};
 static struct player_datum player={42};
@@ -62,14 +68,17 @@ static real_vector3d world_up={0,0,1};
 static real_vector3d const *global_up3d=&world_up;
 static struct {BOOL active,origin_valid,aim_synced,snap_armed,weapon_camera_valid,weapon_mirrored;
  short eye;long aim_unit;int aim_hand,turn_hand;unsigned int reference_serial;
- real body_yaw,origin[3],yaw_cos,yaw_sin;struct render_camera weapon_camera;} stereo;
+ real body_yaw,origin[3],yaw_cos,yaw_sin;struct render_camera weapon_camera;
+ BOOL grab_armed;long grab_unit,grab_object,grab_until;unsigned int grab_reference;int grab_hand;} stereo;
+static long now;
+static long game_time_get(void){return now;}
 static int global_current_collision_user_depth,global_current_collision_users[8];
 static BOOL openxr_mirrored_draws;
 static unsigned long config_changes(void){return 0;}
 static double config_real(char const *name){return 30.0;}
 static long local_player_get_player_index(short local){return 1;}
 static struct player_datum *player_try_and_get(long handle){return &player;}
-static void *object_try_and_get_and_verify_type(long handle,long mask){return handle==42?&unit:NULL;}
+static void *object_try_and_get_and_verify_type(long handle,long mask){if(mask==_object_mask_weapon)return handle==77?&offered:NULL;return handle==42?&unit:NULL;}
 static int director_get_perspective(short local){return 0;}
 static int cinematic_in_progress(void){return FALSE;}
 static real cosine(real x){return cosf(x);}
@@ -98,6 +107,7 @@ static void reset(void)
  input.hand[0].grip.valid = input.hand[1].grip.valid = TRUE;
  input.reference_serial = 1;
  connected = TRUE;
+ grab_enabled=FALSE;now=100;
  talk = "off";
  voice = "push_to_talk";
  openxr_talk_armed = openxr_talk_held = FALSE;
@@ -124,6 +134,60 @@ int main(int argc, char **argv)
  static char const *bindings[] = { "left_grip", "right_grip", "left_stick", "right_stick" };
  reset();
  memset(&neutral, 0, sizeof(neutral));
+ if(!strncmp(case_name,"grab-",5)) {
+  unsigned long flags=0;
+  int hand=!strcmp(case_name+5,"left")?0:1;
+  if(!hand)dominant="left";
+  grab_enabled=TRUE;stereo.origin_valid=stereo.aim_synced=TRUE;
+  stereo.aim_unit=42;stereo.reference_serial=1;stereo.yaw_cos=1;
+  player.unit_index=42;player.action_result=_player_action_result_pickup_weapon;player.action_object_index=77;
+  offered.object.parent_object_index=NONE;offered.object.bounding_sphere_center=(real_point3d){.1f,0,0};
+  offered.object.bounding_sphere_radius=.05f;offered.object.forward=(real_vector3d){1,0,0};
+  input.hand[hand].grip.position[2]=-.3048f;
+  if(!strcmp(case_name+5,"mapping")) {
+   openxr_gamepad_read(&pad,FALSE);input.hand[hand].squeeze=1;input.hand[0].buttons=_vr_button_primary;
+   openxr_gamepad_read(&pad,FALSE);
+   CHECK(!pad.bAnalogButtons[XINPUT_GAMEPAD_BLACK]&&pad.bAnalogButtons[XINPUT_GAMEPAD_X],"physical grab toggled its native grip action or removed manual Action");
+   grab_enabled=FALSE;openxr_gamepad_read(&pad,FALSE);
+   CHECK(!memcmp(&pad,&neutral,sizeof(pad)),"live grab change did not require neutral input");
+   input.hand[0].buttons=0;input.hand[hand].squeeze=0;openxr_gamepad_read(&pad,FALSE);
+   input.hand[hand].squeeze=1;openxr_gamepad_read(&pad,FALSE);
+   CHECK(pad.bAnalogButtons[XINPUT_GAMEPAD_BLACK],"disabled grab lost the existing grip binding");return 0;
+  }
+  if(!strcmp(case_name+5,"held")) {
+   input.hand[hand].squeeze=1;vr_render_player_grab(0,42,TRUE,&flags);
+   CHECK(!flags,"already-held grip picked up on activation");input.hand[hand].squeeze=0;
+  }
+  vr_render_player_grab(0,42,TRUE,&flags);
+  if(!strcmp(case_name+5,"reach"))input.hand[hand].grip.position[0]=1.f;
+  if(!strcmp(case_name+5,"ownership"))offered.object.parent_object_index=42;
+  if(!strcmp(case_name+5,"tracking"))input.focused=FALSE;
+  if(!strcmp(case_name+5,"ptt"))talk=hand?"right_grip":"left_grip";
+  if(!strcmp(case_name+5,"reference"))input.reference_serial++;
+  if(!strcmp(case_name+5,"nonfinite"))input.hand[hand].grip.position[0]=NAN;
+  if(!strcmp(case_name+5,"trigger"))input.hand[hand].trigger=1.f;
+  if(!strcmp(case_name+5,"disabled"))grab_enabled=FALSE;
+  input.hand[hand].squeeze=1;vr_render_player_grab(0,42,TRUE,&flags);
+  if(!strcmp(case_name+5,"reach")||!strcmp(case_name+5,"ownership")||!strcmp(case_name+5,"tracking")||!strcmp(case_name+5,"ptt")||
+     !strcmp(case_name+5,"reference")||!strcmp(case_name+5,"nonfinite")||!strcmp(case_name+5,"trigger")||!strcmp(case_name+5,"disabled")) {
+   CHECK(!flags,"unavailable reach/ownership/tracking or PTT caused pickup");
+   if(!strcmp(case_name+5,"ptt")) {
+    input.hand[hand].squeeze=0;openxr_gamepad_read(&pad,FALSE);
+    input.hand[hand].squeeze=1;openxr_gamepad_read(&pad,FALSE);
+    CHECK(openxr_talk_held&&!pad.bAnalogButtons[XINPUT_GAMEPAD_BLACK],"physical grab stole grip PTT");
+   }
+   input.hand[hand].grip.position[0]=0;offered.object.parent_object_index=NONE;input.focused=TRUE;talk="off";
+   input.reference_serial=1;input.hand[hand].trigger=0;grab_enabled=TRUE;
+   vr_render_player_grab(0,42,TRUE,&flags);CHECK(!flags,"held grip picked up after a disallowed state");
+   input.hand[hand].squeeze=0;vr_render_player_grab(0,42,TRUE,&flags);
+   input.hand[hand].squeeze=1;vr_render_player_grab(0,42,TRUE,&flags);
+  }
+  CHECK(flags==(FLAG(_unit_control_action_bit)|FLAG(_unit_control_swap_weapons_bit)),"native pickup/swap input was not emitted");
+  flags=0;now+=4;vr_render_player_grab(0,42,TRUE,&flags);CHECK(!flags,"held grip repeated its pickup");
+  player.action_object_index+=0x10000;vr_render_player_grab(0,42,TRUE,&flags);
+  CHECK(!flags,"a reused native object slot inherited a grip request");
+  return 0;
+ }
  CASE("mapping") {
   input.hand[0].buttons = input.hand[1].buttons = _vr_button_primary | _vr_button_secondary;
   input.hand[0].squeeze = input.hand[1].squeeze = 1.f;

@@ -11,6 +11,8 @@
  * this runtime's native firing preview and HUD instead of a second HUD layer.
  * Audio head clearance adapts that pin's game_sound.c::sound_vr_ears_get.
  * Optional snap turning adapts vr.c's snap latch and threshold policy.
+ * Offered-weapon grip pickup adapts vr_grab.c's native swap input and vr.c's
+ * grip thresholds/reach. Native ownership/range and multiplayer stay authoritative.
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
@@ -62,6 +64,10 @@ static struct
 	long reticle_unit, reticle_weapon;
 	real_point3d reticle_target;
 	real_point2d reticle_offset;
+	boolean grab_armed;
+	long grab_unit, grab_object, grab_until;
+	unsigned int grab_reference;
+	int grab_hand;
 } stereo;
 
 static real wrapped_yaw(real yaw)
@@ -80,6 +86,8 @@ void vr_render_reset_aim(void)
 	stereo.weapon_mirrored = FALSE;
 	stereo.reticle_checked = stereo.reticle_scoped = FALSE;
 	stereo.listener_valid = stereo.listener_path_valid = FALSE;
+	stereo.grab_armed = FALSE;
+	stereo.grab_unit = stereo.grab_object = NONE;
 }
 
 static void quaternion_rotate(float const q[4], float const v[3], float out[3])
@@ -626,6 +634,86 @@ static real controller_turn_delta(struct vr_openxr_frame const *frame, real nati
 		return (real)(degrees * (_pi / 180.0)) * (x > 0.f ? -1.f : 1.f);
 	}
 	return 0.f;
+}
+
+/* OpenH1's offered-weapon swap policy, through the existing native input.
+ * Only the current offered world weapon qualifies, including on a client.
+ * Reaching for another object never broadens host pickup admission. */
+void vr_render_player_grab(short local, long unit_index, boolean permitted, unsigned long *flags)
+{
+	struct vr_openxr_frame frame;
+	struct player_datum *player;
+	struct object_datum *weapon;
+	real_point3d eye, hand_position, nearest;
+	real_vector3d forward, left, up = *global_up3d, offset, delta, line;
+	float translation[3];
+	real along, half_length;
+	long now;
+	int hand, axis;
+	char const *talk;
+	boolean reserved;
+
+	if (local != 0) return;
+	if (!flags || !permitted || !config_boolean("vr.weapon_grab"))
+	{
+		stereo.grab_armed = FALSE; stereo.grab_unit = stereo.grab_object = NONE; return;
+	}
+	hand = vr_openxr_weapon_hand();
+	talk = config_string("vr.push_to_talk");
+	reserved = !strcmp(config_string("audio.voice_chat"), "push_to_talk") &&
+		!strcmp(talk, hand ? "right_grip" : "left_grip");
+	now = game_time_get();
+	if (reserved ||
+		!stereo.aim_synced || stereo.aim_unit != unit_index ||
+		!vr_openxr_tracking_read(&frame) || !frame.focused || !frame.should_render ||
+		frame.reference_serial != stereo.reference_serial || !frame.hand[hand].grip.valid ||
+		!(frame.hand[hand].squeeze >= 0.f && frame.hand[hand].squeeze <= 1.f) ||
+		!(frame.hand[hand].trigger >= 0.f && frame.hand[hand].trigger <= 0.05f))
+	{
+		stereo.grab_armed = FALSE; stereo.grab_unit = stereo.grab_object = NONE; return;
+	}
+	if (stereo.grab_unit != unit_index || stereo.grab_reference != frame.reference_serial || stereo.grab_hand != hand)
+	{
+		stereo.grab_armed = FALSE; stereo.grab_object = NONE;
+		stereo.grab_unit = unit_index; stereo.grab_reference = frame.reference_serial; stereo.grab_hand = hand;
+	}
+	if (frame.hand[hand].squeeze <= 0.3f) stereo.grab_armed = TRUE;
+	player = player_try_and_get(local_player_get_player_index(local));
+	if (!player || player->unit_index != unit_index ||
+		(player->action_result != _player_action_result_pickup_weapon &&
+		 player->action_result != _player_action_result_swap_for_weapon &&
+		 player->action_result != _player_action_result_add_weapon_to_inventory)) goto unavailable;
+	weapon = object_try_and_get_and_verify_type(player->action_object_index, _object_mask_weapon);
+	if (!weapon || weapon->object.parent_object_index != NONE) goto unavailable;
+	forward.i = cosine(stereo.body_yaw); forward.j = sine(stereo.body_yaw); forward.k = 0.f;
+	cross_product3d(&up, &forward, &left);
+	director_camera_deterministic(unit_index, &eye, &line);
+	for (axis = 0; axis < 3; axis++) translation[axis] = frame.hand[hand].grip.position[axis] - stereo.origin[axis];
+	world_axes(translation, &forward, &left, &up, &offset);
+	hand_position.x = eye.x + offset.i / METRES_PER_WORLD_UNIT;
+	hand_position.y = eye.y + offset.j / METRES_PER_WORLD_UNIT;
+	hand_position.z = eye.z + offset.k / METRES_PER_WORLD_UNIT;
+	line = weapon->object.forward;
+	if (!valid_real_point3d(&hand_position) || !valid_real_point3d(&weapon->object.bounding_sphere_center) ||
+		!valid_real_vector3d(&line) || !(weapon->object.bounding_sphere_radius >= 0.f) || normalize3d(&line) <= 0.f) goto unavailable;
+	/* OpenH1's short capsule through the actual weapon, in native world units. */
+	half_length = weapon->object.bounding_sphere_radius * 0.8f;
+	vector_from_points3d(&weapon->object.bounding_sphere_center, &hand_position, &delta);
+	along = PIN(delta.i * line.i + delta.j * line.j + delta.k * line.k, -half_length, half_length);
+	nearest.x = weapon->object.bounding_sphere_center.x + along * line.i;
+	nearest.y = weapon->object.bounding_sphere_center.y + along * line.j;
+	nearest.z = weapon->object.bounding_sphere_center.z + along * line.k;
+	if (!(distance3d(&nearest, &hand_position) <= 0.24f / METRES_PER_WORLD_UNIT)) goto unavailable;
+	if (stereo.grab_armed && frame.hand[hand].squeeze > 0.6f)
+	{
+		stereo.grab_armed = FALSE; stereo.grab_object = player->action_object_index; stereo.grab_until = now + 3;
+	}
+	if (stereo.grab_object == player->action_object_index && now >= stereo.grab_until - 3 && now < stereo.grab_until)
+		*flags |= FLAG(_unit_control_action_bit) | FLAG(_unit_control_swap_weapons_bit);
+	return;
+unavailable:
+	stereo.grab_object = NONE;
+	if (frame.hand[hand].squeeze > 0.6f) stereo.grab_armed = FALSE;
 }
 
 /* Adapted from OpenH1's halo_vr_aim and vr_aim_converge at the pin above.

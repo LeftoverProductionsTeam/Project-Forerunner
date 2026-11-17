@@ -842,6 +842,8 @@ static void handle_one_player_input(
 		if (tracked_aim)
 			player->desired_angles.pitch = PIN(player->desired_angles.pitch,
 				player->pitch_minimum, player->pitch_maximum);
+		/* port: OpenH1-style reach/grip submits the normal authoritative pickup. */
+		vr_render_player_grab(local_player_index, player->unit_index, tracked_aim, &input.unit_control_flags);
 #endif
 		if (unit->object.parent_object_index == NONE)
 		{

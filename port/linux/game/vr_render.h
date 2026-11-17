@@ -39,5 +39,8 @@ boolean vr_render_listener(short local_player_index, struct observer_result cons
 boolean vr_render_player_aim(short local_player_index, long unit_index, boolean permitted,
 	real previous_yaw, real turn_delta, real_euler_angles2d *facing, real_vector2d *throttle);
 void vr_render_reset_aim(void);
+/* Optional dominant-grip pickup of the native offered weapon; native actions
+   and host admission remain unchanged. No ammunition or inventory grant. */
+void vr_render_player_grab(short local, long unit_index, boolean permitted, unsigned long *flags);
 #endif
 #endif
