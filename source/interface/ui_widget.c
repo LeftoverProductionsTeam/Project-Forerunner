@@ -1674,6 +1674,9 @@ static wchar_t const *ui_widget_port_error_pending_text = NULL;
 static wchar_t const *ui_widget_port_error_text = NULL;
 static struct widget_instance *ui_widget_port_error_text_box = NULL;
 
+/* port: map teardown runs deletion cleanup without opening successor screens. */
+static boolean ui_widgets_closing_all;
+
 static struct ui_widget_bss_prefix ui_widget_globals_storage;
 
 #define string_data ui_widget_globals_storage.string_data
@@ -2753,7 +2756,7 @@ void ui_widget_delete(
 				520,
 				!widget_deleted,
 				"a 'widget deleted' event handler tried to delete the widget being deleted!");
-			if (handled == TRUE &&
+			if (handled == TRUE && !ui_widgets_closing_all &&
 				TEST_FLAG(handler->flags, _event_handler_open_widget_bit))
 			{
 				long new_widget_tag_index = handler->widget_tag.index;
@@ -3455,6 +3458,11 @@ void ui_widgets_close_all(
 	void)
 {
 	long local_player_index;
+	boolean was_closing_all = ui_widgets_closing_all;
+
+	/* port: a profile-saving screen opens difficulty selection when deleted.
+	That successor must not retain this map's tag indices after unloading. */
+	ui_widgets_closing_all = TRUE;
 
 #ifndef HALO_XBOX_CONSOLE
 	/* port: the virtual keyboard goes with the widgets (while the widget
@@ -3478,6 +3486,7 @@ void ui_widgets_close_all(
 
 		mcc_ui_settings_close(NONE);
 	}
+	ui_widgets_closing_all = was_closing_all;
 
 	return;
 }

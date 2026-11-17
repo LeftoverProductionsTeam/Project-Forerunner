@@ -16,6 +16,25 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Campaign/profile crash repair (17 November): reproduced the owner's exact
+`DeLa`/`schi` failure and all five stack offsets through Spark's native
+`HALO_START_MAP=be_native@ce` path with a fresh private profile. Ordinary a10
+startup alone did not reproduce it. Forerunner's close-all deletion opened the
+profile-saving screen's successor difficulty menu; that widget retained old-map
+tag indices after replacement. Close-all now suppresses successor openings while
+retaining deletion cleanup and ordinary profile transitions. Windows64 incremental
+build and 10 focused teardown/keyboard checks pass, including detection of the
+old successor leak. The same unchanged Spark `31505afb…3ebab` cache now starts,
+admits its native Extraction hub and renders without an exception in the bounded
+repeat. Screenshot inspected. Binary `6744161c…1cc09`; exact logs/hashes and scope
+are in `build/native-campaign-profile-crash/result.json`. This is an engine-side
+startup repair, not full Black Echo acceptance or a Spark installation update.
+Original accounts were not used. Owned runtime/map copies cleaned; Spark remains
+read-only. Existing authored squad combat/salvage fixture work remains in progress:
+four native Flood killed and both squad loot callbacks observed, but its complete
+round trip remains unaccepted after an ownership-observer assertion. No replay or
+speculative ownership patch was made while addressing this reproduced crash.
+
 Current native Spirit transport/gear acceptance (source `565401afb8`):
 `build/native-delta-spirit-return-footpath/result.json` PASSES two authenticated
 clients in separate one-member Covenant squads through two native insertions,
