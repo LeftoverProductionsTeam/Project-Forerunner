@@ -16,6 +16,33 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Two-squad combat/loot/aircraft slice (17 November):
+`build/native-delta-squad-combat-salvage-roundtrip/result.json` PASSES two verified
+Delta clients in separate one-member Covenant squads through physical Spirit
+insertion/disembarkation, four actual Flood kills, distinct native dropped-weapon
+pickups, private authored objectives, both first-attempt activation countdowns,
+queued physical boarding/evacuation, independent banking, hub exits and
+uninterrupted exact-ID re-equipping. Four serialized weapon IDs remain unique;
+each durable record reserves its starter plus its recovered field weapon, matching
+the native inventory. No forced boarding, objective setters, damage injection,
+teleport, restart, settlement bypass or mandatory raid timer. Existing native
+HSC/AI/transport/inventory systems run the operation; the finite director is OFF.
+Native Invader compile/readback and the actual two-peer run use cache
+`940a49c2…ca098`, binary `6744161c…1cc09`. Comparisons: 674 player seconds/1,348
+observations, no persistent divergence under unchanged limits; transient aim,
+position, riding and grenade differences remain recorded (position maximum 3.837).
+All 678 item snapshots agree, all 12 new host items seen; 663 AI snapshots/2,652
+unit comparisons agree, all four combat deaths common. Two final PNGs inspected.
+Source modules are `tools/fixtures/extraction_transport_{objectives_native.hsc,
+objectives_native.hmt,controls_native.txt}`; no commercial assets are tracked.
+The earlier salvage observer failure mixed separate live reads across pickup;
+retained complete snapshots prove distinct ownership. Using one immutable read
+retains every acceptance assertion. Historical attempts stay rejected. Original
+accounts/cache unchanged; stopped-job runtimes/maps and duplicate BMPs cleaned.
+This accepts one bounded fixture operation and re-equipping, not another mission
+playthrough, full Spark Black Echo, six independent clients or human/hardware/
+platform acceptance. Spark's authored hub/pad clearance blocker remains open.
+
 Campaign/profile crash repair (17 November): reproduced the owner's exact
 `DeLa`/`schi` failure and all five stack offsets through Spark's native
 `HALO_START_MAP=be_native@ce` path with a fresh private profile. Ordinary a10
@@ -29,11 +56,9 @@ admits its native Extraction hub and renders without an exception in the bounded
 repeat. Screenshot inspected. Binary `6744161c…1cc09`; exact logs/hashes and scope
 are in `build/native-campaign-profile-crash/result.json`. This is an engine-side
 startup repair, not full Black Echo acceptance or a Spark installation update.
-Original accounts were not used. Owned runtime/map copies cleaned; Spark remains
-read-only. Existing authored squad combat/salvage fixture work remains in progress:
-four native Flood killed and both squad loot callbacks observed, but its complete
-round trip remains unaccepted after an ownership-observer assertion. No replay or
-speculative ownership patch was made while addressing this reproduced crash.
+Original accounts were not used in the crash reproduction. Owned runtime/map
+copies cleaned; Spark remains read-only. The later authenticated operation above
+also uses this repaired binary without a native exception.
 
 Current native Spirit transport/gear acceptance (source `565401afb8`):
 `build/native-delta-spirit-return-footpath/result.json` PASSES two authenticated

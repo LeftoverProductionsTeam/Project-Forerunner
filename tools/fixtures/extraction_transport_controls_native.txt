@@ -1,0 +1,14 @@
+deploy an operation
+###END-STRING###
+call extraction
+###END-STRING###
+prepare equipment
+###END-STRING###
+select UNSC
+###END-STRING###
+select Covenant
+###END-STRING###
+join squad 01
+###END-STRING###
+join squad 02
+###END-STRING###

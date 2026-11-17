@@ -9,6 +9,20 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+17 November startup repair, Forerunner `21603426c4`: the Windows64 binary
+SHA256 `6744161c52be41a0c0d73cc8d83bba7245bc869ee8eaef00d37e2a8044e1cc09`
+passes fresh native profile creation followed by `HALO_START_MAP=be_native@ce`
+on Spark's unchanged `31505afb…3ebab` CE609 candidate. The preceding
+`b428588d…e1a9` binary reproduces `DeLa`/`schi` in `process_ui_widgets`:
+closing the saving-profile screen opened difficulty selection on old-map tags.
+`source/interface/ui_widget.c::{ui_widgets_close_all,ui_widget_delete}` now
+retains deletion cleanup without opening successors during close-all. Ten focused
+checks and the native rendered-hub repeat pass; full Black Echo/other targets
+remain unaccepted. Exact evidence: `build/native-campaign-profile-crash/result.json`.
+Spark next: review this executable through its existing registration/identity
+checks before launching it; do not bypass those checks or reuse the old frozen
+binary for this startup regression. No schema, capability or network change.
+
 Windows64 integration milestone: the enabled OpenXR/bgfx Vulkan executable compiles
 and passes the existing contract-1 reference discovery client. A private native
 Vulkan/x86-peer comparison and missing-loader desktop fallback pass; headset
@@ -76,7 +90,7 @@ The response has these fields:
 | `operations` | Currently only `runtime.discover` |
 | `native_features` | Optional native desktop CE feature identifiers. `extraction.squad_objectives.v1` covers the binding below, not an RPC or platform/gameplay certification. Older/unsupported target builds omit it. |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
-| `startup_map` | Optional new unverified desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Absent on the accepted old executable and non-desktop/server builds. Not a new operation or loaded-map acknowledgement. |
+| `startup_map` | Optional desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Windows64 fresh-profile/native-hub startup passes on the exact binary above; other targets remain unverified. Older and non-desktop/server builds may omit it. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
 
 Network numbers describe the compiled code, not universal peer compatibility or
@@ -123,7 +137,7 @@ the ability to launch a process.
 | --- | --- |
 | Contract `1`, `runtime.discover` | Implemented. Accepted Windows/x86 executable reports 30 Hz, network/native layout `44`, and only this operation. |
 | Process launch / `--config <file>` | Existing CLI, not start/stop/connect RPC. Spark may own its launched process and private data/save folders. |
-| `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path and current difficulty. With no engine player profile, retains the validated request while the user creates one in native menus, then starts in the same process. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
+| `game.start_map` / `HALO_START_MAP` | One-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path and current difficulty. With no engine player profile, retains the validated request while the user creates one in native menus, then starts in the same process. Windows64 native startup passes on the exact repaired binary above. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
 | `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. Unverified menu source exposes OFF/ON under Server Setup → Co-op Options → Firefight. Leave OFF for authored wave controllers. New source also yields when compiled `gs_firefight`, `gs_ff_reset` or `gs_ff_bootstrap` is present; that prevents a second finite director without pausing general HaloScript. Recognition is not validation, generic controller discovery or native co-op acceptance. Historical B40 evidence predates this repair. |
 | `network.firefight_lives` / `HALO_NET_FIREFIGHT_LIVES` | Host source, 0–99, frozen at map start. Deaths spend available lives for player-bound respawns; failed native spawns retain grants and departed/reused player slots cannot transfer them. `coop_enemies.c::firefight_check_defeat` now holds progression for incapacitated bodies or pending paid respawns; exhausted actual deaths receive a fresh three-second defeat grace. Focused real-source ownership/last-life checks pass; native paid-respawn acceptance remains open. Two authenticated native clients verify the all-downed hold, recovery, victory, durable gear and lobby return; exact bounded evidence is in the current master checkpoint. A full world revert still restarts wave one, score and initial lives; not saved mid-wave continuation. |
 | `network.firefight_resupply` / `HALO_NET_FIREFIGHT_RESUPPLY` | Optional built-in-director host setting, off by default and frozen at map start. Uses native inventory admission for readied and owned stowed weapon reserves/battery charge before each continuing wave. Keeps native magazine/reload state and equipment; refuses stale ownership and pending deaths. Windows64 and focused checks pass; bounded native combat/refill evidence and remaining acceptance limits are in the current master checkpoint. Does not enable Spark's native HaloScript resupply option or import JSON. |
@@ -278,8 +292,9 @@ leaving an existing session. An empty private profile folder now leaves the menu
 available and retains the already validated map request. Creating a normal profile
 continues that request in the same process, without repeated cache checks or log
 spam. One successful selection per process; returning to menus does not replay it.
-This setting has not been compiled or exercised and is absent from the previously
-accepted executables. Discovery still advertises only `runtime.discover`.
+The repaired Windows64 setting has compiled/native fresh-profile startup evidence
+above; full mission acceptance remains separate. Discovery still advertises only
+`runtime.discover`, not a live map-control operation.
 
 The solo startup sets the existing local campaign connection. The finite director
 only updates for a network co-op host, so it does not run on this path even if an
@@ -535,6 +550,23 @@ in `build/native-delta-squad-script-objectives/result.json`. This is a fixture,
 not full Black Echo or scoped presentation acceptance. Spark next: require this
 feature through existing discovery and emit these declarations/groups through
 its existing mission HSC path for independent squad objectives.
+
+17 November connected native reference:
+`tools/fixtures/extraction_transport_objectives_native.hsc` composes with the
+existing `extraction_transport_native.hsc` controller; its companion HMT contains
+scoped field-contact/recovery notices. Two verified clients now pass actual Flood
+combat, distinct corpse-weapon pickups, these per-squad readiness gates, physical
+Spirit evacuation, independent durable banking and same-session exact-ID
+re-equipping. Evidence: `build/native-delta-squad-combat-salvage-roundtrip/result.json`.
+This is one bounded owned fixture operation, not Spark Black Echo or a second
+mission playthrough. Spark can reuse the original HSC pattern through its existing
+authoring path: native initially-unplaced Flood encounters, navigation, compatible
+loaded weapon tags, existing squad terminals, distinct zero-initialized readiness
+groups and HMT. Native co-op scaling remains active; do not grant/bank equipment in
+scripts or enable a second encounter director. Its native control-name text source
+is `tools/fixtures/extraction_transport_controls_native.txt`; use standard native
+Unicode strings, not a competing placement/save format. Original assets remain
+private. No editor/source dependency or new runtime interface is introduced.
 
 Squad-authored text extension (`extraction.squad_notices.v1`): require this
 optional feature through existing version-1 discovery for private mission cues.
