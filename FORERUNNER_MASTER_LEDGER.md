@@ -116,6 +116,16 @@ clients returned to the A30 lobby and loaded two equipped players into A30
 through Start Now. The probe used disposable temporary profiles and did not
 verify completion credit or a full playthrough. Runtime copies were removed.
 
+Stock campaign credit (17 November): mission completion uses the exact stock
+cache name through the existing campaign index. Scenario paths and .map names
+resolve, while similarly named maps and CE/MCC identities stay outside the
+stock progress table. Windows64 and 13 focused checks passed.
+build/native-campaign-exact-credit/result.json verifies ordinary LAN hosting
+with a fresh profile and a controlled A10 win. The saved Normal completion flag
+changed from 0 to 2 and the other nine flags stayed zero. This covers the host's
+local profile. Remote profile credit and full playthrough remain open. Owned
+runtime/map copies and BMP scratch were removed.
+
 Native menu completion and Black Echo crew repair (17 November):
 63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
 two-hand settings directly to the native VR page, Save/Cancel and persistence.

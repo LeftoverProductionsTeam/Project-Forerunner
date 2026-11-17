@@ -6,6 +6,7 @@
 #define _strnicmp strncasecmp
 #endif
 #define csstrncpy strncpy
+#define csmemcpy memcpy
 #define HALO_CUSTOM_EDITION 1
 enum { _map_family_xbox, _map_family_custom_edition };
 static char main_script_next_level[64];
@@ -19,13 +20,21 @@ static short map_family_parse(char const *name, char *file, long size) {
 }
 static short map_family_from_wire_name(char const *name, char *file, long size) {
     (void)file; (void)size;
-    return !strcmp(name, "custom_maps\\start") ? _map_family_custom_edition : _map_family_xbox;
+    return !strncmp(name, "custom_maps\\", 12) ? _map_family_custom_edition : _map_family_xbox;
 }
 static short mcc_maps_find(char const *name) { mcc_lookups++; return strcmp(name, catalog_level) ? NONE : 0; }
 static boolean mcc_maps_campaign(short index) { (void)index; return catalog_campaign; }
 static char const *mcc_maps_level_name(short index) { (void)index; return catalog_level; }
 static boolean map_family_campaign(char const *name) {
     ce_lookups++; return !strcmp(name, "next@ce");
+}
+static boolean stubbs_mode_active(void) { return FALSE; }
+static short stubbs_campaign_level_from_name(char const *name, short fallback) {
+    (void)name; return fallback;
+}
+static char const *tag_name_strip_path(char const *name) {
+    char const *slash = strrchr(name, '\\');
+    return slash ? slash + 1 : name;
 }
 #include "under_test.inc"
 
@@ -37,6 +46,18 @@ int main(int argc, char **argv)
     boolean expected = TRUE;
     CHECK(argc == 2, "case required");
     name = argv[1];
+    if (!strcmp(name, "stock-credit")) {
+        CHECK(main_get_solo_level_from_name("a10") == 0, "stock lobby name");
+        CHECK(main_get_solo_level_from_name("levels\\A30\\A30") == 1, "stock scenario path");
+        CHECK(main_get_solo_level_from_name("maps/d40.MAP") == 9, "stock cache path");
+        CHECK(main_get_solo_level_from_name("a100") == NONE, "similar name earned stock credit");
+        CHECK(main_get_solo_level_from_name("levels\\a10\\operation") == NONE, "parent folder earned stock credit");
+        CHECK(main_get_solo_level_from_name("a10@ce") == NONE, "CE alias earned stock credit");
+        CHECK(main_get_solo_level_from_name("custom_maps\\a10.map") == NONE, "CE wire name earned stock credit");
+        CHECK(main_get_solo_level_from_name("mcc_maps\\campaign\\a10") == NONE, "MCC bypassed its own progress");
+        CHECK(main_get_solo_level_from_name(NULL) == NONE, "missing name resolved");
+        return 0;
+    }
     if (!strcmp(name, "mcc")) {}
     else if (!strcmp(name, "mcc-path")) requested = "levels/next.MAP";
     else if (!strcmp(name, "mcc-foreign-path")) {

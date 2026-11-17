@@ -407,6 +407,8 @@ symbols in this file:
 #include "text/draw_string.h"
 #include "text/font_group.h"
 #include "tag_files/files.h"
+#include "tag_files/tag_files.h"
+#include "../../port/linux/src/campaign_levels.h"
 #ifdef HALO_BROWSER
 #include <emscripten/emscripten.h>
 #include "../../port/web/src/web_online_ui.h"
@@ -1544,47 +1546,35 @@ void main_set_game_connection_to_film_playback(
 short main_get_solo_level_from_name(
 	char const *name)
 {
-	char lower_name[128] = { 0 };
-	short level;
+	char file[8];
+	char const *slash;
+	size_t length;
 
-	/* port: Stubbs mode's levels, and only those (a pack's map's name has
-	@stubbs: port/linux/game/stubbs_campaign.c) */
+	if (!name || !name[0])
+		return NONE;
+	/* Stubbs and MCC own their separate campaign catalogs. */
 	if (stubbs_mode_active())
 		return stubbs_campaign_level_from_name(name, NONE);
-	if (mcc_level_name(name))
+	if (mcc_level_name(name) || strchr(name, '@'))
 		return NONE;
-
-	/* port: a Halo PC map (name@ce, @pc or @md) is never one of the
-	campaign's levels, whatever its name holds (OpenCE's build-145 found
-	this of its Custom Edition maps) */
-	if (strchr(name, '@'))
+#ifdef HALO_CUSTOM_EDITION
+	if (map_family_from_wire_name(name, NULL, 0) != _map_family_xbox)
 		return NONE;
-	csstrncpy(lower_name, name, NUMBEROF(lower_name) - 1);
-	lower_name[NUMBEROF(lower_name) - 1] = 0;
-	strlwr(lower_name);
+#endif
 
-	if (strstr(lower_name, "a10"))
-		level = 0;
-	else if (strstr(lower_name, "a30"))
-		level = 1;
-	else if (strstr(lower_name, "a50"))
-		level = 2;
-	else if (strstr(lower_name, "b30"))
-		level = 3;
-	else if (strstr(lower_name, "b40"))
-		level = 4;
-	else if (strstr(lower_name, "c10"))
-		level = 5;
-	else if (strstr(lower_name, "c20"))
-		level = 6;
-	else if (strstr(lower_name, "c40"))
-		level = 7;
-	else if (strstr(lower_name, "d20"))
-		level = 8;
-	else
-		level = strstr(lower_name, "d40") ? 9 : NONE;
-
-	return level;
+	/* Stock saves and lobbies use either a cache filename or scenario path. */
+	name = tag_name_strip_path(name);
+	slash = strrchr(name, '/');
+	if (slash)
+		name = slash + 1;
+	length = strlen(name);
+	if (length > 4 && !_stricmp(name + length - 4, ".map"))
+		length -= 4;
+	if (length >= sizeof(file))
+		return NONE;
+	csmemcpy(file, name, length);
+	file[length] = 0;
+	return (short)campaign_level_index(file);
 }
 
 short main_get_current_solo_level(
