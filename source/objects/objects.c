@@ -1874,6 +1874,12 @@ void objects_disconnect_from_structure_bsp(
 	struct object_datum *object;
 	struct object_iterator iterator;
 
+	/* port: a camera/network cluster number belongs to the BSP being left.
+	 * Keeping it can address an unrelated or nonexistent PVS row after loading.
+	 * Object-based activation follows its object through the normal reconnect. */
+	if (object_globals->pvs_activation_type == _pvs_activation_cluster)
+		object_pvs_clear();
+
 	object_iterator_new(&iterator, _object_mask_all, 0);
 	while (object = (struct object_datum *)object_iterator_next(&iterator))
 	{

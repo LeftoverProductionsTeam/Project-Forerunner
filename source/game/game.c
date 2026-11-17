@@ -665,7 +665,9 @@ boolean game_safe_to_speak(
 boolean game_is_cooperative(
 	void)
 {
-	return player_spawn_count > 1;
+	/* port: network campaign players do not increase the local split-screen
+	 * spawn count. Scripts must still choose their cooperative mission path. */
+	return player_spawn_count > 1 || network_coop_active();
 }
 
 boolean game_load(

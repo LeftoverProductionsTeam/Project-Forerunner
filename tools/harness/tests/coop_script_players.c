@@ -14,6 +14,10 @@ struct data_iterator
 };
 static struct player_datum people[128];
 static int occupied[128], host = TRUE, calls[128];
+static short player_spawn_count=1;
+static boolean campaign_coop;
+static boolean network_coop_active(void) {return campaign_coop;}
+#include "cooperative.inc"
 static long ref_head;
 static struct data_array *player_data, *object_list_data;
 static long data_next_index(struct data_array *data, long previous)
@@ -213,6 +217,15 @@ int main(int argc, char **argv)
 	long units[128], out[128];
 	real_point3d destination = {1, 2, 3};
 	object_list_data = game_state_data_new("test refs", 128, sizeof(struct data_reference));
+	if (!strcmp(name,"cooperative-identity"))
+	{
+		CHECK(!game_is_cooperative(),"ordinary solo changed");
+		campaign_coop=TRUE;
+		CHECK(game_is_cooperative(),"network campaign misidentified as solo");
+		campaign_coop=FALSE;player_spawn_count=2;
+		CHECK(game_is_cooperative(),"classic split-screen changed");
+		return 0;
+	}
 	if (strstr(name,"vitality"))
 	{
 		adaptations=strcmp(name,"native-current-vitality")!=0;reset(3);

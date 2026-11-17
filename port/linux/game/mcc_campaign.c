@@ -281,7 +281,7 @@ boolean mcc_campaign_fade_active(void)
 static void mcc_cooperative_evaluate(short function, long thread, boolean initialize)
 {
     (void)function;(void)initialize;
-    hs_return(thread,game_is_cooperative() || network_coop_active());
+    hs_return(thread,game_is_cooperative());
 }
 
 static void mcc_flashlight_evaluate(short function, long thread, boolean initialize)

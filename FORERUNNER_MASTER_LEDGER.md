@@ -16,6 +16,46 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Native campaign co-op repair (17 November, base `a90a098c02`): untouched owned
+Xbox a10, two bound Delta accounts, exposed a client halt during the opening's
+bridge-to-space BSP change. Matching PDB readback identifies
+`players_compute_combined_pvs` using a retained activating cluster number from
+the previous BSP, then `structure_bsp_get_cluster_pvs` asserting at line 36.
+The existing object-disconnect step now clears numeric cluster activation;
+object-based activation survives its normal reconnect. No assertion removal,
+protocol, renderer, map edit or alternate lifecycle. Separately, the common
+`game_is_cooperative` now recognizes native network campaign mode instead of
+only the local split-screen spawn count. This reuses the MCC adapter's existing
+condition; that adapter now calls the common check. Solo and split-screen keep
+their existing result. Windows64 incremental compilation and 36 focused existing
+BSP/script-player checks pass, including detection of the old stale activation.
+
+`build/native-campaign-a10-opening-fixed/result.json` PASSES the bounded native
+opening with normal two-machine skip voting, both players gaining control and
+normal walking/jumping observed for 1,050 ticks. Player comparison: 51 seconds,
+87 living observations, no mismatches, position maximum 0.0422; 55 item snapshots
+agree and all nine new host items are seen; 41 non-cinematic AI snapshots/1,800
+unit comparisons agree. Both final PNGs inspected. Exact binary
+`23c99f3326b3be1f07043ddcf51cc1a8ad92652114b7ca4523f945abdb44f821`, original
+a10 SHA256 `f7461e5b6eaf0314c4f03a1c6e43752b06ae3e4782b70b240a8c15e5f634b3ce`.
+
+The same binary's no-skip natural introduction traverses BSPs 0/7/1/8/0 without
+the original exception and gives both players control. That separate run remains
+FAIL in `build/native-campaign-a10-natural-opening/result.json`: its 260-second
+bound leaves only 300 controlled ticks before the unchanged 900-tick minimum,
+and its item check finds 22 moving-fighter discrepancies during the cinematic
+(about 2.0–2.8 world units). All 103 new host items are seen, player comparison
+has no mismatches over 244 seconds/255 living observations, and non-cinematic
+AI comparison passes 16 snapshots/655 units. Do not promote this failed run or
+relax the item tolerance. Both final PNGs inspected; the host's cryopod boarding
+prompt has missing vehicle/seat strings and stays open for review. First crashed
+run stays rejected. Full campaign combat/completion, audible audio (dummy driver),
+human/platform/VR acceptance and full Spark Black Echo remain unverified. Next
+campaign diagnosis is cinematic fighter replication from these retained logs,
+not another unchanged opening run. Original accounts/maps unchanged; stopped-job
+runtime/map copies and 117,966,096B of duplicate BMPs cleaned. Spark is read-only;
+its authored pad correction is still a dependency. No hosted jobs or push.
+
 Native Firefight setup (17 November): existing Server Setup now links a native
 Firefight Options screen for wave limit/endless, initial enemies, per-wave growth,
 shared lives, resupply and desktop persistent gear. It reuses the existing option

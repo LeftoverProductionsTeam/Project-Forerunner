@@ -19,6 +19,7 @@ def generated(fault=None):
     if fault == 'adaptations':
         policy = mutated(policy, 'config_boolean("network.coop_script_adaptations")', 'TRUE')
     return (
+        ('cooperative.inc', function(read('source/game/game.c'), 'game_is_cooperative')),
         ('reference.inc', structure(read('source/objects/reference_lists.h'), 'data_reference') + '\n' +
          inline(read('source/objects/reference_lists.h'), 'reference_list_add')),
         ('players.inc', function(read('source/hs/hs_library_external.c'), 'hs_players')),
@@ -35,7 +36,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', ['counts', 'gaps', 'respawn', 'bounded', 'nonhost', 'teleport', 'suspend', 'exit', 'board', 'equipment', 'native-actions', 'native-save',
-                                 'native-current-vitality', 'legacy-current-vitality', 'legacy-maximum-vitality'])
+                                 'native-current-vitality', 'legacy-current-vitality', 'legacy-maximum-vitality', 'cooperative-identity'])
 def test_script_players(case):
     status, output = run(build('coop_script_players', generated()), case)
     assert status == 0, output

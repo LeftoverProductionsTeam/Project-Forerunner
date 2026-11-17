@@ -32,7 +32,7 @@ struct structure_leaf {long cluster_index;};
 struct structure_bsp {struct tag_block leaves,collision_bsp;};
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index;};
-struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;} object;
+struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags;} object;
                      long weapon;short ammunition;};
 #define biped_datum object_datum
 
@@ -95,7 +95,23 @@ static boolean player_place_beside_teammate(long player) {CHECK(FALSE,"unexpecte
 static void main_stop_time(void) {clock_stops++;}
 static void main_start_time(void) {clock_starts++;}
 static void collision_log_enable(boolean value) {collision_log=value;}
-static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;}
+enum {_pvs_activation_normal, _pvs_activation_object, _pvs_activation_cluster};
+enum {_object_connected_to_map_bit};
+#define _object_mask_all (~0UL)
+static struct {short pvs_activation_type;union {short cluster_index;long object_index;} pvs_activation;} object_state;
+static __typeof__(object_state) *object_globals=&object_state;
+struct object_iterator {short slot;long index;};
+static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->slot=0;}
+static struct object_datum *object_iterator_next(struct object_iterator *it)
+{if(it->slot==4)return NULL;it->index=units[it->slot];return &objects[it->slot++];}
+static void object_disconnect_from_map(long index) {objects[slot(index)].object.flags=0;}
+static void object_type_disconnect_from_structure_bsp(long index) {}
+#define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wparentheses"
+#include "objects.inc"
+#pragma clang diagnostic pop
+static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;objects_disconnect_from_structure_bsp();}
 static void scenario_call_reconnect_to_structure_bsp_procs(void) {reconnects++;players_reconnect_to_structure_bsp();}
 static boolean scenario_structure_bsp_load(struct scenario_structure_bsp_reference *ref)
 {loads[ref->structure_bsp.index]++;return !reject_load[ref->structure_bsp.index];}
@@ -147,6 +163,19 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if(!strcmp(name,"activation-cluster")||!strcmp(name,"activation-object"))
+    {
+        boolean cluster=!strcmp(name,"activation-cluster");
+        object_globals->pvs_activation_type=cluster?_pvs_activation_cluster:_pvs_activation_object;
+        object_globals->pvs_activation.object_index=units[2];
+        if(cluster)object_globals->pvs_activation.cluster_index=42;
+        players_globals->pending_teleport_starting_location_index=NONE;
+        CHECK(scenario_switch_structure_bsp(destination),"BSP transition failed");
+        CHECK(object_globals->pvs_activation_type==(cluster?_pvs_activation_normal:_pvs_activation_object),
+              "stale cluster retained or object activation lost");
+        if(!cluster)CHECK(object_globals->pvs_activation.object_index==units[2],"activation object changed");
+        return 0;
+    }
     if(!strcmp(name,"split-refused")||!strcmp(name,"split-forward"))
     {coop=FALSE;players_globals->local_player_count=2;people[1].local_player_index=1;}
     if(!strcmp(name,"same-vehicle"))objects[1].object.parent_object_index=units[2];

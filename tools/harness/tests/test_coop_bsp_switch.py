@@ -15,7 +15,12 @@ def generated(fault=None):
         reconnect = mutated(reconnect,
                             'bsp_switch->destination_structure_bsp_index != global_structure_bsp_index',
                             'FALSE')
+    objects = function(read('source/objects/objects.c'), 'object_pvs_clear') + '\n' + function(
+        read('source/objects/objects.c'), 'objects_disconnect_from_structure_bsp')
+    if fault == 'activation':
+        objects = mutated(objects, '\t\tobject_pvs_clear();', '\t\t;')
     return (
+        ('objects.inc', objects),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
             'is_player_in_trigger', 'player_teleport_on_bsp_switch')) + '\n' + reconnect),
@@ -27,6 +32,7 @@ def generated(fault=None):
     'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'no-pending', 'negative-pending', 'past-end-pending',
+    'activation-cluster', 'activation-object',
 ])
 def test_bsp_reconnect(case):
     status, output = run(build('coop_bsp_switch', generated()), case)
@@ -35,4 +41,9 @@ def test_bsp_reconnect(case):
 
 def test_destination_negative_control():
     status, output = run(build('coop_bsp_switch', generated('destination')), 'load-refused')
+    assert status == CHECK_FAILED, output
+
+
+def test_stale_activation_negative_control():
+    status, output = run(build('coop_bsp_switch', generated('activation')), 'activation-cluster')
     assert status == CHECK_FAILED, output
