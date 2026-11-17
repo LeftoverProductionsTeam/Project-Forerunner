@@ -1383,9 +1383,16 @@ matching native seat entry. No Spark graph rewrite, granted weapon, tag format
 or capability change is needed. Windows64 and focused checks pass; the two-account
 Spirit squad fixture verifies both unarmed hub exits and remote same-ID weapon
 redeployment. Full same-session crew redeployment remains unaccepted: one input
-route hit the parked hull; the final corrected-route attempt instead stopped at
-LZ departure readiness. Exact partial results and unchanged cache/binary identities
-are in the current master checkpoint. Preserve boarding/landing/settlement gates;
+route hit the parked hull; an earlier corrected-route attempt stopped at LZ
+departure readiness. The subsequent host-notice trace verifies both countdowns,
+boarding receipts, serial evacuations, separate banks and hub exits, but walking
+routes still miss redeployment within the bounded run. The earlier readiness
+failure is not reproduced or explained by that pass. Existing `debug.network_test`
+enables the host's actual Extraction notices; default gameplay is unchanged.
+Exact partial results/cache/binary identities are in the current master checkpoint.
+Spark `40d115e` also records its recovered Save/HUD native output as disposed;
+the retained expanded mission package remains the requested handoff.
+Preserve boarding/landing/settlement gates;
 this does not accept the full authored Black Echo mission or private cinematics.
 
 Read-only Spark `defc08c` supersedes the `4249bb5` composition gap. Existing

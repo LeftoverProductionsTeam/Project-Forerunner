@@ -171,9 +171,10 @@ static char local_notice_history[4][160];
 static char last_remote_notice[160],remote_notice_history[4][160];
 
 static boolean config_boolean(char const *name)
-{ return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
+{ CHECK(strcmp(name,"debug.network_test"),"network-test string queried as boolean"); return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
   !strcmp(name,"game.shared_gear") ? shared_cache : director; }
 static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
+static char const *config_string(char const *name) { CHECK(!strcmp(name,"debug.network_test"),"unknown string setting"); return ""; }
 static boolean network_coop_active(void) { return TRUE; }
 static struct { boolean enabled, gear, victory; short phase,lives; long wave,wave_limit,deadline,wipe_deadline;char outcome[128];
  long respawn_players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS]; } firefight;

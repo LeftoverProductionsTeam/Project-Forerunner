@@ -38,15 +38,35 @@ owned CE609 SHA256 `205f6a16dbef7471a42e4829941b3aad561241dd005bc4d3385879f94c71
 The derived fixture reuses the existing native serial HSC controller and accepted
 Spirit scenario, with two ordinary squad terminals; no second flight controller.
 
-The final bounded `native-delta-spirit-squad-roundtrip-route` attempt corrects
+The earlier bounded `native-delta-spirit-squad-roundtrip-route` attempt corrects
 the hub walking route, but stops earlier: both insert, the first player physically
 boards at the LZ, and departure readiness never clears before the deadline.
 No evacuation/banking/redeployment pass is claimed for that attempt. The precise
 unmet readiness condition remains unresolved; retain its workflow/seat/pilot logs
 and inspected PNG before another run. Earlier pre-fix unarmed locomotion failure
-and operator-stopped probe remain explicitly partial, not acceptance. No further
-native rerun or engine rebuild was made after that deadline. Account originals
-unchanged; owned runtimes/staging and generated cache/BMP scratch are cleaned.
+and operator-stopped probe remain explicitly partial, not acceptance.
+
+Follow-through on `978169e0c3`: `extraction_tell` now records actual host notices
+only under the existing string-valued `debug.network_test` selector. No gameplay,
+packet, authoring or settlement rule changed. The first diagnostic attempt used
+the wrong boolean getter and was stopped before extraction; its result is rejected.
+The corrected Windows64 build and 60 focused transport checks pass
+(`build/transport-ack-final-{build,checks}.log`). The existing harness now rejects
+reading this string selector as a boolean, preventing that diagnostic mistake.
+`build/native-delta-spirit-control-ack-final/result.json` verifies both host-accepted
+calls, completed activation countdowns, boarding receipts, serial physical flights,
+separate banks and hub exits. No cancellation/retry occurred. The earlier departure
+block was not reproduced; the near-boundary explanation remains unproven.
+Both players walk unarmed, but neither reaches redeployment before the bounded
+deadline: their walking routes encounter the aircraft/terrain. Full uninterrupted
+redeployment remains UNACCEPTED; do not repeat the flights with another guessed route.
+Player comparison: 702 seconds / 1,404 observations, no sustained divergence;
+one transient aim mismatch. All 706 item snapshots match. Binary SHA256:
+`2f94e8631f7a6c5278a0f36eaa219cc9b7b89562c346827a231348e67a5682df`;
+same CE609 hash above. Account originals unchanged; owned runtimes/staging and
+the restored disposable cache are cleaned, compact logs/records retained.
+Read-only Spark is now `40d115e`; its latest recovered Save/HUD cache was disposed
+with QA26367/run-aVu7Oz. No retained expanded mission handoff is identified there.
 Spark's retained combined mission handoff below remains required for actual
 Black Echo aircraft acceptance. Private cinematics, six independent clients,
 human/headset/platform acceptance and the full engine roadmap remain open.

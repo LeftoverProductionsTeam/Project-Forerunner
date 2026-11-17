@@ -408,6 +408,11 @@ void extraction_player_notice(long player_index, char const *text)
 static void extraction_tell(struct extraction_run const *run, char const *text)
 {
 	extraction_player_notice(run->player, text);
+	/* Keep native control/countdown decisions observable without treating an
+	 * input press as host acknowledgement. No account or gear identity is logged. */
+	if (config_string("debug.network_test")[0])
+		platform_log("network test: extraction notice player %ld phase %d: %s",
+			DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), run->phase, text);
 }
 
 static void extraction_block(struct extraction_run *run, char const *text)
