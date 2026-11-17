@@ -16,7 +16,30 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current controller-loadout checkpoint (source base `e0ed8fe766`): native controllers
+Current failed-BSP recovery checkpoint (source base `f729a63494`): the native
+loader already restores the old BSP when its destination cannot load or fails
+capacity validation. Its reconnect callbacks nevertheless consumed the pending
+destination gather, ejecting/moving a remote passenger even though the source
+area was restored. `players.c::players_reconnect_to_structure_bsp` now consumes
+invalid or mismatched pending requests without relocating anyone, while still
+invalidating player clusters. Matching successful classic co-op/split-screen
+transitions retain their gather behavior. No new loader, world state or protocol.
+
+The existing asset-free C harness compiles the real loader, reconnect and BSP
+teleport functions together. Before the fix: refused-load passenger preservation
+FAILS, forward co-op/split-screen PASS. Afterward: thirteen focused cases PASS,
+including a negative control that removes the destination comparison; one added
+failed-load-then-successful-retry case also PASSES. Logs:
+`build/coop-bsp-baseline.log`, `build/coop-bsp-checks.log` and
+`build/coop-bsp-retry-check.log`. Windows64 incremental compile/link PASSES
+(`build/coop-bsp-build.log`, existing Expat import warnings). IO, collision and
+movement are fixture boundaries; this is not native failed-load gameplay or
+proof that all AI/world state rolls back. No unrelated native runs were repeated.
+Spark's connected two-region delivery and bounded simultaneous residency remain
+open under the existing contract. Spark/originals untouched, no hosted jobs/push.
+This cycle fixes a campaign/connected-world foundation bug; no new infrastructure.
+
+Previous controller-loadout checkpoint (source base `e0ed8fe766`): native controllers
 share Reload/Use on X. The existing alternate hub actions now also accept held
 Flashlight + Use: change the secondary at Loadout, or leave the stash safe at
 Deploy. `player_queues_new.c::update_client_loadout_modifier_held` reads the same

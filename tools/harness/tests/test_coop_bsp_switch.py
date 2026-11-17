@@ -1,0 +1,38 @@
+"""Real BSP load/recovery and player reconnect code; cache IO and physics are fixture boundaries."""
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from harness import CHECK_FAILED, build, function, mutated, read, run, structure
+
+
+def generated(fault=None):
+    players = read('source/game/players.c')
+    reconnect = function(players, 'players_reconnect_to_structure_bsp')
+    if fault == 'destination':
+        reconnect = mutated(reconnect,
+                            'bsp_switch->destination_structure_bsp_index != global_structure_bsp_index',
+                            'FALSE')
+    return (
+        ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
+        ('players.inc', '\n'.join(function(players, name) for name in (
+            'is_player_in_trigger', 'player_teleport_on_bsp_switch')) + '\n' + reconnect),
+        ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
+    )
+
+
+@pytest.mark.parametrize('case', [
+    'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
+    'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
+    'no-pending', 'negative-pending', 'past-end-pending',
+])
+def test_bsp_reconnect(case):
+    status, output = run(build('coop_bsp_switch', generated()), case)
+    assert status == 0, output
+
+
+def test_destination_negative_control():
+    status, output = run(build('coop_bsp_switch', generated('destination')), 'load-refused')
+    assert status == CHECK_FAILED, output

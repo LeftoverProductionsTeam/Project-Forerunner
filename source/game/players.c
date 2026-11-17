@@ -3874,6 +3874,28 @@ void players_reconnect_to_structure_bsp(
 	long player_unit_index;
 	short pass;
 
+	/* port: a refused BSP load can reconnect the restored source BSP. Do
+	not carry out the destination's pending gather (or eject its passengers)
+	unless that destination actually loaded. Still invalidate clusters below. */
+	if (players_globals->pending_teleport_starting_location_index != NONE)
+	{
+		scenario = global_scenario_get();
+		if (players_globals->pending_teleport_starting_location_index < 0 ||
+			players_globals->pending_teleport_starting_location_index >= scenario->bsp_switch_trigger_volumes.count)
+		{
+			players_globals->pending_teleport_starting_location_index = NONE;
+		}
+		else
+		{
+			bsp_switch = TAG_BLOCK_GET_ELEMENT(
+				&scenario->bsp_switch_trigger_volumes,
+				players_globals->pending_teleport_starting_location_index,
+				struct scenario_bsp_switch_trigger_volume);
+			if (bsp_switch->destination_structure_bsp_index != global_structure_bsp_index)
+				players_globals->pending_teleport_starting_location_index = NONE;
+		}
+	}
+
 	/* port: also on a network co-op host, whose other players are remote */
 	if (players_globals->pending_teleport_starting_location_index != NONE &&
 		(players_globals->local_player_count > 1 ||

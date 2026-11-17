@@ -665,7 +665,15 @@ dependencies and explicit region-to-source mapping, without reducing source
 geometry or substituting teleports. No proprietary map data is to be distributed.
 
 Forerunner's current `scenario_switch_structure_bsp` unloads the old BSP and
-reconnects global collision, objects, AI, renderer and audio state. It is not
+reconnects global collision, objects, AI, renderer and audio state. The existing
+loader can restore the source BSP after a refused destination load. Players'
+`players_reconnect_to_structure_bsp` now discards a pending switch whose index is
+invalid or whose destination differs from the actually loaded BSP: that recovery
+must not eject or relocate passengers. Player clusters are still invalidated;
+matching successful classic transitions keep their gather behavior. Real-source
+loader/player harness coverage and Windows64 compilation pass; native failed-load
+passenger preservation, complete world/AI rollback and multi-region gameplay
+remain unverified. No authoring format or discovery capability changed. It is not
 multi-region streaming or simultaneous residency. OpenCE main inspected at
 `1519c65facbb068e44b956da2769198a83a17847` is already inherited; community
 multi-BSP reports do not prove a newer implementation here. Two joined regions
