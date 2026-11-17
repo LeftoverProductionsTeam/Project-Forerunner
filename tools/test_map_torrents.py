@@ -115,6 +115,36 @@ def test_make_writes_torrents_and_the_index(tmp_path):
     assert "0 files to hash" in result.stdout
 
 
+def test_make_only_approves_the_explicit_compiled_map(tmp_path):
+    selected = tmp_path / "reviewed.map"
+    neighbour = tmp_path / "unreviewed.map"
+    original = cache_bytes("reviewed", checksum=0xABCDEF01)
+    selected.write_bytes(original)
+    neighbour.write_bytes(cache_bytes("unreviewed", checksum=0xABCDEF02))
+    index = tmp_path / "private-index.txt"
+    torrents = tmp_path / "torrents"
+    result = run("make", "--maps", str(selected), "--torrents", str(torrents),
+                 "--index", str(index), "--jobs", "1")
+    assert result.returncode == 0, result.stdout + result.stderr
+    entries = map_torrents.read_index(index)
+    assert set(entries) == {("reviewed.map", 0xABCDEF01)}
+    entry = next(iter(entries.values()))
+    assert entry.share == map_torrents.share_hash_of(selected)
+    assert entry.blake2b == hashlib.blake2b(original, digest_size=32).hexdigest()
+    assert selected.read_bytes() == original
+    result = run("check", "--index", str(index), "--torrents", str(torrents))
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize("name", ["missing.map", "wrong.txt"])
+def test_explicit_map_input_refuses_missing_or_non_map_files(tmp_path, name):
+    path = tmp_path / name
+    if name == "wrong.txt":
+        path.write_text("Not a compiled map")
+    with pytest.raises(SystemExit):
+        list(map_torrents.map_files([path]))
+
+
 def test_blake2b_notes_each_maps_hash(tmp_path):
     """An index made before the BLAKE2b-256 was noted has it added: of the
     folders' files that are its entries (name, size and checksum), or from

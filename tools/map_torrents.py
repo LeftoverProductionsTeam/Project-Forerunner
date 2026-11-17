@@ -9,7 +9,9 @@ hash either way.
     python tools/map_torrents.py make --maps <folder> [--maps <folder>...]
         [--resource-maps <folder>] --torrents <folder> [--index <file>]
 
-walks the folders, keeps every Halo Custom Edition cache (as the game
+Each --maps input may also name one compiled .map file, to approve only that
+reviewed creator cache without copying or indexing its neighbouring maps.
+Walks the folders, keeps every Halo Custom Edition cache (as the game
 identifies one: cache_file_formats.c), writes a single-file v1 torrent for
 each into the torrents folder, and writes (or merges into) the index. The
 resource maps folder gives bitmaps.map, sounds.map and loc.map, which every
@@ -59,6 +61,9 @@ by file name and size, for a machine whose Python has no BLAKE2. "make"
 notes it of every file it hashes. To approve a map: "make" with a folder
 holding it (it is added to the index with all its columns), then put it on
 the map site and its info hash in the tracker's whitelist (docs/map_torrents.md).
+For a private reviewed cache, use a separate --index and select that local file
+with the runtime's maps.torrent_index setting; no publication is required.
+Keep maps.seed off for private sessions and do not publish their torrent metadata.
 
     python tools/map_torrents.py sources [--halonet <folder>] [--halomaps <folder>]
         [--index <file>]
@@ -465,8 +470,13 @@ def write_index(path, entries):
 def map_files(folders):
     for folder in folders:
         folder = Path(folder)
+        if folder.is_file():
+            if folder.suffix.lower() != ".map":
+                raise SystemExit(f"{folder}: not a .map file")
+            yield folder
+            continue
         if not folder.is_dir():
-            raise SystemExit(f"{folder}: not a folder")
+            raise SystemExit(f"{folder}: not a map file or folder")
         for path in sorted(folder.iterdir()):
             if path.is_file() and path.suffix.lower() == ".map":
                 yield path
@@ -913,9 +923,9 @@ def print_serial(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    make_parser = commands.add_parser("make", help="make torrents and the index from map folders")
-    make_parser.add_argument("--maps", action="append", default=[], metavar="FOLDER", required=True,
-                             help="a folder of Custom Edition maps (may be given several times)")
+    make_parser = commands.add_parser("make", help="make torrents and the index from map files or folders")
+    make_parser.add_argument("--maps", action="append", default=[], metavar="PATH", required=True,
+                             help="one Custom Edition .map file or a folder of maps (repeatable)")
     make_parser.add_argument("--resource-maps", metavar="FOLDER",
                              help="a folder with Custom Edition's bitmaps.map, sounds.map and loc.map")
     make_parser.add_argument("--torrents", metavar="FOLDER", required=True,
@@ -936,8 +946,8 @@ def main():
     sources_parser.add_argument("--index", metavar="FILE", default=str(DEFAULT_INDEX))
     sources_parser.set_defaults(run=sources)
     blake2b_parser = commands.add_parser("blake2b", help="note the BLAKE2b-256 of each map file")
-    blake2b_parser.add_argument("--maps", action="append", default=[], metavar="FOLDER",
-                                help="a folder of Custom Edition maps (may be given several times)")
+    blake2b_parser.add_argument("--maps", action="append", default=[], metavar="PATH",
+                                help="one Custom Edition .map file or a folder of maps (repeatable)")
     blake2b_parser.add_argument("--resource-maps", metavar="FOLDER",
                                 help="a folder with Custom Edition's bitmaps.map, sounds.map and loc.map")
     blake2b_parser.add_argument("--hashes", metavar="FILE",
@@ -945,8 +955,8 @@ def main():
     blake2b_parser.add_argument("--index", metavar="FILE", default=str(DEFAULT_INDEX))
     blake2b_parser.set_defaults(run=blake2b)
     share_parser = commands.add_parser("share", help="note each map file's map sharing hash (the approved map list)")
-    share_parser.add_argument("--maps", action="append", default=[], metavar="FOLDER",
-                              help="a folder of Custom Edition maps (may be given several times)")
+    share_parser.add_argument("--maps", action="append", default=[], metavar="PATH",
+                              help="one Custom Edition .map file or a folder of maps (repeatable)")
     share_parser.add_argument("--resource-maps", metavar="FOLDER",
                               help="a folder with Custom Edition's bitmaps.map, sounds.map and loc.map")
     share_parser.add_argument("--hashes", metavar="FILE",

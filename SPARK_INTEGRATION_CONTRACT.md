@@ -142,6 +142,23 @@ upstream version `0.9.1-dev`; exact executable/source hashes are in TEST_EVIDENC
 Matching contract, cache version and peer network version are separate checks.
 No version-1 discovery field grants gameplay, live editing or universal cross-play.
 
+Reviewed private CE-map distribution reuses the native approved-map index and
+map-sharing path. `tools/map_torrents.py make --maps <reviewed.map> --torrents <private-output> --index <private-index.txt>` now accepts one compiled cache,
+without approving neighbouring files or editing that cache. Explicitly select
+the reviewed local index with `HALO_MAP_TORRENT_INDEX`; for isolated private
+sessions use `HALO_MAP_INDEX_URL=` and `HALO_MAP_SEED=off`, with normal
+`HALO_NET_MAP_SHARE=true` / `HALO_NET_MAP_DOWNLOAD=true` and the owner's chosen
+download prompt policy. Do not derive approval from an untrusted host's offer,
+replace the bundled/public index or publish private torrent metadata. Native
+default approval, signed-list and content-hash checks are unchanged. Spark's next
+integration is to present this reviewed-cache choice through its existing private
+launch configuration, not a new launcher or an automatic trust bypass.
+`build/native-delta-map-handoff-approved/result.json` verifies two real Delta
+accounts: client starts without the mission cache, receives the exact CE609 bytes
+and spawns in native co-op. The preceding unapproved attempt correctly refuses.
+Local Halo resource maps were supplied separately; complete Black Echo, other
+platforms and Internet transfer performance remain unverified.
+
 ## Companion check-in: current source and the missing connection
 
 Spark has implemented the first registration/discovery connection in existing

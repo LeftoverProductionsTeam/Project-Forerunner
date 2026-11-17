@@ -16,7 +16,33 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current authenticated aircraft continuation (unchanged engine `fe5fd79c86`):
+Current reviewed-cache distribution checkpoint (source base `0098e03c49`):
+the existing `map_torrents.py` make/hash/share commands accept one explicit .map
+file as well as folders. A creator can approve exactly a reviewed compiled cache
+in a private native index without copying it into another project or approving
+adjacent maps. Existing native trust, signed-index and payload checks remain;
+no new registry, protocol, launcher or trust bypass. 14 tool checks PASS in
+`build/map-explicit-approval-checks.log`, including real CLI index/torrent readback
+and exclusion of an unreviewed neighbouring cache.
+
+`build/native-delta-map-handoff-approved/result.json` PASSES: the client starts
+without `fn_sqnav.map`, downloads all 110,032,772 bytes through native map sharing,
+matches original SHA-256 `e71943d6...ae871c3` and spawns alongside the other verified
+Delta account. Native join takes 21.485 seconds including startup; this is not a
+throughput benchmark. 31 synchronized player seconds: zero position/aim error,
+sampled mismatches or persistent divergences. Earlier `native-delta-map-handoff`
+records the expected default refusal of a cache absent from the approved index;
+its join failed, and the safeguard was not removed. Public seeding/index refresh
+disabled only in the isolated private configuration; CE resources supplied locally.
+
+Existing `88b70c81...d229f` Windows binary reused without rebuilding. Original
+cache/account files unchanged; stopped runtime/map copies removed. Contract
+records the exact existing settings Spark can adopt after reviewed cache approval.
+This is private Windows co-op download/join acceptance, not the finished Black
+Echo mission, resource redistribution, Internet performance or platform parity.
+No hosted job, spending change, push or publication. Full goal remains active.
+
+Previous authenticated aircraft continuation (unchanged engine `fe5fd79c86`):
 `build/native-delta-squad-transport-redeployment/result.json` PASSES two verified
 accounts' separate native insertions, queued Pelican evacuations, independent
 durable banking, both crews' physical hub disembarkation and same-session native
