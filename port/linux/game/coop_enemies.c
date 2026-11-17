@@ -943,24 +943,25 @@ static void firefight_resupply_players(void)
 	while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 	{
 		struct unit_datum *unit;
+		struct game_modes_inventory inventory;
 		short slot;
 
 		if (player->quit_out_of_game)
 			continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
-		if (!unit || unit->unit.player_index != iterator.datum_index || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		/* Share the native inventory admission used by recovery: an owned
+		 * stowed weapon can have no model parent. This also rejects pending
+		 * deaths and stale/transferred slots before any ammunition changes. */
+		if (!unit || !game_modes_inventory_capture(iterator.datum_index, &inventory))
 			continue;
-		for (slot = 0; slot < NUMBEROF(unit->unit.weapon_object_indices); slot++)
+		for (slot = 0; slot < inventory.weapon_count; slot++)
 		{
-			struct weapon_datum *weapon = weapon_try_and_get(unit->unit.weapon_object_indices[slot]);
+			struct weapon_datum *weapon = weapon_try_and_get(unit->unit.weapon_object_indices[inventory.weapons[slot].slot]);
 			struct weapon_definition *definition;
 			short magazine;
 			boolean holds_rounds = FALSE;
 
-			/* A stale slot must not replenish an item transferred to another
-			   owner; the attachment flag alone does not identify that owner. */
-			if (!weapon || weapon->object.parent_object_index != player->unit_index ||
-				!TEST_FLAG(weapon->item.flags, _item_attached_to_unit_bit))
+			if (!weapon)
 				continue;
 			definition = weapon_definition_get(weapon->definition_index);
 			for (magazine = 0; magazine < MIN(definition->weapon.magazines.count, NUMBEROF(weapon->weapon.magazines)); magazine++)

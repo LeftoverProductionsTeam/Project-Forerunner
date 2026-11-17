@@ -26,7 +26,7 @@ typedef struct {real r,g,b;} real_rgb_color;
 #define csmemset memset
 #define TAG_BLOCK_GET_ELEMENT(block,index,type) (&((type *)(block)->address)[index])
 enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _object_mask_vehicle=8, _object_type_vehicle=1, _object_type_biped=0,
- _object_mask_unit=_object_mask_biped|_object_mask_vehicle,
+ _object_mask_unit=_object_mask_biped|_object_mask_vehicle, _object_type_weapon=2,
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
  _object_die_act_of_god_bit=1,
  _object_die_act_of_god_silent_bit=2, _object_die_act_of_god_no_statistics_bit=3,
@@ -176,7 +176,7 @@ static boolean config_boolean(char const *name)
 static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
 static char const *config_string(char const *name) { CHECK(!strcmp(name,"debug.network_test"),"unknown string setting"); return ""; }
 static boolean network_coop_active(void) { return TRUE; }
-static struct { boolean enabled, gear, victory; short phase,lives; long wave,wave_limit,deadline,wipe_deadline;char outcome[128];
+static struct { boolean enabled, gear, victory, resupply; short phase,lives; long wave,wave_limit,deadline,wipe_deadline;char outcome[128];
  long respawn_players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS]; } firefight;
 #include "survival.inc"
 static long game_time_get(void) { return tick; }
@@ -244,7 +244,7 @@ static long object_new(struct object_placement_data const *p)
  }
  if(fail_allocate && !--fail_allocate) return NONE;
  i=weapon_count++; CHECK(i<96,"world full"); weapons[i].handle=0x10020+i;
- weapons[i].datum.definition_index=p->definition_index; weapons[i].datum.object.parent_object_index=NONE;
+ weapons[i].datum.definition_index=p->definition_index; weapons[i].datum.object.parent_object_index=NONE;weapons[i].datum.object.type=_object_type_weapon;
  weapons[i].datum.object.position=p->position; return weapons[i].handle;
 }
 static void object_delete(long h)
@@ -385,7 +385,12 @@ static boolean network_coop_private_sound(long machine,long sound){CHECK(machine
 static void scripted_sound_new_private(long sound,boolean play){CHECK(sound==91,"wrong native radio definition");private_radio_calls++;private_radio_played+=play;}
 #include "notice_hud.inc"
 #include "extraction.inc"
-static struct object_datum *object_get(long index) {return (struct object_datum *)unit_get(index);}
+static struct object_datum *object_get(long index) {struct object_datum *o=object_try_and_get_and_verify_type(index,_object_mask_unit|_object_mask_weapon|_object_mask_control);CHECK(o,"invalid object");return o;}
+static struct unit_datum *unit_try_and_get(long index) {return object_try_and_get_and_verify_type(index,_object_mask_unit);}
+static void error(short priority,char const *text,...) {CHECK(FALSE,"native starting equipment failed");}
+static void mcc_player_profile_grenades(long unit,struct scenario_starting_profile *profile,boolean reset) {}
+#include "spawn_equipment_types.inc"
+#include "spawn_equipment.inc"
 #include "native_seat_animation_types.inc"
 #define TAG_STRING_LENGTH 32
 #define csstrncpy strncpy
@@ -445,6 +450,7 @@ static void custom_render_nav_point(short local,real_point3d const *p,short styl
 static short medical_markers(short local) {medical_draws=medical_traces=0;hud_render_medical_nav_points(local);CHECK(medical_draws==medical_traces,"marker did not use native line-of-sight/draw path");return medical_draws;}
 
 #include "survival_notices.inc"
+#include "resupply.inc"
 #include "evacuation.inc"
 static void advance(short count) { while(count--) { tick++; extraction_update();firefight_try_evacuation(tick); } }
 static void touch(short control,short player) { control_touched(control_handles[control],players[player].unit_index); }
@@ -519,6 +525,65 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strncmp(case_name,"resupply-profile-",17)) {
+  char const *kind=case_name+17;struct scenario_starting_profile *p=&faction_profiles[0];
+  boolean reset=strcmp(kind,"additive")!=0;
+  scenario.starting_profiles=(struct tag_block){2,faction_profiles};
+  p->primary_weapon.weapon.index=1;p->secondary_weapon.weapon.index=NONE;
+  firefight.enabled=TRUE;firefight.phase=2;
+  units[0].object.body_vitality=.75f;units[0].object.shield_vitality=.5f;
+  units[0].unit.grenade_counts[0]=2;units[0].unit.grenade_counts[1]=1;
+  p->grenade_counts[0]=1;p->grenade_counts[1]=2;pickup(0,2);
+  if(!strcmp(kind,"classic"))firefight.enabled=FALSE;
+  else if(!strcmp(kind,"explicit")){p->starting_health_modifier=.4f;p->starting_shield_modifier=.8f;}
+  else if(!strcmp(kind,"shield-only"))p->starting_shield_modifier=1.f;
+  else if(!strcmp(kind,"unshielded"))units[0].object.shield_vitality=0;
+  else if(!strcmp(kind,"incapacitated")){units[0].object.body_vitality=0;units[0].object.shield_vitality=0;}
+  else CHECK(!strcmp(kind,"native")||!strcmp(kind,"additive"),"unknown spawn profile case");
+  player_add_equipment(players[0].unit_index,0,reset);
+  real body=!strcmp(kind,"classic")||!strcmp(kind,"incapacitated")||!strcmp(kind,"shield-only")?0:!strcmp(kind,"explicit")?.4f:.75f;
+  real shield=!strcmp(kind,"classic")||!strcmp(kind,"incapacitated")||!strcmp(kind,"unshielded")?0:!strcmp(kind,"explicit")?.8f:!strcmp(kind,"shield-only")?1.f:.5f;
+  CHECK(units[0].object.body_vitality==body&&units[0].object.shield_vitality==shield,"equipment profile erased native vitality, healed a downed body or changed explicit/classic profile semantics");
+  CHECK(units[0].unit.grenade_counts[0]==(reset?1:3)&&units[0].unit.grenade_counts[1]==(reset?2:3),"profile reset changed native grenade grants");
+  CHECK(units[0].object.damage_flags==0,"profile reset changed death flags");
+  CHECK(weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==(reset?1:2),"profile changed native weapon replacement");
+  return 0;
+ }
+ if(!strncmp(case_name,"resupply-",9)) {
+  char const *kind=case_name+9;long weapon=pickup(0,1),second=NONE;
+  struct weapon_datum *w=weapon_get(weapon);boolean changed=TRUE;
+  short count=weapon_count;int notices=local_notices+remote_notices;
+  players[1].quit_out_of_game=TRUE;firefight.resupply=TRUE;
+  if(!strncmp(kind,"stowed",6))w->object.parent_object_index=NONE;
+  if(!strcmp(kind,"battery")||!strcmp(kind,"stowed-battery"))weapon_tag.weapon.magazines.count=0;
+  else if(!strcmp(kind,"two-owned")||!strcmp(kind,"mixed-stale")) {
+   second=pickup(0,2);count=weapon_count;weapon_get(second)->object.parent_object_index=NONE;
+   if(!strcmp(kind,"mixed-stale")){weapon_get(second)->object.owner_player_index=player_handles[1];changed=FALSE;}
+  } else if(!strcmp(kind,"transferred")){w->object.parent_object_index=unit_handles[1];changed=FALSE;}
+  else if(!strcmp(kind,"dropped")){w->object.parent_object_index=NONE;w->item.flags=0;changed=FALSE;}
+  else if(!strcmp(kind,"stowed-owner")){w->object.owner_player_index=player_handles[1];changed=FALSE;}
+  else if(!strcmp(kind,"stowed-ground")){w->object.flags|=FLAG(_object_connected_to_map_bit);changed=FALSE;}
+  else if(!strcmp(kind,"stowed-unmarked")){w->item.flags&=~FLAG(_item_attached_to_unit_bit);changed=FALSE;}
+  else if(!strcmp(kind,"stowed-nonplayer")){w->item.flags&=~FLAG(_item_belongs_to_player_bit);changed=FALSE;}
+  else if(!strcmp(kind,"quit")){players[0].quit_out_of_game=TRUE;changed=FALSE;}
+  else if(!strcmp(kind,"dead")){units[0].object.damage_flags=FLAG(_object_dead_bit);changed=FALSE;}
+  else if(!strcmp(kind,"pending")){units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);changed=FALSE;}
+  else if(!strcmp(kind,"pending-silent")){units[0].object.damage_flags=FLAG(_object_die_act_of_god_silent_bit);changed=FALSE;}
+  else if(!strcmp(kind,"pending-no-stats")){units[0].object.damage_flags=FLAG(_object_die_act_of_god_no_statistics_bit);changed=FALSE;}
+  else if(!strcmp(kind,"wrong-body")){units[0].unit.player_index=player_handles[1];changed=FALSE;}
+  else if(!strcmp(kind,"disabled")){firefight.resupply=FALSE;changed=FALSE;}
+  else if(!strcmp(kind,"objective")){weapons[0].flag=TRUE;changed=FALSE;}
+  else if(!strcmp(kind,"full")){w->weapon.magazines[0].rounds_total=200;changed=FALSE;}
+  else CHECK(!strcmp(kind,"owned")||!strcmp(kind,"stowed"),"unknown resupply case");
+  firefight_resupply_players();
+  CHECK(weapon_count==count&&!extraction_runs[0].gear.opened,"resupply spawned gear or opened a stash");
+  CHECK(w->weapon.magazines[0].rounds_loaded==7,"resupply changed loaded rounds");
+  CHECK(weapon_tag.weapon.magazines.count ? w->weapon.age==.25f : w->weapon.age==0.f,"resupply changed ballistic age or failed battery recharge");
+  CHECK(w->weapon.magazines[0].rounds_total==(!strcmp(kind,"full")||(changed&&weapon_tag.weapon.magazines.count)?200:63),"resupply changed refused gear or failed valid native reserve refill");
+  if(second!=NONE)CHECK(weapon_get(second)->weapon.magazines[0].rounds_total==(changed?200:63),"stowed secondary did not follow authoritative admission");
+  CHECK((local_notices+remote_notices>notices)==changed,"resupply notice did not match actual equipment change");
+  return 0;
+ }
  if(!strncmp(case_name,"ff-notice-",10)) {
   int host_before=local_notices,remote_before=remote_notices;char const *message="Firefight: wave cleared - recover and prepare.";
   firefight.wave=2;firefight.phase=2;

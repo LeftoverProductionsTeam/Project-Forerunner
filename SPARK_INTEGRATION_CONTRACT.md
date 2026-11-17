@@ -126,7 +126,7 @@ the ability to launch a process.
 | `game.start_map` / `HALO_START_MAP` | New unbuilt/untested source: one-shot desktop selection of an installed `basename@ce` solo cache through the normal campaign path and current difficulty. With no engine player profile, retains the validated request while the user creates one in native menus, then starts in the same process. Skips loading an older saved checkpoint; ordinary human input and native HaloScript remain. Not hosting, a live RPC or JSON import. |
 | `network.firefight_encounter` / `HALO_NET_FIREFIGHT_ENCOUNTER` | Opt-in host setting. Unverified menu source exposes OFF/ON under Server Setup → Co-op Options → Firefight. Leave OFF for authored wave controllers. New source also yields when compiled `gs_firefight`, `gs_ff_reset` or `gs_ff_bootstrap` is present; that prevents a second finite director without pausing general HaloScript. Recognition is not validation, generic controller discovery or native co-op acceptance. Historical B40 evidence predates this repair. |
 | `network.firefight_lives` / `HALO_NET_FIREFIGHT_LIVES` | Host source, 0–99, frozen at map start. Deaths spend available lives for player-bound respawns; failed native spawns retain grants and departed/reused player slots cannot transfer them. `coop_enemies.c::firefight_check_defeat` now holds progression for incapacitated bodies or pending paid respawns; exhausted actual deaths receive a fresh three-second defeat grace. Focused real-source ownership/last-life checks pass; native paid-respawn acceptance remains open. Two authenticated native clients verify the all-downed hold, recovery, victory, durable gear and lobby return; exact bounded evidence is in the current master checkpoint. A full world revert still restarts wave one, score and initial lives; not saved mid-wave continuation. |
-| `network.firefight_resupply` / `HALO_NET_FIREFIGHT_RESUPPLY` | New unverified host source, off by default and frozen at map start. Replenishes living players' carried weapon reserves/battery charge before waves two and three through existing inventory replication. Keeps native magazine/reload state and equipment. Finite director only; does not enable Spark's native HaloScript resupply option or import its JSON. |
+| `network.firefight_resupply` / `HALO_NET_FIREFIGHT_RESUPPLY` | Optional built-in-director host setting, off by default and frozen at map start. Uses native inventory admission for readied and owned stowed weapon reserves/battery charge before each continuing wave. Keeps native magazine/reload state and equipment; refuses stale ownership and pending deaths. Windows64 and focused checks pass; bounded native combat/refill evidence and remaining acceptance limits are in the current master checkpoint. Does not enable Spark's native HaloScript resupply option or import JSON. |
 | `network.firefight_actor`, `network.firefight_spawn_encounter` | New unverified host source: exact loaded actor-variant path and optional named native encounter's squad start in the current BSP. Retains faction/swarm attachment and final-death credit. Three waves of two initial bodies plus native carrier children, bounded to 32 tracked bodies per wave on a co-op scenario; not Spark's authored rules. |
 | Spark `FirefightConfig` schema `1` | Authoring/preview only. **Forerunner has no importer for this JSON.** |
 | `game.solo_skulls` / `HALO_SOLO_SKULLS` | New unverified, empty-by-default source reuses the existing 17 implemented skull hooks for local native solo content, including CE. Applied at map start/restart; cleared on disposal. Unsupported names warn and are skipped. No automatic mapping from Spark rules, network support, scoring multiplier or new discovery operation. MCC retains its separate existing setting. |
@@ -1009,7 +1009,16 @@ Firefight director over authored encounters.
 
 ## Current code-reuse and ownership checkpoint
 
-Shared-equipment follow-up on `c6f9255c2`: native optional Firefight resupply
+Current resupply ownership supersedes the historical parent-only rule below:
+`coop_enemies.c::firefight_resupply_players` uses `game_modes_inventory_capture`,
+including native unparented stowed items. During the built-in director only,
+`players.c::player_add_equipment` treats a reset profile with both vitality
+modifiers zero as equipment-only, preserving the biped's native vitality.
+Classic and explicit-vitality profiles retain their old semantics; authored
+HaloScript waves still own their rules and must not enable a second director.
+No tag schema, authoring operation, gear record or packet changed.
+
+Historical shared-equipment follow-up on `c6f9255c2`: native optional Firefight resupply
 (`coop_enemies.c::firefight_resupply_players`) now requires actual weapon-parent
 ownership, matching `game_modes.c::game_modes_inventory_capture` rather than
 trusting a stale slot and generic attachment flag. Six focused checks, Windows

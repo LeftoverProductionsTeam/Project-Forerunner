@@ -16,7 +16,40 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current unarmed aircraft-exit repair (source base `6c136ccbf5`): native
+Current built-in Firefight equipment/life repair (source base `3446ed13a6`):
+`coop_enemies.c::firefight_resupply_players` reuses `game_modes_inventory_capture`
+for its eligible slots instead of requiring a model parent. Both readied and
+properly owned stowed weapons replenish; stale/transferred/dropped/objective gear
+and pending deaths refuse admission. No second ownership implementation or grant.
+`players.c::player_add_equipment` preserves native vitality for zero-health/zero-
+shield equipment-only profiles while this director is active. Those kits previously
+erased fresh respawn health. Explicit vitality profiles, ordinary campaign resets,
+native weapon/grenade replacement and death flags keep their existing behavior.
+The resupply tests now share the actual inventory world; the orphaned parent-only
+fixture was removed after caller review. Windows64 compiles; the final related
+inventory/faction/profile run passes 126 cases, including the resupply/respawn
+checks (`build/firefight-life-regression-checks.log`).
+
+`build/native-firefight-life-resupply/result.json` separately verifies two real
+accounts' first-wave weapon combat and the surviving client's readied rifle
+240→637 / stowed pistol 72→132 refill. A real host death spends one life; the fresh
+body at tick 540 has health/shield 1/1, versus 0 health before this repair. Salted
+body handles differ; this is a new native spawn, not a cleared dead flag. Player
+comparison: 37 seconds / 67 living observations, zero mismatches; 41 item snapshots
+match. Original identities/cache unchanged; owned runtime/map staging removed.
+The overall probe remains UNACCEPTED: the optional sequential forced-respawn
+command omitted the required unit cast and was correctly refused. Earlier probes
+record native enemy-erasure abort, conflicting idle input, and loss of an original
+secondary after actual death. They are not full two-loadout or full-match passes.
+No more native reruns after these observations. Binary SHA256:
+`fcf135cb8d972f66bbb1bbb66199aaf7b40f7bf2d1eb60e55879f1344aa5dd19`;
+reused CE609 `bc2b80b52d519e166c318bd1d8c24a585c1b94a7965222a3fb10524ddc2b5f25`.
+Full match/human/platform acceptance, aircraft redeployment and the expanded Spark
+mission stay open. Native Linux execution is unavailable here (no installed WSL
+distribution); no replacement environment or toolchain was installed. No hosted
+jobs, pushes, Spark edits or new subsystem.
+
+Previous unarmed aircraft-exit repair (source base `6c136ccbf5`): native
 `units.c::unit_adjust_for_seat_change` now mirrors seat entry's existing
 missing-unarmed animation fallback for living, detached, unarmed players.
 Stock Grunts have passenger poses but no named unarmed ground weapon type;

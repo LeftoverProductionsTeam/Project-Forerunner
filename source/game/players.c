@@ -4965,8 +4965,17 @@ void player_add_equipment(
 			if (reset_equipment)
 			{
 				unit_delete_all_weapons(unit_index);
-				unit->object.shield_vitality = 0.f;
-				unit->object.body_vitality = 0.f;
+				/* port: optional Firefight can reuse a map's equipment-only
+				 * respawn kit. Zero modifiers must not wipe this biped's
+				 * native vitality; explicit vitality profiles and classic
+				 * campaign resets retain the original behavior. */
+				if (!coop_enemies_firefight_active() ||
+					starting_profile->starting_health_modifier != 0.f ||
+					starting_profile->starting_shield_modifier != 0.f)
+				{
+					unit->object.shield_vitality = 0.f;
+					unit->object.body_vitality = 0.f;
+				}
 				*(short *)unit->unit.grenade_counts = 0;
 			}
 

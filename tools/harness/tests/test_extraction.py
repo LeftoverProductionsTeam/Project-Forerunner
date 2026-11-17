@@ -24,6 +24,10 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('native_teams.inc', enum_with(read('source/game/game.h'), 'NUMBER_OF_SOLO_CAMPAIGN_TEAMS,')))
     files.append(('profile_types.inc', structure(read('source/scenario/scenario_definitions.h'), 'scenario_starting_profile_weapon') +
                   '\n' + structure(read('source/scenario/scenario_definitions.h'), 'scenario_starting_profile')))
+    files.append(('spawn_equipment.inc', '\n'.join(function(read('source/game/players.c'), name)
+                  for name in ('create_weapon', 'player_add_equipment'))))
+    files.append(('spawn_equipment_types.inc', enum_with(read('source/units/units.h'), 'NUMBER_OF_UNIT_GRENADE_TYPES') +
+                  '\n' + enum_with(read('source/cseries/errors.h'), '_error_silent')))
     files.append(('body_types.inc', enum_with(read('source/game/players.h'), 'NUMBER_OF_PLAYER_POWERUPS') + '\n' +
                   enum_with(read('source/game/players.h'), '_player_action_result_reload') + '\n' +
                   enum_with(read('source/units/units.h'), '_unit_active_camouflaged_bit') + '\n' +
@@ -48,6 +52,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
         'firefight_respawn_reserved', 'coop_enemies_firefight_can_spawn', 'coop_enemies_firefight_out_of_lives',
         'coop_enemies_firefight_player_died', 'coop_enemies_firefight_player_spawned', 'firefight_check_defeat'))))
     files.append(('survival_notices.inc', function(director, 'firefight_notice') + '\n' + function(director, 'firefight_equipment_reports')))
+    files.append(('resupply.inc', function(director, 'firefight_resupply_players')))
     extraction = re.sub(r'^#include.*\n', '',
         read('port/linux/game/extraction.h') + '\n' + read('port/linux/game/extraction.c'), flags=re.M)
     if medical_fault:

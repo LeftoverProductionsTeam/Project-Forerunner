@@ -1,33 +1,47 @@
-"""Firefight reserve/battery refill must respect native weapon parent ownership."""
-import sys
-from pathlib import Path
-
+"""Native wave resupply uses the same actual ownership code as recovery."""
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run
+from harness import CHECK_FAILED, build, mutated, run
+from harness.tests.test_extraction import generated
 
 
-def generated(fault=None):
-    types = '\n'.join([
-        enum_with(read('source/units/units.h'), 'MAXIMUM_WEAPONS_PER_UNIT ='),
-        enum_with(read('source/objects/objects.h'), '_object_dead_bit'),
-        enum_with(read('source/objects/object_types.h'), '_object_mask_unit'),
-        enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit'),
-    ])
-    code = function(read('port/linux/game/coop_enemies.c'), 'firefight_resupply_players')
-    if fault:
-        code = mutated(code, *fault)
-    return (('types.inc', types), ('under_test.inc', code))
-
-
-@pytest.mark.parametrize('case', ['owned', 'transferred', 'dropped', 'battery', 'ineligible'])
+@pytest.mark.parametrize('case', [
+    'owned', 'stowed', 'two-owned', 'battery', 'stowed-battery', 'transferred',
+    'dropped', 'stowed-owner', 'stowed-ground', 'stowed-unmarked',
+    'stowed-nonplayer', 'mixed-stale', 'quit', 'dead', 'pending',
+    'pending-silent', 'pending-no-stats', 'wrong-body', 'disabled', 'objective', 'full',
+])
 def test_resupply(case):
-    status, output = run(build('firefight_resupply', generated()), case)
+    status, output = run(build('extraction', generated()), 'resupply-' + case)
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['native', 'classic', 'explicit', 'shield-only',
+                                   'unshielded', 'incapacitated', 'additive'])
+def test_equipment_only_respawn(case):
+    status, output = run(build('extraction', generated()), 'resupply-profile-' + case)
+    assert status == 0, output
+
+
+def test_equipment_only_respawn_negative_control():
+    files = tuple((name, mutated(text, '!coop_enemies_firefight_active() ||', 'TRUE ||'))
+                  if name == 'spawn_equipment.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'resupply-profile-native')
+    assert status == CHECK_FAILED, output
+
+
+def test_stowed_negative_control():
+    files = tuple((name, mutated(text, 'if (!weapon)',
+                  'if (!weapon || weapon->object.parent_object_index != player->unit_index)'))
+                  if name == 'resupply.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'resupply-stowed')
+    assert status == CHECK_FAILED, output
+
+
 def test_ownership_negative_control():
-    status, output = run(build('firefight_resupply', generated((
-        'weapon->object.parent_object_index != player->unit_index ||', ''))), 'transferred')
+    files = tuple((name, mutated(text,
+                  '!game_modes_inventory_capture(iterator.datum_index, &inventory)',
+                  '(inventory.weapon_count = 1, inventory.weapons[0].slot = 0, FALSE)'))
+                  if name == 'resupply.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'resupply-transferred')
     assert status == CHECK_FAILED, output
