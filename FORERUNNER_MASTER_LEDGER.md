@@ -16,7 +16,42 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current co-op guidance checkpoint (source base `cdd004abbf`): native object
+Current campaign/co-op checkpoint repair (source base `389a685037`): successful
+native saves now snapshot the existing guidance replay cache alongside the live
+checkpoint metadata. A normal host revert restores that snapshot, resets replay
+cursors and drops bindings to viewers/objects removed by current-roster repair.
+Failed saves cannot replace it; a new map clears it. Both inherited checkpoint
+layouts reuse one local marker-clear routine before restored host replay. No new
+save layout, packet, protocol, quest system or inventory exception was added.
+
+Both original defects reproduce in the existing guidance fixture. The affected
+guidance/save/wipe checks PASS 53 cases; the existing queued-recovery check also
+PASSES with its explicit client-clear observation. Its first compile attempts
+lacked the installed MSVC include/link paths; the existing installation was
+used, with no new toolchain. Windows64 incremental compile/link PASS:
+`build/nav-checkpoint-paths-build.log`; focused logs share the checkpoint prefix.
+
+`build/native-delta-nav-checkpoint-fixed/result.json` PASSES two authenticated
+Windows/OpenGL clients: normal `game_save` writes a 20,971,520B native checkpoint,
+the client changes from the saved flag to an object marker, and normal
+`game_revert` restores only the saved flag. Both final PNGs are inspected.
+Native revert is 175 ticks with clock held at 418; 15 player seconds and 19 item
+snapshots PASS, zero position/aim difference or out-of-step items. Exact binary
+`77781f69...d5e4a65d`, unchanged owned CE609 `e71943d6...ae871c3`.
+The first native attempt (`native-delta-nav-checkpoint`) FAILS visual acceptance:
+the flag returned but the later object marker remained. It exposed the second
+inherited recovery entry point; its trace/PNGs and original driver claim remain.
+The corrected check uses their shared clearing routine, not a packet workaround.
+
+Original identities/maps unchanged; owned runtimes/maps/checkpoints and BMP
+scratch cleaned, six lossless PNGs retained per attempt. No gear transaction;
+saved-world banking stays suspended under the existing anti-duplication policy.
+This is in-process native checkpoint guidance, not disk-resume, complete campaign,
+full Spark Black Echo, human or other-platform acceptance. Read-only Spark
+`01d108b` still lists unfinished NPC crew/seat/native compiled-mission handoff;
+no new complete Black Echo aircraft candidate was accepted. No hosted jobs/push.
+
+Previous co-op guidance checkpoint (source base `cdd004abbf`): native object
 deletion now retires retained nav bindings for the exact viewer/target handle.
 Flags and a reused slot's new salted handle survive. Cache compaction preserves
 the existing eight-events-per-tick fair replay, so a moved tail is not skipped.

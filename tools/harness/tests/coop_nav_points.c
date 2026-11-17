@@ -7,6 +7,10 @@
 #define _object_mask_unit 2
 #define csmemset memset
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
+#define HALO_PORT_MAXIMUM_NETWORK_MACHINES 2
+#define MAXIMUM_TRACKED_PLAYERS HALO_PORT_MAXIMUM_NETWORK_PLAYERS
+#define MAXIMUM_LOCAL_PLAYERS 4
+#define _error_silent 0
 #include "types.inc"
 struct tag_block {long count;void *address;};
 struct player_datum {short local_player_index;long team_index,unit_index;boolean quit_out_of_game;};
@@ -18,9 +22,10 @@ static struct object_datum {long definition_index;struct {short name_index;} obj
 static boolean stale,deleted;
 static int role=1,sent;
 static struct scenario {struct tag_block cutscene_flags;} scenario_state;
-static struct {short objective,nav_point_count,nav_refresh_next,nav_refresh_remaining;struct {short kind,nav_index;long target,marker;real vertical_offset;} nav_points[MAXIMUM_NAV_POINTS];} host_hud_state;
+static struct {short objective,nav_point_count,nav_refresh_next,nav_refresh_remaining;struct {short kind,nav_index;long target,marker;real vertical_offset;} nav_points[MAXIMUM_NAV_POINTS];} host_hud_state,checkpoint_hud_state;
+static struct coop_checkpoint_players checkpoint_players;
 static struct {boolean refresh,joined;} host_resend;
-enum {_coop_event_hud,_coop_event_nav_point};
+enum {_coop_event_hud,_coop_event_nav_point,_coop_event_reverted};
 enum {_coop_hud_objective};
 struct distributed_coop_event {byte type;short value;long target,object_index;real reals[1];short name_index;long definition_index;};
 static struct distributed_coop_event events[MAXIMUM_QUEUED_EVENTS];
@@ -54,7 +59,26 @@ static void object_iterator_new(struct object_iterator *it,unsigned long mask,in
 static struct object_datum *object_iterator_next(struct object_iterator *it){return NULL;}
 static long player_index_from_unit_index(long unit)
 {int i;for(i=0;i<3;i++)if(unit==players[i].unit_index)return player_handles[i];return NONE;}
-static void error(int level,char const *text){(void)level;CHECK(FALSE,"unexpected native HUD error: %s",text);}
+static void error(int level,char const *text,...){(void)level;CHECK(!strncmp(text,"co-op: reverted",15),"unexpected native HUD error: %s",text);}
+static long machine_players[HALO_PORT_MAXIMUM_NETWORK_MACHINES][MAXIMUM_LOCAL_PLAYERS];
+static long *machine_get_player_list(short machine){return machine_players[machine];}
+static int coop_events,client_devices,client_names_differing[1],host_player_structure_bsps[1];
+static struct {int offered,voters;} skip_vote;
+static void skip_vote_clear(void){}
+static void client_stop_script_sounds(void){}
+static void client_cinematic_end(void){}
+static void client_host_camera_set(boolean enabled){CHECK(!enabled,"recovery enabled the discarded camera");}
+enum {_game_connection_network_client=1,_game_connection_network_server};
+static short game_connection(void){return role==2?_game_connection_network_client:_game_connection_network_server;}
+static long clock_time=1000;
+static long game_time_get(void){return clock_time;}
+static void game_time_set_distributed(long now){clock_time=now;}
+static void update_queues_reset_and_fill_with_lies(void){}
+static void game_state_port_restamp_revert_time(void){}
+static void hs_runtime_port_shift_sleep_times(long ticks){}
+static void network_distributed_checkpoint_boundary(void){}
+static void coop_enemies_reset(void){}
+static void network_distributed_reverted(void){}
 static void network_coop_note_nav_point(short kind,short nav,long target,long marker,real offset);
 #include "under_test.inc"
 typedef void (*object_deleted_proc)(long);
@@ -69,6 +93,39 @@ int main(int argc,char **argv)
 {
  char const *name=argc>1?argv[1]:"host";struct hud_nav_point_player_datum other;int i;
  memset(views,NONE,sizeof(views));scenario_state.cutscene_flags.count=3;hud_definition.waypoint.arrows.count=2;host_hud_state.objective=NONE;
+ if(!strncmp(name,"checkpoint-",11)){
+  if(!strcmp(name+11,"client")||!strcmp(name+11,"modern-client")){
+   role=2;
+   hud_unit_activate_nav_point_with_flag(0,players[0].unit_index,1,1.f);
+   hud_unit_activate_nav_point_with_object(0,players[1].unit_index,0x9001,1.f);
+   if(!strcmp(name+11,"modern-client"))network_coop_reset_recovery();else network_coop_checkpoint_reset();
+   CHECK(!host_hud_state.nav_point_count&&!contains(0,1)&&!contains(1,0x9001),"checkpoint epoch retained discarded client guidance");
+   hud_unit_activate_nav_point_with_flag(0,players[1].unit_index,2,1.f);
+   CHECK(host_hud_state.nav_point_count==1&&contains(1,2)&&!contains(1,0x9001),"restored host guidance did not replace discarded markers");
+  }else if(!strcmp(name+11,"roster")){
+   network_coop_note_nav_point(_coop_nav_point_unit_flag,0,players[1].unit_index,1,1.f);
+   network_coop_note_nav_point(_coop_nav_point_team_flag,0,3,2,1.f);
+   network_coop_checkpoint_saved();
+   players[1].unit_index+=0x10000;network_coop_reverted(clock_time);
+   CHECK(host_hud_state.nav_point_count==1&&host_hud_state.nav_points[0].kind==_coop_nav_point_team_flag,
+         "restoration resurrected a departed viewer's binding or discarded a valid team flag");
+  }else{
+   host_hud_state.objective=1;
+   network_coop_note_nav_point(_coop_nav_point_unit_flag,0,players[1].unit_index,1,1.f);
+   network_coop_checkpoint_saved();
+   host_hud_state.objective=2;
+   network_coop_note_nav_point(_coop_nav_point_unit_flag,NONE,players[1].unit_index,1,0);
+   network_coop_note_nav_point(_coop_nav_point_unit_object,0,players[1].unit_index,0x9001,1.f);
+   host_hud_state.nav_refresh_next=host_hud_state.nav_refresh_remaining=1;
+   network_coop_reverted(clock_time);
+   CHECK(host_hud_state.objective==1&&host_hud_state.nav_point_count==1&&host_hud_state.nav_points[0].marker==1,
+         "revert replayed the discarded timeline instead of checkpoint guidance");
+   CHECK(!host_hud_state.nav_refresh_next&&!host_hud_state.nav_refresh_remaining,"revert retained a discarded replay cursor");
+   role=2;host_hud_state.objective=3;network_coop_checkpoint_saved();role=1;network_coop_reverted(clock_time);
+   CHECK(host_hud_state.objective==1,"a client overwrote the host checkpoint guidance");
+  }
+  return 0;
+ }
  if(!strncmp(name,"ordering-",9)){
   struct distributed_coop_event event={_coop_nav_point_team_object,0,3,0x9001,{1.f},NONE,NONE};
   role=2;

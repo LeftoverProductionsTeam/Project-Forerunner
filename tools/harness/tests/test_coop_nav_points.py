@@ -19,7 +19,9 @@ def generated(fault=None):
         'hud_unit_deactivate_nav_point_with_flag', 'hud_unit_deactivate_nav_point_with_object'))
     code += '\n' + '\n'.join(function(port, name) for name in (
         'send_nav_point', 'coop_remove_nav_point', 'network_coop_nav_point_object_deleted',
-        'network_coop_note_nav_point', 'coop_refresh_nav_points', 'host_send_hud_state', 'object_find', 'client_apply_nav_point'))
+        'network_coop_note_nav_point', 'coop_refresh_nav_points', 'host_send_hud_state', 'object_find', 'client_apply_nav_point',
+        'network_coop_checkpoint_saved', 'client_clear_nav_points', 'network_coop_checkpoint_reset',
+        'network_coop_reset_recovery', 'network_coop_reverted'))
     if fault == 'client':
         code = mutated(code, 'if (!coop_host() && !coop_client())', 'if (!coop_host())')
     elif fault == 'clear':
@@ -60,7 +62,8 @@ def generated(fault=None):
          enum_with(read('source/game/game.h'), 'NUMBER_OF_SOLO_CAMPAIGN_TEAMS,') + '\n' + cache + '\n' +
          enum_with(native, '_hud_nav_point_type_flag') + '\n' +
          enum_with(read('port/linux/game/network_coop.h'), '_coop_nav_point_team_flag') + '\n' +
-         structure(native, 'hud_nav_point_datum') + '\n' + structure(native, 'hud_nav_point_player_datum')),
+         structure(native, 'hud_nav_point_datum') + '\n' + structure(native, 'hud_nav_point_player_datum') + '\n' +
+         structure(port, 'coop_checkpoint_players')),
         ('under_test.inc', code),
         ('deleted.inc', '\n'.join(line for line in read('source/objects/object_deleted_procs.c').splitlines()
                                   if not line.startswith('#include'))),
@@ -109,3 +112,9 @@ def test_replica_marker_ordering(case):
 def test_replica_marker_ordering_negative(fault, case):
     status, output = run(build('coop_nav_points', generated(fault)), 'ordering-' + case)
     assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('case', ['host', 'client', 'modern-client', 'roster'])
+def test_checkpoint_guidance(case):
+    status, output = run(build('coop_nav_points', generated()), 'checkpoint-' + case)
+    assert status == 0, output

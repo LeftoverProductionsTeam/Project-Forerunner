@@ -448,11 +448,12 @@ static struct {int voted,votes,client_heard_times[4],client_vote_times[4],cooldo
 /* Authoritative metadata and comparison baselines are not disposable queues. */
 static int checkpoint_players=17,players_vitality=18,host_devices=19;
 static int host_sent_transforms=20,host_sent_looks=21,host_sent_devices=22,host_hud_state=23;
-static int client,stops,cinematics,cameras;
+static int client,stops,cinematics,cameras,nav_clears;
 static int coop_client(void){return client;}
 static void client_stop_script_sounds(void){stops++;}
 static void client_cinematic_end(void){assert(coop_presentation.cinematic_started);cinematics++;}
 static void client_host_camera_set(int enabled){assert(!enabled && coop_presentation.host_camera);cameras++;}
+static void client_clear_nav_points(void){nav_clears++;}
 ''' + actual + r'''
 int main(void){
  int phase,i;
@@ -470,7 +471,7 @@ int main(void){
    skip_vote.client_heard_times[i]==NONE && skip_vote.client_vote_times[i]==NONE);
   assert(checkpoint_players==17 && players_vitality==18 && host_devices==19 && host_sent_transforms==20 &&
    host_sent_looks==21 && host_sent_devices==22 && host_hud_state==23);
-  assert(stops==phase && cinematics==phase && cameras==phase);
+  assert(stops==phase && cinematics==phase && cameras==phase && nav_clears==phase);
  }
  return 0;
 }

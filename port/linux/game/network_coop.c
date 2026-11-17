@@ -1344,7 +1344,7 @@ static struct
 		long marker;
 		real vertical_offset;
 	} nav_points[MAXIMUM_NAV_POINTS];
-} host_hud_state;
+} host_hud_state, checkpoint_hud_state;
 
 /* host: the looping sounds the scripts have started (music, ambience).
 They are resent every OBJECT_REFRESH_TICKS so a late joiner hears them.
@@ -2301,6 +2301,7 @@ void network_coop_new_game(
 	host_hud_state.objective = NONE;
 	host_hud_state.nav_point_count = 0;
 	host_hud_state.nav_refresh_next = host_hud_state.nav_refresh_remaining = 0;
+	checkpoint_hud_state = host_hud_state;
 	skip_vote_clear();
 	skip_vote.offered = FALSE;
 	skip_vote.voters = 0;
@@ -2325,6 +2326,9 @@ void network_coop_checkpoint_saved(
 	checkpoint_players.count = 0;
 	if (!coop_host())
 		return;
+	/* This callback follows a successful native checkpoint write. The replay
+	 * cache is outside that image, just like live session membership. */
+	checkpoint_hud_state = host_hud_state;
 	csmemset(checkpoint_players.players, NONE, sizeof(checkpoint_players.players));
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
@@ -2419,6 +2423,17 @@ boolean network_coop_wipe_reverts(
 	return TRUE;
 }
 
+/* Both inherited checkpoint layouts discard the same local guidance. */
+static void client_clear_nav_points(void)
+{
+	short local;
+	for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
+		hud_clear_player_nav_points(local_player_get_player_index(local));
+	host_hud_state.objective = NONE;
+	host_hud_state.nav_point_count = 0;
+	host_hud_state.nav_refresh_next = host_hud_state.nav_refresh_remaining = 0;
+}
+
 /* (a client of a layout with a checkpoint epoch: network_distributed.c) the
 host's newer epoch: its script sounds stopped, its cinematic ended (and the
 host's camera with it), and the presentation, events, devices, names,
@@ -2430,6 +2445,9 @@ void network_coop_checkpoint_reset(
 		return;
 	client_stop_script_sounds();
 	client_cinematic_end();
+	/* A client does not load the host's saved HUD image. Discard markers from
+	 * the abandoned timeline before the restored host bindings are replayed. */
+	client_clear_nav_points();
 	csmemset(&coop_presentation, 0, sizeof(coop_presentation));
 	csmemset(&coop_events, 0, sizeof(coop_events));
 	csmemset(&client_devices, 0, sizeof(client_devices));
@@ -3505,6 +3523,7 @@ void network_coop_reset_recovery(void)
 		client_stop_script_sounds();
 		client_cinematic_end();
 		client_host_camera_set(FALSE);
+		client_clear_nav_points();
 	}
 	csmemset(&coop_presentation, 0, sizeof(coop_presentation));
 	csmemset(&coop_events, 0, sizeof(coop_events));
@@ -3528,6 +3547,7 @@ void network_coop_reverted(
 	long now)
 {
 	long ticks;
+	short index;
 
 	if (!coop_host())
 		return;
@@ -3545,6 +3565,23 @@ void network_coop_reverted(
 	/* (the dropships' riders kept are of the game state reverted from) */
 	coop_enemies_reset();
 	network_distributed_reverted();
+	/* Restore only the last successfully saved guidance, not the discarded
+	 * timeline or its partially completed replay. New-game defaults are empty. */
+	host_hud_state = checkpoint_hud_state;
+	host_hud_state.nav_refresh_next = host_hud_state.nav_refresh_remaining = 0;
+	/* Current roster repair may already have deleted a saved viewer/body.
+	 * All restored host objects exist now; do not resurrect those bindings. */
+	for (index = 0; index < host_hud_state.nav_point_count; )
+	{
+		short kind = host_hud_state.nav_points[index].kind;
+		boolean unit = kind == _coop_nav_point_unit_flag || kind == _coop_nav_point_unit_object;
+		boolean object = kind == _coop_nav_point_team_object || kind == _coop_nav_point_unit_object;
+		if ((unit && !object_try_and_get_and_verify_type(host_hud_state.nav_points[index].target, _object_mask_unit)) ||
+			(object && !object_try_and_get_and_verify_type(host_hud_state.nav_points[index].marker, _object_mask_all)))
+			coop_remove_nav_point(index);
+		else
+			index++;
+	}
 	error(_error_silent, "co-op: reverted %ld ticks, clock kept at %ld", ticks, now);
 	event_new(_coop_event_reverted);
 }

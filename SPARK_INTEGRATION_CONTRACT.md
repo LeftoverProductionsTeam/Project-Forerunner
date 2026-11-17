@@ -544,6 +544,14 @@ native replacement/remote-marker evidence is
 and its explicitly retained pre-ready item-comparison failure are in
 `build/native-delta-nav-lifetime/result.json`. Native same-tick ordering, full
 mission composition and other-platform acceptance are not claimed.
+Normal in-process campaign checkpoints now retain the last successfully saved
+guidance in existing runtime checkpoint metadata. `network_coop_reverted` restores
+it after roster repair; both inherited checkpoint hooks use
+`client_clear_nav_points` before replay. Failed saves/new maps do not inherit a
+discarded timeline. Native two-account save/change/revert evidence is
+`build/native-delta-nav-checkpoint-fixed/result.json`. No save/packet format or
+authoring interface changes. This does not make saved-world gear bankable;
+Extraction's existing suspension after world restoration remains mandatory.
 Windows64 compiles; the existing marker harness covers 24 independent unit
 bindings and bounded full-cache replay under congestion. Two authenticated native
 clients show separate objective-stage markers in
