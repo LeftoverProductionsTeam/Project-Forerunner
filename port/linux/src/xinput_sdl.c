@@ -1973,7 +1973,7 @@ static void test_virtual_pads_update(void)
 	const char *action = "";
 	size_t action_length = 0;
 	int pad = 0, index;
-	SDL_GamepadButton pressed = SDL_GAMEPAD_BUTTON_INVALID;
+	BOOL pressed[SDL_GAMEPAD_BUTTON_COUNT] = { 0 };
 	int stick = -1;
 
 	test_virtual_pads_attach();
@@ -1986,10 +1986,24 @@ static void test_virtual_pads_update(void)
 		pad = token[3] - '0';
 		action = token + 5;
 		action_length = length - 5;
-		for (index = 0; index < (int)(sizeof(buttons) / sizeof(buttons[0])); index++)
+		/* Native combinations, such as Flashlight + Use, share this existing
+		 * virtual pad. A malformed combination presses no buttons. */
 		{
-			if (strlen(buttons[index].name) == action_length && !strncmp(action, buttons[index].name, action_length))
-				pressed = buttons[index].button;
+			size_t offset = 0;
+			do
+			{
+				size_t part = 0;
+				BOOL found = FALSE;
+				while (offset + part < action_length && action[offset + part] != '+') part++;
+				for (index = 0; index < (int)(sizeof(buttons) / sizeof(buttons[0])); index++)
+					if (strlen(buttons[index].name) == part && !strncmp(action + offset, buttons[index].name, part))
+					{
+						pressed[buttons[index].button] = TRUE;
+						found = TRUE;
+					}
+				if (!found) { memset(pressed, 0, sizeof(pressed)); break; }
+				offset += part + 1;
+			} while (offset <= action_length);
 		}
 		for (index = 0; index < (int)(sizeof(sticks) / sizeof(sticks[0])); index++)
 		{
@@ -2015,7 +2029,7 @@ static void test_virtual_pads_update(void)
 		for (button = 0; button < SDL_GAMEPAD_BUTTON_COUNT; button++)
 		{
 			SDL_SetJoystickVirtualButton(joystick, button,
-				index + 1 == pad && button == (int)pressed);
+				index + 1 == pad && pressed[button]);
 		}
 		for (button = 0; button < SDL_GAMEPAD_AXIS_COUNT; button++)
 		{

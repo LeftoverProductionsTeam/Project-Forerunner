@@ -961,8 +961,8 @@ static void extraction_loadout_notice(struct extraction_run *run)
 		loadout.weapon_count > 1 ? extraction_item_name(loadout.weapons[1].tag_path) : "-",
 		(int)loadout.grenades[0], (int)loadout.grenades[1]);
 	extraction_tell(run, text);
-	extraction_tell(run, "Use: pair; Reload-use: secondary; crouch-use: discard.");
-	extraction_tell(run, "Deploy: Use saved gear; Reload-use keeps stash safe.");
+	extraction_tell(run, "Use: pair; Reload/Light-use: second; crouch-use: discard.");
+	extraction_tell(run, "Deploy: Reload/Light-use keeps stash safe.");
 }
 
 static boolean extraction_squad_busy(short squad, struct extraction_run const *except)
@@ -1343,7 +1343,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				return TRUE;
 			}
 			if (run->loadout_seen && !gear_cycle_loadout(&run->gear,
-				update_client_reload_held(unit->unit.player_index) ? 1 : 0))
+				update_client_loadout_modifier_held(unit->unit.player_index) ? 1 : 0))
 			{
 				extraction_block(run, "LOADOUT CHOICE PENDING | Retry this terminal to confirm the saved choice before deploying.");
 				return TRUE;
@@ -1358,7 +1358,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		/* Let the native control transition notify HaloScript only after the
 		 * host has granted the reserved loadout successfully. */
-		return !extraction_deploy(run, player, !update_client_reload_held(unit->unit.player_index));
+		return !extraction_deploy(run, player, !update_client_loadout_modifier_held(unit->unit.player_index));
 	}
 	if (control->object.name_index == extraction.activate_name && !extraction_squad_objectives_ready(run))
 	{

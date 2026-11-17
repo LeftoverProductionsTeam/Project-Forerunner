@@ -12,7 +12,7 @@ from harness.tests.test_gear import generated as gear_generated
 
 def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
-    files.append(('reload_queue.inc', function(read('source/game/player_queues_new.c'), 'update_client_reload_held')))
+    files.append(('reload_queue.inc', function(read('source/game/player_queues_new.c'), 'update_client_loadout_modifier_held')))
     inventory = read('port/linux/game/game_modes.c')
     names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'stage', 'weapon_for_unit', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
@@ -146,7 +146,7 @@ def test_native_squad_workflow(case):
 
 def test_secondary_current_input_negative_control():
     files = tuple((name, mutated(text,
-        'update_client_reload_held(unit->unit.player_index) ? 1 : 0',
+        'update_client_loadout_modifier_held(unit->unit.player_index) ? 1 : 0',
         'TEST_FLAG(unit->unit.control_flags, _unit_control_weapon_reload_bit) ? 1 : 0'))
                   if name == 'extraction.inc' else (name, text) for name, text in generated())
     status, output = run(build('extraction', files), 'loadout-secondary')
@@ -165,9 +165,28 @@ def test_starter_faction_kit(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', [
+    'loadout-secondary', 'loadout-secondary-pending', 'loadout-secondary-release', 'loadout-secondary-unavailable',
+    'starter-run-bank', 'starter-run-loss', 'starter-run-disconnect', 'starter-run-pending',
+    'starter-kit-unsc', 'starter-kit-covenant', 'starter-kit-refund',
+])
+def test_controller_loadout_modifier(case):
+    status, output = run(build('extraction', generated()), 'light:' + case)
+    assert status == 0, output
+
+
+def test_controller_loadout_negative_control():
+    files = tuple((name, mutated(text,
+        'FLAG(_unit_control_weapon_reload_bit) | FLAG(_unit_control_integrated_light_bit)',
+        'FLAG(_unit_control_weapon_reload_bit)')) if name == 'reload_queue.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), 'light:loadout-secondary')
+    assert status == CHECK_FAILED, output
+
+
 def test_starter_deployment_negative_control():
     files = tuple((name, mutated(text,
-        '!update_client_reload_held(unit->unit.player_index)', 'TRUE'))
+        '!update_client_loadout_modifier_held(unit->unit.player_index)', 'TRUE'))
                   if name == 'extraction.inc' else (name, text) for name, text in generated())
     status, output = run(build('extraction', files), 'starter-run-loss')
     assert status == CHECK_FAILED, output
@@ -547,8 +566,8 @@ def test_departed_refund_negative_control():
 
 def test_native_deployment_signal_negative_control():
     files = tuple((name, mutated(text,
-        'return !extraction_deploy(run, player, !update_client_reload_held(unit->unit.player_index));',
-        'extraction_deploy(run, player, !update_client_reload_held(unit->unit.player_index)); return TRUE;'))
+        'return !extraction_deploy(run, player, !update_client_loadout_modifier_held(unit->unit.player_index));',
+        'extraction_deploy(run, player, !update_client_loadout_modifier_held(unit->unit.player_index)); return TRUE;'))
         if name == 'extraction.inc' else (name, text) for name, text in generated())
     status, output = run(build('extraction', files), 'native-controls')
     assert status == CHECK_FAILED, output

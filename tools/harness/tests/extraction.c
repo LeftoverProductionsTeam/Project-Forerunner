@@ -30,7 +30,7 @@ enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _obj
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
  _object_die_act_of_god_bit=1,
  _object_die_act_of_god_silent_bit=2, _object_die_act_of_god_no_statistics_bit=3,
- _unit_control_crouch_modifier_bit=0, _unit_control_action_bit=6,
+ _unit_control_crouch_modifier_bit=0, _unit_control_integrated_light_bit=4, _unit_control_action_bit=6,
  _unit_control_weapon_reload_bit=10, _unit_control_weapon_primary_trigger_bit=11,
  _unit_control_weapon_secondary_trigger_bit=12, _unit_control_throw_grenade_bit=13,
  _unit_control_use_equipment_bit=7, _unit_control_swap_weapons_bit=14, _unit_control_user_animation1_bit=2,
@@ -488,6 +488,8 @@ static void enable_factions(boolean ships)
 int main(int argc,char **argv)
 {
  char const *case_name=argv[1]; long a; short before,i;
+ boolean light=!strncmp(case_name,"light:",6);
+ if(light)case_name+=6;
  initialize();
  if(!strncmp(case_name,"ff-notice-",10)) {
   int host_before=local_notices,remote_before=remote_notices;char const *message="Firefight: wave cleared - recover and prepare.";
@@ -2157,7 +2159,7 @@ int main(int argc,char **argv)
   struct gear_record original;boolean covenant=!strcmp(case_name,"starter-kit-covenant");
   touch(0,0);pickup(0,1);pickup(0,2);escape(0);original=run(0)->gear.record;
   enable_factions(FALSE);advance(1);touch(covenant?4:3,0);
-  input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);
+  input_queues[0].latched_control_flags=FLAG(light?_unit_control_integrated_light_bit:_unit_control_weapon_reload_bit);
   if(!strcmp(case_name,"starter-kit-refund"))fail_confirm=TRUE;
   touch(0,0);
   if(fail_confirm) {
@@ -2178,7 +2180,7 @@ int main(int argc,char **argv)
   touch(0,0);pickup(0,1);pickup(0,2);escape(0);original=run(0)->gear.record;
   touch(0,1);pickup(1,2);escape(1);other=run(1)->gear.record;
   carried[0]=pickup(0,1);carried[1]=pickup(0,2);units[0].unit.grenade_counts[0]=1;
-  input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);
+  input_queues[0].latched_control_flags=FLAG(light?_unit_control_integrated_light_bit:_unit_control_weapon_reload_bit);
   if(!strcmp(case_name,"starter-run-pending"))publish_failure=TRUE;
   if(!strcmp(case_name,"starter-run-storage"))fail_write=TRUE;
   touch(0,0);
@@ -2205,7 +2207,7 @@ int main(int argc,char **argv)
   } else {
    weapon_get(carried[0])->weapon.magazines[0].rounds_loaded=3;escape(0);
    CHECK(run(0)->gear.record.count==4&&!memcmp(original.items,run(0)->gear.record.items+2,2*sizeof(original.items[0])),"successful starter loot did not accumulate alongside stored gear");
-   input_queues[0].latched_control_flags=0;touch(2,0);input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);touch(2,0);
+   input_queues[0].latched_control_flags=0;touch(2,0);input_queues[0].latched_control_flags=FLAG(light?_unit_control_integrated_light_bit:_unit_control_weapon_reload_bit);touch(2,0);
    input_queues[0].latched_control_flags=0;touch(0,0);
    CHECK(run(0)->gear.record.reserved_count==2&&run(0)->gear.record.count==2&&
     !memcmp(original.items[0].id,run(0)->gear.record.reserved[1].id,GEAR_ID_BYTES)&&
@@ -2217,13 +2219,13 @@ int main(int argc,char **argv)
   touch(0,0);pickup(0,1);pickup(0,2);a=pickup(0,1);weapon_get(a)->weapon.magazines[0].rounds_loaded=3;escape(0);
   touch(0,1);pickup(1,2);escape(1);other=run(1)->gear.record;
   memcpy(primary,run(0)->gear.record.items[0].id,sizeof(primary));memcpy(secondary,run(0)->gear.record.items[2].id,sizeof(secondary));
-  input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);touch(2,0);
+  input_queues[0].latched_control_flags=FLAG(light?_unit_control_integrated_light_bit:_unit_control_weapon_reload_bit);touch(2,0);
   CHECK(!memcmp(primary,run(0)->gear.record.items[0].id,sizeof(primary)),"first preview reordered primary");
   if(!strcmp(case_name,"loadout-secondary-unavailable")||!strcmp(case_name,"loadout-secondary-release")) {
    if(!strcmp(case_name,"loadout-secondary-unavailable")) {
-    CHECK(update_client_reload_held(player_handles[0])&&!update_client_reload_held(player_handles[1])&&
-     !update_client_reload_held(NONE)&&!update_client_reload_held(player_handles[0]+0x10000),"queue modifier crossed full player handles");
-    update_client_globals.queues=NULL;CHECK(!update_client_reload_held(player_handles[0]),"absent queue published a modifier");
+    CHECK(update_client_loadout_modifier_held(player_handles[0])&&!update_client_loadout_modifier_held(player_handles[1])&&
+     !update_client_loadout_modifier_held(NONE)&&!update_client_loadout_modifier_held(player_handles[0]+0x10000),"queue modifier crossed full player handles");
+    update_client_globals.queues=NULL;CHECK(!update_client_loadout_modifier_held(player_handles[0]),"absent queue published a modifier");
     update_client_globals.queues=input_queues;update_client_globals.initialized=FALSE;
    }
    else input_queues[0].latched_control_flags=0;
@@ -2241,7 +2243,7 @@ int main(int argc,char **argv)
   CHECK(run(0)->gear.record.generation==generation+1&&!run(0)->gear.pending&&!run(0)->blocked&&
    !memcmp(primary,run(0)->gear.record.items[0].id,sizeof(primary))&&!memcmp(secondary,run(0)->gear.record.items[1].id,sizeof(secondary)),"terminal changed primary, lost secondary or advanced retry twice");
   CHECK(!memcmp(&other,&run(1)->gear.record,sizeof(other)),"another player's selected equipment changed");
-  CHECK(strstr(local_notice_history[(local_notices-2)%4],"secondary"),"secondary interaction is undiscoverable");
+  CHECK(strstr(local_notice_history[(local_notices-2)%4],"second"),"secondary interaction is undiscoverable");
   input_queues[0].latched_control_flags=0;units[0].unit.control_flags=0;extraction_reset();advance(1);touch(0,0);
   CHECK(weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==1&&
    weapon_get(units[0].unit.weapon_object_indices[1])->definition_index==1&&

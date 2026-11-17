@@ -787,19 +787,19 @@ atomic version-1 record: the exact-cache subsequence by default, or the native-
 compatible subsequence when shared gear is enabled. Reopening and Survival reuse the choice;
 failed grants restore it and returned carried gear stays ready for redeployment.
 An uncertain published choice is flushed on retry rather than cycled again.
-Reload + Use now cycles only the compatible secondary subsequence, preserving
+Reload + Use, or the bound Flashlight + Use, cycles the compatible secondary subsequence, preserving
 the selected primary; ordinary Use keeps cycling the lead pair. The first use
 previews without changing either choice. Two available weapons have only one
-secondary for the current primary, so Reload + Use then changes nothing and
+secondary for the current primary, so the alternate gesture changes nothing and
 writes no redundant save. `gear_cycle_loadout(session, slot)` reuses the same
 locked record/order; no version, reservation policy or inventory packet changed.
-`player_queues_new.c::update_client_reload_held` reads the native queue's existing
-full-player held Reload state after action latching; device interaction precedes
+`player_queues_new.c::update_client_loadout_modifier_held` reads the native queue's
+existing full-player held Reload/Flashlight state after action latching; device interaction precedes
 the body's current control publication. No duplicate input snapshot remains.
 The terminal displays the pair and controls. Native keyboard interaction and
 two-account ownership/reopening are checked separately from larger-stash
-combination/deployment tests; controller/VR selection acceptance remains open.
-The existing Deploy control now accepts Reload + Use to leave all stored weapons
+combination/deployment tests; physical-controller/VR acceptance remains open.
+The existing Deploy control accepts either alternate gesture to leave all stored weapons
 and grenades banked. Ordinary Use and automatic finite-Survival deployment keep
 the selected stored loadout. `extraction.c::{extraction_loadout,extraction_deploy}`
 passes that choice to the existing `gear.c::{gear_loadout,gear_reserve}`. A prepared
@@ -818,7 +818,16 @@ The first bank and second-account continuation span separate sessions after two
 driver failures; this is not uninterrupted Black Echo or aircraft acceptance.
 Exact scopes and failures are in the current master checkpoint. Larger-stash
 combinations and both faction-kit rollback remain automated evidence; controller,
-VR and other-platform acceptance remain open.
+VR and other-platform acceptance remain open. A later bounded Windows64 check
+uses actual SDL virtual controller LB + X through both verified accounts, including
+secondary choice, release/ordinary X, protected deployment and fresh reopening.
+This is native controller-action evidence, not physical controller or headset
+acceptance; approach still uses the existing keyboard/stick driver. The existing
+`xinput_sdl.c::openxr_gamepad_read` reaches the same native actions without a new
+XR binding/polling layer. Flashlight keeps its native toggle behavior; only a held
+button modifies these two hub interactions, not a lamp merely remaining lit.
+Default controller Flashlight is the white/LB action, but current native bindings
+remain authoritative. Spark supplies no new marker/schema or controller state.
 The same optional control now supports bounded stash management: crouch-use
 previews the chosen stored weapon and ammo, then release/use again after one
 second within ten seconds to discard exactly that item. Stand-use cancels a

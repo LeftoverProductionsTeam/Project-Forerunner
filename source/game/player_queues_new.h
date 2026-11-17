@@ -46,9 +46,9 @@ void update_client_queue_push(
 	void);
 boolean update_client_dequeue(
 	struct player_action *actions);
-/* port: held Reload, including ticks where native latching omits its repeated
+/* port: held Reload/Flashlight, including ticks where native latching omits the
  * action. Full player handle; reads the existing queue, no new input state. */
-boolean update_client_reload_held(long player_index);
+boolean update_client_loadout_modifier_held(long player_index);
 long update_client_get_maximum_possible_server_time(
 	void);
 void update_client_local_ticks(

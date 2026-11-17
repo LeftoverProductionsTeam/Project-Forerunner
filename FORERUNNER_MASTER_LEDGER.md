@@ -16,7 +16,41 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current stash-safe deployment checkpoint (source base `024e95820d`): Reload + Use
+Current controller-loadout checkpoint (source base `e0ed8fe766`): native controllers
+share Reload/Use on X. The existing alternate hub actions now also accept held
+Flashlight + Use: change the secondary at Loadout, or leave the stash safe at
+Deploy. `player_queues_new.c::update_client_loadout_modifier_held` reads the same
+existing queue's held Reload/Flashlight bits. Native flashlight toggling, ordinary
+Use after release, crouch discard, host ownership and automatic Survival remain.
+No packet, record, configuration, input state or XR binding layer added. Existing
+Controls bindings apply; the existing OpenXR gamepad map is reused, hardware open.
+
+Windows64 compiles (`build/controller-loadout-build.log`). Twenty-three existing
+focused cases pass; twelve Flashlight cases/negative control pass after correcting
+the test call to the existing single-case harness API. These reuse the same native
+selection, retry, release, full-handle, death/disconnect, recovery and faction-kit
+workflows. Existing SDL virtual-pad test input now accepts button chords such as
+`pad1:lb+x`, refusing malformed chords, without changing normal inputs or sticks.
+
+`build/native-delta-controller-loadout/result.json` records both verified accounts'
+native SDL LB+X secondary choices, ordinary X after release, malformed-chord
+refusal, exact private ownership and protected deployment. Its operation completes;
+the overall driver FAILS later when its screenshot observer ignores a restarted
+process overwriting a prior screenshot path. The actual frame is retained; no
+capture/runtime repair was needed. `build/native-delta-controller-reopen/result.json`
+then PASSES only fresh controller-X readback of those exact three/two-item records,
+without repeating selection/deployment or missions. Native PNGs inspected.
+
+Player/item comparisons pass 175/179 and 26/30 seconds/snapshots, zero divergences/
+out-of-step items; position max 0.074471, aim zero. The interrupted first reopen
+also has 11 seconds of agreement. Binary `bc42de27...ba141a`, unchanged objective
+cache `0ee91a31...70616`; exact hashes remain in results. Original identities and
+seed banks unchanged; voice off. Owned processes/copies/BMP scratch cleaned.
+These are virtual controller actions with existing keyboard/stick approach, not
+physical gamepad/OpenXR/Quest/Vive, other-platform or full mission acceptance.
+Spark remains untouched. No hosted jobs or push. Complete roadmap remains active.
+
+Previous stash-safe deployment checkpoint (source base `024e95820d`): Reload + Use
 on the existing Deploy control leaves all stored weapons/grenades banked, using
 the map's ordinary faction starter kit or currently carried native equipment.
 Ordinary Use and automatic Survival still bring the saved loadout. The same
