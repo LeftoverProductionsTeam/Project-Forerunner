@@ -26,10 +26,12 @@ def generated(fault=None):
     coop = read('port/linux/game/network_coop.c')
     end = coop.index('} host_sent_looks[MAXIMUM_OBJECTS_PER_MAP];')
     looks = coop[coop.rindex('static struct', 0, end):end + len('} host_sent_looks[MAXIMUM_OBJECTS_PER_MAP];')]
+    looks += '\n' + enum_with(coop, '_coop_object_boarding_unspecified')
     looks += '\n' + structure(coop, 'distributed_coop_object_look')
     looks += f'\n#define MAXIMUM_OBJECT_LOOKS_PER_MESSAGE {constant(coop, "MAXIMUM_OBJECT_LOOKS_PER_MESSAGE")}\n'
     looks += structure(coop, 'distributed_coop_object_looks_message') + '\n' + function(coop, 'host_send_object_looks')
-    return (('under_test.inc', source),
+    return (('unit_flags.inc', enum_with(read('source/units/units.h'), '_unit_not_enterable_by_player_bit')),
+            ('under_test.inc', source),
             ('path.inc', path),
             ('looks.inc', looks),
             ('clone.inc', function(read('source/game/cheats.c'), 'cheat_forge_clone')),

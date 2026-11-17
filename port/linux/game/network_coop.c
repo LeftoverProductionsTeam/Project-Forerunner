@@ -432,13 +432,21 @@ struct distributed_coop_object_transforms_message
 	struct distributed_coop_object_transform transforms[MAXIMUM_OBJECT_TRANSFORMS_PER_MESSAGE];
 };
 
-/* How one of the host's objects looks: the permutation of each region of
-its model (NONE for none) and its scale. The scripts change them (a
-helmet off, a ship scaled) and so does damage. */
+enum
+{
+	_coop_object_boarding_unspecified,
+	_coop_object_boarding_open,
+	_coop_object_boarding_locked,
+};
+
+/* Region permutations, scale and script-controlled vehicle boarding.
+ * Boarding uses one former padding byte. Legacy senders leave it zero,
+ * and legacy receivers ignore it. The entry size and wire order stay intact. */
 struct distributed_coop_object_look
 {
 	short name_index;
-	short pad;
+	byte boarding;
+	byte pad;
 	long object_index;
 	long definition_index;
 	byte region_permutations[MAXIMUM_REGIONS_PER_OBJECT];
@@ -1208,6 +1216,7 @@ static struct
 	long object_index;
 	boolean changed;
 	byte region_permutations[MAXIMUM_REGIONS_PER_OBJECT];
+	byte boarding;
 	real scale;
 } host_sent_looks[MAXIMUM_OBJECTS_PER_MAP];
 
@@ -1226,14 +1235,22 @@ static void host_send_object_looks(
 	{
 		short absolute_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index);
 		struct distributed_coop_object_look *look;
+		byte boarding = _coop_object_boarding_unspecified;
 		boolean changing;
 
 		if (absolute_index < 0 || absolute_index >= MAXIMUM_OBJECTS_PER_MAP)
 			continue;
+		if (object->object.type == _object_type_vehicle)
+		{
+			struct unit_datum *unit = unit_get(iterator.index);
+			boarding = TEST_FLAG(unit->unit.flags, _unit_not_enterable_by_player_bit) ?
+				_coop_object_boarding_locked : _coop_object_boarding_open;
+		}
 		/* Scripts can change scale/permutations in the same tick as creation,
 		 * before this observer sees the object. Send that first appearance too;
 		 * the existing refresh also repairs a look received before its object. */
 		changing = host_sent_looks[absolute_index].object_index != iterator.index ||
+			host_sent_looks[absolute_index].boarding != boarding ||
 			host_sent_looks[absolute_index].scale != object->object.scale ||
 			csmemcmp(host_sent_looks[absolute_index].region_permutations, object->object.region_permutations,
 				sizeof(object->object.region_permutations));
@@ -1241,11 +1258,13 @@ static void host_send_object_looks(
 			continue;
 		host_sent_looks[absolute_index].object_index = iterator.index;
 		host_sent_looks[absolute_index].changed = TRUE;
+		host_sent_looks[absolute_index].boarding = boarding;
 		host_sent_looks[absolute_index].scale = object->object.scale;
 		csmemcpy(host_sent_looks[absolute_index].region_permutations, object->object.region_permutations,
 			sizeof(object->object.region_permutations));
 		look = &message.looks[count++];
 		look->name_index = object->object.name_index;
+		look->boarding = boarding;
 		look->pad = 0;
 		look->object_index = iterator.index;
 		look->definition_index = object->definition_index;
@@ -3858,6 +3877,11 @@ void network_coop_handle_object_looks(
 
 		if (!object)
 			continue;
+		if (object->object.type == _object_type_vehicle &&
+			(look->boarding == _coop_object_boarding_open || look->boarding == _coop_object_boarding_locked))
+		{
+			unit_set_enterable_by_player(object_index, look->boarding == _coop_object_boarding_open);
+		}
 		/* only a permutation its model has, or none */
 		for (region_index = 0; model && region_index < model->regions.count &&
 			region_index < MAXIMUM_REGIONS_PER_OBJECT; region_index++)

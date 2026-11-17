@@ -14,8 +14,8 @@
 #define csmemcmp memcmp
 #define SET_FLAG(value,bit,on) ((on)?((value)|=FLAG(bit)):((value)&=~FLAG(bit)))
 #define _game_connection_network_server 2
-enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit,
-       _unit_possessed_by_recording_bit };
+enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit };
+#include "unit_flags.inc"
 enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle };
 #define _object_mask_scenery FLAG(_object_type_scenery)
 #define _object_mask_weapon FLAG(_object_type_weapon)
@@ -316,6 +316,7 @@ struct distributed_message_header {int unused;};
 static struct {boolean refresh;} host_resend;
 static int appearance_sends;
 static void send_to_clients(void const *message,int kind,short count,unsigned short size);
+static struct unit_datum *unit_get(long index) { return get(index); }
 #include "looks.inc"
 static struct distributed_coop_object_look sent_look;
 static void send_to_clients(void const *message,int kind,short count,unsigned short size) {
@@ -324,7 +325,10 @@ static void send_to_clients(void const *message,int kind,short count,unsigned sh
 }
 
 static void initial_appearance(void) {
- path_vehicle=reset();get(path_vehicle)->object.scale=.3f;get(path_vehicle)->object.region_permutations[0]=2;
+ path_vehicle=reset();get(path_vehicle)->object.type=_object_type_vehicle;
+ get(path_vehicle)->object.scale=.3f;get(path_vehicle)->object.region_permutations[0]=2;
+ CHECK(offsetof(struct distributed_coop_object_look,boarding)==2&&
+       offsetof(struct distributed_coop_object_look,object_index)==4,"boarding state changed wire offsets");
  host_send_object_looks();
  CHECK(appearance_sends==1&&sent_look.object_index==path_vehicle&&sent_look.scale==.3f&&
        sent_look.region_permutations[0]==2,"scripted first appearance was not sent");
@@ -335,6 +339,15 @@ static void initial_appearance(void) {
  identifiers[path_vehicle&65535]+=65536;path_vehicle+=65536;
  get(path_vehicle)->object.scale=.5f;host_send_object_looks();
  CHECK(appearance_sends==4&&sent_look.object_index==path_vehicle&&sent_look.scale==.5f,"reused slot lost fresh appearance");
+ CHECK(sent_look.boarding==_coop_object_boarding_open&&sent_look.pad==0,"initial vehicle boarding omitted");
+ get(path_vehicle)->unit.flags|=FLAG(_unit_not_enterable_by_player_bit);
+ host_send_object_looks();
+ CHECK(appearance_sends==5&&sent_look.boarding==_coop_object_boarding_locked,"vehicle lock did not send");
+ host_resend.refresh=TRUE;host_send_object_looks();host_resend.refresh=FALSE;
+ CHECK(appearance_sends==6&&sent_look.boarding==_coop_object_boarding_locked,"vehicle lock did not refresh");
+ get(path_vehicle)->unit.flags&=~FLAG(_unit_not_enterable_by_player_bit);
+ host_send_object_looks();
+ CHECK(appearance_sends==7&&sent_look.boarding==_coop_object_boarding_open,"vehicle unlock did not send");
 }
 
 static void unsteered_path(char const *name) {
