@@ -1600,7 +1600,7 @@ int main(int argc,char **argv)
   touch(0,1);pickup(1,1);escape(1);
   memcpy(id,run(1)->gear.record.items[0].id,sizeof(id));
   touch(2,1);
-  CHECK(gear_loadout(&run(1)->gear,&chosen)&&chosen.weapon_count==1&&
+  CHECK(gear_loadout(&run(1)->gear,&chosen,TRUE)&&chosen.weapon_count==1&&
    game_modes_inventory_loadout_valid(&chosen),"authored starting reserve stranded recovered equipment");
   chosen.weapons[0].rounds_reserve[0]=64;
   CHECK(!game_modes_inventory_loadout_valid(&chosen),"reserve above both native limits was admitted");
@@ -1693,31 +1693,31 @@ int main(int argc,char **argv)
   struct game_modes_inventory chosen,stale;
   byte original[GEAR_ID_BYTES];unsigned long generation;
   touch(0,0);pickup(0,1);pickup(0,2);escape(0);
-  CHECK(gear_loadout(&run(0)->gear,&stale)&&stale.weapon_count==2,"source loadout missing");
+  CHECK(gear_loadout(&run(0)->gear,&stale,TRUE)&&stale.weapon_count==2,"source loadout missing");
   memcpy(original,run(0)->gear.record.items[1].id,sizeof(original));
   extraction_reset();map="survival@ce";checksum++;advance(1);touch(2,0);
-  CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count&&run(0)->gear.record.count==2,
+  CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&!chosen.weapon_count&&run(0)->gear.record.count==2,
    "default cache isolation changed");
   CHECK(!game_modes_inventory_loadout_valid(&stale),"stale snapshot bypassed native cache admission");
   shared_cache=TRUE;
   if(!strcmp(case_name,"shared-cache-reject")) {
    generation=run(0)->gear.record.generation;missing_tag=1;touch(2,0);
-   CHECK(gear_loadout(&run(0)->gear,&chosen)&&chosen.weapon_count==1&&
+   CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&chosen.weapon_count==1&&
     !strcmp(chosen.weapons[0].tag_path,tag_get_name(2)),"missing native tag was granted or hid compatible gear");
    missing_tag=NONE;weapon_tag.weapon.flags=FLAG(_weapon_must_be_readied_bit);
-   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"target objective definition became personal loot");
+   CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&!chosen.weapon_count,"target objective definition became personal loot");
    weapon_tag.weapon.flags=0;weapon_tag.weapon.magazines.count=0;
-   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"absent magazines discarded stored ammunition");
+   CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&!chosen.weapon_count,"absent magazines discarded stored ammunition");
    weapon_tag.weapon.magazines.count=1;magazine.rounds_loaded_maximum=6;
-   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"target magazine silently clipped recovered rounds");
+   CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&!chosen.weapon_count,"target magazine silently clipped recovered rounds");
    magazine.rounds_loaded_maximum=20;magazine.rounds_total_maximum=62;
-   CHECK(gear_loadout(&run(0)->gear,&chosen)&&!chosen.weapon_count,"target reserve silently clipped recovered ammunition");
+   CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&!chosen.weapon_count,"target reserve silently clipped recovered ammunition");
    CHECK(run(0)->gear.record.count==2&&run(0)->gear.record.generation==generation&&
     run(0)->gear.record.items[0].equipment.rounds_loaded[0]==7,
     "incompatible native definitions changed the owned stash");
   } else {
    touch(2,0);
-   CHECK(gear_loadout(&run(0)->gear,&chosen)&&chosen.weapon_count==2&&chosen.map_checksum==checksum&&
+   CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE)&&chosen.weapon_count==2&&chosen.map_checksum==checksum&&
     !strcmp(chosen.map_name,map)&&!strcmp(chosen.weapons[0].tag_path,tag_get_name(2))&&
     !strcmp(run(0)->gear.record.items[0].map_name,"candidate@ce"),"shared terminal lost target admission or origin provenance");
    if(!strcmp(case_name,"shared-cache-discard")) {
@@ -2153,6 +2153,64 @@ int main(int argc,char **argv)
   units[0].object.parent_object_index=123;advance(1);touch(2,0);
   CHECK(!run(0)->discard_deadline && run(0)->gear.record.count==2,"vehicle control authorized discard");
   units[0].object.parent_object_index=NONE;
+ } else if(!strncmp(case_name,"starter-kit-",12)) {
+  struct gear_record original;boolean covenant=!strcmp(case_name,"starter-kit-covenant");
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);original=run(0)->gear.record;
+  enable_factions(FALSE);advance(1);touch(covenant?4:3,0);
+  input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);
+  if(!strcmp(case_name,"starter-kit-refund"))fail_confirm=TRUE;
+  touch(0,0);
+  if(fail_confirm) {
+   fail_confirm=fail_write=FALSE;advance(TICKS_PER_SECOND);
+   CHECK(run(0)->phase!=_extraction_deployed&&run(0)->gear.record.phase==_gear_idle&&
+    !run(0)->gear.record.reserved_count&&run(0)->gear.record.count==2&&
+    !memcmp(original.items,run(0)->gear.record.items,2*sizeof(original.items[0])),"failed authored starter grant changed stored gear");
+   CHECK(units[0].unit.weapon_object_indices[0]==NONE,"failed starter confirmation left usable issued equipment");
+  } else {
+   CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.count==2&&!run(0)->gear.record.reserved_count&&
+    !memcmp(original.items,run(0)->gear.record.items,2*sizeof(original.items[0])),"faction starter deployment reserved stored gear");
+   a=units[0].unit.weapon_object_indices[0];
+   CHECK(a!=NONE&&weapon_get(a)->definition_index==(covenant?2:1)&&weapon_get(a)->weapon.magazines[0].rounds_loaded==10,
+    "starter-only deployment omitted the authored native faction kit");
+  }
+ } else if(!strncmp(case_name,"starter-run-",12)) {
+  struct gear_record original,other;long carried[2];short j;
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);original=run(0)->gear.record;
+  touch(0,1);pickup(1,2);escape(1);other=run(1)->gear.record;
+  carried[0]=pickup(0,1);carried[1]=pickup(0,2);units[0].unit.grenade_counts[0]=1;
+  input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);
+  if(!strcmp(case_name,"starter-run-pending"))publish_failure=TRUE;
+  if(!strcmp(case_name,"starter-run-storage"))fail_write=TRUE;
+  touch(0,0);
+  if(publish_failure) {
+   CHECK(run(0)->blocked&&run(0)->gear.record.phase==_gear_reserved&&!run(0)->gear.record.reserved_count,"pending starter deployment lost its empty reservation");
+   publish_failure=FALSE;input_queues[0].latched_control_flags=0;touch(0,0);
+  }
+  if(fail_write) {
+   fail_write=FALSE;advance(1);
+   CHECK(run(0)->phase!=_extraction_deployed&&run(0)->gear.record.count==2&&!run(0)->gear.record.reserved_count,"failed starter issue lost stored gear");
+   CHECK(!memcmp(original.items,run(0)->gear.record.items,2*sizeof(original.items[0])),"starter refund changed stored identities");return 0;
+  }
+  CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.count==2&&!run(0)->gear.record.reserved_count&&
+   !run(0)->gear.record.reserved_grenades[0]&&!run(0)->gear.record.reserved_grenades[1]&&
+   !memcmp(original.items,run(0)->gear.record.items,2*sizeof(original.items[0]))&&!memcmp(original.grenades,run(0)->gear.record.grenades,sizeof(original.grenades)),"starter deployment reserved protected gear");
+  for(j=0;j<2;j++)CHECK(units[0].unit.weapon_object_indices[j]==carried[j]&&weapon_try_and_get(carried[j]),"starter deployment dropped/replaced carried native gear");
+  CHECK(units[0].unit.grenade_counts[0]==1&&!memcmp(&other,&run(1)->gear.record,sizeof(other)),"starter choice changed carried grenades or another owner");
+  if(!strcmp(case_name,"starter-run-loss")||!strcmp(case_name,"starter-run-disconnect")) {
+   if(!strcmp(case_name,"starter-run-loss"))units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);
+   else players[0].quit_out_of_game=TRUE;
+   advance(1);extraction_reset();units[0].object.damage_flags=0;players[0].quit_out_of_game=FALSE;advance(1);touch(2,0);
+   CHECK(run(0)->gear.record.count==2&&!memcmp(original.items,run(0)->gear.record.items,2*sizeof(original.items[0]))&&
+    !memcmp(original.grenades,run(0)->gear.record.grenades,sizeof(original.grenades)),"failed starter run changed banked gear");
+  } else {
+   weapon_get(carried[0])->weapon.magazines[0].rounds_loaded=3;escape(0);
+   CHECK(run(0)->gear.record.count==4&&!memcmp(original.items,run(0)->gear.record.items+2,2*sizeof(original.items[0])),"successful starter loot did not accumulate alongside stored gear");
+   input_queues[0].latched_control_flags=0;touch(2,0);input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);touch(2,0);
+   input_queues[0].latched_control_flags=0;touch(0,0);
+   CHECK(run(0)->gear.record.reserved_count==2&&run(0)->gear.record.count==2&&
+    !memcmp(original.items[0].id,run(0)->gear.record.reserved[1].id,GEAR_ID_BYTES)&&
+    weapon_get(units[0].unit.weapon_object_indices[0])->weapon.magazines[0].rounds_loaded==3,"accumulated gear could not be selected and redeployed");
+  }
  } else if(!strncmp(case_name,"loadout-secondary",17)) {
   byte primary[GEAR_ID_BYTES],secondary[GEAR_ID_BYTES];struct gear_record other;
   unsigned long generation;
@@ -2183,8 +2241,8 @@ int main(int argc,char **argv)
   CHECK(run(0)->gear.record.generation==generation+1&&!run(0)->gear.pending&&!run(0)->blocked&&
    !memcmp(primary,run(0)->gear.record.items[0].id,sizeof(primary))&&!memcmp(secondary,run(0)->gear.record.items[1].id,sizeof(secondary)),"terminal changed primary, lost secondary or advanced retry twice");
   CHECK(!memcmp(&other,&run(1)->gear.record,sizeof(other)),"another player's selected equipment changed");
-  CHECK(strstr(local_notice_history[(local_notices-1)%4],"Reload-use"),"secondary interaction is undiscoverable");
-  units[0].unit.control_flags=0;extraction_reset();advance(1);touch(0,0);
+  CHECK(strstr(local_notice_history[(local_notices-2)%4],"secondary"),"secondary interaction is undiscoverable");
+  input_queues[0].latched_control_flags=0;units[0].unit.control_flags=0;extraction_reset();advance(1);touch(0,0);
   CHECK(weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==1&&
    weapon_get(units[0].unit.weapon_object_indices[1])->definition_index==1&&
    weapon_get(units[0].unit.weapon_object_indices[1])->weapon.magazines[0].rounds_loaded==3,"native grant/reopen ignored secondary selection");
@@ -2201,7 +2259,7 @@ int main(int argc,char **argv)
   CHECK(!run(0)->gear.pending && !run(0)->blocked && run(0)->gear.record.generation==generation+1,
    "terminal retry advanced the pair again or retained its error");
   extraction_reset();advance(1);touch(2,0);
-  CHECK(gear_loadout(&run(0)->gear,&chosen) && chosen.weapon_count==2 &&
+  CHECK(gear_loadout(&run(0)->gear,&chosen,TRUE) && chosen.weapon_count==2 &&
    !strcmp(chosen.weapons[0].tag_path,"weapons\\pistol\\pistol"),"reopened hub lost selected primary");
   touch(0,0);a=units[0].unit.weapon_object_indices[0];
   CHECK(weapon_get(a)->definition_index==2,"deployment ignored the saved primary");

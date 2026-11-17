@@ -398,7 +398,7 @@ boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES],
 	return FALSE;
 }
 
-boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory)
+boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory, boolean bring_stash)
 {
 	short index, count, indices[GEAR_LOADOUT_WEAPONS];
 	char const *map = cache_file_loaded_map_name();
@@ -415,11 +415,12 @@ boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *
 	}
 	else if (session->record.phase == _gear_idle)
 	{
-		count = gear_selected(session, indices);
+		count = bring_stash ? gear_selected(session, indices) : 0;
 		for (index = 0; index < count; index++)
 			inventory->weapons[inventory->weapon_count++] = session->record.items[indices[index]].equipment;
-		for (index = 0; index < 2; index++)
-			inventory->grenades[index] = MIN(PIN(session->grenade_room[index], 0, 127), session->record.grenades[index]);
+		if (bring_stash)
+			for (index = 0; index < 2; index++)
+				inventory->grenades[index] = MIN(PIN(session->grenade_room[index], 0, 127), session->record.grenades[index]);
 	}
 	else return FALSE;
 	for (index = 0; index < inventory->weapon_count; index++) inventory->weapons[index].slot = index;
@@ -427,7 +428,7 @@ boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *
 	return TRUE;
 }
 
-boolean gear_reserve(struct gear_session *session)
+boolean gear_reserve(struct gear_session *session, boolean bring_stash)
 {
 	struct gear_record next;
 	byte seed[GEAR_ID_BYTES + 4], *cursor = seed + GEAR_ID_BYTES;
@@ -441,7 +442,7 @@ boolean gear_reserve(struct gear_session *session)
 	memcpy(seed, next.owner, GEAR_ID_BYTES); gear_put32(&cursor, next.generation + 1);
 	gear_id("forerunner run\n", seed, sizeof(seed), next.run);
 	memcpy(session->run, next.run, GEAR_ID_BYTES);
-	count = gear_selected(session, indices);
+	count = bring_stash ? gear_selected(session, indices) : 0;
 	for (index = 0; index < count; index++)
 	{
 		next.reserved[next.reserved_count] = next.items[indices[index]];
@@ -452,7 +453,7 @@ boolean gear_reserve(struct gear_session *session)
 	next.count = kept;
 	for (index = 0; index < 2; index++)
 	{
-		next.reserved_grenades[index] = MIN(PIN(session->grenade_room[index], 0, 127), next.grenades[index]);
+		next.reserved_grenades[index] = bring_stash ? MIN(PIN(session->grenade_room[index], 0, 127), next.grenades[index]) : 0;
 		next.grenades[index] -= next.reserved_grenades[index];
 	}
 	next.phase = _gear_reserved;
@@ -605,12 +606,12 @@ void gear_profile_owner(char const *directory, byte owner[GEAR_ID_BYTES]) { mems
 void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BYTES]) { memset(owner, 0, GEAR_ID_BYTES); }
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES]) { return FALSE; }
 void gear_close(struct gear_session *session) { memset(session, 0, sizeof(*session)); session->descriptor = -1; }
-boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory) { return FALSE; }
+boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory, boolean bring_stash) { return FALSE; }
 boolean gear_item_available(struct gear_session const *session, struct gear_item const *item) { return FALSE; }
 boolean gear_cycle_loadout(struct gear_session *session, short slot) { return FALSE; }
 struct gear_item const *gear_loadout_choice(struct gear_session *session) { return NULL; }
 boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation) { return FALSE; }
-boolean gear_reserve(struct gear_session *session) { return FALSE; }
+boolean gear_reserve(struct gear_session *session, boolean bring_stash) { return FALSE; }
 boolean gear_confirm_deployment(struct gear_session *session) { return FALSE; }
 boolean gear_cancel_reservation(struct gear_session *session) { return FALSE; }
 boolean gear_lose(struct gear_session *session) { return FALSE; }

@@ -358,7 +358,7 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 	 * recovered gear and its kit before releasing any actual carried object. */
 	unit_delete_all_weapons(replacement);
 	gear->loadout_unit = replacement;
-	if (!gear_loadout(gear, &loadout) ||
+	if (!gear_loadout(gear, &loadout, TRUE) ||
 		!game_modes_inventory_starting_profile(profile, GEAR_LOADOUT_WEAPONS, gear->grenade_room, &loadout) ||
 		!game_modes_inventory_stage(replacement, &loadout, preview))
 	{

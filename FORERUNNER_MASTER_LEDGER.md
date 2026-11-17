@@ -16,7 +16,52 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current loadout checkpoint (source base `20540dc0d9`): the existing hub terminal
+Current stash-safe deployment checkpoint (source base `024e95820d`): Reload + Use
+on the existing Deploy control leaves all stored weapons/grenades banked, using
+the map's ordinary faction starter kit or currently carried native equipment.
+Ordinary Use and automatic Survival still bring the saved loadout. The same
+`gear_loadout` / `gear_reserve` now take an explicit choice; prepared reservations
+remain authoritative across changed retry gestures. No record/schema/version,
+packet, input state, inventory manager or Spark marker added. Existing loss,
+refund, escrow and identity gates remain. Compact native help keeps both choices
+visible. This lets successful runs accumulate loot beside safely stored gear.
+
+Windows64 compiles (`build/starter-loadout-help-build.log`). Focused gear/terminal/
+inventory regressions pass across the broad run and targeted follow-ups; the
+initial two remaining fixture failures needed released Reload input before an
+ordinary deployment and the updated deployment-signal negative-control call.
+Both native faction kits and failed-kit rollback pass automated checks. Four
+actual OS-lock/process-kill cases pass, including prepared/issued starter-only
+records preserving banked items. Version-1 recovery is unchanged. Initial new
+fixtures incorrectly assumed recovered items append and bypassed the existing
+one-second refund retry; corrected the expectations, not runtime settlement.
+
+Native `build/native-delta-starter-continuation/result.json` PASSES two verified
+accounts' stash protection/recovery, host three-item secondary selection, exact
+owned reservation and actual AR/pistol inventory, client native HaloScript
+objective/activation/physical hub return/banking while the host stays separately
+deployed, and fresh-process reopening of the client's three saved IDs. Player/
+item comparisons pass 204/208 and 6/10 seconds/snapshots, zero divergences or
+out-of-step items; position max 0.076085 and aim zero. Native PNGs inspected.
+Binary `88320f7b...60405`, unchanged owned objective cache `0ee91a31...70616`;
+exact hashes remain in the result. Original accounts and seed banks are unchanged.
+
+Two earlier native drivers retain overall FAIL. `native-delta-starter-operations`
+selected the older non-objective cache; both protected deployments passed before
+it was stopped at the missing authored objective. `native-delta-starter-objectives`
+then completed the first squad's native objective/escape/bank, but its driver
+expected two new weapons instead of the actual one-weapon authored kit. The
+first stash correctly grows two to three with both old items byte-identical.
+Its real banks/unfinished second-account record seed the accepted continuation;
+the first completed bank was not repeated. Their stopped comparisons also pass.
+This is bounded acceptance across sessions, not one uninterrupted full mission.
+
+Owned jobs stopped; runtime/map copies and preserved BMP/duplicate-log scratch
+removed. No hosted job, push, original/Spark write or recreated toolchain. Full
+Black Echo handoff, aircraft integration for this change, controller/VR and other
+platform acceptance remain open. The complete engine roadmap stays active.
+
+Previous loadout checkpoint (source base `20540dc0d9`): the existing hub terminal
 now supports choosing the secondary independently with Reload + Use while keeping
 the primary. Ordinary Use keeps cycling the lead pair; first use previews and
 crouch-use keeps confirmed primary discard. The same compatible stash subsequence,

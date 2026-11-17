@@ -54,8 +54,10 @@ void gear_close(struct gear_session *session);
 /* Read selected gear before reserving it. Default is exact-cache admission;
  * optional game.shared_gear resolves compatible paths/quantities against the
  * current native cache. An optional transient native body filter also applies
- * to selection and reservation. Incompatible items stay safely in the stash. */
-boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory);
+ * to selection and reservation. Incompatible items stay safely in the stash.
+ * FALSE leaves the idle stash behind; a prepared/deployed run always returns
+ * its existing reservation, even if the next gesture changes. */
+boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory, boolean bring_stash);
 /* Read-only admission for a stored item. Unavailable gear remains inspectable
  * and explicitly discardable; this does not make it deployable. */
 boolean gear_item_available(struct gear_session const *session, struct gear_item const *item);
@@ -69,7 +71,9 @@ struct gear_item const *gear_loadout_choice(struct gear_session *session);
 boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation);
 /* Prepare the chosen pair before any grant. This unissued phase refunds on
  * reopen; only confirmed native deployments acquire the normal loss policy. */
-boolean gear_reserve(struct gear_session *session);
+/* FALSE leaves stored weapons/grenades banked. A prepared run's existing
+ * reservation stays authoritative if the player's choice changes on retry. */
+boolean gear_reserve(struct gear_session *session, boolean bring_stash);
 /* Confirm after the native grant, before any input/simulation can use it.
  * A published intent is authoritative even if its flush still needs retry. */
 boolean gear_confirm_deployment(struct gear_session *session);

@@ -799,6 +799,26 @@ the body's current control publication. No duplicate input snapshot remains.
 The terminal displays the pair and controls. Native keyboard interaction and
 two-account ownership/reopening are checked separately from larger-stash
 combination/deployment tests; controller/VR selection acceptance remains open.
+The existing Deploy control now accepts Reload + Use to leave all stored weapons
+and grenades banked. Ordinary Use and automatic finite-Survival deployment keep
+the selected stored loadout. `extraction.c::{extraction_loadout,extraction_deploy}`
+passes that choice to the existing `gear.c::{gear_loadout,gear_reserve}`. A prepared
+reservation always wins over a changed retry gesture. The version-1 record,
+locking, settlement, death/disconnect loss and host identity requirements remain.
+Native authored faction profiles still supply their ordinary kit; maps without
+those profiles retain carried native equipment. No missing starter is invented.
+Spark needs no new control, schema or writer: preserve its existing native kits,
+pickups and objective/boarding/return gates. Successful escape can now accumulate
+new carried items alongside the weapons left in the stash.
+
+Bounded Windows64 native checks now cover two verified accounts protecting their
+stored gear, a real three-item secondary choice and actual selected weapon tags,
+independent objective/escape outcomes, accumulation and process-restart reopening.
+The first bank and second-account continuation span separate sessions after two
+driver failures; this is not uninterrupted Black Echo or aircraft acceptance.
+Exact scopes and failures are in the current master checkpoint. Larger-stash
+combinations and both faction-kit rollback remain automated evidence; controller,
+VR and other-platform acceptance remain open.
 The same optional control now supports bounded stash management: crouch-use
 previews the chosen stored weapon and ammo, then release/use again after one
 second within ten seconds to discard exactly that item. Stand-use cancels a

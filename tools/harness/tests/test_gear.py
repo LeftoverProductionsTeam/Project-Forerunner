@@ -39,6 +39,12 @@ def test_transactions(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['loss', 'pending', 'existing', 'bank', 'escrow'])
+def test_leave_stash(case):
+    status, output = run(build('gear', generated()), 'leave-stash-' + case)
+    assert status == 0, output
+
+
 @pytest.mark.parametrize('case', ['pairs', 'failure', 'cache', 'state', 'recovery'])
 def test_secondary_loadout(case):
     status, output = run(build('gear', generated()), 'secondary-' + case)

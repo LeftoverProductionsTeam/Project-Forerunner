@@ -930,12 +930,12 @@ static void extraction_debrief(struct extraction_run *run)
 	for (index = 0; index < 4; index++) extraction_tell(run, lines[reverse ? 3 - index : index]);
 }
 
-static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout)
+static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout, boolean bring_stash)
 {
 	struct player_datum *player;
 	struct unit_datum *unit;
 	short faction;
-	if (!gear_loadout(&run->gear, loadout)) return FALSE;
+	if (!gear_loadout(&run->gear, loadout, bring_stash)) return FALSE;
 	if (extraction.faction_names[0] == NONE && extraction.faction_names[1] == NONE) return TRUE;
 	player = player_try_and_get(run->player);
 	unit = player ? (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped) : NULL;
@@ -950,7 +950,7 @@ static void extraction_loadout_notice(struct extraction_run *run)
 {
 	struct game_modes_inventory loadout;
 	char text[128];
-	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !extraction_loadout(run, &loadout))
+	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !extraction_loadout(run, &loadout, TRUE))
 	{
 		extraction_block(run, "LOADOUT PENDING | Native equipment or stash unavailable. Retry at the terminal."); return;
 	}
@@ -961,7 +961,8 @@ static void extraction_loadout_notice(struct extraction_run *run)
 		loadout.weapon_count > 1 ? extraction_item_name(loadout.weapons[1].tag_path) : "-",
 		(int)loadout.grenades[0], (int)loadout.grenades[1]);
 	extraction_tell(run, text);
-	extraction_tell(run, "Use: cycle pair. Reload-use: change secondary. Crouch-use: discard primary. Deploy when ready.");
+	extraction_tell(run, "Use: pair; Reload-use: secondary; crouch-use: discard.");
+	extraction_tell(run, "Deploy: Use saved gear; Reload-use keeps stash safe.");
 }
 
 static boolean extraction_squad_busy(short squad, struct extraction_run const *except)
@@ -1063,7 +1064,7 @@ static boolean extraction_squad_objectives_ready(struct extraction_run const *ru
 		device_group_get_value(group) == 1.f);
 }
 
-static boolean extraction_deploy(struct extraction_run *run, struct player_datum const *player)
+static boolean extraction_deploy(struct extraction_run *run, struct player_datum const *player, boolean bring_stash)
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
@@ -1071,7 +1072,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->discard_deadline = 0;
 	if (!extraction_open_gear(run, player) || !extraction_squad_deployment_ready(run)) return FALSE;
 	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
-		!extraction_loadout(run, &loadout) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear))
+		!extraction_loadout(run, &loadout, bring_stash) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear, bring_stash))
 	{
 		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
 	}
@@ -1108,7 +1109,8 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->dropship = NONE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
-	extraction_tell(run, extraction.survival ?
+	extraction_tell(run, !extraction.survival && !run->gear.record.reserved_count && !run->gear.record.reserved_grenades[0] && !run->gear.record.reserved_grenades[1] ?
+		"DEPLOYED | Stored gear stays safe. Native starters/carried gear and field loot must escape to be recovered. No raid timer." : extraction.survival ?
 		"SURVIVAL DEPLOYED | Gear is at risk. Recover through an available evacuation point or finite victory." :
 		"DEPLOYED | Gear is at risk until escape, including disconnects. No raid timer.");
 	return TRUE;
@@ -1274,7 +1276,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				return TRUE;
 			}
 			if (!extraction_open_gear(run, player) || run->gear.record.phase != _gear_idle ||
-				!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !gear_loadout(&run->gear, &loadout) ||
+				!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !gear_loadout(&run->gear, &loadout, TRUE) ||
 				!game_modes_inventory_starting_profile(extraction.faction_profiles[faction], GEAR_LOADOUT_WEAPONS,
 					run->gear.grenade_room, &loadout))
 			{
@@ -1356,7 +1358,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		/* Let the native control transition notify HaloScript only after the
 		 * host has granted the reserved loadout successfully. */
-		return !extraction_deploy(run, player);
+		return !extraction_deploy(run, player, !update_client_reload_held(unit->unit.player_index));
 	}
 	if (control->object.name_index == extraction.activate_name && !extraction_squad_objectives_ready(run))
 	{
@@ -1828,7 +1830,7 @@ void extraction_update(void)
 					if (game_modes_inventory_capture(run->player, &owned))
 					{
 						run->retry_tick = now;
-						extraction_deploy(run, player);
+						extraction_deploy(run, player, TRUE);
 					}
 				}
 				if (outcome > 0 && (run->phase == _extraction_deployed || run->phase == _extraction_activating)) run->phase = _extraction_ready;

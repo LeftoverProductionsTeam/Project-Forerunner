@@ -45,7 +45,9 @@ def transactions(tmp_path_factory):
 
 
 @pytest.mark.parametrize('producer,recovery,phase', [('native-prepared', 'native-refund', 3),
-                                                   ('native-issued', 'native-loss', 1)])
+                                                   ('native-issued', 'native-loss', 1),
+                                                   ('native-starter-prepared', 'native-starter-recovery', 3),
+                                                   ('native-starter-issued', 'native-starter-recovery', 1)])
 def test_actual_record_process_death(transactions, tmp_path, producer, recovery, phase):
     holder = subprocess.Popen([str(transactions), producer, str(tmp_path)], stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)

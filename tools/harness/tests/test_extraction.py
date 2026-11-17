@@ -153,6 +153,26 @@ def test_secondary_current_input_negative_control():
     assert status == CHECK_FAILED, output
 
 
+@pytest.mark.parametrize('case', ['bank', 'loss', 'disconnect', 'pending', 'storage'])
+def test_starter_deployment(case):
+    status, output = run(build('extraction', generated()), 'starter-run-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['unsc', 'covenant', 'refund'])
+def test_starter_faction_kit(case):
+    status, output = run(build('extraction', generated()), 'starter-kit-' + case)
+    assert status == 0, output
+
+
+def test_starter_deployment_negative_control():
+    files = tuple((name, mutated(text,
+        '!update_client_reload_held(unit->unit.player_index)', 'TRUE'))
+                  if name == 'extraction.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'starter-run-loss')
+    assert status == CHECK_FAILED, output
+
+
 @pytest.mark.parametrize('case', [
     'squad-query-loop', 'squad-query-state', 'squad-query-policy', 'squad-query-storage',
     'squad-objective-loop', 'squad-objective-escrow', 'squad-objective-alias', 'squad-objective-duplicate',
@@ -527,8 +547,8 @@ def test_departed_refund_negative_control():
 
 def test_native_deployment_signal_negative_control():
     files = tuple((name, mutated(text,
-        'return !extraction_deploy(run, player);',
-        'extraction_deploy(run, player); return TRUE;'))
+        'return !extraction_deploy(run, player, !update_client_reload_held(unit->unit.player_index));',
+        'extraction_deploy(run, player, !update_client_reload_held(unit->unit.player_index)); return TRUE;'))
         if name == 'extraction.inc' else (name, text) for name, text in generated())
     status, output = run(build('extraction', files), 'native-controls')
     assert status == CHECK_FAILED, output
