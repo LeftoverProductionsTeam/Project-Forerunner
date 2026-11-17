@@ -513,6 +513,9 @@ bounded player list; negative indices select its first object. The loaded map
 requires existing `network.coop_script_adaptations=false`, otherwise queries return
 NONE with one diagnostic. Guard ALL objectives with a nonzero `list_count`.
 Queries are snapshots: requery after deployment, respawn or membership changes.
+Native object-list element positions, including `(players)`, are not network
+player indexes or authenticated owner identities. Use the scoped membership
+queries for squad objectives; never infer an account from list position.
 They include living current-operation participants, including downed players and
 returned survivors for callbacks; exclude unissued hub members, lost/old runs,
 stale bodies, pending death and changed/unverified owners. Allocation failure

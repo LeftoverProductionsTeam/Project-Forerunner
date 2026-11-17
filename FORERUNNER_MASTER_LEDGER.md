@@ -16,7 +16,30 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current built-in Firefight equipment/life repair (source base `3446ed13a6`):
+Current bounded native Firefight round trip (source base `3d432e2128`): two
+authenticated clients clear two actual combat waves, return through the native
+lobby and start the next encounter with reset lives, statistics and healthy
+equipped bodies. The existing opt-in `network_test` rotation now remembers a
+running co-op round, which has no multiplayer postgame scoreboard. No production
+gameplay, packet, save or victory gate changes. Windows64 compiles; seven focused
+existing log-parser checks pass. `build/native-firefight-roundtrip-fixed/result.json`
+records the accepted bounded run: each controlled native death spends exactly one
+life and produces a distinct healthy body with the native loss kit. Survivor
+rifle reserves refill 240→638 and stowed pistol 72→132. First/second-round player
+comparisons cover 59/10 seconds and 85/20 living observations, zero mismatches;
+63/14 item snapshots match, including all 17/3 new host items. Two inspected PNGs
+show native victory; disposable runtime/maps and 9,830,508B of BMP scratch removed.
+Original account files and owned source cache unchanged. Binary SHA256:
+`f02fd1bfabc9869e52d440eb734f28195d6124409ba1129d2fb62196718145d9`;
+the CE609 hash remains the one below. The preceding round-trip probe is explicitly
+rejected: its driver assumed `(players)` list order matched network player indexes
+and watched the wrong victim. Native script lists are unchanged; the corrected
+probe observes actual death/body/life changes. This closes bounded Firefight
+victory/lobby/restart coverage, not human, full Black Echo, aircraft, late-join or
+cross-platform acceptance. The complete roadmap remains active. Hosted execution
+stays disabled automatically; no hosted run, spending change or push requested.
+
+Previous built-in Firefight equipment/life repair (source base `3446ed13a6`):
 `coop_enemies.c::firefight_resupply_players` reuses `game_modes_inventory_capture`
 for its eligible slots instead of requiring a model parent. Both readied and
 properly owned stowed weapons replenish; stale/transferred/dropped/objective gear

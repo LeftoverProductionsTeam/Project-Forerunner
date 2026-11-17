@@ -2765,6 +2765,11 @@ void network_test_update(
 			}
 		}
 	}
+	/* Co-op has no multiplayer scoreboard. Remember an actual running
+	 * co-op round so its normal lobby return advances the same variant list. */
+	if ((network_test.mode == _network_test_host || network_test.mode == _network_test_join) &&
+		!main_menu_loaded && network_coop_active())
+		network_test.game_over = TRUE;
 	/* (a joining machine's player: the other team again in the next game's
 	lobby, whose variant may have teams where the last had none) */
 	if (network_test.mode == _network_test_join && network_test.team_set && game_engine_running() &&
