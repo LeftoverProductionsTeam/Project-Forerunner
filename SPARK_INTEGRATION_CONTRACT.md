@@ -797,8 +797,17 @@ Halo resolves them. Spark can keep using these native calls; operation helpers
 cannot turn their requests into a living casualty or a successful gear return.
 Death and eligible drops still belong to Halo, including
 survivor pickup through native ownership. Bounded desktop co-op demonstrates
-forced-death treatment interruption and replicated drops; authored death-loot
-banking remains unverified. Source: `extraction.c::extraction_unit_pending_death`,
+forced-death treatment interruption and replicated drops. The existing Windows
+fixture now also proves two verified accounts choosing opposing native factions
+and separate squads, actual projectile kill/death/loss, the victim's physical
+weapon pickup, on-foot extraction/banking and fresh-process same-ID redeployment:
+`build/native-delta-pvp-loot-fixed/result.json` and
+`build/native-delta-pvp-loot-redeploy/result.json`. The weapon's native ownership
+trace distinguishes it from another item with the same tag. This is not full
+Spark Black Echo, simultaneous AI PvPvE, aircraft or six-client acceptance.
+The victim used native starter gear; rival transfer of an already serialized
+stash item remains unverified by this check.
+Source: `extraction.c::extraction_unit_pending_death`,
 `extraction_update_run`, `extraction_medical_update` and
 `game_modes.c::game_modes_inventory_capture`. No new authoring interface.
 

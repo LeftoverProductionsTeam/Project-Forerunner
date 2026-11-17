@@ -16,7 +16,45 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current campaign/co-op checkpoint repair (source base `389a685037`): successful
+Current native opposing-faction loot checkpoint (unchanged engine `55a4c63b22`):
+the existing systems pass one composed two-account PvP Extraction loop. A verified
+listen host selects native Covenant/Grunt and squad 1; the verified remote client
+selects UNSC/Spartan and squad 2. Actual assault-rifle projectile hits kill the
+Grunt, whose run loses its gear and banks nothing. Ordinary Action picks up that
+body's plasma pistol; the survivor activates extraction, waits the native hold,
+walks back to the hub and banks the rifle/pistol as two unique owned items.
+No synthetic damage, forced pickup, teleport, settlement bypass or engine patch.
+Both start with native kits: transfer of a previously serialized stash weapon
+between rival owners remains a separate acceptance gate.
+
+`build/native-delta-pvp-loot-fixed/result.json` PASSES. The weapon trace confirms
+native item 2 moves from victim body 12 to unparented world at death, then survivor
+body 14; banking consumes it. It is not another loose weapon with the same tag.
+`build/native-delta-pvp-loot-redeploy/result.json` PASSES fresh processes selecting
+the same factions and redeploying those exact two saved IDs/native weapon tags.
+The casualty owner's empty/lost record and original accepted bank seeds remain
+byte-identical. The inspected restart PNG shows the recovered pistol equipped.
+
+Player comparisons PASS 291 operation/45 restart seconds, no persistent divergence;
+the operation has one transient alive-state difference at native death, position
+max 0.066 and aim max one degree. Restart position max 0.045717, aim zero. Item
+comparisons PASS 295/49 snapshots, zero out of step; 8/9 short-lived new operation
+items and all three restart items are sampled on the client. No all-object delivery
+or latency/stress claim. The initial `native-delta-pvp-loot` run FAILS an undefined
+Python observer constant after successful combat, before pickup; its failure,
+scoped combat acceptance and 264-second/268-item comparisons remain preserved.
+Only that stopped combined workflow was retried; the completed fight/escape was
+not repeated for the restart continuation. No engine build was necessary.
+
+Same binary `77781f69...d5e4a65d` and owned CE609 `e71943d6...ae871c3`; original
+identities/map unchanged. Owned processes/runtime/map copies and 39,322,032B of
+BMP scratch cleaned; eight lossless PNGs and compact records/traces retained.
+This proves bounded Windows/OpenGL two-faction PvP loot/bank/redeployment, not
+AI PvPvE in that session, full Spark Black Echo, aircraft, six independent clients,
+human, VR or other-platform acceptance. Existing code was sufficient; no new
+inventory/network/test framework, hosted job, push or publication. Full goal active.
+
+Previous campaign/co-op checkpoint repair (source base `389a685037`): successful
 native saves now snapshot the existing guidance replay cache alongside the live
 checkpoint metadata. A normal host revert restores that snapshot, resets replay
 cursors and drops bindings to viewers/objects removed by current-roster repair.
