@@ -1,6 +1,6 @@
 # Forerunner engineering checkpoint
 
-Updated: 16 November 2026. The persistent engineering goal remains active.
+Updated: 17 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
 Owner's current acceptance order: A, two independent clients using verified Delta
@@ -16,7 +16,36 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current endless-Survival acceptance checkpoint (source `46b23f5766`): the existing
+Current Flood tracker checkpoint (source base `de7db7ac37`): native carrier
+offspring can reuse completed dead entries in the existing 32-entry tracker.
+Living enemies, unfinished native bursts and the current spawning parent keep
+their slots. Each reused entry resets death/damager metadata; final-death score
+and player kill credit remain once-only. Corpses stay with native garbage
+collection. Invalid/partial/full-capacity spawns still abort. No larger arrays,
+new spawner, packet or director; authored HaloScript ownership stays unchanged.
+
+An existing-harness reproduction refused a valid child with an available dead
+entry before the change. Nineteen focused pursuit/child checks then PASS; four
+added partial-spawn/stale-handle/negative-control cases PASS. Repeated offspring
+retain 32 entries and correct native kill totals; negative controls prove the
+parent/pending-burst exclusions. Windows64 incremental compile/link PASS:
+`build/firefight-children-build.log`; focused logs share that prefix.
+
+`build/native-delta-flood-combat/result.json` PASSES two authenticated clients
+against two loaded human Flood combat forms: native held-trigger projectile
+combat using the existing aim diagnostic, two final deaths, one finite wave/
+200 points and two independent escaped records with four unique banked weapons.
+Player/item comparison PASS 18 seconds/22 snapshots, zero divergence/out-of-step;
+AI movement/damage/death PASS 23 snapshots/48 unit comparisons, both deaths seen
+by both peers. Two native PNGs inspected. Binary `ae10c265...42c24f`, unchanged
+owned CE609 cache `053f24c1...328329c`; original identities unchanged, voice/VR off.
+Owned runtime/maps and 9,830,508B of BMP scratch cleaned. The retained fixture
+has combat forms but lacks carrier/infection dependencies: native reuse under
+burst pressure, large hordes, full Zombies, human/other-platform acceptance remain
+UNVERIFIED. This cycle delivers bounded offspring tracking plus a native Flood
+combat/reward regression, without expanding infrastructure. No hosted jobs/push.
+
+Previous endless-Survival acceptance checkpoint (source `46b23f5766`): the existing
 director/Extraction path already implements optional evacuation; no replacement
 or speculative engine patch was needed. `build/native-delta-endless-evacuation-ready/result.json`
 now records two verified Delta clients, native endless wave start, separate real

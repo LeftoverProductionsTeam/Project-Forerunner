@@ -914,6 +914,19 @@ Native script ownership still disables this entire director, including these
 options; Spark's authored scenarios retain their own HaloScript rules. Larger
 counts need native room/resources and share the unchanged 32-body tracker with
 carrier children; failure aborts rather than dropping untracked enemies.
+`coop_enemies.c::coop_enemies_firefight_track_spawned_unit` can now reuse a
+completed dead entry when the table fills. It preserves the currently spawning
+parent, every living entry and every pending native carrier burst; death/damager
+metadata resets without repeating score or removing native corpses. Windows64
+compilation and focused real-source checks pass; native burst-pressure reuse is
+UNVERIFIED. Carrier acceptance needs its real unit/actor tags, death-animation
+spawn behavior and referenced infection/swarm dependencies in the compiled cache.
+The retained fixture contains human combat forms, not that complete carrier set.
+Two authenticated Windows/OpenGL clients do pass native combat-form fighting,
+final deaths, finite victory and four unique banked weapons in
+`build/native-delta-flood-combat/result.json`; the existing aim diagnostic is used.
+This is not full Zombie, huge-horde, human or other-platform acceptance. No new
+authoring format/capability or global native population limit is introduced.
 Dead bipeds no longer count as standing occupants in the reused spread helper;
 full queries remain conservatively occupied. No bodies/loot are deleted by
 this placement check. Loaded Flood variants can use existing actor selection,

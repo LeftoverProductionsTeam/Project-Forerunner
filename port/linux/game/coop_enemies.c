@@ -335,6 +335,8 @@ static void firefight_wake_unit(long unit_index, long actor_index, short team)
 	actor_verify_activation(actor_index);
 }
 
+static boolean firefight_spawn_pending(struct unit_datum const *unit);
+
 boolean coop_enemies_firefight_tracks_unit(long unit_index)
 {
 	short index;
@@ -348,12 +350,14 @@ boolean coop_enemies_firefight_tracks_unit(long unit_index)
 }
 
 /* Native carrier children join the same bounded table, as Faber's spawner
-tracks real units. A partial or untrackable spawn aborts instead of clearing a
-wave with uncounted enemies. The parent may already have a recorded final death. */
+tracks real units. Completed dead entries can be reused; living enemies and
+unfinished native bursts retain their slots. A partial or untrackable spawn
+aborts instead of clearing a wave with uncounted enemies. */
 boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_index)
 {
 	struct unit_datum *unit;
 	long actor_index;
+	short index;
 
 	if (!coop_enemies_firefight_tracks_unit(parent_index))
 		return FALSE;
@@ -361,7 +365,20 @@ boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_i
 		return TRUE;
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
 	actor_index = unit ? (unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index) : NONE;
-	if (!unit || firefight.unit_count >= NUMBEROF(firefight.units) || unit->unit.player_index != NONE ||
+	index = firefight.unit_count;
+	if (unit && index >= NUMBEROF(firefight.units))
+	{
+		for (index = 0; index < firefight.unit_count; index++)
+		{
+			/* Keep the current parent throughout its entire native spawn loop,
+			including the partial-creation failure callback. Final-death credit
+			already belongs to a retired entry; its corpse stays with native GC. */
+			if (firefight.units[index] != parent_index && firefight.killed[index] &&
+				!firefight_spawn_pending((struct unit_datum *)object_try_and_get_and_verify_type(
+					firefight.units[index], _object_mask_biped))) break;
+		}
+	}
+	if (!unit || index >= NUMBEROF(firefight.units) || unit->unit.player_index != NONE ||
 		actor_index == NONE ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
 		!VALID_INDEX(unit->object.owner_team_index, NUMBER_OF_SOLO_CAMPAIGN_TEAMS) ||
@@ -373,10 +390,10 @@ boolean coop_enemies_firefight_track_spawned_unit(long parent_index, long unit_i
 		return FALSE;
 	}
 	firefight_wake_unit(unit_index, actor_index, unit->object.owner_team_index);
-	firefight.units[firefight.unit_count] = unit_index;
-	firefight.killed[firefight.unit_count] = FALSE;
-	firefight.last_damage_player[firefight.unit_count] = NONE;
-	firefight.unit_count++;
+	firefight.units[index] = unit_index;
+	firefight.killed[index] = FALSE;
+	firefight.last_damage_player[index] = NONE;
+	if (index == firefight.unit_count) firefight.unit_count++;
 	platform_log("firefight: spawned child %08lx from %08lx", (unsigned long)unit_index, (unsigned long)parent_index);
 	return TRUE;
 }
