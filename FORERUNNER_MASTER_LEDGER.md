@@ -16,7 +16,33 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current Survival checkpoint (source base `5240fdad3b`): the existing director now
+Current reinforcement checkpoint (source base `8efc4a537d`): the inherited co-op
+dropship release loop removed queued extra AI before checking native actor
+allocation. It now consumes a queued rider/placement offset only after success,
+retrying at the existing four-tick interval. Craft destruction/stale handles still
+discard that craft's queue; host authority and native encounter/squad/defaults
+remain. Two real-source before-fix failures reproduce lost reinforcements; all
+26 existing/extended vehicle checks now pass, including five release cases and
+two negative controls (`build/rider-release-regression-checks.log`). Windows64
+compiles (`build/rider-release-build.log`). The first test setup duplicated an
+existing harness macro; that was removed before recording the gameplay failures.
+Recovery under actual native pool pressure remains UNVERIFIED; this is not
+large-horde or finished mission acceptance. No new queue/AI system or asset edits.
+
+The bounded `build/native-delta-squad-transport-replan/result.json` attempt was
+stopped early: one actual insertion/landing/disembarkation passed, but replanning
+on nearest-seat changes repeatedly reset the second initial boarding approach.
+Both serial recoveries remain unverified. This input adapter correction is not
+accepted; no native boarding/collision regression was reproduced or patched.
+The unchanged aircraft cache and prior accepted results remain. Original identity
+hashes are unchanged; owned jobs/copies and redundant debug copies are removed.
+Do not repeat the route unchanged. Read-only Spark `defc08c` now reports composed
+seven-objective Pelican/Spirit CE609 variants and checked pilot graph bindings;
+the contract replaces the obsolete technology/pilot-composition requirements.
+Actual combined-map flight/gameplay delivery/acceptance remains separate. No
+hosted jobs, push or publication. The complete engine goal stays active.
+
+Previous Survival checkpoint (source base `5240fdad3b`): the existing director now
 holds wave progression while everybody is incapacitated, pending native death or
 awaiting a paid respawn. It verifies full player/body ownership. Only exhausted
 actual deaths start the full three-second defeat grace; a standing survivor

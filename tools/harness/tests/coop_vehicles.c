@@ -105,6 +105,39 @@ static long object_new(struct object_placement_data const *p) {
 
 #include "under_test.inc"
 
+#include "rider_types.inc"
+static struct {
+ struct coop_riding_vehicle vehicles[MAXIMUM_RIDING_VEHICLES];short vehicle_count;
+ struct coop_kept_rider riders[MAXIMUM_KEPT_RIDERS];short rider_count;
+} coop_enemies;
+struct squad_definition {short default_state,initial_state;};
+struct encounter_definition {struct tag_block squads;};
+static struct squad_definition rider_squads[2];
+static struct encounter_definition rider_encounters[4];
+static struct {struct tag_block ai_encounters;} rider_scenario;
+static long rider_attempts,rider_successes,rider_statuses,rider_variants[4];
+static short rider_offsets[4];
+#define global_scenario_get() (&rider_scenario)
+#define object_try_and_get_and_verify_type(index,mask) get(index)
+#define _object_mask_unit 1
+static boolean coop_enemies_host(void) {return connection==2&&coop;}
+static void firefight_update(void) {}
+static void coop_enemies_rider_place(struct coop_riding_vehicle const *vehicle,short number,real_point3d *p,real *facing) {
+ *p=get(vehicle->vehicle_index)->object.position;p->x+=number;*facing=0;
+}
+static long actor_place(long variant,long encounter,long squad,struct actor_starting_location *location,boolean major,short initial) {
+ rider_attempts++;
+ CHECK(encounter==0x10003&&squad==1&&!major&&!initial,"queued rider lost native encounter binding");
+ CHECK(location->initial_state==3&&location->default_state==4&&location->cluster_index==NONE&&
+  location->command_list_index==NONE&&location->actor_variant_index==NONE&&location->noncombat_sequence_id==NONE,"queued rider lost native placement defaults");
+ if(allocation_failed)return NONE;
+ CHECK(rider_successes<4,"queued rider duplicated after release");
+ rider_offsets[rider_successes]=(short)location->position.x;rider_variants[rider_successes]=variant;
+ return rider_successes++;
+}
+static void encounter_update_status(long encounter) {(void)encounter;rider_statuses++;}
+#include "rider_release.inc"
+
 static long reset(void) {
  int i;long index;
  memset(objects,0,sizeof(objects));memset(identifiers,0,sizeof(identifiers));memset(&game,0,sizeof(game));
@@ -186,8 +219,51 @@ static void recreated(void) {
  long index=reset();settle();drive(index,11);coop_vehicles_register(make(2,1),&sources[0]);CHECK(coop_vehicle_homes.count==1&&coop_vehicle_homes.homes[0].copies==1,"script recreation reset budget");
  identifiers[last_copy&65535]=0;coop_vehicles_register(make(3,1),&sources[0]);CHECK(coop_vehicle_homes.count==1&&coop_vehicle_homes.homes[0].copies==1,"destroyed copy reset budget");
 }
+static void rider_release(char const *name) {
+ long ship=reset(),other;short i;
+ memset(&coop_enemies,0,sizeof(coop_enemies));rider_attempts=rider_successes=rider_statuses=0;
+ rider_scenario.ai_encounters.address=rider_encounters;rider_scenario.ai_encounters.count=4;
+ rider_encounters[3].squads.address=rider_squads;rider_encounters[3].squads.count=2;
+ rider_squads[1].default_state=4;rider_squads[1].initial_state=3;
+ coop_enemies.vehicle_count=1;coop_enemies.vehicles[0].vehicle_index=ship;
+ coop_enemies.vehicles[0].seated_count=1;coop_enemies.vehicles[0].seated_unit_indices[0]=make(2,0);
+ coop_enemies.rider_count=2;
+ for(i=0;i<2;i++) {coop_enemies.riders[i].vehicle_index=ship;coop_enemies.riders[i].encounter_index=0x10003;
+  coop_enemies.riders[i].squad_index=1;coop_enemies.riders[i].variant_definition_index=5+i;}
+ if(!strcmp(name,"riders-seated")) {
+  objects[2].object.parent_object_index=ship;coop_enemies_update();CHECK(!rider_attempts,"released before any passenger disembarked");
+  objects[2].object.parent_object_index=NONE;objects[2].object.damage_flags=FLAG(_object_dead_bit);
+  coop_enemies_update();CHECK(!rider_attempts,"dead seated rider started a release");
+  objects[2].object.damage_flags=0;coop_enemies_update();CHECK(rider_successes==1,"living disembarkation did not release reinforcement");return;
+ }
+ if(!strcmp(name,"riders-authority")) {
+  connection=1;coop_enemies_update();connection=2;coop=0;coop_enemies_update();
+  CHECK(!rider_attempts&&coop_enemies.rider_count==2,"non-host changed queued reinforcements");return;
+ }
+ if(!strcmp(name,"riders-recycled")) {
+  identifiers[0]+=0x10000;coop_enemies_update();
+  CHECK(!rider_attempts&&!coop_enemies.rider_count&&!coop_enemies.vehicle_count,"recycled craft inherited its old riders");return;
+ }
+ if(!strcmp(name,"riders-destroyed")) {
+  other=make(3,1);coop_enemies.vehicles[1]=coop_enemies.vehicles[0];coop_enemies.vehicles[1].vehicle_index=other;
+  coop_enemies.vehicle_count=2;coop_enemies.riders[1].vehicle_index=other;
+  objects[0].object.damage_flags=FLAG(_object_dead_bit);allocation_failed=1;coop_enemies_update();
+  CHECK(coop_enemies.rider_count==1&&coop_enemies.riders[0].vehicle_index==other&&coop_enemies.vehicle_count==1,"destroyed craft consumed another craft's queued rider");
+  allocation_failed=0;now=RIDER_RELEASE_TICKS;coop_enemies_update();CHECK(rider_successes==1&&!coop_enemies.rider_count,"surviving craft lost its reinforcement");return;
+ }
+ allocation_failed=1;
+ for(now=0;now<3*RIDER_RELEASE_TICKS;now++)coop_enemies_update();
+ CHECK(rider_attempts==3&&!rider_successes&&coop_enemies.rider_count==2&&!coop_enemies.vehicles[0].released_count,"native allocation failure lost a queued passenger or release position");
+ allocation_failed=0;coop_enemies_update();
+ CHECK(rider_successes==1&&coop_enemies.rider_count==1&&coop_enemies.vehicles[0].released_count==1,"available native capacity did not release one passenger");
+ coop_enemies_update();CHECK(rider_successes==1,"retry bypassed the bounded release interval");
+ now+=RIDER_RELEASE_TICKS;coop_enemies_update();
+ CHECK(rider_successes==2&&!coop_enemies.rider_count&&rider_variants[0]==5&&rider_variants[1]==6&&rider_offsets[0]==0&&rider_offsets[1]==1,"retry duplicated, changed or skipped an authored reinforcement");
+ now+=RIDER_RELEASE_TICKS;coop_enemies_update();CHECK(rider_successes==2&&!coop_enemies.vehicle_count,"completed release did not retire its craft");
+}
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
+ if(!strncmp(argv[1],"riders-",7)) {rider_release(argv[1]);return 0;}
  if(!strcmp(argv[1],"counts"))counts();else if(!strcmp(argv[1],"authority"))authority();
  else if(!strcmp(argv[1],"driving"))driving();else if(!strcmp(argv[1],"delivery"))delivery();
  else if(!strcmp(argv[1],"chain"))chain();else if(!strcmp(argv[1],"blocked"))blocked_test();

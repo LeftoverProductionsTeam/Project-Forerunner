@@ -1710,7 +1710,6 @@ void coop_enemies_update(
 			struct squad_definition *squad_definition;
 			struct actor_starting_location location;
 
-			coop_enemies.riders[index] = coop_enemies.riders[--coop_enemies.rider_count];
 			encounter_definition = TAG_BLOCK_GET_ELEMENT(&global_scenario_get()->ai_encounters,
 				DATUM_INDEX_TO_ABSOLUTE_INDEX(rider.encounter_index), struct encounter_definition);
 			squad_definition = TAG_BLOCK_GET_ELEMENT(&encounter_definition->squads, rider.squad_index,
@@ -1718,15 +1717,22 @@ void coop_enemies_update(
 			/* (as the squad's: its states, no command list of a starting
 			location's) */
 			csmemset(&location, 0, sizeof(location));
-			coop_enemies_rider_place(vehicle, vehicle->released_count++, &location.position, &location.facing);
+			coop_enemies_rider_place(vehicle, vehicle->released_count, &location.position, &location.facing);
 			location.cluster_index = NONE;
 			location.noncombat_sequence_id = NONE;
 			location.default_state = squad_definition->default_state;
 			location.initial_state = squad_definition->initial_state;
 			location.actor_variant_index = NONE;
 			location.command_list_index = NONE;
-			actor_place(rider.variant_definition_index, rider.encounter_index, rider.squad_index, &location, FALSE, 0);
-			encounter_update_status(rider.encounter_index);
+			/* Native object/actor pools can be full. Keep the queued rider and
+			 * release position until placement succeeds; the existing interval
+			 * bounds retries and a destroyed craft still discards its own queue. */
+			if (actor_place(rider.variant_definition_index, rider.encounter_index, rider.squad_index, &location, FALSE, 0) != NONE)
+			{
+				coop_enemies.riders[index] = coop_enemies.riders[--coop_enemies.rider_count];
+				vehicle->released_count++;
+				encounter_update_status(rider.encounter_index);
+			}
 		}
 		vehicle->next_release_time = now + RIDER_RELEASE_TICKS;
 	}

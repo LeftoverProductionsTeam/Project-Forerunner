@@ -5,13 +5,37 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import build, read, run, mutated, CHECK_FAILED
+from harness import build, read, run, mutated, CHECK_FAILED, function, enum_with, structure
 
 def generated(fault=None):
     source = re.sub(r'^#include.*\n', '', read('port/linux/game/coop_vehicles.c'), flags=re.M)
     if fault:
         source = mutated(source, *fault)
-    return (('under_test.inc', source),)
+    riders = read('port/linux/game/coop_enemies.c')
+    release = '\n'.join(function(riders, name) for name in (
+        'coop_enemies_forget_vehicle', 'coop_enemies_riders_getting_out', 'coop_enemies_update'))
+    return (('under_test.inc', source),
+            ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
+             structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
+             structure(read('source/ai/ai_scenario_definitions.h'), 'actor_starting_location')),
+            ('rider_release.inc', release))
+
+
+@pytest.mark.parametrize('case', ['retry', 'seated', 'destroyed', 'authority', 'recycled'])
+def test_dropship_rider_release(case):
+    status, output = run(build('coop_vehicles', generated()), 'riders-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('before,after', [
+    ('coop_enemies.riders[index] = coop_enemies.riders[--coop_enemies.rider_count];', '(void)coop_enemies.rider_count;'),
+    ('if (now < vehicle->next_release_time)', 'if (FALSE)'),
+])
+def test_dropship_rider_release_negative(before, after):
+    files = tuple((name, mutated(text, before, after)) if name == 'rider_release.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('coop_vehicles', files), 'riders-retry')
+    assert status == CHECK_FAILED, output
 
 @pytest.mark.parametrize('case', ['counts', 'authority', 'driving', 'delivery', 'chain', 'blocked', 'checkpoint', 'recreated'])
 def test_case(case):

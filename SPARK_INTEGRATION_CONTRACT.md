@@ -1130,28 +1130,38 @@ do not force players into seats or bypass graph compatibility. The owned Spirit'
 AI throttle budget is 0.30 after measured coast at 0.65; tune each real aircraft/
 route against its physics and actual pads instead of copying a universal speed.
 
-Read-only Spark `4249bb5` advances recovered seven-objective native mission
-composition, retaining original source indices and script ownership. Its existing
-checkpoint reports core CE609 cache
-`7dea5596e3ab9c7d6b349fc1ce0fc11c69ff316713f9e355cc3e6e8b2e9383f7`;
-this is compiled fixture/readback evidence, not a delivered complete dropship
-mission or Forerunner execution. It already implements reviewed aircraft append/readback,
-`src/haloScript.ts` `returnAfterInsertion` empty hub return/recall and native route/
-landing-pad authoring/readback. The earlier isolated composite cache is
-`e5711810ca6b2deba4b7802fce4e07c9eff851029b554029c7c7482f61122e71`.
-Reuse this source work. Its `docs/RUNTIME_INTEGRATION_20261107.md` explicitly
-separates that fixture's route/endpoint/pad admission from observed landing and
-a complete Black Echo cache. Next Spark delivery: compose these existing
-controllers with the real mission, compatible pilots and seats, measured hub/LZ/
-approach/departure routes, native relative cameras and mission objectives. Its
-Flood-start/route BSP diagnostics are now repaired in source/readback; actual
-hull/landing clearance still needs gameplay proof. Explicitly create the native
-`be_technology` weapon at its intended objective: it is not placed automatically,
-and the retired original startup supplied that creation. Finish pilot/crew,
-outbound, empty return and recall controller composition, then compile and
-independently read back that combined
-CE609 package. Reuse existing signal groups uniquely instead of appending duplicates.
-Synthetic marker coordinates and syntax-only probes do not satisfy this handoff.
+Read-only Spark `defc08c` supersedes the `4249bb5` composition gap. Existing
+`src/haloScript.ts::exportHaloCeTransport` composes actual pilot seating,
+insertion, optional empty hub return/recall and durable settlement callbacks with
+the seven-objective mission. Reviewed deferred creation now covers the named
+`be_technology` weapon and optional pilot. `crates/spark-core/src/native_transport.rs::pilot_bindings`
+and the Windows native reader check effective actor/biped animation graphs for
+the exact driver label; incompatible stock Grunt pilot bindings are refused.
+Source ownership, original native indices and unique groups remain protected.
+Its `docs/RUNTIME_INTEGRATION_20261107.md` records composed CE609 compile/readback:
+Pelican `e122b840495e9ec8ad6288f3bbc1a500963d93d77a6612f144bab95224f42b9c`,
+Spirit `985df7845e18d27194984ec52029bd80d1a757a6fef0eda3621c4de230287d8f`.
+These are Spark's bounded compilation records, not Forerunner execution or full
+Covenant/faction mission acceptance. Do not reimplement the completed authoring.
+
+Next handoff remains the actual combined CE609 mission package with matching
+resource/source identities, native player/faction equipment, physically valid
+hub/LZ/routes, and returning camera/audio cues. Exercise normal pilot entry,
+flight/landing, collection/rescue, real passenger boarding, departure, settlement
+and repeat trips in Forerunner. Native source admission does not prove hull
+clearance or a playable faction mission. Reuse the existing matching groups and
+callbacks; no JSON importer, launcher or new protocol is requested. Spark's
+current empty-return controller serves one dispatched crew; additional concurrent
+squads must use the already supported boarded/called signals without resetting a
+field request. The regression fixture's two-squad steering remains unverified:
+the followup `build/native-delta-squad-transport-replan` also reset its initial
+approach when the nearest seat changed. No new engine interaction defect is proven.
+
+`coop_enemies.c::coop_enemies_update` now retains queued extra dropship AI when
+native `actor_place` fails, retrying at the existing four-tick cadence without
+skipping its placement offset. Real-source vehicle/release checks and Windows64
+compilation pass; actual native allocation-pressure recovery remains unverified.
+Native encounter/squad/variant references and destroyed-craft behavior remain.
 Previously accepted actual Black Echo combat/rescue/technology/Flood/defense and
 on-foot banking/restart remain accepted; aircraft evacuation in that mission,
 independent squads, other platforms and human/headset acceptance remain open.
