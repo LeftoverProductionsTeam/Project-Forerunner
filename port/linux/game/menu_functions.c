@@ -13973,6 +13973,15 @@ boolean pc_menu_event_function_invoke(
 		{
 			return pause_moderation();
 		}
+		else if (!strcmp(name, "port forerunner menu init"))
+		{
+			struct widget_instance *row = named(widget, "vr", 0);
+#ifdef HALO_OPENXR
+			visible_set(row, TRUE);
+#else
+			visible_set(row, FALSE);
+#endif
+		}
 		else if (forerunner_operation_mode(name) != NONE)
 		{
 			struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
