@@ -14,6 +14,7 @@ symbols in this file:
 #include "ai/ai.h"
 #include "objects.h"
 #include "game/players.h"
+#include "network_coop.h" /* port: retained native guidance follows object lifetime */
 
 /* ---------- constants */
 
@@ -25,11 +26,13 @@ symbols in this file:
 
 /* ---------- globals */
 
-object_deleted_proc object_deleted_procs[3] =
+/* port: retire co-op guidance bindings through the same native lifecycle. */
+object_deleted_proc object_deleted_procs[4] =
 {
 	objects_fix_for_deleted_object,
 	ai_handle_deleted_object,
-	players_handle_deleted_object
+	players_handle_deleted_object,
+	network_coop_nav_point_object_deleted
 };
 
 /* ---------- public code */

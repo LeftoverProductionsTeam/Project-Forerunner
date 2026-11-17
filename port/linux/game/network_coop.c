@@ -340,7 +340,8 @@ struct distributed_coop_presentation_message
 	hud               type: _coop_hud_ kind; value
 	player_effect     type: _coop_player_effect_ kind; reals: the function's arguments
 	nav_point         type: _coop_nav_point_ kind; value: nav index (NONE to deactivate);
-	                  target: team or unit; object_index: cutscene flag or object; reals[0]: offset
+	                  target: team or unit; object_index: cutscene flag or object; reals[0]: offset;
+	                  name_index, definition_index: optional named scenario object identity
 	unit_animation    object_index: unit; tag_index: graph (NONE: stop); value: animation;
 	                  frame; interpolate
 	scenery_animation object_index, name_index, definition_index: the scenery; tag_index: graph;
@@ -1810,6 +1811,7 @@ static void client_apply_nav_point(
 	boolean activate = event->value != NONE;
 	boolean flag = event->type == _coop_nav_point_team_flag || event->type == _coop_nav_point_unit_flag;
 	boolean team = event->type == _coop_nav_point_team_flag || event->type == _coop_nav_point_team_object;
+	long marker = event->object_index;
 	real offset = event->reals[0];
 
 	if (activate && (event->value < 0 || event->value >= hud_globals->waypoint.arrows.count))
@@ -1817,6 +1819,16 @@ static void client_apply_nav_point(
 	if (flag && (event->object_index < 0 || event->object_index >= scenario->cutscene_flags.count))
 		return;
 	if (team && (event->target < 0 || event->target >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS))
+		return;
+	/* Named scenery/devices have independent local handles, unlike replicated
+	 * units/items. Reuse their existing native name/definition resolver. Older
+	 * senders leave definition_index NONE and retain exact-handle behavior. */
+	if (!flag && event->name_index != NONE && event->definition_index != NONE)
+		marker = object_find(event->name_index, marker, event->definition_index, _object_mask_all);
+	/* As for an unavailable viewer, let host replay retry after creation.
+	 * Otherwise a never-created target has no deletion callback to retire it.
+	 * Deactivation must still work after a marker object has disappeared. */
+	if (!flag && activate && !object_try_and_get_and_verify_type(marker, _object_mask_all))
 		return;
 	if (!team && !object_try_and_get_and_verify_type(event->target, _object_mask_unit))
 		return;
@@ -1830,9 +1842,9 @@ static void client_apply_nav_point(
 		break;
 	case _coop_nav_point_team_object:
 		if (activate)
-			hud_activate_team_nav_point_with_object(event->value, (short)event->target, event->object_index, offset);
+			hud_activate_team_nav_point_with_object(event->value, (short)event->target, marker, offset);
 		else
-			hud_deactivate_team_nav_point_with_object((short)event->target, event->object_index);
+			hud_deactivate_team_nav_point_with_object((short)event->target, marker);
 		break;
 	case _coop_nav_point_unit_flag:
 		if (activate)
@@ -1842,9 +1854,9 @@ static void client_apply_nav_point(
 		break;
 	case _coop_nav_point_unit_object:
 		if (activate)
-			hud_unit_activate_nav_point_with_object(event->value, event->target, event->object_index, offset);
+			hud_unit_activate_nav_point_with_object(event->value, event->target, marker, offset);
 		else
-			hud_unit_deactivate_nav_point_with_object(event->target, event->object_index);
+			hud_unit_deactivate_nav_point_with_object(event->target, marker);
 		break;
 	default:
 		break;
@@ -2977,7 +2989,48 @@ static boolean send_nav_point(
 	event->target = target;
 	event->object_index = marker;
 	event->reals[0] = vertical_offset;
+	if (kind == _coop_nav_point_team_object || kind == _coop_nav_point_unit_object)
+	{
+		struct object_datum *object = object_try_and_get_and_verify_type(marker, _object_mask_all);
+		if (object && object->object.name_index != NONE)
+		{
+			event->name_index = object->object.name_index;
+			event->definition_index = object->definition_index;
+		}
+	}
 	return TRUE;
+}
+
+/* Compact the existing replay cache without restarting its fairness cursor.
+ * A swapped tail entry may have moved behind that cursor; finish a full
+ * rotation if a replay was in progress so the entry is not skipped. */
+static void coop_remove_nav_point(short index)
+{
+	host_hud_state.nav_points[index] = host_hud_state.nav_points[--host_hud_state.nav_point_count];
+	if (host_hud_state.nav_refresh_remaining)
+		host_hud_state.nav_refresh_remaining = host_hud_state.nav_point_count;
+	if (host_hud_state.nav_refresh_next >= host_hud_state.nav_point_count)
+		host_hud_state.nav_refresh_next = 0;
+}
+
+/* The native deletion callback runs on the host and on actual replica
+ * deletion. Do not prune by a missing lookup: an event can precede its object.
+ * Full handles distinguish a deleted body from its slot's next occupant. */
+void network_coop_nav_point_object_deleted(long object_index)
+{
+	short index = 0;
+	if (object_index == NONE) return;
+	while (index < host_hud_state.nav_point_count)
+	{
+		short kind = host_hud_state.nav_points[index].kind;
+		boolean unit = kind == _coop_nav_point_unit_flag || kind == _coop_nav_point_unit_object;
+		boolean object = kind == _coop_nav_point_team_object || kind == _coop_nav_point_unit_object;
+		if ((unit && host_hud_state.nav_points[index].target == object_index) ||
+			(object && host_hud_state.nav_points[index].marker == object_index))
+			coop_remove_nav_point(index);
+		else
+			index++;
+	}
 }
 
 void network_coop_note_nav_point(
@@ -3003,7 +3056,7 @@ void network_coop_note_nav_point(
 	if (nav_index == NONE)
 	{
 		if (index < host_hud_state.nav_point_count)
-			host_hud_state.nav_points[index] = host_hud_state.nav_points[--host_hud_state.nav_point_count];
+			coop_remove_nav_point(index);
 		return;
 	}
 	if (index == host_hud_state.nav_point_count)

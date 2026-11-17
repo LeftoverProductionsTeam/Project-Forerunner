@@ -528,6 +528,22 @@ per-viewer HUD/save layout and ordinary script execution are unchanged. These
 markers are presentation targeting, not secret mission data or scoped audio/
 cinematics. Earlier query-capable builds still have the 16-binding cache; the
 current runtime checkpoint is required for larger authored marker sets.
+`source/objects/object_deleted_procs.c` now calls
+`network_coop_nav_point_object_deleted` for exact native viewer/target deletion.
+This retires dead bindings without discarding flags or a new salted handle;
+`coop_remove_nav_point` preserves bounded replay across compaction. Scripts must
+still requery changed bodies and reactivate markers on recreated targets.
+`send_nav_point` / `client_apply_nav_point` reuse existing optional event name/
+definition fields and `object_find` for named scenery/devices, whose local
+handles can differ. Unavailable targets wait for existing host replay; native
+deactivation/deletion clears local bindings. Earlier receivers retain their
+previous behavior; protocol compatibility does not supply this repair.
+Forty focused checks and Windows64 compilation pass. Final-source two-account
+native replacement/remote-marker evidence is
+`build/native-delta-nav-named/result.json`; deletion/reconnect/requery evidence
+and its explicitly retained pre-ready item-comparison failure are in
+`build/native-delta-nav-lifetime/result.json`. Native same-tick ordering, full
+mission composition and other-platform acceptance are not claimed.
 Windows64 compiles; the existing marker harness covers 24 independent unit
 bindings and bounded full-cache replay under congestion. Two authenticated native
 clients show separate objective-stage markers in

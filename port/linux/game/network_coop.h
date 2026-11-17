@@ -119,6 +119,9 @@ void network_coop_note_player_effect(short kind, real a, real b, real c);
 /* hud_nav_points.c: activate (or, with nav_index NONE, deactivate) a nav point.
 target is the team or the unit; marker is the cutscene flag or the object. */
 void network_coop_note_nav_point(short kind, short nav_index, long target, long marker, real vertical_offset);
+/* Native object deletion: retire replay bindings for this exact body/marker,
+ * preserving flags, new salted handles and the existing event budget. */
+void network_coop_nav_point_object_deleted(long object_index);
 
 /* units.c: a unit started a custom animation (animation_index NONE: stopped) */
 void network_coop_note_unit_animation(long unit_index, long animation_graph_index, short animation_index,

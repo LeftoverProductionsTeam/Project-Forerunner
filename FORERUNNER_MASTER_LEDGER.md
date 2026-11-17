@@ -16,7 +16,48 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current native carrier-reuse checkpoint (source `62bf118b47`, no engine rebuild):
+Current co-op guidance checkpoint (source base `cdd004abbf`): native object
+deletion now retires retained nav bindings for the exact viewer/target handle.
+Flags and a reused slot's new salted handle survive. Cache compaction preserves
+the existing eight-events-per-tick fair replay, so a moved tail is not skipped.
+Client activation waits for a real target; deactivation still works after target
+loss. Native callbacks, HUD capacity and ordinary HaloScript remain intact.
+
+A native follow-up exposed a second concrete defect: named controls/scenery use
+independent client-local handles. Nav events now reuse `object_find` and existing
+optional name/definition fields, as scenery/device synchronization already does.
+Legacy events retain exact-handle behavior; no packet layout/protocol change.
+The old receiver cannot gain named-target resolution merely from compatibility.
+Before-fix harness reproductions fail stale-body retention, pending-target
+activation and named-handle resolution; all 40 focused checks PASS afterward.
+Windows64 incremental compile/link PASS (`build/nav-named-{checks,build}.log`).
+
+`build/native-delta-nav-lifetime/result.json` records two authenticated native
+clients, three object replacements, separate flag/object views and real second-
+client reconnect/requery. Initial/rejoined player comparison PASS 12/11 seconds;
+17 initial item snapshots PASS. The unfiltered reconnect item comparison FAILS
+seven differences before its authoritative clock/replica is ready; raw failure
+is retained. From actual ready tick 930, 11 item snapshots PASS, zero out of step.
+The rejoined body occupies slot 2 rather than old slot 1; this is not reconnect-
+persistent squad ownership. Body-specific script calls must requery membership.
+
+`build/native-delta-nav-named/result.json` PASSES final-source native named-target
+guidance over three replacements: inspected PNGs show the remote object arrow
+and a different host location flag. Player comparison PASS 13 seconds, zero
+position/aim difference; 17 item snapshots PASS, zero out of step. Binary
+`2c2a6e7d...4037fb61`, unchanged owned CE609 `e71943d6...ae871c3`.
+The earlier combined-command attempt exceeded native telnet's line limit;
+`native-delta-nav-ordering` retains that invalid result. The shorter-command
+`native-delta-nav-supported` retains the genuine missing-remote-marker failure
+that led to the named-object repair. Later print acknowledgments alone did not
+prove either result. Forced event-before-replica ordering and capacity turnover
+are harness evidence; native replacements are bounded, not same-tick proof.
+No mission/banking repeat or persistence transaction. Original identities/maps
+unchanged; owned runtimes/maps and BMP scratch cleaned, lossless PNGs retained.
+Full Spark composition, six independent clients, human and other-platform
+acceptance remain open. No hosted jobs, billing change, push or new framework.
+
+Previous native carrier-reuse checkpoint (source `62bf118b47`, no engine rebuild):
 two authenticated Windows/OpenGL clients ran the intact owned Library cache with
 the existing authored `enc0` spawn selection. Seven carriers produced 26 native
 infection forms in one wave; all 33 distinct tracked bodies reached final death,
