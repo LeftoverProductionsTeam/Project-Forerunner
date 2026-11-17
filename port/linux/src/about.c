@@ -212,7 +212,7 @@ static void version_text(char *text, int size)
 	/* (without an update's notice after it) */
 	const char *notice = strstr(watermark, " - ");
 
-	snprintf(text, (size_t)size, "Chupathingy %.*s", notice ? (int)(notice - watermark) : (int)strlen(watermark),
+	snprintf(text, (size_t)size, "Forerunner %.*s", notice ? (int)(notice - watermark) : (int)strlen(watermark),
 		watermark);
 }
 

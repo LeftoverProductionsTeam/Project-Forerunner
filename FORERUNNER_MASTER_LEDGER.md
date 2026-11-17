@@ -44,6 +44,35 @@ Spark `456fb33` documents an aircraft-only placement trial, explicitly disposed
 and outside the original return volume, not a corrected delivered Black Echo.
 The exact coordinated authoring dependency remains in the existing contract.
 
+Native Forge cloning and product menu (17 November): 6abe3f8d56 connects
+Faber-derived console clones to existing co-op appearance synchronization.
+Native zero is the unscaled model; cloning and the existing receiver preserve
+zero resets. Host/platform, scenery, attachment/objective and quota restrictions
+remain. Existing vehicle checks pass (46 initially, then 14 affected final clone
+cases); unchanged checks were not repeated. Windows64 compiles.
+build/native-forge-scaled-clone-restore/result.json PASSES two verified Delta
+accounts: both source/clone scales .500, source zero reset, a default-scale clone;
+21 seconds/42 player observations agree. Binary:
+13de17bf09a3486e32992d721faa66e463c323921067cafe4e94f4009b6c45ab.
+Earlier bounding-center half-distance assumption remains a rejected observer,
+not a runtime failure or a full Forge editor claim. Original identities unchanged.
+
+The shared native main menu connects Campaign, Multiplayer, Extraction, Firefight
+(authored/runtime waves), Zombies, Forge sessions, Spark missions, VR/settings,
+profiles and Mods. Native profile creation, host/map/difficulty/setup, mode writer
+and Back are reused. Exact action matching fixes an observed mode-prefix bug.
+Original icon/banner and actual window/executable/About identity say Forerunner.
+Upstream notices and profile/credential folders stay intact; no second launcher.
+build/native-forerunner-menu-fixed/result.json PASSES actual Gearbox-style profile
+creation, mode choices/exclusion, map choosers, persistence and back navigation.
+Native Chupathingy-style root, setup/lobby, HWND title/icon and Windows product
+metadata inspected. Twenty-one focused menu checks pass; wrapping corrected.
+Menu binary bd5943287e3d094e91db1c7ab19f1b90b2459215393442b973631a2eb44521fa.
+First menu run remains rejected for the fixed rule bug. Full mode/editor/VR/
+platform acceptance stays separate. Owned copies/BMP scratch cleaned. No push,
+hosted jobs or Spark writes. Newly retained Spark c388d3d6 is the next real Black
+Echo candidate; do not repeat the older fixture as mission acceptance.
+
 Native vehicle-action repair (17 November, base `5f11113156`): read-only owned
 a10 tag readback confirms the cryotube and its CT-driver seat both reference the
 HUD table's placeholder entry zero. Missing/empty/placeholder vehicle names now

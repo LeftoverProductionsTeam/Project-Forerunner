@@ -596,7 +596,7 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
         description=f"{label} RC $out",
     )
     n.build(outputs=resource, rule=f"{prefix}_rc", inputs=PORT_DIR / "halo.rc",
-            implicit=[PORT_DIR / "fractum-halo.ico", resource_header])
+            implicit=[PORT_DIR / "forerunner.ico", resource_header])
     n.rule(
         name=f"{prefix}_copy",
         command="$python -c \"import shutil,sys; shutil.copyfile(sys.argv[1], sys.argv[2])\" $in $out",

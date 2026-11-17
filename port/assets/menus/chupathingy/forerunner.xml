@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Forerunner native navigation. Original assets; inherited menu callbacks retained. -->
+<menus>
+	<widget name="forerunner/main" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="created" run="main menu intialize" label="ring_loop" />
+		<on event="b" open="main_menu/quit_select/quit_screen" />
+		<on event="back" open="main_menu/quit_select/quit_screen" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/main_list" x="0" y="0" />
+		<child widget="main_menu/build_number" x="450" y="444" />
+	</widget>
+	<widget name="forerunner/banner" width="640" height="128" bitmap="chupathingy/forerunner/brand" />
+	<bitmap name="chupathingy/forerunner/brand">
+		<frame png="chupathingy/forerunner/brand.png" width="640" height="128" />
+	</bitmap>
+	<widget name="forerunner/main_list" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/campaign" x="60" y="154" />
+		<child widget="forerunner/multiplayer" x="60" y="188" />
+		<child widget="forerunner/extraction" x="60" y="222" />
+		<child widget="forerunner/firefight" x="60" y="256" />
+		<child widget="forerunner/zombies" x="60" y="290" />
+		<child widget="forerunner/forge" x="60" y="324" />
+		<child widget="forerunner/spark" x="60" y="358" />
+		<child widget="forerunner/vr" x="336" y="154" />
+		<child widget="forerunner/profiles" x="336" y="188" />
+		<child widget="forerunner/settings" x="336" y="222" />
+		<child widget="forerunner/mods" x="336" y="256" />
+		<child widget="forerunner/quit" x="336" y="290" />
+	</widget>
+	<widget name="forerunner/campaign" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CAMPAIGN" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="new game if no plyr profiles" label="load_campaign" open="main_menu/campaign_select/campaign_menu" branch="true" />
+		<on event="start" run="new game if no plyr profiles" label="load_campaign" open="main_menu/campaign_select/campaign_menu" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="main_menu/new_campaign_creating_profile" if_failed="true" />
+	</widget>
+	<widget name="forerunner/multiplayer" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="new game if no plyr profiles" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" branch="true" />
+		<on event="start" run="new game if no plyr profiles" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="main_menu/profile_manager/multiplayer_creating_profile" if_failed="true" />
+	</widget>
+	<widget name="forerunner/profiles" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="PROFILES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="new game if no plyr profiles" open="main_menu/profile_manager/player_profile_manager" branch="true" />
+		<on event="start" run="new game if no plyr profiles" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="main_menu/profile_manager/pm_entry_creating_profile" if_failed="true" />
+	</widget>
+	<widget name="forerunner/settings" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="SETTINGS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="profile set edit begin" label="settings" open="main_menu/settings_select/player_setup/player_profile_edit/player_profile_edit_screen" branch="true" />
+		<on event="start" run="profile set edit begin" label="settings" open="main_menu/settings_select/player_setup/player_profile_edit/player_profile_edit_screen" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="main_menu/profile_manager/settings_creating_profile" if_failed="true" />
+	</widget>
+	<widget name="forerunner/mods" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MODS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/mods/mods_screen" />
+		<on event="start" open="main_menu/mods/mods_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/quit" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="QUIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/quit_select/quit_screen" />
+		<on event="start" open="main_menu/quit_select/quit_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/extraction" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="EXTRACTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="forerunner/extraction/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="start" open="forerunner/extraction/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="forerunner/extraction/creating" if_failed="true" />
+	</widget>
+	<widget name="forerunner/extraction/screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/extraction/title" x="60" y="148" />
+		<child widget="forerunner/extraction/description" x="60" y="192" />
+		<child widget="forerunner/extraction/choices" x="0" y="0" />
+	</widget>
+	<widget name="forerunner/extraction/title" type="text" width="520" height="35" text="EXTRACTION" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/extraction/description" type="text" width="520" height="108" text="Prepare equipment, deploy with your squad, recover loot and\nevacuate. No raid timer." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/extraction/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/extraction/extraction_create_inter" x="60" y="316" />
+		<child widget="forerunner/extraction/join" x="60" y="350" />
+		<child widget="forerunner/extraction/back" x="336" y="414" />
+	</widget>
+	<widget name="forerunner/extraction/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/extraction/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/extraction/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/firefight" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="FIREFIGHT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="forerunner/firefight/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="start" open="forerunner/firefight/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="forerunner/firefight/creating" if_failed="true" />
+	</widget>
+	<widget name="forerunner/firefight/screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/firefight/title" x="60" y="148" />
+		<child widget="forerunner/firefight/description" x="60" y="192" />
+		<child widget="forerunner/firefight/choices" x="0" y="0" />
+	</widget>
+	<widget name="forerunner/firefight/title" type="text" width="520" height="35" text="FIREFIGHT" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/firefight/description" type="text" width="520" height="108" text="Choose a map-authored encounter or runtime waves. Authored\nencounters keep their own HaloScript wave control." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/firefight/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/firefight/native_create_inter" x="60" y="316" />
+		<child widget="forerunner/firefight/firefight_create_inter" x="60" y="350" />
+		<child widget="forerunner/firefight/join" x="60" y="384" />
+		<child widget="forerunner/firefight/back" x="336" y="414" />
+	</widget>
+	<widget name="forerunner/firefight/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="AUTHORED ENCOUNTER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/firefight/firefight_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="RUNTIME WAVES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host firefight" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host firefight" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/firefight/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/firefight/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/zombies" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="ZOMBIES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="forerunner/zombies/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="start" open="forerunner/zombies/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="forerunner/zombies/creating" if_failed="true" />
+	</widget>
+	<widget name="forerunner/zombies/screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/zombies/title" x="60" y="148" />
+		<child widget="forerunner/zombies/description" x="60" y="192" />
+		<child widget="forerunner/zombies/choices" x="0" y="0" />
+	</widget>
+	<widget name="forerunner/zombies/title" type="text" width="520" height="35" text="ZOMBIES" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/zombies/description" type="text" width="520" height="108" text="Flood survival with native encounters, scavenging and evacuation.\nChoose a compatible authored survival map." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/zombies/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/zombies/extraction_create_inter" x="60" y="316" />
+		<child widget="forerunner/zombies/join" x="60" y="350" />
+		<child widget="forerunner/zombies/back" x="336" y="414" />
+	</widget>
+	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/zombies/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/zombies/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="FORGE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="forerunner/forge/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="start" open="forerunner/forge/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="forerunner/forge/creating" if_failed="true" />
+	</widget>
+	<widget name="forerunner/forge/screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/forge/title" x="60" y="148" />
+		<child widget="forerunner/forge/description" x="60" y="192" />
+		<child widget="forerunner/forge/choices" x="0" y="0" />
+	</widget>
+	<widget name="forerunner/forge/title" type="text" width="520" height="35" text="FORGE" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Create a native session for Forge placement tools, or join friends." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
+		<child widget="forerunner/forge/join" x="60" y="350" />
+		<child widget="forerunner/forge/back" x="336" y="414" />
+	</widget>
+	<widget name="forerunner/forge/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CREATE SESSION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/spark" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="SPARK MISSIONS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="forerunner/spark/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="start" open="forerunner/spark/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="forerunner/spark/creating" if_failed="true" />
+	</widget>
+	<widget name="forerunner/spark/screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/spark/title" x="60" y="148" />
+		<child widget="forerunner/spark/description" x="60" y="192" />
+		<child widget="forerunner/spark/choices" x="0" y="0" />
+	</widget>
+	<widget name="forerunner/spark/title" type="text" width="520" height="35" text="SPARK MISSIONS" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/spark/description" type="text" width="520" height="108" text="Play native missions created in Guilty Spark. Choose your installed\nmission and difficulty, then invite your squad." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/spark/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/spark/native_create_inter" x="60" y="316" />
+		<child widget="forerunner/spark/join" x="60" y="350" />
+		<child widget="forerunner/spark/back" x="336" y="414" />
+	</widget>
+	<widget name="forerunner/spark/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/spark/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/spark/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/vr" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="VIRTUAL REALITY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="forerunner/vr/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="start" open="forerunner/vr/screen" run="new game if no plyr profiles" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="forerunner/vr/creating" if_failed="true" />
+	</widget>
+	<widget name="forerunner/vr/screen" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="forerunner/vr/title" x="60" y="148" />
+		<child widget="forerunner/vr/description" x="60" y="192" />
+		<child widget="forerunner/vr/choices" x="0" y="0" />
+	</widget>
+	<widget name="forerunner/vr/title" type="text" width="520" height="35" text="VIRTUAL REALITY" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/vr/description" type="text" width="520" height="108" text="Use your existing video and control settings to configure the\noptional headset path." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/vr/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/vr/join" x="60" y="316" />
+		<child widget="forerunner/vr/back" x="336" y="414" />
+	</widget>
+	<widget name="forerunner/vr/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="SETTINGS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="profile set edit begin" label="settings" open="main_menu/settings_select/player_setup/player_profile_edit/player_profile_edit_screen" branch="true" />
+		<on event="start" run="profile set edit begin" label="settings" open="main_menu/settings_select/player_setup/player_profile_edit/player_profile_edit_screen" branch="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+		<conditional widget="main_menu/profile_manager/settings_creating_profile" if_failed="true" />
+	</widget>
+	<widget name="forerunner/vr/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/extraction/creating" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1">
+		<on event="deleted" run="new campaign decision" open="forerunner/extraction/saving" />
+	</widget>
+	<widget name="forerunner/extraction/saving" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1000" auto_close_fade="500">
+		<on event="b" run="NULL" />
+		<on event="back" run="NULL" />
+		<on event="deleted" run="NULL" open="forerunner/extraction/screen" />
+		<child widget="error/warning_creating_player_profile_screen" />
+	</widget>
+	<widget name="forerunner/firefight/creating" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1">
+		<on event="deleted" run="new campaign decision" open="forerunner/firefight/saving" />
+	</widget>
+	<widget name="forerunner/firefight/saving" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1000" auto_close_fade="500">
+		<on event="b" run="NULL" />
+		<on event="back" run="NULL" />
+		<on event="deleted" run="NULL" open="forerunner/firefight/screen" />
+		<child widget="error/warning_creating_player_profile_screen" />
+	</widget>
+	<widget name="forerunner/zombies/creating" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1">
+		<on event="deleted" run="new campaign decision" open="forerunner/zombies/saving" />
+	</widget>
+	<widget name="forerunner/zombies/saving" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1000" auto_close_fade="500">
+		<on event="b" run="NULL" />
+		<on event="back" run="NULL" />
+		<on event="deleted" run="NULL" open="forerunner/zombies/screen" />
+		<child widget="error/warning_creating_player_profile_screen" />
+	</widget>
+	<widget name="forerunner/forge/creating" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1">
+		<on event="deleted" run="new campaign decision" open="forerunner/forge/saving" />
+	</widget>
+	<widget name="forerunner/forge/saving" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1000" auto_close_fade="500">
+		<on event="b" run="NULL" />
+		<on event="back" run="NULL" />
+		<on event="deleted" run="NULL" open="forerunner/forge/screen" />
+		<child widget="error/warning_creating_player_profile_screen" />
+	</widget>
+	<widget name="forerunner/spark/creating" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1">
+		<on event="deleted" run="new campaign decision" open="forerunner/spark/saving" />
+	</widget>
+	<widget name="forerunner/spark/saving" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1000" auto_close_fade="500">
+		<on event="b" run="NULL" />
+		<on event="back" run="NULL" />
+		<on event="deleted" run="NULL" open="forerunner/spark/screen" />
+		<child widget="error/warning_creating_player_profile_screen" />
+	</widget>
+	<widget name="forerunner/vr/creating" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1">
+		<on event="deleted" run="new campaign decision" open="forerunner/vr/saving" />
+	</widget>
+	<widget name="forerunner/vr/saving" width="640" height="480" flags="pass_unhandled_to_focused_child no_history" auto_close="1000" auto_close_fade="500">
+		<on event="b" run="NULL" />
+		<on event="back" run="NULL" />
+		<on event="deleted" run="NULL" open="forerunner/vr/screen" />
+		<child widget="error/warning_creating_player_profile_screen" />
+	</widget>
+</menus>

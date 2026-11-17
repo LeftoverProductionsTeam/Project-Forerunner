@@ -34,7 +34,7 @@ def test_menus_about_version_fits():
     fit = function(MENUS, "chupathingy_about_version")
     # (the whole line where it fits, in the text box's font and width)
     # (this fork: its own name, Fractum Halo)
-    assert fit.index('snprintf(line, (size_t)size, "Fractum Halo %s", version);') < fit.index(
+    assert fit.index('snprintf(line, (size_t)size, "Forerunner %s", version);') < fit.index(
         "ui_widget_port_text_box_room(about, &font_index, &width)")
     assert "draw_string_set_draw_mode(font_index, NONE, 0, 0, &color);" in fit
     assert "if (chupathingy_about_width(line, (long)strlen(line)) <= width)\n\t\treturn;" in fit

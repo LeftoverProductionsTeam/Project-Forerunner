@@ -452,6 +452,7 @@ static char const *const port_function_names[] =
 	"port setup open",
 	/* (Network Setup's INSTALL UPDATE: menu_functions.c) */
 	"port update install",
+	"port forerunner host native", "port forerunner host firefight", "port forerunner host extraction",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
@@ -2542,7 +2543,7 @@ before QUIT */
 
 static void main_menu_delta_patch(void)
 {
-	long list = widget_named(menus_chosen() == _menus_chupathingy ? CHUPATHINGY_MAIN_MENU_LIST : GEARBOX_MAIN_MENU_LIST);
+	long list = widget_named("forerunner/main_list");
 	long row = widget_named(DELTA_ROW);
 	struct ui_widget_definition *definition;
 
@@ -2856,10 +2857,10 @@ mcc_settings:
 		/* (those it made) */
 		cache_files_set_tag_instances(instances, build.first_index + build.next);
 	}
-	else if (widget_named(menus_chosen() == _menus_chupathingy ? CHUPATHINGY_ROOT : menus->root) != NONE)
+	else if (widget_named("forerunner/main") != NONE)
 	{
 		snprintf(menu_tags.root, sizeof(menu_tags.root), "%s%s", PC_MENU_TAG_PREFIX,
-			menus_chosen() == _menus_chupathingy ? CHUPATHINGY_ROOT : menus->root);
+			"forerunner/main");
 		for (index = 0; menu_tags.root[index]; index++)
 		{
 			if (menu_tags.root[index] == '/')

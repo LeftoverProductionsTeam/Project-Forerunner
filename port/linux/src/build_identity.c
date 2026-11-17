@@ -31,9 +31,9 @@ HALO_BUILD_FLAVOR.
 #endif
 
 #ifdef HALO_SERVER
-#define BUILD_IDENTITY_NAME "ChupathingyCE Dedicated Server"
+#define BUILD_IDENTITY_NAME "Forerunner Dedicated Server"
 #else
-#define BUILD_IDENTITY_NAME "ChupathingyCE"
+#define BUILD_IDENTITY_NAME "Forerunner"
 #endif
 
 #if defined(HALO_BROWSER)

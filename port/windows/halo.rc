@@ -1,8 +1,6 @@
-// The Windows executable's resources: its icon (this fork's, fractum-halo.ico,
-// made by tools/fractum_icon.py; ChupathingyCE's is halo.ico, from
-// tools/windows_icon.py) and its version information,
-// which Explorer shows in the file's properties (this fork's name: Fractum Halo). halo_version.h is written by
-// tools/windows_build.py with the build's version (tools/version.py).
+// Forerunner's original project icon and Windows product identity.
+// Upstream notices remain in the bundled licenses and source history.
+// halo_version.h is written by tools/windows_build.py.
 
 #include "halo_version.h"
 
@@ -13,7 +11,7 @@
 #define VFT2_UNKNOWN 0x00000000L
 
 // (the first icon is the executable's in Explorer and the taskbar)
-1 ICON "fractum-halo.ico"
+1 ICON "forerunner.ico"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION HALO_RC_VERSION_NUMBERS
@@ -29,12 +27,12 @@ BEGIN
         // (US English, Unicode)
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "FractumSeraph"
-            VALUE "FileDescription", "Fractum Halo"
+            VALUE "CompanyName", "Leftover Productions Team"
+            VALUE "FileDescription", "Forerunner"
             VALUE "FileVersion", HALO_RC_VERSION_STRING
             VALUE "InternalName", "halo"
             VALUE "OriginalFilename", "halo.exe"
-            VALUE "ProductName", "Fractum Halo"
+            VALUE "ProductName", "Forerunner"
             VALUE "ProductVersion", HALO_RC_VERSION_STRING
         END
     END

@@ -70,7 +70,7 @@ SMAA_FILES = (("SMAA.hlsl", "xgpu_smaa_shader"), ("area_tex.zlib", "xgpu_smaa_ar
 # Fractum Halo's (tools/fractum_icon.py makes it; tools/android_icon.py makes
 # ChupathingyCE's, chupathingyce-icon-256.png, tools/app_icon.py OpenCE's,
 # opence-icon-256.png)
-WINDOW_ICON = Path("port/assets/icon/fractum-halo-256.png")
+WINDOW_ICON = Path("port/assets/icon/forerunner-256.png")
 # the pointer the menus show in place of the system's (port/linux/src/sdl_platform.c)
 MENU_CURSOR = Path("port/assets/cursor/menu_cursor.png")
 # the head-related impulse responses (dsound_sdl.c's hrtf)

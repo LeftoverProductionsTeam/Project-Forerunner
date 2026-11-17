@@ -206,7 +206,7 @@ static void old_map_folders_offer(BOOL quiet)
 	const char *setting = config_string("game.move_old_map_folders");
 	char moves[256];
 	char text[1024];
-	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Fractum Halo: map folders", text, 2,
+	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner: map folders", text, 2,
 		buttons, NULL };
 	int answer = 0;
 
@@ -281,7 +281,7 @@ static void new_defaults_offer(BOOL quiet)
 	};
 	char changes[1024];
 	char text[1536];
-	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Fractum Halo: new settings", text, 2,
+	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner: new settings", text, 2,
 		buttons, NULL };
 	int answer = 0;
 
@@ -358,12 +358,12 @@ static void data_check_maps(void)
 		platform_log("maps folder: %ld Halo PC maps in %s/maps (%s)", maps.stray_pc_maps, maps.root,
 			maps.stray_names);
 		if (!quiet)
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Fractum Halo", message, NULL);
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_WARNING, "Forerunner", message, NULL);
 		return;
 	case _maps_folder_halo_pc:
 		snprintf(message, sizeof(message),
 			"The maps folder holds Halo PC maps, not the Xbox maps: its ui.map is from %s.\n\n%s\n\n"
-			"To copy the Xbox maps from your disc image, move this maps folder aside and start Fractum Halo.",
+			"To copy the Xbox maps from your disc image, move this maps folder aside and start Forerunner.",
 			maps.ui_version == 609 ? "Halo PC (Custom Edition)" : "Halo PC", where);
 		break;
 	default:
@@ -387,7 +387,7 @@ static void data_check_maps(void)
 #endif
 		snprintf(message, sizeof(message),
 			"Halo's Xbox maps were not found: %s/maps has no ui.map.%s\n\n%s\n\n"
-			"To copy the Xbox maps from your disc image, move the maps folder aside and start Fractum Halo.",
+			"To copy the Xbox maps from your disc image, move the maps folder aside and start Forerunner.",
 			maps.root, maps.stray_pc_maps || maps.pc_maps_beside ?
 				" Halo PC maps need the Xbox maps too." : "",
 			where);
@@ -408,7 +408,7 @@ static void data_check_maps(void)
 		maps.ui_version);
 	platform_log("%s", message);
 	if (!quiet)
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", message, NULL);
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", message, NULL);
 	exit(EXIT_FAILURE);
 }
 #endif
@@ -424,12 +424,12 @@ static void crash_reports_start(void)
 		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No" },
 	};
 	static const char text[] =
-		"Fractum Halo crashed the last time it ran.\n\n"
+		"Forerunner crashed the last time it ran.\n\n"
 		"Send crash reports to the developers?\n\n"
 		"A report holds the game's version, where it crashed and the end of debug.txt, with IP addresses "
 		"removed.\n\n"
 		"Yes sends this report and later ones. No never sends one.";
-	SDL_MessageBoxData question = { SDL_MESSAGEBOX_WARNING, NULL, "Fractum Halo crashed", text, 2, buttons, NULL };
+	SDL_MessageBoxData question = { SDL_MESSAGEBOX_WARNING, NULL, "Forerunner crashed", text, 2, buttons, NULL };
 	char folder[1024], log[1024], old_folder[1024], old_log[1024];
 	const char *consent;
 	int pending, answer = 0;
@@ -687,7 +687,7 @@ BOOL platform_sdl_initialize(void)
 		exit(EXIT_SUCCESS);
 	/* (port: the name the system shows for it: the volume mixer's, the
 	screen saver's inhibitor) */
-	SDL_SetHint(SDL_HINT_APP_NAME, "Fractum Halo");
+	SDL_SetHint(SDL_HINT_APP_NAME, "Forerunner");
 #ifdef __APPLE__
 	/* closing the window is the event's to decide (platform_pump_events:
 	Command-W does not quit) */
@@ -771,12 +771,12 @@ BOOL platform_sdl_initialize(void)
 
 			snprintf(reason, sizeof(reason), "%s", SDL_GetError());
 			snprintf(message, sizeof(message),
-				"Fractum Halo couldn't open a window: %s.\n\n"
+				"Forerunner couldn't open a window: %s.\n\n"
 				"It needs a display to run on. Check that one is connected and turned on.", reason);
 			platform_log("video: no window (%s): quitting", reason);
-			fprintf(stderr, "Fractum Halo: %s\n", message);
+			fprintf(stderr, "Forerunner: %s\n", message);
 			if (!config_boolean("debug.hidden_window") && config_real("debug.exit_after") <= 0.0)
-				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", message, NULL);
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", message, NULL);
 			SDL_Quit();
 			exit(EXIT_FAILURE);
 		}
@@ -1319,7 +1319,7 @@ static BOOL data_extract(int kind, const char *image, const char *url, const cha
 
 	if (!data_extraction_start(kind, image, url, destination, wanted, error, error_size))
 		return FALSE;
-	window = SDL_CreateWindow("Fractum Halo", 640, 150, 0);
+	window = SDL_CreateWindow("Forerunner", 640, 150, 0);
 	if (window)
 	{
 		renderer = SDL_CreateRenderer(window, NULL);
@@ -1520,7 +1520,7 @@ static BOOL data_make_folders(const char *destination)
 		destination);
 	for (;;)
 	{
-		SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Fractum Halo", message, 2, buttons,
+		SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner", message, 2, buttons,
 			NULL };
 		int answer = 0;
 
@@ -1591,7 +1591,7 @@ static BOOL data_offer_message_boxes(const char *destination)
 
 		snprintf(host, sizeof(host), "%.*s", (int)(end - start), start);
 		snprintf(message, sizeof(message),
-			"Fractum Halo plays Halo with the maps from the Xbox disc. Download them from %s into %s?\n\n"
+			"Forerunner plays Halo with the maps from the Xbox disc. Download them from %s into %s?\n\n"
 			"Multiplayer only: the multiplayer maps, the menus and Halo Custom Edition's shared maps, "
 			"about 0.5 GB. The campaign's maps are offered when you first play the campaign.\n\n"
 			"Everything: the campaign's maps as well, about 2 GB.\n\n"
@@ -1605,7 +1605,7 @@ static BOOL data_offer_message_boxes(const char *destination)
 	else
 	{
 		snprintf(message, sizeof(message),
-			"Fractum Halo needs the maps from your Halo: Combat Evolved Xbox disc. Add them from:\n\n"
+			"Forerunner needs the maps from your Halo: Combat Evolved Xbox disc. Add them from:\n\n"
 			"Xbox disc image: a disc image (.iso), copied into %s/maps.\n\n"
 			"Halo PC or Custom Edition (optional): a Halo PC CD image (.iso) or the "
 			"Custom Edition installer (halocesetup_en_1.00.exe).\n\n"
@@ -1625,7 +1625,7 @@ static BOOL data_offer_message_boxes(const char *destination)
 	}
 	for (;;)
 	{
-		SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Fractum Halo", message,
+		SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner", message,
 			download ? 6 : 4, download ? download_buttons : buttons, NULL };
 		char image[1024];
 		char error[512];
@@ -1652,7 +1652,7 @@ static BOOL data_offer_message_boxes(const char *destination)
 				return TRUE;
 			}
 			platform_log("download failed: %s", error);
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", error, NULL);
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", error, NULL);
 			continue;
 		}
 		if (answer == _choice_folders)
@@ -1676,10 +1676,10 @@ static BOOL data_offer_message_boxes(const char *destination)
 			platform_log("no file dialog: %s", error);
 			snprintf(explanation, sizeof(explanation),
 				"No file dialog could be shown (%s).\n\n"
-				"Put the disc image (.iso) in %s and start Fractum Halo again, "
+				"Put the disc image (.iso) in %s and start Forerunner again, "
 				"or install zenity.",
 				error, destination);
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", explanation, NULL);
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", explanation, NULL);
 			continue;
 		}
 		kind = platform_import_kind(image);
@@ -1687,7 +1687,7 @@ static BOOL data_offer_message_boxes(const char *destination)
 		{
 			platform_log("%s is no disc image or installer this reads", image);
 			image_found = FALSE;
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo",
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner",
 				"That file is not an Xbox disc image, a Halo PC CD image or the Custom Edition installer.",
 				NULL);
 			continue;
@@ -1697,7 +1697,7 @@ static BOOL data_offer_message_boxes(const char *destination)
 		{
 			platform_log("extraction failed: %s", error);
 			image_found = FALSE;
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", error, NULL);
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", error, NULL);
 			continue;
 		}
 		if (kind == _data_xbox_disc)
@@ -1717,11 +1717,11 @@ static BOOL data_offer_message_boxes(const char *destination)
 					"maps_ce already has these maps."));
 			if (data_has_xbox_maps(destination))
 			{
-				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Fractum Halo",
+				SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Forerunner",
 					written ? "The maps are added." : "The folder already has these maps.", NULL);
 				return TRUE;
 			}
-			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Fractum Halo", done, NULL);
+			SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_INFORMATION, "Forerunner", done, NULL);
 		}
 	}
 }
@@ -1747,7 +1747,7 @@ BOOL platform_offer_game_data(char *destination, unsigned long size)
 		return FALSE;
 	if (updater_gamescope())
 	{
-		platform_log("no game data: start Fractum Halo once from Desktop Mode to add the maps");
+		platform_log("no game data: start Forerunner once from Desktop Mode to add the maps");
 		return FALSE;
 	}
 	offering = TRUE;
@@ -1777,7 +1777,7 @@ BOOL platform_offer_missing_map(const char *name)
 	char error[512];
 	unsigned long long written = 0;
 	int answer = 0;
-	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Fractum Halo", message, 2, buttons, NULL };
+	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner", message, 2, buttons, NULL };
 
 	if (!data_is_campaign_map(name) || strncmp(url, "https://", 8) || url[strlen(url) - 1] != '/' ||
 		config_boolean("debug.hidden_window") || config_real("debug.exit_after") > 0.0)
@@ -1797,7 +1797,7 @@ BOOL platform_offer_missing_map(const char *name)
 		return TRUE;
 	}
 	platform_log("download failed: %s", error);
-	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", error, NULL);
+	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", error, NULL);
 	return FALSE;
 }
 
@@ -2667,15 +2667,15 @@ static void platform_gl_missing(const char *reason)
 	platform_log("graphics: %s; OpenGL %s is needed%s%s: quitting", reason, PLATFORM_GL_NEEDED,
 		have[0] ? ", the driver has OpenGL " : "", have);
 	snprintf(message, sizeof(message),
-		"Fractum Halo can't run on this computer's graphics.\n\n"
+		"Forerunner can't run on this computer's graphics.\n\n"
 		"It needs OpenGL %s%s%s.\n\n"
 		"Updating the graphics driver can fix this. Some older graphics chips never get OpenGL %s, "
-		"and Fractum Halo can't run on those yet.",
+		"and Forerunner can't run on those yet.",
 		PLATFORM_GL_NEEDED,
 		have[0] ? ", and the graphics driver here has OpenGL " : ", and the graphics driver here doesn't have it",
 		have, PLATFORM_GL_NEEDED);
 	if (!config_boolean("debug.hidden_window") && config_real("debug.exit_after") <= 0.0)
-		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Fractum Halo", message, platform_window);
+		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Forerunner", message, platform_window);
 	exit(EXIT_FAILURE);
 }
 #endif
@@ -2750,7 +2750,7 @@ static void platform_vulkan_offer(void)
 		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Use the phone's driver" },
 		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Not now" },
 	};
-	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Chupathingy: renderer",
+	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner: renderer",
 		"Vulkan didn't get going, so the game is using OpenGL ES for now.\n\n"
 		"Switch to OpenGL ES for good? You can change it later in config.toml (display.renderer).",
 		2, renderer_buttons, NULL };
@@ -3114,8 +3114,8 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 	setenv("mesa_glthread", "true", 0);
 #endif
 
-	/* "Fractum Halo 0.8.0-fs.00140" (this fork's name: ChupathingyCE names its builds Chupathingy) */
-	snprintf(title, sizeof(title), "Fractum Halo %s", updater_version());
+	/* "Forerunner 0.8.0-fs.00140" (this fork's name: ChupathingyCE names its builds Chupathingy) */
+	snprintf(title, sizeof(title), "Forerunner %s", updater_version());
 #ifdef HALO_ANDROID
 	{
 		int scale = (int)config_integer("display.window_scale");
@@ -4385,7 +4385,7 @@ static void platform_game_list_requests(void)
 		memset(&question, 0, sizeof(question));
 		question.flags = SDL_MESSAGEBOX_WARNING;
 		question.window = platform_window;
-		question.title = "Fractum Halo: replace your player key?";
+		question.title = "Forerunner: replace your player key?";
 		question.message = message;
 		question.numbuttons = 2;
 		question.buttons = buttons;
@@ -4520,7 +4520,7 @@ static void platform_opengl_offer(void)
 		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Switch to OpenGL" },
 		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "Not now" },
 	};
-	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Chupathingy: renderer",
+	SDL_MessageBoxData question = { SDL_MESSAGEBOX_INFORMATION, NULL, "Forerunner: renderer",
 		"Vulkan didn't get going last time, so the game is using OpenGL for now.\n\n"
 		"Switch to OpenGL for good? You can change it later on the RENDERER row of the display settings.",
 		2, buttons, NULL };

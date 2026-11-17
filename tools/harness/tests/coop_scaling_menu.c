@@ -77,6 +77,14 @@ static void setup(void)
 }
 int main(int argc,char **argv)
 {
+ if(argc==2&&!strcmp(argv[1],"entry-modes")) {
+  CHECK(forerunner_operation_mode("port forerunner host extraction")==2,"Extraction selected ordinary co-op");
+  CHECK(forerunner_operation_mode("port forerunner host firefight")==1,"Firefight selected ordinary co-op");
+  CHECK(forerunner_operation_mode("port forerunner host native")==0,"Authored encounter selected a second director");
+  CHECK(forerunner_operation_mode("port forerunner host ")==NONE&&forerunner_operation_mode("port forerunner host other")==NONE,"Unknown action changed game rules");
+  return 0;
+ }
+
  const char *case_name=argc>1?argv[1]:"";setup();
  CASE("layout") {
   for(int repeat=0;repeat<100;repeat++)for(int mode=0;mode<3;mode++)for(int pickups=0;pickups<3;pickups++)for(int vehicles=0;vehicles<3;vehicles++){

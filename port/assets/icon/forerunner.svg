@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<title>Forerunner</title>
+<metadata>Original Forerunner project architectural mark. AGPL-3.0-or-later. Inspired by angular Halo architecture; no copied Halo insignia or assets.</metadata>
+<polygon fill="#122B3D" points="512,70 910,295 910,730 512,955 114,730 114,295"/>
+<polygon fill="#7FADB9" points="512,101 880,311 880,714 512,924 144,714 144,311"/>
+<polygon fill="#0A1928" points="512,137 849,330 849,695 512,888 175,695 175,330"/>
+<polygon fill="#D4E4E7" points="470,250 512,190 554,250 554,401 724,303 763,326 763,403 554,524 554,734 512,800 470,734 470,524 261,403 261,326 300,303 470,401"/>
+<polygon fill="#73DCEC" points="496,272 512,248 528,272 528,718 512,743 496,718"/>
+<polygon fill="#7797A7" points="261,472 394,549 394,650 261,573"/>
+<polygon fill="#7797A7" points="763,472 630,549 630,650 763,573"/>
+<polygon fill="#CCF8FA" points="490,831 512,807 534,831 512,855"/>
+</svg>

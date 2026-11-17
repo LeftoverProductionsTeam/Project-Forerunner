@@ -17,7 +17,7 @@ def generated(fault=None):
     code = enum_with(read('source/game/game_engine.h'), '_game_mode_none = 0') + '\n' + \
         function(source, 'gametype_option_help') + '\n' + \
         function(source, 'gametype_option_setting_index') + '\n' + \
-        function(source, 'gametype_option_setting_write')
+        function(source, 'gametype_option_setting_write') + '\n' + function(source, 'forerunner_operation_mode')
     if fault:
         code = mutated(code, *fault)
     return (('under_test.inc', code),)
@@ -29,7 +29,7 @@ def test_case(case):
     assert status == 0, output
 
 
-@pytest.mark.parametrize('case', ['mode-loop', 'mode-write-failure', 'mode-unrelated', 'custom-setting'])
+@pytest.mark.parametrize('case', ['mode-loop', 'mode-write-failure', 'mode-unrelated', 'custom-setting', 'entry-modes'])
 def test_operations_mode(case):
     status, output = run(build('coop_scaling_menu', generated()), case)
     assert status == 0, output

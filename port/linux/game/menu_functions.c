@@ -3501,7 +3501,7 @@ static void chupathingy_about_version(struct widget_instance *about, char const 
 	char *word, *next;
 	int length = 0, start = 0;
 
-	snprintf(line, (size_t)size, "Fractum Halo %s", version); /* (this fork's name) */
+	snprintf(line, (size_t)size, "Forerunner %s", version); /* (this fork's name) */
 	if (!ui_widget_port_text_box_room(about, &font_index, &width))
 		return;
 	draw_string_set_draw_mode(font_index, NONE, 0, 0, &color);
@@ -5702,9 +5702,12 @@ static boolean multiplayer_player(short controller)
 
 /* Create Game's ("join controller to mp game", first): player 1 in, and
 the server made: an internet one (an invite, Discord) or a LAN one */
+static boolean forerunner_operation_chooser;
+
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
 	boolean *widget_deleted)
 {
+	forerunner_operation_chooser = FALSE;
 	multiplayer_mode_set(widget);
 	if (!multiplayer_player(controller))
 		return FALSE;
@@ -5875,6 +5878,7 @@ static boolean map_list_initialize(struct widget_instance *list)
 	char const *const *names;
 	short last_used = 0;
 	short mcc_kind = map_list.kind;
+	boolean operation = forerunner_operation_chooser;
 
 	map_list.hosting = global_network_game_server_get() != NULL && !network_game_is_splitscreen_local();
 	/* (the list found first, so that the view knows the sources it has) */
@@ -5888,11 +5892,17 @@ static boolean map_list_initialize(struct widget_instance *list)
 		map_list.kind = MAP_KIND_CUSTOM_MULTIPLAYER;
 		last_used -= map_list.map_count;
 	}
+	if (forerunner_operation_chooser && map_list.hosting)
+	{
+		map_list.kind = MAP_KIND_CUSTOM_SINGLEPLAYER;
+		last_used = 0;
+	}
+	forerunner_operation_chooser = FALSE;
 	map_kind_set(list, map_list.kind);
 	/* (MULTIPLAYER's maps after the view's rows) */
 	map_step_open(list, MAP_STEP_MAPS, map_list.kind == MAP_KIND_MULTIPLAYER ? (short)(MAP_VIEW_ROWS + last_used) :
 		last_used);
-	if (map_kind_mcc(mcc_kind) && (map_list.hosting || mcc_kind == MAP_KIND_MCC_MULTIPLAYER))
+	if (!operation && map_kind_mcc(mcc_kind) && (map_list.hosting || mcc_kind == MAP_KIND_MCC_MULTIPLAYER))
 	{
 		map_list.kind = mcc_kind;
 		mcc_host_list.campaign = mcc_kind == MAP_KIND_MCC_SINGLEPLAYER;
@@ -13743,6 +13753,15 @@ static boolean profile_list_delta_chosen(struct widget_instance const *widget)
 
 #endif
 
+/* The main menu uses the existing authoritative co-op mode setting. */
+static short forerunner_operation_mode(char const *action)
+{
+	if (!strcmp(action, "port forerunner host extraction")) return 2;
+	if (!strcmp(action, "port forerunner host firefight")) return 1;
+	if (!strcmp(action, "port forerunner host native")) return 0;
+	return NONE;
+}
+
 /* ---------- public code */
 
 boolean pc_menu_event_function_invoke(
@@ -13953,6 +13972,15 @@ boolean pc_menu_event_function_invoke(
 		else if (!strcmp(name, "port pause moderation"))
 		{
 			return pause_moderation();
+		}
+		else if (forerunner_operation_mode(name) != NONE)
+		{
+			struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
+			short mode = forerunner_operation_mode(name);
+			if (!option || !gametype_option_setting_write(option, mode)) return campaign_fail();
+			if (!multiplayer_host(widget, event, controller, widget_deleted)) return FALSE;
+			forerunner_operation_chooser = TRUE;
+			return TRUE;
 		}
 		else if (!strcmp(name, "port setup open"))
 		{
