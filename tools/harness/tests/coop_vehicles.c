@@ -12,9 +12,16 @@
 #define csmemcpy memcpy
 #define csmemset memset
 #define csmemcmp memcmp
+#define SET_FLAG(value,bit,on) ((on)?((value)|=FLAG(bit)):((value)&=~FLAG(bit)))
 #define _game_connection_network_server 2
 enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit,
        _unit_possessed_by_recording_bit };
+enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle };
+#define _object_mask_scenery FLAG(_object_type_scenery)
+#define _object_mask_weapon FLAG(_object_type_weapon)
+#define _object_mask_equipment FLAG(_object_type_equipment)
+#define _object_mask_vehicle FLAG(_object_type_vehicle)
+#define _new_object_never_automatically_delete_bit 0
 enum { _collision_test_structure_bit, _collision_test_objects_bit, _collision_test_front_facing_surfaces_bit,
        _collision_test_back_facing_surfaces_bit };
 #define _collision_test_objects_sight_blocking_flags 0
@@ -27,7 +34,7 @@ struct test_object {
  long definition_index;
  struct {long parent_object_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
  real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
- float base_change_colors[12];short name_index;real scale;byte region_permutations[16];} object;
+ float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];} object;
  struct {unsigned long flags; long driver_object_index,player_index;} unit;
  struct {byte airborne_ticks;} vehicle;
 };
@@ -35,7 +42,7 @@ struct test_object {
 #define unit_datum test_object
 #define object_datum test_object
 struct object_placement_data {long definition_index; short variant_number; real_point3d position;
- real_vector3d forward,up; float change_colors[12];};
+ real_vector3d forward,up; float change_colors[12];unsigned long flags;short owner_team_index;};
 struct unit_definition {byte pad[0x2f4];short type;struct {struct {long index;} physics;float bounding_radius;} object;};
 struct mass_point_definition {real_point3d position;float radius;};
 struct tag_block {long count;void *address;};
@@ -103,6 +110,24 @@ static long object_new(struct object_placement_data const *p) {
  objects[index&65535].object.position.z+=definitions[p->definition_index].object.bounding_radius*.5f;
  return index;
 }
+
+static boolean terminal_command_running=TRUE,clone_refused,clone_xbox,clone_quota=TRUE,clone_objective;
+static struct object_placement_data clone_placement;
+#define object_try_and_get get
+static boolean network_game_distributed_client(void){return connection==1;}
+static boolean network_game_host_cheats_refused(void){return clone_refused;}
+static void *global_network_game_server_get(void){return connection==2?&game:NULL;}
+static boolean cheats_console_objects_xbox(void){return clone_xbox;}
+static boolean cheats_console_object_allowed(void){return clone_quota;}
+static boolean cheats_console_object_made(long index){return index!=NONE;}
+static boolean weapon_is_flag(long index){return clone_objective;}
+static void console_warning(char const *text){}
+static void objects_scripting_set_scale(long index,real scale,short ticks){get(index)->object.scale=scale;}
+/* Keep the existing allocation adapter, recording what native creation receives. */
+static long clone_object_new(struct object_placement_data const *p){clone_placement=*p;return object_new(p);}
+#define object_new clone_object_new
+#include "clone.inc"
+#undef object_new
 
 #include "under_test.inc"
 
@@ -264,7 +289,6 @@ static void rider_release(char const *name) {
 }
 /* The existing native unsteered path, with object IO/rotation as boundaries. */
 #define MAXIMUM_TRACKED_OBJECTS 1024
-#define _object_mask_vehicle 2
 #define _network_vehicle_write_state 0
 #define _network_vehicle_write_carry 1
 static boolean path_cinematic;
@@ -349,6 +373,37 @@ static void unsteered_path(char const *name) {
 }
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
+ if(!strncmp(argv[1],"clone-",6)) {
+  long source=reset(),copy;char const *name=argv[1]+6;boolean refused=FALSE;
+  struct test_object *v=get(source);
+  v->object.type=_object_type_vehicle;v->object.scale=.5f;v->object.owner_team_index=2;
+  v->object.variant_number=3;v->object.base_change_colors[0]=.25f;v->object.name_index=7;
+  if(!strcmp(name,"local")){connection=0;coop=0;}
+  if(!strcmp(name,"default")){coop=0;v->object.scale=0;}
+  if(!strcmp(name,"identity")){coop=0;v->object.scale=1;}
+  if(!strcmp(name,"ordinary")){coop=0;refused=TRUE;}
+  if(!strcmp(name,"xbox")){clone_xbox=TRUE;refused=TRUE;}
+  if(!strcmp(name,"client")){connection=1;refused=TRUE;}
+  if(!strcmp(name,"permission")){clone_refused=TRUE;refused=TRUE;}
+  if(!strcmp(name,"quota")){clone_quota=FALSE;refused=TRUE;}
+  if(!strcmp(name,"scenery")){v->object.type=_object_type_scenery;refused=TRUE;}
+  if(!strcmp(name,"attached")){v->object.parent_object_index=123;refused=TRUE;}
+  if(!strcmp(name,"objective")){v->object.type=_object_type_weapon;clone_objective=TRUE;refused=TRUE;}
+  if(!strcmp(name,"allocation")){allocation_failed=TRUE;refused=TRUE;}
+  if(!strcmp(name,"bounds")) {
+   real invalid[]={-1,100,INFINITY,NAN};int i;
+   for(i=0;i<4;i++){v->object.scale=invalid[i];CHECK(cheat_forge_clone(source)==NONE&&!new_count,"unsupported scale created a replica");}
+   return 0;
+  }
+  copy=cheat_forge_clone(source);
+  if(refused){CHECK(copy==NONE&&!new_count,"refused clone created an object");return 0;}
+  CHECK(copy!=NONE&&copy!=source&&new_count==1&&get(copy)->object.scale==v->object.scale,"native scaled clone missing");
+  CHECK(clone_placement.owner_team_index==2&&clone_placement.variant_number==3&&
+   clone_placement.change_colors[0]==.25f&&clone_placement.forward.i==1&&clone_placement.up.k==1,
+   "native clone lost authored placement");
+  CHECK(clone_placement.flags&FLAG(_new_object_never_automatically_delete_bit),"clone became automatic cleanup loot");
+  return 0;
+ }
  if(!strncmp(argv[1],"riders-",7)) {rider_release(argv[1]);return 0;}
  if(!strncmp(argv[1],"path-",5)) {unsteered_path(argv[1]);return 0;}
  if(!strcmp(argv[1],"initial-appearance")) {initial_appearance();return 0;}

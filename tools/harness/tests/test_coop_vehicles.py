@@ -32,6 +32,7 @@ def generated(fault=None):
     return (('under_test.inc', source),
             ('path.inc', path),
             ('looks.inc', looks),
+            ('clone.inc', function(read('source/game/cheats.c'), 'cheat_forge_clone')),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
              structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
              structure(read('source/ai/ai_scenario_definitions.h'), 'actor_starting_location')),
@@ -54,6 +55,13 @@ def test_cinematic_path_negative_control():
 
 def test_initial_scripted_appearance():
     status, output = run(build('coop_vehicles', generated()), 'initial-appearance')
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['copy', 'local', 'default', 'identity', 'ordinary', 'xbox', 'bounds', 'client',
+                                 'permission', 'quota', 'scenery', 'attached', 'objective', 'allocation'])
+def test_native_scaled_clone(case):
+    status, output = run(build('coop_vehicles', generated()), 'clone-' + case)
     assert status == 0, output
 
 

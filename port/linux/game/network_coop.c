@@ -3870,7 +3870,8 @@ void network_coop_handle_object_looks(
 				object->object.region_permutations[region_index] = permutation_index;
 			}
 		}
-		if (distributed_real_valid(look->scale) && look->scale > 0.0f && look->scale < 100.0f &&
+		/* Native zero clears an applied scale; it is not an invalid size. */
+		if (distributed_real_valid(look->scale) && look->scale >= 0.0f && look->scale < 100.0f &&
 			look->scale != object->object.scale)
 		{
 			objects_scripting_set_scale(object_index, look->scale, 0);

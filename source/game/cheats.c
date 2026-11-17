@@ -57,6 +57,7 @@ symbols in this file:
 #include "game/game.h" /* port: game_connection, cheat_objects */
 #include "game/game_globals.h"
 #include "game/players.h"
+#include "network_coop.h" /* port: existing co-op appearance replication */
 #include "hs/hs.h"
 #include "input/input.h"
 #include "interface/terminal.h"
@@ -257,11 +258,15 @@ long cheat_forge_clone(
 		console_warning("forge_clone needs local play for scenery; network creation does not carry scenery");
 		return NONE;
 	}
-	/* Native creation already carries variant/colors, but not object scale.
-	Do not silently create a differently sized object on the other machines. */
-	if (global_network_game_server_get() && object->object.scale != 1.0f)
+	/* Co-op's existing object-looks message carries initial scale and refreshes
+	missed creation. Native zero means the unscaled model, as does one.
+	Ordinary multiplayer/Xbox has no scaled equivalent. Keep exactly
+	the receiving scale bounds; never create a differently sized replica. */
+	if (global_network_game_server_get() && object->object.scale != 0.0f && object->object.scale != 1.0f &&
+		(!network_coop_active() || cheats_console_objects_xbox() ||
+		 !(object->object.scale > 0.0f && object->object.scale < 100.0f)))
 	{
-		console_warning("forge_clone needs local play for scaled objects; network creation does not carry scale");
+		console_warning("forge_clone needs supported native co-op for scaled network objects (scale >0 and <100; no Xbox)");
 		return NONE;
 	}
 	if (!cheats_console_object_allowed())
