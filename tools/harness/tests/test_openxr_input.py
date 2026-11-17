@@ -29,7 +29,8 @@ def generated(fault=None):
     types += '\n' + enum_with(read('source/units/units.h'), '_unit_control_crouch_modifier_bit =')
     render = read('port/linux/game/vr_render.c')
     geometry = '\n'.join(function(render, name) for name in
-        ['wrapped_yaw', 'quaternion_rotate', 'world_axes', 'weapon_offset', 'prepare_weapon_camera',
+        ['wrapped_yaw', 'quaternion_rotate', 'world_axes', 'weapon_offset', 'controller_support_reset',
+         'controller_support_update', 'controller_weapon_forward', 'prepare_weapon_camera',
          'vr_render_weapon_nodes', 'vr_render_weapon_draw_begin', 'vr_render_weapon_draw_end',
          'controller_turn_delta', 'vr_render_player_aim', 'vr_render_player_grab'])
     cull = '\n'.join(function(read('port/linux/src/d3d8_gl.c'), name) for name in
@@ -52,6 +53,14 @@ def test_physical_weapon_grip(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['loop', 'left', 'near', 'far', 'side', 'held', 'duplicate', 'mapping',
+                                 'tracking', 'reference', 'ownership', 'one-handed', 'ptt', 'nonfinite',
+                                 'weapon', 'seat', 'release', 'disabled', 'gap'])
+def test_two_handed_weapon(case):
+    status, output = run(build('openxr_input', generated()), 'support-' + case)
+    assert status == 0, output
+
+
 def test_focus_negative_control():
     status, output = run(build('openxr_input', generated(('if (!frame.focused)', 'if (FALSE)'))), 'focus')
     assert status == CHECK_FAILED, output
@@ -59,8 +68,8 @@ def test_focus_negative_control():
 
 @pytest.mark.parametrize('component,before,after,case', [
     ('under_test.inc', '!strcmp(config_string("vr.dominant_hand"), "left")', 'FALSE', 'left-handed'),
-    ('pose.inc', 'quaternion_rotate(frame.hand[hand].aim.orientation, xr_forward, rotated);',
-     'quaternion_rotate(frame.hand[1].aim.orientation, xr_forward, rotated);', 'left-pose'),
+    ('pose.inc', 'quaternion_rotate(frame->hand[vr_openxr_weapon_hand()].aim.orientation, xr_forward, rotated);',
+     'quaternion_rotate(frame->hand[1].aim.orientation, xr_forward, rotated);', 'left-pose'),
     ('pose.inc', 'xgpu_openxr_mirrored_draws(FALSE);', '(void)0;', 'reflection'),
 ])
 def test_handedness_negative_control(component, before, after, case):
@@ -75,4 +84,18 @@ def test_grab_reach_negative_control():
     files = tuple((name, mutated(code, before, 'if (FALSE) goto unavailable;')) if name == 'pose.inc' else (name, code)
                   for name, code in generated())
     status, output = run(build('openxr_input', files), 'grab-reach')
+    assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('before,after,case', [
+    ('if (along > 0.08f && along < 0.70f && across < 0.18f)',
+     'if (along > -1.f && across < 1000.f)', 'support-side'),
+    ('controller_weapon_forward(frame, rotated);',
+     'quaternion_rotate(frame->hand[vr_openxr_weapon_hand()].aim.orientation, (float[3]){0,0,-1}, rotated);',
+     'support-loop'),
+])
+def test_two_handed_negative_control(before, after, case):
+    files = tuple((name, mutated(code, before, after)) if name == 'pose.inc' else (name, code)
+                  for name, code in generated())
+    status, output = run(build('openxr_input', files), case)
     assert status == CHECK_FAILED, output

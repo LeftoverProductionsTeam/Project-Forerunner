@@ -12,9 +12,9 @@ static BOOL connected = TRUE;
 static char const *talk = "off", *voice = "push_to_talk";
 static char const *aim_mode="controller",*dominant="right",*swap_sticks="auto",*turn_mode="snap";
 static BOOL openxr_layout_known,openxr_layout_wait;
-static int openxr_layout_weapon,openxr_layout_turn,openxr_layout_grab;
-static BOOL grab_enabled;
-static int config_boolean(char const *name){CHECK(!strcmp(name,"vr.weapon_grab"),"unknown boolean %s",name);return grab_enabled;}
+static int openxr_layout_weapon,openxr_layout_turn,openxr_layout_grab,openxr_layout_support;
+static BOOL grab_enabled,support_enabled;
+static int config_boolean(char const *name){if(!strcmp(name,"vr.two_handed"))return support_enabled;CHECK(!strcmp(name,"vr.weapon_grab"),"unknown boolean %s",name);return grab_enabled;}
 static BOOL openxr_talk_armed, openxr_talk_held;
 static int openxr_talk_binding, mouse_lock;
 static unsigned int openxr_talk_reference;
@@ -41,6 +41,11 @@ static char const *config_string(char const *name)
 #define HALO_OPENXR 1
 #define ABS(x) ((x)<0?-(x):(x))
 #define MAX(a,b) ((a)>(b)?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#define VALID_INDEX(i,n) ((i)>=0&&(i)<(n))
+#define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
+#define TICKS_PER_SECOND 30
+#define MAXIMUM_WEAPONS_PER_UNIT 4
 #define PIN(v,a,b) ((v)<(a)?(a):((v)>(b)?(b):(v)))
 #define _pi 3.14159265358979323846f
 #define _2pi (2.0*_pi)
@@ -57,10 +62,12 @@ typedef struct {real scale;real_vector3d forward,left,up;real_point3d position;}
 typedef struct {real yaw,pitch;} real_euler_angles2d;
 typedef struct {real i,j;} real_vector2d;
 struct render_camera {real_point3d position;real_vector3d forward,up;};
-struct unit_datum {struct {long parent_object_index,damage_flags;} object;struct {long player_index;} unit;};
+struct unit_datum {struct {long parent_object_index,damage_flags;} object;struct {long player_index;short current_weapon_index;long weapon_object_indices[4];} unit;};
 struct player_datum {long unit_index;short action_result;long action_object_index;};
-struct object_datum {struct {long parent_object_index;real_point3d bounding_sphere_center;real bounding_sphere_radius;real_vector3d forward;} object;};
-static struct object_datum offered;
+struct object_datum {long definition_index;struct {long parent_object_index;real_point3d bounding_sphere_center;real bounding_sphere_radius;real_vector3d forward;} object;};
+static struct object_datum offered,held_weapon;
+static char const *held_name="weapons\\assault rifle\\assault rifle";
+static char const *tag_get_name(long handle){return handle==1?held_name:NULL;}
 struct collision_result {real_point3d point;};
 static struct unit_datum unit={{NONE,0},{1}};
 static struct player_datum player={42};
@@ -69,7 +76,9 @@ static real_vector3d const *global_up3d=&world_up;
 static struct {BOOL active,origin_valid,aim_synced,snap_armed,weapon_camera_valid,weapon_mirrored;
  short eye;long aim_unit;int aim_hand,turn_hand;unsigned int reference_serial;
  real body_yaw,origin[3],yaw_cos,yaw_sin;struct render_camera weapon_camera;
- BOOL grab_armed;long grab_unit,grab_object,grab_until;unsigned int grab_reference;int grab_hand;} stereo;
+ BOOL grab_armed;long grab_unit,grab_object,grab_until;unsigned int grab_reference;int grab_hand;
+ BOOL support_armed,support_held;long support_unit,support_weapon,support_tick;unsigned int support_reference;
+ int support_hand;real support_weight;real_vector3d support_line;} stereo;
 static long now;
 static long game_time_get(void){return now;}
 static int global_current_collision_user_depth,global_current_collision_users[8];
@@ -78,7 +87,7 @@ static unsigned long config_changes(void){return 0;}
 static double config_real(char const *name){return 30.0;}
 static long local_player_get_player_index(short local){return 1;}
 static struct player_datum *player_try_and_get(long handle){return &player;}
-static void *object_try_and_get_and_verify_type(long handle,long mask){if(mask==_object_mask_weapon)return handle==77?&offered:NULL;return handle==42?&unit:NULL;}
+static void *object_try_and_get_and_verify_type(long handle,long mask){if(mask==_object_mask_weapon)return handle==77?&offered:(handle==88||handle==89?&held_weapon:NULL);return handle==42?&unit:NULL;}
 static int director_get_perspective(short local){return 0;}
 static int cinematic_in_progress(void){return FALSE;}
 static real cosine(real x){return cosf(x);}
@@ -107,7 +116,7 @@ static void reset(void)
  input.hand[0].grip.valid = input.hand[1].grip.valid = TRUE;
  input.reference_serial = 1;
  connected = TRUE;
- grab_enabled=FALSE;now=100;
+ grab_enabled=support_enabled=FALSE;now=100;
  talk = "off";
  voice = "push_to_talk";
  openxr_talk_armed = openxr_talk_held = FALSE;
@@ -134,6 +143,87 @@ int main(int argc, char **argv)
  static char const *bindings[] = { "left_grip", "right_grip", "left_stick", "right_stick" };
  reset();
  memset(&neutral, 0, sizeof(neutral));
+ if(!strncmp(case_name,"support-",8)) {
+  real_euler_angles2d facing={0,0};real_vector2d throttle={0,0};
+  struct render_camera base={{0,0,0},{1,0,0},{0,0,1}};
+  int i,hand=!strcmp(case_name+8,"left")?0:1,offhand=1-hand;real before;
+  if(!hand)dominant="left";
+  support_enabled=TRUE;stereo.origin_valid=TRUE;stereo.reference_serial=1;stereo.yaw_cos=1;
+  input.hand[0].aim.valid=input.hand[1].aim.valid=TRUE;
+  input.hand[0].aim.orientation[3]=input.hand[1].aim.orientation[3]=1;
+  input.hand[offhand].grip.position[0]=.1f;input.hand[offhand].grip.position[2]=-.4f;
+  unit.unit.current_weapon_index=0;unit.unit.weapon_object_indices[0]=88;
+  held_weapon.definition_index=1;held_weapon.object.parent_object_index=42;
+  if(!strcmp(case_name+8,"mapping")) {
+   openxr_gamepad_read(&pad,FALSE);input.hand[offhand].squeeze=1;openxr_gamepad_read(&pad,FALSE);
+   CHECK(!pad.bAnalogButtons[XINPUT_GAMEPAD_WHITE],"support grip also emitted its native action");
+   talk=offhand?"right_grip":"left_grip";input.hand[offhand].squeeze=0;openxr_gamepad_read(&pad,FALSE);
+   input.hand[offhand].squeeze=1;openxr_gamepad_read(&pad,FALSE);
+   CHECK(openxr_talk_held&&!pad.bAnalogButtons[XINPUT_GAMEPAD_WHITE],"support grip stole PTT");
+   talk="off";support_enabled=FALSE;openxr_gamepad_read(&pad,FALSE);
+   CHECK(!memcmp(&pad,&neutral,sizeof(pad)),"changing support layout retained held gameplay input");
+   input.hand[offhand].squeeze=0;openxr_gamepad_read(&pad,FALSE);
+   input.hand[offhand].squeeze=1;openxr_gamepad_read(&pad,FALSE);
+   CHECK(pad.bAnalogButtons[XINPUT_GAMEPAD_WHITE],"disabled support lost native grip mapping");return 0;
+  }
+  if(!strcmp(case_name+8,"held"))input.hand[offhand].squeeze=1;
+  CHECK(vr_render_player_aim(0,42,TRUE,0,0,&facing,&throttle),"support setup lost native aim");
+  if(!strcmp(case_name+8,"held")) {
+   CHECK(!stereo.support_weight&&!stereo.support_held,"held grip attached on activation");
+   input.hand[offhand].squeeze=0;now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);
+  }
+  if(!strcmp(case_name+8,"near"))input.hand[offhand].grip.position[2]=-.01f;
+  if(!strcmp(case_name+8,"far"))input.hand[offhand].grip.position[2]=-1.f;
+  if(!strcmp(case_name+8,"side"))input.hand[offhand].grip.position[0]=.4f;
+  input.hand[offhand].squeeze=1;
+  now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);
+  if(!strcmp(case_name+8,"duplicate")) {
+   before=stereo.support_weight;
+   CHECK(before>0&&before<1,"blend did not start progressively");
+   for(i=0;i<8;i++) {
+    vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);prepare_weapon_camera(&base,&input);
+   }
+   CHECK(stereo.support_weight==before,"same-tick/eye calls advanced support blend");return 0;
+  }
+  for(i=0;i<8;i++){now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);}
+  if(!strcmp(case_name+8,"near")||!strcmp(case_name+8,"far")||!strcmp(case_name+8,"side")) {
+   CHECK(!stereo.support_weight&&!stereo.support_held,"out-of-reach squeeze braced a weapon");
+   input.hand[offhand].grip.position[0]=.1f;input.hand[offhand].grip.position[2]=-.4f;
+   now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);
+   CHECK(!stereo.support_weight,"held failed squeeze attached when moved into range");return 0;
+  }
+  prepare_weapon_camera(&base,&input);
+  CHECK(stereo.support_held&&stereo.support_weight==1&&sinf(facing.yaw)<-.15f&&
+   stereo.weapon_camera_valid&&stereo.weapon_camera.forward.j<-.15f,"native aim and weapon posing did not share two-hand direction");
+  if(!strcmp(case_name+8,"loop")||!strcmp(case_name+8,"left")||!strcmp(case_name+8,"held"))return 0;
+  if(!strcmp(case_name+8,"tracking"))input.hand[offhand].grip.valid=FALSE;
+  if(!strcmp(case_name+8,"reference"))input.reference_serial=stereo.reference_serial=2;
+  if(!strcmp(case_name+8,"ownership"))held_weapon.object.parent_object_index=43;
+  if(!strcmp(case_name+8,"one-handed"))held_name="weapons\\pistol\\pistol";
+  if(!strcmp(case_name+8,"ptt"))talk=offhand?"right_grip":"left_grip";
+  if(!strcmp(case_name+8,"nonfinite"))input.hand[offhand].grip.position[0]=NAN;
+  if(!strcmp(case_name+8,"weapon"))unit.unit.weapon_object_indices[0]=89;
+  if(!strcmp(case_name+8,"seat"))unit.object.parent_object_index=99;
+  if(!strcmp(case_name+8,"release"))input.hand[offhand].squeeze=0;
+  if(!strcmp(case_name+8,"disabled"))support_enabled=FALSE;
+  if(!strcmp(case_name+8,"gap"))now+=30;
+  for(i=0;i<8;i++){now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);}
+  CHECK(!stereo.support_held&&!stereo.support_weight,"unavailable state retained two-handed aim");
+  if(!strcmp(case_name+8,"one-handed")) {
+   static char const *names[]={"weapons\\needler\\needler","weapons\\flag\\flag","weapons\\ball\\ball"};
+   for(i=0;i<3;i++){held_name=names[i];input.hand[offhand].squeeze=0;now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);
+    input.hand[offhand].squeeze=1;now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);CHECK(!stereo.support_weight,"one-handed native weapon braced");}
+  }
+  input.hand[offhand].grip.valid=TRUE;input.hand[offhand].grip.position[0]=.1f;
+  held_weapon.object.parent_object_index=42;held_name="weapons\\assault rifle\\assault rifle";
+  unit.object.parent_object_index=NONE;talk="off";support_enabled=TRUE;input.hand[offhand].squeeze=1;
+  now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);
+  if(strcmp(case_name+8,"release"))CHECK(!stereo.support_held&&!stereo.support_weight,"held grip reattached after loss or rebinding");
+  input.hand[offhand].squeeze=0;now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);
+  input.hand[offhand].squeeze=1;
+  for(i=0;i<8;i++){now++;vr_render_player_aim(0,42,TRUE,facing.yaw,0,&facing,&throttle);}
+  CHECK(stereo.support_held&&stereo.support_weight==1,"fresh squeeze did not restore support grip");return 0;
+ }
  if(!strncmp(case_name,"grab-",5)) {
   unsigned long flags=0;
   int hand=!strcmp(case_name+5,"left")?0:1;

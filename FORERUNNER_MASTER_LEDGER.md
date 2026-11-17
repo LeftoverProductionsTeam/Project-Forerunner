@@ -16,7 +16,30 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current reviewed-cache distribution checkpoint (source base `0098e03c49`):
+Current optional two-handed bracing (source base `45642bd8a2`):
+`vr.two_handed` / `HALO_VR_TWO_HANDED`, off by default, adapts OpenH1
+`baed7757`'s foregrip reach, grip hysteresis, smoothing, blend and one-handed
+weapon exclusions through the existing OpenXR adapter. The support grip steers
+both native eye-converged aim and native weapon posing. Input ticks alone advance
+the filter; duplicate calls/eyes do not. Tracking, ownership, weapon/body/reference
+changes and lost rendering release it; held input cannot reattach without release.
+Support-grip WHITE action is reserved while enabled; assigned PTT retains priority.
+No new renderer, hand mesh, recoil/damage change, inventory or network format.
+
+Windows64 incremental compile/link PASS (`build/vr-two-handed-final-build.log`);
+52 focused checks PASS (`build/vr-two-handed-final-checks.log`). Initial fixture
+macro/positive-case/fault-control errors were corrected without weakening runtime
+guards. Existing `build/native-two-handed-fallback/result.json` workflow PASSES
+native menu/input replay with bracing enabled but XR disabled; inspected PNG
+shows the menu. Binary SHA-256:
+`bd03396236f1f249bed8fef4b5f93093a0506a03c03e37460a609dd045af45df`.
+This does not prove physical bracing, stereo calibration, mixed-client VR or any
+headset/platform acceptance. Reload/holsters and complete VR gunplay remain open.
+Previous aircraft/banking/download evidence preserved, not rerun. Owned jobs and
+disposable payloads stopped/removed; 9,830,508B BMP scratch cleaned, two PNGs kept.
+Original assets, credentials and Spark unchanged; no hosted jobs or push.
+
+Previous reviewed-cache distribution checkpoint (source base `0098e03c49`):
 the existing `map_torrents.py` make/hash/share commands accept one explicit .map
 file as well as folders. A creator can approve exactly a reviewed compiled cache
 in a private native index without copying it into another project or approving

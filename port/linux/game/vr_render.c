@@ -1,6 +1,6 @@
 /*
  * OpenXR stereo camera adapter, using Halo's existing render_frame/window
- * traversal and bgfx Vulkan eye targets. UNVERIFIED source only.
+ * traversal and bgfx Vulkan eye targets. Headset gameplay UNVERIFIED.
  * Quaternion rotation, OpenXR -> Halo axes, metre scale and asymmetric
  * frustum normalization adapted from OpenH1/goath1 port/linux/src/vr.c and
  * port/linux/game/vr_render.c, baed77571d53abe32b27434b4ba869f11db00fe9,
@@ -13,6 +13,8 @@
  * Optional snap turning adapts vr.c's snap latch and threshold policy.
  * Offered-weapon grip pickup adapts vr_grab.c's native swap input and vr.c's
  * grip thresholds/reach. Native ownership/range and multiplayer stay authoritative.
+ * Two-handed bracing adapts vr.c::two_handed_update/weapon_pointing and
+ * vr_render.c::vr_render_long_gun at the same pin, through native input/posing.
  */
 #include "cseries.h"
 #ifdef HALO_OPENXR
@@ -31,6 +33,7 @@
 #include "render/render_cameras.h"
 #include "render/render_cameras_internal.h"
 #include "scenario/scenario.h"
+#include "tag_files/tag_files.h"
 #include "units/units.h"
 #include "../src/vr_openxr.h"
 #include "../src/port_config.h"
@@ -68,6 +71,12 @@ static struct
 	long grab_unit, grab_object, grab_until;
 	unsigned int grab_reference;
 	int grab_hand;
+	boolean support_armed, support_held;
+	long support_unit, support_weapon, support_tick;
+	unsigned int support_reference;
+	int support_hand;
+	real support_weight;
+	real_vector3d support_line;
 } stereo;
 
 static real wrapped_yaw(real yaw)
@@ -75,6 +84,13 @@ static real wrapped_yaw(real yaw)
 	while (yaw < 0.0f) yaw += 2.0f * _pi;
 	while (yaw >= 2.0f * _pi) yaw -= 2.0f * _pi;
 	return yaw;
+}
+
+static void controller_support_reset(void)
+{
+	stereo.support_armed = stereo.support_held = FALSE;
+	stereo.support_weight = 0.f;
+	stereo.support_unit = stereo.support_weapon = NONE;
 }
 
 void vr_render_reset_aim(void)
@@ -88,6 +104,7 @@ void vr_render_reset_aim(void)
 	stereo.listener_valid = stereo.listener_path_valid = FALSE;
 	stereo.grab_armed = FALSE;
 	stereo.grab_unit = stereo.grab_object = NONE;
+	controller_support_reset();
 }
 
 static void quaternion_rotate(float const q[4], float const v[3], float out[3])
@@ -121,6 +138,7 @@ static void recenter(struct vr_openxr_frame const *frame)
 	short axis;
 
 	stereo.snap_armed = FALSE;
+	controller_support_reset();
 	quaternion_rotate(frame->eye[0].orientation, xr_forward, forward[0]);
 	quaternion_rotate(frame->eye[1].orientation, xr_forward, forward[1]);
 	yaw = ABS(forward[0][0] + forward[1][0]) + ABS(forward[0][2] + forward[1][2]) > _real_epsilon ?
@@ -219,9 +237,105 @@ static real_vector3d const *weapon_offset(void)
 	return &offset;
 }
 
+/* Only the existing input tick advances the latch/filter. Lost rendering can
+ * cancel it; two eyes or extra draw passes cannot advance it twice. */
+static void controller_support_update(struct vr_openxr_frame const *frame, long unit_index, struct unit_datum const *unit)
+{
+	static char const *const one_handed[] = { "pistol", "needler", "flag", "ball" };
+	static float const xr_forward[3] = { 0.f, 0.f, -1.f };
+	struct object_datum *weapon;
+	char const *name;
+	real_vector3d line, pointing;
+	float rotated[3];
+	real along, across, length, seconds, amount;
+	long weapon_index, now;
+	unsigned long elapsed;
+	short index;
+	int hand = vr_openxr_weapon_hand(), offhand = 1 - hand;
+	boolean fresh;
+
+	if (!config_boolean("vr.two_handed") ||
+		(!strcmp(config_string("audio.voice_chat"), "push_to_talk") &&
+		 !strcmp(config_string("vr.push_to_talk"), offhand ? "right_grip" : "left_grip")) ||
+		!frame->hand[hand].grip.valid || !frame->hand[offhand].grip.valid ||
+		!(frame->hand[offhand].squeeze >= 0.f && frame->hand[offhand].squeeze <= 1.f) ||
+		!VALID_INDEX(unit->unit.current_weapon_index, MAXIMUM_WEAPONS_PER_UNIT)) goto unavailable;
+	weapon_index = unit->unit.weapon_object_indices[unit->unit.current_weapon_index];
+	weapon = object_try_and_get_and_verify_type(weapon_index, _object_mask_weapon);
+	if (!weapon || weapon->object.parent_object_index != unit_index) goto unavailable;
+	name = tag_get_name(weapon->definition_index);
+	if (!name) goto unavailable;
+	for (index = 0; index < NUMBEROF(one_handed); index++)
+		if (strstr(name, one_handed[index])) goto unavailable;
+	quaternion_rotate(frame->hand[hand].aim.orientation, xr_forward, rotated);
+	pointing.i = rotated[0]; pointing.j = rotated[1]; pointing.k = rotated[2];
+	line.i = frame->hand[offhand].grip.position[0] - frame->hand[hand].grip.position[0];
+	line.j = frame->hand[offhand].grip.position[1] - frame->hand[hand].grip.position[1];
+	line.k = frame->hand[offhand].grip.position[2] - frame->hand[hand].grip.position[2];
+	if (!valid_real_vector3d(&pointing) || !valid_real_vector3d(&line) || normalize3d(&pointing) <= 0.f) goto unavailable;
+	along = dot_product3d(&line, &pointing);
+	across = (real)sqrt(MAX(0.f, magnitude_squared3d(&line) - along * along));
+	length = normalize3d(&line);
+	now = game_time_get();
+	elapsed = (unsigned long)now - (unsigned long)stereo.support_tick;
+	fresh = stereo.support_unit != unit_index || stereo.support_weapon != weapon_index ||
+		stereo.support_hand != hand || stereo.support_reference != frame->reference_serial || elapsed > 3;
+	if (fresh)
+	{
+		controller_support_reset();
+		stereo.support_unit = unit_index; stereo.support_weapon = weapon_index;
+		stereo.support_hand = hand; stereo.support_reference = frame->reference_serial;
+		stereo.support_line = pointing;
+		elapsed = 1;
+	}
+	stereo.support_tick = now;
+	/* A held grip cannot reattach after tracking/body/weapon/layout changes. */
+	if (frame->hand[offhand].squeeze <= 0.3f)
+	{
+		stereo.support_armed = TRUE; stereo.support_held = FALSE;
+	}
+	else if (stereo.support_armed && !stereo.support_held && frame->hand[offhand].squeeze > 0.6f)
+	{
+		stereo.support_armed = FALSE;
+		if (along > 0.08f && along < 0.70f && across < 0.18f) stereo.support_held = TRUE;
+	}
+	seconds = (real)elapsed / TICKS_PER_SECOND;
+	if (stereo.support_held)
+	{
+		if (length > 0.04f)
+		{
+			amount = (real)(1.0 - exp(-seconds / 0.05f));
+			stereo.support_line.i += (line.i - stereo.support_line.i) * amount;
+			stereo.support_line.j += (line.j - stereo.support_line.j) * amount;
+			stereo.support_line.k += (line.k - stereo.support_line.k) * amount;
+			if (normalize3d(&stereo.support_line) <= 0.f) goto unavailable;
+		}
+		stereo.support_weight = MIN(1.f, stereo.support_weight + seconds / 0.15f);
+	}
+	else stereo.support_weight = MAX(0.f, stereo.support_weight - seconds / 0.15f);
+	return;
+unavailable:
+	controller_support_reset();
+}
+
+static void controller_weapon_forward(struct vr_openxr_frame const *frame, float rotated[3])
+{
+	static float const xr_forward[3] = { 0.f, 0.f, -1.f };
+	real weight = stereo.support_weight;
+	quaternion_rotate(frame->hand[vr_openxr_weapon_hand()].aim.orientation, xr_forward, rotated);
+	if (weight > 0.f && stereo.support_hand == vr_openxr_weapon_hand() &&
+		stereo.support_reference == frame->reference_serial && frame->focused &&
+		frame->hand[1 - vr_openxr_weapon_hand()].grip.valid)
+	{
+		weight = weight * weight * (3.f - 2.f * weight);
+		rotated[0] += (stereo.support_line.i - rotated[0]) * weight;
+		rotated[1] += (stereo.support_line.j - rotated[1]) * weight;
+		rotated[2] += (stereo.support_line.k - rotated[2]) * weight;
+	}
+}
+
 static void prepare_weapon_camera(struct render_camera const *base, struct vr_openxr_frame const *frame)
 {
-	static const float xr_forward[3] = { 0.f, 0.f, -1.f };
 	static const float xr_up[3] = { 0.f, 1.f, 0.f };
 	struct unit_datum *unit;
 	long player_index = local_player_get_player_index(0);
@@ -258,7 +372,7 @@ static void prepare_weapon_camera(struct render_camera const *base, struct vr_op
 	for (axis = 0; axis < 3; axis++)
 		relative[axis] = frame->hand[hand].aim.position[axis] - stereo.origin[axis];
 	world_axes(relative, &body, &left, &up, &translation);
-	quaternion_rotate(frame->hand[hand].aim.orientation, xr_forward, rotated);
+	controller_weapon_forward(frame, rotated);
 	world_axes(rotated, &body, &left, &up, &forward);
 	quaternion_rotate(frame->hand[hand].aim.orientation, xr_up, rotated);
 	world_axes(rotated, &body, &left, &up, &hand_up);
@@ -442,8 +556,11 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	if (!xgpu_openxr_frame_begin(&frame))
 	{
 		stereo.snap_armed = FALSE;
+		controller_support_reset();
 		return count;
 	}
+	if (!frame.focused || !frame.hand[0].grip.valid || !frame.hand[1].grip.valid)
+		controller_support_reset();
 	if (!frame.focused)
 		stereo.snap_armed = FALSE;
 	/* A single local 3D view and its existing console/interface view. Keep
@@ -451,6 +568,7 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 	if (!frame.should_render || count != 2 || windows[0].console_window || !windows[1].console_window)
 	{
 		stereo.snap_armed = FALSE;
+		controller_support_reset();
 		return count;
 	}
 	if (stereo.aim_synced)
@@ -460,7 +578,10 @@ short vr_render_prepare(struct render_window *windows, short count, struct rende
 		struct player_datum *player = player_index != NONE ? player_try_and_get(player_index) : NULL;
 
 		if (!player || player->unit_index != stereo.aim_unit)
+		{
 			stereo.aim_synced = FALSE;
+			controller_support_reset();
+		}
 	}
 	if (!stereo.origin_valid || stereo.reference_serial != frame.reference_serial)
 		recenter(&frame);
@@ -722,7 +843,6 @@ unavailable:
 boolean vr_render_player_aim(short local_player_index, long unit_index, boolean permitted,
 	real previous_yaw, real turn_delta, real_euler_angles2d *facing, real_vector2d *throttle)
 {
-	static const float xr_forward[3] = { 0.0f, 0.0f, -1.0f };
 	struct vr_openxr_frame frame;
 	struct unit_datum *unit;
 	struct collision_result collision;
@@ -766,6 +886,7 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	stereo.aim_unit = unit_index;
 	stereo.aim_hand = hand;
 	stereo.aim_synced = TRUE;
+	controller_support_update(&frame, unit_index, unit);
 	forward.i = cosine(stereo.body_yaw);
 	forward.j = sine(stereo.body_yaw);
 	forward.k = 0.0f;
@@ -777,7 +898,7 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	origin.x = eye.x + offset.i / METRES_PER_WORLD_UNIT;
 	origin.y = eye.y + offset.j / METRES_PER_WORLD_UNIT;
 	origin.z = eye.z + offset.k / METRES_PER_WORLD_UNIT;
-	quaternion_rotate(frame.hand[hand].aim.orientation, xr_forward, rotated);
+	controller_weapon_forward(&frame, rotated);
 	world_axes(rotated, &forward, &left, &up, &direction);
 	if (!valid_real_point3d(&origin) || !valid_real_vector3d(&direction) || normalize3d(&direction) <= 0.0f ||
 		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
@@ -814,6 +935,7 @@ boolean vr_render_player_aim(short local_player_index, long unit_index, boolean 
 	return TRUE;
 release:
 	stereo.snap_armed = FALSE;
+	controller_support_reset();
 	/* Return native view heading to the body on loss/menu/seat transitions. */
 	if (stereo.aim_synced && stereo.aim_unit == unit_index)
 	{

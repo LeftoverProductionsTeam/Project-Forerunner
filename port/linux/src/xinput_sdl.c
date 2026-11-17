@@ -2597,7 +2597,7 @@ static BOOL openxr_talk_armed, openxr_talk_held;
 static int openxr_talk_binding;
 static unsigned int openxr_talk_reference;
 static BOOL openxr_layout_known, openxr_layout_wait;
-static int openxr_layout_weapon, openxr_layout_turn, openxr_layout_grab;
+static int openxr_layout_weapon, openxr_layout_turn, openxr_layout_grab, openxr_layout_support;
 
 static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 {
@@ -2607,7 +2607,7 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	unsigned long buttons;
 	BOOL pause_combo, moved, left_grip, right_grip, talk_down = FALSE, talk_valid = FALSE;
 	char const *talk = config_string("vr.push_to_talk");
-	int index, talk_binding = 0, weapon_hand, turn_hand, grab;
+	int index, talk_binding = 0, weapon_hand, turn_hand, grab, support;
 
 	memset(pad, 0, sizeof(*pad));
 	openxr_talk_held = FALSE;
@@ -2628,9 +2628,11 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	weapon_hand = menus ? 1 : vr_openxr_weapon_hand();
 	turn_hand = menus ? 1 : vr_openxr_turn_hand();
 	grab = !menus && !strcmp(config_string("vr.aim"), "controller") && config_boolean("vr.weapon_grab");
+	support = !menus && !strcmp(config_string("vr.aim"), "controller") && config_boolean("vr.two_handed");
 	if (!menus)
 	{
-		if (openxr_layout_known && (weapon_hand != openxr_layout_weapon || turn_hand != openxr_layout_turn || grab != openxr_layout_grab))
+		if (openxr_layout_known && (weapon_hand != openxr_layout_weapon || turn_hand != openxr_layout_turn ||
+			grab != openxr_layout_grab || support != openxr_layout_support))
 		{
 			openxr_layout_wait = TRUE;
 			openxr_talk_armed = FALSE;
@@ -2639,6 +2641,7 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 		openxr_layout_weapon = weapon_hand;
 		openxr_layout_turn = turn_hand;
 		openxr_layout_grab = grab;
+		openxr_layout_support = support;
 		if (openxr_layout_wait)
 		{
 			/* Rebinding cannot turn a held grenade control into fire. */
@@ -2688,6 +2691,8 @@ static BOOL openxr_gamepad_read(XINPUT_GAMEPAD *pad, BOOL menus)
 	/* Physical pickup reserves this squeeze; it must not also toggle the
 	 * native grip button. PTT remains its owner when assigned above. */
 	if (grab) { if (weapon_hand) right_grip = FALSE; else left_grip = FALSE; }
+	/* The support hand owns its squeeze while two-handed mode is enabled. */
+	if (support) { if (weapon_hand) left_grip = FALSE; else right_grip = FALSE; }
 	/* Keep the assigned button reserved during a tracking gap; it must not
 	   become a grenade/zoom action while its voice input is unavailable. */
 	if (!talk_binding || !talk_valid)

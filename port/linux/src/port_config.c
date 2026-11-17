@@ -989,6 +989,14 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"A grip assigned to push-to-talk stays reserved for voice, not pickup.\n"
 		"No extra pickup range, inventory grant or network format. Source only;\n"
 		"hand calibration and headset/gameplay acceptance are unverified." },
+	{ "vr.two_handed", _config_boolean, "false", "HALO_VR_TWO_HANDED", _environment_value, _platform_desktop,
+		"Optional controller aim: squeeze the support grip near a long gun's\n"
+		"foregrip to brace native aim and the existing weapon model together.\n"
+		"Release to return to one hand. Pistols/needler/flag/ball stay one-handed.\n"
+		"Reserves the support grip's native WHITE-button action during gameplay;\n"
+		"assigned grip push-to-talk retains priority. Disabled by default.\n"
+		"Reuses OpenH1's reach, smoothing and blend; no damage/recoil or packet\n"
+		"changes. Hand calibration and headset/gameplay acceptance unverified." },
 	{ "vr.dominant_hand", _config_string, "\"right\"", "HALO_VR_DOMINANT_HAND", _environment_value, _platform_desktop,
 		"With controller aim, \"left\" uses the left hand for weapon aim, fire,\n"
 		"weapon posing and rumble. Default/right/unknown values keep the right.\n"
