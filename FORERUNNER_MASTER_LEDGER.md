@@ -16,7 +16,34 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current optional VR pickup checkpoint (source base `cfdad7dcfd`):
+Current authenticated aircraft continuation (unchanged engine `fe5fd79c86`):
+`build/native-delta-squad-transport-redeployment/result.json` PASSES two verified
+accounts' separate native insertions, queued Pelican evacuations, independent
+durable banking, both crews' physical hub disembarkation and same-session native
+redeployment. This closes the previously undriven second crew exit/redeployment
+below. Each owner reserves exactly its two banked IDs, with the actual rifle and
+pistol present on its native body. All four IDs remain distinct. First banking
+does not settle the waiting squad. Both native squad completion callbacks fire.
+No forced boarding, player teleport, synthetic settlement or engine patch.
+
+Player comparison PASS: 439 seconds, zero sampled mismatches or persistent
+divergences, position maximum 0.554902 and aim maximum seven degrees. Item
+comparison PASS: 443 snapshots, zero out of step; all six sampled new host items
+appear on the client. Inspected PNGs show both players back on foot at deployment
+with recovered native weapons. Fixture device labels still contain authored
+placeholder text; these captures do not establish finished mission UX.
+
+Existing CE609 `23a8f945...cfa746` and binary `88b70c81...d229f` reused without
+recompilation; original cache/account files unchanged. Owned processes stopped,
+runtime/map copies and 9,830,508B BMP scratch removed; two PNGs and compact
+records/traces retained. No hosted jobs, spending changes or push.
+Scope is one Windows/OpenGL listen host plus one independent authenticated client
+on the same machine. This is not six independent clients, Spirit serial dispatch,
+private cinematics, a second flight after redeployment, VR, human acceptance or
+the combined Spark Black Echo mission. Read-only Spark `aa7c7f3` has its next
+native authoring check in progress, not a retained full-mission handoff.
+
+Previous optional VR pickup checkpoint (source base `cfdad7dcfd`):
 `vr.weapon_grab` / `HALO_VR_WEAPON_GRAB` is off by default. With controller aim,
 the dominant grip can submit native pickup/swap for the currently offered world
 weapon when the tracked hand is close enough. The native body range, exact object
