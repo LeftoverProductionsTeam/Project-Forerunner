@@ -16,6 +16,33 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Native vehicle-action repair (17 November, base `5f11113156`): read-only owned
+a10 tag readback confirms the cryotube and its CT-driver seat both reference the
+HUD table's placeholder entry zero. Missing/empty/placeholder vehicle names now
+use generic board/exit/flip prompts through the existing custom-state text and
+action binding. Valid authored names, including custom entry zero, stay native.
+The observed literal `%action` exposed a second integration defect: custom text
+only parsed control icons while a multiplayer engine ran. Custom state text now
+uses the existing parser in campaign too; authored objective/message elements
+retain literal rendering. No boarding, animation, collision, simulation, packet,
+map or asset edits. Windows64 incremental build and two focused checks PASS.
+
+`build/native-campaign-a10-vehicle-prompts-markup/result.json` PASSES two bound
+accounts on unchanged a10: the native HUD shows the action icon plus "to board",
+ordinary E input boards at tick 1200, another press starts the native exit
+animation and the player is on foot at 1590, then walks clear. Prompt and both
+final PNGs inspected. Player comparison: 58 seconds/101 living observations,
+no mismatches, position maximum 0.124; 62 item snapshots agree, all nine new
+host items seen; non-cinematic AI comparison passes 48 snapshots/2,108 units.
+Binary `cc7aca56b51f916785734508068bd6e655a8b2368db09885f0d5dd60e6819f7e`.
+Earlier attempts remain rejected for UI acceptance: first captures were obscured
+by the objective/animation; the next displays literal control markup. Their
+physical-round-trip and synchronization evidence stays separate. Exit/flip
+fallback rendering, localization, solo/platform/hardware, full campaign combat/
+completion and Black Echo remain open. Original maps/accounts unchanged; owned
+runtimes/maps and duplicate BMP/identical PNG scratch cleaned. Spark read-only;
+no hosted jobs or push. Advance actual mission gameplay, not another prompt run.
+
 Native cinematic repair (17 November, base `a5c0869b72`): retained a10 fighter
 positions trail the host by about four ticks. The existing unsteered path adds
 gameplay interpolation while the cinematic camera follows the host timeline.
@@ -41,7 +68,7 @@ Binary `a43c05f472c7deaeb6f426fe243a96920cdb37fc26c57d484b1662941b0ab164`.
 The earlier path-only run remains rejected for its observed appearance defect;
 prior failed natural opening is not promoted. Full campaign/control/combat on
 this binary, audible/human/VR/platform acceptance and Black Echo stay open.
-Cryopod interaction strings are the next measured campaign defect. Originals
+Cryopod interaction strings are resolved in the scoped repair above. Originals
 and identities unchanged; owned runtimes/maps and 19,661,016B of duplicate BMPs
 cleaned. Spark remains read-only; no hosted jobs or push.
 

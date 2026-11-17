@@ -791,7 +791,9 @@ static void render_state_text(
 	hud_message_text_place(bounds, cursor_bounds, text, &text_bounds);
 	cursor_bounds->x0 -= 3;
 	text_bounds.x0 = bounds->x0;
-	if (custom && game_engine_running())
+	/* port: custom action prompts also exist in solo/network campaign.
+	 * Authored message elements pass FALSE and retain their literal text. */
+	if (custom)
 		draw_string_and_hack_in_icons(&text_bounds, NULL, NULL, 0, text, TRUE);
 	else
 		rasterizer_draw_unicode_string(&text_bounds, NULL, NULL, 0, text);

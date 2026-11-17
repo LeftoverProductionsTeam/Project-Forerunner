@@ -128,6 +128,7 @@ too) */
 #include "stubbs_player.h" /* port: port/linux/game/stubbs_player.c */
 #include "text/font_group.h"
 #include "text/text_group.h"
+#include "text/unicode.h"
 #include "units/unit_definitions.h"
 #include "units/units.h"
 #include "mcc_skulls.h" /* port: MCC's skulls on MCC maps */
@@ -353,6 +354,22 @@ static long get_object_icon_text_index(
 		object_get(object_index)->definition_index)->object.icon_text_index;
 }
 
+/* port: campaign/custom vehicles may use the HUD table's placeholder name
+ * (the native cryotube uses entry zero). Keep authored names, including a
+ * valid custom entry zero; missing names need a usable action prompt instead. */
+static boolean hud_action_name_available(short index)
+{
+	long tag_index = hud_globals->messaging.alternate_icon_text.index;
+	struct string_list *strings;
+	wchar_t const *text;
+	if (tag_index == NONE) return FALSE;
+	strings = unicode_string_list_definition_get(tag_index);
+	if (!strings || !VALID_INDEX(index, strings->strings.count)) return FALSE;
+	text = unicode_string_list_get_string(tag_index, index);
+	return text && text[0] && ustrcmp(text, L"<need a string entry here>") &&
+		ustrcmp(text, L"<missing string>");
+}
+
 static void hud_show_action_response(
 	long player_index)
 {
@@ -444,6 +461,13 @@ static void hud_show_action_response(
 	case _player_action_result_exit_vehicle:
 	{
 		struct unit_datum *unit = unit_get(player->unit_index);
+		short vehicle_name_index = (short)get_object_icon_text_index(unit->object.parent_object_index);
+		if (!hud_action_name_available(vehicle_name_index))
+		{
+			hud_enable_custom_state_message(render.local_player_index, TRUE);
+			hud_set_state_text(render.local_player_index, L"Press %action to exit");
+			return;
+		}
 
 		hud_set_state_message(
 			render.local_player_index,
@@ -451,7 +475,7 @@ static void hud_show_action_response(
 		hud_set_state_message_text(
 			render.local_player_index,
 			0,
-			(short)get_object_icon_text_index(unit->object.parent_object_index),
+			vehicle_name_index,
 			FALSE);
 		return;
 	}
@@ -575,17 +599,22 @@ static void hud_show_action_response(
 	case _player_action_result_enter_vehicle:
 	case _player_action_result_evict_from_vehicle:
 	{
+		short seat_name_index = TAG_BLOCK_GET_ELEMENT(
+			&unit_definition_get(unit_get(player->action_object_index)->definition_index)->unit.seats,
+			player->action_seat_index, struct unit_seat)->icon_text_index;
+		if (!hud_action_name_available(item_name_index) || !hud_action_name_available(seat_name_index))
+		{
+			hud_enable_custom_state_message(render.local_player_index, TRUE);
+			hud_set_state_text(render.local_player_index, L"Press %action to board");
+			return;
+		}
 		hud_set_state_message(
 			render.local_player_index,
 			_hud_message_enter_vehicle);
 		hud_set_state_message_text(
 			render.local_player_index,
 			0,
-			TAG_BLOCK_GET_ELEMENT(
-				&unit_definition_get(
-					unit_get(player->action_object_index)->definition_index)->unit.seats,
-				player->action_seat_index,
-				struct unit_seat)->icon_text_index,
+			seat_name_index,
 			FALSE);
 		hud_set_state_message_text(
 			render.local_player_index,
@@ -596,6 +625,12 @@ static void hud_show_action_response(
 	}
 
 	case _player_action_result_flip_vehicle:
+		if (!hud_action_name_available(item_name_index))
+		{
+			hud_enable_custom_state_message(render.local_player_index, TRUE);
+			hud_set_state_text(render.local_player_index, L"Press %action to flip vehicle");
+			return;
+		}
 		hud_set_state_message(
 			render.local_player_index,
 			_hud_message_flip_vehicle);

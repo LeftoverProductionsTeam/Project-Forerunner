@@ -25,6 +25,66 @@ def run_c(tmp_path, code):
     subprocess.run([str(binary)], check=True, timeout=10)
 
 
+def test_vehicle_action_names_preserve_authored_zero_and_refuse_placeholders(tmp_path):
+    source = (ROOT / 'source/interface/hud.c').read_text()
+    run_c(tmp_path, r'''
+#include <assert.h>
+#include <wchar.h>
+typedef int boolean;
+#define TRUE 1
+#define FALSE 0
+#define NONE -1
+#define VALID_INDEX(i,n) ((i)>=0&&(i)<(n))
+#define ustrcmp wcscmp
+struct string_list {struct {int count;} strings;};
+static struct string_list list={{5}};
+static struct {struct {struct {long index;} alternate_icon_text;} messaging;} globals;
+#define hud_globals (&globals)
+#define unicode_string_list_definition_get(tag) (&list)
+static wchar_t const *names[]={L"<need a string entry here>",L"Warthog",L"",L"<missing string>",L"driver"};
+static wchar_t const *unicode_string_list_get_string(long tag,short index) {
+ assert(tag==7&&index>=0&&index<5);return names[index];
+}
+''' + function(source, 'hud_action_name_available') + r'''
+int main(void) {
+ globals.messaging.alternate_icon_text.index=7;
+ assert(!hud_action_name_available(-1)&&!hud_action_name_available(-2)&&!hud_action_name_available(5));
+ assert(!hud_action_name_available(0)&&!hud_action_name_available(2)&&!hud_action_name_available(3));
+ assert(hud_action_name_available(1)&&hud_action_name_available(4));
+ names[0]=L"Spirit";assert(hud_action_name_available(0));
+ globals.messaging.alternate_icon_text.index=NONE;assert(!hud_action_name_available(0));
+ return 0;
+}
+''')
+
+
+def test_custom_vehicle_prompt_draws_control_markup_without_game_engine(tmp_path):
+    source = (ROOT / 'source/interface/hud_messaging.c').read_text()
+    run_c(tmp_path, r'''
+#include <assert.h>
+#include <wchar.h>
+typedef int boolean;
+typedef struct {short x0,y0,x1,y1;} rectangle2d;
+#define TRUE 1
+#define FALSE 0
+static int icons,literal;
+static boolean game_engine_running(void) {return FALSE;}
+static void hud_message_text_place(rectangle2d *a,rectangle2d *b,wchar_t const *t,rectangle2d *out) {*out=*a;}
+static void draw_string_and_hack_in_icons(rectangle2d *a,void *b,void *c,short h,wchar_t const *t,boolean color) {
+ assert(!wcscmp(t,L"Press %action to board")&&color);icons++;
+}
+static void rasterizer_draw_unicode_string(rectangle2d *a,void *b,void *c,short h,wchar_t const *t) {literal++;}
+''' + function(source, 'render_state_text') + r'''
+int main(void) {
+ rectangle2d bounds={0},cursor={0};
+ render_state_text(&bounds,&cursor,L"Press %action to board",TRUE);
+ assert(icons==1&&!literal);
+ render_state_text(&bounds,&cursor,L"Authored literal %action",FALSE);
+ assert(icons==1&&literal==1);return 0;
+}
+''')
+
+
 def test_pending_visibility_spacing_and_focus(tmp_path):
     # (port, this fork: the row is in one of ChupathingyCE's nested lists, whose rows views_show shows each frame
     # before the row's own show; it moves the rows after it up to the next view's mark by its own spacing, and
