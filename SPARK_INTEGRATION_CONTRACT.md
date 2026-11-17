@@ -533,6 +533,34 @@ not full Black Echo or scoped presentation acceptance. Spark next: require this
 feature through existing discovery and emit these declarations/groups through
 its existing mission HSC path for independent squad objectives.
 
+Squad-authored text extension (`extraction.squad_notices.v1`): require this
+optional feature through existing version-1 discovery for private mission cues.
+Declare an ordinary zero-argument native HSC helper:
+`(script static hud_message forerunner_squad_01_notice sq01_recover)`.
+Author `sq01_recover` in the scenario's native `hud_messages` HMT tag. A helper
+may return a conditional message, as in the existing faction fixture's ready-group
+example. Call it at actual deployment/objective transitions, not every tick.
+
+`hs_runtime.c::hs_script_evaluate` delivers after reserved static/hud_message
+evaluation, preserves its return value and respects disabled scripts.
+`extraction.c::extraction_script_notice` reuses `extraction_script_players` for
+host authority, admitted map, native co-op policy, operation epoch, identity and
+living-body filtering, then `extraction_player_notice` per participant. Temporary
+native lists are freed. Ordinary scripts/global campaign objectives stay native;
+there is no new opcode, script parameter, quest state, reward writer or packet.
+
+The existing carrier accepts one nonempty plain-text HMT element, printable
+ASCII and at most 127 characters. `hud_messaging.c::hud_messaging_notice_text`
+validates indices, bounds, termination and complete capacity before copying.
+Icons, non-ASCII, empty, overlong or malformed text refuse delivery with one
+per-map diagnostic; global objective/help state is unchanged. The two-account
+Windows/OpenGL fixture passes distinct recovery/completion cues on host chat and
+remote hidden-chat HUD (`build/native-delta-squad-notices/result.json`, eight
+inspected PNGs, 109 synchronized seconds). Full Black Echo, older clients,
+localized/icon text and other platforms remain unverified. Spark next: emit
+these standard HSC helpers, native HMT text and transition calls through existing
+mission authoring; the complete combined aircraft mission handoff stays open.
+
 Squad guidance reuses native unit-targeted nav points, not team markers (two
 squads may share a faction). For example, after checking the query is nonempty:
 `(activate_nav_point_flag default (unit (list_get (forerunner_squad_01_players) 0)) sq_artifact 1)`.

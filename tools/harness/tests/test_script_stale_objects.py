@@ -49,6 +49,8 @@ def generated(fault=None):
     for name in ('hs_type_valid', 'HS_TYPE_IS_OBJECT_NAME', 'HS_TYPE_IS_OBJECT'):
         types += define(hs_h, name)
     types += enum_with(runtime, '_hs_syntax_node_primitive_bit') + '\n'
+    types += enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') + '\n'
+    types += structure(read('source/hs/hs_scenario_definitions.h'), 'hs_script') + '\n'
     types += enum_with(runtime, 'HS_THREAD_STACK_SIZE') + '\n'
     types += enum_with(runtime, '_hs_thread_in_function_call_bit') + '\n'
     for name in ('hs_thread_get', 'hs_syntax_get', 'HS_GLOBAL_DESIGNATOR_IS_EXTERNAL', 'HS_GLOBAL_DESIGNATOR_TO_INDEX'):
@@ -122,7 +124,7 @@ def generated(fault=None):
     code += still_exists + '\n' + function(runtime, 'hs_object_name_to_object_list') + '\n'
     code += function(runtime, 'hs_object_to_object_list') + '\n' + cast + '\n'
     for name in ('hs_stack_allocate', 'hs_stack_push', 'hs_return', 'hs_macro_function_evaluate', 'hs_evaluate',
-                 'hs_global_evaluate'):
+                 'hs_global_evaluate', 'hs_script_evaluate'):
         code += function(runtime, name) + '\n'
     code += arguments + '\n'
     code += function(read('source/scenario/scenario.c'), 'scenario_trigger_volume_test_object') + '\n'
@@ -141,6 +143,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', [
     'global-living', 'global-deleted', 'global-read-as-none', 'slot-reused', 'returned-deleted',
     'returned-to-volume-test', 'passthrough-deleted', 'returned-living', 'deleted-during-arguments', 'cast-to-list',
+    'script-notice', 'script-notice-ordinary', 'script-notice-other-type', 'script-notice-disabled',
     'names', 'other-values', 'list-walk', 'list-first-deleted', 'list-middle-deleted', 'list-last-deleted',
     'list-all-deleted', 'list-get-and-count', 'list-volume-any', 'list-volume-all', 'list-collected', 'kill-none',
     'kill-living', 'scenery-none', 'scenery-living'])

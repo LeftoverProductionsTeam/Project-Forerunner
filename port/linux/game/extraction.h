@@ -26,6 +26,9 @@ short extraction_voice_group(long player_index, long machine_index);
  * TRUE handles the name, returning only this operation's living participants
  * or NONE when unavailable. Requires exact authored co-op script policy. */
 boolean extraction_script_players(char const *name, long *object_list);
+/* Ordinary static hud_message helpers notify only this operation's eligible
+ * squad participants after native HSC evaluation. Return value stays native. */
+boolean extraction_script_notice(char const *name, short message_index);
 /* TRUE handles a real host-owned wipe without rewinding the world. If allocation
    fails, the caller retains its native loss timer and retries. */
 boolean extraction_respawn_after_loss(void);

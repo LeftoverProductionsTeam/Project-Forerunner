@@ -87,7 +87,15 @@ static struct animation_graph fake_animation_graph;
 static boolean volume_holds_everything = TRUE;
 static int volume_tests;
 
-struct hs_script { short return_type; };
+static boolean script_disabled;
+static short notice_calls,notice_value;
+static char notice_name[32];
+static boolean hs_scenario_script_disabled(short index){return script_disabled;}
+static boolean extraction_script_players(char const *name,long *list){return FALSE;}
+static boolean extraction_script_notice(char const *name,short message){
+ notice_calls++;notice_value=message;snprintf(notice_name,sizeof(notice_name),"%s",name);return TRUE;
+}
+static boolean mcc_hs_script_evaluate(short script,long thread,boolean initialize){return FALSE;}
 static struct { struct { struct hs_script elements[1]; } hs_scripts; } fake_scenario;
 #define global_scenario_get() (&fake_scenario)
 #define TAG_BLOCK_GET_ELEMENT(block, index, type) (&(block)->elements[index])
@@ -159,6 +167,7 @@ static long datum_new(struct data_array *data)
 static void *hs_stack_allocate(long thread_index, long size);
 static boolean hs_stack_push(long thread_index);
 static void hs_evaluate(long thread_index, long expression_index, long *destination);
+static void hs_script_evaluate(short script_index,long thread_index,boolean initialize);
 static long hs_global_evaluate(short global_designator);
 static long *hs_arguments_evaluate(long thread_index, short formal_parameter_count,
 	short const *formal_parameters, boolean initialize);
@@ -294,7 +303,10 @@ static long evaluate(long expression_index)
 
 		thread->stack->size = 0;
 		SET_FLAG(thread->flags, _hs_thread_in_function_call_bit, FALSE);
-		hs_function_get(expression->index)->evaluate(expression->index, thread_index, initialize);
+		if(TEST_FLAG(expression->flags,_hs_syntax_node_script_bit))
+			hs_script_evaluate(expression->index,thread_index,initialize);
+		else
+			hs_function_get(expression->index)->evaluate(expression->index, thread_index, initialize);
 	}
 	result = *root_result;
 	datum_delete(hs_thread_data, thread_index);
@@ -414,6 +426,24 @@ int main(int argc, char **argv)
 	long reference;
 
 	world_new();
+
+	if(!strncmp(case_name,"script-notice",13))
+	{
+		struct hs_script *script=&fake_scenario.hs_scripts.elements[0];
+		long expression,result;
+		short type=!strcmp(case_name,"script-notice-other-type")?_hs_type_short_integer:_hs_type_hud_message;
+		strcpy(script->name,"forerunner_squad_01_notice");
+		script->script_type=!strcmp(case_name,"script-notice-ordinary")?_hs_script_startup:_hs_script_static;
+		script->return_type=type;
+		script->root_expression_index=constant_node(type,3);
+		script_disabled=!strcmp(case_name,"script-notice-disabled");
+		expression=node_new(type,0,FLAG(_hs_syntax_node_script_bit),NONE);
+		result=evaluate(expression);
+		CHECK(result==(script_disabled?0:3),"native static return value changed");
+		CHECK(notice_calls==(!strcmp(case_name,"script-notice")),"notice delivered before completion, twice or for an ordinary/disabled script");
+		if(notice_calls)CHECK(notice_value==3&&!strcmp(notice_name,script->name),"wrong evaluated message/name");
+		return 0;
+	}
 
 	CASE("global-living")
 	{

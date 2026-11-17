@@ -74,7 +74,7 @@ struct scenario_trigger_volume { char name[32]; };
 #include "mission_types.inc"
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; };
 struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -366,6 +366,16 @@ static long object_list_new(void){if(list_allocation_failure)return NONE;for(sho
 static boolean object_list_add(long l,long u){if(l==NONE||list_sizes[l]==6||list_sizes[l]+1==list_failure_at)return FALSE;list_units[l][list_sizes[l]++]=u;return TRUE;}
 static void object_list_mark_players(long l){if(l!=NONE)list_players[l]=TRUE;}
 static void object_list_delete(long l){if(l!=NONE)list_used[l]=FALSE;}
+static long object_list_get_first(long l,long *r){*r=0;return list_sizes[l]?list_units[l][0]:NONE;}
+static long object_list_get_next(long l,long *r){return ++*r<list_sizes[l]?list_units[l][*r]:NONE;}
+struct tag_data {long size;void *address;};
+#include "notice_hud_types.inc"
+static wchar_t authored_notice[256]=L"Squad 01: recover technology.";
+static struct hud_state_message_element notice_element={_hud_message_type_text,29};
+static struct hud_state_message_definition notice_message={.element_count=1};
+static struct hud_message_text_definition notice_text;
+#define HUD_MESSAGE_TEXT_DEFINITION_GET(index) (&notice_text)
+static void *tag_data_get_pointer(struct tag_data *d,long offset,long size){return (byte *)d->address+offset;}
 #include "notice_hud.inc"
 #include "extraction.inc"
 static struct object_datum *object_get(long index) {return (struct object_datum *)unit_get(index);}
@@ -636,6 +646,42 @@ int main(int argc,char **argv)
   }
   if(!strcmp(case_name,"squad-leave")) {
    touch(5,0);CHECK(run(0)->squad==NONE&&run(0)->gear.record.phase==_gear_idle,"leave changed gear ownership or retained membership");return 0;
+  }
+  if(!strncmp(case_name,"squad-notice",12)) {
+   int before_local,before_remote;long list;
+   notice_text.text_data=(struct tag_data){sizeof(authored_notice),authored_notice};
+   notice_text.elements=(struct tag_block){1,&notice_element};
+   notice_text.messages=(struct tag_block){1,&notice_message};
+   scenario.hud_messages.index=3;notice_element.data=(byte)(wcslen(authored_notice)+1);
+   CHECK(!extraction_script_notice("ordinary_notice",0),"ordinary message script intercepted");
+   before_local=local_notices;before_remote=remote_notices;
+   CHECK(extraction_script_notice("forerunner_squad_01_notice",0)&&local_notices==before_local&&remote_notices==before_remote,"undeployed squad received notice");
+   touch(!strcmp(case_name,"squad-notice-shared")?5:6,1);touch(0,0);touch(0,1);
+   before_local=local_notices;before_remote=remote_notices;
+   if(!strcmp(case_name,"squad-notice-policy"))authored_player_actions=FALSE;
+   if(!strcmp(case_name,"squad-notice-owner"))profile=FALSE;
+   if(!strcmp(case_name,"squad-notice-death"))units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);
+   if(!strcmp(case_name,"squad-notice-epoch"))run(0)->squad_operation++;
+   if(!strcmp(case_name,"squad-notice-client"))connection=_game_connection_network_client;
+   if(!strcmp(case_name,"squad-notice-restored"))extraction_restored();
+   if(!strcmp(case_name,"squad-notice-storage"))list_allocation_failure=TRUE;
+   if(!strcmp(case_name,"squad-notice-text"))authored_notice[2]=0x100;
+   if(!strcmp(case_name,"squad-notice-icon"))notice_element.type=_hud_message_type_icon;
+   if(!strcmp(case_name,"squad-notice-bounds"))notice_text.text_data.size=2;
+   if(!strcmp(case_name,"squad-notice-termination"))authored_notice[notice_element.data-1]='x';
+   if(!strcmp(case_name,"squad-notice-long")){wmemset(authored_notice,L'x',128);authored_notice[128]=0;notice_element.data=129;}
+   if(!strcmp(case_name,"squad-notice-index"))notice_message.element_start_index=1;
+   CHECK(extraction_script_notice("forerunner_squad_01_notice",0),"reserved notice not handled");
+   if(!strcmp(case_name,"squad-notice-loop")||!strcmp(case_name,"squad-notice-shared")) {
+    CHECK(local_notices==before_local+1&&strstr(local_notice_history[before_local%4],"P1 | Squad 01: recover technology."),"local squad cue missing");
+    CHECK(remote_notices==before_remote+(!strcmp(case_name,"squad-notice-shared")),"squad cue crossed recipients");
+    if(!strcmp(case_name,"squad-notice-loop")) {
+     extraction_script_notice("forerunner_squad_02_notice",0);
+     CHECK(local_notices==before_local+1&&remote_notices==before_remote+1,"remote squad cue not isolated");
+    }
+   } else CHECK(local_notices==before_local&&remote_notices==before_remote,"invalid notice or unauthorized participant received text");
+   for(i=0;i<8;i++)CHECK(!list_used[i],"squad notice leaked native object list");
+   return 0;
   }
   if(!strncmp(case_name,"squad-query",11)) {
    long list=42;short j;

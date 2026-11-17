@@ -33,3 +33,12 @@
   (sleep -1)
   (print "faction fixture: squad 02 durable recovery complete")
 )
+
+; Plain HMT notices are sent only to current living verified squad participants.
+; Author sq01_recover/sq01_return/sq02_recover/sq02_return in scenario HUD text.
+(script static hud_message forerunner_squad_01_notice
+  (if (= (device_group_get extraction_squad_01_ready) 1) sq01_return sq01_recover)
+)
+(script static hud_message forerunner_squad_02_notice
+  (if (= (device_group_get extraction_squad_02_ready) 1) sq02_return sq02_recover)
+)

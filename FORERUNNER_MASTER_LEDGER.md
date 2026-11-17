@@ -16,7 +16,36 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current personal operation feedback repair (source base `0cec942dce`): existing
+Current squad-authored operation notices (source base `4727bd47ef`): standard
+CE609 static `hud_message` helpers named `forerunner_squad_01_notice`, etc.
+evaluate native HSC normally, then deliver that HMT message through the existing
+authoritative squad query and personal notice path. Discovery adds
+`extraction.squad_notices.v1`; no new opcode, packet, quest state or HUD renderer.
+Only living verified current-operation participants receive text. Ordinary
+scripts/global objectives remain unchanged; unsupported HMT messages refuse
+delivery with one map diagnostic.
+
+Windows64 incremental compile/link PASS (`build/squad-notice-final-build.log`);
+20 affected Extraction/query checks, 46 interpreter/regression checks and one
+compiled native squad-discovery check PASS. Existing Invader compiles native
+HSC/HMT/cache. `build/native-delta-squad-notices/result.json` accepts two real
+authenticated clients in independent squads, native control deployment and
+physical objective traversal. All eight inspected PNGs show the correct recovery/
+return cues only on intended host chat or remote hidden-chat HUD. The unchanged
+player comparator passes 109 seconds/218 observations, zero divergence.
+No console objective setters or notice injection; no banking rerun.
+
+Binary SHA-256: `1ac46a5c8d20e739f08c8341acad35a3bd2fd198ef97670a059e5372ee356fdd`.
+Disposable CE609 cache SHA-256:
+`8b1b503cdb3039f09c2ba529e54a74ec2cca86476f4baec4af5fff106383bfa8`.
+Original accepted cache/account files unchanged; Spark read-only. Owned runtime/
+map copies, derived cache, BMP scratch and discovery runtime cleaned; authoring
+inputs/compact evidence retained. Full Black Echo aircraft/cinematics, six
+independent clients and other platforms stay open. The owner's billing annotation
+is a provider refusal, not an engine failure: no hosted jobs, spending changes or
+push. Full engine goal remains active.
+
+Previous personal operation feedback repair (source base `0cec942dce`): existing
 `P1 | ...` host notices now address their actual local view, including sparse
 controllers and wrapped continuation lines. Missing/invalid recipients cannot
 become broadcasts. Hidden-chat incoming personal notices use the native HUD;

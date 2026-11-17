@@ -3050,7 +3050,6 @@ static void hs_script_evaluate(
 	boolean initialize)
 {
 	struct hs_script *script;
-	struct hs_thread_datum *thread;
 	long *result;
 
 	/* port: an MCC map's scripts with parameters (mcc_script_runtime.inl) */
@@ -3060,7 +3059,6 @@ static void hs_script_evaluate(
 		&global_scenario_get()->hs_scripts,
 		script_index,
 		struct hs_script);
-	thread = hs_thread_get(thread_index);
 	result = hs_stack_allocate(thread_index, sizeof(long));
 
 	/* port: none on a stack overflow (hs_stack_overflow) */
@@ -3080,7 +3078,13 @@ static void hs_script_evaluate(
 	else if (initialize)
 		hs_evaluate(thread_index, script->root_expression_index, result);
 	else
+	{
+		/* port: standard HSC evaluates the authored message once; the existing
+		 * host-owned squad/notice path delivers it without a global HUD write. */
+		if (script->script_type == _hs_script_static && script->return_type == _hs_type_hud_message)
+			extraction_script_notice(script->name, (short)*result);
 		hs_return(thread_index, *result);
+	}
 
 	return;
 }

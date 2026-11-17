@@ -1086,6 +1086,38 @@ void hud_messaging_port_timer_set(
 	timer->enabled = state->enabled;
 }
 
+/* port: squad-authored notices reuse native HMT text without changing the
+ * global campaign objective/help text or creating another localization table. */
+boolean hud_messaging_notice_text(short message_index, char *text, long capacity)
+{
+	struct scenario *scenario = global_scenario_get();
+	struct hud_message_text_definition *messages;
+	struct hud_state_message_definition *message;
+	struct hud_state_message_element *element;
+	wchar_t const *source;
+	long offset, size, index;
+
+	if (!text || capacity <= 0) return FALSE;
+	text[0] = 0;
+	if (!scenario || scenario->hud_messages.index == NONE) return FALSE;
+	messages = HUD_MESSAGE_TEXT_DEFINITION_GET(scenario->hud_messages.index);
+	if (!VALID_INDEX(message_index, messages->messages.count)) return FALSE;
+	message = TAG_BLOCK_GET_ELEMENT(&messages->messages, message_index, struct hud_state_message_definition);
+	if (message->element_count != 1 || !VALID_INDEX(message->element_start_index, messages->elements.count)) return FALSE;
+	element = TAG_BLOCK_GET_ELEMENT(&messages->elements, message->element_start_index, struct hud_state_message_element);
+	if (element->type != _hud_message_type_text || element->data < 2 || element->data > capacity) return FALSE;
+	offset = (long)message->text_start_index * sizeof(wchar_t);
+	size = (long)element->data * sizeof(wchar_t);
+	if (offset > messages->text_data.size || size > messages->text_data.size - offset) return FALSE;
+	source = tag_data_get_pointer(&messages->text_data, offset, size);
+	if (!source || source[element->data - 1]) return FALSE;
+	for (index = 0; index < element->data - 1; index++)
+		if (source[index] < 32 || source[index] > 126) return FALSE;
+	for (index = 0; index < element->data - 1; index++) text[index] = (char)source[index];
+	text[index] = 0;
+	return TRUE;
+}
+
 short hud_messaging_port_message_count(
 	void)
 {

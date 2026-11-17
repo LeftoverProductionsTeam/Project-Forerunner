@@ -53,7 +53,14 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     if medical_fault:
         extraction = mutated(extraction,
             'now - medical_players[healer_slot].last_damage < 2 * TICKS_PER_SECOND ||', '')
-    files.append(('notice_hud.inc', function(read('source/interface/hud_messaging.c'), 'hud_print_notice')))
+    hud_messages = read('source/interface/hud_messaging.c')
+    files.append(('notice_hud_types.inc', '\n'.join((
+        structure(hud_messages, 'hud_state_message_definition'),
+        enum_with(hud_messages, '_hud_message_type_text'),
+        structure(hud_messages, 'hud_state_message_element'),
+        structure(hud_messages, 'hud_message_text_definition')))))
+    files.append(('notice_hud.inc', function(hud_messages, 'hud_print_notice') + '\n' +
+                  function(hud_messages, 'hud_messaging_notice_text')))
     files.append(('extraction.inc', extraction))
     files.append(('evacuation.inc', function(director, 'firefight_try_evacuation')))
     hud = read('source/interface/hud_nav_points.c')
@@ -195,6 +202,10 @@ def test_starter_deployment_negative_control():
 
 @pytest.mark.parametrize('case', [
     'squad-query-loop', 'squad-query-state', 'squad-query-policy', 'squad-query-storage',
+    'squad-notice-loop', 'squad-notice-shared', 'squad-notice-owner', 'squad-notice-policy',
+    'squad-notice-death', 'squad-notice-epoch', 'squad-notice-client', 'squad-notice-restored',
+    'squad-notice-storage', 'squad-notice-text', 'squad-notice-icon', 'squad-notice-bounds',
+    'squad-notice-termination', 'squad-notice-long', 'squad-notice-index',
     'squad-objective-loop', 'squad-objective-escrow', 'squad-objective-alias', 'squad-objective-duplicate',
 ])
 def test_squad_native_objectives(case):

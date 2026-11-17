@@ -100,6 +100,9 @@ void hud_print_message(
 /* port: the existing operation/host-notice ASCII fallback, wrapped to native
  * HUD record limits for one local view. No second notification renderer. */
 void hud_print_notice(short local_player_index, char const *text);
+/* port: read one native plain-text HMT message for the existing ASCII notice
+ * carrier. Reject unsupported/overlong text without changing global HUD state. */
+boolean hud_messaging_notice_text(short message_index, char *text, long capacity);
 void hud_add_item_message(
 	short local_player_index,
 	long item_definition_index,

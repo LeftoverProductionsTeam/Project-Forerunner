@@ -102,7 +102,7 @@ struct extraction_run
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
-	boolean survival, evacuation, completion_notified, squad_script_warning;
+	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
@@ -237,6 +237,40 @@ boolean extraction_script_players(char const *name, long *object_list)
 		}
 	}
 	object_list_mark_players(*object_list);
+	return TRUE;
+}
+
+boolean extraction_script_notice(char const *name, short message_index)
+{
+	short squad;
+	long list, reference, object;
+	char query[32], text[128];
+	if (!name) return FALSE;
+	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+	{
+		snprintf(query, sizeof(query), "forerunner_squad_%02d_notice", squad + 1);
+		if (!strcmp(name, query)) break;
+	}
+	if (squad == NUMBEROF(extraction.squads)) return FALSE;
+	snprintf(query, sizeof(query), "forerunner_squad_%02d_players", squad + 1);
+	/* Reuse admission, authority, current-operation, identity and living-body
+	 * checks rather than allowing a script to choose arbitrary recipients. */
+	extraction_script_players(query, &list);
+	if (list == NONE) return TRUE;
+	if (hud_messaging_notice_text(message_index, text, sizeof(text)))
+	{
+		for (object = object_list_get_first(list, &reference); object != NONE; object = object_list_get_next(list, &reference))
+		{
+			struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(object, _object_mask_biped);
+			if (unit) extraction_player_notice(unit->unit.player_index, text);
+		}
+	}
+	else if (!extraction.squad_notice_warning)
+	{
+		extraction.squad_notice_warning = TRUE;
+		platform_log("extraction: squad notices require a nonempty plain-text HMT message, printable ASCII, at most 127 characters");
+	}
+	object_list_delete(list);
 	return TRUE;
 }
 
