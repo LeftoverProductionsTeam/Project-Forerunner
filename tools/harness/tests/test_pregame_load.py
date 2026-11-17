@@ -15,13 +15,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, ROOT, build, enum_with, function, mutated, read, run  # noqa: E402
 
 MANAGER = 'source/networking/network_server_manager.c'
-CASES = ['state-reset', 'late-joiner-reports', 'late-joiner-silent', 'timeout-off', 'timeout-setting',
+CASES = ['state-reset', 'coop-round-rules', 'late-joiner-reports', 'late-joiner-silent', 'timeout-off', 'timeout-setting',
          'countdown-not-over', 'host-never-dropped']
 FUNCTIONS = (
     'network_game_server_client_machine_is_joined_to_game', 'network_game_server_machine_has_players',
     'network_game_server_machine_player_count', 'network_game_server_late_join_wait_milliseconds',
     'network_game_server_start_late_joiner', 'network_game_server_late_joiner_loaded',
-    'network_game_server_reset_to_pregame', 'network_game_server_client_machine_is_precached',
+    'network_game_server_cooperative_round', 'network_game_server_reset_to_pregame',
+    'network_game_server_client_machine_is_precached',
     'network_game_server_have_all_machines_have_precached', 'network_game_server_pregame_load_timeout_milliseconds',
     'network_game_server_pregame_load_timeout')
 STATICS = ('late_joiner_players', 'network_game_server_late_joiner_waiting',
@@ -51,7 +52,7 @@ def generated(control=None):
     if control:
         before, after, _ = CONTROLS[control]
         code = mutated(code, before, after)
-    statics = []
+    statics = [re.search(r'^static char network_game_server_cooperative_next_map[^;]*;', source, re.M).group(0)]
     for name in STATICS:
         statics.append(re.search(r'^static [^;(]*\b' + name + r'\b[^;]*;', source, re.M).group(0))
     statics.append(re.search(r'^static struct\n\{[^}]*\} network_game_server_ingame_additions\[[^;]*;',

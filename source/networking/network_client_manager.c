@@ -377,6 +377,7 @@ symbols in this file:
 #include "game/local_players.h"
 #include "game/player_queues_new.h"
 #include "game/players.h"
+#include "network_coop.h"
 #include "interface/player_ui.h"
 #include "saved games/player_profile.h"
 #include "interface/ui_widget.h"
@@ -1190,6 +1191,7 @@ boolean network_game_client_switch_to_pregame(
 
 	if (client->state != _network_game_client_state_pregame)
 	{
+		boolean cooperative = network_coop_active();
 		network_game_reset_for_next_round(&client->game, TRUE);
 		network_connection_keep_alive(client->connection);
 		client->next_update_number = 0;
@@ -1202,7 +1204,7 @@ boolean network_game_client_switch_to_pregame(
 		/* port: a start put off is not this game's */
 		network_game_client_start_pending = FALSE;
 		network_event("switching to pregame");
-		network_game_reset_to_pregame_ui();
+		network_game_reset_to_pregame_ui(cooperative);
 		network_connection_keep_alive(client->connection);
 	}
 

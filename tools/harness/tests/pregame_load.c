@@ -10,6 +10,7 @@
    dropped; one that says so starts with the others. The connection and the
    messages are fakes that record what was sent. */
 #include <stdarg.h>
+#include <wchar.h>
 #include "harness.h"
 #include "config.inc"
 
@@ -26,6 +27,8 @@
 #define csmemset memset
 #define csmemcpy memcpy
 #define csstrcmp strcmp
+#define csstrncpy strncpy
+#define ustrncpy wcsncpy
 #define match_vassert(file, line, condition, text) ((void)0)
 #define _error_silent 0
 
@@ -41,12 +44,16 @@ struct network_player
 };
 struct network_machine { short machine_index; };
 struct universal_variant { boolean teams; };
-struct game_variant { struct universal_variant universal_variant; };
+struct game_variant { struct universal_variant universal_variant; wchar_t human_readable_game_description[32]; };
+struct game_variant_options { short friendly_fire; };
 struct network_game
 {
 	struct network_player players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 	struct network_machine machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 	struct game_variant variant;
+	struct game_variant_options variant_options;
+	struct { char name[32]; long version; } map;
+	short maximum_teams;
 	long number_of_games_played;
 };
 struct countdown_timer { long time_remaining; unsigned long last_update_time; };
@@ -201,10 +208,18 @@ static void network_game_reset_for_next_round(struct network_game *game, boolean
 }
 static boolean network_game_server_setup_game_from_playlist(struct network_game_server *server)
 {
-	(void)server;
+	server->game.variant_options.friendly_fire = 1;
+	strcpy(server->game.map.name, "putput");
 	return TRUE;
 }
-static void network_game_server_cooperative_round(struct network_game_server *server) { (void)server; }
+static void network_game_server_variant_options(struct game_variant const *variant, struct game_variant_options *options)
+{
+	(void)variant;
+	options->friendly_fire = 1;
+}
+static void map_share_level_name_choose(char *name, size_t size) { (void)name; (void)size; }
+static long cache_files_map_version(char const *name) { return strcmp(name, "a30") == 0 ? 7 : 0; }
+static void main_set_multiplayer_map_name(char const *name) { (void)name; }
 static boolean network_game_server_handle_client_machines(struct network_game_server *server)
 {
 	(void)server;
@@ -345,7 +360,20 @@ int main(int argc, char **argv)
 {
 	const char *case_name = argc > 1 ? argv[1] : "";
 
+	if (!strcmp(case_name, "coop-round-rules"))
+		strcpy(network_game_server_cooperative_next_map, "a30");
 	play_a_game_with_a_late_joiner();
+
+	CASE("coop-round-rules")
+	{
+		CHECK(strcmp(server.game.map.name, "a30") == 0 && server.game.map.version == 7,
+			"next campaign lobby did not select the next map");
+		CHECK(server.game.variant_options.friendly_fire == 0,
+			"the temporary playlist overwrote the host's co-op rule");
+		CHECK(server.game.maximum_teams == 1 && !network_game_server_cooperative_next_map[0],
+			"co-op lobby was not applied and consumed");
+		return 0;
+	}
 
 	CASE("state-reset")
 	{

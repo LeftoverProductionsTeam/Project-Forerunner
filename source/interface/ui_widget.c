@@ -5886,22 +5886,19 @@ void display_error_damaged_media_text(
 }
 
 void network_game_reset_to_pregame_ui(
-	void)
+	boolean cooperative)
 {
 	ui_widgets_close_all();
-	/* port: An MCC restart retains this round's settings and returns directly to
-	 * the ready lobby. The ordinary host map picker pauses its countdown. */
+	/* Co-op has already selected the next mission or the same Firefight map.
+	 * Keep that choice in the ready lobby, as an MCC restart does. */
+	if (mcc_ui_network_restart_pregame() || cooperative)
 	{
-
-		if (mcc_ui_network_restart_pregame())
-		{
-			char const *screen = network_game_is_splitscreen_local() ?
-				"ui\\shell\\main_menu\\multiplayer_type_select\\split_screen\\pregame\\splitscreen_pregame_wrapper_normal" :
-				pc_menus_screen("ui\\shell\\main_menu\\multiplayer_type_select\\connected\\pregame\\connected_pregame_screen");
-			if (!ui_widget_load_by_name_or_tag(screen, NONE, NULL, NONE, NONE, NONE, NONE))
-				error(_error_silent, "mcc: failed to load restart pregame screen");
-			return;
-		}
+		char const *screen = network_game_is_splitscreen_local() ?
+			"ui\\shell\\main_menu\\multiplayer_type_select\\split_screen\\pregame\\splitscreen_pregame_wrapper_normal" :
+			pc_menus_screen("ui\\shell\\main_menu\\multiplayer_type_select\\connected\\pregame\\connected_pregame_screen");
+		if (!ui_widget_load_by_name_or_tag(screen, NONE, NULL, NONE, NONE, NONE, NONE))
+			error(_error_silent, "failed to load co-op pregame screen");
+		return;
 	}
 	if (network_game_is_splitscreen_local())
 	{

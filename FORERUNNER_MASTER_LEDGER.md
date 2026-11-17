@@ -106,6 +106,16 @@ authenticated clients saw the copied Pelican at rest at the same position and
 saw its removal while the original remained. The slope did not meet the separate
 dropship landing-attitude gate. Runtime copies and BMP scratch were removed.
 
+Campaign co-op handoff (17 November): the next round preserves the host's
+friendly-fire setting across the playlist reset. The real reset test reproduced
+the loss on the original code; 14 focused checks and Windows64 passed. Co-op
+clients now retain the mission choice and return to the ready lobby. A controlled
+A10 game_won signal exposed the host's old map picker pausing A30.
+build/native-campaign-round-ready-lobby/result.json verifies both authenticated
+clients returned to the A30 lobby and loaded two equipped players into A30
+through Start Now. The probe used disposable temporary profiles and did not
+verify completion credit or a full playthrough. Runtime copies were removed.
+
 Native menu completion and Black Echo crew repair (17 November):
 63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
 two-hand settings directly to the native VR page, Save/Cancel and persistence.

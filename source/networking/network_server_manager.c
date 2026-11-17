@@ -5952,10 +5952,10 @@ void network_game_server_port_cooperative_won(
 the next round is set up from (network_game_server_setup_game_from_playlist)
 has a multiplayer gametype and map */
 static void network_game_server_cooperative_round(
-	struct network_game_server *server)
+	struct network_game_server *server,
+	short friendly_fire)
 {
 	struct game_variant variant;
-	short friendly_fire = server->game.variant_options.friendly_fire;
 
 	if (!network_game_server_cooperative_next_map[0])
 		return;
@@ -6993,6 +6993,8 @@ boolean network_game_server_reset_to_pregame(
 		if (message)
 		{
 			boolean sent = TRUE;
+			/* The playlist replaces the variant options before co-op is reapplied. */
+			short friendly_fire = server->game.variant_options.friendly_fire;
 
 			for (i = 0; i < MAXIMUM_NETWORK_MACHINE_COUNT; i++)
 			{
@@ -7063,7 +7065,7 @@ boolean network_game_server_reset_to_pregame(
 			network_game_reset_for_next_round(&server->game, FALSE);
 			if (network_game_server_setup_game_from_playlist(server))
 			{
-				network_game_server_cooperative_round(server);
+				network_game_server_cooperative_round(server, friendly_fire);
 				/* the settings record goes out in pieces */
 				/* (the pregame whatever a machine missed: the machines are in it,
 				and the pregame's flush sends the settings again) */

@@ -239,7 +239,7 @@ char const *pc_menus_screen(
 void main_screen_shell_load(
 	void);
 void network_game_reset_to_pregame_ui(
-	void);
+	boolean cooperative);
 void display_error(
 	short error_code,
 	short local_player_index,
