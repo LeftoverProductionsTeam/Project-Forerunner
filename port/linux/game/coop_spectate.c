@@ -329,7 +329,10 @@ void coop_spectate_draw(
 	 * on the player's own dead camera until an eligible teammate is alive. */
 	if (spectate_player_unit(self, watched) == NONE)
 	{
-		draw_bottom_text(coop_spectate_nothing_to_watch(local_player_index) ?
+		/* A team wipe has nobody to watch, but a casualty is not a new join.
+		 * Recovery may mean a paid respawn, campaign revert or next round. */
+		draw_bottom_text(player->statistics.deaths > 0 ? L"WAITING FOR TEAM RECOVERY" :
+			coop_spectate_nothing_to_watch(local_player_index) ?
 			L"JOINING THE GAME" : L"WAITING FOR A TEAMMATE");
 		return;
 	}

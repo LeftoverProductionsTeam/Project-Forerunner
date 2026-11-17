@@ -1430,7 +1430,27 @@ remain open. Its checkpoint records the compiled verification caches as disposed
 not a retained delivered mission package. Do not rebuild Spark or duplicate its
 completed authoring to conceal that handoff gap. Spark source remains untouched.
 
-Next handoff remains the actual combined CE609 mission package with matching
+Read-only Spark `8fdfe91` now supplies the retained Pelican mission review cache:
+`releases/black-echo-review-20261117/Spark-871c0ad7-52b6-46d6-99df-982e1f12ddc4/be_native.map`,
+110,033,808 bytes, SHA256 `31505afb15da14ff32af694afecc28362ff911bd6df6b79778195493c6c3ebab`.
+Its internal scenario path is `be_native`, not the older fixture's `levels/forerunner/…`.
+Forerunner's unchanged current Windows64 binary loads it for two verified Delta
+accounts and admits its native hub. Player comparisons pass 90 seconds/180
+observations; 94 item snapshots match. Full operation acceptance FAILS before
+deployment: the observed normal approach to control 0 at (49.624,-87.469,0.714)
+stops under the parked Pelican at (48.921,-87.505,1.319). Native action 8 offers a
+passenger seat instead of control action 10; no deployed gear records are created.
+The grounded, stationary Pelican also reports up 0.942 and landed 0, so the
+authored landed gate cannot currently clear. Screenshots and raw native evidence
+are in `build/native-spark-black-echo-aircraft/`; the cache was not edited/rebuilt.
+The diagnostic's overlength console query was refused, so pilot readiness is
+unverified. Two-account flight/combat/rescue/collection/settlement remain OPEN.
+
+Spark's next revision must provide a physically clear hub spawn/control approach,
+accessible normal passenger entrances and a stable native touchdown inside the
+hub/LZ volumes. Keep collision, boarding, landing-attitude and settlement gates;
+do not bypass them or claim an arbitrary alternate approach was disproved.
+Supply the revised cache with matching
 resource/source identities, native player/faction equipment, physically valid
 hub/LZ/routes, and returning camera/audio cues. Exercise normal pilot entry,
 flight/landing, collection/rescue, real passenger boarding, departure, settlement

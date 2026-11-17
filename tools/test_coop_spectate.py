@@ -121,7 +121,7 @@ def _spectator_unit(fault=None):
 #define SPECTATE_DEATH_TICKS (3*TICKS_PER_SECOND)
 #define NUMBER_OF_SOLO_CAMPAIGN_TEAMS 10
 struct player_datum {long unit_index,dead_unit_index,team_index;boolean quit_out_of_game;
- struct {short controller_index;} network_player_data;wchar_t name[12];};
+ struct {short controller_index;} network_player_data;wchar_t name[12];struct {short deaths;} statistics;};
 struct unit_datum {struct {long damage_flags;short owner_team_index;} object;struct {long player_index;} unit;};
 struct data_iterator {short next;long datum_index;};
 struct gamepad_state {unsigned char buttons[16];};
@@ -132,7 +132,7 @@ static long locals[4]={0x10000,NONE,NONE,NONE},tick=100;
 static long coop_spectate_watched[4]={NONE,NONE,NONE,NONE};
 static struct coop_spectate_death coop_spectate_deaths[4];
 static void *player_data;static struct gamepad_state pad[4];static unsigned char jump[4];
-static int draws,joining,waiting,labels;static wchar_t named[12];
+static int draws,joining,waiting,recovering,labels;static wchar_t named[12];
 static boolean betrayed;
 static boolean game_team_is_enemy(short viewer,short target) {
  assert(viewer>=0&&viewer<10&&target>=0&&target<10);
@@ -151,6 +151,7 @@ static boolean players_coop_waiting_to_start(long player) {(void)player;return F
 static void draw_bottom_text(wchar_t const *text) {
  draws++;if(!wcscmp(text,L"JOINING THE GAME"))joining++;
  if(!wcscmp(text,L"WAITING FOR A TEAMMATE"))waiting++;
+ if(!wcscmp(text,L"WAITING FOR TEAM RECOVERY"))recovering++;
 }
 static int usnprintf(wchar_t *out,size_t count,wchar_t const *format,...) {
  va_list args;wchar_t const *name;va_start(args,format);name=va_arg(args,wchar_t const *);
@@ -184,6 +185,10 @@ int main(void) {
  coop_spectate_draw(0);assert(labels==1&&!wcscmp(named,L"C"));
  /* The draw may run after departure but before the next camera selection. */
  players[2].quit_out_of_game=TRUE;coop_spectate_draw(0);assert(labels==1&&joining==2);
+ /* Exhausted survivors wait for recovery, not an initial network join. */
+ players[0].statistics.deaths=1;coop_spectate_draw(0);
+ assert(recovering==1&&joining==2&&labels==1);
+ players[0].statistics.deaths=0;
  players[2].quit_out_of_game=FALSE;handles[2]+=0x10000;units[2].unit.player_index=handles[2];
  assert(coop_spectate_unit(0)==bodies[2]);
  /* The native own-body delay is retained for each death; respawn restores play. */

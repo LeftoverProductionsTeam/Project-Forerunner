@@ -16,7 +16,46 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current bounded native Firefight round trip (source base `3d432e2128`): two
+Current gameplay checkpoint (source base `8256a166c7`): Spark `8fdfe91` delivered
+its retained combined Pelican/Black Echo review map, SHA256
+`31505afb15da14ff32af694afecc28362ff911bd6df6b79778195493c6c3ebab`.
+The unchanged Windows64 runtime loads it with two verified accounts and admits
+the native hub. Full operation FAILS before deployment: the observed control
+approach stops under the parked Pelican and offers its seat instead of the
+deployment control. The grounded, stationary ship also has up 0.942 / landed 0,
+below the existing 0.95 landing-attitude requirement. No gear deployment is
+admitted. Spark owns hub/pad/control clearance corrections; exact coordinates,
+cache identity and next revision requirements are in the existing contract.
+`build/native-spark-black-echo-aircraft/result.json` retains the rejected attempt:
+90 player seconds/180 observations and 94 item snapshots agree. Two inspected
+PNGs show the obstructed approach. The optional overlength console query was
+refused, so pilot readiness is unverified. No map/source/landing-gate bypass.
+
+Independent Firefight defeat/loss/restart PASSES in
+`build/native-firefight-defeat-restart/result.json`: two real Flood combatants
+kill both idle players, use the one paid native respawn, then exhaust the team.
+At tick 1350 both are dead; two durable records have lost outcome and zero stash,
+reserved or escrow gear. No victory or recovery reward. Native lobby return
+restarts the encounter with both living players, fresh issued runs and reset
+lives. Comparisons: 45/8 player seconds, 56/16 living observations, zero mismatches;
+49/12 item snapshots match, all 13/5 new host items seen. This reuses the accepted
+CE609 and binary `f02fd1bf…145d9`; no rebuild for either native check.
+
+The defeat PNGs exposed a separate spectator HUD defect: casualties with nobody
+to watch were labeled JOINING THE GAME. `coop_spectate_draw` now uses native
+death statistics to display WAITING FOR TEAM RECOVERY, retaining first-join
+labels, own-body timing and faction/camera privacy. Windows64 incremental build
+and all nine existing spectator checks PASS (`build/spectator-recovery-{build,
+checks-configured}.log`). Initial check attempts lacked the existing MSVC header/
+linker environment; configuring it resolved those setup failures, without new
+tools or weakened checks. The changed label is source/compiled/automated verified;
+the retained native screenshots show the prior defect, not a post-fix render.
+Both native runs' original account/cache hashes remain unchanged; owned runtimes,
+maps, 19,661,016B BMP scratch and 423,348B scenario-tag scratch are cleaned.
+Full Black Echo, dropship redeployment, human/hardware/platform and the complete
+engine roadmap remain open. No hosted jobs, spending changes, Spark writes or push.
+
+Previous bounded native Firefight round trip (source base `3d432e2128`): two
 authenticated clients clear two actual combat waves, return through the native
 lobby and start the next encounter with reset lives, statistics and healthy
 equipped bodies. The existing opt-in `network_test` rotation now remembers a
