@@ -41,9 +41,11 @@ static struct encounter_datum encounter;
 static struct squad_definition squad_definitions[3];
 static struct squad_datum squads[3];
 static struct firing_position_definition firing_positions[2];
-static struct player_datum players[6];
-static struct unit_datum units[7];
-static long unit_handles[7];
+static struct player_datum players[10];
+static struct unit_datum units[11];
+static long unit_handles[11];
+static short player_count=6;
+static long incapacitated_unit=NONE;
 static struct actor_datum actors[2];
 static short actor_count=1, migrations;
 static boolean operation=TRUE;
@@ -53,12 +55,13 @@ static struct { boolean print_automatic_migration; } ai_debug;
 static struct scenario *global_scenario_get(void) { return &scenario; }
 static boolean extraction_owns_map(void) { return operation; }
 static boolean game_team_is_enemy(short team,short other) { return team!=other; }
+static boolean extraction_medical_incapacitated(long unit_index) { return unit_index==incapacitated_unit; }
 static struct encounter_datum *encounter_get(long index) { CHECK(index==0,"unexpected encounter");return &encounter; }
 static struct squad_datum *encounter_get_squad(struct encounter_datum *e,short index) { (void)e;return &squads[index]; }
 static struct platoon_datum *encounter_get_platoon(struct encounter_datum *e,short index) { (void)e;(void)index;return NULL; }
 static void data_iterator_new(struct data_iterator *i,void *data) { (void)data;i->next=0; }
-static void *data_iterator_next(struct data_iterator *i) { if(i->next==6)return NULL;i->datum_index=0x10000+i->next;return &players[i->next++]; }
-static struct unit_datum *unit_try_and_get(long index) { short i;for(i=0;i<7;i++)if(index==unit_handles[i])return &units[i];return NULL; }
+static void *data_iterator_next(struct data_iterator *i) { if(i->next==player_count)return NULL;i->datum_index=0x10000+i->next;return &players[i->next++]; }
+static struct unit_datum *unit_try_and_get(long index) { short i;for(i=0;i<11;i++)if(index==unit_handles[i])return &units[i];return NULL; }
 static void *object_try_and_get_and_verify_type(long index,long mask) { (void)mask;return unit_try_and_get(index); }
 static void object_get_origin(long index,real_point3d *position) { struct unit_datum *u=unit_try_and_get(index);CHECK(u,"stale unit was sampled");*position=u->object.position; }
 static real distance_squared3d(real_point3d const *a,real_point3d const *b) { real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;return x*x+y*y+z*z; }
@@ -85,8 +88,8 @@ int main(int argc,char **argv)
    squad_definitions[i].firing_position_groups[_firing_position_group_attacking]=FLAG(i);
    squads[i].automatic_migration_target=TRUE; }
  }
- for(i=0;i<7;i++) { unit_handles[i]=0x20000+i;units[i].unit.player_index=0x10000+i;units[i].object.position.x=100+i*20.f; }
- for(i=0;i<6;i++)players[i].unit_index=unit_handles[i];
+ for(i=0;i<11;i++) { unit_handles[i]=0x20000+i;units[i].unit.player_index=0x10000+i;units[i].object.position.x=100+i*20.f; }
+ for(i=0;i<10;i++)players[i].unit_index=unit_handles[i];
  firing_positions[0].group_index=0;firing_positions[1].group_index=1;firing_positions[1].position.x=100;
  actors[0].meta.squad_index=1;squads[1].current_count=1;
  units[0].object.position.x=1;units[5].object.position.x=99;
@@ -102,6 +105,12 @@ int main(int argc,char **argv)
  if(!strcmp(case_name,"empty")) {for(i=0;i<6;i++)units[i].object.damage_flags=FLAG(_object_dead_bit);expected=1;}
  if(!strcmp(case_name,"opposing-nearer")) {units[0].object.owner_team_index=3;expected=1;}
  if(!strcmp(case_name,"only-opposition")) {for(i=0;i<6;i++)units[i].object.owner_team_index=3;expected=1;}
+ if(!strcmp(case_name,"ninth")||!strcmp(case_name,"legacy-ninth")) {
+  player_count=10;
+  units[0].object.position.x=98;
+  units[8].object.position.x=1;
+ }
+ if(!strcmp(case_name,"incapacitated-nearer")) {incapacitated_unit=unit_handles[0];expected=1;}
 
  if(!strcmp(case_name,"explicit")) {encounter.follow_target_type=_follow_target_unit;encounter.follow_target_unit_index=unit_handles[0];units[0].object.damage_flags=FLAG(_object_dead_bit);}
  if(!strcmp(case_name,"hysteresis")) {units[0].object.position.x=4;firing_positions[1].position.x=10;encounter.follow_target_distance=3;expected=1;}

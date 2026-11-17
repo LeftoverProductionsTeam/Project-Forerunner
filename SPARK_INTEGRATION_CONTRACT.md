@@ -68,6 +68,11 @@ allegiance. The runtime still uses the cache's authored squad flags.
 Native shared-flight evidence: build/native-spark-black-echo-shared-flight/result.json.
 298 seconds, 596 synchronized player observations, zero divergences.
 Two-passenger departure and the full mission did not pass on this cache.
+The newer Spark export 530f12c0-2a02-4ef4-abc5-bce979c0526d (CE609,
+SHA256 09bb4034f0bdc40f26b2c9977ae08aec7a0dba18c1fcf5c0e6bf743cc19ae4d4)
+revises the seat-test expression types. Readback still finds the Marine
+loading into P-riderLF and both rescue squad migration flags equal to zero.
+The same two authoring changes apply to that export.
 
 17 November startup repair, Forerunner `21603426c4`: the Windows64 binary
 SHA256 `6744161c52be41a0c0d73cc8d83bba7245bc869ee8eaef00d37e2a8044e1cc09`
@@ -1763,8 +1768,11 @@ the same binary and retained records. Detailed comparisons/cleanup and the corre
 restart probe are in the current checkpoint and those run results. This is bounded
 Windows native acceptance; full aircraft, other bodies/platforms and human/VR remain open.
 Native follow continuation: admitted Extraction maps opt into nearest living,
-owned-player selection in `source/ai/encounters.c::encounter_update_follow`.
-Classic ordering, explicit unit/AI targets and the native eight-target limit remain.
+allied, non-incapacitated player selection in `source/ai/encounters.c::encounter_update_follow`.
+The Extraction search uses the full active roster without allocating a larger
+target array. Classic ordering and the eight-target legacy player/AI cap remain.
+Windows64 and the focused 20-case follow suite pass, including ninth-slot and
+downed-ally coverage. Larger live sessions remain unverified.
 `ai_follow_target_players` / `ai_follow_target_unit` bind the whole encounter
 (`ai_script.c`), so separate escort groups need separate native encounters, not
 an assumed per-squad follow API. Windows64/12 connected cases/two defect controls

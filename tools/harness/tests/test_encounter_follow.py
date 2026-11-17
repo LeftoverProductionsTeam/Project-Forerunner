@@ -10,14 +10,14 @@ from harness import CHECK_FAILED, build, constant, enum_with, function, mutated,
 
 def generated(fault=None):
     source = read('source/ai/encounters.c')
+    candidates = function(source, 'encounter_operation_follow_player')
     follow = function(source, 'encounter_update_follow')
     if fault == 'last':
-        follow = mutated(follow, 'best_target_distance_squared = target_distances_squared[target_index];',
-                         '(void)0;')
+        candidates = mutated(candidates, 'best_distance_squared = distance_squared;', '(void)0;')
     elif fault == 'dead':
-        follow = mutated(follow, 'TEST_FLAG(unit->object.damage_flags, _object_dead_bit)', 'FALSE')
+        candidates = mutated(candidates, 'TEST_FLAG(unit->object.damage_flags, _object_dead_bit)', 'FALSE')
     elif fault == 'enemy':
-        follow = mutated(follow, 'game_team_is_enemy(encounter->team_index, unit->object.owner_team_index)', 'FALSE')
+        candidates = mutated(candidates, 'game_team_is_enemy(encounter->team_index, unit->object.owner_team_index)', 'FALSE')
     definitions = read('source/ai/ai_scenario_definitions.h')
     return (
         ('limits.inc', '#define MAXIMUM_FOLLOW_TARGET_UNITS %d\n#define NUMBER_OF_FIRING_POSITION_GROUP_INDICES %d\n' % (
@@ -25,13 +25,14 @@ def generated(fault=None):
          enum_with(definitions, 'NUMBER_OF_SQUAD_FLAGS') + '\n' +
          enum_with(definitions, 'MAXIMUM_NUMBER_OF_FIRING_POSITION_GROUPS') + '\n' +
          enum_with(source, '_follow_target_ai')),
-        ('under_test.inc', follow),
+        ('under_test.inc', candidates + '\n' + follow),
     )
 
 
 @pytest.mark.parametrize('case', ['nearest', 'reordered', 'sixth', 'tie', 'death-respawn',
                                  'quit-stale', 'empty', 'explicit', 'hysteresis', 'outside-squad',
-                                 'opposing-nearer', 'only-opposition', 'legacy', 'legacy-dead'])
+                                 'opposing-nearer', 'only-opposition', 'ninth', 'incapacitated-nearer',
+                                 'legacy', 'legacy-dead', 'legacy-ninth'])
 def test_encounter_follow(case):
     status, output = run(build('encounter_follow', generated()), case)
     assert status == 0, output

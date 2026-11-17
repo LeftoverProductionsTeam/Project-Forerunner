@@ -3609,6 +3609,55 @@ enum
 	NUMBER_OF_FOLLOW_TARGET_TYPES,
 };
 
+/* Extraction may have several squads in the same encounter's range. Walk
+ * every live ally directly so an eligible player past the classic eight
+ * target slots can still lead the escort. */
+static long encounter_operation_follow_player(
+	long encounter_index,
+	struct encounter_datum const *encounter,
+	unsigned long const *present_squads,
+	real_point3d *follow_position)
+{
+	struct data_iterator players;
+	struct player_datum *player;
+	long best_unit_index = NONE;
+	real best_distance_squared = REAL_MAX;
+
+	data_iterator_new(&players, player_data);
+	while ((player = data_iterator_next(&players)) != NULL)
+	{
+		struct unit_datum *unit = unit_try_and_get(player->unit_index);
+		struct encounter_actor_iterator actors;
+		struct actor_datum *actor;
+		real_point3d position;
+
+		if (!unit || player->quit_out_of_game || unit->unit.player_index != players.datum_index ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+			game_team_is_enemy(encounter->team_index, unit->object.owner_team_index) ||
+			extraction_medical_incapacitated(player->unit_index))
+			continue;
+
+		object_get_origin(player->unit_index, &position);
+		encounter_actor_iterator_new(&actors, encounter_index);
+		while ((actor = encounter_actor_iterator_next(&actors)) != NULL)
+		{
+			real distance_squared;
+			if (!VALID_INDEX(actor->meta.squad_index, encounter->squad_count) ||
+				!BIT_VECTOR_TEST_FLAG(present_squads, actor->meta.squad_index))
+				continue;
+			distance_squared = distance_squared3d(&actor->input.position.body_position, &position);
+			if (distance_squared < best_distance_squared)
+			{
+				best_distance_squared = distance_squared;
+				best_unit_index = player->unit_index;
+				*follow_position = position;
+			}
+		}
+	}
+
+	return best_unit_index;
+}
+
 static void encounter_update_follow(
 	long encounter_index)
 {
@@ -3628,6 +3677,8 @@ static void encounter_update_follow(
 	switch (encounter->follow_target_type)
 	{
 	case _follow_target_players:
+		if (operation_players)
+			break;
 		{
 			struct data_iterator iterator;
 			struct player_datum *player;
@@ -3636,17 +3687,7 @@ static void encounter_update_follow(
 			while ((player = (struct player_datum *)data_iterator_next(&iterator)) != NULL)
 			{
 				if (player->unit_index != NONE && target_count < MAXIMUM_FOLLOW_TARGET_UNITS)
-				{
-					if (operation_players)
-					{
-						struct unit_datum *unit = unit_try_and_get(player->unit_index);
-						if (!unit || player->quit_out_of_game || unit->unit.player_index != iterator.datum_index ||
-							TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-							game_team_is_enemy(encounter->team_index, unit->object.owner_team_index))
-							continue;
-					}
 					target_unit_indices[target_count++] = player->unit_index;
-				}
 			}
 		}
 		break;
@@ -3679,7 +3720,7 @@ static void encounter_update_follow(
 		break;
 	}
 
-	if (target_count > 0)
+	if (operation_players || target_count > 0)
 	{
 		unsigned long present_squads[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_SQUADS_PER_ENCOUNTER)];
 		unsigned long migrating_squads[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_SQUADS_PER_ENCOUNTER)];
@@ -3759,7 +3800,12 @@ static void encounter_update_follow(
 
 		if (living_count > 0 && firing_position_groups > 0)
 		{
-			if (target_count == 1)
+			if (operation_players)
+			{
+				follow_unit_index = encounter_operation_follow_player(
+					encounter_index, encounter, present_squads, &follow_position);
+			}
+			else if (target_count == 1)
 			{
 				follow_unit_index = target_unit_indices[0];
 				object_get_origin(follow_unit_index, &follow_position);
@@ -3799,7 +3845,6 @@ static void encounter_update_follow(
 				{
 					if (target_distances_squared[target_index] < best_target_distance_squared)
 					{
-						if (operation_players) best_target_distance_squared = target_distances_squared[target_index];
 						follow_unit_index = target_unit_indices[target_index];
 						follow_position = target_positions[target_index];
 					}
