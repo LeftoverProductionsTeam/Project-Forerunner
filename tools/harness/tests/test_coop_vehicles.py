@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import build, read, run, mutated, CHECK_FAILED, function, enum_with, structure
+from harness import build, read, run, mutated, CHECK_FAILED, function, enum_with, structure, constant
 
 def generated(fault=None):
     source = re.sub(r'^#include.*\n', '', read('port/linux/game/coop_vehicles.c'), flags=re.M)
@@ -14,11 +14,47 @@ def generated(fault=None):
     riders = read('port/linux/game/coop_enemies.c')
     release = '\n'.join(function(riders, name) for name in (
         'coop_enemies_forget_vehicle', 'coop_enemies_riders_getting_out', 'coop_enemies_update'))
+    network = read('port/linux/game/network_objects.c')
+    end = network.index('} objects_client_unsteered_path[MAXIMUM_TRACKED_OBJECTS];')
+    start = network.rindex('static struct', 0, end)
+    path = network[start:end + len('} objects_client_unsteered_path[MAXIMUM_TRACKED_OBJECTS];')]
+    path = f'#define MAXIMUM_OBJECT_PERIOD_TICKS {constant(network, "MAXIMUM_OBJECT_PERIOD_TICKS")}\n' + '\n'.join(
+        re.search(r'^#define ' + name + r' .*$', network, re.M).group(0) for name in (
+            'UNSTEERED_PATH_STEP', 'UNSTEERED_PATH_MAXIMUM_TICKS', 'UNSTEERED_PATH_LATE_TICKS')) + '\n' + path
+    path += '\n' + '\n'.join(function(network, name) for name in (
+        'distributed_client_note_unsteered_path', 'distributed_client_carry_unsteered_vehicles'))
+    coop = read('port/linux/game/network_coop.c')
+    end = coop.index('} host_sent_looks[MAXIMUM_OBJECTS_PER_MAP];')
+    looks = coop[coop.rindex('static struct', 0, end):end + len('} host_sent_looks[MAXIMUM_OBJECTS_PER_MAP];')]
+    looks += '\n' + structure(coop, 'distributed_coop_object_look')
+    looks += f'\n#define MAXIMUM_OBJECT_LOOKS_PER_MESSAGE {constant(coop, "MAXIMUM_OBJECT_LOOKS_PER_MESSAGE")}\n'
+    looks += structure(coop, 'distributed_coop_object_looks_message') + '\n' + function(coop, 'host_send_object_looks')
     return (('under_test.inc', source),
+            ('path.inc', path),
+            ('looks.inc', looks),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
              structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
              structure(read('source/ai/ai_scenario_definitions.h'), 'actor_starting_location')),
             ('rider_release.inc', release))
+
+
+@pytest.mark.parametrize('case', ['cinematic', 'gameplay', 'noncoop', 'stale', 'stop', 'teleport'])
+def test_unsteered_path(case):
+    status, output = run(build('coop_vehicles', generated()), 'path-' + case)
+    assert status == 0, output
+
+
+def test_cinematic_path_negative_control():
+    files = tuple((name, mutated(text, 'cinematic = network_coop_active() && cinematic_in_progress();',
+                                'cinematic = FALSE;')) if name == 'path.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('coop_vehicles', files), 'path-cinematic')
+    assert status == CHECK_FAILED, output
+
+
+def test_initial_scripted_appearance():
+    status, output = run(build('coop_vehicles', generated()), 'initial-appearance')
+    assert status == 0, output
 
 
 @pytest.mark.parametrize('case', ['retry', 'seated', 'destroyed', 'authority', 'recycled'])

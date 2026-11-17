@@ -16,6 +16,35 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Native cinematic repair (17 November, base `a5c0869b72`): retained a10 fighter
+positions trail the host by about four ticks. The existing unsteered path adds
+gameplay interpolation while the cinematic camera follows the host timeline.
+Co-op cinematics now use the existing sample's host timestamp/path velocity with
+bounded stale-sample return; ordinary gameplay/non-co-op retains its glide.
+The first focused native run fixes the positional discrepancy but its inspected
+client image exposes oversized fighters. Existing `host_send_object_looks`
+wrongly assumes the first observed appearance is unchanged: same-tick creation/
+script scaling is never sent. First appearance now uses the existing scale/
+permutation message and periodic recovery, including reused object slots.
+No new wire format, protocol, renderer, flight or synchronization subsystem.
+
+Windows64 incremental compilation and 34 focused existing vehicle checks PASS,
+covering cinematic latency, gameplay/non-co-op glide, stale/stop/teleport behavior,
+first scripted appearance, refresh and recycled ownership; the old glide fails
+the negative control. `build/native-campaign-a10-cinematic-appearance/result.json`
+PASSES two bound accounts on unchanged owned a10 through tick 960: 32 item
+snapshots agree, all 15 new host items are seen, and all 24 original-interval
+fighter comparisons are within 0.421 world units (previously about 2.0–2.8).
+28 player observations agree; no native exception. Both final PNGs inspected:
+the formation has matching apparent scale, without a pixel-exact camera claim.
+Binary `a43c05f472c7deaeb6f426fe243a96920cdb37fc26c57d484b1662941b0ab164`.
+The earlier path-only run remains rejected for its observed appearance defect;
+prior failed natural opening is not promoted. Full campaign/control/combat on
+this binary, audible/human/VR/platform acceptance and Black Echo stay open.
+Cryopod interaction strings are the next measured campaign defect. Originals
+and identities unchanged; owned runtimes/maps and 19,661,016B of duplicate BMPs
+cleaned. Spark remains read-only; no hosted jobs or push.
+
 Native campaign co-op repair (17 November, base `a90a098c02`): untouched owned
 Xbox a10, two bound Delta accounts, exposed a client halt during the opening's
 bridge-to-space BSP change. Matching PDB readback identifies
@@ -51,8 +80,8 @@ relax the item tolerance. Both final PNGs inspected; the host's cryopod boarding
 prompt has missing vehicle/seat strings and stays open for review. First crashed
 run stays rejected. Full campaign combat/completion, audible audio (dummy driver),
 human/platform/VR acceptance and full Spark Black Echo remain unverified. Next
-campaign diagnosis is cinematic fighter replication from these retained logs,
-not another unchanged opening run. Original accounts/maps unchanged; stopped-job
+campaign cinematic diagnosis is resolved in the scoped repair above; do not
+repeat an unchanged full opening. Original accounts/maps unchanged; stopped-job
 runtime/map copies and 117,966,096B of duplicate BMPs cleaned. Spark is read-only;
 its authored pad correction is still a dependency. No hosted jobs or push.
 

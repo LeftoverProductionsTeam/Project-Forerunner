@@ -11,6 +11,7 @@
 #define PIN(x,a,b) MIN(MAX(x,a),b)
 #define csmemcpy memcpy
 #define csmemset memset
+#define csmemcmp memcmp
 #define _game_connection_network_server 2
 enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit,
        _unit_possessed_by_recording_bit };
@@ -25,8 +26,8 @@ struct location {long leaf_index; short cluster_index;};
 struct test_object {
  long definition_index;
  struct {long parent_object_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
- real_vector3d forward,up,translational_velocity; float bounding_sphere_radius; short variant_number;
- float base_change_colors[12];} object;
+ real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
+ float base_change_colors[12];short name_index;real scale;byte region_permutations[16];} object;
  struct {unsigned long flags; long driver_object_index,player_index;} unit;
  struct {byte airborne_ticks;} vehicle;
 };
@@ -261,9 +262,96 @@ static void rider_release(char const *name) {
  CHECK(rider_successes==2&&!coop_enemies.rider_count&&rider_variants[0]==5&&rider_variants[1]==6&&rider_offsets[0]==0&&rider_offsets[1]==1,"retry duplicated, changed or skipped an authored reinforcement");
  now+=RIDER_RELEASE_TICKS;coop_enemies_update();CHECK(rider_successes==2&&!coop_enemies.vehicle_count,"completed release did not retire its craft");
 }
+/* The existing native unsteered path, with object IO/rotation as boundaries. */
+#define MAXIMUM_TRACKED_OBJECTS 1024
+#define _object_mask_vehicle 2
+#define _network_vehicle_write_state 0
+#define _network_vehicle_write_carry 1
+static boolean path_cinematic;
+static long path_vehicle;
+static real_vector3d zero_vector;
+static real_vector3d const *global_zero_vector3d=&zero_vector;
+struct object_iterator {long index;boolean done;};
+static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->done=FALSE;}
+static struct test_object *object_iterator_next(struct object_iterator *it)
+{if(it->done)return NULL;it->done=TRUE;it->index=path_vehicle;return get(path_vehicle);}
+static boolean cinematic_in_progress(void) {return path_cinematic;}
+static boolean distributed_vehicle_unsteered(long index) {return get(index)->unit.driver_object_index==NONE;}
+static void object_set_position(long index,real_point3d const *p,real_vector3d const *f,real_vector3d const *u)
+{get(index)->object.position=*p;get(index)->object.forward=*f;get(index)->object.up=*u;}
+static void network_objects_vehicle_written(long i,real_point3d const *p,real_vector3d const *f,real_vector3d const *u,short kind) {}
+static boolean distributed_transform_valid(real_point3d const *p,real_vector3d const *f,real_vector3d const *u,
+ real_vector3d const *v,real_vector3d const *a,real_vector3d *vf,real_vector3d *vu)
+{*vf=*f;*vu=*u;return isfinite(p->x)&&isfinite(p->y)&&isfinite(p->z);}
+static void unsteered_blend_facing(real_vector3d const *f0,real_vector3d const *u0,real_vector3d const *f1,
+ real_vector3d const *u1,real t,real_vector3d *f,real_vector3d *u) {*f=*f1;*u=*u1;}
+#include "path.inc"
+#define MAXIMUM_REGIONS_PER_OBJECT 16
+struct distributed_message_header {int unused;};
+#define _distributed_message_coop_object_looks 1
+static struct {boolean refresh;} host_resend;
+static int appearance_sends;
+static void send_to_clients(void const *message,int kind,short count,unsigned short size);
+#include "looks.inc"
+static struct distributed_coop_object_look sent_look;
+static void send_to_clients(void const *message,int kind,short count,unsigned short size) {
+ CHECK(kind==_distributed_message_coop_object_looks&&count==1&&size==sizeof(sent_look),"wrong native look envelope");
+ sent_look=((struct distributed_coop_object_looks_message const *)message)->looks[0];appearance_sends++;
+}
+
+static void initial_appearance(void) {
+ path_vehicle=reset();get(path_vehicle)->object.scale=.3f;get(path_vehicle)->object.region_permutations[0]=2;
+ host_send_object_looks();
+ CHECK(appearance_sends==1&&sent_look.object_index==path_vehicle&&sent_look.scale==.3f&&
+       sent_look.region_permutations[0]==2,"scripted first appearance was not sent");
+ host_send_object_looks();CHECK(appearance_sends==1,"unchanged look sent every tick");
+ host_resend.refresh=TRUE;host_send_object_looks();CHECK(appearance_sends==2,"late object/peer cannot recover initial appearance");
+ host_resend.refresh=FALSE;get(path_vehicle)->object.scale=1;host_send_object_looks();
+ CHECK(appearance_sends==3&&sent_look.scale==1,"return to ordinary scale lost");
+ identifiers[path_vehicle&65535]+=65536;path_vehicle+=65536;
+ get(path_vehicle)->object.scale=.5f;host_send_object_looks();
+ CHECK(appearance_sends==4&&sent_look.object_index==path_vehicle&&sent_look.scale==.5f,"reused slot lost fresh appearance");
+}
+
+static void unsteered_path(char const *name) {
+ real_point3d sample;real_vector3d f={1,0,0},u={0,0,1};
+ real previous=0;long host_tick=0;
+ path_vehicle=reset();path_cinematic=strcmp(name,"path-gameplay")!=0;
+ coop=strcmp(name,"path-noncoop")!=0;
+ for(now=100;now<140;now++) {
+  if(now%4==0) {
+   host_tick=now-2;sample=(real_point3d){host_tick*.7f,0,0};
+   distributed_client_note_unsteered_path(path_vehicle,&sample,&f,&u,host_tick,FALSE);
+  }
+  distributed_client_carry_unsteered_vehicles();
+  if(now>=108) {
+   real x=get(path_vehicle)->object.position.x;
+   if(path_cinematic&&coop)CHECK(fabsf(x-now*.7f)<.001f,"cinematic ship trails host timeline at %ld: %f",now,x);
+   else CHECK(x<now*.7f-1.f&&x>=previous,"gameplay glide changed or moved backwards");
+   previous=x;
+  }
+ }
+ if(!strcmp(name,"path-stale")) {
+  now=host_tick+40;distributed_client_carry_unsteered_vehicles();
+  CHECK(fabsf(get(path_vehicle)->object.position.x-sample.x)<.001f,"stale path extrapolates forever");
+  CHECK(get(path_vehicle)->object.translational_velocity.i==0,"stale path keeps moving");
+ }
+ if(!strcmp(name,"path-stop")) {
+  sample.x=100;distributed_client_note_unsteered_path(path_vehicle,&sample,&f,&u,now-1,TRUE);
+  distributed_client_carry_unsteered_vehicles();
+  CHECK(fabsf(get(path_vehicle)->object.position.x-100)<.001f,"stopped ship extrapolated");
+ }
+ if(!strcmp(name,"path-teleport")) {
+  sample.x=1000;distributed_client_note_unsteered_path(path_vehicle,&sample,&f,&u,now-1,FALSE);
+  distributed_client_carry_unsteered_vehicles();
+  CHECK(get(path_vehicle)->object.position.x==1000,"teleport converted into path speed");
+ }
+}
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
  if(!strncmp(argv[1],"riders-",7)) {rider_release(argv[1]);return 0;}
+ if(!strncmp(argv[1],"path-",5)) {unsteered_path(argv[1]);return 0;}
+ if(!strcmp(argv[1],"initial-appearance")) {initial_appearance();return 0;}
  if(!strcmp(argv[1],"counts"))counts();else if(!strcmp(argv[1],"authority"))authority();
  else if(!strcmp(argv[1],"driving"))driving();else if(!strcmp(argv[1],"delivery"))delivery();
  else if(!strcmp(argv[1],"chain"))chain();else if(!strcmp(argv[1],"blocked"))blocked_test();

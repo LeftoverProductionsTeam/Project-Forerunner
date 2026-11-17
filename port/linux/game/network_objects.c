@@ -4772,7 +4772,8 @@ and a recording's lifepod. Its velocity is its path's while it moves on, for
 what reads it (the engine's pitch, the wheels' turn, a passenger who gets
 out), and none once it comes back or holds; its spin is none (the host's
 flaps a Pelican's fins). One already holding at the newest sample is not
-placed again. */
+placed again. In a co-op cinematic the camera follows the host's timeline:
+use the newest sample's host tick, without the additional gameplay glide. */
 static void distributed_client_carry_unsteered_vehicles(
 	void)
 {
@@ -4787,10 +4788,13 @@ static void distributed_client_carry_unsteered_vehicles(
 		real interval;
 		real alpha;
 		real late;
+		real late_limit;
+		real sample_age;
 		real_point3d position;
 		real_vector3d forward;
 		real_vector3d up;
 		real_vector3d velocity;
+		boolean cinematic;
 
 		if (object->object.parent_object_index != NONE || !distributed_vehicle_unsteered(iterator.index))
 			continue;
@@ -4811,10 +4815,23 @@ static void distributed_client_carry_unsteered_vehicles(
 			alpha = 1.0f;
 		/* past the newest sample: on along the path, then back to it */
 		late = (real)since - interval;
-		if (late > 2.0f * (real)UNSTEERED_PATH_LATE_TICKS)
+		late_limit = (real)UNSTEERED_PATH_LATE_TICKS;
+		cinematic = network_coop_active() && cinematic_in_progress();
+		if (cinematic)
+		{
+			/* The packet's receipt time includes latency. Fast recorded ships
+			 * must meet the host camera, rather than glide another sample late.
+			 * Keep the same bounded stale-sample fallback and native path speed. */
+			late = (real)(game_time_get() - objects_client_unsteered_path[absolute_index].host_time);
+			/* Includes both the normal sample interval and packet latency. */
+			late_limit = (real)UNSTEERED_PATH_MAXIMUM_TICKS;
+			alpha = 1.0f;
+		}
+		sample_age = late;
+		if (late > 2.0f * late_limit)
 			late = 0.0f;
-		else if (late > (real)UNSTEERED_PATH_LATE_TICKS)
-			late = 2.0f * (real)UNSTEERED_PATH_LATE_TICKS - late;
+		else if (late > late_limit)
+			late = 2.0f * late_limit - late;
 		if (!(late > 0.0f))
 			late = 0.0f;
 		velocity = objects_client_unsteered_path[absolute_index].velocity;
@@ -4864,7 +4881,7 @@ static void distributed_client_carry_unsteered_vehicles(
 				(objects_client_unsteered_path[absolute_index].latest_position.z -
 					objects_client_unsteered_path[absolute_index].previous_position.z) / interval;
 		}
-		else if ((real)since - interval <= (real)UNSTEERED_PATH_LATE_TICKS)
+		else if (sample_age <= late_limit)
 			object->object.translational_velocity = velocity;
 		else
 			object->object.translational_velocity = *global_zero_vector3d;

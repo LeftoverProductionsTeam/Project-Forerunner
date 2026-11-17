@@ -1230,21 +1230,16 @@ static void host_send_object_looks(
 
 		if (absolute_index < 0 || absolute_index >= MAXIMUM_OBJECTS_PER_MAP)
 			continue;
-		if (host_sent_looks[absolute_index].object_index != iterator.index)
-		{
-			/* an object seen for the first time looks the same on every machine */
-			host_sent_looks[absolute_index].object_index = iterator.index;
-			host_sent_looks[absolute_index].changed = FALSE;
-			host_sent_looks[absolute_index].scale = object->object.scale;
-			csmemcpy(host_sent_looks[absolute_index].region_permutations, object->object.region_permutations,
-				sizeof(object->object.region_permutations));
-			continue;
-		}
-		changing = host_sent_looks[absolute_index].scale != object->object.scale ||
+		/* Scripts can change scale/permutations in the same tick as creation,
+		 * before this observer sees the object. Send that first appearance too;
+		 * the existing refresh also repairs a look received before its object. */
+		changing = host_sent_looks[absolute_index].object_index != iterator.index ||
+			host_sent_looks[absolute_index].scale != object->object.scale ||
 			csmemcmp(host_sent_looks[absolute_index].region_permutations, object->object.region_permutations,
 				sizeof(object->object.region_permutations));
 		if (!changing && !(host_resend.refresh && host_sent_looks[absolute_index].changed))
 			continue;
+		host_sent_looks[absolute_index].object_index = iterator.index;
 		host_sent_looks[absolute_index].changed = TRUE;
 		host_sent_looks[absolute_index].scale = object->object.scale;
 		csmemcpy(host_sent_looks[absolute_index].region_permutations, object->object.region_permutations,
