@@ -83,7 +83,7 @@ struct extraction_run
 	long player, unit, activation_ticks, retry_tick;
 	short local_player;
 	enum extraction_phase phase;
-	boolean blocked, loadout_seen;
+	boolean blocked, loadout_seen, stash_preview, discard_stash;
 	byte owner[GEAR_ID_BYTES];
 	byte discard_id[GEAR_ID_BYTES];
 	unsigned long discard_generation;
@@ -411,6 +411,7 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 	{
 		run->squad = NONE; run->squad_operation = 0;
 		run->discard_deadline = 0;
+		run->stash_preview = FALSE;
 		memset(&run->report, 0, sizeof(run->report));
 		run->report_page = 0; run->statistics_started = FALSE;
 	}
@@ -811,18 +812,40 @@ static void extraction_debrief(struct extraction_run *run)
 {
 	struct extraction_report const *report = &run->report;
 	char lines[4][58]; /* Keep the existing remote controller prefix within 62 characters. */
-	short page, pages, index;
+	short page, pages, report_pages, index;
 	struct player_datum *player = player_try_and_get(run->player);
 	boolean reverse = player && player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS &&
 		!network_chat_notice_visible();
+	/* Retry only an already published save, without advancing its selection.
+	 * A preview may have expired while its confirmed deletion awaited flush. */
+	if (run->gear.pending) (void)gear_loadout_choice(&run->gear);
 	if (run->gear.pending || run->phase == _extraction_settling || run->phase == _extraction_losing ||
 		run->phase == _extraction_cancelling)
 	{
 		extraction_tell(run, "DEBRIEF PENDING | Settlement must finish before results.");
 		return;
 	}
+	run->stash_preview = FALSE;
+	report_pages = report->ready ? report->weapon_count + 2 : 1;
+	pages = report_pages + run->gear.record.count;
+	page = run->report_page % pages;
 	memset(lines, 0, sizeof(lines));
-	if (!report->ready)
+	if (page >= report_pages)
+	{
+		struct gear_item const *item = &run->gear.record.items[page - report_pages];
+		snprintf(lines[0], sizeof(lines[0]), "STASH %d/%d | %d/%d weapons stored",
+			(int)(page - report_pages + 1), (int)run->gear.record.count, (int)run->gear.record.count, GEAR_CAPACITY);
+		snprintf(lines[1], sizeof(lines[1]), "Weapon: %.45s", extraction_item_name(item->equipment.tag_path));
+		snprintf(lines[2], sizeof(lines[2]), "%s", gear_item_available(&run->gear, item) ?
+			"Compatible with this map and body." : "Unavailable here; safely retained in your stash.");
+		snprintf(lines[3], sizeof(lines[3]), "%s", run->gear.record.phase == _gear_idle ?
+			"Use: next | Crouch-use twice: confirm discard" : "Use: next | Finish this run before discarding");
+		memcpy(run->discard_id, item->id, GEAR_ID_BYTES);
+		run->discard_generation = run->gear.record.generation;
+		run->discard_unit = player ? player->unit_index : NONE;
+		run->stash_preview = TRUE;
+	}
+	else if (!report->ready)
 	{
 		snprintf(lines[0], sizeof(lines[0]), "DEBRIEF | %s",
 			run->gear.record.outcome == _gear_escaped ? "LAST RUN RECOVERED" :
@@ -831,14 +854,12 @@ static void extraction_debrief(struct extraction_run *run)
 			(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
 		snprintf(lines[2], sizeof(lines[2]), "%s", run->gear.record.outcome == _gear_no_outcome ?
 			"No completed operation yet. Deploy from the hub." : "Previous-session item details are unavailable.");
-		snprintf(lines[3], sizeof(lines[3]), "Use the loadout terminal to prepare your next run.");
+		snprintf(lines[3], sizeof(lines[3]), "Use: browse stash | Loadout: prepare your next run");
 	}
 	else
 	{
 		run->report.announced = TRUE;
-		pages = report->weapon_count + 2;
-		page = run->report_page % pages;
-		snprintf(lines[0], sizeof(lines[0]), "DEBRIEF %d/%d | LAST RUN %s", (int)page + 1, (int)pages,
+		snprintf(lines[0], sizeof(lines[0]), "DEBRIEF %d/%d | LAST RUN %s", (int)page + 1, (int)report_pages,
 			report->outcome == _gear_escaped ? "RECOVERED" : "PERSONAL GEAR LOST");
 		if (!page)
 		{
@@ -875,9 +896,9 @@ static void extraction_debrief(struct extraction_run *run)
 			snprintf(lines[1], sizeof(lines[1]), "Combat totals unavailable for this run.");
 			snprintf(lines[2], sizeof(lines[2]), "No combat totals are inferred from recovered equipment.");
 		}
-		snprintf(lines[3], sizeof(lines[3]), "Use: next page | Loadout terminal: prepare next run");
-		run->report_page = (page + 1) % pages;
+		snprintf(lines[3], sizeof(lines[3]), "Use: next page/stash | Loadout terminal: prepare run");
 	}
+	run->report_page = (page + 1) % pages;
 	/* The inherited HUD and chat backends have opposite record ordering. */
 	for (index = 0; index < 4; index++) extraction_tell(run, lines[reverse ? 3 - index : index]);
 }
@@ -1065,12 +1086,17 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	return TRUE;
 }
 
-static void extraction_discard_choice(struct extraction_run *run, long unit_index)
+static void extraction_discard_choice(struct extraction_run *run, long unit_index, boolean stash)
 {
 	struct gear_item const *choice;
 	long now = game_time_get();
 	char text[128];
-	boolean confirming = run->discard_deadline && now <= run->discard_deadline && run->discard_unit == unit_index;
+	boolean confirming = run->discard_deadline && now <= run->discard_deadline && run->discard_unit == unit_index &&
+		run->discard_stash == stash;
+	/* An already published deletion remains the exact same transaction even
+	 * after the preview timer. It must not become another item selection. */
+	if (run->discard_deadline && run->gear.pending && run->gear.record.generation == run->discard_generation + 1)
+		confirming = TRUE;
 
 	if (unit_get(unit_index)->object.parent_object_index != NONE)
 	{
@@ -1095,11 +1121,26 @@ static void extraction_discard_choice(struct extraction_run *run, long unit_inde
 			extraction_block(run, "DISCARD PENDING | Saved gear unchanged or awaiting confirmation. Retry crouch-use; no other item will be removed.");
 			return;
 		}
-		run->discard_deadline = 0; run->blocked = FALSE;
+		run->discard_deadline = 0; run->blocked = FALSE; run->stash_preview = FALSE;
 		extraction_tell(run, "DISCARD COMPLETE | One confirmed stored weapon removed. Other gear and grenades are safe.");
 		return;
 	}
-	choice = gear_loadout_choice(&run->gear);
+	choice = NULL;
+	if (stash)
+	{
+		short index;
+		if (!run->stash_preview || run->discard_unit != unit_index ||
+			run->discard_generation != run->gear.record.generation || run->gear.record.phase != _gear_idle)
+		{
+			run->discard_deadline = 0; run->stash_preview = FALSE;
+			extraction_tell(run, "STASH PREVIEW EXPIRED | Finish your run, then use the report terminal to review a stored item.");
+			return;
+		}
+		for (index = 0; index < run->gear.record.count; index++)
+			if (!memcmp(run->discard_id, run->gear.record.items[index].id, GEAR_ID_BYTES))
+				choice = &run->gear.record.items[index];
+	}
+	else choice = gear_loadout_choice(&run->gear);
 	if (!choice)
 	{
 		if (run->gear.pending)
@@ -1112,6 +1153,7 @@ static void extraction_discard_choice(struct extraction_run *run, long unit_inde
 		return;
 	}
 	memcpy(run->discard_id, choice->id, GEAR_ID_BYTES);
+	run->discard_stash = stash;
 	run->discard_generation = run->gear.record.generation; run->discard_unit = unit_index;
 	run->discard_after = now + TICKS_PER_SECOND; run->discard_deadline = now + 10 * TICKS_PER_SECOND;
 	snprintf(text, sizeof(text), "DISCARD %.20s (%d/%d ammo)? Wait 1s; release/use again while crouched within 10s. Stand-use cancels.",
@@ -1166,7 +1208,19 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		if (!in_hub || unit->object.parent_object_index != NONE)
 			extraction_tell(run, "DEBRIEF LOCKED | Read your report on foot at the hub.");
-		else if (extraction_open_gear(run, player)) extraction_debrief(run);
+		else if (extraction_open_gear(run, player))
+		{
+			if (run->discard_deadline && run->gear.pending &&
+				run->gear.record.generation == run->discard_generation + 1)
+				extraction_discard_choice(run, unit_index, run->discard_stash);
+			else if (TEST_FLAG(unit->unit.control_flags, _unit_control_crouch_modifier_bit))
+				extraction_discard_choice(run, unit_index, TRUE);
+			else
+			{
+				run->discard_deadline = 0;
+				extraction_debrief(run);
+			}
+		}
 		return TRUE; /* Per-player pages never toggle a shared native device. */
 	}
 	for (faction = 0; faction < 2; faction++)
@@ -1229,6 +1283,8 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		if (extraction_open_gear(run, player))
 		{
+			run->stash_preview = FALSE;
+			if (!run->gear.pending && run->discard_stash) run->discard_deadline = 0;
 			/* Standing cancels a preview, but cannot undo an already published
 			 * confirmed deletion. Finish only that exact pending transaction. */
 			if (run->discard_deadline && run->gear.pending &&
@@ -1246,7 +1302,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			}
 			if (TEST_FLAG(unit->unit.control_flags, _unit_control_crouch_modifier_bit))
 			{
-				extraction_discard_choice(run, unit_index);
+				extraction_discard_choice(run, unit_index, FALSE);
 				return TRUE;
 			}
 			if (run->discard_deadline)

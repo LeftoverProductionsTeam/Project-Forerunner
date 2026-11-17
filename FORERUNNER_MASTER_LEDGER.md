@@ -16,7 +16,51 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current reinforcement checkpoint (source base `8efc4a537d`): the inherited co-op
+Current stash checkpoint (source base `5ffba191bf`): the existing native debrief
+now pages through every owned stored weapon after the run report, including gear
+unavailable to the current map/body. It shares `gear_item_available` with loadout
+selection. Crouch-use reviews that exact item; a separate delayed crouch-use
+confirms discard, while ordinary Use cancels/pages. Owner, full body, generation,
+idle phase and native hub/life gates remain. Loadout filtering, at-risk gear,
+grenades, record format/locking and network packets are unchanged. Published
+deletions retry without selecting another item, including after preview expiry.
+No new inventory/UI manager, editor operation or authored marker is required.
+
+Windows64 compiles (`build/stash-browser-build.log`). Forty-five focused existing/
+extended stash, debrief, notice and discard checks pass, plus one stale-preview
+negative control. The initial six browser cases fail against the old source;
+existing report-wrap expectations now include the appended stash pages. An older
+test's blanket wrong-cache discard refusal is replaced with explicit owned-ID
+deletion and unchanged incompatible-loadout refusal. Runtime admission is not
+relaxed to make stored content equipable.
+
+Native `build/native-delta-stash-browser-controls/result.json` verifies two bound
+Delta accounts' separate stash views and normal crouch/Action confirmation removing
+only the displayed unavailable weapon. The other owner's complete record stays
+byte-identical. That driver's overall result FAILS at a later screenshot, whose
+step index matched the preceding capture; completed deletion remains separate
+evidence. `build/native-delta-stash-browser-reopen/result.json` then PASSES fresh
+processes opening those exact saved records: zero/two stored weapons, unchanged
+remaining item identities and grenades. No repeated deletion or reward grant.
+Player comparison passes 68/35 seconds, zero divergences (position max 0.066250/
+0.067083); item comparison passes 72/39 snapshots, zero out-of-step items.
+Inspected PNGs show both stashes, explicit confirmation/completion and restart
+state. Binary `704e303e6872af2e1880a45d9dcb48d8e8586a6d6fe36f592525122dd396c2ff`;
+owned CE609 `063f0f5091b3f357bebd1711051c18afa7dc9b23ede430e38ca7d1d8d3ff548d`.
+
+Seeds were isolated copies of prior accepted native Survival banks, not fabricated
+identities/rewards. The first setup rejected still-deployed transport records
+before launch; the first UI attempt separated crouch/Use tokens, paged instead,
+and left records unchanged. Both failures remain recorded. Original identities,
+prior banks and reusable source are unchanged; stopped runtime/map copies,
+78,644,064B of losslessly preserved BMP scratch and duplicate debug files removed.
+Deletion remains idle-only. Full Black Echo, rarity/upgrades, hardware and other
+platform acceptance remain open. Read-only Spark `b24bac4` reports composed faction
+kit compilation but explicitly not a complete delivered/gameplay-accepted mission;
+relative cameras/radio and faction alignment remain its next authoring work.
+No hosted jobs or push. The complete engine goal remains active.
+
+Previous reinforcement checkpoint (source base `8efc4a537d`): the inherited co-op
 dropship release loop removed queued extra AI before checking native actor
 allocation. It now consumes a queued rider/placement offset only after success,
 retrying at the existing four-tick interval. Craft destruction/stale handles still

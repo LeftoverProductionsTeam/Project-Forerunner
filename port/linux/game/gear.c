@@ -325,7 +325,7 @@ failed:
 
 /* Exact-cache defaults remain available. Shared gear resolves only definitions
  * already in the target map; it never imports content or changes stored items. */
-static boolean gear_item_available(struct gear_session const *session, struct gear_item const *item)
+boolean gear_item_available(struct gear_session const *session, struct gear_item const *item)
 {
 	char const *map = cache_file_loaded_map_name();
 	if (!map) return FALSE;
@@ -390,7 +390,6 @@ boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES],
 	{
 		struct gear_item const *item = &session->record.items[index];
 		if (memcmp(item->id, id, GEAR_ID_BYTES)) continue;
-		if (!gear_item_available(session, item)) return FALSE;
 		next = session->record;
 		memmove(next.items + index, next.items + index + 1, (next.count - index - 1) * sizeof(next.items[0]));
 		next.count--;
@@ -607,6 +606,7 @@ void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BY
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES]) { return FALSE; }
 void gear_close(struct gear_session *session) { memset(session, 0, sizeof(*session)); session->descriptor = -1; }
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory) { return FALSE; }
+boolean gear_item_available(struct gear_session const *session, struct gear_item const *item) { return FALSE; }
 boolean gear_cycle_loadout(struct gear_session *session) { return FALSE; }
 struct gear_item const *gear_loadout_choice(struct gear_session *session) { return NULL; }
 boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation) { return FALSE; }

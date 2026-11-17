@@ -668,6 +668,45 @@ int main(int argc,char **argv)
   escape(0);CHECK(squad_wakes[0]==2,"old return blocked fresh operation or callback did not rearm");
   extraction_reset();return 0;
  }
+ if(!strncmp(case_name,"stash-browser-",14)) {
+  struct gear_record saved;byte first[GEAR_ID_BYTES],second[GEAR_ID_BYTES];int messages;
+  strcpy(names[2].name,"extraction_debrief");extraction_reset();advance(1);
+  touch(0,0);pickup(0,1);pickup(0,2);escape(0);extraction_reset();advance(1);
+  touch(2,0);saved=run(0)->gear.record;saved.items[0].map_checksum++;
+  CHECK(gear_commit(&run(0)->gear,&saved),"older-cache stash setup failed");saved=run(0)->gear.record;
+  memcpy(first,saved.items[0].id,sizeof(first));memcpy(second,saved.items[1].id,sizeof(second));
+  if(!strcmp(case_name,"stash-browser-fallback"))notice_chat_visible=FALSE;
+  messages=local_notices;touch(2,0);
+  CHECK(local_notices==messages+4,"stash page did not reuse the four-row native notice layout");
+  CHECK(strstr(local_notice_history[(notice_chat_visible?messages:messages+3)%4],"STASH 1/2"),"debrief cannot browse every stored item");
+  CHECK(strstr(local_notice_history[(messages+2)%4],notice_chat_visible?"Unavailable":"Weapon:"),"unavailable item was hidden or fallback rows were reversed");
+  CHECK(!memcmp(&saved,&run(0)->gear.record,sizeof(saved)),"reading stash changed loadout or item ownership");
+  if(!strcmp(case_name,"stash-browser-view")||!strcmp(case_name,"stash-browser-fallback")) {
+   touch(2,0);CHECK(strstr(local_notice_history[(notice_chat_visible?local_notices-4:local_notices-1)%4],"STASH 2/2"),"stash browser skipped an owned item");return 0;
+  }
+  if(!strcmp(case_name,"stash-browser-stale")) {
+   CHECK(gear_commit(&run(0)->gear,&saved),"stash generation setup failed");
+   units[0].unit.control_flags=1;touch(2,0);
+   CHECK(!run(0)->discard_deadline&&run(0)->gear.record.count==2,"changed stash accepted an old page as a deletion preview");return 0;
+  }
+  units[0].unit.control_flags=1;touch(2,0);
+  CHECK(run(0)->discard_deadline&&run(0)->gear.record.count==2&&!memcmp(run(0)->discard_id,first,sizeof(first)),"unavailable stored item cannot be deliberately reviewed for discard");
+  touch(2,0);CHECK(run(0)->gear.record.count==2,"duplicate action discarded stored gear before confirmation delay");
+  advance(30);
+  if(!strcmp(case_name,"stash-browser-cancel")) {
+   units[0].unit.control_flags=0;touch(2,0);CHECK(!run(0)->discard_deadline&&run(0)->gear.record.count==2,"next-page action did not cancel deletion preview");return 0;
+  }
+  if(!strcmp(case_name,"stash-browser-pending")||!strcmp(case_name,"stash-browser-expired")) {
+   publish_failure=TRUE;touch(2,0);CHECK(run(0)->gear.pending&&run(0)->gear.record.count==1,"published stash deletion was forgotten");
+   units[0].unit.control_flags=0;touch(2,0);CHECK(run(0)->gear.pending&&run(0)->discard_deadline,"paging cancelled a published deletion");
+   if(!strcmp(case_name,"stash-browser-expired"))advance(301);
+   publish_failure=FALSE;
+  }
+  touch(2,0);
+  CHECK(run(0)->gear.record.count==1&&!memcmp(run(0)->gear.record.items[0].id,second,sizeof(second))&&!run(0)->discard_deadline&&!run(0)->gear.pending,"stash discard removed another item or failed to finish");
+  extraction_reset();advance(1);touch(2,0);
+  CHECK(run(0)->gear.record.count==1&&!memcmp(run(0)->gear.record.items[0].id,second,sizeof(second)),"discard failed to persist or changed surviving gear");return 0;
+ }
  if(!strncmp(case_name,"debrief-",8)) {
   struct gear_record before;struct game_modes_inventory captured;long carried[GAME_MODES_INVENTORY_WEAPONS];
   short j,k;int messages;char page[256];struct extraction_run *r;
@@ -756,7 +795,12 @@ int main(int argc,char **argv)
    if(k==r->report.weapon_count+1)CHECK(strstr(page,!strcmp(case_name,"debrief-stats-reset")?"unavailable":"eliminations")!=NULL,"personal combat report missing");
    CHECK(!memcmp(&before,&r->gear.record,sizeof(before)),"report viewing mutated gear transaction");
   }
-  CHECK(!r->report_page,"report pages did not wrap");
+  for(k=0;k<r->gear.record.count;k++) {
+   messages=local_notices;touch(2,0);
+   CHECK(strstr(local_notice_history[messages%4],"STASH"),"owned stash pages did not follow the operation report");
+   CHECK(!memcmp(&before,&r->gear.record,sizeof(before)),"browsing stash pages changed equipment");
+  }
+  CHECK(!r->report_page,"combined report/stash pages did not wrap");
   if(!strcmp(case_name,"debrief-stats-reset"))CHECK(!r->report.statistics,"native stat reset produced invented totals");
   extraction_reset();return 0;
  }

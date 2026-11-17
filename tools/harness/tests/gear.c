@@ -213,12 +213,20 @@ int main(int argc, char **argv)
   memcpy(id,gear_loadout_choice(&session)->id,sizeof(id));generation=session.record.generation;
   client=TRUE;CHECK(!gear_discard(&session,id,generation),"client discarded owned gear");client=FALSE;
   CHECK(!gear_discard(&session,id,generation-1) && session.record.count==GEAR_CAPACITY,"stale preview discarded gear");
-  checksum++;CHECK(!gear_discard(&session,id,generation),"wrong cache discarded owned gear");checksum--;
+  checksum++;CHECK(!gear_loadout_choice(&session),"unavailable stored gear became deployable");checksum--;
   CHECK(gear_discard(&session,id,generation) && session.record.count==GEAR_CAPACITY-1,"confirmed discard did not free exactly one slot");
   CHECK(gear_discard(&session,id,generation) && session.record.count==GEAR_CAPACITY-1 && session.record.generation==generation+1,
    "discard retry removed another stored weapon");
   gear_close(&session);CHECK(gear_open(&session,owner) && session.record.count==GEAR_CAPACITY-1 &&
    session.record.grenades[0]==2 && session.record.grenades[1]==1,"discard changed grenades or failed to persist");
+ } else if (!strcmp(case_name, "discard-unavailable")) {
+  byte id[GEAR_ID_BYTES],kept[GEAR_ID_BYTES];unsigned long generation;
+  earn(3);memcpy(id,session.record.items[0].id,sizeof(id));memcpy(kept,session.record.items[1].id,sizeof(kept));generation=session.record.generation;
+  checksum++;
+  CHECK(!gear_loadout_choice(&session)&&gear_loadout(&session,&inventory)&&!inventory.weapon_count,"unavailable items were admitted as a loadout");
+  CHECK(gear_discard(&session,id,generation)&&session.record.count==2,"confirmed owner could not discard an unavailable stored item");
+  CHECK(gear_discard(&session,id,generation)&&session.record.count==2,"unavailable discard retry removed another item");
+  gear_close(&session);CHECK(gear_open(&session,owner)&&session.record.count==2&&!memcmp(kept,session.record.items[0].id,sizeof(kept)),"unavailable discard failed to preserve remaining stored gear");
  } else if (!strcmp(case_name, "discard-uncertain")) {
   byte id[GEAR_ID_BYTES];unsigned long generation;
   earn(3);memcpy(id,gear_loadout_choice(&session)->id,sizeof(id));generation=session.record.generation;

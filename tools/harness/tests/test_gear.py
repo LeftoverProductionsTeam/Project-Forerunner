@@ -33,7 +33,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', ['authority', 'escape-reopen', 'loss', 'uncertain', 'corrupt', 'cache',
                                 'reserve-reopen', 'confirm-failure', 'confirm-uncertain',
                                 'choice-reopen', 'choice-failure', 'choice-cancel', 'choice-recovery', 'choice-cache',
-                                'discard', 'discard-uncertain', 'discard-state', 'shared-cache'])
+                                'discard', 'discard-unavailable', 'discard-uncertain', 'discard-state', 'shared-cache'])
 def test_transactions(case):
     status, output = run(build('gear', generated()), case)
     assert status == 0, output

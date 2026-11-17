@@ -612,6 +612,22 @@ reading a report neither grants nor consumes equipment. Detailed run pages last
 for the session; restart fallback shows only the persisted outcome/current stash,
 without inventing previous-run item history. Maps omitting the control retain
 their existing notices. Older runtimes do not implement this optional name.
+The same terminal now appends per-owner stash pages, also after restart, covering
+all stored items rather than only currently compatible loadout choices. Native
+Use advances pages; crouch-use on a displayed item requests its explicit discard,
+then a separate crouch-use after one second confirms within ten seconds. Ordinary
+Use cancels the uncommitted preview. Deletion requires the same owned idle record,
+generation and living native body on foot in the hub; active runs/reservations
+remain protected. A stale page requires review again. Unavailable weapons can be
+deliberately removed from owned storage without becoming deployable or imported.
+`gear.c::gear_item_available` is the shared read-only compatibility predicate;
+`gear_discard` retains its locked atomic owner/ID/generation transaction. Pending
+published deletion retries finish that exact write. No save/protocol/schema or
+new Spark operation/marker. Two authenticated native clients verify separate
+stash rendering, one confirmed unavailable-item deletion and unchanged other-owner
+gear; fresh processes reopen zero/two stored weapons without item resurrection.
+Exact binary/cache, capture-step failure and scoped verification are in the
+current master checkpoint. Other platforms and full mission acceptance remain open.
 Source: `extraction.c::{extraction_bind,extraction_control_touched,
 extraction_report_stage,extraction_debrief,extraction_update_run}`. No new save,
 network packet, launcher, asset format or discovery operation.
@@ -1143,6 +1159,11 @@ Pelican `e122b840495e9ec8ad6288f3bbc1a500963d93d77a6612f144bab95224f42b9c`,
 Spirit `985df7845e18d27194984ec52029bd80d1a757a6fef0eda3621c4de230287d8f`.
 These are Spark's bounded compilation records, not Forerunner execution or full
 Covenant/faction mission acceptance. Do not reimplement the completed authoring.
+Inspected `b24bac4` additionally compiles authored native faction terminals/kits
+with those mission/transport variants: its checkpoint explicitly keeps relative
+craft cameras/radio, faction objective/actor alignment and complete native
+gameplay handoff open. Its disposable verification caches are not a persistent
+delivered mission package. Spark source remains read-only here.
 
 Next handoff remains the actual combined CE609 mission package with matching
 resource/source identities, native player/faction equipment, physically valid

@@ -256,6 +256,19 @@ def test_native_seat_entrance_workflow(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['view', 'discard', 'cancel', 'pending', 'expired', 'stale', 'fallback'])
+def test_native_stash_browser(case):
+    status, output = run(build('extraction', generated()), 'stash-browser-' + case)
+    assert status == 0, output
+
+
+def test_native_stash_preview_negative_control():
+    files = tuple((name, mutated(text, 'run->discard_generation != run->gear.record.generation ||', ''))
+                  if name == 'extraction.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'stash-browser-stale')
+    assert status == CHECK_FAILED, output
+
+
 @pytest.mark.parametrize('case', [
     'debrief-empty', 'debrief-success', 'debrief-loss', 'debrief-pending', 'debrief-auto',
     'debrief-stats-reset', 'debrief-owner', 'debrief-remote', 'debrief-restart',
