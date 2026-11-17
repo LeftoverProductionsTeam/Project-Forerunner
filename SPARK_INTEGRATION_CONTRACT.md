@@ -805,8 +805,14 @@ weapon pickup, on-foot extraction/banking and fresh-process same-ID redeployment
 `build/native-delta-pvp-loot-redeploy/result.json`. The weapon's native ownership
 trace distinguishes it from another item with the same tag. This is not full
 Spark Black Echo, simultaneous AI PvPvE, aircraft or six-client acceptance.
-The victim used native starter gear; rival transfer of an already serialized
-stash item remains unverified by this check.
+The starter-kit baseline is now extended by
+`build/native-delta-owned-gear-transfer/result.json` and
+`build/native-delta-owned-gear-redeploy/result.json`: verified accounts reverse
+host/client roles, deploy a real previously banked pistol, transfer that exact
+serialized ID through native PvP/drop/pickup/escape, then redeploy it under the new
+owner after process restart. The defeated owner's incompatible stored rifle stays
+byte-identical and all three owned IDs remain unique. Existing native owners,
+account binding and record locks remain authoritative; no editor reward writer.
 Source: `extraction.c::extraction_unit_pending_death`,
 `extraction_update_run`, `extraction_medical_update` and
 `game_modes.c::game_modes_inventory_capture`. No new authoring interface.

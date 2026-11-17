@@ -16,43 +16,46 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current native opposing-faction loot checkpoint (unchanged engine `55a4c63b22`):
-the existing systems pass one composed two-account PvP Extraction loop. A verified
-listen host selects native Covenant/Grunt and squad 1; the verified remote client
-selects UNSC/Spartan and squad 2. Actual assault-rifle projectile hits kill the
-Grunt, whose run loses its gear and banks nothing. Ordinary Action picks up that
-body's plasma pistol; the survivor activates extraction, waits the native hold,
-walks back to the hub and banks the rifle/pistol as two unique owned items.
-No synthetic damage, forced pickup, teleport, settlement bypass or engine patch.
-Both start with native kits: transfer of a previously serialized stash weapon
-between rival owners remains a separate acceptance gate.
+Current authoritative rival-loot checkpoint (unchanged engine `55a4c63b22`):
+two real verified accounts reverse host/client roles. The new Covenant/Grunt host
+owns an actual previously banked pistol, reserves that exact ID and deploys it;
+its incompatible rifle stays safely stored. The UNSC/Spartan rival in squad 2
+kills it with actual projectiles, physically picks up that exact native weapon,
+activates extraction, waits the native hold and walks back to bank it.
 
-`build/native-delta-pvp-loot-fixed/result.json` PASSES. The weapon trace confirms
-native item 2 moves from victim body 12 to unparented world at death, then survivor
-body 14; banking consumes it. It is not another loose weapon with the same tag.
-`build/native-delta-pvp-loot-redeploy/result.json` PASSES fresh processes selecting
-the same factions and redeploying those exact two saved IDs/native weapon tags.
-The casualty owner's empty/lost record and original accepted bank seeds remain
-byte-identical. The inspected restart PNG shows the recovered pistol equipped.
+`build/native-delta-owned-gear-transfer/result.json` PASSES. The pistol's existing
+ID appears once under the new owner and nowhere in the defeated owner's record.
+Native object 21 moves from victim body 19 to the world and then survivor body 12.
+The former owner's undeployed rifle remains byte-identical; all three owned IDs
+are unique. No synthetic damage, forced pickup, teleport or settlement bypass.
 
-Player comparisons PASS 291 operation/45 restart seconds, no persistent divergence;
-the operation has one transient alive-state difference at native death, position
-max 0.066 and aim max one degree. Restart position max 0.045717, aim zero. Item
-comparisons PASS 295/49 snapshots, zero out of step; 8/9 short-lived new operation
-items and all three restart items are sampled on the client. No all-object delivery
-or latency/stress claim. The initial `native-delta-pvp-loot` run FAILS an undefined
-Python observer constant after successful combat, before pickup; its failure,
-scoped combat acceptance and 264-second/268-item comparisons remain preserved.
-Only that stopped combined workflow was retried; the completed fight/escape was
-not repeated for the restart continuation. No engine build was necessary.
+`build/native-delta-owned-gear-redeploy/result.json` PASSES fresh processes:
+the former owner opens its one-weapon/lost debrief, while the rival redeploys the
+same two native weapons and transferred pistol ID. The old owner retains only
+its protected rifle. Original accepted banks remain unchanged. Inspected PNGs
+show the looted/redeployed pistol and the former owner's one-weapon lost report.
+
+Player comparisons PASS 289 operation/63 restart seconds, no persistent
+divergence or sampled state mismatches, position max 0.102903/0.067097 and aim zero.
+Item comparisons PASS 293/67 snapshots, zero out of step; all ten/three sampled
+new host items appear on the client. This is not latency/stress proof.
+The earlier starter-kit baseline and observer failure remain in `9d84139f1a`
+and unchanged `build/native-delta-pvp-loot{,-fixed,-redeploy}/` evidence.
+No engine patch, rebuild or new harness was needed for this ownership case.
+
+Read-only Spark `2a5839c` advances first-insertion NPC/escort authoring and
+CE609 component readback. Its checkpoint explicitly disposes the test candidates;
+a retained/reproducible full Black Echo aircraft/crew/mission handoff is still
+needed for combined runtime acceptance. This is a content handoff requirement,
+not an invented new engine interface or a claim its game sequence was tested.
 
 Same binary `77781f69...d5e4a65d` and owned CE609 `e71943d6...ae871c3`; original
-identities/map unchanged. Owned processes/runtime/map copies and 39,322,032B of
-BMP scratch cleaned; eight lossless PNGs and compact records/traces retained.
-This proves bounded Windows/OpenGL two-faction PvP loot/bank/redeployment, not
-AI PvPvE in that session, full Spark Black Echo, aircraft, six independent clients,
-human, VR or other-platform acceptance. Existing code was sufficient; no new
-inventory/network/test framework, hosted job, push or publication. Full goal active.
+identities/map unchanged. Owned jobs/runtime/map copies and 29,491,524B of BMP
+scratch cleaned; six lossless PNGs and compact records/traces retained.
+This proves bounded Windows/OpenGL two-account serialized rival transfer and
+redeployment, not full Spark Black Echo, simultaneous AI PvPvE, aircraft, six
+independent clients, human, VR or other-platform acceptance. No new inventory/
+network system, hosted job, push or publication. The complete goal remains active.
 
 Previous campaign/co-op checkpoint repair (source base `389a685037`): successful
 native saves now snapshot the existing guidance replay cache alongside the live
