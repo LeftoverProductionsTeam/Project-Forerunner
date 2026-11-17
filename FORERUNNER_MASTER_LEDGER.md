@@ -106,6 +106,15 @@ authenticated clients saw the copied Pelican at rest at the same position and
 saw its removal while the original remained. The slope did not meet the separate
 dropship landing-attitude gate. Runtime copies and BMP scratch were removed.
 
+Campaign profile writes (17 November): desktop builds stage and flush the native
+512-byte record before replacement using the existing whole-record writer. A
+failed update no longer deletes the profile directory. Windows64 and three
+focused storage checks passed. Two LAN clients reached A30 after the host's A10
+Normal credit committed. Denying replacement on A30 left the committed profile
+byte-for-byte intact. Evidence: build/native-campaign-profile-atomic-verified/
+result.json. Original-Xbox, console and browser paths retain the legacy writer
+with failed-update deletion removed. Campaign guest credit remains open.
+
 Forge pause controls (17 November): host from Forge > Create Session and open
 Forge Tools in the live pause menu to select, place, and undo a copy. Existing
 authority, object restrictions, quota and replication apply. Windows64 and

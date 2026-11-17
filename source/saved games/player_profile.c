@@ -825,7 +825,6 @@ static unsigned long __stdcall player_profile_write_thread_proc(
 {
 	struct player_profile_write_request *request = input;
 	struct player_profile_file_block block = {0};
-	struct file_reference file;
 
 	match_vassert("c:\\halo\\SOURCE\\saved games\\player_profile.c", 0x2D7, input, "input");
 
@@ -834,36 +833,18 @@ static unsigned long __stdcall player_profile_write_thread_proc(
 	if (saved_game_files_take_mutex())
 	{
 		long player_profile_index = request->player_profile_index;
-		boolean failed = FALSE;
 		struct player_profile *profile = &request->profile;
 
-		if (saved_game_file_open(&file, player_profile_index))
+		csmemcpy(&block.profile, profile, sizeof(struct player_profile));
+		saved_game_file_generate_checksum(&block.profile, sizeof(block.profile), &block.checksum);
+
+		if (!saved_game_file_write_player_profile(player_profile_index, &block))
 		{
-			csmemcpy(&block.profile, profile, sizeof(struct player_profile));
-			saved_game_file_generate_checksum(&block.profile, sizeof(block.profile),
-				&block.checksum);
-
-			if (!file_set_position(&file, 0) ||
-				!file_write(&file, sizeof(block), &block))
-			{
-				error(_error_silent, "failed to write player profile to file");
-				failed = TRUE;
-			}
-
-			if (saved_game_file_close(&file, player_profile_index) &&
-				!synchronize_metadata_display_name_with_profile_name(player_profile_index, profile->player_name))
-			{
-				error(_error_silent, "metadata name may not match game display name");
-			}
+			error(_error_silent, "failed to write player profile to file");
 		}
-		else
+		else if (!synchronize_metadata_display_name_with_profile_name(player_profile_index, profile->player_name))
 		{
-			error(_error_silent, "failed to open player profile file");
-		}
-
-		if (failed)
-		{
-			delete_enumerated_saved_game_file(player_profile_index);
+			error(_error_silent, "metadata name may not match game display name");
 		}
 
 		saved_game_files_release_mutex();

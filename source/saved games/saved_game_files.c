@@ -329,6 +329,14 @@ symbols in this file:
    saved game metadata is created/deleted through the XDK save game API. */
 #include <xtl.h>
 
+#if (defined(_WIN32) || defined(__linux__) || defined(__APPLE__)) && \
+	!defined(HALO_XBOX_CONSOLE) && !defined(HALO_CONSOLE) && !defined(HALO_ANDROID) && \
+	!defined(HALO_WEB) && !defined(HALO_BROWSER)
+#define NATIVE_ATOMIC_PLAYER_PROFILES
+#include "../../port/linux/src/posix.h"
+void platform_translate_path(char const *xbox_path, char *host_path, unsigned long host_path_size);
+#endif
+
 /* ---------- constants */
 
 enum
@@ -1036,6 +1044,59 @@ boolean saved_game_file_open(
 		file_open(saved_game_file, FLAG(_permission_read_bit)|FLAG(_permission_write_bit));
 
 	return success;
+}
+
+/* The caller holds the saved-game mutex. On desktop native hosts, the
+ * profile remains readable until a complete checksummed block replaces it. */
+boolean saved_game_file_write_player_profile(
+	long profile_index,
+	void const *block)
+{
+#ifdef NATIVE_ATOMIC_PLAYER_PROFILES
+	struct enumerated_saved_game_file file;
+	struct posix_file_information information;
+	char path[1024], lock_path[1024 + sizeof(".lock") - 1];
+	byte previous[SAVED_GAME_FILE_BLOCK_SIZE];
+	posix_ulong previous_size;
+	long n = SAVED_GAME_FILE_INDEX_FILE_INDEX(profile_index);
+	int lock;
+	boolean written;
+
+	if (!TEST_FLAG(profile_index, _saved_game_file_index_valid_bit) ||
+		TEST_FLAG(profile_index, _saved_game_file_index_read_only_bit) ||
+		SAVED_GAME_FILE_INDEX_TYPE(profile_index) != _saved_game_file_type_player_profile ||
+		SAVED_GAME_FILE_INDEX_MEMORY_UNIT(profile_index) != _memory_unit_hard_drive ||
+		n >= MAXIMUM_ENUMERATED_SAVED_GAME_FILES_ANY_TYPE_PER_MEMORY_UNIT ||
+		!get_nth_entry_in_mapfile(_memory_unit_hard_drive, n, &file) ||
+		file.type != _saved_game_file_type_player_profile)
+		return FALSE;
+
+	platform_translate_path(file.path, path, sizeof(path));
+	if (!path[0] || strlen(path) >= sizeof(path) - 1 ||
+		posix_stat(path, &information) != 0 ||
+		(information.flags & (_posix_file_is_directory | _posix_file_is_read_only)))
+		return FALSE;
+	_snprintf(lock_path, sizeof(lock_path), "%s.lock", path);
+	lock = posix_gear_lock(lock_path);
+	if (lock < 0)
+		return FALSE;
+
+	/* Refuse missing, linked or nonstandard files rather than replacing them.
+	 * Keep the same native record size and existing profile checksum. */
+	written = posix_gear_read(path, previous, sizeof(previous), &previous_size) == 1 &&
+		previous_size == sizeof(previous) &&
+		posix_gear_replace(path, block, SAVED_GAME_FILE_BLOCK_SIZE);
+	posix_gear_unlock(lock);
+	return written;
+#else
+	struct file_reference file;
+	boolean written;
+
+	if (!saved_game_file_open(&file, profile_index))
+		return FALSE;
+	written = file_set_position(&file, 0) && file_write(&file, SAVED_GAME_FILE_BLOCK_SIZE, block);
+	return saved_game_file_close(&file, profile_index) && written;
+#endif
 }
 
 boolean synchronize_metadata_display_name_with_profile_name(

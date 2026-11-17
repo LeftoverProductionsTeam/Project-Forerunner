@@ -77,6 +77,9 @@ wchar_t *saved_game_file_get_display_name(
 boolean saved_game_file_open(
 	struct file_reference *saved_game_file,
 	long profile_index);
+boolean saved_game_file_write_player_profile(
+	long profile_index,
+	void const *block);
 boolean synchronize_metadata_display_name_with_profile_name(
 	long profile_index,
 	wchar_t *game_display_name);
