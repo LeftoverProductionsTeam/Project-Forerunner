@@ -42,7 +42,32 @@ This is crew readiness, not complete mission acceptance. Retained full-operation
 attempts stop during input-driven faction selection. Do not infer a terminal or
 collision defect from that route; human boarding, flight, authored objectives,
 combat/audio, physical escape, banking and redeployment still need proof on
-this exact candidate. No source-content change has yet been justified for them.
+this exact candidate. The later native readback below identifies two authoring gaps.
+
+Black Echo c388d3d6 needs two authored changes before two-player acceptance.
+The native shared-flight run got both players deployed, then player 1 boarded
+seat 4 (P-riderRF) at tick 6150. The host reported no eligible seat afterward.
+The pilot occupies P-driver; the Marine occupies P-riderLF. The shipped Spartan
+animation graph characters/cyborg/cyborg supports only P-riderLF and P-riderRF
+among the Pelican's passenger labels (entry/exit indices 18/19 and 21/22).
+Move the Marine's scripted load and its matching seat tests in gs_pelican_pilot
+and gs_pelican_trip to P-riderLM. The Pelican has the passenger left middle
+marker and the shipped Marine graph has matching entry/exit clips 16/17.
+Keep both player seats open and retain the actual boarding/landing checks.
+
+For rescue, enable automatic migration on both be_marines/native_squad and
+be_marines/be_return. Both flags are zero in the delivered cache. The native
+encounter_update_follow only considers squads with that flag. Retain valid
+firing groups and check the ground route from the native field touchdown
+around (73.760,-125.796,2.178) to be_survivors. Verify the Marine reaches the
+rescue area by normal movement. The previous one-passenger flight delivered
+and disembarked the living Marine; it remained at the LZ. Runtime escort
+selection now excludes opposing players in Extraction, using existing
+allegiance. The runtime still uses the cache's authored squad flags.
+
+Native shared-flight evidence: build/native-spark-black-echo-shared-flight/result.json.
+298 seconds, 596 synchronized player observations, zero divergences.
+Two-passenger departure and the full mission did not pass on this cache.
 
 17 November startup repair, Forerunner `21603426c4`: the Windows64 binary
 SHA256 `6744161c52be41a0c0d73cc8d83bba7245bc869ee8eaef00d37e2a8044e1cc09`

@@ -27,9 +27,9 @@ struct encounter_definition { char name[32]; struct tag_block squads, platoons, 
 struct scenario { struct tag_block ai_encounters; };
 struct squad_datum { short current_count; boolean automatic_migration_target; };
 struct platoon_datum { boolean defending; };
-struct encounter_datum { short follow_target_type, squad_count; long follow_target_unit_index, follow_target_ai_index; real follow_target_distance; };
+struct encounter_datum { short follow_target_type, squad_count, team_index; long follow_target_unit_index, follow_target_ai_index; real follow_target_distance; };
 struct actor_datum { struct {short squad_index;long unit_index;} meta; struct {struct {real_point3d body_position;} position;} input; };
-struct unit_datum { struct { unsigned long damage_flags; real_point3d position; } object; struct { long player_index; } unit; };
+struct unit_datum { struct { unsigned long damage_flags; real_point3d position; short owner_team_index; } object; struct { long player_index; } unit; };
 struct player_datum { long unit_index; boolean quit_out_of_game; };
 struct data_iterator { long datum_index, next; };
 struct encounter_actor_iterator { long index, next; };
@@ -52,6 +52,7 @@ static struct { boolean print_automatic_migration; } ai_debug;
 
 static struct scenario *global_scenario_get(void) { return &scenario; }
 static boolean extraction_owns_map(void) { return operation; }
+static boolean game_team_is_enemy(short team,short other) { return team!=other; }
 static struct encounter_datum *encounter_get(long index) { CHECK(index==0,"unexpected encounter");return &encounter; }
 static struct squad_datum *encounter_get_squad(struct encounter_datum *e,short index) { (void)e;return &squads[index]; }
 static struct platoon_datum *encounter_get_platoon(struct encounter_datum *e,short index) { (void)e;(void)index;return NULL; }
@@ -99,6 +100,9 @@ int main(int argc,char **argv)
    units[2].object.position.x=1;units[3].object.damage_flags=FLAG(_object_dead_bit);players[4].unit_index=NONE; }
  }
  if(!strcmp(case_name,"empty")) {for(i=0;i<6;i++)units[i].object.damage_flags=FLAG(_object_dead_bit);expected=1;}
+ if(!strcmp(case_name,"opposing-nearer")) {units[0].object.owner_team_index=3;expected=1;}
+ if(!strcmp(case_name,"only-opposition")) {for(i=0;i<6;i++)units[i].object.owner_team_index=3;expected=1;}
+
  if(!strcmp(case_name,"explicit")) {encounter.follow_target_type=_follow_target_unit;encounter.follow_target_unit_index=unit_handles[0];units[0].object.damage_flags=FLAG(_object_dead_bit);}
  if(!strcmp(case_name,"hysteresis")) {units[0].object.position.x=4;firing_positions[1].position.x=10;encounter.follow_target_distance=3;expected=1;}
  if(!strncmp(case_name,"legacy",6)) {

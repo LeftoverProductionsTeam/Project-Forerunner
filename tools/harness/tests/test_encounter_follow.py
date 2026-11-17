@@ -16,6 +16,8 @@ def generated(fault=None):
                          '(void)0;')
     elif fault == 'dead':
         follow = mutated(follow, 'TEST_FLAG(unit->object.damage_flags, _object_dead_bit)', 'FALSE')
+    elif fault == 'enemy':
+        follow = mutated(follow, 'game_team_is_enemy(encounter->team_index, unit->object.owner_team_index)', 'FALSE')
     definitions = read('source/ai/ai_scenario_definitions.h')
     return (
         ('limits.inc', '#define MAXIMUM_FOLLOW_TARGET_UNITS %d\n#define NUMBER_OF_FIRING_POSITION_GROUP_INDICES %d\n' % (
@@ -29,13 +31,13 @@ def generated(fault=None):
 
 @pytest.mark.parametrize('case', ['nearest', 'reordered', 'sixth', 'tie', 'death-respawn',
                                  'quit-stale', 'empty', 'explicit', 'hysteresis', 'outside-squad',
-                                 'legacy', 'legacy-dead'])
+                                 'opposing-nearer', 'only-opposition', 'legacy', 'legacy-dead'])
 def test_encounter_follow(case):
     status, output = run(build('encounter_follow', generated()), case)
     assert status == 0, output
 
 
-@pytest.mark.parametrize('fault,case', [('last', 'nearest'), ('dead', 'death-respawn')])
+@pytest.mark.parametrize('fault,case', [('last', 'nearest'), ('dead', 'death-respawn'), ('enemy', 'opposing-nearer')])
 def test_encounter_follow_negative(fault, case):
     status, output = run(build('encounter_follow', generated(fault)), case)
     assert status == CHECK_FAILED, output

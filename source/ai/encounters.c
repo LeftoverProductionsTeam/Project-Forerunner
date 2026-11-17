@@ -3622,7 +3622,7 @@ static void encounter_update_follow(
 	short target_count = 0;
 	real_point3d follow_position;
 	/* Classic encounter follow ordering is preserved. Independent operations
-	 * opt into nearest live player selection through their existing hub. */
+	 * follow the nearest live player allied with this encounter. */
 	boolean operation_players = extraction_owns_map() && encounter->follow_target_type == _follow_target_players;
 
 	switch (encounter->follow_target_type)
@@ -3641,7 +3641,9 @@ static void encounter_update_follow(
 					{
 						struct unit_datum *unit = unit_try_and_get(player->unit_index);
 						if (!unit || player->quit_out_of_game || unit->unit.player_index != iterator.datum_index ||
-							TEST_FLAG(unit->object.damage_flags, _object_dead_bit)) continue;
+							TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+							game_team_is_enemy(encounter->team_index, unit->object.owner_team_index))
+							continue;
 					}
 					target_unit_indices[target_count++] = player->unit_index;
 				}
