@@ -5703,11 +5703,13 @@ static boolean multiplayer_player(short controller)
 /* Create Game's ("join controller to mp game", first): player 1 in, and
 the server made: an internet one (an invite, Discord) or a LAN one */
 static boolean forerunner_operation_chooser;
+static boolean forerunner_infection_chooser;
 
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
 	boolean *widget_deleted)
 {
 	forerunner_operation_chooser = FALSE;
+	forerunner_infection_chooser = FALSE;
 	multiplayer_mode_set(widget);
 	if (!multiplayer_player(controller))
 		return FALSE;
@@ -5902,7 +5904,8 @@ static boolean map_list_initialize(struct widget_instance *list)
 	/* (MULTIPLAYER's maps after the view's rows) */
 	map_step_open(list, MAP_STEP_MAPS, map_list.kind == MAP_KIND_MULTIPLAYER ? (short)(MAP_VIEW_ROWS + last_used) :
 		last_used);
-	if (!operation && map_kind_mcc(mcc_kind) && (map_list.hosting || mcc_kind == MAP_KIND_MCC_MULTIPLAYER))
+	if (!operation && map_kind_mcc(mcc_kind) &&
+		((map_list.hosting && !forerunner_infection_chooser) || mcc_kind == MAP_KIND_MCC_MULTIPLAYER))
 	{
 		map_list.kind = mcc_kind;
 		mcc_host_list.campaign = mcc_kind == MAP_KIND_MCC_SINGLEPLAYER;
@@ -5919,7 +5922,8 @@ them the level or map chosen: its picture, name and words */
 static void map_list_update(struct widget_instance *list)
 {
 	struct widget_instance *description = list->parameters.list.extended_description;
-	short kind = map_kind_shown(list, map_list.hosting, map_list.kind), count, entry, shown;
+	boolean allow_campaign = map_list.hosting && !forerunner_infection_chooser;
+	short kind = map_kind_shown(list, allow_campaign, map_list.kind), count, entry, shown;
 
 	if (kind != map_list.kind)
 	{
@@ -5928,7 +5932,7 @@ static void map_list_update(struct widget_instance *list)
 			boolean chooser = focused_row(list) == 0;
 
 			csmemset(&mcc_host_list, 0, sizeof(mcc_host_list));
-			mcc_host_list.multiplayer_only = !map_list.hosting;
+			mcc_host_list.multiplayer_only = !allow_campaign;
 			mcc_host_list.campaign = kind == MAP_KIND_MCC_SINGLEPLAYER;
 			mcc_map_browser_open(&mcc_host_browsers[mcc_host_list.campaign], mcc_host_list.campaign);
 			mcc_browser_focus(list, &mcc_host_browsers[mcc_host_list.campaign],
@@ -6070,6 +6074,7 @@ static boolean map_list_back(struct widget_instance *list, boolean *widget_delet
 		map_step_open(list, MAP_STEP_MAPS, map_list.level);
 		return TRUE;
 	}
+	forerunner_infection_chooser = FALSE;
 	ui_widget_port_go_back(list);
 	*widget_deleted = TRUE;
 	return TRUE;
@@ -6083,6 +6088,7 @@ static boolean mcc_host_back(struct widget_instance *widget, boolean *widget_del
 	if (list && map_kind_mcc(map_list.kind))
 		return map_list_back(list, widget_deleted);
 	ui_play_audio_feedback_sound(SOUND_BACK);
+	forerunner_infection_chooser = FALSE;
 	ui_widget_port_go_back(widget);
 	*widget_deleted = TRUE;
 	return TRUE;
@@ -6178,6 +6184,23 @@ static boolean gametype_list_initialize(struct widget_instance *list)
 	short last, index;
 
 	multiplayer.gametype_count = ui_widget_port_gametypes(multiplayer.gametypes, MAXIMUM_GAMETYPES, &last);
+	if (forerunner_infection_chooser)
+	{
+		for (index = 0; index < multiplayer.gametype_count; index++)
+		{
+			long profile = multiplayer.gametypes[index];
+			struct game_variant variant;
+			struct game_variant_options options;
+
+			if (((unsigned long)profile & PLAYLIST_READ_ONLY_BIT) &&
+				playlist_profile_get(profile, &variant) && playlist_profile_get_options(profile, &options) &&
+				game_modes_variant_mode(&variant, &options) == _game_mode_infection)
+			{
+				last = index;
+				break;
+			}
+		}
+	}
 	gametype_bank_read(multiplayer.gametype_count ? gametype_bank(multiplayer.gametypes[last]) : GAMETYPE_BANK_STANDARD);
 	for (index = 0; index < multiplayer.bank_count; index++)
 	{
@@ -6295,7 +6318,10 @@ static boolean gametype_choose(struct widget_instance *list)
 	gametype_setup_end();
 	if (multiplayer.gametype_chosen >= multiplayer.bank_count)
 		return campaign_fail();
-	return ui_widget_port_gametype_choose(multiplayer.gametypes[multiplayer.bank[multiplayer.gametype_chosen]]);
+	if (!ui_widget_port_gametype_choose(multiplayer.gametypes[multiplayer.bank[multiplayer.gametype_chosen]]))
+		return FALSE;
+	forerunner_infection_chooser = FALSE;
+	return TRUE;
 }
 
 /* ---- the server settings */
@@ -13981,6 +14007,12 @@ boolean pc_menu_event_function_invoke(
 #else
 			visible_set(row, FALSE);
 #endif
+		}
+		else if (!strcmp(name, "port forerunner host infection"))
+		{
+			if (!multiplayer_host(widget, event, controller, widget_deleted)) return FALSE;
+			forerunner_infection_chooser = TRUE;
+			return TRUE;
 		}
 		else if (forerunner_operation_mode(name) != NONE)
 		{

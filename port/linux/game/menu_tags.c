@@ -453,7 +453,7 @@ static char const *const port_function_names[] =
 	/* (Network Setup's INSTALL UPDATE: menu_functions.c) */
 	"port update install",
 	"port forerunner host native", "port forerunner host firefight", "port forerunner host extraction",
-	"port forerunner menu init",
+	"port forerunner menu init", "port forerunner host infection",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from

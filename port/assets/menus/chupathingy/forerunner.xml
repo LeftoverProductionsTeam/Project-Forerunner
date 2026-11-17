@@ -158,12 +158,18 @@
 	<widget name="forerunner/zombies/description" type="text" width="520" height="108" text="Flood survival with native encounters, scavenging and evacuation.\nChoose a compatible authored survival map." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/zombies/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/zombies/extraction_create_inter" x="60" y="316" />
-		<child widget="forerunner/zombies/join" x="60" y="350" />
+		<child widget="forerunner/zombies/infection_create_inter" x="60" y="350" />
+		<child widget="forerunner/zombies/join" x="60" y="384" />
 		<child widget="forerunner/zombies/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST FLOOD SURVIVAL" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/zombies/infection_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST INFECTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host infection" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host infection" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/zombies/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">

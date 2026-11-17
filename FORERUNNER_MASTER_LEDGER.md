@@ -81,6 +81,13 @@ and the original remain at (65, -80, 3.6) in build/native-forge-undo/result.json
 A separate native run confirmed Profiles opens with controller Start and the
 Forerunner window title and icon load. Both isolated runtime copies were removed.
 
+Zombies now has Host Infection beside the authored Flood Survival entry.
+The native Windows path created a profile, chose Battle Creek, preselected the
+built-in Infection variant, and reached the Infection lobby. Evidence:
+build/native-forerunner-infection-menu-lobby/result.json and its two captures.
+Windows64 and 18 focused mode/setup checks passed. Infection gameplay rules
+were unchanged, so the previously accepted match was not rerun.
+
 Native menu completion and Black Echo crew repair (17 November):
 63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
 two-hand settings directly to the native VR page, Save/Cancel and persistence.
