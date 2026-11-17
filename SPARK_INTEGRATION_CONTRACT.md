@@ -918,10 +918,22 @@ carrier children; failure aborts rather than dropping untracked enemies.
 completed dead entry when the table fills. It preserves the currently spawning
 parent, every living entry and every pending native carrier burst; death/damager
 metadata resets without repeating score or removing native corpses. Windows64
-compilation and focused real-source checks pass; native burst-pressure reuse is
-UNVERIFIED. Carrier acceptance needs its real unit/actor tags, death-animation
-spawn behavior and referenced infection/swarm dependencies in the compiled cache.
-The retained fixture contains human combat forms, not that complete carrier set.
+compilation and focused real-source checks pass. Two authenticated Windows/OpenGL
+clients now exercise reuse in the intact owned native Library cache: seven
+carriers, 26 native children, 33 cumulative tracked births/final deaths, score
+3,300 and two independent banks/four unique weapons. Existing player/item/AI
+comparisons pass. `build/native-delta-carrier-reuse/result.json` distinguishes
+those native results from its FAILED observer regex (which counted `c` in
+`child` as a parent). This does not prove 33 simultaneous tracked bodies or
+large-horde performance. A preceding two-carrier run also preserves native
+casualty loss with no reward. Neither encounter was rerun to hide driver failures.
+Carrier authoring still needs real unit/actor tags, native death-animation spawn
+behavior and infection/swarm dependencies. The retained CE609 fixture lacks that
+complete set. Installed Invader cannot reconstruct the native Library carrier's
+`characters\floodcarrier\effects\body destroyed.particle_system`; that conversion
+failure was preserved, not bypassed/substituted. A valid target-specific compiled
+CE609 handoff remains required for Spark carrier acceptance; no authoring/engine
+format or discovery capability changed, and no Xbox hardware support is claimed.
 Two authenticated Windows/OpenGL clients do pass native combat-form fighting,
 final deaths, finite victory and four unique banked weapons in
 `build/native-delta-flood-combat/result.json`; the existing aim diagnostic is used.

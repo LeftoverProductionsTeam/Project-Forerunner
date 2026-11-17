@@ -16,7 +16,41 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current Flood tracker checkpoint (source base `de7db7ac37`): native carrier
+Current native carrier-reuse checkpoint (source `62bf118b47`, no engine rebuild):
+two authenticated Windows/OpenGL clients ran the intact owned Library cache with
+the existing authored `enc0` spawn selection. Seven carriers produced 26 native
+infection forms in one wave; all 33 distinct tracked bodies reached final death,
+score 3,300, and both survivors banked two weapons/four unique IDs. Thirty-three
+cumulative births in the unchanged 32-entry table exercise actual entry reuse;
+this is not 33 simultaneous tracked bodies or large-horde performance proof.
+`build/native-delta-carrier-reuse/result.json` retains scoped native results.
+Its overall driver FAILS on an observer regex that captured `c` from `child` as
+another parent. Correct eight-digit handle readback and validated native records
+prove those results separately; the mission was not rerun to hide that failure.
+
+The preceding two-carrier check (`build/native-delta-native-carriers/result.json`)
+records eight native children/all ten final deaths, score 1,000, one survivor's
+two banked weapons and one casualty's native loss/zero reward. Its driver FAILS
+because it demanded positive rewards for both players. No failed-run reward or
+death override was added. Player comparisons PASS 77/54 seconds, no persistent
+divergence; pressure has two transient aim differences (max 61 degrees). Item
+comparisons PASS 81/58 snapshots, zero out of step; AI movement/damage/death PASS
+47/24 snapshots and 767/535 unit comparisons. These sampled comparisons do not
+claim every short-lived child's death was captured on both peers. No PNGs were
+captured after the failed observers; human/visual/hardware acceptance stays open.
+
+Owned native cache SHA256 `6560cd88...943d6b8`, unchanged binary `ae10c265...42c24f`.
+Original identities/cache unchanged, voice/VR off, owned processes/runtime/maps
+and 81,384,851B of cache/tag staging cleaned. Installed Invader failed to reconstruct
+one native carrier particle-system tag during a minimal extraction attempt; the
+intact cache was used instead, with no invalid-tag bypass or VFX substitution.
+CE609 carrier conversion/Spark composition, full Zombies, human/other-platform
+acceptance and large populations remain open. This cycle verifies the existing
+source's native spawn/combat/recovery path; no new infrastructure/hosted jobs/push.
+Read-only Spark `70e8366` advances native objective flags/personal squad guidance;
+its moving-target, Windows and complete mission/game handoff remain open.
+
+Previous Flood tracker checkpoint (source base `de7db7ac37`): native carrier
 offspring can reuse completed dead entries in the existing 32-entry tracker.
 Living enemies, unfinished native bursts and the current spawning parent keep
 their slots. Each reused entry resets death/damager metadata; final-death score
