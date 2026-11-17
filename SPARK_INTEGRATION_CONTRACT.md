@@ -1377,6 +1377,17 @@ do not force players into seats or bypass graph compatibility. The owned Spirit'
 AI throttle budget is 0.30 after measured coast at 0.65; tune each real aircraft/
 route against its physics and actual pads instead of copying a universal speed.
 
+Unarmed player exit now uses `units.c::unit_adjust_for_seat_change`'s existing
+native standing-class lookup when the graph lacks a named unarmed ground type,
+matching native seat entry. No Spark graph rewrite, granted weapon, tag format
+or capability change is needed. Windows64 and focused checks pass; the two-account
+Spirit squad fixture verifies both unarmed hub exits and remote same-ID weapon
+redeployment. Full same-session crew redeployment remains unaccepted: one input
+route hit the parked hull; the final corrected-route attempt instead stopped at
+LZ departure readiness. Exact partial results and unchanged cache/binary identities
+are in the current master checkpoint. Preserve boarding/landing/settlement gates;
+this does not accept the full authored Black Echo mission or private cinematics.
+
 Read-only Spark `defc08c` supersedes the `4249bb5` composition gap. Existing
 `src/haloScript.ts::exportHaloCeTransport` composes actual pilot seating,
 insertion, optional empty hub return/recall and durable settlement callbacks with

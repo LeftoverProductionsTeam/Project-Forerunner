@@ -3194,6 +3194,17 @@ static void unit_adjust_for_seat_change(
 		0);
 	unit_ready_desired_weapon(unit_index, TRUE);
 
+	/* port: mirror native seat entry's missing-unarmed fallback. A player
+	 * whose kit was banked aboard a dropship must leave the passenger pose
+	 * even when its biped has no named unarmed ground weapon type. Reuse
+	 * an existing stand class; do not grant equipment or alter NPC/death. */
+	if (unit->unit.player_index != NONE && unit->object.parent_object_index == NONE &&
+		!(unit->object.damage_flags & (FLAG(_object_dead_bit) | FLAG(_object_die_act_of_god_bit) |
+			FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))) &&
+		unit_get_current_weapon_index(unit_index) == NONE &&
+		!unit_set_or_test_seat_and_weapon_label(unit_index, "stand", "unarmed", FALSE))
+		unit_set_or_test_seat_and_weapon_label(unit_index, "stand", NULL, TRUE);
+
 	return;
 }
 

@@ -16,7 +16,44 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current native squad mission radio (source base `3ed2916704`): ordinary static
+Current unarmed aircraft-exit repair (source base `6c136ccbf5`): native
+`units.c::unit_adjust_for_seat_change` now mirrors seat entry's existing
+missing-unarmed animation fallback for living, detached, unarmed players.
+Stock Grunts have passenger poses but no named unarmed ground weapon type;
+after seated banking they retained the passenger class and could not walk.
+The fix selects an existing native standing class, without granting gear,
+moving bodies, editing animation assets or changing armed/NPC/death handling.
+Windows64 incremental compilation and 15 focused existing-harness checks pass
+(`build/unarmed-exit-{build,checks}.log`), including the removed-fix control.
+
+Two real Delta accounts, separate Covenant squads and the same shared Spirit
+complete two physical insertions, serial evacuations, independent durable banks
+and normal hub exits in `build/native-delta-spirit-squad-roundtrip-fixed/result.json`.
+Both now walk unarmed; the remote client redeploys its exact banked plasma-pistol
+identity. The host's input route hits the parked hull, so complete same-session
+redeployment is NOT accepted. Existing player comparison passes 701 seconds /
+1,402 observations, zero divergence; 705 item snapshots, zero out of step.
+Binary SHA256 `f0560bbd28197c2eb6a92da2181ebfbddf463422290649def0a2478e294b0384`;
+owned CE609 SHA256 `205f6a16dbef7471a42e4829941b3aad561241dd005bc4d3385879f94c713dc8`.
+The derived fixture reuses the existing native serial HSC controller and accepted
+Spirit scenario, with two ordinary squad terminals; no second flight controller.
+
+The final bounded `native-delta-spirit-squad-roundtrip-route` attempt corrects
+the hub walking route, but stops earlier: both insert, the first player physically
+boards at the LZ, and departure readiness never clears before the deadline.
+No evacuation/banking/redeployment pass is claimed for that attempt. The precise
+unmet readiness condition remains unresolved; retain its workflow/seat/pilot logs
+and inspected PNG before another run. Earlier pre-fix unarmed locomotion failure
+and operator-stopped probe remain explicitly partial, not acceptance. No further
+native rerun or engine rebuild was made after that deadline. Account originals
+unchanged; owned runtimes/staging and generated cache/BMP scratch are cleaned.
+Spark's retained combined mission handoff below remains required for actual
+Black Echo aircraft acceptance. Private cinematics, six independent clients,
+human/headset/platform acceptance and the full engine roadmap remain open.
+All seven remote workflow blobs match the local zero-spend guards; no hosted
+run, spending increase or push. Account balance/budgets are not readable here.
+
+Previous native squad mission radio (source base `3ed2916704`): ordinary static
 `sound` helpers `forerunner_squad_01_radio`, etc. now play native authored cues
 only for eligible living/verified current-operation participants. Existing
 Extraction queries choose the audience; machines with any other local player

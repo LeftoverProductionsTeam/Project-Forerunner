@@ -414,6 +414,16 @@ static void animation_get_root_matrix(struct model *model,struct animation *anim
 {(void)model;CHECK(frame>=0&&frame<animation->frame_count,"root frame outside native clip");observed_root_frame=frame;root->position=(real_point3d){(real)frame,0,0};}
 static void matrix4x3_multiply(real_matrix4x3 const *a,real_matrix4x3 const *b,real_matrix4x3 *out)
 {out->position=(real_point3d){a->position.x+b->position.x,a->position.y+b->position.y,a->position.z+b->position.z};}
+static boolean exit_unarmed_supported=TRUE,exit_stand_supported=TRUE,exit_ground_pose;
+static short exit_pose_fallbacks,exit_pose_queries,exit_ready_calls;
+static short unit_weapon_next_index(long u,short current,short delta){for(short i=0;i<4;i++)if(unit_get(u)->unit.weapon_object_indices[i]!=NONE)return i;return NONE;}
+static void unit_ready_desired_weapon(long u,boolean immediate){CHECK(immediate,"seat weapon not readied immediately");unit_get(u)->unit.current_weapon_index=unit_get(u)->unit.desired_weapon_index;exit_ready_calls++;}
+static long unit_get_current_weapon_index(long u){short i=unit_get(u)->unit.current_weapon_index;return i==NONE?NONE:unit_get(u)->unit.weapon_object_indices[i];}
+static boolean unit_set_or_test_seat_and_weapon_label(long u,char const *seat,char const *weapon,boolean change){
+ CHECK(!strcmp(seat,"stand"),"exit selected a vehicle/foreign animation seat");
+ if(weapon){CHECK(!strcmp(weapon,"unarmed")&&!change,"exit mutated a supported unarmed binding");exit_pose_queries++;return exit_unarmed_supported;}
+ CHECK(change,"exit fallback was not applied");exit_pose_fallbacks++;exit_ground_pose=exit_stand_supported;return exit_stand_supported;
+}
 #include "native_seats.inc"
 #include "controls.inc"
 
@@ -919,6 +929,26 @@ int main(int argc,char **argv)
   CHECK(!r->report_page,"combined report/stash pages did not wrap");
   if(!strcmp(case_name,"debrief-stats-reset"))CHECK(!r->report.statistics,"native stat reset produced invented totals");
   extraction_reset();return 0;
+ }
+ if(!strncmp(case_name,"seat-exit-",10)) {
+  short expected=1;long old=players[0].unit_index;
+  exit_unarmed_supported=FALSE;
+  if(!strcmp(case_name,"seat-exit-supported")){exit_unarmed_supported=TRUE;expected=0;}
+  if(!strcmp(case_name,"seat-exit-armed")){pickup(0,1);expected=0;}
+  if(!strcmp(case_name,"seat-exit-npc")){units[0].unit.player_index=NONE;expected=0;}
+  if(!strcmp(case_name,"seat-exit-attached")){units[0].object.parent_object_index=dropship_handles[0];expected=0;}
+  if(!strcmp(case_name,"seat-exit-dead")){units[0].object.damage_flags=FLAG(_object_dead_bit);expected=0;}
+  if(!strcmp(case_name,"seat-exit-pending")){units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);expected=0;}
+  if(!strcmp(case_name,"seat-exit-pending-silent")){units[0].object.damage_flags=FLAG(_object_die_act_of_god_silent_bit);expected=0;}
+  if(!strcmp(case_name,"seat-exit-pending-no-stats")){units[0].object.damage_flags=FLAG(_object_die_act_of_god_no_statistics_bit);expected=0;}
+  if(!strcmp(case_name,"seat-exit-no-stand"))exit_stand_supported=FALSE;
+  short weapons_before=weapon_count;long inventory[4];memcpy(inventory,units[0].unit.weapon_object_indices,sizeof(inventory));
+  unit_adjust_for_seat_change(old);
+  CHECK(exit_ready_calls==1&&exit_pose_fallbacks==expected,"native exit fallback changed an armed/NPC/dead/attached/supported unit or failed its unarmed player");
+  CHECK(exit_pose_queries==(expected||!strcmp(case_name,"seat-exit-supported")),"ineligible exit queried new pose");
+  CHECK(exit_ground_pose==(expected&&exit_stand_supported),"missing graph manufactured a pose or valid stand was not selected");
+  CHECK(weapon_count==weapons_before&&!memcmp(inventory,units[0].unit.weapon_object_indices,sizeof(inventory))&&players[0].unit_index==old,"exit fallback created, lost or replaced equipment/body");
+  return 0;
  }
  if(!strncmp(case_name,"seat-entrance-",14)) {
   real_point3d entry={1,2,3},seat={1,2,3},hint={1,2,3};boolean expected;

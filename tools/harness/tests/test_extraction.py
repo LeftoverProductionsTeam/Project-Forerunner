@@ -76,7 +76,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('vehicle_landing.inc', function(read('source/units/vehicles.c'), 'vehicle_is_landed')))
     files.append(('native_seat_animation_types.inc', enum_with(read('source/units/units.h'), '_unit_seat_animation_airborne_dead')))
     files.append(('native_seats.inc', '\n'.join(function(read('source/units/units.c'), name) for name in (
-        'unit_can_enter_seat', 'unit_get_seat_entrance_point'))))
+        'unit_adjust_for_seat_change', 'unit_can_enter_seat', 'unit_get_seat_entrance_point'))))
     files.append(('controls.inc', '\n'.join((function(devices, 'device_can_change_position'),
                                             function(controls, 'control_toggle'), function(controls, 'control_touched')))))
     return tuple(files)
@@ -616,4 +616,22 @@ def test_survival_evacuation_negative_control(before, after, case):
 
 def test_medical_combat_negative_control():
     status, output = run(build('extraction', generated(medical_fault=True)), 'medical-interrupt')
+    assert status == CHECK_FAILED, output
+
+@pytest.mark.parametrize('case', [
+    'seat-exit-unarmed', 'seat-exit-supported', 'seat-exit-armed', 'seat-exit-npc',
+    'seat-exit-attached', 'seat-exit-dead', 'seat-exit-pending',
+    'seat-exit-pending-silent', 'seat-exit-pending-no-stats', 'seat-exit-no-stand',
+])
+def test_native_unarmed_seat_exit(case):
+    status, output = run(build('extraction', generated()), case)
+    assert status == 0, output
+
+
+def test_native_unarmed_seat_exit_negative():
+    files = tuple((name, mutated(text,
+                  'unit_set_or_test_seat_and_weapon_label(unit_index, "stand", NULL, TRUE);',
+                  '(void)unit_index;')) if name == 'native_seats.inc' else (name, text)
+                  for name, text in generated())
+    status, output = run(build('extraction', files), 'seat-exit-unarmed')
     assert status == CHECK_FAILED, output
