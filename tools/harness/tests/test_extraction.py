@@ -12,6 +12,7 @@ from harness.tests.test_gear import generated as gear_generated
 
 def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
+    files.append(('reload_queue.inc', function(read('source/game/player_queues_new.c'), 'update_client_reload_held')))
     inventory = read('port/linux/game/game_modes.c')
     names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'stage', 'weapon_for_unit', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
@@ -73,7 +74,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     return tuple(files)
 
 
-@pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
+@pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'loadout-secondary', 'loadout-secondary-pending', 'loadout-secondary-unavailable', 'loadout-secondary-release', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
                                  'notice-complete', 'notice-routing', 'notice-controller', 'notice-broadcast', 'notice-fallback',
                                  'stowed-loop', 'stowed-owner', 'stowed-ground', 'stowed-unmarked', 'stowed-nonplayer', 'stowed-parent',
                                  'biped-first', 'biped-second', 'biped-survival',
@@ -141,6 +142,15 @@ def test_native_squad_radio(case):
 def test_native_squad_workflow(case):
     status, output = run(build('extraction', generated()), case)
     assert status == 0, output
+
+
+def test_secondary_current_input_negative_control():
+    files = tuple((name, mutated(text,
+        'update_client_reload_held(unit->unit.player_index) ? 1 : 0',
+        'TEST_FLAG(unit->unit.control_flags, _unit_control_weapon_reload_bit) ? 1 : 0'))
+                  if name == 'extraction.inc' else (name, text) for name, text in generated())
+    status, output = run(build('extraction', files), 'loadout-secondary')
+    assert status == CHECK_FAILED, output
 
 
 @pytest.mark.parametrize('case', [

@@ -16,7 +16,51 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current operation-radio checkpoint (source base `a6f7b06bde`): native Delta TEAM
+Current loadout checkpoint (source base `20540dc0d9`): the existing hub terminal
+now supports choosing the secondary independently with Reload + Use while keeping
+the primary. Ordinary Use keeps cycling the lead pair; first use previews and
+crouch-use keeps confirmed primary discard. The same compatible stash subsequence,
+version-1 record/lock/atomic save, reservation, refund and recovery remain owners.
+No new format, packet, menu manager or Spark marker. Two compatible items have
+only one secondary for their primary, so that gesture then writes nothing.
+
+The native input failure was real: device use precedes the body's current control
+publication, and Reload is a one-shot latched action. Reading old body flags or
+a temporary current-action snapshot both failed native held Reload + Use. Those
+failures remain in `build/native-delta-secondary-loadout/result.json` and
+`build/native-delta-secondary-current-input/result.json`. After two failures the
+queue was traced; final `player_queues_new.c::update_client_reload_held` reads its
+existing full-player held flags. The temporary snapshot/hook changes are removed;
+ordinary native action latching and medical control are unchanged.
+
+Windows64 compiles (`build/secondary-held-input-build.log`). Initial 120 focused
+gear/terminal/inventory checks pass; seven final held-input/selection cases pass,
+including a broken-body-input negative control. A further tightened queue absence/
+full-handle case passes. Earlier 36 input/medical checks passed during diagnosis;
+they are not additional distinct final tests. Larger-stash coverage proves all
+12 ordered pairs of four owned items, exact identities/quantities, compatibility,
+uncertain-save retry, reopen, reservation/refund, banking and redeployment.
+The first four-item test setup omitted its fourth object handle; corrected that
+fixture input without weakening runtime inventory admission.
+
+`build/native-delta-secondary-held-input/result.json` PASSES two authenticated
+accounts' actual keyboard Reload + Use, independent ordinary-Use choices and
+fresh-process reopening of the exact selected records. Both native stashes have
+two items: larger-stash selection/grant/recovery remains automated-only this cycle.
+Player/item agreement passes 44/48 and 23/27 seconds/snapshots, zero divergences/
+out-of-step items; position max 0.066873, aim zero. Native PNGs inspected. Binary
+`e57f6edd...36b6b`, unchanged aircraft cache `23a8f945...fa746`; exact hashes in result.
+Original accounts/seed banks are unchanged; voice off. Owned jobs stopped, runtime/
+map copies and losslessly preserved BMP/duplicate-log scratch removed. No hosted
+run or push. Controller/VR selection and full Black Echo remain open.
+
+Read-only Spark `0f61442` now composes native faction kits, aircraft-relative
+cameras, recovered mission radio and protected HUD with both mission transports.
+Its checkpoint records compiled caches as disposed test output, not a retained
+combined Black Echo handoff. Contract updated with that exact remaining delivery/
+native-acceptance gap, without rebuilding or modifying Spark. Full goal active.
+
+Previous operation-radio checkpoint (source base `a6f7b06bde`): native Delta TEAM
 radio now uses existing authoritative squad membership, or native faction when
 unsquadded, instead of broadcasting across all co-op operations. Unknown/pending
 or restored membership and mixed-group split-screen machines are isolated.

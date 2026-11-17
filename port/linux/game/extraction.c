@@ -9,6 +9,7 @@
 #include "ai/actors.h"
 #include "game/game.h"
 #include "game/players.h"
+#include "game/player_queues_new.h"
 #include "hs/hs.h"
 #include "hs/object_lists.h"
 #include "hs/hs_scenario_definitions.h"
@@ -954,12 +955,13 @@ static void extraction_loadout_notice(struct extraction_run *run)
 		extraction_block(run, "LOADOUT PENDING | Native equipment or stash unavailable. Retry at the terminal."); return;
 	}
 	run->blocked = FALSE;
-	snprintf(text, sizeof(text), "LOADOUT | Stash %d/%d | %.18s / %.18s | +%d frag +%d plasma. Use: change; crouch-use: discard.",
+	snprintf(text, sizeof(text), "LOADOUT | Stash %d/%d | %.18s / %.18s | +%d frag +%d plasma.",
 		(int)run->gear.record.count, GEAR_CAPACITY,
 		loadout.weapon_count > 0 ? extraction_item_name(loadout.weapons[0].tag_path) : "carried gear",
 		loadout.weapon_count > 1 ? extraction_item_name(loadout.weapons[1].tag_path) : "-",
 		(int)loadout.grenades[0], (int)loadout.grenades[1]);
 	extraction_tell(run, text);
+	extraction_tell(run, "Use: cycle pair. Reload-use: change secondary. Crouch-use: discard primary. Deploy when ready.");
 }
 
 static boolean extraction_squad_busy(short squad, struct extraction_run const *except)
@@ -1338,7 +1340,8 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				extraction_loadout_notice(run);
 				return TRUE;
 			}
-			if (run->loadout_seen && !gear_cycle_loadout(&run->gear))
+			if (run->loadout_seen && !gear_cycle_loadout(&run->gear,
+				update_client_reload_held(unit->unit.player_index) ? 1 : 0))
 			{
 				extraction_block(run, "LOADOUT CHOICE PENDING | Retry this terminal to confirm the saved choice before deploying.");
 				return TRUE;

@@ -59,9 +59,9 @@ boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *
 /* Read-only admission for a stored item. Unavailable gear remains inspectable
  * and explicitly discardable; this does not make it deployable. */
 boolean gear_item_available(struct gear_session const *session, struct gear_item const *item);
-/* Rotate the next compatible lead weapon to the front through the existing
- * atomic record. Stash order is the durable choice, shared by both modes. */
-boolean gear_cycle_loadout(struct gear_session *session);
+/* Rotate compatible gear from the selected loadout slot onward. Slot one
+ * preserves the lead weapon. Stash order remains the durable choice. */
+boolean gear_cycle_loadout(struct gear_session *session, short slot);
 /* Host UI preview, valid only until the next bank operation. */
 struct gear_item const *gear_loadout_choice(struct gear_session *session);
 /* Discard only the confirmed owned idle-stash item at the previewed generation.

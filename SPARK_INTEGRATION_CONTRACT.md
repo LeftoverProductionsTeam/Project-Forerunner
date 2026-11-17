@@ -787,6 +787,18 @@ atomic version-1 record: the exact-cache subsequence by default, or the native-
 compatible subsequence when shared gear is enabled. Reopening and Survival reuse the choice;
 failed grants restore it and returned carried gear stays ready for redeployment.
 An uncertain published choice is flushed on retry rather than cycled again.
+Reload + Use now cycles only the compatible secondary subsequence, preserving
+the selected primary; ordinary Use keeps cycling the lead pair. The first use
+previews without changing either choice. Two available weapons have only one
+secondary for the current primary, so Reload + Use then changes nothing and
+writes no redundant save. `gear_cycle_loadout(session, slot)` reuses the same
+locked record/order; no version, reservation policy or inventory packet changed.
+`player_queues_new.c::update_client_reload_held` reads the native queue's existing
+full-player held Reload state after action latching; device interaction precedes
+the body's current control publication. No duplicate input snapshot remains.
+The terminal displays the pair and controls. Native keyboard interaction and
+two-account ownership/reopening are checked separately from larger-stash
+combination/deployment tests; controller/VR selection acceptance remains open.
 The same optional control now supports bounded stash management: crouch-use
 previews the chosen stored weapon and ammo, then release/use again after one
 second within ten seconds to discard exactly that item. Stand-use cancels a
@@ -1164,11 +1176,15 @@ Pelican `e122b840495e9ec8ad6288f3bbc1a500963d93d77a6612f144bab95224f42b9c`,
 Spirit `985df7845e18d27194984ec52029bd80d1a757a6fef0eda3621c4de230287d8f`.
 These are Spark's bounded compilation records, not Forerunner execution or full
 Covenant/faction mission acceptance. Do not reimplement the completed authoring.
-Inspected `b24bac4` additionally compiles authored native faction terminals/kits
-with those mission/transport variants: its checkpoint explicitly keeps relative
-craft cameras/radio, faction objective/actor alignment and complete native
-gameplay handoff open. Its disposable verification caches are not a persistent
-delivered mission package. Spark source remains read-only here.
+Read-only Spark inspection now reaches `0f61442`: native faction terminals/kits,
+aircraft-relative camera points and recovered mission radio are composed with
+the seven-objective mission and both transport controllers. Its source/CE609
+compile/readback milestones include protected existing HUD and sound reuse.
+These close the earlier camera/radio authoring gaps in scope; actual framing,
+audible playback, faction objective/actor alignment and complete native gameplay
+remain open. Its checkpoint records the compiled verification caches as disposed,
+not a retained delivered mission package. Do not rebuild Spark or duplicate its
+completed authoring to conceal that handoff gap. Spark source remains untouched.
 
 Next handoff remains the actual combined CE609 mission package with matching
 resource/source identities, native player/faction equipment, physically valid

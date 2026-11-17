@@ -760,6 +760,16 @@ static boolean update_client_dequeue_distributed(
 	return TRUE;
 }
 
+/* port: held Reload is already retained here after one-shot action latching.
+ * Native terminal modifiers must not read the body's preceding control tick. */
+boolean update_client_reload_held(long player_index)
+{
+	struct update_client_queue_datum const *queue;
+	if (!update_client_globals.initialized || !update_client_globals.queues) return FALSE;
+	queue = (struct update_client_queue_datum const *)datum_try_and_get(update_client_globals.queues, player_index);
+	return queue && TEST_FLAG(queue->latched_control_flags, _unit_control_weapon_reload_bit);
+}
+
 boolean update_client_dequeue(
 	struct player_action *actions)
 {

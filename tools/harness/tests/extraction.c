@@ -182,6 +182,13 @@ static long game_time_get(void) { return tick; }
 static struct player_datum *player_try_and_get(long handle)
 { short i; for(i=0;i<active_players;i++) if(player_handles[i]==handle) return &players[i]; return NULL; }
 static struct player_datum *player_get(long h) { struct player_datum *p=player_try_and_get(h); CHECK(p,"invalid player"); return p; }
+static struct update_client_queue_datum { unsigned long latched_control_flags; } input_queues[8];
+static struct { boolean initialized; void *queues; } update_client_globals={TRUE,input_queues};
+static void *input_queue_get(void *data,long handle)
+{ short i;CHECK(data==input_queues,"wrong native queue");for(i=0;i<active_players;i++)if(player_handles[i]==handle)return &input_queues[i];return NULL; }
+#define datum_try_and_get(data,index) input_queue_get(data,index)
+#include "reload_queue.inc"
+#undef datum_try_and_get
 static void *object_try_and_get_and_verify_type(long h,long mask)
 {
  short i;
@@ -2146,6 +2153,43 @@ int main(int argc,char **argv)
   units[0].object.parent_object_index=123;advance(1);touch(2,0);
   CHECK(!run(0)->discard_deadline && run(0)->gear.record.count==2,"vehicle control authorized discard");
   units[0].object.parent_object_index=NONE;
+ } else if(!strncmp(case_name,"loadout-secondary",17)) {
+  byte primary[GEAR_ID_BYTES],secondary[GEAR_ID_BYTES];struct gear_record other;
+  unsigned long generation;
+  touch(0,0);pickup(0,1);pickup(0,2);a=pickup(0,1);weapon_get(a)->weapon.magazines[0].rounds_loaded=3;escape(0);
+  touch(0,1);pickup(1,2);escape(1);other=run(1)->gear.record;
+  memcpy(primary,run(0)->gear.record.items[0].id,sizeof(primary));memcpy(secondary,run(0)->gear.record.items[2].id,sizeof(secondary));
+  input_queues[0].latched_control_flags=FLAG(_unit_control_weapon_reload_bit);touch(2,0);
+  CHECK(!memcmp(primary,run(0)->gear.record.items[0].id,sizeof(primary)),"first preview reordered primary");
+  if(!strcmp(case_name,"loadout-secondary-unavailable")||!strcmp(case_name,"loadout-secondary-release")) {
+   if(!strcmp(case_name,"loadout-secondary-unavailable")) {
+    CHECK(update_client_reload_held(player_handles[0])&&!update_client_reload_held(player_handles[1])&&
+     !update_client_reload_held(NONE)&&!update_client_reload_held(player_handles[0]+0x10000),"queue modifier crossed full player handles");
+    update_client_globals.queues=NULL;CHECK(!update_client_reload_held(player_handles[0]),"absent queue published a modifier");
+    update_client_globals.queues=input_queues;update_client_globals.initialized=FALSE;
+   }
+   else input_queues[0].latched_control_flags=0;
+   touch(2,0);
+   CHECK(memcmp(primary,run(0)->gear.record.items[0].id,sizeof(primary)),"unavailable/released reload modifier changed the secondary");
+   return 0;
+  }
+  generation=run(0)->gear.record.generation;
+  if(!strcmp(case_name,"loadout-secondary-pending"))publish_failure=TRUE;
+  touch(2,0);
+  if(publish_failure) {
+   CHECK(run(0)->blocked&&run(0)->gear.pending,"uncertain secondary did not block deployment");
+   publish_failure=FALSE;input_queues[0].latched_control_flags=0;touch(2,0);
+  }
+  CHECK(run(0)->gear.record.generation==generation+1&&!run(0)->gear.pending&&!run(0)->blocked&&
+   !memcmp(primary,run(0)->gear.record.items[0].id,sizeof(primary))&&!memcmp(secondary,run(0)->gear.record.items[1].id,sizeof(secondary)),"terminal changed primary, lost secondary or advanced retry twice");
+  CHECK(!memcmp(&other,&run(1)->gear.record,sizeof(other)),"another player's selected equipment changed");
+  CHECK(strstr(local_notice_history[(local_notices-1)%4],"Reload-use"),"secondary interaction is undiscoverable");
+  units[0].unit.control_flags=0;extraction_reset();advance(1);touch(0,0);
+  CHECK(weapon_get(units[0].unit.weapon_object_indices[0])->definition_index==1&&
+   weapon_get(units[0].unit.weapon_object_indices[1])->definition_index==1&&
+   weapon_get(units[0].unit.weapon_object_indices[1])->weapon.magazines[0].rounds_loaded==3,"native grant/reopen ignored secondary selection");
+  escape(0);extraction_reset();advance(1);touch(0,0);
+  CHECK(run(0)->gear.record.reserved_count==2&&!memcmp(secondary,run(0)->gear.record.reserved[1].id,sizeof(secondary)),"recovery/redeployment changed secondary identity");
  } else if(!strcmp(case_name,"loadout-choice")) {
   struct game_modes_inventory chosen;
   unsigned long generation;

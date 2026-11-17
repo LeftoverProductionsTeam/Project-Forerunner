@@ -347,13 +347,13 @@ static short gear_selected(struct gear_session const *session, short indices[GEA
 	return count;
 }
 
-boolean gear_cycle_loadout(struct gear_session *session)
+boolean gear_cycle_loadout(struct gear_session *session, short slot)
 {
 	struct gear_record next;
 	short indices[GEAR_CAPACITY], count = 0, index;
 	boolean pending = session->pending;
 
-	if (!gear_flush(session) || session->record.phase != _gear_idle) return FALSE;
+	if (!VALID_INDEX(slot, GEAR_LOADOUT_WEAPONS) || !gear_flush(session) || session->record.phase != _gear_idle) return FALSE;
 	/* An uncertain published selection is retried, not advanced twice. */
 	if (pending) return TRUE;
 	for (index = 0; index < session->record.count; index++)
@@ -361,12 +361,12 @@ boolean gear_cycle_loadout(struct gear_session *session)
 		if (gear_item_available(session, &session->record.items[index]))
 			indices[count++] = index;
 	}
-	if (count < 2) return TRUE;
+	if (count < slot + 2) return TRUE;
 	/* Rotate only available gear. Strict mode retains per-cache choices;
 	 * shared mode selects across the native-compatible stash without imports. */
 	next = session->record;
-	for (index = 0; index < count; index++)
-		next.items[indices[index]] = session->record.items[indices[(index + 1) % count]];
+	for (index = slot; index < count; index++)
+		next.items[indices[index]] = session->record.items[indices[index + 1 < count ? index + 1 : slot]];
 	return gear_commit(session, &next);
 }
 
@@ -607,7 +607,7 @@ boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
 void gear_close(struct gear_session *session) { memset(session, 0, sizeof(*session)); session->descriptor = -1; }
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory) { return FALSE; }
 boolean gear_item_available(struct gear_session const *session, struct gear_item const *item) { return FALSE; }
-boolean gear_cycle_loadout(struct gear_session *session) { return FALSE; }
+boolean gear_cycle_loadout(struct gear_session *session, short slot) { return FALSE; }
 struct gear_item const *gear_loadout_choice(struct gear_session *session) { return NULL; }
 boolean gear_discard(struct gear_session *session, byte const id[GEAR_ID_BYTES], unsigned long generation) { return FALSE; }
 boolean gear_reserve(struct gear_session *session) { return FALSE; }

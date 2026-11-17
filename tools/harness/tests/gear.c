@@ -152,33 +152,88 @@ int main(int argc, char **argv)
   CHECK(gear_loadout(&reopened, &loadout) && loadout.weapon_count == 2 && loadout.weapons[0].rounds_loaded[0] == 5 &&
    loadout.weapons[1].rounds_reserve[0] == 51 && loadout.weapons[0].age == .25f, "native equipment changed on reopen");
   CHECK(gear_cancel_reservation(&reopened) && reopened.record.count == 2, "failed grant did not return reserved gear");
+ } else if (!strcmp(case_name,"secondary-pairs")) {
+  boolean seen[4][4]={{FALSE}};short first,second,left,right,index;
+  struct gear_record original;
+  objects[3]=0x10004;earn(4);original=session.record;
+  for(first=0;first<4;first++) {
+   for(second=0;second<3;second++) {
+    CHECK(gear_loadout(&session,&loadout)&&loadout.weapon_count==2,"selected pair unavailable");
+    left=loadout.weapons[0].rounds_loaded[0]-5;right=loadout.weapons[1].rounds_loaded[0]-5;
+    CHECK(left>=0&&left<4&&right>=0&&right<4&&left!=right&&!seen[left][right],"loadout chooser repeats or duplicates an ordered pair");
+    seen[left][right]=TRUE;
+    CHECK(gear_cycle_loadout(&session,1),"secondary choice refused");
+    CHECK(gear_loadout(&session,&loadout)&&loadout.weapons[0].rounds_loaded[0]==left+5,"secondary choice changed primary");
+   }
+   CHECK(gear_cycle_loadout(&session,0),"primary choice refused");
+  }
+  for(first=0;first<4;first++)for(second=0;second<4;second++)
+   CHECK(first==second||seen[first][second],"a valid owned pair cannot be selected");
+  CHECK(session.record.count==4&&!memcmp(session.record.grenades,original.grenades,sizeof(original.grenades)),"choice changed ownership/capacity or grenades");
+  for(first=0;first<4;first++) {
+   for(index=0;index<4;index++)if(!memcmp(original.items[first].id,session.record.items[index].id,GEAR_ID_BYTES))break;
+   CHECK(index<4&&!memcmp(&original.items[first],&session.record.items[index],sizeof(original.items[first])),"choice modified an owned item");
+  }
+ } else if (!strcmp(case_name,"secondary-failure")) {
+  unsigned long generation;
+  earn(3);generation=session.record.generation;fail_write=TRUE;
+  CHECK(!gear_cycle_loadout(&session,1)&&session.record.generation==generation,"failed secondary choice changed saved order");
+  fail_write=FALSE;publish_failure=TRUE;
+  CHECK(!gear_cycle_loadout(&session,1)&&session.pending,"published secondary choice lost pending intent");
+  generation=session.record.generation;publish_failure=FALSE;
+  CHECK(gear_cycle_loadout(&session,0)&&!session.pending&&session.record.generation==generation,"changed modifier advanced an uncertain choice twice");
+  CHECK(gear_loadout(&session,&loadout)&&loadout.weapons[0].rounds_loaded[0]==5&&loadout.weapons[1].rounds_loaded[0]==7,"retry lost selected secondary");
+ } else if (!strcmp(case_name,"secondary-cache")) {
+  struct gear_record mixed;
+  objects[3]=0x10004;earn(4);mixed=session.record;strcpy(mixed.items[1].map_name,"other@ce");mixed.items[1].map_checksum++;
+  CHECK(gear_commit(&session,&mixed)&&gear_cycle_loadout(&session,1),"mixed-cache secondary selection refused");
+  CHECK(gear_loadout(&session,&loadout)&&loadout.weapons[0].rounds_loaded[0]==5&&loadout.weapons[1].rounds_loaded[0]==8,"secondary selection included incompatible cache or changed primary");
+  CHECK(!memcmp(&mixed.items[1],&session.record.items[1],sizeof(mixed.items[1])),"secondary selection moved incompatible stash");
+ } else if (!strcmp(case_name,"secondary-state")) {
+  unsigned long generation;
+  earn(2);generation=session.record.generation;
+  CHECK(!gear_cycle_loadout(&session,-1)&&!gear_cycle_loadout(&session,2),"invalid loadout slot admitted");
+  CHECK(gear_cycle_loadout(&session,1)&&session.record.generation==generation,"single secondary choice wrote a redundant save");
+  client=TRUE;CHECK(!gear_cycle_loadout(&session,1),"client changed authoritative secondary");client=FALSE;
+  CHECK(gear_reserve(&session)&&!gear_cycle_loadout(&session,1),"reserved gear could be reordered");
+ } else if (!strcmp(case_name,"secondary-recovery")) {
+  byte first[GEAR_ID_BYTES],second[GEAR_ID_BYTES];
+  earn(3);memcpy(first,session.record.items[0].id,sizeof(first));memcpy(second,session.record.items[2].id,sizeof(second));
+  CHECK(gear_cycle_loadout(&session,1),"secondary selection refused");
+  gear_close(&session);CHECK(gear_open(&session,owner)&&gear_reserve(&session),"saved secondary did not survive reopen");
+  CHECK(!memcmp(first,session.record.reserved[0].id,sizeof(first))&&!memcmp(second,session.record.reserved[1].id,sizeof(second)),"reservation chose different owned items");
+  CHECK(gear_cancel_reservation(&session)&&gear_reserve(&session)&&gear_loadout(&session,&inventory)&&gear_confirm_deployment(&session),"refund lost secondary selection");
+  objects[0]=0x20001;objects[1]=0x20002;gear_track_reserved(&session,objects);inventory.weapons[1].rounds_loaded[0]=3;
+  CHECK(gear_prepare_escape(&session,&inventory,objects)&&gear_finish_escape(&session),"selected pair could not bank");
+  gear_close(&session);CHECK(gear_open(&session,owner)&&gear_loadout(&session,&loadout)&&loadout.weapons[0].rounds_loaded[0]==5&&loadout.weapons[1].rounds_loaded[0]==3,"recovery/reopen lost primary or secondary ammunition");
+  CHECK(session.record.count==3&&!memcmp(first,session.record.items[0].id,sizeof(first))&&!memcmp(second,session.record.items[1].id,sizeof(second)),"recovery duplicated or lost selected identities");
  } else if (!strcmp(case_name, "choice-reopen")) {
-  earn(3); CHECK(gear_cycle_loadout(&session), "loadout cycle failed");
+  earn(3); CHECK(gear_cycle_loadout(&session,0), "loadout cycle failed");
   CHECK(gear_loadout(&session,&loadout) && loadout.weapon_count==2 && loadout.weapons[0].rounds_loaded[0]==6 &&
    loadout.weapons[1].rounds_loaded[0]==7, "chosen pair did not preserve the existing native selection order");
   gear_close(&session); CHECK(gear_open(&session,owner),"chosen loadout did not reopen");
   CHECK(gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==6,"reconnect lost chosen primary");
-  CHECK(gear_cycle_loadout(&session) && gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==7,
+  CHECK(gear_cycle_loadout(&session,0) && gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==7,
    "owned same-tag weapon identities could not be selected independently");
  } else if (!strcmp(case_name, "choice-failure")) {
   unsigned long generation;
   earn(3); generation=session.record.generation; fail_write=TRUE;
-  CHECK(!gear_cycle_loadout(&session) && session.record.generation==generation,"failed choice advanced the record");
+  CHECK(!gear_cycle_loadout(&session,0) && session.record.generation==generation,"failed choice advanced the record");
   fail_write=FALSE; publish_failure=TRUE;
-  CHECK(!gear_cycle_loadout(&session) && session.pending,"uncertain published choice forgotten");
+  CHECK(!gear_cycle_loadout(&session,0) && session.pending,"uncertain published choice forgotten");
   generation=session.record.generation; publish_failure=FALSE;
-  CHECK(gear_cycle_loadout(&session) && !session.pending && session.record.generation==generation,
+  CHECK(gear_cycle_loadout(&session,0) && !session.pending && session.record.generation==generation,
    "choice retry cycled again instead of confirming its published intent");
   CHECK(gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==6,"choice retry selected another item");
  } else if (!strcmp(case_name, "choice-cancel")) {
-  earn(3); CHECK(gear_cycle_loadout(&session) && gear_reserve(&session),"chosen deployment failed");
-  CHECK(!gear_cycle_loadout(&session),"deployed player changed stash choice");
+  earn(3); CHECK(gear_cycle_loadout(&session,0) && gear_reserve(&session),"chosen deployment failed");
+  CHECK(!gear_cycle_loadout(&session,0),"deployed player changed stash choice");
   CHECK(gear_cancel_reservation(&session),"failed grant refund failed");
   gear_close(&session);CHECK(gear_open(&session,owner) && gear_loadout(&session,&loadout) &&
    loadout.weapons[0].rounds_loaded[0]==6 && loadout.weapons[1].rounds_loaded[0]==7,
    "failed grant silently switched the saved pair");
  } else if (!strcmp(case_name, "choice-recovery")) {
-  earn(3); CHECK(gear_cycle_loadout(&session) && gear_reserve(&session) && gear_loadout(&session,&inventory),"chosen deployment failed");
+  earn(3); CHECK(gear_cycle_loadout(&session,0) && gear_reserve(&session) && gear_loadout(&session,&inventory),"chosen deployment failed");
   CHECK(gear_confirm_deployment(&session),"chosen native grant was not confirmed");
   objects[0]=0x20001;objects[1]=0x20002;gear_track_reserved(&session,objects);
   inventory.weapons[0].rounds_loaded[0]=2;
@@ -193,16 +248,16 @@ int main(int argc, char **argv)
   strcpy(mixed.items[1].map_name,"other@ce");mixed.items[1].map_checksum=checksum+1;
   mixed.items[3]=mixed.items[0];mixed.items[3].id[0]^=0x80;
   strcpy(mixed.items[3].map_name,"other@ce");mixed.items[3].map_checksum=checksum+1;mixed.count=4;
-  CHECK(gear_commit(&session,&mixed) && gear_cycle_loadout(&session),"mixed-cache choice failed");
+  CHECK(gear_commit(&session,&mixed) && gear_cycle_loadout(&session,0),"mixed-cache choice failed");
   map="other@ce";checksum++;
-  CHECK(gear_cycle_loadout(&session) && gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==5,
+  CHECK(gear_cycle_loadout(&session,0) && gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==5,
    "second cache could not choose its own primary");
   map="candidate@ce";checksum--;
   CHECK(gear_loadout(&session,&loadout) && loadout.weapons[0].rounds_loaded[0]==7,"another cache changed the saved primary");
   generation=session.record.generation;checksum+=2;
-  CHECK(gear_cycle_loadout(&session) && session.record.generation==generation,"unrelated cache moved the saved choice");
+  CHECK(gear_cycle_loadout(&session,0) && session.record.generation==generation,"unrelated cache moved the saved choice");
   checksum-=2;client=TRUE;
-  CHECK(!gear_cycle_loadout(&session) && session.record.generation==generation,"client changed durable gear choice");client=FALSE;
+  CHECK(!gear_cycle_loadout(&session,0) && session.record.generation==generation,"client changed durable gear choice");client=FALSE;
  } else if (!strcmp(case_name, "discard")) {
   struct gear_record full;
   byte id[GEAR_ID_BYTES];unsigned long generation;short i;
@@ -238,7 +293,7 @@ int main(int argc, char **argv)
  } else if (!strcmp(case_name, "discard-state")) {
   byte id[GEAR_ID_BYTES];unsigned long generation;
   earn(3);memcpy(id,gear_loadout_choice(&session)->id,sizeof(id));generation=session.record.generation;
-  CHECK(gear_cycle_loadout(&session) && !gear_discard(&session,id,generation) && session.record.count==3,
+  CHECK(gear_cycle_loadout(&session,0) && !gear_discard(&session,id,generation) && session.record.count==3,
    "choice change reused old confirmation");
   CHECK(gear_reserve(&session) && !gear_loadout_choice(&session) && !gear_discard(&session,id,session.record.generation),
    "active run admitted stash deletion");
@@ -308,7 +363,7 @@ int main(int argc, char **argv)
   CHECK(gear_loadout(&session,&loadout)&&loadout.weapon_count==2&&loadout.map_checksum==checksum&&
    loadout.weapons[0].rounds_loaded[0]==5&&session.record.items[0].map_checksum==checksum-1,
    "shared loadout lost native quantities or overwrote origin provenance");
-  CHECK(gear_cycle_loadout(&session)&&gear_reserve(&session)&&gear_loadout(&session,&loadout)&&
+  CHECK(gear_cycle_loadout(&session,0)&&gear_reserve(&session)&&gear_loadout(&session,&loadout)&&
    loadout.weapons[0].rounds_loaded[0]==6&&!session.record.count&&session.record.reserved_count==2,
    "shared selection/reservation did not use the selected items");
   CHECK(gear_cancel_reservation(&session)&&session.record.count==2&&session.record.items[0].map_checksum==checksum-1,

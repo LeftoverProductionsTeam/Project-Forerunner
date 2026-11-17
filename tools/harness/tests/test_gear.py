@@ -39,6 +39,19 @@ def test_transactions(case):
     assert status == 0, output
 
 
+@pytest.mark.parametrize('case', ['pairs', 'failure', 'cache', 'state', 'recovery'])
+def test_secondary_loadout(case):
+    status, output = run(build('gear', generated()), 'secondary-' + case)
+    assert status == 0, output
+
+
+def test_secondary_loadout_negative_control():
+    status, output = run(build('gear', generated((
+        'for (index = slot; index < count; index++)',
+        'for (index = 0; index < count; index++)'))), 'secondary-pairs')
+    assert status == CHECK_FAILED, output
+
+
 def test_loss_negative_control():
     status, output = run(build('gear', generated((
         'next = session->record; gear_run_clear(&next, _gear_lost);', 'next = session->record;'))), 'loss')
