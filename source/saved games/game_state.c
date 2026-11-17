@@ -216,7 +216,7 @@ static game_state_before_load_proc before_load_procs[] =
 	/* port: run/result handles are outside the saved image. Invalidate them
 	   for every checkpoint/disk/core load, even if the clock does not rewind. */
 	extraction_restored,
-	cheats_forge_forget_copy,
+	cheats_forge_reset,
 #ifdef HALO_OPENXR
 	vr_render_reset_aim, /* port: do not reuse tracked unit handles after a restore. */
 #endif

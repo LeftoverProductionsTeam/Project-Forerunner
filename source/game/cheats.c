@@ -68,6 +68,8 @@ symbols in this file:
 #include "math/real_math.h"
 #include "objects/objects.h"
 #include "physics/collisions.h"
+#include "physics/collision_features.h"
+#include "physics/physics.h"
 #include "rasterizer/rasterizer_console_vars.h"
 #include "scenario/scenario.h"
 #include "tag_files/tag_groups.h"
@@ -118,17 +120,19 @@ void cheats_dispose(
 	return;
 }
 
+static long forge_selection = NONE;
 static long forge_last_copy = NONE;
 
-void cheats_forge_forget_copy(void)
+void cheats_forge_reset(void)
 {
+	forge_selection = NONE;
 	forge_last_copy = NONE;
 }
 
 void cheats_dispose_from_old_map(
 	void)
 {
-	cheats_forge_forget_copy();
+	cheats_forge_reset();
 }
 
 /* network_game_globals.c's */
@@ -233,8 +237,10 @@ boolean cheats_console_object_made(
 
 static struct object_datum *forge_placeable_object_get(long object_index)
 {
+	struct object_header_datum *header = object_header_try_and_get(object_index);
 	struct object_datum *object = object_try_and_get(object_index);
-	if (!object || object->object.parent_object_index != NONE ||
+	if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit) ||
+		!object || object->object.parent_object_index != NONE ||
 		TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
 		!TEST_FLAG(_object_mask_scenery | _object_mask_weapon | _object_mask_equipment | _object_mask_vehicle,
 			object->object.type))
@@ -245,30 +251,36 @@ static struct object_datum *forge_placeable_object_get(long object_index)
 /* Port: Faber's Forge 3D selection uses the native world collision ray.
  * Use the living local player so console selection cannot target through
  * BSP geometry or from another player's camera. */
-long cheat_forge_target(void)
+static boolean forge_aim_collision(struct collision_result *hit)
 {
 	long unit_index;
 	struct unit_datum *unit;
 	real_point3d origin;
 	real_vector3d ray;
-	struct collision_result hit;
-	struct object_datum *object;
 
 	if (!terminal_command_running || network_game_distributed_client() ||
 		network_game_host_cheats_refused() || !game_in_progress())
-		return NONE;
+		return FALSE;
 	unit_index = player_control_get_unit_index(0);
 	unit = unit_try_and_get(unit_index);
 	if (!unit || unit->object.parent_object_index != NONE ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
-		return NONE;
+		return FALSE;
 
 	unit_get_camera_position(unit_index, &origin);
 	unit_get_aiming_vector(unit_index, &ray);
 	scale_vector3d(&ray, 20.0f, &ray);
-	if (!collision_test_vector(_collision_test_for_line_of_sight_flags |
+	return collision_test_vector(_collision_test_for_line_of_sight_flags |
 		FLAG(_collision_test_objects_weapons_bit) | FLAG(_collision_test_objects_equipment_bit),
-		&origin, &ray, unit_index, &hit) || hit.type != _collision_result_object)
+		&origin, &ray, unit_index, hit);
+}
+
+long cheat_forge_target(void)
+{
+	struct collision_result hit;
+	struct object_datum *object;
+
+	if (!forge_aim_collision(&hit) || hit.type != _collision_result_object)
 		return NONE;
 
 	object = forge_placeable_object_get(hit.object_index);
@@ -365,6 +377,68 @@ long cheat_forge_clone_at(long object_index, real_point3d const *position)
 	return position ? forge_clone_at_position(object_index, position) : NONE;
 }
 
+boolean cheat_forge_pick(void)
+{
+	forge_selection = cheat_forge_target();
+	if (forge_selection != NONE)
+		return TRUE;
+
+	console_warning("forge_pick needs a visible Forge object within 20 units");
+	return FALSE;
+}
+
+/* Faber's aim-based placement uses the native collision contact. Keep the
+ * source's orientation and let the usual physics settle the copy. */
+long cheat_forge_place(void)
+{
+	struct object_datum *object;
+	struct collision_result hit;
+	struct location location;
+	real_point3d center, position;
+	real_vector3d offset;
+	real radius;
+	long blocker;
+
+	object = forge_placeable_object_get(forge_selection);
+	if (!object)
+	{
+		console_warning("forge_place needs an object selected with forge_pick");
+		return NONE;
+	}
+	if (!forge_aim_collision(&hit) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
+	{
+		console_warning("forge_place needs visible ground within 20 units");
+		return NONE;
+	}
+	radius = object->object.bounding_sphere_radius;
+	if (!valid_real(radius) || radius < 0.0f)
+		return NONE;
+
+	if (object->object.type == _object_type_vehicle)
+	{
+		if (physics_resting_placement(forge_selection, &hit.point, &hit.plane.n, &position))
+			return forge_clone_at_position(forge_selection, &position);
+
+		console_warning("forge_place needs clear space for the vehicle");
+		return NONE;
+	}
+
+	point_from_line3d(&hit.point, &hit.plane.n, radius + 0.06f, &center);
+	if (!valid_real_point3d(&center))
+		return NONE;
+	scenario_location_from_point(&location, &center);
+	if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
+		objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile, &location, &center, radius, &blocker, 1))
+	{
+		console_warning("forge_place needs clear space around the target");
+		return NONE;
+	}
+
+	vector_from_points3d(&object->object.bounding_sphere_center, &object->object.position, &offset);
+	point_from_line3d(&center, &offset, 1.0f, &position);
+	return forge_clone_at_position(forge_selection, &position);
+}
+
 /* Only undo a copy made by the console in this map. Native deletion is
  * recursive, so refuse copies used by players, riders or scenario scripts. */
 boolean cheat_forge_undo(void)
@@ -381,7 +455,7 @@ boolean cheat_forge_undo(void)
 	header = object_header_try_and_get(object_index);
 	if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit))
 	{
-		cheats_forge_forget_copy();
+		forge_last_copy = NONE;
 		return FALSE;
 	}
 
@@ -397,7 +471,7 @@ boolean cheat_forge_undo(void)
 		return FALSE;
 
 	object_delete(object_index);
-	cheats_forge_forget_copy();
+	forge_last_copy = NONE;
 	return TRUE;
 }
 

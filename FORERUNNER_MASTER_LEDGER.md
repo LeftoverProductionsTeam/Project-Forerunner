@@ -98,6 +98,14 @@ reply at that terminal, then joined and deployed with their own squad. 65 native
 seconds and 130 player observations agree. The earlier driving attempt stopped
 before terminal use. Both test sessions' disposable runtimes/maps were removed.
 
+Forge crosshair workflow (17 November): forge_pick selects a loaded object,
+forge_place copies it over clear BSP ground, and forge_undo removes that copy.
+Vehicle placement uses native mass points and collision features. Windows64 and
+37 focused checks passed. In build/native-forge-crosshair-copy/result.json both
+authenticated clients saw the copied Pelican at rest at the same position and
+saw its removal while the original remained. The slope did not meet the separate
+dropship landing-attitude gate. Runtime copies and BMP scratch were removed.
+
 Native menu completion and Black Echo crew repair (17 November):
 63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
 two-hand settings directly to the native VR page, Save/Cancel and persistence.

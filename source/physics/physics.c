@@ -579,6 +579,63 @@ boolean physics_instance_new(
 	return FALSE;
 }
 
+/* Reuse the source body's native mass points and orientation to find the
+ * lowest clear translated placement against a floor contact. */
+boolean physics_resting_placement(long object_index, real_point3d const *contact,
+	real_vector3d const *normal, real_point3d *position)
+{
+	struct physics_instance instance;
+	struct object_datum *object = object_get(object_index);
+	real lift = 0.f;
+	short index, count;
+
+	if (!physics_instance_new(&instance, object_index))
+		return FALSE;
+	count = physics_mass_point_count(instance.physics);
+	if (!count)
+		return FALSE;
+
+	instance.world_matrix.position.x -= object->object.position.x;
+	instance.world_matrix.position.y -= object->object.position.y;
+	instance.world_matrix.position.z -= object->object.position.z;
+	for (index = 0; index < count; index++)
+	{
+		struct mass_point_definition const *point =
+			TAG_BLOCK_GET_ELEMENT(&instance.physics->mass_points, index, struct mass_point_definition);
+		real_point3d offset;
+		real projection;
+		matrix4x3_transform_point(&instance.world_matrix, &point->position, &offset);
+		projection = offset.x * normal->i + offset.y * normal->j + offset.z * normal->k;
+		if (!valid_real(projection) || !valid_real(point->radius) || point->radius < 0.f)
+			return FALSE;
+		lift = MAX(lift, point->radius - projection);
+	}
+
+	point_from_line3d(contact, normal, lift + 0.06f, position);
+	if (!valid_real_point3d(position))
+		return FALSE;
+	instance.world_matrix.position.x += position->x;
+	instance.world_matrix.position.y += position->y;
+	instance.world_matrix.position.z += position->z;
+	for (index = 0; index < count; index++)
+	{
+		struct mass_point_definition const *point =
+			TAG_BLOCK_GET_ELEMENT(&instance.physics->mass_points, index, struct mass_point_definition);
+		real_point3d center;
+		struct collision_feature_list features;
+		struct collision_plane collision;
+		unsigned long flags = FLAG(_collision_test_objects_bit) | FLAG(_collision_test_front_facing_surfaces_bit) |
+			(_collision_test_objects_all_types_flags & ~FLAG(_collision_test_objects_projectiles_bit));
+
+		matrix4x3_transform_point(&instance.world_matrix, &point->position, &center);
+		if (collision_test_sphere(&center, point->radius, NONE) ||
+			(collision_get_features_in_sphere(flags, &center, point->radius, 0.0f, point->radius, NONE, &features) &&
+			 collision_features_test_point(&features, &center, &collision)))
+			return FALSE;
+	}
+	return TRUE;
+}
+
 boolean physics_test_point(
 	struct physics_instance const *instance,
 	real_point3d const *point)

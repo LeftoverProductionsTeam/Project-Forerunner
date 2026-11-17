@@ -39,6 +39,8 @@ struct physics_test_vector_result
 /* ---------- prototypes/PHYSICS.C */
 
 boolean physics_instance_new(struct physics_instance *instance, long object_index);
+boolean physics_resting_placement(long object_index, real_point3d const *contact,
+	real_vector3d const *normal, real_point3d *position);
 real pin_fraction(real value, real begin, real end);
 boolean physics_get_features_in_sphere(
 	struct physics_instance const *instance,

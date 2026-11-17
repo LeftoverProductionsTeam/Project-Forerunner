@@ -53,7 +53,20 @@ struct mass_point_definition {real_point3d position;float radius;};
 struct tag_block {long count;void *address;};
 struct physics_definition {struct tag_block mass_points;};
 struct collision_model_instance {int unused;};
-struct collision_result {struct {real_vector3d n;} plane;};
+enum { _collision_result_structure, _collision_result_object };
+#define _collision_test_for_line_of_sight_flags 0
+#define _collision_test_objects_weapons_bit 8
+#define _collision_test_objects_equipment_bit 9
+#define _collision_test_objects_projectiles_bit 10
+#define _collision_test_objects_all_types_flags 0xffffUL
+struct collision_result {
+ short type;
+ long object_index;
+ real_point3d point;
+ struct { real_vector3d n; } plane;
+};
+static struct collision_result forge_hit;
+static boolean forge_probe, forge_hit_found;
 struct network_game {int players[128];};
 static struct network_game game;
 static struct player_datum player;
@@ -91,13 +104,19 @@ static void object_placement_data_new(struct object_placement_data *p,long def,l
  (void)owner;memset(p,0,sizeof(*p));p->definition_index=def;
 }
 static boolean collision_test_vector(unsigned long f,real_point3d const *p,real_vector3d const *v,long ignored,struct collision_result *hit) {
- (void)f;(void)p;(void)v;(void)ignored;hit->plane.n.k=1;return floor_present;
+ (void)f;(void)p;(void)v;(void)ignored;
+ if (forge_probe) {
+  *hit=forge_hit;
+  return forge_hit_found;
+ }
+ hit->plane.n.k=1;return floor_present;
 }
 boolean collision_test_sphere(real_point3d const *p,float r,long ignored) {(void)p;(void)r;(void)ignored;return sphere_blocked;}
 static boolean clone_destination_outside;
 static void scenario_location_from_point(struct location *l,real_point3d const *p)
 { (void)p;l->leaf_index=0;l->cluster_index=clone_destination_outside ? NONE : 0; }
 static boolean game_in_progress(void) { return TRUE; }
+#define valid_real isfinite
 static boolean valid_real_point3d(real_point3d const *p) { return isfinite(p->x)&&isfinite(p->y)&&isfinite(p->z); }
 static short objects_in_sphere(int f,unsigned long m,struct location const *l,real_point3d const *p,float r,long *indices,int max) {
  (void)f;(void)m;(void)l;(void)p;(void)r;(void)max;indices[0]=identifiers[9];return blocked || nearby;
@@ -143,6 +162,47 @@ static boolean cheats_console_object_made(long index){return index!=NONE;}
 static boolean weapon_is_flag(long index){return clone_objective;}
 static void console_warning(char const *text){}
 static void objects_scripting_set_scale(long index,real scale,short ticks){get(index)->object.scale=scale;}
+static long forge_viewer;
+static long player_control_get_unit_index(short slot) { (void)slot; return forge_viewer; }
+static void unit_get_camera_position(long index, real_point3d *p) { *p=get(index)->object.position; }
+static void unit_get_aiming_vector(long index, real_vector3d *v) { *v=get(index)->object.forward; }
+static void scale_vector3d(real_vector3d const *v, real scale, real_vector3d *out) {
+ out->i=v->i*scale; out->j=v->j*scale; out->k=v->k*scale;
+}
+static void vector_from_points3d(real_point3d const *a, real_point3d const *b, real_vector3d *out) {
+ out->i=b->x-a->x; out->j=b->y-a->y; out->k=b->z-a->z;
+}
+static void point_from_line3d(real_point3d const *p, real_vector3d const *v, real t, real_point3d *out) {
+ out->x=p->x+v->i*t; out->y=p->y+v->j*t; out->z=p->z+v->k*t;
+}
+struct physics_instance {
+ struct physics_definition const *physics;
+ struct { real_point3d position; } world_matrix;
+};
+static boolean physics_instance_new(struct physics_instance *instance, long index) {
+ instance->physics=&physics;
+ instance->world_matrix.position=get(index)->object.position;
+ return TRUE;
+}
+static short physics_mass_point_count(struct physics_definition const *definition) {
+ return (short)definition->mass_points.count;
+}
+struct collision_feature_list { int unused; };
+struct collision_plane { int unused; };
+static boolean collision_get_features_in_sphere(unsigned long flags, real_point3d const *center,
+ real enclosing, real height, real radius, long ignore, struct collision_feature_list *features) {
+ (void)flags; (void)center; (void)enclosing; (void)height; (void)radius; (void)ignore; (void)features;
+ return nearby;
+}
+static boolean collision_features_test_point(struct collision_feature_list const *features,
+ real_point3d const *center, struct collision_plane *collision) {
+ (void)features; (void)center; (void)collision;
+ return TRUE;
+}
+#define matrix4x3_transform_point(matrix, point, out) ( \
+ (out)->x=(matrix)->position.x+(point)->x, \
+ (out)->y=(matrix)->position.y+(point)->y, \
+ (out)->z=(matrix)->position.z+(point)->z )
 /* Keep the existing allocation adapter, recording what native creation receives. */
 static long clone_object_new(struct object_placement_data const *p){clone_placement=*p;return object_new(p);}
 #define object_new clone_object_new
@@ -452,6 +512,49 @@ int main(int argc,char **argv) {
   CHECK(clone_placement.flags&FLAG(_new_object_never_automatically_delete_bit),"clone became automatic cleanup loot");
   return 0;
  }
+ if (!strncmp(argv[1], "place-", 6)) {
+  char const *name=argv[1]+6;
+  long source=reset(),copy;
+  struct test_object *object=get(source);
+  forge_viewer=make(8,1);
+  object->object.type=_object_type_vehicle;
+  object->object.position.z=1.0f;
+  object->object.bounding_sphere_center.z=1.25f;
+  object->object.bounding_sphere_radius=7.0f;
+  physics.mass_points.count=1;
+  physics.mass_points.address=&mass_point;
+  mass_point.position.z=-.35f;
+  mass_point.radius=.25f;
+  forge_probe=forge_hit_found=TRUE;
+  forge_hit.type=_collision_result_object;
+  forge_hit.object_index=source;
+  CHECK(cheat_forge_place()==NONE,"placed without selection");
+  CHECK(cheat_forge_pick(),"visible native object could not be picked");
+  forge_hit.type=_collision_result_structure;
+  forge_hit.point.x=12.0f;
+  forge_hit.point.y=-2.0f;
+  forge_hit.plane.n.k=1.0f;
+  if (!strcmp(name,"empty")) forge_hit_found=FALSE;
+  if (!strcmp(name,"wall")) forge_hit.plane.n.k=0.0f;
+  if (!strcmp(name,"object")) forge_hit.type=_collision_result_object;
+  if (!strcmp(name,"occupied")) nearby=TRUE;
+  if (!strcmp(name,"obstructed")) sphere_blocked=TRUE;
+  if (!strcmp(name,"outside")) clone_destination_outside=TRUE;
+  if (!strcmp(name,"stale")) identifiers[source&65535]+=0x10000;
+  if (!strcmp(name,"restore")) cheats_forge_reset();
+  if (!strcmp(name,"client")) connection=1;
+  copy=cheat_forge_place();
+  if (!strcmp(name,"clear")) {
+   CHECK(copy!=NONE&&new_count==1,"visible clear floor did not accept copy");
+   CHECK(clone_placement.position.x==12.0f&&clone_placement.position.y==-2.0f&&
+    fabsf(clone_placement.position.z-.66f)<.0001f,"vehicle used model radius instead of its floor contact");
+   CHECK(object->object.position.z==1.0f&&cheat_forge_undo()&&get(source)&&!get(copy),
+    "pick/place/undo changed the original or left the copy");
+  } else {
+   CHECK(copy==NONE&&!new_count,"invalid aim placement created an object");
+  }
+  return 0;
+ }
  if(!strncmp(argv[1],"undo-",5)) {
   char const *name=argv[1]+5;
   long source=reset(),first,copy;
@@ -470,7 +573,7 @@ int main(int argc,char **argv) {
   if(!strcmp(name,"claimed")) placed->object.name_index=7;
   if(!strcmp(name,"stale")) identifiers[copy&65535]+=0x10000;
   if(!strcmp(name,"pending-delete")) clone_header.flags=FLAG(_object_header_being_deleted_bit);
-  if(!strcmp(name,"restore")) cheats_forge_forget_copy();
+  if(!strcmp(name,"restore")) cheats_forge_reset();
   if(!strcmp(name,"client")) connection=1;
   if(!strcmp(name,"permission")) clone_refused=TRUE;
   if(!strcmp(name,"latest")) {
