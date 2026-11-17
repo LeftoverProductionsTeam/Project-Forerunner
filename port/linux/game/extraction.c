@@ -18,6 +18,8 @@
 #include "cutscene/cinematics.h"
 #include "game_modes.h"
 #include "interface/hud_messaging.h"
+#include "sound/game_sound.h"
+#include "sound/sound_definitions.h"
 #include "gear.h"
 #include "interface/player_ui.h"
 #include "objects/objects.h"
@@ -102,7 +104,7 @@ struct extraction_run
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
-	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning;
+	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
@@ -271,6 +273,72 @@ boolean extraction_script_notice(char const *name, short message_index)
 		platform_log("extraction: squad notices require a nonempty plain-text HMT message, printable ASCII, at most 127 characters");
 	}
 	object_list_delete(list);
+	return TRUE;
+}
+
+boolean extraction_script_radio(char const *name, long sound)
+{
+	short squad, members = 0, machine_count = 0, index, other;
+	long list, reference, object;
+	long players[EXTRACTION_SQUAD_MEMBERS], machines[EXTRACTION_SQUAD_MEMBERS];
+	boolean play_here = FALSE, delivered = FALSE;
+	char query[32];
+	if (!name) return FALSE;
+	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+	{
+		snprintf(query, sizeof(query), "forerunner_squad_%02d_radio", squad + 1);
+		if (!strcmp(name, query)) break;
+	}
+	if (squad == NUMBEROF(extraction.squads)) return FALSE;
+	snprintf(query, sizeof(query), "forerunner_squad_%02d_players", squad + 1);
+	extraction_script_players(query, &list);
+	if (list == NONE) return TRUE;
+	/* One shared audio output cannot privately address only one split-screen
+	 * view. A machine with any other active player must not hear this radio. */
+	for (object = object_list_get_first(list, &reference); object != NONE; object = object_list_get_next(list, &reference))
+	{
+		struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(object, _object_mask_biped);
+		struct player_datum *player = unit ? player_try_and_get(unit->unit.player_index) : NULL;
+		long machine;
+		if (!player || members == NUMBEROF(players)) continue;
+		players[members++] = unit->unit.player_index;
+		machine = VALID_INDEX(player->local_player_index, MAXIMUM_NUMBER_OF_LOCAL_PLAYERS) ? NONE :
+			distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index));
+		if (machine == NONE && !VALID_INDEX(player->local_player_index, MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)) continue;
+		for (index = 0; index < machine_count && machines[index] != machine; index++) ;
+		if (index == machine_count) machines[machine_count++] = machine;
+	}
+	object_list_delete(list);
+	if (!members || !distributed_tag_of_group(sound, SOUND_DEFINITION_TAG)) return TRUE;
+	for (index = 0; index < machine_count; index++)
+	{
+		struct data_iterator iterator;
+		struct player_datum *player;
+		boolean permitted = TRUE;
+		data_iterator_new(&iterator, player_data);
+		while ((player = data_iterator_next(&iterator)) != NULL)
+		{
+			boolean local = VALID_INDEX(player->local_player_index, MAXIMUM_NUMBER_OF_LOCAL_PLAYERS);
+			if (player->quit_out_of_game || (machines[index] == NONE ? !local :
+				(local || distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index)) != machines[index]))) continue;
+			for (other = 0; other < members && players[other] != iterator.datum_index; other++) ;
+			if (other == members) { permitted = FALSE; break; }
+		}
+		if (!permitted)
+		{
+			if (!extraction.squad_radio_warning)
+			{
+				extraction.squad_radio_warning = TRUE;
+				platform_log("extraction: private squad radio withheld from a machine with other local participants");
+			}
+			continue;
+		}
+		if (machines[index] == NONE) play_here = delivered = TRUE;
+		else delivered |= network_coop_private_sound(machines[index], sound);
+	}
+	/* Preserve native script timing, but never play or broadcast on the host
+	 * when only a remote operation is listening. Client playback stays native. */
+	if (delivered) scripted_sound_new_private(sound, play_here);
 	return TRUE;
 }
 

@@ -95,6 +95,9 @@ static boolean extraction_script_players(char const *name,long *list){return FAL
 static boolean extraction_script_notice(char const *name,short message){
  notice_calls++;notice_value=message;snprintf(notice_name,sizeof(notice_name),"%s",name);return TRUE;
 }
+static short radio_calls;
+static long radio_value;
+static boolean extraction_script_radio(char const *name,long sound){radio_calls++;radio_value=sound;return TRUE;}
 static boolean mcc_hs_script_evaluate(short script,long thread,boolean initialize){return FALSE;}
 static struct { struct { struct hs_script elements[1]; } hs_scripts; } fake_scenario;
 #define global_scenario_get() (&fake_scenario)
@@ -427,6 +430,17 @@ int main(int argc, char **argv)
 
 	world_new();
 
+	if(!strcmp(case_name,"script-radio"))
+	{
+		struct hs_script *script=&fake_scenario.hs_scripts.elements[0];
+		long value=0x12340001;
+		strcpy(script->name,"forerunner_squad_01_radio");
+		script->script_type=_hs_script_static;script->return_type=_hs_type_sound;
+		script->root_expression_index=constant_node(_hs_type_sound,value);
+		CHECK(evaluate(node_new(_hs_type_sound,0,FLAG(_hs_syntax_node_script_bit),NONE))==value,"sound handle narrowed or changed");
+		CHECK(radio_calls==1&&radio_value==value&&!notice_calls,"radio completion missing/duplicated/wrong type");
+		return 0;
+	}
 	if(!strncmp(case_name,"script-notice",13))
 	{
 		struct hs_script *script=&fake_scenario.hs_scripts.elements[0];

@@ -214,6 +214,7 @@ static void print_spark_capabilities(void)
 	server_json_array_begin(&json, "native_features");
 	server_json_string(&json, NULL, "extraction.squad_objectives.v1");
 	server_json_string(&json, NULL, "extraction.squad_notices.v1");
+	server_json_string(&json, NULL, "extraction.squad_radio.v1");
 	server_json_array_end(&json);
 #endif
 	/* Optional local startup metadata, not a gameplay or editing operation. */

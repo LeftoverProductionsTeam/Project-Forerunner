@@ -3083,6 +3083,8 @@ static void hs_script_evaluate(
 		 * host-owned squad/notice path delivers it without a global HUD write. */
 		if (script->script_type == _hs_script_static && script->return_type == _hs_type_hud_message)
 			extraction_script_notice(script->name, (short)*result);
+		else if (script->script_type == _hs_script_static && script->return_type == _hs_type_sound)
+			extraction_script_radio(script->name, *result);
 		hs_return(thread_index, *result);
 	}
 

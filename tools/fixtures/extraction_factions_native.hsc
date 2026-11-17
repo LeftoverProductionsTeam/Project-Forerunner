@@ -42,3 +42,7 @@
 (script static hud_message forerunner_squad_02_notice
   (if (= (device_group_get extraction_squad_02_ready) 1) sq02_return sq02_recover)
 )
+
+; Native sample voices test audience/timing, not finished mission dialogue.
+(script static sound forerunner_squad_01_radio "sound\dialog\sargeant\conditional\combat2\shouting\newenemyrecentcombat")
+(script static sound forerunner_squad_02_radio "sound\dialog\sargeant\conditional\combat2\shouting\newcombatalone")

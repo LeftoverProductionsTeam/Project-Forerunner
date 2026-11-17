@@ -143,7 +143,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', [
     'global-living', 'global-deleted', 'global-read-as-none', 'slot-reused', 'returned-deleted',
     'returned-to-volume-test', 'passthrough-deleted', 'returned-living', 'deleted-during-arguments', 'cast-to-list',
-    'script-notice', 'script-notice-ordinary', 'script-notice-other-type', 'script-notice-disabled',
+    'script-radio', 'script-notice', 'script-notice-ordinary', 'script-notice-other-type', 'script-notice-disabled',
     'names', 'other-values', 'list-walk', 'list-first-deleted', 'list-middle-deleted', 'list-last-deleted',
     'list-all-deleted', 'list-get-and-count', 'list-volume-any', 'list-volume-all', 'list-collected', 'kill-none',
     'kill-living', 'scenery-none', 'scenery-living'])

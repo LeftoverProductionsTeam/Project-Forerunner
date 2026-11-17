@@ -19,7 +19,7 @@ editing operation, native-map authoring requirement or protocol version changed.
 Spark can consume the x64 discovery response; this is not VR/editor-map acceptance.
 Exact source/binary identity and sparse-sample rejection are in `TEST_EVIDENCE.md`.
 
-Current native gameplay checkpoint, 15 November: two real Delta accounts complete
+Historical native gameplay checkpoint, 15 November: two real Delta accounts complete
 the owned CE fixture's combat/escape/bank/process-restart/redeployment path, with
 matching final equipment on both clients. One host/five independent clients also
 pass bounded player/AI/item encounter checks. Spark's finished map, independent
@@ -560,6 +560,53 @@ inspected PNGs, 109 synchronized seconds). Full Black Echo, older clients,
 localized/icon text and other platforms remain unverified. Spark next: emit
 these standard HSC helpers, native HMT text and transition calls through existing
 mission authoring; the complete combined aircraft mission handoff stays open.
+
+Squad mission-radio extension (`extraction.squad_radio.v1`): require this feature
+through existing discovery and emit a standard zero-argument static sound helper,
+e.g. `(script static sound forerunner_squad_01_radio "sound\\dialog\\owned_cue")`.
+Call it at the authored mission transition, alongside the corresponding notice.
+Native HSC evaluates the tag normally; `hs_runtime.c::hs_script_evaluate` then
+calls `extraction_script_radio`. The return value remains the original sound tag.
+Other scripts and ordinary `sound_impulse_start` remain unchanged. No new opcode.
+
+The existing living/verified/current-operation query owns recipients. Each full
+remote-machine handle receives one existing numbered impulse event, not one per
+member. Every active local player on a receiving machine must be in the eligible
+audience; mixed split-screen machines are withheld with one map diagnostic.
+This is a shared audio-output limit, not independent audio per local viewport.
+Invalid/unloaded sound tags and unavailable audiences do not play.
+
+`network_coop.c::{network_coop_private_sound,host_send_events}` keeps audience
+metadata host-only, preserves ordinary broadcast's fast path and the existing
+three-send bounded event queue. Nonrecipients receive an empty impulse with the
+same number, preserving sequence wrap without exposing the sound tag. Existing
+clients ignore it. Reused/disconnected machine handles cannot inherit private
+cues. This is the inherited best-effort event transport, not a new acknowledged
+audio protocol. `game_sound.c::scripted_sound_new_internal` remains the one native
+playback/timing implementation. The host updates native per-tag script time for
+remote-only cues without playing them locally. Native per-tag timing is shared;
+this does not create separate per-squad copies of one sound's script timer.
+
+Two authenticated Windows/OpenGL processes pass actual recovery/completion cue
+routing and native sound-instance creation (two intended instances per machine,
+none on the opposite machine, 119 synchronized player seconds):
+`build/native-delta-squad-mission-radio-final/result.json`. The trace is enabled
+only by existing `debug.network_test`. SDL dummy output was used; physical audio,
+final faction dialogue, other platforms and full Black Echo stay unverified.
+No microphone, capture, voice settings, renderer or inventory path is added.
+
+Latest actual Black Echo handoff: read-only Spark `54c1984` documents the complete
+combined source/native milestone in `docs/RUNTIME_INTEGRATION_20261107.md`,
+parent `5a7a53a29f803a8832bf0008efa10a164473b049`. Production revised CE609 hashes:
+Pelican `31505afb15da14ff32af694afecc28362ff911bd6df6b79778195493c6c3ebab`;
+Spirit `2d6b31b57f43a33a244884a0e1dbfd702b1df9ae26e24f3358e03d989df0b176`.
+Spark records QA28356/run-tRm24j as closed with its root absent. Those caches and
+saved browser build inputs were disposable; no retained final export path is
+identified in that checkpoint. This does not establish a delivered runtime candidate. Spark next: make the reviewed final cache plus its exact
+mission/controller source and build inputs available through the existing native
+export/handoff, with those hashes or a clearly identified newer reviewed revision.
+Forerunner must load that delivery; it must not recreate Spark's editor, rebuild
+Spark or substitute its regression fixture for the complete mission.
 
 Squad guidance reuses native unit-targeted nav points, not team markers (two
 squads may share a faction). For example, after checking the query is nonempty:

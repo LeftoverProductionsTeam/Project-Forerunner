@@ -25,7 +25,7 @@ static struct looping_sound_definition *looping_sound_definition_get(long index)
 }
 static boolean distributed_tag_of_group(long tag_index,unsigned long group)
 {
- return group==LOOPING_SOUND_DEFINITION_TAG&&tag_index>=0&&tag_index<DEFINITIONS;
+ return (group==LOOPING_SOUND_DEFINITION_TAG||group==SOUND_DEFINITION_TAG)&&tag_index>=0&&tag_index<DEFINITIONS;
 }
 static boolean network_objects_client_has(long object_index){(void)object_index;return FALSE;}
 
@@ -88,7 +88,8 @@ static boolean is_playing(long definition_index){return definitions[definition_i
 
 /* the client's impulse sounds, which these cases don't send */
 static struct {long definition_indices[CLIENT_SCRIPT_SOUND_COUNT];short next;} client_script_sounds;
-static void scripted_sound_new(long tag,long object,real scale){(void)tag;(void)object;(void)scale;}
+static int impulse_calls;
+static void scripted_sound_new(long tag,long object,real scale){CHECK(tag==0&&object==NONE&&scale==1.f,"wrong native impulse payload");impulse_calls++;}
 
 #include "under_test.inc"
 
@@ -121,7 +122,13 @@ int main(int argc,char **argv)
 {
  char const *name=argc>1?argv[1]:"";
  setup();
- if(!strcmp(name,"played-out"))
+ if(!strcmp(name,"private-impulse")) {
+  struct distributed_coop_event e={0};e.type=_coop_sound_impulse;e.tag_index=NONE;e.object_index=NONE;
+  client_apply_sound(&e);CHECK(!impulse_calls&&!client_script_sounds.next,"redacted private event played/recorded a sound");
+  e.tag_index=0;e.reals[0]=1.f;client_apply_sound(&e);
+  CHECK(impulse_calls==1&&client_script_sounds.next==1&&client_script_sounds.definition_indices[0]==0,"private impulse did not use native client playback/history");
+ }
+ else if(!strcmp(name,"played-out"))
  {
   /* the cutscene's sound starts, plays to its end here, and the host, whose copy never ends, resends it */
   send(_coop_sound_looping_start,ONCE);

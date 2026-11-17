@@ -90,9 +90,10 @@ def test_reference_client_requires_native_squad_features(runtime):
     from spark_runtime import discover
 
     _, executable = runtime
-    reply = discover(executable, required_features=["extraction.squad_objectives.v1", "extraction.squad_notices.v1"])
+    reply = discover(executable, required_features=["extraction.squad_objectives.v1", "extraction.squad_notices.v1", "extraction.squad_radio.v1"])
     assert "extraction.squad_objectives.v1" in reply["native_features"]
     assert "extraction.squad_notices.v1" in reply["native_features"]
+    assert "extraction.squad_radio.v1" in reply["native_features"]
 
 
 def test_reference_client_refuses_unknown_native_feature(runtime):

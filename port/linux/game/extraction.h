@@ -29,6 +29,9 @@ boolean extraction_script_players(char const *name, long *object_list);
 /* Ordinary static hud_message helpers notify only this operation's eligible
  * squad participants after native HSC evaluation. Return value stays native. */
 boolean extraction_script_notice(char const *name, short message_index);
+/* Native sound-returning HSC helper; entire receiving machine must belong to
+ * the eligible audience. No microphone use or new voice protocol. */
+boolean extraction_script_radio(char const *name, long sound);
 /* TRUE handles a real host-owned wipe without rewinding the world. If allocation
    fails, the caller retains its native loss timer and retries. */
 boolean extraction_respawn_after_loss(void);

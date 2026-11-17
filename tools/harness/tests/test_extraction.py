@@ -202,6 +202,9 @@ def test_starter_deployment_negative_control():
 
 @pytest.mark.parametrize('case', [
     'squad-query-loop', 'squad-query-state', 'squad-query-policy', 'squad-query-storage',
+    'squad-radio-cue-loop', 'squad-radio-cue-shared', 'squad-radio-cue-local-shared',
+    'squad-radio-cue-local-mixed', 'squad-radio-cue-remote-mixed', 'squad-radio-cue-owner',
+    'squad-radio-cue-client', 'squad-radio-cue-invalid', 'squad-radio-cue-remote-full',
     'squad-notice-loop', 'squad-notice-shared', 'squad-notice-owner', 'squad-notice-policy',
     'squad-notice-death', 'squad-notice-epoch', 'squad-notice-client', 'squad-notice-restored',
     'squad-notice-storage', 'squad-notice-text', 'squad-notice-icon', 'squad-notice-bounds',

@@ -109,6 +109,8 @@ symbols in this file:
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
 #include "sound/game_sound.h"
+#include "../../port/linux/src/port_config.h" /* port: existing bounded native network-test trace */
+void platform_log(char const *format, ...); /* port: existing native diagnostic logger */
 #include "sound/sound_classes.h"
 #include "sound/sound_definitions.h"
 #include "sound/sound_manager.h"
@@ -537,10 +539,23 @@ enum
 };
 void network_coop_note_sound(short kind, long definition_index, long object_index, real scale);
 
-void scripted_sound_new(
+/* port: existing native network-test logs observe actual script playback.
+ * No new setting, packet, audio capture or microphone access. */
+static void scripted_sound_trace(long definition_index, boolean play_here, long sound_index)
+{
+	if (config_string("debug.network_test")[0])
+		platform_log("network test: script impulse %ld local %d sound %ld tag %s",
+			game_time_get(), play_here, sound_index, tag_get_name(definition_index));
+}
+
+/* port: the same native impulse/timing path serves ordinary script sounds
+ * and machine-private operation radio. No second sound playback engine. */
+static void scripted_sound_new_internal(
 	long definition_index,
 	long source_object_index,
-	real scale)
+	real scale,
+	boolean broadcast,
+	boolean play_here)
 {
 	struct sound_definition *definition;
 	struct object_marker marker;
@@ -550,11 +565,16 @@ void scripted_sound_new(
 
 	if (definition_index != NONE)
 	{
-		network_coop_note_sound(_coop_sound_impulse, definition_index, source_object_index, scale);
+		if (broadcast) network_coop_note_sound(_coop_sound_impulse, definition_index, source_object_index, scale);
 		definition = sound_definition_get(definition_index);
-		sound_stop_impulse(definition->scripting_sound_index);
 		definition->scripting_time = game_time_get()
 			+ (long)definition->longest_permutation_length * TICKS_PER_SECOND / 1000;
+		if (!play_here)
+		{
+			scripted_sound_trace(definition_index, FALSE, NONE);
+			return;
+		}
+		sound_stop_impulse(definition->scripting_sound_index);
 		scale = PIN(scale, 0.f, 1.f);
 		if (source_object_index != NONE)
 		{
@@ -592,9 +612,22 @@ void scripted_sound_new(
 			impulse_sound_index = unspatialized_impulse_sound_new(definition_index, scale);
 		}
 		definition->scripting_sound_index = impulse_sound_index;
+		if (source_object_index == NONE) scripted_sound_trace(definition_index, TRUE, impulse_sound_index);
 	}
 
 	return;
+}
+
+void scripted_sound_new(long definition_index, long source_object_index, real scale)
+{
+	scripted_sound_new_internal(definition_index, source_object_index, scale, TRUE, TRUE);
+}
+
+/* port: recipient transport is owned by existing co-op events. The host's
+ * authored sound_impulse_time remains native even for remote-only radio. */
+void scripted_sound_new_private(long definition_index, boolean play_here)
+{
+	scripted_sound_new_internal(definition_index, NONE, 1.f, FALSE, play_here);
 }
 
 long scripted_sound_time(

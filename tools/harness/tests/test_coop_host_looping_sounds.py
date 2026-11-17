@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run, structure
+from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 
 # a fault in network_coop.c, the function it is in, and the case that must catch it
 NEGATIVE_CONTROLS = {
@@ -36,7 +36,12 @@ def generated(fault=None, faulty_function=None):
     sound = read('source/sound/game_sound.c')
     definitions = read('source/sound/sound_definitions.h')
     tags = read('source/tag_files/tag_groups.h')
-    types = structure(coop, 'distributed_coop_event') + '\n'
+    net = read('port/linux/game/network_distributed.h')
+    types = '#define MAXIMUM_QUEUED_EVENTS %d\n#define EVENT_SENDS %d\n' % (
+        constant(coop, 'MAXIMUM_QUEUED_EVENTS'), constant(coop, 'EVENT_SENDS'))
+    types += structure(net, 'distributed_message_header') + '\n'
+    types += structure(coop, 'distributed_coop_event') + '\n'
+    types += structure(coop, 'distributed_coop_events_message') + '\n'
     types += enum_with(coop, '_coop_event_sound') + '\n'
     types += enum_with(read('port/linux/game/network_distributed.h'), '_coop_sound_impulse') + '\n'
     types += enum_with(definitions, '_looping_sound_fake_impulse_sound_bit') + '\n'
@@ -59,11 +64,17 @@ def generated(fault=None, faulty_function=None):
     for name in ('unattached_looping_sound_stop', 'scripted_looping_sound_stop_internal', 'scripted_looping_sound_stop',
                  'unattached_looping_sound_start', 'scripted_looping_sound_start'):
         code += function(sound, name) + '\n'
-    return (('types.inc', types), ('under_test.inc', code))
+    queue = re.search(r'^static struct\n\{\n\tstruct distributed_coop_event events\[MAXIMUM_QUEUED_EVENTS\];.*?^} coop_events;', coop, re.M | re.S)
+    assert queue
+    queue_code = queue.group(0) + '\n' + '\n'.join(function(coop, name) for name in (
+        'event_new', 'host_send_events', 'network_coop_private_sound'))
+    audio_code = '\n'.join(function(sound, name) for name in (
+        'scripted_sound_trace', 'scripted_sound_new_internal', 'scripted_sound_new', 'scripted_sound_new_private', 'scripted_sound_time'))
+    return (('types.inc', types), ('under_test.inc', code), ('event_queue.inc', queue_code), ('impulse.inc', audio_code))
 
 
 @pytest.mark.parametrize('case', ['length', 'ended', 'not-resent-near-end', 'drawing-host', 'music', 'no-length',
-                                  'started-again', 'queue-full', 'resent-time'])
+                                  'started-again', 'queue-full', 'resent-time', 'private-events', 'private-slot', 'private-audio', 'ordinary-impulse'])
 def test_host_looping_sounds(case):
     status, output = run(build('coop_host_looping_sounds', generated()), case)
     assert status == 0, output

@@ -163,5 +163,8 @@ boolean network_coop_skip_vote_status(short *votes, short *voters, boolean *vote
 
 /* (a client) the host's newer checkpoint epoch: network_coop.c */
 void network_coop_checkpoint_reset(void);
+/* Existing numbered impulse event for one full client-machine handle.
+ * Host-only recipient metadata never changes the classic wire layout. */
+boolean network_coop_private_sound(long machine, long definition_index);
 
 #endif

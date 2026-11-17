@@ -16,7 +16,53 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current squad-authored operation notices (source base `4727bd47ef`): standard
+Current native squad mission radio (source base `3ed2916704`): ordinary static
+`sound` helpers `forerunner_squad_01_radio`, etc. now play native authored cues
+only for eligible living/verified current-operation participants. Existing
+Extraction queries choose the audience; machines with any other local player
+are withheld. Existing co-op event resends carry host-only full-machine audience
+metadata; other clients receive empty impulses with the same event number.
+This preserves existing sequence/wrap and wire layout. Native impulse playback
+and script timing share one implementation; radio has no microphone access or
+second VOIP path. Discovery adds `extraction.squad_radio.v1`.
+
+Windows64 compile/link PASS (`build/squad-radio-final-build.log`). Existing
+harnesses pass 29 affected Extraction/query cases, 47 interpreter cases, 21 host
+audio/event cases, 16 client audio cases and compiled discovery (114 total).
+Coverage includes mixed local audiences, queue compaction/fullness, reconnect
+handles, sequence wrap, no-op recipients, native timing and ordinary playback.
+The new playback trace uses the existing debug.network_test setting only.
+Initial trace compilation exposed game/platform header boundaries; the final
+source uses the existing native logger declaration, without Linux host headers.
+
+`build/native-delta-squad-mission-radio-final/result.json` accepts two verified
+Delta accounts deploying through native controls and physically completing
+their separate HSC objectives. Each squad's recovery/completion cue creates
+exactly two native sound instances only on its own machine. The client never
+plays Squad 01; the host explicitly withholds Squad 02 playback while preserving
+host script timing. Player comparison: 119 seconds/238 observations, zero
+divergence. This uses SDL's software dummy output, not physical listening or VR.
+The first native attempt completed objectives, but guest console timer probes
+were refused by host-authority policy; that attempt is explicitly audio-unverified.
+No guard was weakened. Final native trace closes process-level playback routing.
+
+Binary SHA-256: `96d92b7b7dcde476d4f4af950c06fad38d2e1053e8504496b660453fc7493091`.
+Disposable CE609 cache SHA-256:
+`432602b7e40f96891827c7e499156c1f5d3c3a0c012922a9bbd71816260e77e2`.
+Original accounts/accepted cache unchanged. Owned processes/runtime/map copies,
+derived cache and discovery scratch cleaned; exact previous/current four-file
+native authoring snapshots and compact evidence retained.
+
+Read-only Spark `54c1984` now records complete combined Pelican/Spirit source/
+CE609 compilation, not merely the older radio recipe. Production revised hashes
+`31505afb...c3ebab` (Pelican) and `2d6b31b5...0b176` (Spirit) belong to disposed
+QA28356/run-tRm24j output. No retained final cache/saved build-input handoff is identified
+in that checkpoint. The contract requests that exact reviewed handoff through existing
+exports; no Spark rebuild or write. Full mission/aircraft human acceptance, six
+authenticated clients, physical audio and other platforms remain open. No hosted
+jobs, budget change or push; the complete engine goal remains active.
+
+Previous squad-authored operation notices (source base `4727bd47ef`): standard
 CE609 static `hud_message` helpers named `forerunner_squad_01_notice`, etc.
 evaluate native HSC normally, then deliver that HMT message through the existing
 authoritative squad query and personal notice path. Discovery adds

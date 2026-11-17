@@ -75,6 +75,8 @@ void scripted_sound_new(
 	long definition_index,
 	long source_object_index,
 	real scale);
+/* port: existing native playback/timing without a second broadcast. */
+void scripted_sound_new_private(long definition_index, boolean play_here);
 void scripted_sound_stop(
 	long sound_index);
 long scripted_sound_time(

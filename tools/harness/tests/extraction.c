@@ -376,6 +376,12 @@ static struct hud_state_message_definition notice_message={.element_count=1};
 static struct hud_message_text_definition notice_text;
 #define HUD_MESSAGE_TEXT_DEFINITION_GET(index) (&notice_text)
 static void *tag_data_get_pointer(struct tag_data *d,long offset,long size){return (byte *)d->address+offset;}
+#define SOUND_DEFINITION_TAG 0x736e6421UL
+static int private_radio_calls,private_radio_played,private_radio_remote;
+static boolean radio_queue_full;
+static boolean distributed_tag_of_group(long tag,unsigned long group){return group==SOUND_DEFINITION_TAG&&tag==91;}
+static boolean network_coop_private_sound(long machine,long sound){CHECK(machine==1&&sound==91,"wrong private radio");if(radio_queue_full)return FALSE;private_radio_remote++;return TRUE;}
+static void scripted_sound_new_private(long sound,boolean play){CHECK(sound==91,"wrong native radio definition");private_radio_calls++;private_radio_played+=play;}
 #include "notice_hud.inc"
 #include "extraction.inc"
 static struct object_datum *object_get(long index) {return (struct object_datum *)unit_get(index);}
@@ -646,6 +652,29 @@ int main(int argc,char **argv)
   }
   if(!strcmp(case_name,"squad-leave")) {
    touch(5,0);CHECK(run(0)->squad==NONE&&run(0)->gear.record.phase==_gear_idle,"leave changed gear ownership or retained membership");return 0;
+  }
+  if(!strncmp(case_name,"squad-radio-cue",15)) {
+   long sound=91;
+   CHECK(!extraction_script_radio("ordinary_radio",sound),"ordinary sound script intercepted");
+   CHECK(extraction_script_radio("forerunner_squad_01_radio",sound)&&!private_radio_calls,"undeployed radio");
+   touch(strstr(case_name,"shared")?5:6,1);touch(0,0);touch(0,1);
+   if(strstr(case_name,"local"))players[1].local_player_index=1;
+   if(strstr(case_name,"remote-mixed")){active_players=3;players[2].local_player_index=NONE;}
+   if(strstr(case_name,"owner"))profile=FALSE;
+   if(strstr(case_name,"client"))connection=_game_connection_network_client;
+   if(strstr(case_name,"invalid"))sound=NONE;
+   if(strstr(case_name,"full"))radio_queue_full=TRUE;
+   if(strstr(case_name,"remote"))extraction_script_radio("forerunner_squad_02_radio",sound);
+   else extraction_script_radio("forerunner_squad_01_radio",sound);
+   if(!strcmp(case_name,"squad-radio-cue-loop")) {
+    CHECK(private_radio_calls==1&&private_radio_played==1&&!private_radio_remote,"host radio broadcast");
+    extraction_script_radio("forerunner_squad_02_radio",sound);
+    CHECK(private_radio_calls==2&&private_radio_played==1&&private_radio_remote==1,"remote radio heard on host or missing");
+   } else if(strstr(case_name,"shared")) {
+    CHECK(private_radio_calls==1&&private_radio_played==1&&private_radio_remote==(!strstr(case_name,"local")),"same squad local/remote duplicate audio");
+   } else CHECK(!private_radio_calls&&!private_radio_played&&!private_radio_remote,"private radio escaped eligible machine scope");
+   for(i=0;i<8;i++)CHECK(!list_used[i],"radio list leaked");
+   return 0;
   }
   if(!strncmp(case_name,"squad-notice",12)) {
    int before_local,before_remote;long list;

@@ -515,6 +515,8 @@ static struct
 {
 	struct distributed_coop_event events[MAXIMUM_QUEUED_EVENTS];
 	short sends[MAXIMUM_QUEUED_EVENTS];
+	/* Full machine handles are host-only; NONE retains ordinary broadcast. */
+	long audience[MAXIMUM_QUEUED_EVENTS];
 	short count;
 	word next_number;
 	word applied_number;
@@ -777,6 +779,7 @@ static struct distributed_coop_event *event_new(
 	event->definition_index = NONE;
 	event->name_index = NONE;
 	coop_events.sends[coop_events.count] = 0;
+	coop_events.audience[coop_events.count] = NONE;
 	coop_events.count++;
 
 	return event;
@@ -786,12 +789,45 @@ static void host_send_events(
 	void)
 {
 	struct distributed_coop_events_message message;
-	short index;
+	short index, machine, count;
+	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+	boolean private_events = FALSE;
 
 	if (!coop_events.count)
 		return;
-	csmemcpy(message.events, coop_events.events, coop_events.count * sizeof(message.events[0]));
-	send_to_clients(&message, _distributed_message_coop_events, coop_events.count, sizeof(message.events[0]));
+	for (index = 0; index < coop_events.count; index++)
+		private_events |= coop_events.audience[index] != NONE;
+	if (!private_events)
+	{
+		csmemcpy(message.events, coop_events.events, coop_events.count * sizeof(message.events[0]));
+		send_to_clients(&message, _distributed_message_coop_events, coop_events.count, sizeof(message.events[0]));
+	}
+	else
+	{
+		count = distributed_client_machines(machines, NUMBEROF(machines));
+		for (machine = 0; machine < count; machine++)
+		{
+			for (index = 0; index < coop_events.count; index++)
+			{
+				struct distributed_coop_event *entry = &message.events[index];
+				*entry = coop_events.events[index];
+				if (coop_events.audience[index] != NONE && coop_events.audience[index] != machines[machine])
+				{
+					word number = entry->number;
+					/* Preserve the existing sequence, including wrap, without
+					 * exposing another squad's sound tag or emitting a sound.
+					 * Existing clients ignore an impulse with no definition. */
+					csmemset(entry, 0, sizeof(*entry));
+					entry->number = number; entry->kind = _coop_event_sound;
+					entry->type = _coop_sound_impulse;
+					entry->object_index = entry->target = entry->tag_index = entry->definition_index = NONE;
+					entry->name_index = NONE;
+				}
+			}
+			distributed_send_to_machine(machines[machine], &message, _distributed_message_coop_events,
+				coop_events.count, (word)(sizeof(message.header) + coop_events.count * sizeof(message.events[0])));
+		}
+	}
 	/* drop the ones sent EVENT_SENDS times, keeping the rest in order */
 	for (index = 0; index < coop_events.count; )
 	{
@@ -805,6 +841,8 @@ static void host_send_events(
 			(coop_events.count - index) * sizeof(coop_events.events[0]));
 		csmemmove(&coop_events.sends[index], &coop_events.sends[index + 1],
 			(coop_events.count - index) * sizeof(coop_events.sends[0]));
+		csmemmove(&coop_events.audience[index], &coop_events.audience[index + 1],
+			(coop_events.count - index) * sizeof(coop_events.audience[0]));
 	}
 }
 
@@ -2908,6 +2946,17 @@ static void host_send_looping_sounds(
 		}
 		index++;
 	}
+}
+
+boolean network_coop_private_sound(long machine, long definition_index)
+{
+	struct distributed_coop_event *event;
+	if (machine == NONE || !distributed_tag_of_group(definition_index, SOUND_DEFINITION_TAG)) return FALSE;
+	event = event_new(_coop_event_sound);
+	if (!event) return FALSE;
+	event->type = _coop_sound_impulse; event->tag_index = definition_index; event->reals[0] = 1.f;
+	coop_events.audience[coop_events.count - 1] = machine;
+	return TRUE;
 }
 
 void network_coop_note_sound(

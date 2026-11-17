@@ -34,7 +34,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', ['played-out', 'playing', 'started-again', 'late-joiner', 'music', 'no-room', 'stopped',
-                                  'joined-during', 'music-time', 'just-started'])
+                                  'joined-during', 'music-time', 'just-started', 'private-impulse'])
 def test_looping_sounds(case):
     status, output = run(build('coop_looping_sounds', generated()), case)
     assert status == 0, output

@@ -7,6 +7,8 @@ to play, and is not resent near that end, so that no client starts it again. */
 #include "harness.h"
 
 typedef unsigned short word;
+typedef word message_header;
+#define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define PIN(x,lo,hi) ((x)<(lo)?(lo):(x)>(hi)?(hi):(x))
 #define SET_FLAG(f,b,v) ((f)=(v)?(f)|(1U<<(b)):(f)&~(1U<<(b)))
@@ -15,6 +17,8 @@ typedef unsigned short word;
 #define TAG_BLOCK_GET_ELEMENT(block, index, type) (&((type *)(block)->address)[(index)])
 
 struct tag_block_definition;
+#define HALO_PORT_MAXIMUM_NETWORK_MACHINES 2
+#define _distributed_message_coop_events 7
 #include "types.inc"
 void network_coop_note_sound(short kind,long definition_index,long object_index,real scale);
 void scripted_looping_sound_stop(long sound_index);
@@ -22,7 +26,7 @@ void scripted_looping_sound_stop(long sound_index);
 /* the map's sounds: how long each plays in milliseconds, its linked permutations together
 (coop_sound_sync.c's coop_sound_sync_sound_milliseconds, test_coop_sound_sync.py) */
 enum {SHORT_SOUND=0,LONG_SOUND=1,NO_LENGTH=2,HUGE_SOUND=3,SOUNDS=4};
-struct sound_definition {long milliseconds;};
+struct sound_definition {long milliseconds,scripting_time,scripting_sound_index,longest_permutation_length;};
 static struct sound_definition sounds[SOUNDS];
 static long coop_sound_sync_sound_milliseconds(long index)
 {
@@ -76,7 +80,7 @@ boolean debug_no_drawing;
 static struct {boolean refresh;} host_resend;
 static struct distributed_coop_event sent[1024];
 static int sent_count,queue_full;
-static struct distributed_coop_event *event_new(byte kind)
+static struct distributed_coop_event *recorded_event_new(byte kind)
 {
  struct distributed_coop_event *event;
  if(queue_full||sent_count==1024)return NULL;
@@ -86,7 +90,53 @@ static struct distributed_coop_event *event_new(byte kind)
  return event;
 }
 
+/* Existing looping-sound tests isolate their event history. The additional
+ * queue checks below exercise the real sender and recipient metadata. */
+#define event_new recorded_event_new
 #include "under_test.inc"
+#undef event_new
+
+
+#define csmemset memset
+#define csmemcpy memcpy
+#define csmemmove memmove
+#define _error_silent 0
+static boolean host_enabled=TRUE;
+static int event_errors,wire_count[2],wire_broadcasts;
+static long test_machines[2]={0x10020,0x10021};
+static struct distributed_coop_event wire_events[2][MAXIMUM_QUEUED_EVENTS];
+static boolean coop_host(void){return host_enabled;}
+static boolean distributed_tag_of_group(long tag,unsigned long group){return group==SOUND_DEFINITION_TAG&&tag>=0&&tag<SOUNDS;}
+static void error(int level,char const *text,...){event_errors++;}
+static short distributed_client_machines(long *out,short capacity){CHECK(capacity>=2,"machine list truncated");memcpy(out,test_machines,sizeof(test_machines));return 2;}
+static void distributed_send_to_machine(long machine,void *packet,byte type,short count,word size){
+ int i=machine==test_machines[0]?0:1;struct distributed_coop_events_message *m=packet;
+ CHECK(type==_distributed_message_coop_events&&count<=MAXIMUM_QUEUED_EVENTS,"wrong existing event envelope");
+ CHECK(size==sizeof(m->header)+count*sizeof(m->events[0]),"event wire size changed");
+ memcpy(wire_events[i],m->events,count*sizeof(m->events[0]));wire_count[i]=count;
+}
+static void send_to_clients(void *m,byte type,short count,word entry_size){
+ CHECK(entry_size==sizeof(struct distributed_coop_event),"classic event layout changed");wire_broadcasts++;
+ for(int i=0;i<2;i++)distributed_send_to_machine(test_machines[i],m,type,count,(word)(sizeof(struct distributed_message_header)+count*entry_size));
+}
+#include "event_queue.inc"
+
+struct object_marker{short node_index;struct{real_point3d position;real_vector3d forward;}node_matrix;};
+static real_point3d origin;
+static real_vector3d forward;
+static real_point3d *global_origin3d=&origin;
+static real_vector3d *global_forward3d=&forward;
+static int impulse_plays,impulse_stops;
+static struct sound_definition *sound_definition_get(long index){CHECK(index>=0&&index<SOUNDS,"invalid native impulse definition");return &sounds[index];}
+static void sound_stop_impulse(long index){if(index!=NONE)impulse_stops++;}
+static int object_get_marker_by_name(long object,char const *name,struct object_marker *out,int count){return 0;}
+static long object_impulse_sound_new(long object,long tag,short node,real_point3d const *p,real_vector3d const *v,real scale){impulse_plays++;return 77;}
+static void object_type_notify_impulse_sound(long object,long tag,long sound){}
+static long unspatialized_impulse_sound_new(long tag,real scale){impulse_plays++;return 78;}
+static char const *config_string(char const *key){return "";}
+static char const *tag_get_name(long tag){return "owned/native/voice";}
+static void platform_log(char const *format,...){}
+#include "impulse.inc"
 
 static void setup(void)
 {
@@ -150,7 +200,45 @@ int main(int argc,char **argv)
 {
  char const *name=argc>1?argv[1]:"";
  setup();
- if(!strcmp(name,"length"))
+ if(!strcmp(name,"private-events")||!strcmp(name,"private-slot")) {
+  struct distributed_coop_event *e;
+  memset(&coop_events,0,sizeof(coop_events));coop_events.next_number=65534;
+  e=event_new(_coop_event_sound);e->type=_coop_sound_impulse;e->tag_index=SHORT_SOUND;
+  CHECK(network_coop_private_sound(test_machines[1],LONG_SOUND),"private event not queued");
+  e=event_new(_coop_event_sound);e->type=_coop_sound_impulse;e->tag_index=NO_LENGTH;
+  host_send_events();
+  CHECK(wire_count[0]==3&&wire_count[1]==3&&!wire_broadcasts,"private queue lost sequence entries or broadcast sound");
+  CHECK(wire_events[0][0].tag_index==SHORT_SOUND&&wire_events[0][2].tag_index==NO_LENGTH,"ordinary sound lost");
+  CHECK(wire_events[0][1].number==0&&wire_events[1][1].number==0&&wire_events[1][1].tag_index==LONG_SOUND,"private sequence wrap or audience failed");
+  CHECK(wire_events[0][1].kind==_coop_event_sound&&wire_events[0][1].tag_index==NONE&&wire_events[0][1].object_index==NONE&&wire_events[0][1].reals[0]==0,"private payload leaked to another machine");
+  if(!strcmp(name,"private-slot")){
+   test_machines[1]+=0x10000;host_send_events();
+   CHECK(wire_events[1][1].tag_index==NONE,"reconnected machine inherited private sound");host_send_events();
+   CHECK(!coop_events.count,"private queue not retired");
+   e=event_new(_coop_event_sound);e->tag_index=SHORT_SOUND;host_send_events();
+   CHECK(wire_broadcasts==1&&wire_events[0][0].tag_index==SHORT_SOUND,"retired audience polluted reused event slot");
+  } else {
+   coop_events.sends[0]=EVENT_SENDS-1;host_send_events();
+   CHECK(coop_events.count==2&&coop_events.audience[0]==test_machines[1]&&coop_events.audience[1]==NONE,"event compaction lost private audience");
+   host_send_events();CHECK(!coop_events.count,"private event did not age out");
+   coop_events.count=MAXIMUM_QUEUED_EVENTS;CHECK(!network_coop_private_sound(test_machines[1],SHORT_SOUND)&&event_errors==1,"queue overflow accepted");
+   coop_events.count=0;host_enabled=FALSE;CHECK(!network_coop_private_sound(test_machines[1],SHORT_SOUND),"client authored private event");
+   CHECK(!network_coop_private_sound(NONE,SHORT_SOUND)&&!network_coop_private_sound(test_machines[1],NONE),"invalid private destination/tag accepted");
+  }
+ }
+ else if(!strcmp(name,"private-audio")) {
+  sounds[LONG_SOUND].longest_permutation_length=4000;sounds[LONG_SOUND].scripting_sound_index=5;
+  scripted_sound_new_private(LONG_SOUND,FALSE);
+  CHECK(!sent_count&&!impulse_plays&&!impulse_stops&&scripted_sound_time(LONG_SOUND)==120,"remote-only radio broadcast, played/stopped locally or lost native timing");
+  scripted_sound_new_private(LONG_SOUND,TRUE);
+  CHECK(!sent_count&&impulse_plays==1&&impulse_stops==1&&scripted_sound_time(LONG_SOUND)==120,"local private radio duplicated/broadcast or lost native playback");
+ }
+ else if(!strcmp(name,"ordinary-impulse")) {
+  sounds[SHORT_SOUND].longest_permutation_length=2000;
+  scripted_sound_new(SHORT_SOUND,44,.5f);
+  CHECK(sent_count==1&&sent[0].object_index==44&&sent[0].reals[0]==.5f&&impulse_plays==1&&scripted_sound_time(SHORT_SOUND)==60,"ordinary native sound path changed");
+ }
+ else if(!strcmp(name,"length"))
  {
   /* the longest a sound that plays once can take: start and loop, 70 s */
   CHECK(looping_sound_play_once_ticks(ONCE)==70*TICKS_PER_SECOND,"%ld ticks",looping_sound_play_once_ticks(ONCE));
