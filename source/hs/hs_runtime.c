@@ -265,6 +265,7 @@ symbols in this file:
 #include "ai/ai_debug_scripting.h"
 #include "ai/ai_script.h"
 #include "hs/hs.h"
+#include "cache/cache_files.h"
 #include "hs/hs_library_internal.h"
 /* Empty reconstructed header removed; no declarations to include. */
 #include "hs/object_lists.h"
@@ -1911,11 +1912,27 @@ static boolean hs_object_type_can_cast(
 	return (actual_type_mask & desired_type_mask)==actual_type_mask;
 }
 
+/* port: CE-compiled seat calls may narrow (unit aircraft) to vehicle.
+   Only that CE conversion is accepted; hs_cast checks the live object type
+   before a native vehicle consumer can receive it. */
+static boolean hs_ce_unit_vehicle_cast(short actual_type, short desired_type)
+{
+#ifdef HALO_CUSTOM_EDITION
+	return actual_type == _hs_type_unit && desired_type == _hs_type_vehicle &&
+		cache_file_tags_are_ce();
+#else
+	return FALSE;
+#endif
+}
+
 boolean hs_can_cast(
 	short actual_type,
 	short desired_type)
 {
 	short object_type;
+
+	if (hs_ce_unit_vehicle_cast(actual_type, desired_type))
+		return TRUE;
 
 	{
 		/* port: MCC-only AI casts and signed integer widening. */
@@ -2012,6 +2029,9 @@ long hs_cast(
 	value = hs_value_still_exists(
 		actual_type==_hs_passthrough ? desired_type : actual_type,
 		value);
+
+	if (hs_ce_unit_vehicle_cast(actual_type, desired_type))
+		return object_try_and_get_and_verify_type(value, _object_mask_vehicle) ? value : NONE;
 
 	if (actual_type!=desired_type &&
 		actual_type!=_hs_passthrough &&

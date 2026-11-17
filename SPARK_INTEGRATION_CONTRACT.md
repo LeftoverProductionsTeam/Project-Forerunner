@@ -9,6 +9,36 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+17 November actual revised Black Echo handoff: retain the delivered cache
+releases/black-echo-review-20261117/Spark-d9ba1102-014a-4223-804c-e06bf7000ac3/be_native.map,
+SHA256 c388d3d69219ba5b99f53729905b81d9baa43a57582eb016cd1c636f2c636649
+(110,033,988B), unchanged. The revised Pelican rests inside its hub gate at
+(49.031,-109.844,1.754), up .952, native landed 1. Older .942-attitude results
+describe the previous candidate and are not a current landing failure.
+
+Forerunner source/hs/hs_runtime.c::{hs_ce_unit_vehicle_cast,hs_can_cast,hs_cast}
+repairs its rejection of 24 CE-compiled (unit aircraft) expressions used as
+vehicles. The real pilot/trip scripts now survive load. Wrong/stale live object
+types still return none; no general type-check bypass. In the existing private
+launch profile, set network.coop_enemies_mode = "none" for this fixed-count
+mission. Default per-player scaling created two pilots while the authored
+startup correctly waits for exactly one. Forerunner's native/Extraction menu
+paths now apply that existing setting through gametype_option_setting_write;
+ordinary co-op menus retain optional scaling. Retain native encounter control,
+network.coop_script_adaptations=false and network.firefight_encounter=false.
+Spark must pass this existing profile setting on its own launch path; no new
+schema, identity or engine operation is required.
+
+build/native-spark-black-echo-authored-crew/result.json PASSES two actual Delta
+accounts: one pilot and one Marine, native p-driver/p-riderlf occupancy and
+gs_pelican_ready all true. Windows64 binary SHA256
+e4de3ea12160e156745b2e4f8b18815dfb391f72b20845c1fdd72711cb0179b6.
+This is crew readiness, not complete mission acceptance. Retained full-operation
+attempts stop during input-driven faction selection. Do not infer a terminal or
+collision defect from that route; human boarding, flight, authored objectives,
+combat/audio, physical escape, banking and redeployment still need proof on
+this exact candidate. No source-content change has yet been justified for them.
+
 17 November startup repair, Forerunner `21603426c4`: the Windows64 binary
 SHA256 `6744161c52be41a0c0d73cc8d83bba7245bc869ee8eaef00d37e2a8044e1cc09`
 passes fresh native profile creation followed by `HALO_START_MAP=be_native@ce`

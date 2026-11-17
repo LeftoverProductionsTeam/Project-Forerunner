@@ -73,6 +73,34 @@ platform acceptance stays separate. Owned copies/BMP scratch cleaned. No push,
 hosted jobs or Spark writes. Newly retained Spark c388d3d6 is the next real Black
 Echo candidate; do not repeat the older fixture as mission acceptance.
 
+Native menu completion and Black Echo crew repair (17 November):
+63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
+two-hand settings directly to the native VR page, Save/Cancel and persistence.
+build/native-forerunner-vr-menu-ack/result.json PASSES native settings readback;
+binary 3f51171baf57051fda6a98c1147e977a07c434633849f23ced33e3e81cfff237.
+This is desktop menu evidence, not headset acceptance. Non-OpenXR builds omit
+that row. Product menus have clean feature names without development labels.
+
+Actual Spark c388d3d69219ba5b99f53729905b81d9baa43a57582eb016cd1c636f2c636649
+previously lost gs_pelican_pilot and gs_pelican_trip: 24 compiled unit-to-vehicle
+casts were rejected. hs_runtime.c now accepts only that CE conversion, verifying
+the live vehicle type and refusing stale/wrong objects. Other casts stay strict.
+52 existing script-object checks plus the new live-type negative control PASS;
+Windows64 incremental compile/link PASS. Subsequent native host readback found
+two pilots instead of the authored one: default 50% enemy scaling ran before
+the mission establishes player/human allegiance. Main native/Extraction entries
+now select the existing no-extra-enemies option; ordinary co-op stays configurable.
+
+build/native-spark-black-echo-authored-crew/result.json PASSES two authenticated
+clients on the unchanged Spark cache: pilot count 1, Marine count 1, both physical
+native seats true, gs_pelican_ready true; 28 seconds/56 player observations,
+zero divergences. Binary e4de3ea12160e156745b2e4f8b18815dfb391f72b20845c1fdd72711cb0179b6.
+Earlier coordinated/input/crew-readback attempts remain FAILED full-operation
+verdicts; their input navigation is not evidence of a collision/terminal defect.
+The full candidate's human boarding, round trip, objectives/combat, settlement
+and redeployment remain open. Owned accounts/maps unchanged; runtime copies and
+losslessly converted BMP scratch cleaned. No Spark writes, hosted jobs or push.
+
 Native vehicle-action repair (17 November, base `5f11113156`): read-only owned
 a10 tag readback confirms the cryotube and its CT-driver seat both reference the
 HUD table's placeholder entry zero. Missing/empty/placeholder vehicle names now

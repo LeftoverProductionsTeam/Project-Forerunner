@@ -13987,6 +13987,13 @@ boolean pc_menu_event_function_invoke(
 			struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
 			short mode = forerunner_operation_mode(name);
 			if (!option || !gametype_option_setting_write(option, mode)) return campaign_fail();
+			/* Authored operations own exact crew and encounter counts. The
+			 * ordinary co-op menu keeps its configurable enemy scaling. */
+			if (mode != 1)
+			{
+				option = gametype_option_named("coop_extra_enemies_spinner");
+				if (!option || !gametype_option_setting_write(option, 2)) return campaign_fail();
+			}
 			if (!multiplayer_host(widget, event, controller, widget_deleted)) return FALSE;
 			forerunner_operation_chooser = TRUE;
 			return TRUE;

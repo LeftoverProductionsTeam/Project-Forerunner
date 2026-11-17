@@ -203,6 +203,9 @@ static boolean mcc_hs_parameter_evaluate(long thread_index, struct hs_syntax_nod
 {
     return FALSE;
 }
+#define HALO_CUSTOM_EDITION
+static boolean ce_map_active = TRUE;
+static boolean cache_file_tags_are_ce(void) { return ce_map_active; }
 boolean mcc_script_can_cast(short actual_type, short desired_type) { return FALSE; }
 long mcc_script_cast(short actual_type, short desired_type, long value)
 {
@@ -429,6 +432,28 @@ int main(int argc, char **argv)
 	long reference;
 
 	world_new();
+
+	if(!strncmp(case_name,"ce-",3))
+	{
+		long index = object_new(!strcmp(case_name,"ce-wrong-unit") ? _object_type_biped : _object_type_vehicle);
+		boolean valid = !strcmp(case_name,"ce-vehicle");
+		CHECK(hs_can_cast(_hs_type_unit, _hs_type_vehicle), "CE seat conversion refused");
+		CHECK(!hs_can_cast(_hs_type_object, _hs_type_vehicle), "unrelated narrowing accepted");
+		if(!strcmp(case_name,"ce-only"))
+		{
+			ce_map_active = FALSE;
+			CHECK(!hs_can_cast(_hs_type_unit, _hs_type_vehicle), "classic conversion changed");
+			return 0;
+		}
+		if(!strcmp(case_name,"ce-deleted") || !strcmp(case_name,"ce-reused"))
+			object_delete(index);
+		if(!strcmp(case_name,"ce-reused"))
+			object_new(_object_type_vehicle);
+		CHECK(hs_cast(NONE, _hs_type_unit, _hs_type_vehicle, index) == (valid ? index : NONE),
+			"CE conversion returned a nonvehicle or stale object");
+		CHECK(hs_cast(NONE, _hs_type_unit, _hs_type_vehicle, NONE) == NONE, "none changed");
+		return 0;
+	}
 
 	if(!strcmp(case_name,"script-radio"))
 	{

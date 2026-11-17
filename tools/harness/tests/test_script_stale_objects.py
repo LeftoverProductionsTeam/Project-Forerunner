@@ -46,6 +46,7 @@ def generated(fault=None):
     types += structure(read('source/memory/data.h'), 'datum_header') + '\n'
     types += enum_with(read('source/objects/object_types.h'), '_object_mask_all') + '\n'
     types += enum_with(hs_h, '_hs_type_object') + '\n'
+    types += enum_with(hs_h, 'NUMBER_OF_HS_OBJECT_TYPES') + '\n'
     for name in ('hs_type_valid', 'HS_TYPE_IS_OBJECT_NAME', 'HS_TYPE_IS_OBJECT'):
         types += define(hs_h, name)
     types += enum_with(runtime, '_hs_syntax_node_primitive_bit') + '\n'
@@ -90,6 +91,8 @@ def generated(fault=None):
     kill = function(units, 'unit_kill')
     kill_silent = function(units, 'unit_kill_silent')
     animation_time = function(read('source/objects/scenery.c'), 'scenery_get_animation_time')
+    if fault == 'no-ce-vehicle-check':
+        cast = mutated(cast, 'object_try_and_get_and_verify_type(value, _object_mask_vehicle) ? value : NONE', 'value')
     if fault in ('no-cast', 'no-checks'):
         cast = mutated(cast, CASE_CHECK, '')
     if fault == 'no-passthrough':
@@ -122,6 +125,9 @@ def generated(fault=None):
         code += function(lists, name) + '\n'
     code += first + '\n' + following + '\n' + function(lists, 'object_list_skip_deleted') + '\n'
     code += still_exists + '\n' + function(runtime, 'hs_object_name_to_object_list') + '\n'
+    code += re.search(r'word const hs_object_type_masks\[NUMBER_OF_HS_OBJECT_TYPES\]=\s*\{.*?\};', hs, re.S).group(0) + '\n'
+    for name in ('hs_object_type_can_cast', 'hs_ce_unit_vehicle_cast', 'hs_can_cast'):
+        code += function(runtime, name) + '\n'
     code += function(runtime, 'hs_object_to_object_list') + '\n' + cast + '\n'
     for name in ('hs_stack_allocate', 'hs_stack_push', 'hs_return', 'hs_macro_function_evaluate', 'hs_evaluate',
                  'hs_global_evaluate', 'hs_script_evaluate'):
@@ -144,6 +150,7 @@ def generated(fault=None):
     'global-living', 'global-deleted', 'global-read-as-none', 'slot-reused', 'returned-deleted',
     'returned-to-volume-test', 'passthrough-deleted', 'returned-living', 'deleted-during-arguments', 'cast-to-list',
     'script-radio', 'script-notice', 'script-notice-ordinary', 'script-notice-other-type', 'script-notice-disabled',
+    'ce-vehicle', 'ce-wrong-unit', 'ce-deleted', 'ce-reused', 'ce-only',
     'names', 'other-values', 'list-walk', 'list-first-deleted', 'list-middle-deleted', 'list-last-deleted',
     'list-all-deleted', 'list-get-and-count', 'list-volume-any', 'list-volume-all', 'list-collected', 'kill-none',
     'kill-living', 'scenery-none', 'scenery-living'])
@@ -159,7 +166,8 @@ def test_stale_objects(case):
     ('no-collected-lists', 'list-collected'), ('no-first-skip', 'list-first-deleted'),
     ('no-first-skip', 'list-all-deleted'), ('no-next-skip', 'list-middle-deleted'),
     ('no-next-skip', 'list-last-deleted'), ('no-next-skip', 'list-get-and-count'), ('kill', 'kill-none'),
-    ('kill-silent', 'kill-none'), ('scenery', 'scenery-none')])
+    ('kill-silent', 'kill-none'), ('scenery', 'scenery-none'),
+    ('no-ce-vehicle-check', 'ce-wrong-unit')])
 def test_negative(fault, case):
     status, output = run(build('script_stale_objects', generated(fault)), case)
     assert status == CHECK_FAILED, output
