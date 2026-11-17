@@ -13,7 +13,9 @@ No separate coordination service or repeated cross-project polling/builds.
 SHA256 `6744161c52be41a0c0d73cc8d83bba7245bc869ee8eaef00d37e2a8044e1cc09`
 passes fresh native profile creation followed by `HALO_START_MAP=be_native@ce`
 on Spark's unchanged `31505afb…3ebab` CE609 candidate. The preceding
-`b428588d…e1a9` binary reproduces `DeLa`/`schi` in `process_ui_widgets`:
+`b428588d…e1a9` binary reproduces `DeLa`/`schi`, offending datum `e28f0119`,
+in `process_ui_widgets` (the stale index resolves to
+`vehicles\pelican\shaders\lights flashing` after replacement):
 closing the saving-profile screen opened difficulty selection on old-map tags.
 `source/interface/ui_widget.c::{ui_widgets_close_all,ui_widget_delete}` now
 retains deletion cleanup without opening successors during close-all. Ten focused
@@ -1479,9 +1481,19 @@ are in `build/native-spark-black-echo-aircraft/`; the cache was not edited/rebui
 The diagnostic's overlength console query was refused, so pilot readiness is
 unverified. Two-account flight/combat/rescue/collection/settlement remain OPEN.
 
-Spark's next revision must provide a physically clear hub spawn/control approach,
-accessible normal passenger entrances and a stable native touchdown inside the
-hub/LZ volumes. Keep collision, boarding, landing-attitude and settlement gates;
+Spark's next revision must move the hub spawn and `extraction_deploy` control
+out of the parked hull/boarding approach. The observed blocked body is
+(48.767,-87.553,0.076); it is not enough to move only the control while leaving
+the spawn under the aircraft. Keep a walkable collision-tested route from both
+faction starts to the terminal and then to the intended native passenger entrance;
+normal terminal use must offer action 10, with action 8 reserved for boarding.
+Author aircraft-scale hub/LZ pads with clear hull, tail and passenger entrances.
+`source/units/vehicles.c::vehicle_is_landed` requires grounded contact, up >=0.95
+(the observed 0.942 fails), then native hover or at least five grounded ticks with
+velocity squared <=0.000025 and angular velocity squared <=0.0001. A stable
+upright touchdown must meet those existing values inside the unchanged native
+return/LZ volumes; a script-written landed flag cannot substitute for collision.
+Keep collision, boarding, landing-attitude and settlement gates;
 do not bypass them or claim an arbitrary alternate approach was disproved.
 Supply the revised cache with matching
 resource/source identities, native player/faction equipment, physically valid

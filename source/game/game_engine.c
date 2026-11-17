@@ -652,6 +652,10 @@ boolean network_damage_killer_score(long player_index, long *score);
 /* port/linux/game/team_change.c's */
 boolean team_change_death(long dead_player_index);
 void team_change_player_died(long dead_player_index);
+#ifndef HALO_XBOX_CONSOLE
+/* port: reuse the native menus' multiplayer-map list for a missing default. */
+short ui_widget_port_multiplayer_maps(char const *const **names, short *last_used);
+#endif
 
 /* ---------- constants */
 
@@ -6431,6 +6435,26 @@ void game_engine_playlist_next(
 		csstrncpy(global_stage.map_name, map_name, sizeof(global_stage.map_name) - 1);
 		global_stage.map_name[sizeof(global_stage.map_name) - 1] = 0;
 	}
+#ifndef HALO_XBOX_CONSOLE
+	/* port: a partial install can host another map without carousel. Fast
+	setup creates the lobby before its caller selects that map. Keep explicit
+	choices, dedicated rotations and the installed classic default unchanged. */
+	else if (!halo_server_mode() && !cache_files_map_installed(global_stage.map_name))
+	{
+		char const *const *names;
+		short index, count = ui_widget_port_multiplayer_maps(&names, NULL);
+
+		for (index = 0; index < count; index++)
+		{
+			if (cache_files_map_installed(names[index]))
+			{
+				csstrncpy(global_stage.map_name, names[index], sizeof(global_stage.map_name) - 1);
+				global_stage.map_name[sizeof(global_stage.map_name) - 1] = 0;
+				break;
+			}
+		}
+	}
+#endif
 
 	if (player_ui_game_variant_specified(&variant))
 		csmemcpy(&global_stage.variant, &variant, sizeof(global_stage.variant));

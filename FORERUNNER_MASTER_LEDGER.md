@@ -16,6 +16,36 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Infection and partial-install hosting (17 November): the inherited mode passes
+one bounded native Longest match with two verified Delta accounts, normal walking
+and skull melee, human conversion, zombie victory, real postgame/lobby return and
+a fresh countdown. No role/health/position/outcome setter or mode rewrite.
+`build/native-infection-longest-complete/result.json` retains separate first-round
+and restarted-round comparisons: 14/6 seconds, 28/12 observations, no mismatches;
+25/10 item snapshots agree. Both native victory PNGs inspected. This uses accepted
+binary `6744161c…1cc09`; timeout victories, late joins, other maps/platforms and
+human acceptance remain open. Earlier attempts stay rejected: omitted lobby cache,
+terrain-blocked walking, then a premature check that counted stdout/debug twice.
+The corrected check requires two distinct starts plus actual next-game/game-2
+transitions and both peers' reset. No prior result is promoted retroactively.
+
+The missing-cache attempt exposed a real engine hosting dependency. Native fast
+setup selected absent `carousel` before its caller could choose installed Beaver
+Creek. `game_engine_playlist_next` now uses the existing native multiplayer list
+only when the implicit desktop default is absent; installed classic defaults,
+explicit choices/refusals and dedicated rotations stay unchanged. Windows64
+incremental build, two focused checks and the exact host-only native reproduction
+pass without carousel (Beaver Creek reaches tick 900). Binary `7413fc2b…59a36`;
+evidence `build/native-host-default-map-fixed/result.json`. No Infection rerun or
+broader multiplayer acceptance is attributed to this later binary. Original maps/
+identities preserved and stopped-job runtime copies removed. Black Echo was
+revisited immediately: Spark `17d6349` still retains the same `31505afb…3ebab`
+cache. The existing contract now gives its exact blocked body/control/hull
+coordinates, native landing thresholds and required clear spawn/pad/boarding
+geometry, plus the crash's full offending datum and fixed runtime review boundary.
+Full authored flight/objectives/audio/rewards/redeployment still awaits corrected
+Spark content. No Spark edits, hosted work or push.
+
 Two-squad combat/loot/aircraft slice (17 November):
 `build/native-delta-squad-combat-salvage-roundtrip/result.json` PASSES two verified
 Delta clients in separate one-member Covenant squads through physical Spirit
