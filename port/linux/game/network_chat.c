@@ -1345,7 +1345,7 @@ static void chat_add_line(
 }
 
 /* a notice shown (the host's): its text alone */
-static void chat_add_notice(
+static struct chat_line *chat_add_notice(
 	char const *text)
 {
 	struct chat_line *line = chat_new_line(text);
@@ -1354,6 +1354,7 @@ static void chat_add_notice(
 	line->channel = _chat_channel_everyone;
 	line->hearers = chat_local_players();
 	error(_error_log, "chat notice: %s", line->text);
+	return line;
 }
 
 /* ---------- the host */
@@ -1864,16 +1865,41 @@ boolean network_chat_notice_visible(void)
 	return chat_network_game() && chat_shown();
 }
 
+/* Extraction/Survival already label personal machine notices "P1 | ...".
+ * Controller indices are the native local-view indices, including sparse views.
+ * Only host notices use this envelope; ordinary player chat is unchanged. */
+static short chat_notice_controller(char const *text)
+{
+	if (text[0] == 'P' && text[1] >= '0' && text[1] <= '9' &&
+		text[2] == ' ' && text[3] == '|' && text[4] == ' ')
+		return text[1] == '0' ? MAXIMUM_LOCAL_PLAYERS : text[1] - '1';
+	return NONE;
+}
+
 void network_chat_host_notice(
 	char const *text)
 {
 	long length = (long)csstrlen(text);
 	long start = 0;
+	short controller = chat_notice_controller(text);
+	short hearers = chat_local_players();
+
+	if (controller != NONE)
+	{
+		if (controller < 0 || controller >= MAXIMUM_LOCAL_PLAYERS || !TEST_FLAG(hearers, controller)) return;
+		hearers = (short)FLAG(controller);
+	}
 
 	/* (with the chat not shown, the console's red line, whatever
 	game.console_log says: the host's notices are for the players) */
 	if (!network_chat_notice_visible())
 	{
+		if (controller != NONE && game_in_progress())
+		{
+			hud_print_notice(controller, text);
+			error(_error_log, "chat notice: %s", text);
+			return;
+		}
 		terminal_printf(global_real_argb_red, "%s", text);
 		return;
 	}
@@ -1883,6 +1909,7 @@ void network_chat_host_notice(
 	{
 		char part[CHAT_TEXT_SIZE];
 		long end = start + CHAT_TEXT_SIZE - 1;
+		struct chat_line *line;
 
 		if (end >= length)
 			end = length;
@@ -1897,7 +1924,8 @@ void network_chat_host_notice(
 		}
 		csmemcpy(part, text + start, end - start);
 		part[end - start] = 0;
-		chat_add_notice(part);
+		line = chat_add_notice(part);
+		line->hearers = hearers;
 		for (start = end; start < length && text[start] == ' '; start++)
 			;
 	}

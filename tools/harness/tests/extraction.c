@@ -366,6 +366,7 @@ static long object_list_new(void){if(list_allocation_failure)return NONE;for(sho
 static boolean object_list_add(long l,long u){if(l==NONE||list_sizes[l]==6||list_sizes[l]+1==list_failure_at)return FALSE;list_units[l][list_sizes[l]++]=u;return TRUE;}
 static void object_list_mark_players(long l){if(l!=NONE)list_players[l]=TRUE;}
 static void object_list_delete(long l){if(l!=NONE)list_used[l]=FALSE;}
+#include "notice_hud.inc"
 #include "extraction.inc"
 static struct object_datum *object_get(long index) {return (struct object_datum *)unit_get(index);}
 #include "native_seat_animation_types.inc"

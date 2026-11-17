@@ -11,6 +11,7 @@ code (under_test.inc).
 */
 
 #include "harness.h"
+#include <wchar.h>
 
 #ifndef NUMBEROF
 #define NUMBEROF(array) (sizeof(array) / sizeof((array)[0]))
@@ -19,8 +20,34 @@ code (under_test.inc).
 #define csstrlen strlen
 #define csstrcmp strcmp
 #define csstrncpy strncpy
+#define csmemcpy memcpy
+#define error(...) ((void)0)
 
 #include "config.inc"
+
+/* Native view/socket/render boundaries; the real notice parser, routing,
+ * splitting, line creation and shared native HUD wrapper are compiled below. */
+static short notice_local_mask=3;
+static boolean notice_shown=TRUE,notice_in_game=TRUE;
+static struct chat_line notice_lines[16];
+static int notice_count,notice_terminals,notice_hud_count,notice_hud_mask;
+static wchar_t notice_hud_last[63];
+static void *global_real_argb_red;
+static short local_player_get_next(short index) {
+ for(index++;index<MAXIMUM_LOCAL_PLAYERS;index++)if(TEST_FLAG(notice_local_mask,index))return index;
+ return NONE;
+}
+static boolean network_chat_notice_visible(void){return notice_shown;}
+static boolean game_in_progress(void){return notice_in_game;}
+static void terminal_printf(void *color,char const *format,...){notice_terminals++;}
+static struct chat_line *chat_new_line(char const *text) {
+ struct chat_line *line;CHECK(notice_count<16,"too many test notice lines");line=&notice_lines[notice_count++];
+ memset(line,0,sizeof(*line));snprintf(line->text,sizeof(line->text),"%s",text);return line;
+}
+static void hud_print_message(short local,wchar_t const *text) {
+ CHECK(local>=0&&local<MAXIMUM_LOCAL_PLAYERS&&TEST_FLAG(notice_local_mask,local),"notice to missing local view");
+ CHECK(wcslen(text)<63,"native HUD notice overflow");notice_hud_count++;notice_hud_mask|=FLAG(local);wcscpy(notice_hud_last,text);
+}
 #include "under_test.inc"
 
 /* the text cleaned from a source of size bytes */
@@ -37,6 +64,65 @@ int main(int argc, char **argv)
 	char const *case_name = argc > 1 ? argv[1] : "";
 	char text[CHAT_TEXT_SIZE];
 	char source[256];
+
+	if (!strncmp(case_name,"notice-",7))
+	{
+		int index;
+		if (!strcmp(case_name,"notice-targets"))
+		{
+			notice_local_mask=15;
+			for(index=0;index<4;index++) {
+				snprintf(source,sizeof(source),"P%d | Private equipment report",index+1);network_chat_host_notice(source);
+				CHECK(notice_lines[index].hearers==FLAG(index),"personal notice shown in another local view");
+			}
+		}
+		else if (!strcmp(case_name,"notice-sparse"))
+		{
+			notice_local_mask=5;network_chat_host_notice("P3 | Squad status");
+			CHECK(notice_count==1&&notice_lines[0].hearers==4,"sparse controller routed by player count");
+			network_chat_host_notice("P2 | Absent view");CHECK(notice_count==1,"missing sparse view broadcast");
+		}
+		else if (!strcmp(case_name,"notice-wrap"))
+		{
+			memset(source,'x',sizeof(source)-1);source[sizeof(source)-1]=0;memcpy(source,"P2 | ",5);
+			network_chat_host_notice(source);CHECK(notice_count>1,"long notice did not split");
+			for(index=0;index<notice_count;index++)CHECK(notice_lines[index].hearers==2,"continuation lost its recipient");
+		}
+		else if (!strcmp(case_name,"notice-missing"))
+		{
+			notice_local_mask=1;network_chat_host_notice("P2 | Not yours");
+			notice_shown=FALSE;network_chat_host_notice("P2 | Still not yours");
+			CHECK(!notice_count&&!notice_hud_count&&!notice_terminals,"absent recipient broadcast via another backend");
+			notice_local_mask=2;notice_shown=TRUE;network_chat_host_notice("P2 | Current recipient");
+			CHECK(notice_count==1&&notice_lines[0].hearers==2,"current local roster was ignored");
+		}
+		else if (!strcmp(case_name,"notice-invalid"))
+		{
+			network_chat_host_notice("P0 | Invalid");network_chat_host_notice("P5 | Invalid");network_chat_host_notice("P9 | Invalid");
+			CHECK(!notice_count&&!notice_hud_count&&!notice_terminals,"invalid recipient became a broadcast");
+			network_chat_host_notice("P1 ordinary announcement");CHECK(notice_count==1&&notice_lines[0].hearers==3,"ordinary host text was treated as an envelope");
+		}
+		else if (!strcmp(case_name,"notice-hidden"))
+		{
+			notice_shown=FALSE;memset(source,'x',130);source[130]=0;memcpy(source,"P2 | ",5);
+			network_chat_host_notice(source);
+			CHECK(!notice_count&&!notice_terminals&&notice_hud_count==4&&notice_hud_mask==2,"hidden-chat feedback lost target or used shared console");
+			CHECK(!wcsncmp(notice_hud_last,L"P2 |",4),"native HUD headline order changed");
+		}
+		else if (!strcmp(case_name,"notice-global"))
+		{
+			notice_local_mask=5;network_chat_host_notice("Global announcement");
+			CHECK(notice_count==1&&notice_lines[0].hearers==5,"global announcement lost a view");
+			notice_shown=FALSE;network_chat_host_notice("Global console announcement");
+			CHECK(notice_terminals==1&&!notice_hud_count,"ordinary hidden-chat behavior changed");
+		}
+		else if (!strcmp(case_name,"notice-menu"))
+		{
+			notice_shown=FALSE;notice_in_game=FALSE;network_chat_host_notice("P1 | Menu notice");
+			CHECK(notice_terminals==1&&!notice_hud_count,"menu used uninitialized gameplay HUD");
+		}
+		return 0;
+	}
 
 	/* printable ASCII kept as it is, the spaces at its ends dropped */
 	CASE("text-printable")

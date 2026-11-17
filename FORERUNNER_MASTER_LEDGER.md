@@ -16,7 +16,35 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
-Current optional two-handed bracing (source base `45642bd8a2`):
+Current personal operation feedback repair (source base `0cec942dce`): existing
+`P1 | ...` host notices now address their actual local view, including sparse
+controllers and wrapped continuation lines. Missing/invalid recipients cannot
+become broadcasts. Hidden-chat incoming personal notices use the native HUD;
+Extraction and chat now share the existing wrapper in `hud_messaging.c` instead
+of keeping it private to Extraction. Global notices and ordinary chat keep their
+scope. No new packet, renderer, editor interface or inventory authority.
+
+Windows64 compile/link PASS (`build/directed-notice-final-build.log`); 90 chat
+checks PASS (`build/directed-notice-final-checks.log`) and 26 affected notice/
+debrief checks PASS (`build/directed-notice-extraction-checks.log`). Native
+`build/native-directed-operation-{target,hidden}/result.json` accepts actual
+deployment-control feedback only in view 2, through chat and its HUD fallback.
+The missing-profile guard still refuses deployment; no identity was invented.
+`build/native-delta-directed-notice/result.json` accepts a real incoming personal
+notice on the hidden-chat client with two verified Delta accounts. Three sampled
+player seconds match; this is UI/receipt evidence, not a synchronization milestone.
+Inspected PNGs confirm those scopes. Initial `sv_say` probes exercised global HSC
+HUD text, and the first control probe mixed keyboard/gamepad view ownership;
+these are rejected probes, retained with explicit reasons, not native acceptance.
+
+Binary SHA-256: `3d0913afd9b40ccf8eebcb4c00d651784f3790e7b1ff708a195900cabc000bda`.
+Original cache/accounts/Spark unchanged. Owned jobs/runtime/map copies and
+39,322,032B BMP scratch cleaned; compact traces/PNGs retained. Private mission
+cinematics, full Black Echo, six independent clients, VR and other platforms stay
+open. Spark `4339020` advances recovered radio authoring but still records no
+retained combined candidate. No hosted jobs or push. The full goal remains active.
+
+Previous optional two-handed bracing (source base `45642bd8a2`):
 `vr.two_handed` / `HALO_VR_TWO_HANDED`, off by default, adapts OpenH1
 `baed7757`'s foregrip reach, grip hysteresis, smoothing, blend and one-handed
 weapon exclusions through the existing OpenXR adapter. The support grip steers

@@ -142,6 +142,16 @@ upstream version `0.9.1-dev`; exact executable/source hashes are in TEST_EVIDENC
 Matching contract, cache version and peer network version are separate checks.
 No version-1 discovery field grants gameplay, live editing or universal cross-play.
 
+Personal operation feedback already sent by `extraction_player_notice` uses its
+existing `P1 | ...` host-notice envelope. `network_chat.c::network_chat_host_notice`
+now applies that controller to every wrapped line and drops missing recipients;
+hidden-chat personal receipts reuse `hud_messaging.c::hud_print_notice`. Ordinary
+chat, global host notices and native HaloScript `sv_say` retain their own scope.
+No new authoring command or packet is required. Native Windows two-view operation
+feedback and an authenticated hidden-chat client receipt pass in the current
+master checkpoint; this does not provide general squad-scoped HSC cinematics or
+audio, and other runtime/platform clients require their own acceptance.
+
 Reviewed private CE-map distribution reuses the native approved-map index and
 map-sharing path. `tools/map_torrents.py make --maps <reviewed.map> --torrents <private-output> --index <private-index.txt>` now accepts one compiled cache,
 without approving neighbouring files or editing that cache. Explicitly select

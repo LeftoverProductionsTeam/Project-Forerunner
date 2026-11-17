@@ -1698,6 +1698,29 @@ void hud_messaging_globals_update(
 	return;
 }
 
+/* port: shared by operation feedback and directed host notices when chat is
+ * hidden. Preserve the native 62-character records and headline-first display. */
+void hud_print_notice(short local, char const *text)
+{
+	wchar_t lines[4][63];
+	short start = 0, count = 0, end, split, index;
+	short length = (short)MIN(strlen(text), 143);
+	while (start < length && count < NUMBEROF(lines))
+	{
+		end = MIN(start + 62, length);
+		if (end < length && text[end] != ' ')
+		{
+			for (split = end; split > start && text[split] != ' '; split--);
+			if (split > start) end = split;
+		}
+		for (index = start; index < end; index++) lines[count][index-start] = (wchar_t)(unsigned char)text[index];
+		lines[count++][end-start] = 0;
+		start = end;
+		while (start < length && text[start] == ' ') start++;
+	}
+	while (count > 0) hud_print_message(local, lines[--count]);
+}
+
 void hud_print_message(
 	short local_player_index,
 	wchar_t const *message_text)

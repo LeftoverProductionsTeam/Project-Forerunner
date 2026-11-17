@@ -16,17 +16,23 @@ CASES = ["text-printable", "text-control-characters", "text-pipe", "text-bounds"
          "rate-refill", "rate-wrap", "hears", "hears-vehicle", "flags", "alpha", "command-mute", "command-unmute",
          "command-not", "command-usage", "name-match", "name-bounds", "mute-time", "mute-wrap", "mute-again",
          "mute-full", "link-found", "link-written-out", "link-spaced", "link-word-domains", "link-not", "refused", "listing", "filter", "keyboard-character",
-         "keyboard-move", "keyboard-tap"]
+         "keyboard-move", "keyboard-tap", "notice-targets", "notice-sparse", "notice-wrap",
+         "notice-missing", "notice-invalid", "notice-hidden", "notice-global", "notice-menu"]
 FUNCTIONS = ("chat_text_clean", "chat_text_append", "chat_rate_take", "chat_hears", "chat_channel_from_flags",
              "chat_channel_flags", "chat_line_alpha", "chat_lower", "chat_command_word", "chat_command_parse",
              "chat_name_match", "chat_names_equal", "chat_mute_minutes_left", "chat_mute_find", "chat_mute_set", "chat_minutes_plural",
              "chat_alphanumeric", "chat_link_domain", "chat_text_has_link", "chat_refused", "chat_listing_allows",
              "chat_filter_mode", "chat_filter_level", "chat_filter_star",
              "chat_keyboard_character",
-             "chat_keyboard_move", "chat_keyboard_key_at")
+             "chat_keyboard_move", "chat_keyboard_key_at", "chat_local_players", "chat_add_notice",
+             "chat_notice_controller", "network_chat_host_notice")
 
 # a fault in network_chat.c, the function it is in, and the case that must catch it
 NEGATIVE_CONTROLS = {
+    "personal-notice-to-all": (("line->hearers = hearers;", "line->hearers = chat_local_players();"),
+                               "network_chat_host_notice", "notice-targets"),
+    "hidden-notice-wrong-view": (("hud_print_notice(controller, text);", "hud_print_notice(0, text);"),
+                                 "network_chat_host_notice", "notice-hidden"),
     "control-characters-kept": (("if (character < ' ' || character > '~' || character == '|')",
                                  "if (character < 0 || character == '|')"), "chat_text_clean",
                                 "text-control-characters"),
@@ -126,13 +132,16 @@ def generated(fault=None, faulty_function=None):
     config += f"#define CHAT_NAME_AMBIGUOUS ({re.search(r'CHAT_NAME_AMBIGUOUS = (-?[0-9]+)', source).group(1)})\n"
     config += structure(source, "chat_rate") + "\n"
     config += structure(source, "chat_mute") + "\n"
+    config += structure(source, "chat_line") + "\n"
+    config += '#define MAXIMUM_LOCAL_PLAYERS %d\n' % constant(read('source/game/players.h'), 'MAXIMUM_LOCAL_PLAYERS')
+    config += enum_with(source, '_chat_color_red,') + '\n'
     config += enum_with(source, "_chat_line_team_bit,") + "\n"
     config += enum_with(source, "_chat_command_none,") + "\n"
     config += enum_with(source, "_chat_config_allowed_bit,") + "\n"
     config += enum_with(source, "_chat_filter_off,") + "\n"
     config += enum_with(read("port/linux/game/text_filter.h"), "_text_filter_off,") + "\n"
     config += enum_with(read("port/linux/game/network_chat.h"), "_chat_channel_everyone,") + "\n"
-    text = ""
+    text = function(read('source/interface/hud_messaging.c'), 'hud_print_notice') + '\n'
     for name in FUNCTIONS:
         code = function(source, name)
         if fault and name == faulty_function:

@@ -253,29 +253,6 @@ boolean extraction_player_spawn_profile(long player_index, long *biped, short *p
 	return TRUE;
 }
 
-static void extraction_hud_notice(short local, char const *text)
-{
-	wchar_t lines[4][63];
-	short start = 0, count = 0, end, split, index;
-	short length = (short)MIN(strlen(text), 143);
-	/* Preserve the native 62-character record budget when chat is unavailable.
-	 * This backend draws new records first; enqueue each headline last. */
-	while (start < length && count < NUMBEROF(lines))
-	{
-		end = MIN(start + 62, length);
-		if (end < length && text[end] != ' ')
-		{
-			for (split = end; split > start && text[split] != ' '; split--);
-			if (split > start) end = split;
-		}
-		for (index = start; index < end; index++) lines[count][index-start] = (wchar_t)(unsigned char)text[index];
-		lines[count++][end-start] = 0;
-		start = end;
-		while (start < length && text[start] == ' ') start++;
-	}
-	while (count > 0) hud_print_message(local, lines[--count]);
-}
-
 static void extraction_notice_to_machine(long machine, short controller, char const *text)
 {
 	char notice[144];
@@ -286,12 +263,12 @@ static void extraction_notice_to_machine(long machine, short controller, char co
 	else snprintf(notice, sizeof(notice), "P%d | %.127s", controller + 1, text);
 	if (machine == NONE && !network_chat_notice_visible())
 	{
-		if (controller != NONE) extraction_hud_notice(controller, notice);
+		if (controller != NONE) hud_print_notice(controller, notice);
 		else
 		{
 			short local;
 			for (local = local_player_get_next(NONE); local != NONE; local = local_player_get_next(local))
-				extraction_hud_notice(local, notice);
+				hud_print_notice(local, notice);
 		}
 		return;
 	}

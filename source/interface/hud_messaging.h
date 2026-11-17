@@ -97,6 +97,9 @@ void hud_render_large_count(
 void hud_print_message(
 	short local_player_index,
 	wchar_t const *message);
+/* port: the existing operation/host-notice ASCII fallback, wrapped to native
+ * HUD record limits for one local view. No second notification renderer. */
+void hud_print_notice(short local_player_index, char const *text);
 void hud_add_item_message(
 	short local_player_index,
 	long item_definition_index,

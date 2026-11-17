@@ -53,6 +53,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     if medical_fault:
         extraction = mutated(extraction,
             'now - medical_players[healer_slot].last_damage < 2 * TICKS_PER_SECOND ||', '')
+    files.append(('notice_hud.inc', function(read('source/interface/hud_messaging.c'), 'hud_print_notice')))
     files.append(('extraction.inc', extraction))
     files.append(('evacuation.inc', function(director, 'firefight_try_evacuation')))
     hud = read('source/interface/hud_nav_points.c')
@@ -451,7 +452,7 @@ def test_notice_tail_negative_control():
 def test_notice_hud_tail_negative_control():
     files = tuple((name, mutated(text,
         'while (count > 0) hud_print_message(local, lines[--count]);',
-        'hud_print_message(local, lines[0]);')) if name == 'extraction.inc' else (name, text)
+        'hud_print_message(local, lines[0]);')) if name == 'notice_hud.inc' else (name, text)
         for name, text in generated())
     status, output = run(build('extraction', files), 'notice-fallback')
     assert status == CHECK_FAILED, output
