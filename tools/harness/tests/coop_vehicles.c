@@ -32,15 +32,20 @@ struct player_datum {long unit_index;};
 struct location {long leaf_index; short cluster_index;};
 struct test_object {
  long definition_index;
- struct {long parent_object_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
+ struct {long parent_object_index,first_child_object_index,owner_player_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
  real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
  float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];} object;
  struct {unsigned long flags; long driver_object_index,player_index;} unit;
  struct {byte airborne_ticks;} vehicle;
+ struct {unsigned long flags;} item;
 };
 #define vehicle_datum test_object
 #define unit_datum test_object
 #define object_datum test_object
+#define item_datum test_object
+enum { _item_attached_to_unit_bit, _item_belongs_to_player_bit };
+enum { _object_header_being_deleted_bit };
+struct object_header_datum { unsigned long flags; };
 struct object_placement_data {long definition_index; short variant_number; real_point3d position;
  real_vector3d forward,up; float change_colors[12];unsigned long flags;short owner_team_index;};
 struct unit_definition {byte pad[0x2f4];short type;struct {struct {long index;} physics;float bounding_radius;} object;};
@@ -103,6 +108,7 @@ static void cross_product3d(real_vector3d const *a,real_vector3d const *b,real_v
 static long make(int slot,int definition) {
  struct test_object *v=&objects[slot];memset(v,0,sizeof(*v));
  identifiers[slot]=0x10000+slot;v->definition_index=definition;v->object.parent_object_index=NONE;
+ v->object.first_child_object_index=NONE;v->object.owner_player_index=NONE;v->object.name_index=NONE;
  v->object.flags=FLAG(_object_connected_to_map_bit);v->object.forward.i=1;v->object.up.k=1;
  v->unit.driver_object_index=NONE;v->unit.player_index=NONE;v->object.bounding_sphere_radius=.7f;return identifiers[slot];
 }
@@ -118,6 +124,16 @@ static long object_new(struct object_placement_data const *p) {
 static boolean terminal_command_running=TRUE,clone_refused,clone_xbox,clone_quota=TRUE,clone_objective;
 static struct object_placement_data clone_placement;
 #define object_try_and_get get
+static struct object_header_datum clone_header;
+static struct object_header_datum *object_header_try_and_get(long index) {
+ return get(index) ? &clone_header : NULL;
+}
+static struct item_datum *item_try_and_get(long index) {
+ struct test_object *object=get(index);
+ return object && (object->object.type==_object_type_weapon || object->object.type==_object_type_equipment)
+  ? object : NULL;
+}
+static void object_delete(long index) { identifiers[index&65535]=0; }
 static boolean network_game_distributed_client(void){return connection==1;}
 static boolean network_game_host_cheats_refused(void){return clone_refused;}
 static void *global_network_game_server_get(void){return connection==2?&game:NULL;}
@@ -434,6 +450,36 @@ int main(int argc,char **argv) {
    clone_placement.change_colors[0]==.25f&&clone_placement.forward.i==1&&clone_placement.up.k==1,
    "native clone lost authored placement");
   CHECK(clone_placement.flags&FLAG(_new_object_never_automatically_delete_bit),"clone became automatic cleanup loot");
+  return 0;
+ }
+ if(!strncmp(argv[1],"undo-",5)) {
+  char const *name=argv[1]+5;
+  long source=reset(),first,copy;
+  struct test_object *placed;
+  get(source)->object.type=_object_type_vehicle;
+  first=cheat_forge_clone(source);
+  copy=cheat_forge_clone(source);
+  CHECK(first!=NONE&&copy!=NONE&&first!=copy,"missing two native copies");
+  placed=get(copy);
+  placed->object.type=_object_type_vehicle;
+  if(!strcmp(name,"occupied")) placed->object.first_child_object_index=123;
+  if(!strcmp(name,"held")) {
+   placed->object.type=_object_type_weapon;
+   placed->item.flags=FLAG(_item_belongs_to_player_bit);
+  }
+  if(!strcmp(name,"claimed")) placed->object.name_index=7;
+  if(!strcmp(name,"stale")) identifiers[copy&65535]+=0x10000;
+  if(!strcmp(name,"pending-delete")) clone_header.flags=FLAG(_object_header_being_deleted_bit);
+  if(!strcmp(name,"restore")) cheats_forge_forget_copy();
+  if(!strcmp(name,"client")) connection=1;
+  if(!strcmp(name,"permission")) clone_refused=TRUE;
+  if(!strcmp(name,"latest")) {
+   CHECK(cheat_forge_undo()&&!get(copy),"undo did not delete last copy");
+   CHECK(!cheat_forge_undo(),"undo reused deleted copy");
+  } else {
+   CHECK(!cheat_forge_undo()&&identifiers[copy&65535],"unsafe undo deleted a live object");
+  }
+  CHECK(get(first)&&get(source),"undo deleted the previous copy or original");
   return 0;
  }
  if(!strncmp(argv[1],"riders-",7)) {rider_release(argv[1]);return 0;}

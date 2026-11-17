@@ -103,6 +103,7 @@ symbols in this file:
 #include "coop_vehicles.h" /* port: preserve replacement-vehicle homes across reverts */
 #include "network_coop.h" /* port: checkpoint roster restoration and host team-wipe policy */
 #include "game.h"
+#include "game/cheats.h"
 #include "tag_files.h"
 #include "cache_files.h"
 #include "scenario.h"
@@ -215,6 +216,7 @@ static game_state_before_load_proc before_load_procs[] =
 	/* port: run/result handles are outside the saved image. Invalidate them
 	   for every checkpoint/disk/core load, even if the clock does not rewind. */
 	extraction_restored,
+	cheats_forge_forget_copy,
 #ifdef HALO_OPENXR
 	vr_render_reset_aim, /* port: do not reuse tracked unit handles after a restore. */
 #endif

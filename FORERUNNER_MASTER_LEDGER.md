@@ -73,6 +73,14 @@ platform acceptance stays separate. Owned copies/BMP scratch cleaned. No push,
 hosted jobs or Spark writes. Newly retained Spark c388d3d6 is the next real Black
 Echo candidate; do not repeat the older fixture as mission acceptance.
 
+Forge placement undo (17 November): the host can remove the last unused
+copy with forge_undo. Occupied, owned, named and stale objects are refused.
+Map changes and save restores clear the handle. Windows64 and 27 focused
+checks passed. Two authenticated clients observed the positioned copy disappear
+and the original remain at (65, -80, 3.6) in build/native-forge-undo/result.json.
+A separate native run confirmed Profiles opens with controller Start and the
+Forerunner window title and icon load. Both isolated runtime copies were removed.
+
 Native menu completion and Black Echo crew repair (17 November):
 63db9dd330 connects the existing headset, renderer, aim/hand, turning, grip and
 two-hand settings directly to the native VR page, Save/Cancel and persistence.

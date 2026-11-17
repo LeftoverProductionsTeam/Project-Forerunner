@@ -61,6 +61,7 @@ symbols in this file:
 #include "hs/hs.h"
 #include "input/input.h"
 #include "interface/terminal.h"
+#include "items/items.h"
 #include "items/weapon_definitions.h"
 #include "items/weapons.h" /* port: objective weapons are not Forge clones */
 #include "main/console.h"
@@ -117,10 +118,17 @@ void cheats_dispose(
 	return;
 }
 
+static long forge_last_copy = NONE;
+
+void cheats_forge_forget_copy(void)
+{
+	forge_last_copy = NONE;
+}
+
 void cheats_dispose_from_old_map(
 	void)
 {
-	return;
+	cheats_forge_forget_copy();
 }
 
 /* network_game_globals.c's */
@@ -343,6 +351,7 @@ static long forge_clone_at_position(
 	if (clone_index == NONE || !cheats_console_object_made(clone_index))
 		return NONE;
 	objects_scripting_set_scale(clone_index, scale, 0);
+	forge_last_copy = clone_index;
 	return clone_index;
 }
 
@@ -354,6 +363,42 @@ long cheat_forge_clone(long object_index)
 long cheat_forge_clone_at(long object_index, real_point3d const *position)
 {
 	return position ? forge_clone_at_position(object_index, position) : NONE;
+}
+
+/* Only undo a copy made by the console in this map. Native deletion is
+ * recursive, so refuse copies used by players, riders or scenario scripts. */
+boolean cheat_forge_undo(void)
+{
+	long object_index = forge_last_copy;
+	struct object_header_datum *header;
+	struct object_datum *object;
+	struct item_datum *item;
+
+	if (object_index == NONE || !terminal_command_running || !game_in_progress() ||
+		network_game_distributed_client() || network_game_host_cheats_refused())
+		return FALSE;
+
+	header = object_header_try_and_get(object_index);
+	if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit))
+	{
+		cheats_forge_forget_copy();
+		return FALSE;
+	}
+
+	object = forge_placeable_object_get(object_index);
+	if (!object || object->object.name_index != NONE || object->object.owner_player_index != NONE ||
+		object->object.first_child_object_index != NONE)
+		return FALSE;
+
+	item = item_try_and_get(object_index);
+	if (item && (item->item.flags & (FLAG(_item_attached_to_unit_bit) | FLAG(_item_belongs_to_player_bit))))
+		return FALSE;
+	if (object->object.type == _object_type_weapon && weapon_is_flag(object_index))
+		return FALSE;
+
+	object_delete(object_index);
+	cheats_forge_forget_copy();
+	return TRUE;
 }
 
 /* port: what the map's own scripts set rider_ejection to (TRUE until they

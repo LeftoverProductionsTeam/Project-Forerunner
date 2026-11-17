@@ -3403,9 +3403,9 @@ struct hs_function_table_storage
 #ifdef HALO_CUSTOM_EDITION
 	/* port: and Halo PC's functions the Xbox's have none of, and the
 	port's mods (below); and OpenCE's structure culling (2), and the map's riding call (1) */
-	struct hs_function_definition const *functions[418 + 3 + 24 + 3 + 2 + 1 + 1 + 1 + 1]; /* port: Forge console tools */
+	struct hs_function_definition const *functions[418 + 3 + 24 + 3 + 2 + 1 + 1 + 1 + 1 + 1]; /* port: Forge console tools */
 #else
-	struct hs_function_definition const *functions[418 + 2 + 1 + 1 + 1 + 1]; /* port: Forge console tools */
+	struct hs_function_definition const *functions[418 + 2 + 1 + 1 + 1 + 1 + 1]; /* port: Forge console tools */
 #endif
 	struct profile_section profile;
 	hs_token_enumerator token_enumerators[18];
@@ -12199,9 +12199,9 @@ static struct hs_function_definition const mods_list_definition=
 	0,
 };
 
-long const hs_function_table_count= 418 + 3 + 24 + 3 + 2 + 1 + 1 + 1 + 1; /* port: riding and Forge console tools */
+long const hs_function_table_count= 418 + 3 + 24 + 3 + 2 + 1 + 1 + 1 + 1 + 1; /* port: riding and Forge console tools */
 #else
-long const hs_function_table_count= 418 + 2 + 1 + 1 + 1 + 1; /* port: riding and Forge console tools */
+long const hs_function_table_count= 418 + 2 + 1 + 1 + 1 + 1 + 1; /* port: riding and Forge console tools */
 #endif
 
 /* port: the culling tests change only this machine's rendering */
@@ -12334,6 +12334,21 @@ static struct hs_function_definition_with_4_parameters const forge_clone_at_defi
 		{ _hs_type_object },
 	},
 	{ _hs_type_real, _hs_type_real, _hs_type_real },
+};
+
+HS_EVALUATE_RETURN_BOOLEAN_NO_ARGUMENTS(hs_forge_undo_evaluate, cheat_forge_undo)
+
+static struct hs_function_definition const forge_undo_definition =
+{
+	_hs_type_boolean,
+	0,
+	"forge_undo",
+	hs_macro_function_parse,
+	hs_forge_undo_evaluate,
+	"removes the last unused Forge copy on this map. Console only.",
+	NULL,
+	0,
+	{ _hs_type_void },
 };
 
 struct hs_enum_definition const hs_enum_table[]=
@@ -12805,6 +12820,7 @@ struct hs_function_table_storage hs_function_table=
 		&forge_clone_definition.definition, /* port: console-only; preserves prior indices */
 		&forge_target_definition, /* port: console-only */
 		&forge_clone_at_definition.definition, /* port: console-only */
+		&forge_undo_definition, /* port: console-only */
 	},
 	{
 		"hs_update",
@@ -13348,6 +13364,7 @@ static boolean const hs_function_allowed_in_maps[]=
 	FALSE, /* port: forge_clone is a console tool, never a map-script call */
 	FALSE, /* port: forge_target is a console tool, never a map-script call */
 	FALSE, /* port: forge_clone_at is a console tool, never a map-script call */
+	FALSE, /* port: forge_undo is a console tool, never a map-script call */
 };
 typedef char verify_hs_function_allowed_in_maps_size[
 	NUMBEROF(hs_function_allowed_in_maps) == NUMBEROF(hs_function_table.functions) ? 1 : -1];

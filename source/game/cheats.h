@@ -63,6 +63,8 @@ boolean cheats_console_object_made(
 /* port: a fresh native Forge copy, at the source transform; console only. */
 long cheat_forge_target(void);
 union real_point3d;
+void cheats_forge_forget_copy(void);
+boolean cheat_forge_undo(void);
 long cheat_forge_clone_at(long object_index, union real_point3d const *position);
 long cheat_forge_clone(
 	long object_index);

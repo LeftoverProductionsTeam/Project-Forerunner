@@ -34,9 +34,10 @@ def generated(fault=None):
             ('under_test.inc', source),
             ('path.inc', path),
             ('looks.inc', looks),
-            ('clone.inc', '\n'.join(function(read('source/game/cheats.c'), name) for name in (
-                'forge_placeable_object_get', 'forge_clone_at_position', 'cheat_forge_clone',
-                'cheat_forge_clone_at'))),
+            ('clone.inc', 'static long forge_last_copy = NONE;\n' + '\n'.join(
+                function(read('source/game/cheats.c'), name) for name in (
+                    'cheats_forge_forget_copy', 'forge_placeable_object_get', 'forge_clone_at_position',
+                    'cheat_forge_clone', 'cheat_forge_clone_at', 'cheat_forge_undo'))),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
              structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
              structure(read('source/ai/ai_scenario_definitions.h'), 'actor_starting_location')),
@@ -67,6 +68,13 @@ def test_initial_scripted_appearance():
                                  'position', 'position-outside', 'position-nan', 'position-client'])
 def test_native_scaled_clone(case):
     status, output = run(build('coop_vehicles', generated()), 'clone-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['latest', 'occupied', 'held', 'claimed', 'stale', 'pending-delete',
+                                 'restore', 'client', 'permission'])
+def test_forge_undo(case):
+    status, output = run(build('coop_vehicles', generated()), 'undo-' + case)
     assert status == 0, output
 
 
