@@ -74,6 +74,16 @@ revises the seat-test expression types. Readback still finds the Marine
 loading into P-riderLF and both rescue squad migration flags equal to zero.
 The same two authoring changes apply to that export.
 
+Spark's subsequent CE609 Spirit pilot export, build 09b19c08-47a9-4670-aebc-e70179c1c32a,
+SHA256 ef98e780c041a95c7014f60a4bc68dcb86fefe0ef073e14a2768a174013004b2,
+loads on two authenticated Windows clients (2,887 tags, 10 scripts and 15 globals).
+The test observer stopped on a log-location mismatch before native crew queries.
+Direct scenario readback still finds P-riderLF and no P-riderLM script reference.
+Both be_marines squad migration flags remain zero. The new Spirit pilot is a
+deferred encounter. The previous seat and rescue requirements still apply.
+Evidence: build/native-spark-black-echo-spirit-crew/result.json and
+build/native-black-echo-spirit-rescue-flags/result.json.
+
 17 November startup repair, Forerunner `21603426c4`: the Windows64 binary
 SHA256 `6744161c52be41a0c0d73cc8d83bba7245bc869ee8eaef00d37e2a8044e1cc09`
 passes fresh native profile creation followed by `HALO_START_MAP=be_native@ce`

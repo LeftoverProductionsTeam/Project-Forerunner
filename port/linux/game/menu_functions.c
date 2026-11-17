@@ -85,6 +85,11 @@ their handlers open opens.
 */
 
 #include "cseries.h"
+#include "game/cheats.h"
+#include "game/game.h"
+#include "interface/hud_messaging.h"
+#include "interface/terminal.h"
+#include "networking/network_game_globals.h"
 #include "input/input.h"
 #include "interface/event_manager.h"
 #include "interface/player_ui.h"
@@ -1474,8 +1479,6 @@ static boolean custom_campaign_map(char const *map_name)
 }
 
 /* network_game_globals.c's getters, shared by startup, updates and the lobby. */
-void *global_network_game_server_get(void);
-void *global_network_game_client_get(void);
 
 /* A creator's private launch config may select an installed native CE solo
 map. Use the real campaign/profile/loader path once, with human controls and
@@ -13779,12 +13782,44 @@ static boolean profile_list_delta_chosen(struct widget_instance const *widget)
 
 #endif
 
+boolean pc_menu_forge_offered(void)
+{
+	return network_game_forge_hosting() && !pc_menu_split_players();
+}
+
+static boolean forerunner_forge_action(char const *action)
+{
+	boolean was_terminal_command = terminal_command_running;
+	char const *notice;
+
+	if (!pc_menu_forge_offered() || !game_in_progress() || network_game_distributed_client())
+		return FALSE;
+	if (network_game_host_cheats_refused())
+	{
+		hud_print_notice(0, "Forge tools are disabled by the host's gameplay settings.");
+		return TRUE;
+	}
+
+	/* Native editing is subject to the same object quota and placement rules
+	 * as the corresponding host console commands. */
+	terminal_command_running = TRUE;
+	if (!strcmp(action, "port forge pick"))
+		notice = cheat_forge_pick() ? "Object selected" : "Aim at a visible object before selecting.";
+	else if (!strcmp(action, "port forge place"))
+		notice = cheat_forge_place() != NONE ? "Copy placed" : "Select an object and aim at clear ground.";
+	else
+		notice = cheat_forge_undo() ? "Copy removed" : "There is no unused copy to remove.";
+	terminal_command_running = was_terminal_command;
+	hud_print_notice(0, notice);
+	return TRUE;
+}
+
 /* The main menu uses the existing authoritative co-op mode setting. */
 static short forerunner_operation_mode(char const *action)
 {
 	if (!strcmp(action, "port forerunner host extraction")) return 2;
 	if (!strcmp(action, "port forerunner host firefight")) return 1;
-	if (!strcmp(action, "port forerunner host native")) return 0;
+	if (!strcmp(action, "port forerunner host native") || !strcmp(action, "port forerunner host forge")) return 0;
 	return NONE;
 }
 
@@ -14014,6 +14049,11 @@ boolean pc_menu_event_function_invoke(
 			forerunner_infection_chooser = TRUE;
 			return TRUE;
 		}
+		else if (!strcmp(name, "port forge pick") || !strcmp(name, "port forge place") ||
+			!strcmp(name, "port forge undo"))
+		{
+			return forerunner_forge_action(name);
+		}
 		else if (forerunner_operation_mode(name) != NONE)
 		{
 			struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
@@ -14027,7 +14067,10 @@ boolean pc_menu_event_function_invoke(
 				if (!option || !gametype_option_setting_write(option, 2)) return campaign_fail();
 			}
 			if (!multiplayer_host(widget, event, controller, widget_deleted)) return FALSE;
-			forerunner_operation_chooser = TRUE;
+			if (!strcmp(name, "port forerunner host forge"))
+				network_game_enable_forge();
+			else
+				forerunner_operation_chooser = TRUE;
 			return TRUE;
 		}
 		else if (!strcmp(name, "port setup open"))

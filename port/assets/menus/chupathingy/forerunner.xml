@@ -197,15 +197,15 @@
 		<child widget="forerunner/forge/choices" x="0" y="0" />
 	</widget>
 	<widget name="forerunner/forge/title" type="text" width="520" height="35" text="FORGE" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Aim at an object and enter forge_pick in the console.\nAim at open ground and enter forge_place.\nUse forge_undo to remove the last copy." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Open Forge Tools from the pause menu to copy objects." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
 		<child widget="forerunner/forge/join" x="60" y="350" />
 		<child widget="forerunner/forge/back" x="336" y="414" />
 	</widget>
 	<widget name="forerunner/forge/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CREATE SESSION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
-		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
-		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/forge/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
@@ -216,6 +216,34 @@
 	<widget name="forerunner/forge/back" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/forge/tools/title" x="192" y="126" />
+		<child widget="forerunner/forge/tools/choices" />
+	</widget>
+	<widget name="forerunner/forge/tools/title" type="text" width="264" height="30" text="FORGE TOOLS" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/forge/tools/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/forge/tools/pick" x="192" y="168" />
+		<child widget="forerunner/forge/tools/place" x="192" y="202" />
+		<child widget="forerunner/forge/tools/undo" x="192" y="236" />
+		<child widget="forerunner/forge/back" x="192" y="270" />
+	</widget>
+	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="SELECT AIMED OBJECT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge pick" close="all" />
+		<on event="start" run="port forge pick" close="all" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/place" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="PLACE COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge place" close="all" />
+		<on event="start" run="port forge place" close="all" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/undo" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="UNDO COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge undo" close="all" />
+		<on event="start" run="port forge undo" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/spark" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="SPARK MISSIONS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">

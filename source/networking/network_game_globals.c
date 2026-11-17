@@ -490,6 +490,18 @@ such a game's listeners to this machine alone (xnet.c: halo_ws_bind). The
 menus say whether remote connections are taken before they make the
 server (split_screen_game_initialize, player_ui_fast_setup_network_server) */
 static boolean network_game_hosting_local;
+/* Local UI state for the current host. It is never sent to clients. */
+static boolean network_game_hosting_forge;
+
+void network_game_enable_forge(void)
+{
+	network_game_hosting_forge = global_network_game_server_get() != NULL;
+}
+
+boolean network_game_forge_hosting(void)
+{
+	return global_network_game_server_get() && network_game_hosting_forge;
+}
 
 boolean network_game_port_hosting_local(
 	void)
@@ -861,6 +873,7 @@ boolean create_global_network_game_server(
 		0xD6,
 		global_network_game_server==NULL);
 
+	network_game_hosting_forge = FALSE;
 	network_game_hosting_local = !bss_004566dc.accept_remote_connections;
 	global_network_game_server = network_game_server_create();
 	if (global_network_game_server)

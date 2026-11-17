@@ -42,6 +42,8 @@ boolean network_game_is_splitscreen_local(
 builds bind that game's listeners to this machine alone (xnet.c) */
 boolean network_game_port_hosting_local(
 	void);
+void network_game_enable_forge(void);
+boolean network_game_forge_hosting(void);
 void network_game_set_quickstart_local(
 	void);
 boolean network_game_is_quickstart_local(

@@ -74,6 +74,7 @@ void *global_network_game_server_get(void);
 boolean network_game_is_active(void);
 /* whether the pause menu has CHANGE TEAMS (team_change.c) */
 boolean team_change_pause_offered(void);
+boolean pc_menu_forge_offered(void);
 int config_boolean(char const *name);
 
 /* cache_files.c's (port) */
@@ -108,11 +109,10 @@ adds to */
 /* a Custom Edition map's CHANGE SETTINGS, which pause_row_replaced takes out
 (the Halo PC screen it opens is in no map) */
 #define CUSTOM_CHANGE_SETTINGS_BUTTON "ui\shell\multiplayer_game\pause_game\change_settings_button"
-/* the tags pause_patch adds: up to seven buttons and their texts (CHANGE
-TEAMS, SETTINGS, network co-op's FRIENDLY FIRE, CONTROLS, GUIDE, END GAME,
-MODERATION), and the middle and bottom parts of the stock box's pieces, a
-widget and a bitmap each (the campaign's has six pieces) */
-#define PAUSE_PATCH_TAGS (14 + 4 * 6)
+/* The pause patch adds up to eight buttons and their text tags, plus
+ * the middle and bottom pieces of the stock box (a widget and bitmap each). */
+#define PAUSE_MAXIMUM_ADDED_BUTTONS 8
+#define PAUSE_PATCH_TAGS (2 * PAUSE_MAXIMUM_ADDED_BUTTONS + 4 * 6)
 /* what a frame of ui.map's is drawn as in a game map, which has not got it */
 #define BLANK_PNG "ce/port/blank__0.png"
 #define UI_WIDGET_DEFINITION_TAG 'DeLa'
@@ -454,6 +454,7 @@ static char const *const port_function_names[] =
 	"port update install",
 	"port forerunner host native", "port forerunner host firefight", "port forerunner host extraction",
 	"port forerunner menu init", "port forerunner host infection",
+	"port forerunner host forge", "port forge pick", "port forge place", "port forge undo",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
@@ -1966,7 +1967,8 @@ static boolean pause_list_patch(struct cache_file_tag_instance *instances, struc
 	boolean guide_row = pause_guide_offered();
 	long everyday = (change_teams != FALSE) + (settings != FALSE) + (friendly_fire != FALSE) +
 		(controls != FALSE) + (guide_row != FALSE);
-	long added = everyday + (end_game != FALSE) + (moderation != FALSE);
+	long forge_widget = build.menus && pc_menu_forge_offered() ? widget_named("forerunner/forge/tools") : NONE;
+	long added = everyday + (end_game != FALSE) + (moderation != FALSE) + (forge_widget != NONE);
 	struct ui_widget_child_reference *grown = allocate((count + added) * sizeof(struct ui_widget_child_reference));
 	struct ui_widget_definition const *model = tag_get(UI_WIDGET_DEFINITION_TAG, children[resume].widget_tag.index);
 	long settings_widget = !settings ? NONE :
@@ -1975,9 +1977,9 @@ static boolean pause_list_patch(struct cache_file_tag_instance *instances, struc
 		PAUSE_BUTTON_SPACING;
 	long quit = quit_function != NONE ? pause_quit_button(list, quit_function) : NONE;
 	long removed = 0, total;
-	void *buttons[7];
-	long tags[7];
-	char const *names[7];
+	void *buttons[PAUSE_MAXIMUM_ADDED_BUTTONS];
+	long tags[PAUSE_MAXIMUM_ADDED_BUTTONS];
+	char const *names[PAUSE_MAXIMUM_ADDED_BUTTONS];
 
 	*grow = 0;
 	for (child = resume + 1; child < count; child++)
@@ -2030,6 +2032,13 @@ static boolean pause_list_patch(struct cache_file_tag_instance *instances, struc
 			function_index("port pause guide", "pause", 0), NONE, FALSE, NULL, NONE);
 		if (buttons[added - 1])
 			pause_guide_label = ((struct ui_widget_definition *)buttons[added - 1])->text_label_string_list.index;
+	}
+	if (forge_widget != NONE)
+	{
+		names[added] = "pause/forge_button";
+		tags[added] = next_tag();
+		buttons[added++] = pause_button(instances, model, "pause/forge_button", "FORGE TOOLS",
+			function_index("NULL", "pause", 0), build.widget_tags[forge_widget], FALSE, NULL, NONE);
 	}
 	if (moderation)
 	{

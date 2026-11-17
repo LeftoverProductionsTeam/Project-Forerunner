@@ -106,6 +106,14 @@ authenticated clients saw the copied Pelican at rest at the same position and
 saw its removal while the original remained. The slope did not meet the separate
 dropship landing-attitude gate. Runtime copies and BMP scratch were removed.
 
+Forge pause controls (17 November): host from Forge > Create Session and open
+Forge Tools in the live pause menu to select, place, and undo a copy. Existing
+authority, object restrictions, quota and replication apply. Windows64 and
+seven focused permission/quota checks passed. Two independent LAN clients in
+build/native-forge-menu-end-to-end/result.json saw the same Pelican copy and
+removal, and the guest had no Forge Tools row. Controller and mouse actions
+passed without console edits. Placement save/load and editor parity remain open.
+
 Campaign co-op handoff (17 November): the next round preserves the host's
 friendly-fire setting across the playlist reset. The real reset test reproduced
 the loss on the original code; 14 focused checks and Windows64 passed. Co-op
