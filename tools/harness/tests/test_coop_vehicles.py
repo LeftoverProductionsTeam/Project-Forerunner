@@ -34,7 +34,8 @@ def generated(fault=None):
             ('under_test.inc', source),
             ('path.inc', path),
             ('looks.inc', looks),
-            ('clone.inc', function(read('source/game/cheats.c'), 'cheat_forge_clone')),
+            ('clone.inc', '\n'.join(function(read('source/game/cheats.c'), name) for name in (
+                'forge_placeable_object_get', 'cheat_forge_clone'))),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
              structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
              structure(read('source/ai/ai_scenario_definitions.h'), 'actor_starting_location')),

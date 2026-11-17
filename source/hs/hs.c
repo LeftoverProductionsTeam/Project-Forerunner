@@ -3403,9 +3403,9 @@ struct hs_function_table_storage
 #ifdef HALO_CUSTOM_EDITION
 	/* port: and Halo PC's functions the Xbox's have none of, and the
 	port's mods (below); and OpenCE's structure culling (2), and the map's riding call (1) */
-	struct hs_function_definition const *functions[418 + 3 + 24 + 3 + 2 + 1 + 1]; /* port: Forge clone */
+	struct hs_function_definition const *functions[418 + 3 + 24 + 3 + 2 + 1 + 1 + 1]; /* port: Forge console tools */
 #else
-	struct hs_function_definition const *functions[418 + 2 + 1 + 1]; /* port: Forge clone */
+	struct hs_function_definition const *functions[418 + 2 + 1 + 1 + 1]; /* port: Forge console tools */
 #endif
 	struct profile_section profile;
 	hs_token_enumerator token_enumerators[18];
@@ -12199,9 +12199,9 @@ static struct hs_function_definition const mods_list_definition=
 	0,
 };
 
-long const hs_function_table_count= 418 + 3 + 24 + 3 + 2 + 1 + 1; /* port: riding and Forge clone */
+long const hs_function_table_count= 418 + 3 + 24 + 3 + 2 + 1 + 1 + 1; /* port: riding and Forge console tools */
 #else
-long const hs_function_table_count= 418 + 2 + 1 + 1; /* port: riding and Forge clone */
+long const hs_function_table_count= 418 + 2 + 1 + 1 + 1; /* port: riding and Forge console tools */
 #endif
 
 /* port: the culling tests change only this machine's rendering */
@@ -12289,6 +12289,21 @@ static struct hs_function_definition_with_1_parameter const forge_clone_definiti
 		1,
 		{ _hs_type_object },
 	},
+};
+
+HS_EVALUATE_RETURN_LONG(hs_forge_target_evaluate, cheat_forge_target)
+
+static struct hs_function_definition const forge_target_definition =
+{
+	_hs_type_object,
+	0,
+	"forge_target",
+	hs_macro_function_parse,
+	hs_forge_target_evaluate,
+	"returns the visible, placeable object under your aim within 20 units. Console only. Use forge_clone (forge_target) to copy it.",
+	NULL,
+	0,
+	{ _hs_type_void },
 };
 
 struct hs_enum_definition const hs_enum_table[]=
@@ -12758,6 +12773,7 @@ struct hs_function_table_storage hs_function_table=
 		/* port: the map's riding call follows all existing indices */
 		&vehicle_riding_definition.definition,
 		&forge_clone_definition.definition, /* port: console-only; preserves prior indices */
+		&forge_target_definition, /* port: console-only */
 	},
 	{
 		"hs_update",
@@ -13299,6 +13315,7 @@ static boolean const hs_function_allowed_in_maps[]=
 	/* port: the map's vehicle riding */
 	TRUE, /* vehicle_riding */
 	FALSE, /* port: forge_clone is a console tool, never a map-script call */
+	FALSE, /* port: forge_target is a console tool, never a map-script call */
 };
 typedef char verify_hs_function_allowed_in_maps_size[
 	NUMBEROF(hs_function_allowed_in_maps) == NUMBEROF(hs_function_table.functions) ? 1 : -1];

@@ -66,6 +66,7 @@ symbols in this file:
 #include "main/console.h"
 #include "math/real_math.h"
 #include "objects/objects.h"
+#include "physics/collisions.h"
 #include "rasterizer/rasterizer_console_vars.h"
 #include "scenario/scenario.h"
 #include "tag_files/tag_groups.h"
@@ -222,6 +223,52 @@ boolean cheats_console_object_made(
 	return TRUE;
 }
 
+static struct object_datum *forge_placeable_object_get(long object_index)
+{
+	struct object_datum *object = object_try_and_get(object_index);
+	if (!object || object->object.parent_object_index != NONE ||
+		TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
+		!TEST_FLAG(_object_mask_scenery | _object_mask_weapon | _object_mask_equipment | _object_mask_vehicle,
+			object->object.type))
+		return NULL;
+	return object;
+}
+
+/* Port: Faber's Forge 3D selection uses the native world collision ray.
+ * Use the living local player so console selection cannot target through
+ * BSP geometry or from another player's camera. */
+long cheat_forge_target(void)
+{
+	long unit_index;
+	struct unit_datum *unit;
+	real_point3d origin;
+	real_vector3d ray;
+	struct collision_result hit;
+	struct object_datum *object;
+
+	if (!terminal_command_running || network_game_distributed_client() ||
+		network_game_host_cheats_refused() || !game_in_progress())
+		return NONE;
+	unit_index = player_control_get_unit_index(0);
+	unit = unit_try_and_get(unit_index);
+	if (!unit || unit->object.parent_object_index != NONE ||
+		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return NONE;
+
+	unit_get_camera_position(unit_index, &origin);
+	unit_get_aiming_vector(unit_index, &ray);
+	scale_vector3d(&ray, 20.0f, &ray);
+	if (!collision_test_vector(_collision_test_for_line_of_sight_flags |
+		FLAG(_collision_test_objects_weapons_bit) | FLAG(_collision_test_objects_equipment_bit),
+		&origin, &ray, unit_index, &hit) || hit.type != _collision_result_object)
+		return NONE;
+
+	object = forge_placeable_object_get(hit.object_index);
+	if (!object || (object->object.type == _object_type_weapon && weapon_is_flag(hit.object_index)))
+		return NONE;
+	return hit.object_index;
+}
+
 /* port: Faber's native placement recipe (forge_3d_mode.c, e4ffe0fe), without
 tag injection or an editor session. Copy placement, never live ownership,
 inventory, AI, children or scenario-name bindings. */
@@ -238,10 +285,8 @@ long cheat_forge_clone(
 		console_warning("forge_clone requires an allowed local or host console");
 		return NONE;
 	}
-	object = object_try_and_get(object_index);
-	if (!object || object->object.parent_object_index != NONE ||
-		TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
-		!TEST_FLAG(_object_mask_scenery | _object_mask_weapon | _object_mask_equipment | _object_mask_vehicle, object->object.type))
+	object = forge_placeable_object_get(object_index);
+	if (!object)
 	{
 		console_warning("forge_clone needs a live, unattached scenery, weapon, equipment or vehicle object");
 		return NONE;
