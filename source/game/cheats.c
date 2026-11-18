@@ -74,6 +74,16 @@ symbols in this file:
 #include "scenario/scenario.h"
 #include "tag_files/tag_groups.h"
 #include "units/units.h"
+
+#if (defined(_WIN32) || defined(__linux__) || defined(__APPLE__)) && \
+	!defined(HALO_XBOX_CONSOLE) && !defined(HALO_CONSOLE) && !defined(HALO_ANDROID) && \
+	!defined(HALO_WEB) && !defined(HALO_BROWSER)
+#define NATIVE_FORGE_SIDECARS
+#include "networking/network_game_globals.h"
+#include "networking/network_game_manager.h"
+#include "../../port/linux/src/posix.h"
+void platform_translate_path(char const *xbox_path, char *host_path, unsigned long host_path_size);
+#endif
 #ifdef HALO_64BIT
 #include "cseries/errors.h"
 #endif
@@ -122,11 +132,13 @@ void cheats_dispose(
 
 static long forge_selection = NONE;
 static long forge_last_copy = NONE;
+static long forge_copies[MAXIMUM_OBJECTS_PER_MAP];
 
 void cheats_forge_reset(void)
 {
 	forge_selection = NONE;
 	forge_last_copy = NONE;
+	memset(forge_copies, 0xff, sizeof(forge_copies));
 }
 
 void cheats_dispose_from_old_map(
@@ -145,7 +157,9 @@ extern boolean player_magnetism_flag;
 /* game_time.c's */
 boolean game_time_reset_speed(void);
 /* network_game_globals.c's, port_config.c's, delta_peer_game.c's */
+#ifndef NATIVE_FORGE_SIDECARS
 struct network_game_server *global_network_game_server_get(void);
+#endif
 long config_integer(const char *name);
 #ifdef HALO_GAME_BROWSER
 int delta_peer_game_hosting_xbox(void);
@@ -289,6 +303,22 @@ long cheat_forge_target(void)
 	return hit.object_index;
 }
 
+static long forge_create_copy(struct object_placement_data *placement, real scale)
+{
+	long clone_index;
+
+	if (!cheats_console_object_allowed())
+		return NONE;
+	SET_FLAG(placement->flags, _new_object_never_automatically_delete_bit, TRUE);
+	clone_index = object_new(placement);
+	if (clone_index == NONE || !cheats_console_object_made(clone_index))
+		return NONE;
+	objects_scripting_set_scale(clone_index, scale, 0);
+	forge_copies[DATUM_INDEX_TO_ABSOLUTE_INDEX(clone_index)] = clone_index;
+	forge_last_copy = clone_index;
+	return clone_index;
+}
+
 /* port: Faber's native placement recipe (forge_3d_mode.c, e4ffe0fe), without
 tag injection or an editor session. Copy placement, never live ownership,
 inventory, AI, children or scenario-name bindings. */
@@ -298,8 +328,7 @@ static long forge_clone_at_position(
 {
 	struct object_datum *object;
 	struct object_placement_data placement;
-	long clone_index;
-	real scale;
+
 
 	if (!terminal_command_running || network_game_distributed_client() || network_game_host_cheats_refused())
 	{
@@ -347,24 +376,15 @@ static long forge_clone_at_position(
 			return NONE;
 		}
 	}
-	if (!cheats_console_object_allowed())
-		return NONE;
 	object_placement_data_new(&placement, object->definition_index, NONE);
-	SET_FLAG(placement.flags, _new_object_never_automatically_delete_bit, TRUE);
 	placement.position = position ? *position : object->object.position;
 	placement.forward = object->object.forward;
 	placement.up = object->object.up;
 	placement.owner_team_index = object->object.owner_team_index;
 	placement.variant_number = object->object.variant_number;
 	csmemcpy(placement.change_colors, object->object.base_change_colors, sizeof(placement.change_colors));
-	scale = object->object.scale;
 	/* object_new may move the source's storage; retain no pointer across it. */
-	clone_index = object_new(&placement);
-	if (clone_index == NONE || !cheats_console_object_made(clone_index))
-		return NONE;
-	objects_scripting_set_scale(clone_index, scale, 0);
-	forge_last_copy = clone_index;
-	return clone_index;
+	return forge_create_copy(&placement, object->object.scale);
 }
 
 long cheat_forge_clone(long object_index)
@@ -473,6 +493,300 @@ boolean cheat_forge_undo(void)
 	object_delete(object_index);
 	forge_last_copy = NONE;
 	return TRUE;
+}
+
+
+#ifdef NATIVE_FORGE_SIDECARS
+/* Base-map OBJECT rows from OpenCE-Forge (SutlabSol, 91099ce3,
+ * forge_runtime_tags.c and forge_3d_mode.c). AGPL-3.0-or-later. */
+enum { FORGE_SIDECAR_OBJECTS = 128, FORGE_SIDECAR_BYTES = 128 * 512 + 512 };
+static char const forge_header[] = "[OpenCE Forge Map]";
+static char const forge_author[] = "Author: Forerunner";
+
+static char const *forge_sidecar_leaf(char const *name)
+{
+	char const *a = strrchr(name, '\\'), *b = strrchr(name, '/');
+	if (b && (!a || b > a)) a = b;
+	return a ? a + 1 : name;
+}
+
+static boolean forge_sidecar_slot(char const **base, char reference[144], char path[1100], boolean saving)
+{
+	struct network_game const *game = network_game_get_game();
+	char folder[1024];
+	char const *family;
+
+	if (!game || !network_game_forge_hosting() || !game_in_progress() ||
+		!terminal_command_running || network_game_distributed_client() || network_game_host_cheats_refused())
+		return FALSE;
+	*base = forge_sidecar_leaf(game->map.name);
+	if (!(*base)[0] || strlen(*base) >= 128 || strstr(*base, "..") ||
+		strspn(*base, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-. @[]()+") != strlen(*base))
+		return FALSE;
+	family = strchr(*base, '@');
+	if (family)
+	{
+		if (_stricmp(family, "@ce") || family == *base)
+			return FALSE;
+		snprintf(reference, 144, "custom_maps\\%.*s", (int)(family - *base), *base);
+	}
+	else
+		snprintf(reference, 144, "%s", *base);
+	platform_translate_path("z:\\custom_maps", folder, sizeof(folder));
+	if (!posix_mcc_share_path_safe(folder))
+		return FALSE;
+	if (saving)
+		posix_make_directory(folder);
+	return snprintf(path, 1100, "%s/forge-%s.txt", folder, *base) < 1100 && posix_mcc_share_path_safe(path);
+}
+
+static boolean forge_sidecar_object(char const *line, struct object_placement_data *placement)
+{
+	char *fields;
+	unsigned long group = strtoul(line, &fields, 10);
+	real_point3d position;
+	real_euler_angles3d angles;
+	short team;
+	char path[256];
+	long definition;
+	struct location location;
+
+	if ((group != 'vehi' && group != 'weap' && group != 'eqip' && group != 'scen') ||
+		(group == 'scen' && global_network_game_server_get()) ||
+		strncmp(fields, "|0|0|", 5) ||
+		sscanf(fields + 5, "%f|%f|%f|%f|%f|%f|%3hd|%255[^\r\n]",
+			&position.x, &position.y, &position.z, &angles.yaw, &angles.pitch, &angles.roll, &team, path) != 8 ||
+		strchr(path, '|') || team < NONE || team >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS ||
+		!valid_real_point3d(&position) || !valid_real(angles.yaw) || !valid_real(angles.pitch) || !valid_real(angles.roll) ||
+		angles.yaw < -2.f * M_PI || angles.yaw > 2.f * M_PI ||
+		angles.pitch < -2.f * M_PI || angles.pitch > 2.f * M_PI || angles.roll < -2.f * M_PI || angles.roll > 2.f * M_PI)
+		return FALSE;
+	scenario_location_from_point(&location, &position);
+	definition = tag_loaded(group, path);
+	if (location.cluster_index == NONE || definition == NONE ||
+		(group == 'weap' && TEST_FLAG(weapon_definition_get(definition)->weapon.flags, _weapon_must_be_readied_bit)))
+		return FALSE;
+	object_placement_data_new(placement, definition, NONE);
+	placement->position = position;
+	placement->owner_team_index = team;
+	/* OpenCE-Forge stores radians using this forward/up convention. */
+	{
+		real cy = cosine(angles.yaw), sy = sine(angles.yaw);
+		real cp = cosine(angles.pitch), sp = sine(angles.pitch);
+		real cr = cosine(angles.roll), sr = sine(angles.roll);
+		placement->forward.i = cy * cp;
+		placement->forward.j = sy * cp;
+		placement->forward.k = sp;
+		placement->up.i = -cy * sp * cr + sy * sr;
+		placement->up.j = -sy * sp * cr - cy * sr;
+		placement->up.k = cp * cr;
+	}
+	return valid_real_vector3d_axes2(&placement->forward, &placement->up);
+}
+
+static boolean forge_sidecar_base_matches(char const *name, char const *reference)
+{
+	static char const custom_maps[] = "custom_maps";
+	if (!_strnicmp(reference, "custom_maps\\", sizeof(custom_maps)))
+		return !_strnicmp(name, custom_maps, sizeof(custom_maps) - 1) &&
+			(name[sizeof(custom_maps) - 1] == '\\' || name[sizeof(custom_maps) - 1] == '/') &&
+			!_stricmp(name + sizeof(custom_maps), reference + sizeof(custom_maps));
+	if (!_stricmp(name, reference))
+		return TRUE;
+	return (!_strnicmp(name, "levels\\", 7) || !_strnicmp(name, "levels/", 7)) &&
+		!_stricmp(forge_sidecar_leaf(name), reference);
+}
+
+static boolean forge_sidecar_parse(char *text, char const *reference, struct object_placement_data *placements,
+	short *count, boolean own)
+{
+	boolean header = FALSE, base_found = FALSE, author_found = FALSE, state = FALSE;
+	*count = 0;
+	while (*text)
+	{
+		char *line = text;
+		text += strcspn(text, "\r\n");
+		if (*text)
+		{
+			*text++ = 0;
+			text += strspn(text, "\r\n");
+		}
+		if (!header)
+		{
+			if (strcmp(line, forge_header))
+				return FALSE;
+			header = TRUE;
+		}
+		else if (state)
+		{
+			if (*count >= FORGE_SIDECAR_OBJECTS || strncmp(line, "OBJECT|", 7) ||
+				!forge_sidecar_object(line + 7, &placements[*count]))
+				return FALSE;
+			(*count)++;
+		}
+		else if (!strcmp(line, "[ForgeState]"))
+			state = TRUE;
+		else if (!strncmp(line, "Base Map: ", 10))
+		{
+			if (base_found || !forge_sidecar_base_matches(line + 10, reference))
+				return FALSE;
+			base_found = TRUE;
+		}
+		else if (!strcmp(line, forge_author))
+			author_found = TRUE;
+	}
+	return state && base_found && *count > 0 && (!own || author_found);
+}
+
+static boolean forge_sidecar_capture(char *text, char const *base, char const *reference, posix_ulong *size)
+{
+	short count = 0;
+	long slot;
+	int written = snprintf(text, FORGE_SIDECAR_BYTES, "%s\r\nForgeSource=UserCreated\r\nMap Name: %s\r\nBase Map: %s\r\n%s\r\n[ForgeState]\r\n",
+		forge_header, base, reference, forge_author);
+
+	if (written < 0 || written >= FORGE_SIDECAR_BYTES)
+		return FALSE;
+	*size = (posix_ulong)written;
+	for (slot = 0; slot < NUMBEROF(forge_copies); slot++)
+	{
+		long handle = forge_copies[slot];
+		struct object_datum *object;
+		char const *path;
+		unsigned long group;
+		real pitch, yaw, roll, cp, sp, cy, sy;
+		struct location location;
+
+		struct object_header_datum *header = handle != NONE ? object_header_try_and_get(handle) : NULL;
+
+		if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit))
+			continue;
+		object = object_try_and_get(handle);
+		if (!object || TEST_FLAG(object->object.damage_flags, _object_dead_bit))
+			continue;
+		if (!forge_placeable_object_get(handle) || object->object.name_index != NONE ||
+			object->object.owner_player_index != NONE ||
+			object->object.owner_team_index < NONE || object->object.owner_team_index >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS)
+			return FALSE;
+		group = object->object.type == _object_type_vehicle ? 'vehi' :
+			object->object.type == _object_type_weapon ? 'weap' :
+			object->object.type == _object_type_equipment ? 'eqip' : 'scen';
+		path = tag_get_name(object->definition_index);
+		if (++count > FORGE_SIDECAR_OBJECTS || !path || !path[0] || strlen(path) > 255 ||
+			strpbrk(path, "|\r\n") || tag_loaded(group, path) != object->definition_index ||
+			(object->object.scale != 0.f && object->object.scale != 1.f) || object->object.variant_number != 0 ||
+			(group == 'scen' && global_network_game_server_get()) ||
+			(group == 'weap' && weapon_is_flag(handle)) ||
+			!valid_real_point3d(&object->object.position) ||
+			!valid_real_vector3d_axes2(&object->object.forward, &object->object.up))
+			return FALSE;
+		scenario_location_from_point(&location, &object->object.position);
+		if (location.cluster_index == NONE)
+			return FALSE;
+
+		pitch = arcsine(PIN(object->object.forward.k, -1.f, 1.f));
+		cp = cosine(pitch); sp = sine(pitch);
+		if (object->object.forward.k > .9995f || object->object.forward.k < -.9995f)
+		{
+			real sign = object->object.forward.k > 0.f ? -1.f : 1.f;
+			yaw = arctangent(sign * object->object.up.j, sign * object->object.up.i);
+			roll = 0.f;
+		}
+		else
+		{
+			yaw = arctangent(object->object.forward.j, object->object.forward.i);
+			cy = cosine(yaw); sy = sine(yaw);
+			roll = arctangent(sy * object->object.up.i - cy * object->object.up.j,
+				-cy * sp * object->object.up.i - sy * sp * object->object.up.j + cp * object->object.up.k);
+		}
+		written = snprintf(text + *size, FORGE_SIDECAR_BYTES - *size,
+			"OBJECT|%lu|0|0|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f|%d|%s\r\n", group,
+			object->object.position.x, object->object.position.y, object->object.position.z,
+			yaw, pitch, roll, (int)object->object.owner_team_index, path);
+		if (written < 0 || (posix_ulong)written >= FORGE_SIDECAR_BYTES - *size)
+			return FALSE;
+		*size += (posix_ulong)written;
+	}
+	return count > 0;
+}
+
+static boolean forge_sidecar_restore(struct object_placement_data *placements, short count)
+{
+	long created[FORGE_SIDECAR_OBJECTS], slot, previous_count = cheats_console_objects_made;
+	short index;
+
+	for (slot = 0; slot < NUMBEROF(forge_copies); slot++)
+		if (forge_copies[slot] != NONE && object_try_and_get(forge_copies[slot]))
+			return FALSE; /* Load onto a fresh layout, never duplicate existing copies. */
+	for (index = 0; index < count; index++)
+	{
+		struct object_placement_data placement = placements[index];
+		created[index] = forge_create_copy(&placement, 0.f);
+		if (created[index] == NONE)
+		{
+			while (index > 0)
+			{
+				long handle = created[--index];
+				forge_copies[DATUM_INDEX_TO_ABSOLUTE_INDEX(handle)] = NONE;
+				object_delete(handle);
+			}
+			forge_last_copy = NONE;
+			cheats_console_objects_made = previous_count;
+			return FALSE;
+		}
+		/* Native vehicle birth raises the hull above the input position.
+		 * Apply the saved pose to the new copy before the next physics tick. */
+		object_set_position(created[index], &placements[index].position,
+			&placements[index].forward, &placements[index].up);
+	}
+	return TRUE;
+}
+#endif
+
+boolean cheat_forge_sidecar(boolean saving)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	char const *base;
+	char reference[144], path[1100], lock_path[1105];
+	struct object_placement_data *placements;
+	char *text;
+	int lock = -1, read;
+	posix_ulong size;
+	short count;
+	boolean success = FALSE;
+
+	if (!forge_sidecar_slot(&base, reference, path, saving))
+		return FALSE;
+	text = malloc(FORGE_SIDECAR_BYTES + 1);
+	placements = malloc(FORGE_SIDECAR_OBJECTS * sizeof(*placements));
+	if (!text || !placements)
+		goto done;
+	if (saving)
+	{
+		snprintf(lock_path, sizeof(lock_path), "%s.lock", path);
+		lock = posix_gear_lock(lock_path);
+		if (lock < 0)
+			goto done;
+	}
+	read = posix_gear_read(path, text, FORGE_SIDECAR_BYTES, &size);
+	if (read < 0 || (read && memchr(text, 0, size)))
+		goto done;
+	text[size] = 0;
+	if (read && !forge_sidecar_parse(text, reference, placements, &count, saving))
+		goto done;
+	if (saving)
+		success = forge_sidecar_capture(text, base, reference, &size) && posix_gear_replace(path, text, size);
+	else if (read)
+		success = forge_sidecar_restore(placements, count);
+done:
+	posix_gear_unlock(lock);
+	free(placements);
+	free(text);
+	return success;
+#else
+	(void)saving;
+	return FALSE;
+#endif
 }
 
 /* port: what the map's own scripts set rider_ejection to (TRUE until they

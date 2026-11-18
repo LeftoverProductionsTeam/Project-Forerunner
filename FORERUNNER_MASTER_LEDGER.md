@@ -137,7 +137,16 @@ authority, object restrictions, quota and replication apply. Windows64 and
 seven focused permission/quota checks passed. Two independent LAN clients in
 build/native-forge-menu-end-to-end/result.json saw the same Pelican copy and
 removal, and the guest had no Forge Tools row. Controller and mouse actions
-passed without console edits. Placement save/load and editor parity remain open.
+passed without console edits.
+
+Forge placement persistence (17 November): Save and Load in Forge Tools use the
+OpenCE-Forge base-map placement format. Windows64 and 37 focused checks passed.
+Two native Windows LAN clients saw the saved Pelican at the same resting
+position after both clients restarted. A separate native import passed quota
+rollback, duplicate refusal and upstream-authored file preservation. Evidence:
+build/native-forge-sidecar-restored/result.json and
+build/native-forge-import-verified/result.json. Scale and other Forge edits still
+need a compatible representation.
 
 Campaign co-op handoff (17 November): the next round preserves the host's
 friendly-fire setting across the playlist reset. The real reset test reproduced

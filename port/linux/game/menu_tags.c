@@ -455,6 +455,7 @@ static char const *const port_function_names[] =
 	"port forerunner host native", "port forerunner host firefight", "port forerunner host extraction",
 	"port forerunner menu init", "port forerunner host infection",
 	"port forerunner host forge", "port forge pick", "port forge place", "port forge undo",
+	"port forge save", "port forge load",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from

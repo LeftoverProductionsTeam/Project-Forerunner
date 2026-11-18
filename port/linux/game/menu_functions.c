@@ -13807,8 +13807,14 @@ static boolean forerunner_forge_action(char const *action)
 		notice = cheat_forge_pick() ? "Object selected" : "Aim at a visible object before selecting.";
 	else if (!strcmp(action, "port forge place"))
 		notice = cheat_forge_place() != NONE ? "Copy placed" : "Select an object and aim at clear ground.";
-	else
+	else if (!strcmp(action, "port forge undo"))
 		notice = cheat_forge_undo() ? "Copy removed" : "There is no unused copy to remove.";
+	else if (!strcmp(action, "port forge save"))
+		notice = cheat_forge_sidecar(TRUE) ? "Forge placements saved." :
+			"Save failed. Use unscaled base-map copies and a writable Forerunner save slot.";
+	else
+		notice = cheat_forge_sidecar(FALSE) ? "Forge placements loaded." :
+			"Load failed. Open the matching base map and start with an empty Forge layout.";
 	terminal_command_running = was_terminal_command;
 	hud_print_notice(0, notice);
 	return TRUE;
@@ -14050,7 +14056,7 @@ boolean pc_menu_event_function_invoke(
 			return TRUE;
 		}
 		else if (!strcmp(name, "port forge pick") || !strcmp(name, "port forge place") ||
-			!strcmp(name, "port forge undo"))
+			!strcmp(name, "port forge undo") || !strcmp(name, "port forge save") || !strcmp(name, "port forge load"))
 		{
 			return forerunner_forge_action(name);
 		}
