@@ -224,7 +224,7 @@ def test_squad_native_objectives(case):
 @pytest.mark.parametrize('before,after,case', [
     ('if (run->squad != squad || run->squad_operation != extraction.squads[squad].operation ||',
      'if (FALSE || run->squad_operation != extraction.squads[squad].operation ||', 'squad-query-loop'),
-    ('if (control->object.name_index == extraction.activate_name && !extraction_squad_objectives_ready(run))',
+    ('if (!extraction_squad_objectives_ready(run))',
      'if (FALSE)', 'squad-objective-loop'),
 ])
 def test_squad_objective_negative_control(before, after, case):
@@ -279,6 +279,7 @@ def test_native_transport_crash_negative_control():
 @pytest.mark.parametrize('case', [
     'transport-called-loop', 'transport-called-ownership', 'transport-called-duplicate',
     'transport-called-capacity', 'transport-called-missing', 'transport-called-alias',
+    'transport-called-split', 'transport-called-split-missing', 'transport-called-split-alias',
 ])
 def test_native_faction_transport_calls(case):
     status, output = run(build('extraction', generated()), case)
@@ -389,8 +390,8 @@ def test_native_transport_admission_negative_control():
 
 
 @pytest.mark.parametrize('before,after,case', [
-    ('control->object.name_index == extraction.activate_name && run->phase == _extraction_ready',
-     'control->object.name_index == extraction.activate_name && FALSE', 'transport-recall'),
+    ('if (run->phase == _extraction_ready && run->unit == unit_index &&',
+     'if (FALSE && run->unit == unit_index &&', 'transport-recall'),
     ('(reusable && script->script_type == _hs_script_continuous)',
      '(script->script_type == _hs_script_continuous)', 'mission-signature'),
 ])

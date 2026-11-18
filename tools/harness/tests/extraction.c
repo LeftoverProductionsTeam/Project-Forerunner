@@ -119,7 +119,7 @@ static struct scenario_object_name names[11] = { {"extraction_deploy"}, {"extrac
 static struct scenario_starting_profile faction_profiles[2];
 static struct scenario_object_datum body_placements[2];
 static struct scenario_object_palette_entry body_palette[2];
-static struct scenario_trigger_volume volumes[2] = { {"extraction_zone"}, {"extraction_return"} };
+static struct scenario_trigger_volume volumes[4] = { {"extraction_zone"}, {"extraction_return"} };
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
 static struct hs_script completion_script;
@@ -345,7 +345,12 @@ static void device_effect_new(long control,long effect) { for(short i=0;i<NUMBER
 static void __attribute__((noreturn)) display_assert(void *unused,char const *path,int line,boolean fatal) { (void)unused;(void)path;(void)line;(void)fatal;abort(); }
 static void __attribute__((noreturn)) system_exit(long code) { (void)code;abort(); }
 boolean device_can_change_position(long control_index);
-static boolean scenario_trigger_volume_test_point(short zone,real_point3d const *p) { return zone==0 ? p->x>10.f : p->x<5.f; }
+static boolean scenario_trigger_volume_test_point(short zone,real_point3d const *p)
+{
+ if(zone==2)return p->x>10.f&&p->x<25.f;
+ if(zone==3)return p->x>25.f;
+ return zone==0 ? p->x>10.f : p->x<5.f;
+}
 static boolean scenario_trigger_volume_test_object(short zone,long h) { return scenario_trigger_volume_test_point(zone,&unit_get(h)->object.position); }
 static boolean players_are_all_dead(void) { return (units[0].object.damage_flags&1) && (units[1].object.damage_flags&1); }
 static void players_respawn_at_start(void) { respawns++; }
@@ -1234,12 +1239,28 @@ int main(int argc,char **argv)
  if(!strncmp(case_name,"transport-",10)) {
   short faction=!strcmp(case_name,"transport-covenant")?1:0;
   long craft=dropship_handles[faction],loot;
+  boolean split_routes=!strncmp(case_name,"transport-called-split",22);
   extraction_reset();scenario.object_names.count=5;
   if(!strncmp(case_name,"transport-called",16)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_called");
    strcpy(authored_groups[11].name,"extraction_spirit_called");
    device_groups[10].actual_value=device_groups[11].actual_value=1.f;
+   if(split_routes) {
+    scenario.object_names.count=11;scenario.trigger_volumes.count=4;
+    names[1].name[0]=volumes[0].name[0]=0;
+    for(a=5;a<9;a++)names[a].name[0]=0;
+    strcpy(names[9].name,"extraction_pelican_activate");
+    strcpy(names[10].name,"extraction_spirit_activate");
+    strcpy(volumes[2].name,"extraction_pelican_zone");
+    strcpy(volumes[3].name,"extraction_spirit_zone");
+    controls[5].object.name_index=9;controls[6].object.name_index=10;
+    controls[5].object.position.x=20;controls[6].object.position.x=30;
+    controls[5].device.position_group_index=6;controls[6].device.position_group_index=7;
+    controls[5].device.power_group_index=3;controls[6].device.power_group_index=4;
+    if(!strcmp(case_name,"transport-called-split-missing"))volumes[3].name[0]=0;
+    if(!strcmp(case_name,"transport-called-split-alias"))controls[6].device.power_group_index=10;
+   }
    if(!strcmp(case_name,"transport-called-duplicate"))strcpy(authored_groups[11].name,authored_groups[10].name);
    if(!strcmp(case_name,"transport-called-capacity"))device_group_table.maximum_count=10;
    if(!strcmp(case_name,"transport-called-missing"))scenario.object_names.count=3;
@@ -1302,7 +1323,8 @@ int main(int argc,char **argv)
   }
   if(!strncmp(case_name,"transport-called",16)) {
    if(!strcmp(case_name,"transport-called-duplicate")||!strcmp(case_name,"transport-called-capacity")||
-      !strcmp(case_name,"transport-called-missing")||!strcmp(case_name,"transport-called-alias")) {
+      !strcmp(case_name,"transport-called-missing")||!strcmp(case_name,"transport-called-alias")||
+      !strcmp(case_name,"transport-called-split-missing")||!strcmp(case_name,"transport-called-split-alias")) {
     CHECK(!extraction_owns_map()&&!boarding_changes,"invalid call output admitted map or changed native groups");return 0;
    }
    CHECK(extraction_owns_map()&&!device_groups[10].actual_value&&!device_groups[11].actual_value,"stale call outputs survived binding");
@@ -1310,6 +1332,26 @@ int main(int argc,char **argv)
    units[1].object.owner_team_index=_game_team_covenant;players[1].team_index=_game_team_covenant;
    touch(0,0);touch(0,1);units[0].object.position.x=units[1].object.position.x=20;
    advance(1);CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"mere deployment called a dropship");
+   if(split_routes) {
+    touch(5,1);touch(6,1);advance(1);
+    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"Covenant called from the UNSC landing zone");
+    touch(5,0);advance(1);
+    CHECK(device_groups[10].actual_value&&!device_groups[11].actual_value,"Pelican terminal did not call only its craft");
+    units[1].object.position.x=30;touch(6,1);advance(1);
+    CHECK(device_groups[10].actual_value&&device_groups[11].actual_value,"Spirit terminal did not call its craft independently");
+    units[0].object.position.x=30;advance(1);
+    CHECK(!device_groups[10].actual_value&&device_groups[11].actual_value,"crossing landing zones did not cancel only the UNSC countdown");
+    advance(300);
+    CHECK(run(1)->phase==_extraction_ready,"Covenant activation did not finish");
+    dropships[1].object.position.x=20;units[1].object.parent_object_index=dropship_handles[1];
+    units[1].unit.parent_seat_index=0;advance(1);
+    CHECK(run(1)->dropship==NONE&&!extraction_transport_boarded(1),"wrong landing zone produced a Spirit boarding receipt");
+    dropships[1].object.position.x=30;advance(1);
+    CHECK(run(1)->dropship==dropship_handles[1]&&extraction_transport_boarded(1),"correct Spirit landing zone refused boarding");
+    dropships[1].object.position.x=0;advance(1);
+    CHECK(run(1)->phase==_extraction_returned&&run(0)->phase==_extraction_deployed,"Spirit arrival did not settle only its passengers");
+    extraction_reset();return 0;
+   }
    touch(1,0);advance(1);
    CHECK(device_groups[10].actual_value==1.f&&!device_groups[11].actual_value,"UNSC request called Spirit or missed Pelican");
    /* Both players touch the same native switch. Its position must not choose

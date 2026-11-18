@@ -106,6 +106,13 @@ authenticated clients saw the copied Pelican at rest at the same position and
 saw its removal while the original remained. The slope did not meet the separate
 dropship landing-attitude gate. Runtime copies and BMP scratch were removed.
 
+Faction landing zones (17 November): authored Pelican and Spirit controls and
+volumes can replace the shared Extraction route. Each side's zone drives its
+call, countdown and boarding receipt. Existing shared routes remain supported.
+Windows64 and 75 focused checks passed. Two verified Delta clients loaded the
+same CE609 fixture and terminal placements. Native dual flights were not run.
+Evidence: build/native-faction-landing-zones-verified/result.json.
+
 Co-op campaign guest credit (17 November): the host's existing four-byte
 game-over field now carries a stock mission win tied to the mission and
 difficulty. Guests credit only active local profiles from a matching result.

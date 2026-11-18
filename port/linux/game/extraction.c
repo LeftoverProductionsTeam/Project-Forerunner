@@ -107,6 +107,7 @@ static struct
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
+	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
 	short dropship_landing_groups[2]; /* optional physical landing output/gate */
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
@@ -458,6 +459,8 @@ void extraction_reset(void)
 		extraction.squads[index].name = extraction.squads[index].ready_group = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
+	extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
@@ -598,12 +601,32 @@ boolean extraction_respawn_after_loss(void)
 	return TRUE;
 }
 
+static short extraction_zone_for_faction(short faction)
+{
+	if (VALID_INDEX(faction, 2) && extraction.dropship_zones[faction] != NONE)
+		return extraction.dropship_zones[faction];
+	return extraction.zone;
+}
+
+static boolean extraction_at_hub(long object)
+{
+	short faction;
+	if (!scenario_trigger_volume_test_object(extraction.return_zone, object) ||
+		(extraction.zone != NONE && scenario_trigger_volume_test_object(extraction.zone, object)))
+		return FALSE;
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.dropship_zones[faction] != NONE &&
+			scenario_trigger_volume_test_object(extraction.dropship_zones[faction], object)) return FALSE;
+	return TRUE;
+}
+
 static void extraction_bind(void)
 {
 	short index, faction, squad;
 	boolean unique = TRUE;
 	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL, *debrief = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
+	struct control_datum *faction_calls[2] = {NULL, NULL};
 
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
@@ -612,6 +635,8 @@ static void extraction_bind(void)
 		extraction.squads[squad].name = extraction.squads[squad].ready_group = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
+	extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
+	extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
@@ -673,6 +698,11 @@ static void extraction_bind(void)
 			{
 				if (extraction.faction_names[faction] != NONE) unique = FALSE;
 				extraction.faction_names[faction] = index;
+			}
+			if (!strcmp(name->name, faction ? "extraction_spirit_activate" : "extraction_pelican_activate"))
+			{
+				if (extraction.dropship_activate_names[faction] != NONE) unique = FALSE;
+				extraction.dropship_activate_names[faction] = index;
 			}
 			if (!strcmp(name->name, faction ? "extraction_spirit" : "extraction_pelican"))
 			{
@@ -745,6 +775,13 @@ static void extraction_bind(void)
 		struct scenario_trigger_volume *volume = TAG_BLOCK_GET_ELEMENT(
 			&global_scenario->trigger_volumes, index, struct scenario_trigger_volume);
 
+		for (faction = 0; faction < 2; faction++)
+			if (!strcmp(volume->name, faction ? "extraction_spirit_zone" : "extraction_pelican_zone"))
+			{
+				if (extraction.dropship_zones[faction] != NONE) unique = FALSE;
+				extraction.dropship_zones[faction] = index;
+			}
+
 		if (!strcmp(volume->name, "extraction_zone"))
 		{
 			if (extraction.zone != NONE)
@@ -764,10 +801,33 @@ static void extraction_bind(void)
 	debrief = extraction.debrief_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.debrief_name)) : NULL;
 	/* Match Spark's native touched-by-player tag requirement. Other trigger
 	   kinds never reach extraction_control_touched through control_touched. */
-	extraction.admitted = unique && extraction.zone != NONE && extraction.return_zone != NONE &&
-		deploy && activate && deploy != activate &&
-		control_definition_get(deploy->definition_index)->control.triggers_when == 0 &&
-		control_definition_get(activate->definition_index)->control.triggers_when == 0;
+	extraction.admitted = unique && extraction.return_zone != NONE && deploy &&
+		control_definition_get(deploy->definition_index)->control.triggers_when == 0;
+	if (extraction.activate_name != NONE || extraction.zone != NONE)
+	{
+		if (extraction.zone == NONE || !activate || activate == deploy ||
+			control_definition_get(activate->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
+	}
+	else if (extraction.dropship_names[0] == NONE && extraction.dropship_names[1] == NONE)
+		extraction.admitted = FALSE;
+	for (faction = 0; faction < 2; faction++)
+	{
+		short call_name = extraction.dropship_activate_names[faction];
+		short zone = extraction.dropship_zones[faction];
+		if (call_name != NONE)
+			faction_calls[faction] = control_try_and_get(object_index_from_name_index(call_name));
+		if (extraction.dropship_names[faction] != NONE && !activate && call_name == NONE)
+			extraction.admitted = FALSE;
+		if (call_name != NONE || zone != NONE)
+		{
+			struct control_datum *call = faction_calls[faction];
+			if (!call || call->object.name_index != call_name || zone == NONE || extraction.dropship_names[faction] == NONE ||
+				call == deploy || call == activate || call == loadout || call == debrief ||
+				(faction && call == faction_calls[0]) ||
+				control_definition_get(call->definition_index)->control.triggers_when != 0 ||
+				!scenario_trigger_volume_test_point(zone, &call->object.position)) extraction.admitted = FALSE;
+		}
+	}
 	if (extraction.loadout_name != NONE && (!loadout || loadout == deploy || loadout == activate ||
 		control_definition_get(loadout->definition_index)->control.triggers_when != 0)) extraction.admitted = FALSE;
 	if (extraction.debrief_name != NONE && (!debrief || debrief == deploy || debrief == activate || debrief == loadout ||
@@ -777,6 +837,7 @@ static void extraction_bind(void)
 		{
 			choices[faction] = control_try_and_get(object_index_from_name_index(extraction.faction_names[faction]));
 			if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout || choices[faction] == debrief ||
+				choices[faction] == faction_calls[0] || choices[faction] == faction_calls[1] ||
 				(faction && choices[1] == choices[0]) || extraction.faction_profiles[faction] == NONE ||
 				control_definition_get(choices[faction]->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
 		}
@@ -792,7 +853,10 @@ static void extraction_bind(void)
 		struct player_starting_location *start = TAG_BLOCK_GET_ELEMENT(&global_scenario->players,
 			index, struct player_starting_location);
 		if (!scenario_trigger_volume_test_point(extraction.return_zone, &start->position) ||
-			scenario_trigger_volume_test_point(extraction.zone, &start->position)) extraction.admitted = FALSE;
+			(extraction.zone != NONE && scenario_trigger_volume_test_point(extraction.zone, &start->position))) extraction.admitted = FALSE;
+		for (faction = 0; faction < 2; faction++)
+			if (extraction.dropship_zones[faction] != NONE &&
+				scenario_trigger_volume_test_point(extraction.dropship_zones[faction], &start->position)) extraction.admitted = FALSE;
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
 finished:
@@ -805,7 +869,7 @@ finished:
 				short other;
 				if (!choice || choice->object.name_index != extraction.squads[squad].name ||
 					choice == deploy || choice == activate || choice == loadout || choice == debrief ||
-					choice == choices[0] || choice == choices[1] ||
+					choice == choices[0] || choice == choices[1] || choice == faction_calls[0] || choice == faction_calls[1] ||
 					control_definition_get(choice->definition_index)->control.triggers_when != 0)
 				{ extraction.admitted = FALSE; continue; }
 				for (other = 0; other < squad; other++)
@@ -814,7 +878,7 @@ finished:
 						extraction.admitted = FALSE;
 				if (ready != NONE)
 				{
-					struct control_datum *inputs[6] = {deploy, activate, loadout, debrief, choices[0], choices[1]};
+					struct control_datum *inputs[] = {deploy, activate, loadout, debrief, choices[0], choices[1], faction_calls[0], faction_calls[1]};
 					for (other = 0; other < NUMBEROF(inputs); other++)
 						if (inputs[other] && (inputs[other]->device.position_group_index == ready ||
 							inputs[other]->device.power_group_index == ready)) extraction.admitted = FALSE;
@@ -845,7 +909,7 @@ finished:
 			for (output = 0; output < NUMBEROF(outputs); output++)
 			if (outputs[output] != NONE)
 			{
-				struct control_datum *inputs[6] = {deploy, activate, loadout, debrief, choices[0], choices[1]};
+				struct control_datum *inputs[] = {deploy, activate, loadout, debrief, choices[0], choices[1], faction_calls[0], faction_calls[1]};
 				for (index = 0; index < NUMBEROF(inputs); index++)
 					if (inputs[index] && (inputs[index]->device.position_group_index == outputs[output] ||
 						inputs[index]->device.power_group_index == outputs[output])) extraction.admitted = FALSE;
@@ -896,6 +960,8 @@ finished:
 			extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 			extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
 			extraction.zone = extraction.return_zone = NONE;
+			extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
+			extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
 		}
 		if (extraction.admitted && !extraction.suspended)
 			extraction_notice(extraction.evacuation ?
@@ -1283,19 +1349,23 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct player_datum *player;
 	struct extraction_run *run;
 	long slot;
-	short faction, squad = NONE, index;
-	boolean in_hub;
+	short faction, squad = NONE, index, zone, call_name;
+	boolean in_hub, activation;
 
 	if (!extraction_owns_map() && !(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested())) return FALSE;
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	if (control)
 		for (index = 0; index < NUMBEROF(extraction.squads); index++)
 			if (extraction.squads[index].name != NONE && control->object.name_index == extraction.squads[index].name) squad = index;
-	if (!control || (control->object.name_index != extraction.deploy_name && control->object.name_index != extraction.activate_name &&
+	if (!control || control->object.name_index == NONE) return FALSE;
+	activation = control->object.name_index == extraction.activate_name ||
+		control->object.name_index == extraction.dropship_activate_names[0] ||
+		control->object.name_index == extraction.dropship_activate_names[1];
+	if (control->object.name_index != extraction.deploy_name && !activation &&
 		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name) &&
 		(extraction.debrief_name == NONE || control->object.name_index != extraction.debrief_name) &&
 		(extraction.faction_names[0] == NONE || control->object.name_index != extraction.faction_names[0]) &&
-		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]) && squad == NONE)) return FALSE;
+		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]) && squad == NONE) return FALSE;
 	if (extraction.suspended || cinematic_in_progress() ||
 		(extraction.survival && coop_enemies_firefight_outcome() != 0 && control->object.name_index != extraction.debrief_name)) return TRUE;
 	/* Recheck authored power, usability and one-use locks on the host before
@@ -1312,8 +1382,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	{
 		extraction_run_close(run); run->player = unit->unit.player_index;
 	}
-	in_hub = scenario_trigger_volume_test_object(extraction.return_zone, unit_index) &&
-		!scenario_trigger_volume_test_object(extraction.zone, unit_index);
+	in_hub = extraction_at_hub(unit_index);
 	if (squad != NONE)
 	{
 		extraction_squad_choose(run, player, squad, in_hub);
@@ -1445,24 +1514,36 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		 * host has granted the reserved loadout successfully. */
 		return !extraction_deploy(run, player, !update_client_loadout_modifier_held(unit->unit.player_index));
 	}
-	if (control->object.name_index == extraction.activate_name && !extraction_squad_objectives_ready(run))
+	if (!activation) return TRUE;
+	faction = extraction_faction(unit->object.owner_team_index);
+	call_name = VALID_INDEX(faction, 2) && extraction.dropship_activate_names[faction] != NONE ?
+		extraction.dropship_activate_names[faction] : extraction.activate_name;
+	if (control->object.name_index != call_name ||
+		((extraction.dropship_activate_names[0] != NONE || extraction.dropship_activate_names[1] != NONE) &&
+			(faction == NONE || faction != extraction_faction((short)player->team_index) ||
+				extraction.dropship_names[faction] == NONE)))
+	{
+		extraction_tell(run, "WRONG LANDING ZONE | Use your faction's extraction terminal.");
+		return TRUE;
+	}
+	zone = extraction_zone_for_faction(faction);
+	if (zone == NONE || !scenario_trigger_volume_test_object(zone, unit_index)) return TRUE;
+	if (!extraction_squad_objectives_ready(run))
 	{
 		extraction_tell(run, "OBJECTIVES INCOMPLETE | Finish your squad's authored mission before calling extraction."); return TRUE;
 	}
-	if (control->object.name_index == extraction.activate_name && run->phase == _extraction_deployed && run->unit == unit_index &&
-		scenario_trigger_volume_test_object(extraction.zone, unit_index))
+	if (run->phase == _extraction_deployed && run->unit == unit_index)
 	{
 		run->phase = _extraction_activating; run->activation_ticks = 10 * TICKS_PER_SECOND;
 		extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
 		return FALSE;
 	}
-	if (control->object.name_index == extraction.activate_name && run->phase == _extraction_ready && run->unit == unit_index &&
-		unit->object.parent_object_index == NONE && scenario_trigger_volume_test_object(extraction.zone, unit_index) &&
+	if (run->phase == _extraction_ready && run->unit == unit_index &&
+		unit->object.parent_object_index == NONE &&
 		(extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE))
 	{
 		/* An earlier flight may have departed with another crew. Reuse the
 		 * authored call control without another countdown or gear transaction. */
-		faction = extraction_faction(unit->object.owner_team_index);
 		if (faction == NONE || extraction.dropship_names[faction] == NONE)
 		{
 			extraction_tell(run, "TRANSPORT UNAVAILABLE | This operation has no dropship for your faction. Gear remains at risk.");
@@ -1533,8 +1614,7 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 		if (faction != NONE && extraction.dropship_landing_groups[faction] != NONE &&
 			!vehicle_is_landed(location)) return FALSE;
 	}
-	return scenario_trigger_volume_test_object(extraction.return_zone, location) &&
-		!scenario_trigger_volume_test_object(extraction.zone, location);
+	return extraction_at_hub(location);
 }
 
 static boolean extraction_return_ready(struct extraction_run *run, struct unit_datum const *unit)
@@ -1553,8 +1633,9 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 	}
 	if (run->dropship == NONE)
 	{
-		if (extraction_medical_incapacitated(run->unit) ||
-			!scenario_trigger_volume_test_object(extraction.zone, dropship) ||
+		short zone = extraction_zone_for_faction(extraction_faction(unit->object.owner_team_index));
+		if (extraction_medical_incapacitated(run->unit) || zone == NONE ||
+			!scenario_trigger_volume_test_object(zone, dropship) ||
 			scenario_trigger_volume_test_object(extraction.return_zone, dropship)) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
@@ -1600,8 +1681,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		if (now > run->discard_deadline || !unit || player->unit_index != run->discard_unit ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) || unit->object.parent_object_index != NONE ||
 			extraction_medical_incapacitated(player->unit_index) || cinematic_in_progress() ||
-			!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index) ||
-			scenario_trigger_volume_test_object(extraction.zone, player->unit_index) ||
+			!extraction_at_hub(player->unit_index) ||
 			!extraction_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES))
 			run->discard_deadline = 0;
 	}
@@ -1654,7 +1734,8 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 	if (run->phase == _extraction_activating)
 	{
-		if (!scenario_trigger_volume_test_object(extraction.zone, run->unit))
+		short zone = extraction_zone_for_faction(extraction_faction(unit->object.owner_team_index));
+		if (zone == NONE || !scenario_trigger_volume_test_object(zone, run->unit))
 		{
 			run->phase = _extraction_deployed; run->activation_ticks = 0;
 			extraction_tell(run, "ACTIVATION CANCELLED | Return and use the extraction control to retry.");
@@ -1719,7 +1800,7 @@ static boolean extraction_wake_completion(char const *name, boolean reusable)
 static boolean extraction_transport_boarded(short faction)
 {
 	long ship;
-	short index, passengers = 0;
+	short index, passengers = 0, zone = extraction_zone_for_faction(faction);
 	unsigned long crew_squads = 0;
 	boolean at_hub, at_lz, legacy_crew = FALSE;
 	if (extraction.suspended || cinematic_in_progress() || extraction.dropship_names[faction] == NONE) return FALSE;
@@ -1727,8 +1808,8 @@ static boolean extraction_transport_boarded(short faction)
 	if (ship == NONE || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
 	if (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship)) return FALSE;
 	at_hub = scenario_trigger_volume_test_object(extraction.return_zone, ship);
-	at_lz = scenario_trigger_volume_test_object(extraction.zone, ship);
-	if (at_hub == at_lz) return FALSE;
+	at_lz = zone != NONE && scenario_trigger_volume_test_object(zone, ship);
+	if (at_hub == at_lz || (at_hub && !extraction_at_hub(ship))) return FALSE;
 	/* Actual passengers identify participating squads without another flight
 	 * registry. Unboarded independent operations cannot veto this departure.
 	 * Unsquadded maps retain the existing whole-faction wait. */
@@ -1766,7 +1847,7 @@ static boolean extraction_transport_boarded(short faction)
 		if (at_lz && run->phase == _extraction_activating) return FALSE;
 		if (at_lz ? run->phase != _extraction_ready :
 			(run->phase != _extraction_deployed || (unit->object.parent_object_index != ship &&
-				!scenario_trigger_volume_test_object(extraction.return_zone, player->unit_index)))) continue;
+				!extraction_at_hub(player->unit_index)))) continue;
 		passengers++;
 		if (run->unit != player->unit_index || unit->unit.player_index != run->player ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
@@ -1778,8 +1859,8 @@ static boolean extraction_transport_boarded(short faction)
 
 static boolean extraction_transport_called(short faction)
 {
-	short index;
-	if (extraction.suspended || extraction.dropship_names[faction] == NONE) return FALSE;
+	short index, zone = extraction_zone_for_faction(faction);
+	if (extraction.suspended || extraction.dropship_names[faction] == NONE || zone == NONE) return FALSE;
 	/* The shared activation control's position is not a faction request. Derive
 	 * requests from current host-owned runs; a stale switch cannot call a ship
 	 * for the other faction or survive death, cancellation or settlement. */
@@ -1796,9 +1877,9 @@ static boolean extraction_transport_called(short faction)
 		if (!unit || unit->unit.player_index != run->player || extraction_faction(unit->object.owner_team_index) != faction ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
 			extraction_medical_incapacitated(run->unit)) continue;
-		if (unit->object.parent_object_index == NONE ? scenario_trigger_volume_test_object(extraction.zone, run->unit) :
+		if (unit->object.parent_object_index == NONE ? scenario_trigger_volume_test_object(zone, run->unit) :
 			(extraction_player_dropship(unit) == run->dropship && run->dropship != NONE &&
-				scenario_trigger_volume_test_object(extraction.zone, run->dropship))) return TRUE;
+				scenario_trigger_volume_test_object(zone, run->dropship))) return TRUE;
 	}
 	return FALSE;
 }

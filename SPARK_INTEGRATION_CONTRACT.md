@@ -779,11 +779,10 @@ platform's acceptance. Spark next: emit per-member calls through its existing
 HSC authoring path, using a stable flag for a shared location objective and
 deactivating the old marker when that squad advances.
 
-A candidate needs
-live scenario **control** objects named `extraction_deploy` and
-`extraction_activate` (native use, `triggers_when = 0`) and trigger volumes named
-`extraction_zone` and `extraction_return`. Controls must be powered, usable and
-reachable. `extraction.c::extraction_control_touched` rechecks native power,
+A candidate needs the native Use control `extraction_deploy`, the
+`extraction_return` hub volume, and a field route. The shared route uses
+`extraction_activate` and `extraction_zone`. Controls must be powered, usable,
+reachable and have `triggers_when = 0`. `extraction.c::extraction_control_touched` rechecks native power,
 usability and one-use locks on the host before reserving gear or activating.
 Accepted deployment and activation continue through
 `device_controls.c::control_touched` / `control_toggle`, so HaloScript can observe
@@ -1607,8 +1606,19 @@ Previously accepted actual Black Echo combat/rescue/technology/Flood/defense and
 on-foot banking/restart remain accepted; aircraft evacuation in that mission,
 independent squads, other platforms and human/headset acceptance remain open.
 
+A runtime reporting `extraction.faction_landing_zones.v1` accepts a matched
+`extraction_pelican_activate` control and `extraction_pelican_zone` volume for
+the named Pelican. Use `extraction_spirit_activate` and `extraction_spirit_zone`
+for the named Spirit. Each control must be inside its own zone. Hub starts must
+be outside every field zone. Omit the shared pair when every named transport
+has a complete route. Keep it as the fallback for any transport with no override.
+The host uses the matching zone for calls, countdowns and boarding receipts.
+Two authenticated Windows clients loaded the compiled fixture and agreed on
+both placements. The existing harness verifies independent calls, cancellation
+and banking. A live dual-route flight remains open.
+
 Optional dedicated groups `extraction_pelican_called` / `extraction_spirit_called`
-separate requests made at the shared activation control. The host derives each
+separate requests made at shared or faction-specific controls. The host derives each
 output from living, correctly owned, same-faction activating/ready players still
 at the LZ (on foot or in their receipted ship). Cancellation, departure, loss and
 settlement clear the request; pending gear never requests flight. Use unique
