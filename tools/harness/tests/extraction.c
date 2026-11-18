@@ -1665,7 +1665,10 @@ int main(int argc,char **argv)
   if(!strncmp(case_name,"transport-callback",18)) {
    boolean other=!strcmp(case_name,"transport-callback-other");
    boolean field=!strcmp(case_name,"transport-callback-field");
-   boolean pending=!strcmp(case_name,"transport-callback-pending");
+   boolean disconnect=!strcmp(case_name,"transport-callback-disconnect");
+   boolean escrow_disconnect=!strcmp(case_name,"transport-callback-escrow-disconnect");
+   boolean pending=!strcmp(case_name,"transport-callback-pending")||disconnect;
+   boolean stale_receipt=!strcmp(case_name,"transport-callback-stale-receipt");
    short i;
    for(i=0;i<3;i++) {
     strcpy(transport_scripts[i].name,i==0?"forerunner_pelican_complete":i==1?"forerunner_spirit_complete":"forerunner_extraction_complete");
@@ -1686,12 +1689,37 @@ int main(int argc,char **argv)
    native_cinematic=TRUE;advance(1);
    CHECK(!transport_wakes[0]&&!transport_wakes[1],"transport released during cinematic");
    native_cinematic=FALSE;
-   if(pending) {
+   if(stale_receipt) {
+    struct extraction_run old_arrival;
+    extraction_update_run(run(0),&players[0],++tick);
+    old_arrival=*run(0);
+    old_arrival.dropship+=0x10000;
+    extraction_remember_transport_bank(&old_arrival);
+    CHECK(extraction.dropship_banked[0]==craft,"older aircraft settlement displaced the current aircraft receipt");
+    advance(1);
+   } else if(pending) {
     extraction_update_run(run(0),&players[0],++tick);
     CHECK(run(0)->phase==_extraction_returned,"first crew member failed to bank");
     fail_write=TRUE;advance(1);
     CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[0],"unbanked same-ship crew released the aircraft");
+    if(disconnect) {
+     players[0].quit_out_of_game=TRUE;advance(1);
+     CHECK(!transport_wakes[0],"banked player leaving released a ship with a pending crewmate");
+     fail_write=FALSE;players[1].quit_out_of_game=TRUE;advance(1);
+     CHECK(transport_wakes[0]==1&&!completion_wakes,
+      "banked player leaving erased this aircraft's receipt");
+     advance(60);CHECK(transport_wakes[0]==1,"same arrival repeated after crew disconnected");
+     extraction_reset();return 0;
+    }
     fail_write=FALSE;advance(30);
+   } else if(escrow_disconnect) {
+    publish_failure=TRUE;advance(1);
+    CHECK(run(0)->phase==_extraction_settling&&run(1)->phase==_extraction_settling&&
+     !transport_wakes[0],"uncertain escrow published a transport callback");
+    publish_failure=FALSE;players[0].quit_out_of_game=players[1].quit_out_of_game=TRUE;
+    advance(1);CHECK(transport_wakes[0]==1&&!completion_wakes,
+     "durable escrow banking on close lost its physical transport receipt");
+    extraction_reset();return 0;
    } else if(!strcmp(case_name,"transport-callback-replaced")) {
     dropship_handles[0]+=0x10000;
     advance(1);

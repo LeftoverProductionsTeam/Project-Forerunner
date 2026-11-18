@@ -16,6 +16,17 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Dropship banking on disconnect (17 November): the host remembers a durable
+bank for its actual landed aircraft until connected crewmates settle. Completed
+escrow on disconnect follows the same receipt path. Windows64 and 82 focused
+checks passed, then 12 callback checks passed on the final build with the
+current-aircraft identity guard. Two authenticated native clients confirmed
+boarding, pilot-driven insertion, landing and disembarkation on the final build.
+The scripted input route missed the call control; native return banking for
+this patch was not reached. The earlier smoke reached countdown and recall,
+then stopped on a console observer. Evidence: build/native-delta-banked-arrival-telemetry/
+result.json and build/native-delta-banked-arrival-release-verified/result.json.
+
 Dropship seat admission (17 November): aircraft with an authored crew-readiness
 group require a confirmed deployment at the hub and a completed extraction
 countdown and squad objectives at the field landing zone. A matching landed

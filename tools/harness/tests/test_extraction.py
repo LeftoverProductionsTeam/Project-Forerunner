@@ -258,7 +258,8 @@ def test_native_squad_negative_control(before, after, case):
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
     'transport-crash-pending', 'transport-crash-silent', 'transport-crash-no-statistics', 'transport-crash-hub',
     'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
-    'transport-callback-pending', 'transport-callback-signature', 'transport-callback-replaced',
+    'transport-callback-pending', 'transport-callback-disconnect', 'transport-callback-escrow-disconnect',
+    'transport-callback-signature', 'transport-callback-replaced', 'transport-callback-stale-receipt',
     'transport-callback-continuous', 'transport-recall', 'transport-recall-state', 'transport-recall-missing',
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
     'transport-boarded-pending', 'transport-boarded-ship', 'transport-boarded-identity', 'transport-boarded-duplicate',
@@ -302,7 +303,7 @@ def test_native_faction_transport_call_negative_control(before, after, case):
 
 
 @pytest.mark.parametrize('before,after,case', [
-    ('if (!returned || pending) continue;', 'if (!returned || (pending && FALSE)) continue;', 'transport-callback-pending'),
+    ('if (pending) continue;', 'if (pending && FALSE) continue;', 'transport-callback-pending'),
     ('if (run->dropship != ship) continue;', 'if (FALSE) continue;', 'transport-callback-other'),
 ])
 def test_native_transport_release_negative_control(before, after, case):

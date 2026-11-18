@@ -1388,10 +1388,13 @@ credit. The existing escrow/consumption/bank path then runs once per player.
 Spark owns the real approach, usable seat entry, pilot/flight, camera/audio and
 insertion/objective scripts. Keep the craft alive at the return hub through the
 cinematic and settlement. Optional void scripts `forerunner_pelican_complete`
-and `forerunner_spirit_complete` receive a wake only after that actual ship's
-boarded crew has durably settled. Pending banking/loss delays release; unrelated
-field players and another craft do not. Full salted handles prevent replacement
-ships inheriting completion; actual LZ boarding rearms the next trip. Authored
+and `forerunner_spirit_complete` receive a wake after an actual boarded passenger
+has durably banked and the connected crew has settled. The banked arrival
+survives its owner's disconnect. The ship must be at the hub with the cinematic
+finished and satisfy the native landing check if a landed group is authored.
+Unrelated field players and another craft do not delay release. Full salted
+handles prevent replacement ships inheriting completion. Actual LZ boarding
+rearms the next trip. Authored
 handlers must remain wakeable for repeat trips; a finished one-shot script is not
 restarted by native `wake`. These crew handlers may be dormant, or continuous
 with `(sleep -1)` first on each pass. The whole-operation callback remains

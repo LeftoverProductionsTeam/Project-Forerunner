@@ -118,7 +118,8 @@ static struct
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
 	short dropship_landing_groups[2]; /* optional physical landing output/gate */
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
-	long dropship_completed[2]; /* full native handles; rearmed by actual LZ boarding */
+	/* Full native handles for this arrival, cleared by actual LZ boarding. */
+	long dropship_banked[2], dropship_completed[2];
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
@@ -436,6 +437,18 @@ static void extraction_block(struct extraction_run *run, char const *text)
 	run->blocked = TRUE;
 }
 
+static void extraction_remember_transport_bank(struct extraction_run const *run)
+{
+	short faction;
+	if (run->dropship == NONE || run->gear.record.phase != _gear_idle ||
+		run->gear.record.outcome != _gear_escaped ||
+		memcmp(run->gear.record.settled_run, run->gear.run, GEAR_ID_BYTES)) return;
+	faction = extraction_faction(run->dropship_team);
+	if (faction != NONE && extraction.dropship_names[faction] != NONE &&
+		object_index_from_name_index(extraction.dropship_names[faction]) == run->dropship)
+		extraction.dropship_banked[faction] = run->dropship;
+}
+
 static void extraction_run_close(struct extraction_run *run)
 {
 	if (run->gear.opened)
@@ -448,8 +461,8 @@ static void extraction_run_close(struct extraction_run *run)
 			if (!gear_cancel_reservation(&run->gear))
 				platform_log("extraction: ungranted loadout refund failed before session close");
 		}
-		else
-			gear_lose(&run->gear);
+		else if (gear_lose(&run->gear) && run->phase == _extraction_settling)
+			extraction_remember_transport_bank(run);
 		gear_close(&run->gear);
 	}
 	memset(run, 0, sizeof(*run));
@@ -474,6 +487,7 @@ void extraction_reset(void)
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
+	extraction.dropship_banked[0] = extraction.dropship_banked[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
@@ -650,6 +664,7 @@ static void extraction_bind(void)
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
+	extraction.dropship_banked[0] = extraction.dropship_banked[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
@@ -1743,13 +1758,14 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 	}
 	if (run->dropship == NONE)
 	{
-		short zone = extraction_zone_for_faction(extraction_faction(unit->object.owner_team_index));
+		short faction = extraction_faction(unit->object.owner_team_index);
+		short zone = extraction_zone_for_faction(faction);
 		if (extraction_medical_incapacitated(run->unit) || zone == NONE ||
 			!scenario_trigger_volume_test_object(zone, dropship) ||
 			scenario_trigger_volume_test_object(extraction.return_zone, dropship)) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
-		extraction.dropship_completed[extraction_faction(run->dropship_team)] = NONE;
+		extraction.dropship_banked[faction] = extraction.dropship_completed[faction] = NONE;
 		extraction_tell(run, "BOARDED | Stay aboard through departure. Recovery follows arrival and the authored cinematic.");
 		return FALSE;
 	}
@@ -1771,6 +1787,7 @@ static void extraction_finish_return(struct extraction_run *run)
 	}
 	if (run->report.staged && run->report.outcome == _gear_escaped &&
 		!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
+	extraction_remember_transport_bank(run);
 	run->phase = _extraction_returned; run->blocked = FALSE;
 	if (extraction.debrief_name != NONE)
 		snprintf(text, sizeof(text), "GEAR BANKED | Debrief available at the hub.");
@@ -2027,14 +2044,15 @@ static void extraction_transport_completions(void)
 	for (faction = 0; faction < 2; faction++)
 	{
 		long ship;
-		boolean returned = FALSE, pending = FALSE;
+		boolean pending = FALSE;
 		if (extraction.dropship_names[faction] == NONE) continue;
 		ship = object_index_from_name_index(extraction.dropship_names[faction]);
-		if (ship == NONE || ship == extraction.dropship_completed[faction] ||
-			!object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) continue;
-		/* Only this ship's actual boarded crew participates. Other squads,
-		 * unboarded field players and another craft do not own its release.
-		 * A failed/departed run grants nothing; uncertain banking still waits. */
+		if (ship == NONE || ship != extraction.dropship_banked[faction] || ship == extraction.dropship_completed[faction] ||
+			!object_try_and_get_and_verify_type(ship, _object_mask_vehicle) || !extraction_at_hub(ship) ||
+			cinematic_in_progress() || (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship))) continue;
+		/* The durable bank belongs to the arrival even if its owner leaves.
+		 * Other squads and craft do not delay release. A connected boarded
+		 * crewmate still settling keeps this aircraft at the hub. */
 		for (index = 0; index < NUMBEROF(extraction_runs); index++)
 		{
 			struct extraction_run const *run = &extraction_runs[index];
@@ -2042,11 +2060,10 @@ static void extraction_transport_completions(void)
 			if (run->dropship != ship) continue;
 			player = player_try_and_get(run->player);
 			if (!player || player->quit_out_of_game) continue;
-			if (run->phase == _extraction_returned) returned = TRUE;
-			else if (run->phase == _extraction_ready || run->phase == _extraction_settling ||
-				run->phase == _extraction_losing) pending = TRUE;
+			if (run->phase == _extraction_ready || run->phase == _extraction_settling ||
+				run->phase == _extraction_losing) { pending = TRUE; break; }
 		}
-		if (!returned || pending) continue;
+		if (pending) continue;
 		extraction.dropship_completed[faction] = ship;
 		if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
 			platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
