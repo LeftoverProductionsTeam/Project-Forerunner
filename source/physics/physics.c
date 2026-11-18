@@ -579,6 +579,30 @@ boolean physics_instance_new(
 	return FALSE;
 }
 
+/* Find the minimum separation along the supporting plane normal. */
+boolean physics_placement_lift(struct physics_instance const *instance, real_point3d const *contact,
+	real_vector3d const *normal, real *lift)
+{
+	short index, count = physics_mass_point_count(instance->physics);
+	if (!count)
+		return FALSE;
+	*lift = 0.f;
+	for (index = 0; index < count; index++)
+	{
+		struct mass_point_definition const *point =
+			TAG_BLOCK_GET_ELEMENT(&instance->physics->mass_points, index, struct mass_point_definition);
+		real_point3d center;
+		real projection;
+		matrix4x3_transform_point(&instance->world_matrix, &point->position, &center);
+		projection = (center.x - contact->x) * normal->i +
+			(center.y - contact->y) * normal->j + (center.z - contact->z) * normal->k;
+		if (!valid_real(projection) || !valid_real(point->radius) || point->radius < 0.f)
+			return FALSE;
+		*lift = MAX(*lift, point->radius - projection);
+	}
+	return TRUE;
+}
+
 /* Reuse the source body's native mass points and orientation to find the
  * lowest clear translated placement against a floor contact. */
 boolean physics_resting_placement(long object_index, real_point3d const *contact,
@@ -586,30 +610,16 @@ boolean physics_resting_placement(long object_index, real_point3d const *contact
 {
 	struct physics_instance instance;
 	struct object_datum *object = object_get(object_index);
-	real lift = 0.f;
-	short index, count;
+	real_point3d const pivot = {0};
+	real lift;
 
 	if (!physics_instance_new(&instance, object_index))
 		return FALSE;
-	count = physics_mass_point_count(instance.physics);
-	if (!count)
-		return FALSE;
-
 	instance.world_matrix.position.x -= object->object.position.x;
 	instance.world_matrix.position.y -= object->object.position.y;
 	instance.world_matrix.position.z -= object->object.position.z;
-	for (index = 0; index < count; index++)
-	{
-		struct mass_point_definition const *point =
-			TAG_BLOCK_GET_ELEMENT(&instance.physics->mass_points, index, struct mass_point_definition);
-		real_point3d offset;
-		real projection;
-		matrix4x3_transform_point(&instance.world_matrix, &point->position, &offset);
-		projection = offset.x * normal->i + offset.y * normal->j + offset.z * normal->k;
-		if (!valid_real(projection) || !valid_real(point->radius) || point->radius < 0.f)
-			return FALSE;
-		lift = MAX(lift, point->radius - projection);
-	}
+	if (!physics_placement_lift(&instance, &pivot, normal, &lift))
+		return FALSE;
 
 	point_from_line3d(contact, normal, lift + 0.06f, position);
 	if (!valid_real_point3d(position))

@@ -248,6 +248,17 @@ pose. Both original aircraft and the original cache remained intact.
 Evidence: build/native-forge-undo-blocker-identity/result.json and
 build/native-forge-undo-native-clear/result.json.
 
+Forge rotation: the host can turn an unused Forge copy 90 degrees from the
+existing tools menu, undo the turn, and save its orientation in the existing
+placement file. Rotation uses the native mass-point clearance check. A grounded
+vehicle that intersects the terrain after turning can lift just enough to
+clear its supporting plane. Windows64 and 37 focused checks passed.
+Two Windows LAN clients saw the same Pelican turn from 0.35 to 90.35 degrees
+with the same horizontal pivot at application. Both restored its old heading
+with Undo, then removed and reloaded the saved placement at 89.57 degrees
+after settling. The original facility map stayed intact and disposable
+runtime copies were removed. Evidence: build/native-forge-rotation-floor/result.json.
+
 Forge placement persistence (17 November): Save and Load in Forge Tools use the
 OpenCE-Forge base-map placement format. Windows64 and 37 focused checks passed.
 Two native Windows LAN clients saw the saved Pelican at the same resting

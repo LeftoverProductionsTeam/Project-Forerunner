@@ -544,21 +544,16 @@ static void forge_move_copy(long object_index, struct object_datum *object,
 }
 
 /* Adapt OpenCE-Forge's before-transform undo snapshot (SutlabSol/OpenCE-Forge). */
-boolean cheat_forge_move_selected(void)
+static boolean forge_remember_transform(long object_index, struct object_datum const *object)
 {
-	struct object_datum *object = forge_editable_copy(forge_selection);
-	struct physics_instance vehicle;
-	real_point3d position;
-
-	if (!object || !forge_aim_placement(forge_selection, object, forge_selection, &position))
-		return FALSE;
 	if (object->object.type == _object_type_vehicle)
 	{
-		if (!physics_instance_new(&vehicle, forge_selection))
+		struct physics_instance vehicle;
+		if (!physics_instance_new(&vehicle, object_index))
 			return FALSE;
 		forge_last_move.vehicle_pose = vehicle.world_matrix;
 	}
-	forge_last_move.object_index = forge_selection;
+	forge_last_move.object_index = object_index;
 	forge_last_move.bsp_index = global_structure_bsp_index;
 	forge_last_move.position = object->object.position;
 	forge_last_move.center = object->object.bounding_sphere_center;
@@ -566,7 +561,109 @@ boolean cheat_forge_move_selected(void)
 	forge_last_move.up = object->object.up;
 	forge_last_move.radius = object->object.bounding_sphere_radius;
 	forge_last_move.scale = object->object.scale;
+	return TRUE;
+}
+
+boolean cheat_forge_move_selected(void)
+{
+	struct object_datum *object = forge_editable_copy(forge_selection);
+	real_point3d position;
+
+	if (!object || !forge_aim_placement(forge_selection, object, forge_selection, &position) ||
+		!forge_remember_transform(forge_selection, object))
+		return FALSE;
 	forge_move_copy(forge_selection, object, &position, NULL, NULL);
+	return TRUE;
+}
+
+static boolean forge_settle_turned_vehicle(struct physics_instance *vehicle, long object_index,
+	real_point3d *position, real_point3d *center, real radius, long *blocker_index)
+{
+	struct collision_result floor;
+	real_vector3d down = { 0.f, 0.f, -radius };
+	real lift;
+
+	if (!collision_test_vector(_collision_test_environment_flags |
+		FLAG(_collision_test_front_facing_surfaces_bit), position, &down, object_index, &floor) ||
+		floor.type != _collision_result_structure || floor.plane.n.k < 0.7f ||
+		!physics_placement_lift(vehicle, &floor.point, &floor.plane.n, &lift))
+		return FALSE;
+
+	/* Apply the support-plane clearance vertically so the pivot keeps its XY. */
+	lift = (lift + 0.06f) / floor.plane.n.k;
+	if (!valid_real(lift) || lift > radius)
+		return FALSE;
+	position->z += lift;
+	center->z += lift;
+	vehicle->world_matrix.position.z += lift;
+	return physics_placement_clear(vehicle, object_index, TRUE, blocker_index);
+}
+
+static real_vector3d forge_quarter_turn(real_vector3d v)
+{
+	real_vector3d turned = { -v.j, v.i, v.k };
+	return turned;
+}
+
+boolean cheat_forge_rotate_selected(void)
+{
+	struct object_datum *object = forge_editable_copy(forge_selection);
+	real_point3d position, center;
+	real_vector3d forward, up, offset;
+	real radius;
+	struct location location;
+
+	if (!object)
+	{
+		console_warning("Forge rotation needs a selected, unused copy");
+		return FALSE;
+	}
+	position = object->object.position;
+	radius = object->object.bounding_sphere_radius;
+	if (!valid_real_point3d(&position) || !valid_real(radius) || radius < 0.f)
+		return FALSE;
+	forward = forge_quarter_turn(object->object.forward);
+	up = forge_quarter_turn(object->object.up);
+	vector_from_points3d(&position, &object->object.bounding_sphere_center, &offset);
+	offset = forge_quarter_turn(offset);
+	point_from_line3d(&position, &offset, 1.f, &center);
+	if (!valid_real_point3d(&center))
+		return FALSE;
+	if (object->object.type == _object_type_vehicle)
+	{
+		struct physics_instance vehicle;
+		long blocker_index;
+		if (!physics_instance_new(&vehicle, forge_selection))
+			return FALSE;
+		vector_from_points3d(&position, &vehicle.world_matrix.position, &offset);
+		offset = forge_quarter_turn(offset);
+		point_from_line3d(&position, &offset, 1.f, &vehicle.world_matrix.position);
+		vehicle.world_matrix.forward = forward;
+		vehicle.world_matrix.up = up;
+		cross_product3d(&up, &forward, &vehicle.world_matrix.left);
+		if (!physics_placement_clear(&vehicle, forge_selection, TRUE, &blocker_index) &&
+			(blocker_index != NONE || !TEST_FLAG(object->object.flags, _object_on_ground_bit) ||
+			!forge_settle_turned_vehicle(&vehicle, forge_selection, &position, &center, radius, &blocker_index)))
+		{
+			struct object_datum const *blocker = object_try_and_get(blocker_index);
+			char const *name = blocker ? tag_get_name(blocker->definition_index) : NULL;
+			console_warning("Forge rotation needs space around the turned vehicle");
+			if (name) console_warning("Forge rotation blocker: %s", name);
+			return FALSE;
+		}
+	}
+	else
+	{
+		scenario_location_from_point(&location, &center);
+		if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
+			forge_space_occupied(&location, &center, radius, forge_selection))
+			return FALSE;
+	}
+	/* Connect the turned bounding center to the BSP, as object placement does. */
+	scenario_location_from_point(&location, &center);
+	if (location.cluster_index == NONE || !forge_remember_transform(forge_selection, object))
+		return FALSE;
+	forge_move_copy(forge_selection, object, &position, &forward, &up);
 	return TRUE;
 }
 

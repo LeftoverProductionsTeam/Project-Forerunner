@@ -15,7 +15,7 @@
 #define csmemcmp memcmp
 #define SET_FLAG(value,bit,on) ((on)?((value)|=FLAG(bit)):((value)&=~FLAG(bit)))
 #define _game_connection_network_server 2
-enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit };
+enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit, _object_on_ground_bit };
 #include "unit_flags.inc"
 enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle };
 #define _object_mask_scenery FLAG(_object_type_scenery)
@@ -56,6 +56,7 @@ struct physics_definition {struct tag_block mass_points;};
 struct collision_model_instance {int unused;};
 enum { _collision_result_structure, _collision_result_object };
 #define _collision_test_for_line_of_sight_flags 0
+#define _collision_test_environment_flags 0
 #define _collision_test_objects_weapons_bit 8
 #define _collision_test_objects_equipment_bit 9
 #define _collision_test_objects_projectiles_bit 10
@@ -67,7 +68,7 @@ struct collision_result {
  struct { real_vector3d n; } plane;
 };
 static struct collision_result forge_hit;
-static boolean forge_probe, forge_hit_found;
+static boolean forge_probe, forge_hit_found, forge_floor_contact;
 struct network_game {int players[128];};
 static struct network_game game;
 static struct player_datum player;
@@ -112,7 +113,10 @@ static boolean collision_test_vector(unsigned long f,real_point3d const *p,real_
  }
  hit->plane.n.k=1;return floor_present;
 }
-boolean collision_test_sphere(real_point3d const *p,float r,long ignored) {(void)p;(void)r;(void)ignored;return sphere_blocked;}
+boolean collision_test_sphere(real_point3d const *p,float r,long ignored) {
+ (void)ignored;
+ return sphere_blocked || (forge_floor_contact && p->z - r < forge_hit.point.z);
+}
 static boolean clone_destination_outside;
 static void scenario_location_from_point(struct location *l,real_point3d const *p)
 { (void)p;l->leaf_index=0;l->cluster_index=clone_destination_outside ? NONE : 0; }
@@ -181,13 +185,14 @@ static void vector_from_points3d(real_point3d const *a, real_point3d const *b, r
 static void point_from_line3d(real_point3d const *p, real_vector3d const *v, real t, real_point3d *out) {
  out->x=p->x+v->i*t; out->y=p->y+v->j*t; out->z=p->z+v->k*t;
 }
-typedef struct { real_point3d position; } real_matrix4x3;
+typedef struct { real_point3d position; real_vector3d forward, left, up; } real_matrix4x3;
 struct physics_instance {
  struct physics_definition const *physics;
  real_matrix4x3 world_matrix;
 };
 static boolean physics_instance_new(struct physics_instance *instance, long index) {
  instance->physics=&physics;
+ instance->world_matrix=(real_matrix4x3){0};
  instance->world_matrix.position=get(index)->object.position;
  return TRUE;
 }
@@ -640,6 +645,56 @@ int main(int argc,char **argv) {
     get(source)->object.position.x!=12.f,"unsafe Forge target was moved");
   }
   CHECK(new_count==1&&get(source)&&get(copy),"move recreated or removed an existing object");
+  return 0;
+ }
+ if(!strncmp(argv[1],"rotate-",7)) {
+  boolean scenery=!strcmp(argv[1]+7,"scenery");
+  boolean grounded=!strcmp(argv[1]+7,"grounded");
+  long source=reset(),copy;
+  struct test_object *object;
+  real_point3d position;
+  connection=0;
+  forge_viewer=make(8,1);
+  get(source)->object.type=scenery?_object_type_scenery:_object_type_vehicle;
+  copy=cheat_forge_clone(source);
+  CHECK(copy!=NONE,"missing native copy");
+  object=get(copy);
+  object->object.type=get(source)->object.type;
+  object->object.forward=(real_vector3d){1.f,0.f,0.f};
+  object->object.up=(real_vector3d){0.f,0.f,1.f};
+  position=object->object.position;
+  physics.mass_points.count=1;
+  physics.mass_points.address=&mass_point;
+  mass_point.radius=.25f;
+  forge_selection=copy;
+  placement_overlap=copy;
+  nearby=TRUE;
+  CHECK(!cheat_forge_rotate_selected()&&forge_activated==NONE&&object->object.forward.i==1.f,
+   "rotation overlapped an occupant");
+  nearby=FALSE;
+  connection=1;
+  CHECK(!cheat_forge_rotate_selected(),"client rotated a host copy");
+  connection=0;
+  if(grounded) {
+   object->object.flags|=FLAG(_object_on_ground_bit);
+   object->object.bounding_sphere_radius=1.f;
+   forge_probe=forge_hit_found=forge_floor_contact=TRUE;
+   forge_hit.type=_collision_result_structure;
+   forge_hit.point=position;
+   forge_hit.point.z-=.05f;
+   forge_hit.plane.n.k=1.f;
+  }
+  CHECK(cheat_forge_rotate_selected()&&get(copy)==object&&forge_activated==copy,
+   "rotation replaced or failed to activate the selected copy");
+  CHECK(object->object.forward.i==0.f&&object->object.forward.j==1.f&&object->object.up.k==1.f&&
+   object->object.position.x==position.x&&object->object.position.y==position.y&&
+   fabsf(object->object.position.z-position.z-(grounded?.26f:0.f))<.0001f,
+   "rotation failed to preserve the pivot or apply hull clearance");
+  CHECK(!grounded||object->object.position.z-mass_point.radius>forge_hit.point.z,
+   "rotated hull intersects the support plane");
+  CHECK(cheat_forge_undo_move()&&object->object.forward.i==1.f&&object->object.forward.j==0.f,
+   "undo did not restore the previous orientation");
+  CHECK(new_count==1&&get(source)&&get(copy),"rotation changed object count");
   return 0;
  }
  if(!strncmp(argv[1],"remove-",7)) {

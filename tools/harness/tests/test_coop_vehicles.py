@@ -38,12 +38,14 @@ def generated(fault=None):
             ('looks.inc', looks),
             ('clone.inc', forge_state +
                 '\n'.join(function(read('source/physics/physics.c'), name) for name in (
-                    'physics_placement_clear', 'physics_resting_placement')) + '\n' + '\n'.join(
+                    'physics_placement_clear', 'physics_placement_lift', 'physics_resting_placement')) + '\n' + '\n'.join(
                 function(cheats, name) for name in (
                     'cheats_forge_reset', 'forge_placeable_object_get', 'forge_aim_collision', 'cheat_forge_target',
                     'forge_create_copy', 'forge_clone_at_position', 'cheat_forge_clone', 'cheat_forge_clone_at',
                     'cheat_forge_pick', 'forge_space_occupied', 'forge_aim_placement', 'cheat_forge_place',
-                    'forge_editable_copy', 'forge_move_copy', 'cheat_forge_move_selected',
+                    'forge_editable_copy', 'forge_move_copy', 'forge_remember_transform',
+                    'cheat_forge_move_selected', 'forge_settle_turned_vehicle',
+                    'forge_quarter_turn', 'cheat_forge_rotate_selected',
                     'cheat_forge_undo_move', 'forge_remove_copy',
                     'cheat_forge_undo', 'cheat_forge_remove_selected'))),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
@@ -90,6 +92,12 @@ def test_forge_undo(case):
                                  'original', 'occupied', 'client', 'undo'])
 def test_forge_move_selected(case):
     status, output = run(build('coop_vehicles', generated()), 'move-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['vehicle', 'scenery', 'grounded'])
+def test_forge_rotate_selected(case):
+    status, output = run(build('coop_vehicles', generated()), 'rotate-' + case)
     assert status == 0, output
 
 
