@@ -145,7 +145,10 @@ Two native Windows LAN clients saw the saved Pelican at the same resting
 position after both clients restarted. A separate native import passed quota
 rollback, duplicate refusal and upstream-authored file preservation. Evidence:
 build/native-forge-sidecar-restored/result.json and
-build/native-forge-import-verified/result.json. Scale and other Forge edits still
+build/native-forge-import-verified/result.json. The existing menu also saves
+removal of the last copy, while Save on a freshly opened session preserves the
+previous layout. Two native LAN clients passed this path in
+build/native-forge-empty-layout/result.json. Scale and other Forge edits still
 need a compatible representation.
 
 Campaign co-op handoff (17 November): the next round preserves the host's

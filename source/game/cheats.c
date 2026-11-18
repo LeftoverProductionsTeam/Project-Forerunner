@@ -635,11 +635,12 @@ static boolean forge_sidecar_parse(char *text, char const *reference, struct obj
 		else if (!strcmp(line, forge_author))
 			author_found = TRUE;
 	}
-	return state && base_found && *count > 0 && (!own || author_found);
+	return state && base_found && (!own || author_found);
 }
 
 static boolean forge_sidecar_capture(char *text, char const *base, char const *reference, posix_ulong *size)
 {
+	boolean had_copies = FALSE;
 	short count = 0;
 	long slot;
 	int written = snprintf(text, FORGE_SIDECAR_BYTES, "%s\r\nForgeSource=UserCreated\r\nMap Name: %s\r\nBase Map: %s\r\n%s\r\n[ForgeState]\r\n",
@@ -659,6 +660,8 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 
 		struct object_header_datum *header = handle != NONE ? object_header_try_and_get(handle) : NULL;
 
+		if (handle != NONE)
+			had_copies = TRUE;
 		if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit))
 			continue;
 		object = object_try_and_get(handle);
@@ -707,7 +710,9 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 			return FALSE;
 		*size += (posix_ulong)written;
 	}
-	return count > 0;
+	/* Saving after an intentional removal may leave an empty layout.
+	 * A freshly opened session cannot accidentally overwrite its save. */
+	return had_copies;
 }
 
 static boolean forge_sidecar_restore(struct object_placement_data *placements, short count)
