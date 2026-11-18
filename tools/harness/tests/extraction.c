@@ -93,7 +93,10 @@ static short body_creations,fail_body_create;
 static long incompatible_body_weapon=NONE;
 static struct unit_datum dropships[2];
 static long dropship_handles[2]={0x10014,0x10015};
-static struct unit_definition dropship_tag={{{2,NULL}}},character_tag;
+#include "transport_seat_flags.inc"
+struct unit_seat {unsigned long flags; char label[32],marker_name[32];};
+static struct unit_seat transport_seats[2];
+static struct unit_definition dropship_tag={{{2,transport_seats}}},character_tag;
 static boolean native_cinematic;
 static struct unit_definition *unit_definition_get(long index) { if(index==4||index==5)return &character_tag;CHECK(index==300,"native vehicle definition");return &dropship_tag; }
 static short active_players=2;
@@ -407,7 +410,6 @@ struct animation {short frame_count;};
 struct animation_graph_animation_index {short animation_index;};
 struct animation_graph_unit_seat {char label[32];struct tag_block animations;};
 struct animation_graph {struct tag_block unit_seats,animations;};
-struct unit_seat {char label[32],marker_name[32];};
 static struct unit_seat native_seat;
 static struct animation_graph_unit_seat native_animation_seat;
 static struct animation_graph_animation_index native_animation_indices[12];
@@ -1319,7 +1321,8 @@ int main(int argc,char **argv)
     strcpy(authored_groups[1].name,authored_groups[10].name);authored_groups[10].name[0]=0;
    }
   }
-  if(!strcmp(case_name,"transport-admission-deployment")||!strcmp(case_name,"transport-admission-evacuation")) {
+  if(!strcmp(case_name,"transport-admission-deployment")||!strcmp(case_name,"transport-admission-evacuation")||
+     !strcmp(case_name,"transport-admission-pilot")||!strcmp(case_name,"transport-pilot-receipt")) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
    strcpy(authored_groups[11].name,"extraction_pelican_landed");
@@ -1487,6 +1490,19 @@ int main(int argc,char **argv)
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"ready field crew could acquire a seat at the destination");
     dropships[0].object.position.x=20;run(0)->gear.pending=TRUE;
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"pending gear admitted evacuation boarding");
+   } else if(!strcmp(case_name,"transport-admission-pilot")) {
+    transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
+    dropships[0].object.position.x=0;touch(0,0);
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,&occupant)&&occupant==NONE,"player could take the managed driver seat");
+    dropships[0].object.first_child_object_index=unit_handles[1];units[1].object.next_object_index=NONE;
+    units[1].unit.player_index=NONE;units[1].unit.parent_seat_index=0;
+    units[1].object.owner_team_index=_game_team_player;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,&occupant)&&occupant==NONE,"player was offered an AI pilot for eviction");
+    CHECK(unit_can_enter_seat(unit_handles[0],craft,1,NULL),"managed passenger seat refused a deployed player");
+    dropships[0].object.first_child_object_index=NONE;
+    CHECK(unit_can_enter_seat(unit_handles[1],craft,0,NULL),"authored NPC pilot could not take its driver seat");
+    extraction.dropship_boarding_groups[0]=NONE;
+    CHECK(unit_can_enter_seat(unit_handles[0],craft,0,NULL),"legacy transport unexpectedly reserved its driver seat");
    } else if(!strcmp(case_name,"transport-admission-death")) {
     units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"pending death boarded");
     units[0].object.damage_flags=0;dropships[0].object.damage_flags=FLAG(_object_dead_bit);
@@ -1557,12 +1573,13 @@ int main(int argc,char **argv)
   units[0].object.position.x=0;advance(1);
   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"foot return bypassed physical boarding");
   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
+  if(!strcmp(case_name,"transport-pilot-receipt"))transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
   if(!strcmp(case_name,"transport-seat"))units[0].unit.parent_seat_index=2;
   if(!strcmp(case_name,"transport-stale"))units[0].object.parent_object_index=craft+0x10000;
   if(!strcmp(case_name,"transport-wrong-faction")||!strcmp(case_name,"transport-missing-faction"))units[0].object.owner_team_index=_game_team_covenant;
   if(!strcmp(case_name,"transport-dead"))dropships[0].object.damage_flags=FLAG(_object_dead_bit);
   advance(1);
-  if(!strcmp(case_name,"transport-seat")||!strcmp(case_name,"transport-stale")||
+  if(!strcmp(case_name,"transport-seat")||!strcmp(case_name,"transport-stale")||!strcmp(case_name,"transport-pilot-receipt")||
    !strcmp(case_name,"transport-wrong-faction")||!strcmp(case_name,"transport-missing-faction")||!strcmp(case_name,"transport-dead")) {
    CHECK(run(0)->dropship==NONE&&run(0)->phase==_extraction_ready,"invalid native seat/ship/faction received boarding credit");
    dropships[faction].object.position.x=0;advance(1);

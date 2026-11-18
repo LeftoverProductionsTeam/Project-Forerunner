@@ -1449,8 +1449,11 @@ a confirmed deployment. At the hub the player must deploy before boarding. At
 the matching field landing zone, the player must complete the extraction
 countdown and any authored squad objectives before boarding. If a matching
 landed group is authored, the craft must satisfy the native landing check.
-Keep the named hub, field and return volumes distinct. Halo still checks seat
-occupancy and physical access. Native AI crew can board through ordinary scripts.
+Keep the named hub, field and return volumes distinct. Managed ships reserve
+seats marked Driver in the native vehicle tag for the authored AI pilot.
+Players receive boarding and recovery credit from valid passenger seats.
+Halo still checks occupancy, animation and physical access. Native AI crew
+can board through ordinary scripts.
 Seventy focused transport cases and Windows64/native HSC compilation pass.
 `build/native-delta-squad-transport-seat/result.json` now verifies two authenticated
 one-player squads' separate insertions and both serial evacuations/banks. The

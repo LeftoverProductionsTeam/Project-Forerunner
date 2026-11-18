@@ -79,6 +79,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
     files.append(('vehicle_landing_types.inc', enum_with(read('source/units/vehicles.h'), '_vehicle_hovering_bit')))
     files.append(('vehicle_landing.inc', function(read('source/units/vehicles.c'), 'vehicle_is_landed')))
+    files.append(('transport_seat_flags.inc', enum_with(read('source/units/unit_definitions.h'), '_unit_seat_driver_bit')))
     files.append(('native_seat_animation_types.inc', enum_with(read('source/units/units.h'), '_unit_seat_animation_airborne_dead')))
     files.append(('native_seats.inc', '\n'.join(function(read('source/units/units.c'), name) for name in (
         'unit_adjust_for_seat_change', 'unit_can_enter_seat', 'unit_get_seat_entrance_point'))))
@@ -254,6 +255,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-admission-deployment', 'transport-admission-evacuation',
+    'transport-admission-pilot', 'transport-pilot-receipt',
     'transport-missing-faction', 'transport-seat', 'transport-stale', 'transport-wrong-faction',
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
     'transport-crash-pending', 'transport-crash-silent', 'transport-crash-no-statistics', 'transport-crash-hub',
@@ -386,7 +388,7 @@ def test_native_seat_entrance_negative_control():
 
 def test_native_transport_admission_negative_control():
     files = tuple((name, mutated(text,
-        'if (!extraction_transport_can_board(unit_index, target_unit_index))',
+        'if (!extraction_transport_can_board(unit_index, target_unit_index, seat_index))',
         'if (FALSE)')) if name == 'native_seats.inc' else (name, text)
         for name, text in generated())
     status, output = run(build('extraction', files), 'transport-admission-factions')

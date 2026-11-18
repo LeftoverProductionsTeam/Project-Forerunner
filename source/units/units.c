@@ -3134,10 +3134,9 @@ boolean unit_can_enter_seat(
 	boolean result = TRUE;
 	long child_object_index;
 
-	/* port: optional Extraction transports use the same faction assignment
-	 * for physical admission and banking. Refusal exposes no occupied seat
-	 * that the native interaction path could offer to evict an NPC from. */
-	if (!extraction_transport_can_board(unit_index, target_unit_index))
+	/* port: managed Extraction transports reserve driver seats for the
+	 * authored pilot. Refusal must also hide the pilot from native eviction. */
+	if (!extraction_transport_can_board(unit_index, target_unit_index, seat_index))
 	{
 		if (occupant_unit_index) *occupant_unit_index = NONE;
 		return FALSE;

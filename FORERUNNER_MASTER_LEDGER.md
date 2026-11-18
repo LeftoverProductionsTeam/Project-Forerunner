@@ -16,6 +16,16 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Dropship pilot reservation (17 November): managed transports reserve native
+driver seats for the authored pilot. A player cannot take or evict that seat
+or use it for boarding and gear recovery. Windows64 and 89 focused checks
+passed. Two authenticated Windows clients observed passenger boarding. The
+authored Marine occupied P-driver while parked, with the player aboard, and
+after insertion and disembarkation. The pilot also reached the field pickup.
+The scripted foot approach stopped at (72.472, -124.673, .825) before
+evacuation boarding. Return banking for this run remains unverified.
+Evidence: build/native-delta-pilot-seat-roundtrip-native/result.json.
+
 Dropship banking on disconnect (17 November): the host remembers a durable
 bank for its actual landed aircraft until connected crewmates settle. Completed
 escrow on disconnect follows the same receipt path. Windows64 and 82 focused

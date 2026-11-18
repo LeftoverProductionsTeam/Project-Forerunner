@@ -1664,6 +1664,14 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	return TRUE;
 }
 
+static boolean extraction_transport_seat_allowed(struct unit_datum const *vehicle, short seat_index, boolean passenger_only)
+{
+	struct tag_block const *seats = &unit_definition_get(vehicle->definition_index)->unit.seats;
+	if (!VALID_INDEX(seat_index, seats->count)) return FALSE;
+	return !passenger_only ||
+		!TEST_FLAG(TAG_BLOCK_GET_ELEMENT(seats, seat_index, struct unit_seat)->flags, _unit_seat_driver_bit);
+}
+
 /* Native seats, not a trigger/client claim, identify the assigned transport.
  * A named vehicle may be created by HaloScript after the extraction call. */
 static long extraction_player_dropship(struct unit_datum const *unit)
@@ -1679,12 +1687,12 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 	if (index == NONE || unit->object.parent_object_index != index) return NONE;
 	vehicle = (struct unit_datum *)object_try_and_get_and_verify_type(index, _object_mask_vehicle);
 	if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) || vehicle->object.body_vitality <= 0.0f ||
-		extraction_unit_pending_death(vehicle) ||
-		unit->unit.parent_seat_index >= unit_definition_get(vehicle->definition_index)->unit.seats.count) return NONE;
+		extraction_unit_pending_death(vehicle) || !extraction_transport_seat_allowed(vehicle,
+			unit->unit.parent_seat_index, extraction.dropship_boarding_groups[faction] != NONE)) return NONE;
 	return index;
 }
 
-boolean extraction_transport_can_board(long unit_index, long vehicle_index)
+boolean extraction_transport_can_board(long unit_index, long vehicle_index, short seat_index)
 {
 	struct unit_datum *unit, *vehicle;
 	struct player_datum *player;
@@ -1708,6 +1716,7 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index)
 		extraction_faction(unit->object.owner_team_index) != faction ||
 		extraction_faction((short)player->team_index) != faction) return FALSE;
 	if (extraction.dropship_boarding_groups[faction] == NONE) return TRUE;
+	if (!extraction_transport_seat_allowed(vehicle, seat_index, TRUE)) return FALSE;
 
 	/* Ships with a crew-readiness signal reserve their seats for runs that
 	 * can actually depart. Ordinary Halo seating still owns distance,
