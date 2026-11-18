@@ -9,7 +9,45 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
-Current Black Echo handoff: Spark's CE609 apron cache
+## Current Black Echo candidate
+
+Spark's revised Covenant terminal is in CE609 cache
+releases/black-echo-native-covenant-terminal-20261118/be_native.map, SHA256
+833f708130008508caab07fe2c6dd899a28b96e328c60039282d9c0e3a5a3648.
+Both authenticated players used the revised control at (38.003, -104.528, .999),
+deployed, and saw Covenant allegiance and plasma pistols on both clients.
+The current cache uses cyborg bodies. Author a nonautomatic
+extraction_covenant_body placement to exercise Covenant biped selection.
+The Spirit reported ready, landed and inside both hub volumes at deployment.
+The walk stopped at (46.371, -101.147, .774) before boarding. The Spirit
+had settled near (55.565, -80.870, 1.550). Evidence:
+build/native-spark-black-echo-833f-spirit-pair/result.json and both peer logs.
+
+On the same export, two authenticated UNSC players boarded, flew, landed
+and disembarked. In the settlement run the host read one living Marine in
+be_survivors and zero remaining Covenant. Both clients saw the technology at
+(55.84, -86.44, .07) by tick 6570, and both saw the living Marine beside the
+rescue area. At (56.165, -86.769, .057) the collector had no native pickup
+action and the item stayed unowned. The extracted weapon and cyborg bounds
+read .10 and .45 world units. The older accepted cache offered a normal weapon
+swap from the closer (56.003, -86.664, .052) approach. Pickup, evacuation,
+banking and redeployment remain open. The authored gs_mission waits at
+gs_pelican_insertion_complete. The Spirit path needs its own authored
+objective entry for Covenant operation acceptance. Evidence:
+build/native-spark-black-echo-833f-settlement/result.json and both peer logs.
+
+One later insertion reported command complete at (77.023, -115.954, 1.856)
+outside the field volume and more than eight units from (79, -124, 1.85).
+Forerunner now checks the authored arrival radius for a configured aircraft's
+stop before reporting completion after a cleared path. Windows64 and 28
+focused checks passed. On the corrected build both clients landed and exited,
+and the host confirmed the living rescue and Covenant clearance. The native
+replay did not encounter the early-clear branch. The collector stopped at
+(51.322, -87.272, .080) while the technology remained unowned at its authored
+position. Evidence in build/native-spark-black-echo-833f-physical-pickup
+and build/native-spark-black-echo-833f-arrival-fixed.
+
+Previous Black Echo handoff: Spark's CE609 apron cache
 releases/black-echo-native-apron-20261118/be_native.map, SHA256
 7074cffcd9b637912c0f0b947fe83d0ee40b41fdb7a43393b6a3bf10249d2714.
 In the first paired approach with a seat marker, the Pelican turned sharply

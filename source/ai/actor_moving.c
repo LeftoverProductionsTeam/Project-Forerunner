@@ -329,6 +329,7 @@ typedef char actor_moving_vehicle_steering_max_throttle_offset_assert[
 
 /* ---------- prototypes */
 
+static struct vehicle_definition *actor_move_plane_definition(struct actor_datum const *actor);
 static void actor_move_vector_avoidance(
 	long actor_index,
 	real_vector3d const *movement_direction,
@@ -512,8 +513,21 @@ boolean actor_path_at_destination(
 	long actor_index)
 {
 	struct actor_datum *actor = actor_get(actor_index);
+	boolean arrived = !actor->control.path.path.valid || actor->control.path.at_destination;
 
-	return !actor->control.path.path.valid || actor->control.path.at_destination;
+	if (arrived && actor->state.action == _actor_action_obey)
+	{
+		struct obey_individual_complex_control const *command = &actor->state.action_data.obey.complex_control;
+		if (command->destination_valid && !command->destination_keep_moving && actor_move_plane_definition(actor))
+		{
+			/* A rejected path refresh also clears the path. Keep the command
+			 * alive so native navigation can refresh the authored approach. */
+			real radius = actor_destination_tolerance(actor_index);
+			return distance_squared3d(&actor->input.position.body_position,
+				&command->destination_point) < radius * radius;
+		}
+	}
+	return arrived;
 }
 
 short actor_path_get_destination_firing_position_index(

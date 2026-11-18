@@ -11,7 +11,8 @@ ACTORS = 'port/linux/game/network_actors.c'
 TEST = 'port/linux/game/network_test.c'
 CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
-         'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position', 'plane-waypoint-turn']
+         'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position', 'plane-waypoint-turn',
+         'plane-landing-arrival']
 CONTROLS = {
     'client-ai-state': ('if (host && actor_data && unit->unit.actor_index != NONE)',
                         'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
@@ -43,9 +44,10 @@ def generated(control=None):
     code += '\n' + function(test, 'network_test_log_actors')
     moving = read('source/ai/actor_moving.c')
     code += '\n' + enum_with(read('source/ai/actors.h'), '_actor_vehicle_driver_directional_flying')
+    code += '\n' + enum_with(read('source/ai/actors.h'), '_actor_action_obey')
     code += '\n' + '\n'.join(function(moving, name) for name in
                                   ('actor_move_plane_definition', 'actor_move_sample_plane_position',
-                                   'actor_move_plane_approach_scale'))
+                                   'actor_move_plane_approach_scale', 'actor_path_at_destination'))
     if control:
         before, after, _ = CONTROLS[control]
         code = mutated(code, before, after)

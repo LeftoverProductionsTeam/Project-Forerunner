@@ -18,10 +18,16 @@ struct unit_datum
 	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags;long parent_object_index;real_vector3d forward,translational_velocity;} object;
 	struct {long player_index,actor_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
 };
+struct obey_individual_complex_control {
+ boolean destination_valid,destination_keep_moving;
+ real_point3d destination_point;
+};
 static int actor_data=1;
 static struct actor_datum {
  struct {long unit_index;short active,dormant,squad_index;} meta;
- struct {short action,default_state;} state;
+ struct {short action,default_state;
+  struct {struct {struct obey_individual_complex_control complex_control;} obey;} action_data;
+ } state;
  struct {boolean moving;real_point3d moving_towards_point;
   struct {boolean at_destination;real destination_distance;struct {boolean valid;short step_index,step_count;} path;} path;} control;
  struct {struct {struct {short destination_type;} destination;} move;} orders;
@@ -89,6 +95,12 @@ static struct vehicle_definition *vehicle_specific_definition_get(long index) {(
 static void object_get_origin(long id,real_point3d *p) {*p=unit_get(id)->object.position;}
 static void object_get_orientation(long id,real_vector3d *f,real_vector3d *u) {(void)u;*f=unit_get(id)->object.forward;}
 static void object_get_velocities(long id,real_vector3d *v,real_vector3d *a) {(void)a;*v=unit_get(id)->object.translational_velocity;}
+static real actor_destination_tolerance(long index) {(void)index;return 1.8f;}
+static real distance_squared3d(real_point3d const *a,real_point3d const *b)
+{
+	real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;
+	return x*x+y*y+z*z;
+}
 #include "under_test.inc"
 static long add(int slot)
 {
@@ -117,6 +129,31 @@ int main(int argc,char **argv)
 		CHECK(actor_move_plane_approach_scale(0.1f, 1.f, FALSE) == 0.15f &&
 			actor_move_plane_approach_scale(2.f, 1.f, TRUE) == 1.f,
 			"landing or full cruise changed");
+	}
+	else CASE("plane-landing-arrival")
+	{
+		long actor=0x56780000;
+		native_actor.input.vehicle_index=add(1);
+		native_actor.input.vehicle_driver_type=_actor_vehicle_driver_directional_flying;
+		native_actor.state.action=_actor_action_obey;
+		native_actor.state.action_data.obey.complex_control.destination_valid=TRUE;
+		native_actor.state.action_data.obey.complex_control.destination_point=(real_point3d){79,-124,1.85f};
+		native_actor.input.position.body_position=(real_point3d){77.023f,-115.954f,1.856f};
+		native_actor.control.path.path.valid=FALSE;
+		native_actor.control.path.at_destination=TRUE;
+		CHECK(!actor_path_at_destination(actor),"cleared path completed the landing order outside its native radius");
+		native_actor.input.position.body_position=(real_point3d){78.747f,-125.707f,1.992f};
+		CHECK(actor_path_at_destination(actor),"authored physical arrival did not complete");
+		native_actor.control.path.path.valid=TRUE;
+		native_actor.control.path.at_destination=FALSE;
+		CHECK(!actor_path_at_destination(actor),"physical range completed an active native path");
+		native_actor.control.path.path.valid=FALSE;
+		native_actor.input.position.body_position=(real_point3d){77.023f,-115.954f,1.856f};
+		native_actor.state.action_data.obey.complex_control.destination_keep_moving=TRUE;
+		CHECK(actor_path_at_destination(actor),"a keep-moving waypoint changed semantics");
+		native_actor.state.action_data.obey.complex_control.destination_keep_moving=FALSE;
+		human_plane=FALSE;
+		CHECK(actor_path_at_destination(actor),"legacy aircraft arrival changed");
 	}
 	else CASE("plane-waypoint-position")
 	{
