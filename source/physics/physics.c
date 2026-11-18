@@ -617,16 +617,17 @@ boolean physics_resting_placement(long object_index, real_point3d const *contact
 	instance.world_matrix.position.x += position->x;
 	instance.world_matrix.position.y += position->y;
 	instance.world_matrix.position.z += position->z;
-	return physics_placement_clear(&instance, ignore_object_index, TRUE);
+	return physics_placement_clear(&instance, ignore_object_index, TRUE, NULL);
 }
 
 /* Check the native mass-point hull at the supplied pose. A recorded pose may
  * already be resting on the BSP and only need clearance from other objects. */
 boolean physics_placement_clear(struct physics_instance const *instance, long ignore_object_index,
-	boolean test_structure)
+	boolean test_structure, long *blocking_object_index)
 {
 	short index, count = physics_mass_point_count(instance->physics);
 
+	if (blocking_object_index) *blocking_object_index = NONE;
 	if (!count)
 		return FALSE;
 	for (index = 0; index < count; index++)
@@ -640,10 +641,14 @@ boolean physics_placement_clear(struct physics_instance const *instance, long ig
 			(_collision_test_objects_all_types_flags & ~FLAG(_collision_test_objects_projectiles_bit));
 
 		matrix4x3_transform_point(&instance->world_matrix, &point->position, &center);
-		if ((test_structure && collision_test_sphere(&center, point->radius, NONE)) ||
-			(collision_get_features_in_sphere(flags, &center, point->radius, 0.0f, point->radius, ignore_object_index, &features) &&
-			 collision_features_test_point(&features, &center, &collision)))
+		if (test_structure && collision_test_sphere(&center, point->radius, NONE))
 			return FALSE;
+		if (collision_get_features_in_sphere(flags, &center, point->radius, 0.0f, point->radius, ignore_object_index, &features) &&
+			collision_features_test_point(&features, &center, &collision))
+		{
+			if (blocking_object_index) *blocking_object_index = collision.object_index;
+			return FALSE;
+		}
 	}
 	return TRUE;
 }

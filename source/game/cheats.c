@@ -597,13 +597,17 @@ boolean cheat_forge_undo_move(void)
 	if (object->object.type == _object_type_vehicle)
 	{
 		struct physics_instance vehicle;
+		long blocker_index;
 
 		if (!physics_instance_new(&vehicle, object_index))
 			return FALSE;
 		vehicle.world_matrix = forge_last_move.vehicle_pose;
-		if (!physics_placement_clear(&vehicle, object_index, FALSE))
+		if (!physics_placement_clear(&vehicle, object_index, FALSE, &blocker_index))
 		{
+			struct object_datum const *blocker = object_try_and_get(blocker_index);
+			char const *name = blocker ? tag_get_name(blocker->definition_index) : NULL;
 			console_warning("Forge needs clear space for the vehicle at its previous position");
+			if (name) console_warning("Forge undo blocker: %08lx %s", (unsigned long)blocker_index, name);
 			return FALSE;
 		}
 	}

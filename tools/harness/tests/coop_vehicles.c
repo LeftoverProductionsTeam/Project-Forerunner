@@ -165,7 +165,8 @@ static boolean cheats_console_objects_xbox(void){return clone_xbox;}
 static boolean cheats_console_object_allowed(void){return clone_quota;}
 static boolean cheats_console_object_made(long index){return index!=NONE;}
 static boolean weapon_is_flag(long index){return clone_objective;}
-static void console_warning(char const *text){}
+static void console_warning(char const *text, ...) { (void)text; }
+static char const *tag_get_name(long index) { (void)index; return "fixture object"; }
 static void objects_scripting_set_scale(long index,real scale,short ticks){get(index)->object.scale=scale;}
 static long forge_viewer;
 static long player_control_get_unit_index(short slot) { (void)slot; return forge_viewer; }
@@ -194,7 +195,7 @@ static short physics_mass_point_count(struct physics_definition const *definitio
  return (short)definition->mass_points.count;
 }
 struct collision_feature_list { int unused; };
-struct collision_plane { int unused; };
+struct collision_plane { long object_index; };
 static boolean collision_get_features_in_sphere(unsigned long flags, real_point3d const *center,
  real enclosing, real height, real radius, long ignore, struct collision_feature_list *features) {
  (void)flags; (void)center; (void)enclosing; (void)height; (void)radius; (void)features;
@@ -202,7 +203,8 @@ static boolean collision_get_features_in_sphere(unsigned long flags, real_point3
 }
 static boolean collision_features_test_point(struct collision_feature_list const *features,
  real_point3d const *center, struct collision_plane *collision) {
- (void)features; (void)center; (void)collision;
+ (void)features; (void)center;
+ collision->object_index=identifiers[9];
  return TRUE;
 }
 #define matrix4x3_transform_point(matrix, point, out) ( \
