@@ -21,14 +21,25 @@ On maps with an explicit UNSC faction control, Forerunner now assigns the
 native Human team to a confirmed default UNSC deployment, matching explicit
 UNSC selection. Windows64 and 131 focused checks passed. Both authenticated
 clients agreed on both players' Human allegiance, and both players stayed
-at full health in the final hub run. Both peers saw the host board P-riderRF.
-The Pelican had moved off its authored starting pad and settled at
-(54.283, -111.040, 1.823). The guest's normal approach stopped at
-(55.194, -110.988, .888), 1.537 units from the unoccupied P-riderLF entrance
-at (53.983, -111.297, .357). Native boarding remained unavailable from
-that approach. Keep the staged craft stationary and clear the approaches
-to both front seats. Paired lift-off, rescue and the complete mission remain
-open. Evidence: build/native-spark-black-echo-dee2-default-unsc/result.json.
+at full health in the hub.
+
+Paired boarding is now verified on dee2. With the aircraft displaced from
+its authored pad, the guest used the southern ground approach around
+y = -114 to reach P-riderLF, while the host took P-riderRF. Both peers agreed
+on the same Pelican and seats 1 and 4 for 49 samples from ticks 2130 to 3570.
+That run did not reach the field.
+Evidence: build/native-spark-black-echo-dee2-south-approach/result.json.
+
+The follow-up paired run verified gs_pelican_insertion_started, the live
+P-driver and P-riderLM occupants, exact Marine identity, the hub volume and the
+native landed signal. gs_pelican_insertion_complete stayed false. The Pelican
+remained grounded near (54.032, -112.004, 1.913). The pilot stayed Alert
+with no movement destination and zero throttle. Diagnose the transition from
+the authored ai_command_list pilot field_route to actual pilot movement,
+including the first waypoint (66, -121, .123) from the displaced parked pose.
+Keep both normal boarding approaches clear. No flight, rescue, combat or
+settlement was accepted in these runs.
+Evidence: build/native-spark-black-echo-dee2-paired-route-gates/result.json.
 
 Previous Black Echo crew handoff: Spark's CE609 build b3c5bc47-159c-4b05-a109-79197fbe232b
 is releases/black-echo-native-crew-20261117/be_native.map, SHA256
