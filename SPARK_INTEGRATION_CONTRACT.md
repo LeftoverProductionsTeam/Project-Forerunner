@@ -11,6 +11,30 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
+Spark's Covenant rally and Spirit return CE609 cache is
+releases/black-echo-native-covenant-rally-return-20261118/be_native.map,
+SHA256 dfa84b9590929393e16a36b59a568b7ec0b1420e7cd7e2526505fb4a7a36d0b0.
+Two authenticated Covenant players flew in and exited alive. The parked
+Pelican stayed at (53.339, -102.537, 1.348). The empty Spirit traversed the
+revised route and both clients saw it landed in spirit_return at tick
+13680, near (59.049, -84.495, 1.535).
+
+The living Covenant ally executed be_covenant_rally, reaching
+(49.312, -87.728, .088) inside be_survivors. The host's arrival opened the
+facility objective. Both peers saw the Armored Marine defender spawn and
+fight. During the first attempt the guest was still approaching from
+(54.010, -92.068, .170) when the defender's bullets and explosion killed
+that player at tick 16170. The ally and host remained alive. Evidence:
+build/native-spark-black-echo-dfa8-facility/result.json and both peer logs.
+The paired approach then brought both living players into be_survivors at
+tick 15390. Host readback confirmed the escort gate and living facility
+opposition. While the guest was still turning to aim, the Marine
+incapacitated and killed the guest near (56.493, -89.446, .077) at tick
+15600. Both peers saw the ally survive and the same hostile actor. The
+paired run is recorded in build/native-spark-black-echo-dfa8-paired-facility.
+Battlefield clearance, technology collection, recall, boarding and
+settlement remain open on this candidate.
+
 Spark's pilots-hold CE609 cache is
 releases/black-echo-native-both-pilots-hold-20261118/be_native.map,
 SHA256 eed5856bc7d785522130b1b633a59266d1d23724ff1c7a5452a81cf180e47ef9.
