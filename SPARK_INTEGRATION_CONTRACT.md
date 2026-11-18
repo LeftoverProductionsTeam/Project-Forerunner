@@ -9,7 +9,43 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
-## Current Black Echo candidate
+## Current Black Echo candidates
+
+Spark's primary CE609 rally cache is
+releases/black-echo-native-rescue-rally-20261118/be_native.map, SHA256
+0541509920a71bbd753fd279e6650542d967fc70628b3b2b9ebb415b2e76bede.
+Its rescue script waits for a player to share be_survivors with the living
+Marine before the Covenant encounter. The first authenticated run boarded
+both players. The Pelican's idle pilot look reversed before its hull did,
+with zero throttle and the Spirit still far away. The Pelican rolled and
+both pilot and Marine left their seats at tick 1320. The authored departure
+gate stayed closed. Evidence from build/native-spark-black-echo-0541-rally-operation.
+Forerunner now uses the hull heading when a grounded alert pilot has no route.
+Windows64 and 30 focused checks passed. On the repaired build, the exact same
+candidate held its heading through tick 1320 with both crew members seated.
+Both authenticated players boarded, flew, landed at (78.670, -125.638, 2.008),
+and exited normally. Both clients still saw the Marine alive at the rally at
+tick 6000. The collector stopped before entering the authored volume.
+Evidence from build/native-spark-black-echo-0541-parked-look and peer logs.
+A follow-up on the corrected build reached the rally with the host at
+(49.830, -88.968, .123), rescued the living Marine, cleared the Covenant
+encounter and picked up the technology at tick 7410. Both peers reported the
+same weapon attached to the collector. The authored pickup gate advanced,
+then spawned the optional Flood encounter. The collector died during that
+fight. Defense, physical evacuation, banking and redeployment remain open.
+Evidence from build/native-spark-black-echo-0541-native-rally and peer logs.
+
+Spark's alternate CE609 cache is
+releases/black-echo-native-field-alignment-20261118/be_native.map, SHA256
+539f6fa01a219ded36a412551248c3948fe11f1fa5fe239ad020d270c28c6303.
+Both authenticated players boarded and took off. The pilot stayed on the
+new airborne go-to-and-face waypoint (76, -121.75, 6.2). Its closest sample
+was 1.780 units away while airborne. The touchdown command and landing volume
+remain open. The final observed position
+was (79.245, -118.817, 9.992). Command status 3 means an active native
+command. Evidence from build/native-spark-black-echo-539f-paired-approach.
+
+## Prior Covenant terminal candidate
 
 Spark's revised Covenant terminal is in CE609 cache
 releases/black-echo-native-covenant-terminal-20261118/be_native.map, SHA256
@@ -36,8 +72,9 @@ gs_pelican_insertion_complete. The Spirit path needs its own authored
 objective entry for Covenant operation acceptance. Evidence:
 build/native-spark-black-echo-833f-settlement/result.json and both peer logs.
 
-One later insertion reported command complete at (77.023, -115.954, 1.856)
-outside the field volume and more than eight units from (79, -124, 1.85).
+One later insertion marked its cleared path as arrived at
+(77.023, -115.954, 1.856), more than eight units from (79, -124, 1.85)
+and outside the field volume. HaloScript command status 3 was still active.
 Forerunner now checks the authored arrival radius for a configured aircraft's
 stop before reporting completion after a cleared path. Windows64 and 28
 focused checks passed. On the corrected build both clients landed and exited,

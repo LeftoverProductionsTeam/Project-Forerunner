@@ -31,7 +31,7 @@ static struct actor_datum {
  struct {boolean moving;real_point3d moving_towards_point;
   struct {boolean at_destination;real destination_distance;struct {boolean valid;short step_index,step_count;} path;} path;} control;
  struct {struct {struct {short destination_type;} destination;} move;} orders;
- struct {short vehicle_driver_type;long vehicle_index;
+ struct {short vehicle_driver_type;long vehicle_index;real_vector3d facing_vector;
   struct {real_point3d body_position,head_position;real_vector3d body_facing,velocity;} position;} input;
  struct {real_vector3d throttle,facing_vector;} output;
 } native_actor;
@@ -129,6 +129,23 @@ int main(int argc,char **argv)
 		CHECK(actor_move_plane_approach_scale(0.1f, 1.f, FALSE) == 0.15f &&
 			actor_move_plane_approach_scale(2.f, 1.f, TRUE) == 1.f,
 			"landing or full cruise changed");
+	}
+	else CASE("plane-parked-look")
+	{
+		native_actor.state.action = _actor_action_alert;
+		native_actor.input.position.body_facing = (real_vector3d){.934f,-.326f,.145f};
+		native_actor.input.facing_vector = (real_vector3d){-.945f,-.311f,-.103f};
+		CHECK(actor_move_plane_stop_facing(&native_actor, TRUE).i == .934f,
+			"idle pilot look steered the grounded hull");
+		CHECK(actor_move_plane_stop_facing(&native_actor, FALSE).i == -.945f,
+			"airborne pilot lost native steering");
+		native_actor.control.path.path.valid = TRUE;
+		CHECK(actor_move_plane_stop_facing(&native_actor, TRUE).i == -.945f,
+			"active native route lost its heading");
+		native_actor.control.path.path.valid = FALSE;
+		native_actor.state.action = _actor_action_obey;
+		CHECK(actor_move_plane_stop_facing(&native_actor, TRUE).i == -.945f,
+			"authored stop lost its facing order");
 	}
 	else CASE("plane-landing-arrival")
 	{

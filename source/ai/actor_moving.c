@@ -2429,6 +2429,16 @@ boolean actor_move_to_prop(
 	return result;
 }
 
+/* A grounded alert pilot may look around before the flight is called.
+ * Level the hull without turning it toward the pilot's idle look. */
+static real_vector3d actor_move_plane_stop_facing(struct actor_datum const *actor, boolean grounded)
+{
+	if (grounded && actor->state.action == _actor_action_alert &&
+		!actor->control.moving && !actor->control.path.path.valid)
+		return actor->input.position.body_facing;
+	return actor->input.facing_vector;
+}
+
 static real actor_move_plane_approach_scale(real distance_fraction, real heading_dot, boolean keep_moving)
 {
 	real alignment = PIN(heading_dot, 0.f, 1.f);
@@ -3132,6 +3142,7 @@ void actor_move_update(
 	real maximum_throttle = 1.f;
 	boolean plane_landing = FALSE;
 	boolean plane_ground_roll = FALSE;
+	boolean plane_grounded = FALSE;
 
 	match_assert_valid_real_normal3d(
 		"c:\\halo\\SOURCE\\ai\\actor_moving.c",
@@ -3526,9 +3537,10 @@ void actor_move_update(
 		if (plane)
 		{
 			struct unit_datum *ship = vehicle_get(actor->input.vehicle_index);
+			plane_grounded = TEST_FLAG(ship->object.flags, _object_on_ground_bit);
 			plane_landing = !actor->control.moving && !actor->control.path.path.valid;
 			if (actor->control.path.path.valid && !actor->control.path.destination_orders.keep_moving &&
-				TEST_FLAG(ship->object.flags, _object_on_ground_bit))
+				plane_grounded)
 			{
 				real radius = actor_destination_tolerance(actor_index);
 				real remaining = distance_squared2d(
@@ -3547,7 +3559,7 @@ void actor_move_update(
 	if (plane_landing || plane_ground_roll)
 	{
 		real_vector3d level = plane_landing
-			? actor->input.facing_vector
+			? actor_move_plane_stop_facing(actor, plane_grounded)
 			: actor->control.desired_facing_vector;
 		level.k = 0.f;
 		if (normalize3d(&level) > 0.f)

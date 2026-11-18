@@ -12,13 +12,15 @@ TEST = 'port/linux/game/network_test.c'
 CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
          'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position', 'plane-waypoint-turn',
-         'plane-landing-arrival']
+         'plane-landing-arrival', 'plane-parked-look']
 CONTROLS = {
     'client-ai-state': ('if (host && actor_data && unit->unit.actor_index != NONE)',
                         'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
     'stale-ai-owner': ('if (actor && actor->meta.unit_index == units[index])',
                        'if (actor)', 'host-control'),
     'stale-position': ('unit->object.position.x,', '0.0,', 'host-world'),
+    'parked-look-steers': ('return actor->input.position.body_facing;',
+                           'return actor->input.facing_vector;', 'plane-parked-look'),
     'wrong-table': ('boolean host = game_connection() == _game_connection_network_server;',
                     'boolean host = TRUE;', 'client-world'),
     'lost-salt': (
@@ -47,7 +49,8 @@ def generated(control=None):
     code += '\n' + enum_with(read('source/ai/actors.h'), '_actor_action_obey')
     code += '\n' + '\n'.join(function(moving, name) for name in
                                   ('actor_move_plane_definition', 'actor_move_sample_plane_position',
-                                   'actor_move_plane_approach_scale', 'actor_path_at_destination'))
+                                   'actor_move_plane_approach_scale', 'actor_path_at_destination',
+                                   'actor_move_plane_stop_facing'))
     if control:
         before, after, _ = CONTROLS[control]
         code = mutated(code, before, after)
