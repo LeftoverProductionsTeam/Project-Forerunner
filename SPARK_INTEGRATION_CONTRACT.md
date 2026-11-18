@@ -32,8 +32,24 @@ opposition. While the guest was still turning to aim, the Marine
 incapacitated and killed the guest near (56.493, -89.446, .077) at tick
 15600. Both peers saw the ally survive and the same hostile actor. The
 paired run is recorded in build/native-spark-black-echo-dfa8-paired-facility.
-Battlefield clearance, technology collection, recall, boarding and
-settlement remain open on this candidate.
+With both controllers aimed before contact, the next paired run cleared
+be_cov_facility at tick 14910. Both players remained at full health. Both
+peers saw the unowned technology at (55.84, -86.44, .07). The guest
+reached (55.797, -86.632, .055) with no native pickup action. The item
+stayed unowned and gs_collected_4 remained false.
+
+The compiled forerunner/be_native/technology weapon uses the hp label.
+The compiled Grunt standing graph accepts pr, ne, pp and fr. The
+Spartan standing graph accepts hp. Native unit_can_use_weapon checks
+the seat and weapon animation labels before offering pickup. For the
+Covenant export, use a distinct authored technology weapon with the
+animations and label of a supported weapon such as pp. Point the native
+object and unit_has_weapon objective at that same definition. A
+dual-faction candidate needs animations compatible with both bodies
+or each faction's own correctly tagged objective. Preserve the native
+eligibility and ownership checks. Defense, recall, boarding and
+settlement remain open. Paired combat and pickup evidence is in
+build/native-spark-black-echo-dfa8-native-mission.
 
 Spark's pilots-hold CE609 cache is
 releases/black-echo-native-both-pilots-hold-20261118/be_native.map,
