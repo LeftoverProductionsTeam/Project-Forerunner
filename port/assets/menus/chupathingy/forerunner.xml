@@ -231,7 +231,8 @@
 		<child widget="forerunner/forge/tools/undo" x="192" y="236" />
 		<child widget="forerunner/forge/tools/save" x="192" y="270" platform="desktop" />
 		<child widget="forerunner/forge/tools/load" x="192" y="304" platform="desktop" />
-		<child widget="forerunner/forge/back" x="192" y="338" />
+		<child widget="forerunner/forge/tools/remove" x="192" y="338" />
+		<child widget="forerunner/forge/back" x="192" y="372" />
 	</widget>
 	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="SELECT AIMED OBJECT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge pick" close="all" />
@@ -256,6 +257,11 @@
 	<widget name="forerunner/forge/tools/load" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="LOAD PLACEMENTS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
 		<on event="a" run="port forge load" close="all" />
 		<on event="start" run="port forge load" close="all" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/remove" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="REMOVE SELECTED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge remove" close="all" />
+		<on event="start" run="port forge remove" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/spark" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="SPARK MISSIONS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">

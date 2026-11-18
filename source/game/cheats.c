@@ -459,11 +459,11 @@ long cheat_forge_place(void)
 	return forge_clone_at_position(forge_selection, &position);
 }
 
-/* Only undo a copy made by the console in this map. Native deletion is
- * recursive, so refuse copies used by players, riders or scenario scripts. */
-boolean cheat_forge_undo(void)
+/* Faber/OpenCE-Forge deletes a tracked instance through object_delete.
+ * Reuse the native checks and replication for both removal actions. */
+static boolean forge_remove_copy(long object_index)
 {
-	long object_index = forge_last_copy;
+	long slot;
 	struct object_header_datum *header;
 	struct object_datum *object;
 	struct item_datum *item;
@@ -472,13 +472,15 @@ boolean cheat_forge_undo(void)
 		network_game_distributed_client() || network_game_host_cheats_refused())
 		return FALSE;
 
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index);
+	if (!VALID_INDEX(slot, NUMBEROF(forge_copies)) || forge_copies[slot] != object_index)
+		return FALSE;
 	header = object_header_try_and_get(object_index);
 	if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit))
-	{
-		forge_last_copy = NONE;
 		return FALSE;
-	}
 
+	/* Native deletion is recursive. Refuse copies used by players,
+	 * riders or scenario scripts. */
 	object = forge_placeable_object_get(object_index);
 	if (!object || object->object.name_index != NONE || object->object.owner_player_index != NONE ||
 		object->object.first_child_object_index != NONE)
@@ -491,8 +493,19 @@ boolean cheat_forge_undo(void)
 		return FALSE;
 
 	object_delete(object_index);
-	forge_last_copy = NONE;
+	if (forge_last_copy == object_index) forge_last_copy = NONE;
+	if (forge_selection == object_index) forge_selection = NONE;
 	return TRUE;
+}
+
+boolean cheat_forge_undo(void)
+{
+	return forge_remove_copy(forge_last_copy);
+}
+
+boolean cheat_forge_remove_selected(void)
+{
+	return forge_remove_copy(forge_selection);
 }
 
 

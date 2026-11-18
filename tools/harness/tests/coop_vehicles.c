@@ -6,6 +6,7 @@
 #define MAXIMUM_OBJECTS_PER_MAP 8192
 #define MAXIMUM_MASS_POINTS_PER_PHYSICS 32
 #define NUMBEROF(a) (sizeof(a)/sizeof(*(a)))
+#define VALID_INDEX(index, count) (index>=0 && index<count)
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define PIN(x,a,b) MIN(MAX(x,a),b)
@@ -553,6 +554,33 @@ int main(int argc,char **argv) {
   } else {
    CHECK(copy==NONE&&!new_count,"invalid aim placement created an object");
   }
+  return 0;
+ }
+ if(!strncmp(argv[1],"remove-",7)) {
+  char const *name=argv[1]+7;
+  long source=reset(),first,last,selected;
+  get(source)->object.type=_object_type_vehicle;
+  first=cheat_forge_clone(source);
+  last=cheat_forge_clone(source);
+  CHECK(first!=NONE&&last!=NONE&&first!=last,"missing two native copies");
+  selected=!strcmp(name,"original")?source:first;
+  forge_viewer=make(8,1);
+  forge_probe=forge_hit_found=TRUE;
+  forge_hit.type=_collision_result_object;
+  forge_hit.object_index=selected;
+  CHECK(cheat_forge_pick(),"could not select the target through native aim");
+  if(!strcmp(name,"occupied")) get(first)->object.first_child_object_index=123;
+  if(!strcmp(name,"stale")) identifiers[first&65535]+=0x10000;
+  if(!strcmp(name,"client")) connection=1;
+  if(!strcmp(name,"permission")) clone_refused=TRUE;
+  if(!strcmp(name,"previous")) {
+   CHECK(cheat_forge_remove_selected()&&!get(first)&&!cheat_forge_remove_selected(),
+    "selected removal did not delete exactly the earlier copy");
+   CHECK(get(last)&&cheat_forge_undo()&&!get(last),"selected removal erased the separate latest-copy undo");
+  } else {
+   CHECK(!cheat_forge_remove_selected()&&identifiers[selected&65535]&&get(last),"unsafe selected removal deleted an object");
+  }
+  CHECK(get(source),"selected removal touched the original");
   return 0;
  }
  if(!strncmp(argv[1],"undo-",5)) {

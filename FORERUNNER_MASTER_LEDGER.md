@@ -178,6 +178,13 @@ build/native-forge-menu-end-to-end/result.json saw the same Pelican copy and
 removal, and the guest had no Forge Tools row. Controller and mouse actions
 passed without console edits.
 
+Forge selected removal (17 November): Remove Selected Copy uses the same native
+protection and replicated deletion as Undo. Windows64 and 15 focused checks
+passed. Two Windows LAN clients loaded two saved copies, removed the earlier
+one through the pause menu, and saved and reloaded only the remaining copy.
+The original map and both original aircraft remained intact. Evidence:
+build/native-forge-selected-removal-verified/result.json.
+
 Forge placement persistence (17 November): Save and Load in Forge Tools use the
 OpenCE-Forge base-map placement format. Windows64 and 37 focused checks passed.
 Two native Windows LAN clients saw the saved Pelican at the same resting
