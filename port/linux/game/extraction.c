@@ -112,7 +112,7 @@ static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
-	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
+	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone, spirit_return_zone;
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
@@ -480,7 +480,7 @@ void extraction_reset(void)
 	memset(&extraction, 0, sizeof(extraction));
 	for (index = 0; index < NUMBEROF(extraction.squads); index++)
 		extraction.squads[index].name = extraction.squads[index].ready_group = NONE;
-	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = NONE;
+	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = extraction.spirit_return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
 	extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
@@ -634,16 +634,36 @@ static short extraction_zone_for_faction(short faction)
 	return extraction.zone;
 }
 
-static boolean extraction_at_hub(long object)
+static short extraction_transport_return_zone(short faction)
+{
+	return faction == 1 && extraction.spirit_return_zone != NONE
+		? extraction.spirit_return_zone : extraction.return_zone;
+}
+
+static boolean extraction_in_hub_volume(short return_zone, long object)
 {
 	short faction;
-	if (!scenario_trigger_volume_test_object(extraction.return_zone, object) ||
+	if (!scenario_trigger_volume_test_object(return_zone, object) ||
 		(extraction.zone != NONE && scenario_trigger_volume_test_object(extraction.zone, object)))
 		return FALSE;
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.dropship_zones[faction] != NONE &&
 			scenario_trigger_volume_test_object(extraction.dropship_zones[faction], object)) return FALSE;
 	return TRUE;
+}
+
+static boolean extraction_at_hub(long object)
+{
+	return extraction_in_hub_volume(extraction.return_zone, object);
+}
+
+static boolean extraction_transport_at_field(short faction, long ship)
+{
+	short zone = extraction_zone_for_faction(faction);
+	short return_zone = extraction_transport_return_zone(faction);
+	return zone != NONE && scenario_trigger_volume_test_object(zone, ship) &&
+		!scenario_trigger_volume_test_object(extraction.return_zone, ship) &&
+		(return_zone == extraction.return_zone || !scenario_trigger_volume_test_object(return_zone, ship));
 }
 
 static void extraction_bind(void)
@@ -672,7 +692,7 @@ static void extraction_bind(void)
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
-	extraction.zone = extraction.return_zone = NONE;
+	extraction.zone = extraction.return_zone = extraction.spirit_return_zone = NONE;
 	if (!extraction.survival && config_boolean("network.firefight_encounter"))
 	{
 		extraction_notice("Extraction unavailable: disable the built-in Firefight director. Authored native AI scripts can keep running.");
@@ -821,6 +841,11 @@ static void extraction_bind(void)
 			if (extraction.return_zone != NONE)
 				unique = FALSE;
 			extraction.return_zone = index;
+		}
+		else if (extraction.dropship_names[1] != NONE && !strcmp(volume->name, "spirit_return"))
+		{
+			if (extraction.spirit_return_zone != NONE) unique = FALSE;
+			extraction.spirit_return_zone = index;
 		}
 	}
 	deploy = extraction.deploy_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.deploy_name)) : NULL;
@@ -987,7 +1012,7 @@ finished:
 			extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 			extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 			extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
-			extraction.zone = extraction.return_zone = NONE;
+			extraction.zone = extraction.return_zone = extraction.spirit_return_zone = NONE;
 			extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
 			extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
 		}
@@ -1740,7 +1765,7 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 	struct player_datum *player;
 	struct extraction_run const *run;
 	long slot;
-	short faction, zone;
+	short faction;
 	if (!extraction_requested() || !extraction.bound || !extraction.admitted) return TRUE;
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.dropship_names[faction] != NONE &&
@@ -1769,28 +1794,26 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 	run = &extraction_runs[slot];
 	if (run->player != unit->unit.player_index || run->unit != unit_index || !run->gear.opened ||
 		run->gear.pending || run->gear.record.phase != _gear_deployed) return FALSE;
-	if (extraction_at_hub(vehicle_index)) return run->phase == _extraction_deployed;
-	zone = extraction_zone_for_faction(faction);
-	return run->phase == _extraction_ready && zone != NONE &&
-		!scenario_trigger_volume_test_object(extraction.return_zone, vehicle_index) &&
-		scenario_trigger_volume_test_object(zone, vehicle_index) && extraction_squad_objectives_ready(run);
+	if (extraction_in_hub_volume(extraction_transport_return_zone(faction), vehicle_index))
+		return run->phase == _extraction_deployed;
+	return run->phase == _extraction_ready && extraction_transport_at_field(faction, vehicle_index) &&
+		extraction_squad_objectives_ready(run);
 }
 
 static boolean extraction_at_return(struct extraction_run const *run, long unit_index)
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
-	long location = unit_index;
 	if (!unit) return FALSE;
-	/* Attached units' coordinates are not a substitute for the actual ship's
-	 * destination. After disembarkation, the body must really be in the hub. */
+	/* The ship's authored return pad governs banking while aboard. On foot,
+	 * the shared hub still governs deployment and other player services. */
 	if (run->dropship != NONE && extraction_player_dropship(unit) == run->dropship)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
-		location = run->dropship;
 		if (faction != NONE && extraction.dropship_landing_groups[faction] != NONE &&
-			!vehicle_is_landed(location)) return FALSE;
+			!vehicle_is_landed(run->dropship)) return FALSE;
+		return extraction_in_hub_volume(extraction_transport_return_zone(faction), run->dropship);
 	}
-	return extraction_at_hub(location);
+	return extraction_at_hub(unit_index);
 }
 
 static boolean extraction_return_ready(struct extraction_run *run, struct unit_datum const *unit)
@@ -1810,10 +1833,8 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 	if (run->dropship == NONE)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
-		short zone = extraction_zone_for_faction(faction);
-		if (extraction_medical_incapacitated(run->unit) || zone == NONE ||
-			!scenario_trigger_volume_test_object(zone, dropship) ||
-			scenario_trigger_volume_test_object(extraction.return_zone, dropship)) return FALSE;
+		if (extraction_medical_incapacitated(run->unit) ||
+			!extraction_transport_at_field(faction, dropship)) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
 		extraction.dropship_evacuating[faction] = dropship;
@@ -1909,9 +1930,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		long ship = extraction_player_dropship(unit);
-		short zone = extraction_zone_for_faction(faction);
-		if (ship != NONE && zone != NONE && scenario_trigger_volume_test_object(zone, ship) &&
-			!scenario_trigger_volume_test_object(extraction.return_zone, ship) &&
+		if (ship != NONE && extraction_transport_at_field(faction, ship) &&
 			(extraction.dropship_landing_groups[faction] == NONE || vehicle_is_landed(ship)))
 			run->field_reached = TRUE;
 	}
@@ -1989,16 +2008,16 @@ static boolean extraction_wake_completion(char const *name, boolean reusable)
 static boolean extraction_transport_boarded(short faction)
 {
 	long ship;
-	short index, passengers = 0, zone = extraction_zone_for_faction(faction);
+	short index, passengers = 0;
 	unsigned long crew_squads = 0;
 	boolean at_hub, at_lz, legacy_crew = FALSE;
 	if (extraction.suspended || cinematic_in_progress() || extraction.dropship_names[faction] == NONE) return FALSE;
 	ship = object_index_from_name_index(extraction.dropship_names[faction]);
 	if (ship == NONE || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
 	if (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship)) return FALSE;
-	at_hub = scenario_trigger_volume_test_object(extraction.return_zone, ship);
-	at_lz = zone != NONE && scenario_trigger_volume_test_object(zone, ship);
-	if (at_hub == at_lz || (at_hub && !extraction_at_hub(ship))) return FALSE;
+	at_hub = extraction_in_hub_volume(extraction_transport_return_zone(faction), ship);
+	at_lz = extraction_transport_at_field(faction, ship);
+	if (at_hub == at_lz) return FALSE;
 	/* Actual passengers identify participating squads without another flight
 	 * registry. Unboarded independent operations cannot veto this departure.
 	 * Unsquadded maps retain the existing whole-faction wait. */
@@ -2121,7 +2140,7 @@ static void extraction_transport_completions(void)
 		vehicle = (struct unit_datum const *)object_try_and_get_and_verify_type(ship, _object_mask_vehicle);
 		if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 			extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.0f) ||
-			!extraction_at_hub(ship) || cinematic_in_progress() ||
+			!extraction_in_hub_volume(extraction_transport_return_zone(faction), ship) || cinematic_in_progress() ||
 			(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship))) continue;
 		/* The durable bank belongs to the arrival even if its owner leaves.
 		 * Other squads and craft do not delay release. A connected boarded

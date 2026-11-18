@@ -251,7 +251,7 @@ def test_native_squad_negative_control(before, after, case):
 
 @pytest.mark.parametrize('case', [
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
-    'transport-landed-loop', 'transport-landed-alias',
+    'transport-landed-loop', 'transport-landed-alias', 'transport-spirit-return',
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-admission-deployment', 'transport-admission-evacuation',

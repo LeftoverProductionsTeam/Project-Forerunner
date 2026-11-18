@@ -122,7 +122,7 @@ static struct scenario_object_name names[11] = { {"extraction_deploy"}, {"extrac
 static struct scenario_starting_profile faction_profiles[2];
 static struct scenario_object_datum body_placements[2];
 static struct scenario_object_palette_entry body_palette[2];
-static struct scenario_trigger_volume volumes[4] = { {"extraction_zone"}, {"extraction_return"} };
+static struct scenario_trigger_volume volumes[5] = { {"extraction_zone"}, {"extraction_return"} };
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
 static struct hs_script completion_script;
@@ -354,6 +354,7 @@ static boolean scenario_trigger_volume_test_point(short zone,real_point3d const 
 {
  if(zone==2)return p->x>10.f&&p->x<25.f;
  if(zone==3)return p->x>25.f;
+ if(zone==4)return p->x>6.f&&p->x<9.f;
  return zone==0 ? p->x>10.f : p->x<5.f;
 }
 static boolean scenario_trigger_volume_test_object(short zone,long h) { return scenario_trigger_volume_test_point(zone,&unit_get(h)->object.position); }
@@ -1378,6 +1379,12 @@ int main(int argc,char **argv)
     strcpy(authored_groups[0].name,authored_groups[10].name);authored_groups[10].name[0]=0;
    }
   }
+  if(!strcmp(case_name,"transport-spirit-return")) {
+   scenario.trigger_volumes.count=5;strcpy(volumes[4].name,"spirit_return");
+   scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[10].name,"extraction_spirit_boarded");
+   strcpy(authored_groups[11].name,"extraction_spirit_landed");
+  }
   if(!strcmp(case_name,"transport-binding"))names[3].runtime_object_type=0;
   if(!strcmp(case_name,"transport-duplicate"))strcpy(names[4].name,"extraction_pelican");
   if(!strcmp(case_name,"transport-missing-faction"))scenario.object_names.count=4;
@@ -1387,6 +1394,41 @@ int main(int argc,char **argv)
    dropships[a].object.flags|=FLAG(_object_on_ground_bit);dropships[a].vehicle.on_ground_ticks=5;
   }
   advance(1);
+  if(!strcmp(case_name,"transport-spirit-return")) {
+   long spirit=dropship_handles[1];
+   struct unit_datum *ship=&dropships[1];
+   strcpy(transport_scripts[0].name,"forerunner_spirit_complete");
+   transport_scripts[0].script_type=_hs_script_dormant;transport_scripts[0].return_type=_hs_type_void;
+   scenario.hs_scripts.count=1;scenario.hs_scripts.address=transport_scripts;
+   players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
+   CHECK(extraction_owns_map(),"authored Spirit return rejected the shared hub");
+   ship->object.position.x=7.f;ship->object.first_child_object_index=NONE;
+   CHECK(!unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"undeployed player boarded at the Spirit pad");
+   touch(0,1);
+   CHECK(unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"deployed Covenant player could not board at spirit_return");
+   units[1].object.parent_object_index=spirit;units[1].unit.parent_seat_index=0;advance(1);
+   CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release Spirit insertion at spirit_return");
+   units[1].object.parent_object_index=NONE;
+   units[1].object.position.x=ship->object.position.x=20.f;
+   pickup(1,2);touch(1,1);advance(300);
+   CHECK(unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"Spirit field pickup stopped working");
+   units[1].object.parent_object_index=spirit;advance(1);
+   CHECK(run(1)->dropship==spirit,"Spirit field boarding did not attach to the operation");
+   ship->object.position.x=0.f;advance(1);
+   CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[1],"Spirit banked at the shared hub outside spirit_return");
+   ship->object.position.x=7.f;ship->object.up.k=.94f;advance(1);
+   CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[1],"Spirit banked before native landing");
+   ship->object.up.k=1.f;native_cinematic=TRUE;advance(1);
+   CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[1],"Spirit banked during the cinematic");
+   native_cinematic=FALSE;advance(1);
+   CHECK(run(1)->phase==_extraction_returned&&transport_wakes[1]==1&&run(1)->gear.record.count==1,
+    "Spirit arrival did not bank recovered gear and release its passengers");
+   units[1].object.parent_object_index=NONE;units[1].object.position.x=7.f;
+   touch(0,1);CHECK(run(1)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
+   units[1].object.position.x=0.f;touch(0,1);
+   CHECK(run(1)->phase==_extraction_deployed,"shared hub stopped admitting redeployment");
+   extraction_reset();return 0;
+  }
   if(!strcmp(case_name,"transport-landed-alias")) {
    CHECK(!extraction_owns_map()&&!boarding_changes,"landing output aliased a player input");return 0;
   }

@@ -11,7 +11,41 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
-Spark's current Covenant-body CE609 cache is
+Spark's troop-standby CE609 cache is
+releases/black-echo-native-troop-standby-20261118/be_native.map, SHA256
+a5bf668050e6470e750dc20b75b1ccfe458c52de1b9d8b50782f792a4457f9f2.
+It uses native AI suspension on the Pelican Marine before seating, then
+resumes that same living Marine on his first field exit. The previous build
+loaded it with two authenticated clients and confirmed both pilots and the
+Marine in their native seats. The Covenant host had no native deploy prompt
+at (40.620, -108.908, 1.273). The rebuilt runtime on the exact same cache
+then verified both authenticated players deployed as Grunts with their own
+attached plasma pistols. Both stayed at full health through the approach.
+The guest stopped at (50.839, -102.842, .047), before a boarding attempt.
+The landed Spirit was already outside both its authored pad and the shared
+hub when both players deployed. At tick 8940 it was at (49.170, -71.942,
+1.590) with its pilot seated, alert and at zero throttle. Reposition and
+level the Spirit staging pad so it stays inside `spirit_return` throughout
+normal player preparation. Spirit boarding and flight remain open on this
+cache. Evidence from build/native-spark-black-echo-a5bf-spirit-return.
+
+The optional-Flood predecessor 70641e813f97e4e8bf741489425ebe3bcd41b5053e3c3adcf8acf3f0f0bcecae
+puts be_containment east of the technology and records visits during the
+ownership poll. Both native two-account attempts boarded, flew, landed,
+disembarked and reached the living Marine rally. Foot movement stopped
+before Covenant clearance at (52.089, -88.013, .092) on the direct approach
+and (51.521, -90.375, .238) on the southern approach. A native screenshot
+records a solid face on the southern approach. The exact obstacle is open.
+Spark's compiled rays for the direct approach cleared the BSP and its
+approximate parked Spirit hull. The Spirit pilot entered native Charge
+while the UNSC players flew and later died. The grounded Spirit settled at
+(51.076, -84.398, 1.476) in the first run and (51.770, -86.585, 1.521) in
+the second. Review the Spirit standby route and park away from both foot
+approaches. The optional branch, defense and settlement remain unverified.
+Evidence from build/native-spark-black-echo-7064-direct and
+build/native-spark-black-echo-7064-southern-route.
+
+Spark's Covenant-body predecessor is
 releases/black-echo-native-covenant-body-20261118/be_native.map, SHA256
 2c8990af61f091ab524413cdc0ae41b0c1c5f2861955836ba96a9c8ba06569ec.
 Two authenticated Windows clients selected Covenant at the native control
@@ -1932,6 +1966,17 @@ for the named Spirit. Each control must be inside its own zone. Hub starts must
 be outside every field zone. Omit the shared pair when every named transport
 has a complete route. Keep it as the fallback for any transport with no override.
 The host uses the matching zone for calls, countdowns and boarding receipts.
+For a named Spirit, an optional unique native `spirit_return` volume supplies
+the aircraft's insertion and return pad. Author the Spirit script against
+this same native marker and keep the pad outside the field zones. The
+runtime checks that pad together with the existing native landing gate
+for boarding, crew departure, settlement and the Spirit completion callbacks. `extraction_return` remains
+the player deployment hub and the fallback when the Spirit pad is absent.
+The Pelican also uses `extraction_return`. Existing faction, seat, cinematic
+and ownership checks still apply. Windows64 and 85 focused transport checks
+passed. The new regression first reproduced deployed players being refused
+a native seat when the Spirit was inside its own pad alone.
+
 Two authenticated Windows clients loaded the compiled fixture and agreed on
 both placements. The existing harness verifies independent calls, cancellation
 and banking. A live dual-route flight remains open.
