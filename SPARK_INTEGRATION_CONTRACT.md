@@ -11,6 +11,33 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
+Spark's latest Spirit occupancy CE609 cache is
+releases/black-echo-native-covenant-spirit-occupancy-20261118/be_native.map,
+SHA256 7b3940f61ee960a158ee2281219a92cead6709a90f9b36b6c11bd950a1f0ba9d.
+The extracted script now checks player bodies in the actual seat labels.
+Two authenticated Windows clients selected Covenant, deployed as Grunts
+with plasma pistols, and physically boarded seats 5 and 6. Both saw the
+Spirit fly and land in spirit_zone at (88.563, -130.765, 2.070).
+
+The host used the native exit from seat 5. At tick 11370 they were outside
+at (85.221, -132.173, 3.549) with full health. At tick 11400 both clients
+reported zero health near (85.056, -133.194, .396). The guest stayed in
+seat 6. The Pelican had left its berth around tick 8100 without a logged
+native flight command. At tick 11400 it was near the exit corridor at
+(85.993, -128.701, 2.153), with its pilot and Marine still seated. The
+trace does not identify the lethal damage source.
+
+Spark should suspend the staged Pelican pilot using the same native
+ai_braindead pattern already used by the Spirit, wake it for its own
+departure or recall order, and keep its hull, approach and parking area
+clear of both Spirit exits. Verify the route with both Grunt passengers
+disembarking alive using native seats and collision. Retain the revised
+player-seat checks. Rescue, later objectives and settlement were not
+reached. Evidence is in build/native-spark-black-echo-7b39-west-approach
+with the result, host and peer logs, and the native console transcript.
+The initial automated walk stopped before boarding at
+(55.703, -103.951, .003); the west-side route cleared that approach.
+
 Spark's elevated Spirit route CE609 cache is
 releases/black-echo-native-covenant-spirit-flight-20261118/be_native.map, SHA256
 8e8d33127c1ca3936e9f0c907f894884ccec3f8ba4d843ae3e55bb2d180e3121.
