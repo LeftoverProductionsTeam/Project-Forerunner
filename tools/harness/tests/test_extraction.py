@@ -410,7 +410,7 @@ def test_native_transport_cycle_negative_control(before, after, case):
 
 
 @pytest.mark.parametrize('case', [
-    'faction-choice', 'faction-state', 'faction-kit', 'faction-saved',
+    'faction-choice', 'faction-state', 'faction-kit', 'faction-saved', 'faction-default-deploy',
     'faction-confirm', 'faction-reserve', 'faction-invalid',
     'faction-binding', 'faction-duplicate', 'faction-alias', 'faction-transport', 'faction-transport-missing',
 ])

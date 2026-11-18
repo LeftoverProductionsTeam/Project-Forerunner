@@ -1328,7 +1328,15 @@ static boolean extraction_squad_objectives_ready(struct extraction_run const *ru
 		device_group_get_value(group) == 1.f);
 }
 
-static boolean extraction_deploy(struct extraction_run *run, struct player_datum const *player, boolean bring_stash)
+static void extraction_set_player_team(struct player_datum *player, struct unit_datum *unit, short team)
+{
+	if (unit->unit.actor_index != NONE) actor_set_team(unit->unit.actor_index, team);
+	unit->object.owner_team_index = team;
+	player->team_index = team;
+	ai_update_team_status();
+}
+
+static boolean extraction_deploy(struct extraction_run *run, struct player_datum *player, boolean bring_stash)
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
@@ -1378,6 +1386,15 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		return FALSE;
 	}
 	gear_track_reserved(&run->gear, created);
+	/* Native campaign Player and Human are distinct teams. On a map with
+	 * faction selection, the default UNSC run uses the same team as the
+	 * UNSC terminal once the loadout has been durably issued. */
+	if (!extraction.survival && extraction.faction_names[0] != NONE && player->team_index == _game_team_player)
+	{
+		struct unit_datum *unit = unit_get(player->unit_index);
+		if (unit->object.owner_team_index == _game_team_player)
+			extraction_set_player_team(player, unit, _game_team_human);
+	}
 	if (VALID_INDEX(run->squad, NUMBEROF(extraction.squads)))
 	{
 		if (!extraction_squad_busy(run->squad, run))
@@ -1581,10 +1598,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			unit = unit_get(player->unit_index);
 			/* Reuse native allegiance and its existing object replication. Never
 			 * attach a new AI controller or change the whole encounter's team. */
-			if (unit->unit.actor_index != NONE) actor_set_team(unit->unit.actor_index, team);
-			unit->object.owner_team_index = team;
-			player->team_index = team;
-			ai_update_team_status();
+			extraction_set_player_team(player, unit, team);
 			run->discard_deadline = 0; run->loadout_seen = FALSE; run->blocked = FALSE; run->dropship = NONE;
 			extraction_tell(run, faction ?
 				(extraction.dropship_names[1] != NONE ?

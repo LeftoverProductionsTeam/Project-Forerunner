@@ -9,7 +9,28 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
-Current Black Echo handoff: Spark's CE609 build b3c5bc47-159c-4b05-a109-79197fbe232b
+Current Black Echo handoff: Spark's CE609 build e0264213-06ba-499a-a70e-0e29fa8a752d
+is releases/black-echo-native-pilot-landing-20261117/be_native.map, SHA256
+dee2d9a79a6e9ca3cb13828852c340896d6ceba7985f798f6e97a9c5efb8dc94.
+Both authenticated clients loaded the exact cache. The new spirit_driver
+occupied c_dropship driver and the Spirit registered landed at
+(57.362, -87.189, 1.441), up.k .987. The Pelican pilot and Marine occupied
+P-driver and P-riderLM.
+
+On maps with an explicit UNSC faction control, Forerunner now assigns the
+native Human team to a confirmed default UNSC deployment, matching explicit
+UNSC selection. Windows64 and 131 focused checks passed. Both authenticated
+clients agreed on both players' Human allegiance, and both players stayed
+at full health in the final hub run. Both peers saw the host board P-riderRF.
+The Pelican had moved off its authored starting pad and settled at
+(54.283, -111.040, 1.823). The guest's normal approach stopped at
+(55.194, -110.988, .888), 1.537 units from the unoccupied P-riderLF entrance
+at (53.983, -111.297, .357). Native boarding remained unavailable from
+that approach. Keep the staged craft stationary and clear the approaches
+to both front seats. Paired lift-off, rescue and the complete mission remain
+open. Evidence: build/native-spark-black-echo-dee2-default-unsc/result.json.
+
+Previous Black Echo crew handoff: Spark's CE609 build b3c5bc47-159c-4b05-a109-79197fbe232b
 is releases/black-echo-native-crew-20261117/be_native.map, SHA256
 fdc6ec89f9aac3e4068c3cbeee55fa391514988995bf2e70765425b63731ea39.
 Two verified Delta accounts loaded this exact map. Native seat queries confirm

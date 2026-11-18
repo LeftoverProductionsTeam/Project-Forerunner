@@ -1209,6 +1209,21 @@ int main(int argc,char **argv)
    CHECK(!extraction_owns_map(),"ambiguous/missing faction interface admitted");return 0;
   }
   CHECK(extraction_owns_map(),"valid native faction hub refused");
+  if(!strcmp(case_name,"faction-default-deploy")) {
+   CHECK(players[0].team_index==_game_team_player&&players[1].team_index==_game_team_player,
+    "hub startup rewrote unselected player teams");
+   touch(2,0);fail_write=TRUE;touch(0,0);
+   CHECK(players[0].team_index==_game_team_player&&run(0)->phase==_extraction_hub,
+    "failed deployment changed team");
+   fail_write=FALSE;touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&players[0].team_index==_game_team_human&&
+    units[0].object.owner_team_index==_game_team_human&&players[1].team_index==_game_team_player&&team_updates==1,
+    "confirmed default UNSC deployment did not match explicit UNSC allegiance");
+   touch(4,1);touch(0,1);
+   CHECK(run(1)->phase==_extraction_deployed&&players[1].team_index==_game_team_covenant&&
+    units[1].object.owner_team_index==_game_team_covenant,"explicit Covenant deployment was overridden");
+   return 0;
+  }
   if(!strcmp(case_name,"faction-transport-missing")) {
    touch(4,0);
    CHECK(players[0].team_index==_game_team_player&&!file_count&&!weapon_count,"missing Spirit changed faction or reserved gear");
