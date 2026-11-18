@@ -15,7 +15,7 @@
 #define csmemcmp memcmp
 #define SET_FLAG(value,bit,on) ((on)?((value)|=FLAG(bit)):((value)&=~FLAG(bit)))
 #define _game_connection_network_server 2
-enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit };
+enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit };
 #include "unit_flags.inc"
 enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle };
 #define _object_mask_scenery FLAG(_object_type_scenery)
@@ -204,6 +204,12 @@ static boolean collision_features_test_point(struct collision_feature_list const
  (out)->x=(matrix)->position.x+(point)->x, \
  (out)->y=(matrix)->position.y+(point)->y, \
  (out)->z=(matrix)->position.z+(point)->z )
+static long forge_activated=NONE;
+static real_vector3d zero_vector;
+static real_vector3d const *global_zero_vector3d=&zero_vector;
+static void object_set_position(long index,real_point3d const *p,real_vector3d const *f,real_vector3d const *u);
+static void object_activate(long index) { forge_activated=index; }
+
 /* Keep the existing allocation adapter, recording what native creation receives. */
 static long clone_object_new(struct object_placement_data const *p){clone_placement=*p;return object_new(p);}
 #define object_new clone_object_new
@@ -374,8 +380,6 @@ static void rider_release(char const *name) {
 #define _network_vehicle_write_carry 1
 static boolean path_cinematic;
 static long path_vehicle;
-static real_vector3d zero_vector;
-static real_vector3d const *global_zero_vector3d=&zero_vector;
 struct object_iterator {long index;boolean done;};
 static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->done=FALSE;}
 static struct test_object *object_iterator_next(struct object_iterator *it)
@@ -383,7 +387,12 @@ static struct test_object *object_iterator_next(struct object_iterator *it)
 static boolean cinematic_in_progress(void) {return path_cinematic;}
 static boolean distributed_vehicle_unsteered(long index) {return get(index)->unit.driver_object_index==NONE;}
 static void object_set_position(long index,real_point3d const *p,real_vector3d const *f,real_vector3d const *u)
-{get(index)->object.position=*p;get(index)->object.forward=*f;get(index)->object.up=*u;}
+{
+ struct test_object *object=get(index);
+ if(p)object->object.position=*p;
+ if(f)object->object.forward=*f;
+ if(u)object->object.up=*u;
+}
 static void network_objects_vehicle_written(long i,real_point3d const *p,real_vector3d const *f,real_vector3d const *u,short kind) {}
 static boolean distributed_transform_valid(real_point3d const *p,real_vector3d const *f,real_vector3d const *u,
  real_vector3d const *v,real_vector3d const *a,real_vector3d *vf,real_vector3d *vu)
@@ -554,6 +563,51 @@ int main(int argc,char **argv) {
   } else {
    CHECK(copy==NONE&&!new_count,"invalid aim placement created an object");
   }
+  return 0;
+ }
+ if(!strncmp(argv[1],"move-",5)) {
+  char const *name=argv[1]+5;
+  long source=reset(),copy,selected;
+  struct test_object *object;
+  forge_viewer=make(8,1);
+  get(source)->object.type=_object_type_vehicle;
+  copy=cheat_forge_clone(source);
+  CHECK(copy!=NONE,"missing native copy");
+  object=get(copy);
+  object->object.type=_object_type_vehicle;
+  object->object.forward.i=1.f;
+  object->object.up.k=1.f;
+  object->object.translational_velocity.i=1.f;
+  object->object.angular_velocity.k=1.f;
+  object->object.flags|=FLAG(_object_at_rest_bit);
+  physics.mass_points.count=1;
+  physics.mass_points.address=&mass_point;
+  mass_point.position.z=-.35f;
+  mass_point.radius=.25f;
+  selected=!strcmp(name,"original")?source:copy;
+  forge_probe=forge_hit_found=TRUE;
+  forge_hit.type=_collision_result_object;
+  forge_hit.object_index=selected;
+  CHECK(cheat_forge_pick(),"could not aim at the native Forge target");
+  forge_hit.type=_collision_result_structure;
+  forge_hit.point.x=12.f;
+  forge_hit.point.y=-2.f;
+  forge_hit.plane.n.k=1.f;
+  if(!strcmp(name,"blocked"))nearby=TRUE;
+  if(!strcmp(name,"occupied"))object->object.first_child_object_index=123;
+  if(!strcmp(name,"client"))connection=1;
+  if(!strcmp(name,"clear")) {
+   CHECK(cheat_forge_move_selected()&&forge_activated==copy&&get(copy)==object,"copy was not moved in place");
+   CHECK(object->object.position.x==12.f&&object->object.position.y==-2.f&&
+    fabsf(object->object.position.z-.66f)<.0001f&&get(source)->object.position.x!=12.f,"placement did not use the native floor contact");
+   CHECK(object->object.forward.i==1.f&&object->object.up.k==1.f&&
+    !object->object.translational_velocity.i&&!object->object.angular_velocity.k&&
+    !TEST_FLAG(object->object.flags,_object_at_rest_bit),"move discarded the pose or kept stale physics");
+  } else {
+   CHECK(!cheat_forge_move_selected()&&forge_activated==NONE&&object->object.position.x!=12.f&&
+    get(source)->object.position.x!=12.f,"unsafe Forge target was moved");
+  }
+  CHECK(new_count==1&&get(source)&&get(copy),"move recreated or removed an existing object");
   return 0;
  }
  if(!strncmp(argv[1],"remove-",7)) {

@@ -408,60 +408,71 @@ boolean cheat_forge_pick(void)
 }
 
 /* Faber's aim-based placement uses the native collision contact. Keep the
- * source's orientation and let the usual physics settle the copy. */
-long cheat_forge_place(void)
+ * source's orientation and let the usual physics settle the object. */
+static boolean forge_aim_placement(long object_index, struct object_datum const *object, real_point3d *position)
 {
-	struct object_datum *object;
 	struct collision_result hit;
 	struct location location;
-	real_point3d center, position;
+	real_point3d center;
 	real_vector3d offset;
 	real radius;
 	long blocker;
 
-	object = forge_placeable_object_get(forge_selection);
+	if (!forge_aim_collision(&hit) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
+	{
+		console_warning("Forge needs visible ground within 20 units");
+		return FALSE;
+	}
+	radius = object->object.bounding_sphere_radius;
+	if (!valid_real(radius) || radius < 0.0f)
+		return FALSE;
+
+	if (object->object.type == _object_type_vehicle)
+	{
+		if (!physics_resting_placement(object_index, &hit.point, &hit.plane.n, position))
+		{
+			console_warning("Forge needs clear space for the vehicle");
+			return FALSE;
+		}
+		scenario_location_from_point(&location, position);
+		return location.cluster_index != NONE;
+	}
+
+	point_from_line3d(&hit.point, &hit.plane.n, radius + 0.06f, &center);
+	if (!valid_real_point3d(&center))
+		return FALSE;
+	scenario_location_from_point(&location, &center);
+	if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
+		objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile, &location, &center, radius, &blocker, 1))
+	{
+		console_warning("Forge needs clear space around the target");
+		return FALSE;
+	}
+
+	vector_from_points3d(&object->object.bounding_sphere_center, &object->object.position, &offset);
+	point_from_line3d(&center, &offset, 1.0f, position);
+	if (!valid_real_point3d(position))
+		return FALSE;
+	scenario_location_from_point(&location, position);
+	return location.cluster_index != NONE;
+}
+
+long cheat_forge_place(void)
+{
+	struct object_datum const *object = forge_placeable_object_get(forge_selection);
+	real_point3d position;
+
 	if (!object)
 	{
 		console_warning("forge_place needs an object selected with forge_pick");
 		return NONE;
 	}
-	if (!forge_aim_collision(&hit) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
-	{
-		console_warning("forge_place needs visible ground within 20 units");
+	if (!forge_aim_placement(forge_selection, object, &position))
 		return NONE;
-	}
-	radius = object->object.bounding_sphere_radius;
-	if (!valid_real(radius) || radius < 0.0f)
-		return NONE;
-
-	if (object->object.type == _object_type_vehicle)
-	{
-		if (physics_resting_placement(forge_selection, &hit.point, &hit.plane.n, &position))
-			return forge_clone_at_position(forge_selection, &position);
-
-		console_warning("forge_place needs clear space for the vehicle");
-		return NONE;
-	}
-
-	point_from_line3d(&hit.point, &hit.plane.n, radius + 0.06f, &center);
-	if (!valid_real_point3d(&center))
-		return NONE;
-	scenario_location_from_point(&location, &center);
-	if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
-		objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile, &location, &center, radius, &blocker, 1))
-	{
-		console_warning("forge_place needs clear space around the target");
-		return NONE;
-	}
-
-	vector_from_points3d(&object->object.bounding_sphere_center, &object->object.position, &offset);
-	point_from_line3d(&center, &offset, 1.0f, &position);
 	return forge_clone_at_position(forge_selection, &position);
 }
 
-/* Faber/OpenCE-Forge deletes a tracked instance through object_delete.
- * Reuse the native checks and replication for both removal actions. */
-static boolean forge_remove_copy(long object_index)
+static struct object_datum *forge_editable_copy(long object_index)
 {
 	long slot;
 	struct object_header_datum *header;
@@ -470,28 +481,51 @@ static boolean forge_remove_copy(long object_index)
 
 	if (object_index == NONE || !terminal_command_running || !game_in_progress() ||
 		network_game_distributed_client() || network_game_host_cheats_refused())
-		return FALSE;
+		return NULL;
 
 	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index);
 	if (!VALID_INDEX(slot, NUMBEROF(forge_copies)) || forge_copies[slot] != object_index)
-		return FALSE;
+		return NULL;
 	header = object_header_try_and_get(object_index);
 	if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit))
-		return FALSE;
+		return NULL;
 
-	/* Native deletion is recursive. Refuse copies used by players,
-	 * riders or scenario scripts. */
+	/* Native edits cannot disturb riders, owned equipment or scenario objects. */
 	object = forge_placeable_object_get(object_index);
 	if (!object || object->object.name_index != NONE || object->object.owner_player_index != NONE ||
 		object->object.first_child_object_index != NONE)
-		return FALSE;
+		return NULL;
 
 	item = item_try_and_get(object_index);
 	if (item && (item->item.flags & (FLAG(_item_attached_to_unit_bit) | FLAG(_item_belongs_to_player_bit))))
-		return FALSE;
+		return NULL;
 	if (object->object.type == _object_type_weapon && weapon_is_flag(object_index))
-		return FALSE;
+		return NULL;
 
+	return object;
+}
+
+/* OpenCE-Forge moves the tracked instance with Halo's native position setter.
+ * The existing object state sender and placement writer see the same handle. */
+boolean cheat_forge_move_selected(void)
+{
+	struct object_datum *object = forge_editable_copy(forge_selection);
+	real_point3d position;
+
+	if (!object || !forge_aim_placement(forge_selection, object, &position))
+		return FALSE;
+	object->object.translational_velocity = *global_zero_vector3d;
+	object->object.angular_velocity = *global_zero_vector3d;
+	SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
+	object_set_position(forge_selection, &position, NULL, NULL);
+	object_activate(forge_selection);
+	return TRUE;
+}
+
+static boolean forge_remove_copy(long object_index)
+{
+	if (!forge_editable_copy(object_index))
+		return FALSE;
 	object_delete(object_index);
 	if (forge_last_copy == object_index) forge_last_copy = NONE;
 	if (forge_selection == object_index) forge_selection = NONE;

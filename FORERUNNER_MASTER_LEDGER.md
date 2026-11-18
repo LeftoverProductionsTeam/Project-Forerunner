@@ -221,6 +221,12 @@ one through the pause menu, and saved and reloaded only the remaining copy.
 The original map and both original aircraft remained intact. Evidence:
 build/native-forge-selected-removal-verified/result.json.
 
+Forge movement: Move Selected Copy uses native collision and keeps the same
+object under host control. Windows64 and 30 focused checks passed. Two native
+Windows LAN clients saw the same Pelican move, then restored the new position
+after save, undo and reload. The original map stayed intact. Evidence:
+build/native-forge-move-open-ground/result.json.
+
 Forge placement persistence (17 November): Save and Load in Forge Tools use the
 OpenCE-Forge base-map placement format. Windows64 and 37 focused checks passed.
 Two native Windows LAN clients saw the saved Pelican at the same resting

@@ -40,8 +40,9 @@ def generated(fault=None):
                 function(read('source/game/cheats.c'), name) for name in (
                     'cheats_forge_reset', 'forge_placeable_object_get', 'forge_aim_collision', 'cheat_forge_target',
                     'forge_create_copy', 'forge_clone_at_position', 'cheat_forge_clone', 'cheat_forge_clone_at',
-                    'cheat_forge_pick', 'cheat_forge_place', 'forge_remove_copy', 'cheat_forge_undo',
-                    'cheat_forge_remove_selected'))),
+                    'cheat_forge_pick', 'forge_aim_placement', 'cheat_forge_place',
+                    'forge_editable_copy', 'cheat_forge_move_selected', 'forge_remove_copy',
+                    'cheat_forge_undo', 'cheat_forge_remove_selected'))),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
              structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
              structure(read('source/ai/ai_scenario_definitions.h'), 'actor_starting_location')),
@@ -79,6 +80,12 @@ def test_native_scaled_clone(case):
                                  'restore', 'client', 'permission'])
 def test_forge_undo(case):
     status, output = run(build('coop_vehicles', generated()), 'undo-' + case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['clear', 'blocked', 'original', 'occupied', 'client'])
+def test_forge_move_selected(case):
+    status, output = run(build('coop_vehicles', generated()), 'move-' + case)
     assert status == 0, output
 
 
