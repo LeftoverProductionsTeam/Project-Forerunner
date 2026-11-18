@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 
 CASES = ['retire', 'deleted', 'reused', 'live', 'dead', 'quit', 'unspawned',
-         'unowned', 'nonlethal', 'friendly', 'driver', 'gunner', 'stale-item', 'ai-item', 'payload', 'authority']
+         'unowned', 'nonlethal', 'friendly', 'driver', 'gunner', 'stale-item', 'ai-item', 'payload', 'authority',
+         'credit-rival', 'credit-ally', 'credit-early', 'credit-expired', 'credit-recycled', 'credit-direct']
 CONTROLS = [
     ('object->object.owner_player_index = NONE;', ';', 'retire'),
     ('unit->unit.player_index = NONE;', ';', 'retire'),
@@ -25,11 +26,14 @@ def generated(fault=None):
     config = enum_with(read('source/objects/object_types.h'), '_object_type_biped')
     config += '\n#define MAXIMUM_ATTACKERS_PER_UNIT %d\n' % constant(read('source/units/units.h'), 'MAXIMUM_ATTACKERS_PER_UNIT')
     config += structure(read('source/units/units.h'), 'unit_attacker') + '\n'
+    config += 'union multiplayer_statistics { short reserved; };\n'
+    config += structure(read('source/game/game.h'), 'game_statistics') + '\n'
     config += structure(read('source/objects/objects.h'), 'location') + '\n'
     config += structure(read('source/objects/damage.h'), 'damage_data') + '\n'
     code = '\n'.join([
         function(read('source/networking/network_game_manager.c'), 'network_game_player_forget'),
         function(units, 'unit_record_damage'),
+        function(read('source/game/game_statistics.c'), 'game_statistics_record_kill'),
         function(damage, 'damage_data_validate_owner'),
         function(network, 'network_damage_deals'),
     ])

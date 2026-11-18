@@ -1,4 +1,7 @@
 #include "harness.h"
+#include <float.h>
+
+#define REAL_MIN (-FLT_MAX)
 
 typedef unsigned short word;
 #include "config.inc"
@@ -13,7 +16,13 @@ struct unit_datum
 	struct { long player_index, driver_object_index, gunner_object_index, killing_spree_last_time;
 		short killing_spree_count; struct unit_attacker attackers[MAXIMUM_ATTACKERS_PER_UNIT]; } unit;
 };
-struct player_datum { short identifier, local_player_index; long unit_index; boolean quit_out_of_game; };
+struct player_datum
+{
+	short identifier, local_player_index;
+	long unit_index, team_index;
+	boolean quit_out_of_game;
+	struct game_statistics statistics;
+};
 struct object_iterator { int absolute_index; unsigned long mask; };
 struct distributed_hit_report
 {
@@ -61,7 +70,18 @@ static void *object_iterator_next(struct object_iterator *iterator)
 	}
 	return NULL;
 }
-static long game_time_get(void) { return 100; }
+static long current_tick = 100;
+static boolean game_statistics_active = TRUE;
+static long credited_killer;
+static long death_events;
+static long player_index_from_unit_index(long index) { return unit_get(index)->unit.player_index; }
+static void game_engine_player_killed(long killer, long object, long victim, boolean friendly)
+{
+	CHECK(victim == other_player, "wrong death event victim");
+	credited_killer = killer;
+	death_events++;
+}
+static long game_time_get(void) { return current_tick; }
 static boolean game_team_is_enemy(short a, short b) { return a != b; }
 static boolean ai_handle_killing_spree(long index, short count) { ai_calls++; ai_unit = index; return FALSE; }
 static int game_connection(void) { return connection; }
@@ -128,6 +148,54 @@ static struct damage_data payload(long owner)
 	damage.owner_object_index = 1; damage.owner_team_index = 0;
 	return damage;
 }
+static void check_death_credit(char const *case_name)
+{
+	struct unit_attacker *history = objects[0].unit.attackers;
+	struct player_datum *victim = player_get(other_player);
+	struct player_datum *rival = player_get(old_player);
+	long actual_killer = NONE, expected_killer = old_player;
+	boolean early = !strcmp(case_name, "credit-early");
+
+	current_tick = early ? 30 : 350;
+	death_events = 0;
+	victim->team_index = early ? 2 : 1;
+	rival->team_index = early ? 1 : 2;
+	objects[0].unit.player_index = other_player;
+	history[0] = (struct unit_attacker){(unsigned long)current_tick - 1, 38.f, 1, old_player};
+	/* An environmental or AI hit can do substantially more damage. */
+	history[1] = (struct unit_attacker){(unsigned long)current_tick - 1, early ? 20.f : 90.f, 4, NONE};
+	if (!strcmp(case_name, "credit-ally"))
+	{
+		victim->team_index = rival->team_index;
+		history[1].damage_inflicted = 20.f;
+		expected_killer = NONE;
+	}
+	else if (!strcmp(case_name, "credit-expired"))
+	{
+		history[0].game_time_stamp = current_tick - 180;
+		expected_killer = NONE;
+	}
+	else if (!strcmp(case_name, "credit-recycled"))
+	{
+		long replacement;
+		datum_delete(player_data, old_player);
+		replacement = datum_new(player_data);
+		CHECK(replacement != old_player, "slot generation did not change");
+		rival = player_get(replacement);
+		rival->team_index = 2;
+		expected_killer = NONE;
+	}
+	else if (!strcmp(case_name, "credit-direct"))
+		actual_killer = old_player;
+
+	game_statistics_record_kill(0, actual_killer, 4, actual_killer == NONE ? NONE : (short)rival->team_index);
+	CHECK(death_events == 1 && victim->statistics.deaths == 1, "death was not counted exactly once");
+	CHECK(credited_killer == expected_killer, "incorrect credit for native damage history");
+	CHECK(rival->statistics.kills[0] == (expected_killer != NONE) &&
+		!rival->statistics.friendly_fire_kills, "incorrect kill statistics");
+	current_tick = 100;
+}
+
 int main(int argc, char **argv)
 {
 	char const *case_name = argv[1]; int players;
@@ -136,6 +204,12 @@ int main(int argc, char **argv)
 		struct player_datum *owner; struct damage_data damage, expected;
 		long index; boolean stale = FALSE, notify = TRUE;
 		setup(players); owner = player_get(old_player);
+		if (!strncmp(case_name, "credit-", 7))
+		{
+			check_death_credit(case_name);
+			release_world();
+			continue;
+		}
 		CASE("retire")
 		{
 			struct unit_datum expected_objects[12]; int i;

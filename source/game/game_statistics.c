@@ -112,7 +112,7 @@ void game_statistics_record_kill(
 			long dead_team_index = dead_player->team_index;
 			boolean friendly_fire;
 			long assist_time;
-			long recent_kill_time;
+			unsigned long current_tick;
 			struct unit_datum *dead_unit;
 			struct unit_attacker *attackers;
 			struct unit_attacker *attacker;
@@ -135,8 +135,8 @@ void game_statistics_record_kill(
 
 			friendly_fire = killing_player_index == NONE ||
 				!game_team_is_enemy(dead_team_index, killing_team_index);
-			assist_time = game_time_get() - 120;
-			recent_kill_time = game_time_get() - 180;
+			current_tick = (unsigned long)game_time_get();
+			assist_time = (long)current_tick - 120;
 			dead_unit = unit_get(dead_unit_index);
 			best_attacker_index = NONE;
 			best_damage = REAL_MIN;
@@ -148,17 +148,29 @@ void game_statistics_record_kill(
 				attacker_index < MAXIMUM_ATTACKERS_PER_UNIT;
 				attacker_index++, attacker++)
 			{
+				/* An AI or environmental hit has no player to credit. */
+				if (attacker->player_index == NONE)
+					continue;
 				if (attacker->player_index == killing_player_index)
-					killer_attacker_index = (short)attacker_index;
+					killer_attacker_index = attacker_index;
 
-				if ((killer_attacker_index == attacker_index ||
-					(friendly_fire && game_team_is_enemy(dead_team_index, (short)attacker->player_index))) &&
-					attacker->game_time_stamp > (unsigned long)recent_kill_time &&
-					attacker->damage_inflicted > best_damage)
+				if (attacker->game_time_stamp > current_tick ||
+					current_tick - attacker->game_time_stamp >= 180 ||
+					attacker->damage_inflicted <= best_damage)
+					continue;
+				if (attacker_index != killer_attacker_index)
 				{
-					best_attacker_index = attacker_index;
-					best_damage = attacker->damage_inflicted;
+					struct player_datum const *contributor;
+					if (!friendly_fire)
+						continue;
+					/* Resolve the full player handle before comparing native teams. */
+					contributor = player_try_and_get(attacker->player_index);
+					if (!contributor || contributor->quit_out_of_game ||
+						!game_team_is_enemy((short)dead_team_index, (short)contributor->team_index))
+						continue;
 				}
+				best_attacker_index = attacker_index;
+				best_damage = attacker->damage_inflicted;
 			}
 
 			credited_friendly_fire = FALSE;
@@ -167,8 +179,7 @@ void game_statistics_record_kill(
 				best_attacker_index = killer_attacker_index;
 
 			if (best_attacker_index != NONE &&
-				(dead_unit->unit.attackers[best_attacker_index].player_index == NONE ||
-				player_try_and_get(dead_unit->unit.attackers[best_attacker_index].player_index)))
+				player_try_and_get(dead_unit->unit.attackers[best_attacker_index].player_index))
 			{
 				credited_player_index =
 					dead_unit->unit.attackers[best_attacker_index].player_index;

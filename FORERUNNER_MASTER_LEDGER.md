@@ -16,6 +16,16 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+PvPvE kill credit (17 November): native scoring resolves the actual
+attacker's team and accepts recent damage from the start of play. An AI or
+environmental finish can credit a hostile player while an authored ally remains
+ineligible. Windows64 and 28 focused checks passed. Two verified Windows clients
+saw the casualty after a controlled hit and ownerless native finish. The host
+awarded one kill with the fixture alliance removed and zero in the allied run.
+Evidence: build/native-delta-rival-finish-credit-verified/result.json and
+build/native-delta-rival-finish-credit-trace/result.json. The normal-input shots
+earlier in the check did not confirm damage. Temporary tracing was removed.
+
 Extraction squad reconnect (17 November): Deploy restores the selected squad for
 the same verified Delta account in the current match. The player must be at the
 hub with the same faction and a free place in an idle squad. The ordinary
