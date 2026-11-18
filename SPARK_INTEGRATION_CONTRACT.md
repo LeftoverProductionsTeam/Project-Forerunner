@@ -32,11 +32,26 @@ ai_braindead pattern already used by the Spirit, wake it for its own
 departure or recall order, and keep its hull, approach and parking area
 clear of both Spirit exits. Verify the route with both Grunt passengers
 disembarking alive using native seats and collision. Retain the revised
-player-seat checks. Rescue, later objectives and settlement were not
-reached. Evidence is in build/native-spark-black-echo-7b39-west-approach
-with the result, host and peer logs, and the native console transcript.
-The initial automated walk stopped before boarding at
-(55.703, -103.951, .003); the west-side route cleared that approach.
+player-seat checks. The failed exit is recorded in
+build/native-spark-black-echo-7b39-west-approach. The initial automated walk
+stopped before boarding at (55.703, -103.951, .003). The west-side route
+cleared that approach.
+
+A targeted replay on the same SHA enabled native player damage logging.
+Both clients saw the Spirit land at (94.684, -131.898, 2.180). Both exited
+with full health at (91.388, -133.917, .731) and (91.441, -132.490, .803).
+gs_spirit_player_arrived became true, spirit_home began, and be_covenant
+spawned one living actor. At tick 11130 both peers saw that actor alive near
+(58.827, -89.509, .046), with the host on foot at (68.668, -117.017, .558).
+The automated walking route stopped there before the rescue rally. The
+compiled terrain block matches the earlier 0541 rally export byte for
+byte. Its successful native footpath used (69.346, -120.815, .028),
+(68.098, -117.549, .320), and (66.152, -114.892, 1.637) through that slope.
+No damage was logged, so this replay does not identify the earlier lethal
+effect.
+Both live logs and the capture are in
+build/native-spark-black-echo-7b39-exit-damage. Rescue completion, facility
+combat, collection and evacuation remain open on this export.
 
 Spark's elevated Spirit route CE609 cache is
 releases/black-echo-native-covenant-spirit-flight-20261118/be_native.map, SHA256
