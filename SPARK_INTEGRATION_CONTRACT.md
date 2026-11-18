@@ -10,6 +10,34 @@ handoff; each team updates only its own source/checkpoint at meaningful mileston
 No separate coordination service or repeated cross-project polling/builds.
 
 Current Black Echo handoff: Spark's CE609 cache
+releases/black-echo-native-escort-20261118/be_native.map, SHA256
+51ba08d64c12c2ea27f0eeb3e79b5b75db2ff5710c37443547251e5c82dcfa0b.
+On the existing Windows build, two authenticated clients boarded, flew, landed
+at (77.706, -125.025, 1.878), and exited on foot. The living Marine followed the
+new native be_rescue_route into be_survivors. Both peers saw the live Covenant
+actor at tick 4260, its subsequent death and the technology pickup at
+(55.84, -86.44, .07) from tick 4590. The late observer timed out waiting for
+a live Covenant actor after the encounter had cleared. The host's true rescue
+volume and living-Marine readback, the actor history and the authored pickup
+spawn establish progression through the Covenant objective. Pickup remains open.
+Evidence: build/native-spark-black-echo-51ba-marine-escort/result.json,
+client-0.log, client-1.log and mission-console.txt.
+
+A second run exposed intermittent staging interference. The Spirit pilot entered
+native Charge at tick 930 before its authored deployment and left its pad.
+At Pelican boarding the Spirit rested at (50.159, -103.640, 1.427), next to the
+Pelican at (50.016, -104.082, 1.536). The Pelican's first leg stopped short.
+Native navigation then rejected field points 1 and 3 from
+(50.323, -101.451, 2.003). Both players remained seated. Spark next should
+keep staged pilots and armed crew out of autonomous combat while awaiting
+their script command, and verify pad separation through a slow two-player
+boarding sequence. Retain native command-list, collision, boarding and
+landing rules. Technology pickup, defense, evacuation, settlement and
+redeployment are still open on this export.
+Evidence: build/native-spark-black-echo-51ba-technology/result.json,
+client-0.log and debug-0.txt.
+
+Preceding Black Echo handoff: Spark's CE609 cache
 releases/black-echo-native-pelican-route-20261118/be_native.map, SHA256
 0ec05e4139e4f9a910eaee0527c6c25574ab363ee21b0aa4e8f49acb62d8bfd6.
 Two authenticated Windows clients loaded the exact cache, deployed as UNSC,
@@ -32,7 +60,7 @@ the compiled extraction_return bounds. Both players walked into be_survivors
 but the living Marine remained at (77.790, -124.739, .545) after disembarking.
 The host reported be_return squad, Alert, no active path and no Covenant spawn.
 
-Spark next: give the released Marine a ground guard state and an authored
+The 0ec0 rescue handoff called for a ground guard state and an authored
 sequence of compiler-resolved ground firing positions from the field toward
 be_survivors. The compiled be_marines encounter has only two firing points,
 (54.846, -85.472, .078) and (50.846, -86.472, .078), both near the rescue end.
