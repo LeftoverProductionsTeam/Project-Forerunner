@@ -11,6 +11,28 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
+Spark's pilot-hold CE609 cache is
+releases/black-echo-native-covenant-pilot-hold-20261118/be_native.map, SHA256
+88ff10400e68b6e6773bdcf20f90f7228c0392c2d591d0721190e79e07a0091d.
+Forerunner fe0a2a4f5c keeps a suspended native pilot seated while the
+aircraft settles under gravity. Both authenticated Windows clients deployed
+as Grunts with plasma pistols and saw the Spirit hold (57.281, -87.291, 1.415)
+through the foot approach. They physically boarded native seats 5 and 6 on
+both peers. The host confirmed the live pilot, crew-ready group and Spirit
+return pad.
+
+The resumed native pilot rejected both spirit_field movement atoms from
+(57.281, -87.291, 1.416). The compiled BSP ray to p0 (65, -105, 1.825)
+meets surface 2868 at (61.185, -96.247, 1.623). The direct ray to p1
+(94, -128, 1.228) meets surface 2827 at (62.436, -93.006, 1.390).
+Spark's newer grounded-pilot cache 77682fd39675886ae3efefaaf5744538cc7805a386f11f8fb8e5cce9ac593a5c
+keeps these same points and intersections. Author a clear climb from
+the parked berth, an elevated transit leg and a separate landing approach.
+Check the hull clearance on the return legs too. Preserve the actual
+boarding, landing and settlement gates. Spirit flight, field disembarkation
+and Covenant mission completion remain open. Two-account receipt and
+command trace are in build/native-spark-black-echo-88ff-boarding.
+
 Spark's troop-standby CE609 cache is
 releases/black-echo-native-troop-standby-20261118/be_native.map, SHA256
 a5bf668050e6470e750dc20b75b1ccfe458c52de1b9d8b50782f792a4457f9f2.
