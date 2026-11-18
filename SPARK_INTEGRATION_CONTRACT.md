@@ -25,15 +25,34 @@ The authored radius, native collision and physical landed check are retained.
 Two subsequent runs of the unchanged cache reached the field volume with
 landed and gs_pelican_insertion_complete true, at (77.729, -125.122, 1.870)
 and (80.789, -124.342, 1.884). The named Marine left the aircraft alive.
-In the second run the host and guest each used normal exit input and both
-replicas agreed both players were alive on foot. The pilot began its native
-empty hub_route and passed the first leg. The session stopped on the ground
-approach to the rescue volume. Marine rescue, the empty hub landing,
-evacuation, settlement and same-session redeployment still need proof on this
-export. Windows64 and the existing 27 focused actor checks passed.
-Evidence: build/native-spark-black-echo-0ec0-physical-landing/result.json,
-build/native-spark-black-echo-0ec0-paired-disembark/result.json and debug-0.txt
-in the latter.
+The host and guest each used normal exit input, and both replicas showed
+both players alive on foot. A later paired run completed the empty hub_route. At tick 8250 both
+clients reported landed 1 and the Pelican at (53.318, -106.21, 1.678), inside
+the compiled extraction_return bounds. Both players walked into be_survivors
+but the living Marine remained at (77.790, -124.739, .545) after disembarking.
+The host reported be_return squad, Alert, no active path and no Covenant spawn.
+
+Spark next: give the released Marine a ground guard state and an authored
+sequence of compiler-resolved ground firing positions from the field toward
+be_survivors. The compiled be_marines encounter has only two firing points,
+(54.846, -85.472, .078) and (50.846, -86.472, .078), both near the rescue end.
+Verify a reachable first guard position from the actual disembark point and
+intermediate migration groups along the walked corridor around
+(70.97, -122.72), (64.56, -113.66), (58.98, -102.94) and (51.79, -93.42).
+Use native collision and keep the existing living-Marine rescue gate.
+Rescue, combat progression, evacuation, settlement and same-session
+redeployment remain unverified on this export.
+Evidence: build/native-spark-black-echo-0ec0-paired-disembark/result.json and
+build/native-spark-black-echo-0ec0-marine-escort/result.json, client-0.log and
+client-1.log in the latter.
+
+The Covenant terminal is powered at (37.997, -105.072, 1.105), radius .350.
+At the tested front approach (38.140, -104.482, .784), the engine still
+reported no Use target before faction admission. Check the front marker,
+reachable standing area and native interaction bounds in the next export.
+The Spirit pilot and parked landed state passed startup readback. Paired
+Covenant deployment and Spirit flight remain open. Evidence:
+build/native-spark-black-echo-0ec0-spirit-native-use/result.json and client-0.log.
 
 Preceding Black Echo handoff: Spark's CE609 build e0264213-06ba-499a-a70e-0e29fa8a752d
 is releases/black-echo-native-pilot-landing-20261117/be_native.map, SHA256
