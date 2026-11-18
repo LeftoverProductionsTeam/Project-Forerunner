@@ -34,12 +34,18 @@ The follow-up paired run verified gs_pelican_insertion_started, the live
 P-driver and P-riderLM occupants, exact Marine identity, the hub volume and the
 native landed signal. gs_pelican_insertion_complete stayed false. The Pelican
 remained grounded near (54.032, -112.004, 1.913). The pilot stayed Alert
-with no movement destination and zero throttle. Diagnose the transition from
-the authored ai_command_list pilot field_route to actual pilot movement,
-including the first waypoint (66, -121, .123) from the displaced parked pose.
-Keep both normal boarding approaches clear. No flight, rescue, combat or
-settlement was accepted in these runs.
-Evidence: build/native-spark-black-echo-dee2-paired-route-gates/result.json.
+with no movement destination and zero throttle. The native command trace confirms that gs_pelican_trip
+issued field_route to pilot/source_squad after both passengers boarded.
+The radius commands ran. Native navigation rejected both go-to atoms from
+(54.075, -111.809, 1.900): waypoint 0 (66, -121, .123) and waypoint 1
+(76, -128, .587). The list then had no active command. Author a stable parked
+pose and a short, clear initial climb from that pose before the low field
+waypoints. Validate each leg against the compiled BSP and the aircraft
+footprint, and retain the existing native boarding and landing gates.
+Keep both normal boarding approaches clear. Flight, rescue, combat and
+settlement remain unverified on dee2.
+Evidence: build/native-spark-black-echo-dee2-command-atoms/result.json and
+debug-0.txt in the same folder.
 
 Previous Black Echo crew handoff: Spark's CE609 build b3c5bc47-159c-4b05-a109-79197fbe232b
 is releases/black-echo-native-crew-20261117/be_native.map, SHA256

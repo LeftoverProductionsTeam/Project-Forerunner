@@ -16833,6 +16833,9 @@ static boolean hs_compile_and_evaluate_command(
 		error(_error_log, "the host's console: a command that changes the game refused (a public game)");
 		return FALSE;
 	}
+	/* The console also receives indented commands from init.txt and native cues. */
+	while (isspace((unsigned char)*expression))
+		expression++;
 	csstrncpy(buffer, expression, sizeof(buffer));
 	buffer[sizeof(buffer)-1] = 0;
 	if (strchr(buffer, ';'))
