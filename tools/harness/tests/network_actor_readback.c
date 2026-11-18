@@ -32,7 +32,7 @@ struct obey_individual_complex_control {
 };
 static int actor_data=1;
 static struct actor_datum {
- struct {long unit_index;short active,dormant,squad_index;} meta;
+ struct {long unit_index;short active,dormant,squad_index;boolean frozen;} meta;
  struct {short action,default_state;
   struct {struct {struct obey_individual_complex_control complex_control;} obey;} action_data;
  } state;
@@ -192,6 +192,22 @@ int main(int argc,char **argv)
 		native_actor.state.action = _actor_action_alert;
 		CHECK(!vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
 			"a powered idle pilot woke an already settled plane");
+		native_actor.meta.frozen = TRUE;
+		native_actor.state.action = _actor_action_none;
+		CHECK(!vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
+			"suspending a seated pilot woke an already settled plane");
+		native_actor.input.vehicle_index = NONE;
+		native_actor.input.vehicle_driver_type = _actor_vehicle_driver_none;
+		ship->object.flags = 0;
+		CHECK(vehicle_plane_pilot_power(ship_index, ship) == 0.f, "initially suspended pilot applied lift or steering");
+		ship->object.flags = FLAG(_object_at_rest_bit) | FLAG(_object_on_ground_bit);
+		CHECK(!vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
+			"seating an already suspended pilot woke an already settled plane");
+		native_actor.input.vehicle_index = ship_index;
+		native_actor.input.vehicle_driver_type = _actor_vehicle_driver_directional_flying;
+		native_actor.meta.frozen = FALSE;
+		native_actor.state.action = _actor_action_alert;
+		CHECK(vehicle_plane_pilot_power(ship_index, ship) == 1.f, "resumed pilot lost native power");
 		native_actor.control.path.path.valid = TRUE;
 		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "new route failed to wake the plane");
 		native_actor.control.path.path.valid = FALSE;

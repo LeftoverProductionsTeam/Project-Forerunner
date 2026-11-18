@@ -1337,8 +1337,12 @@ void actor_destination_update(
 	long actor_index);
 void actor_move_sample_plane_position(
 	long actor_index);
+boolean actor_move_plane_pilot_suspended(
+	struct actor_datum const *actor,
+	long vehicle_index);
 boolean actor_move_plane_is_parked(
-	struct actor_datum const *actor);
+	struct actor_datum const *actor,
+	long vehicle_index);
 boolean actor_move_plane_parked_facing(
 	struct actor_datum const *actor, real_vector3d *facing);
 void actor_move_update(

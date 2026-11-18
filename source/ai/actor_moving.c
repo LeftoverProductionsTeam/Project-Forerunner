@@ -731,18 +731,23 @@ void actor_move_get_avoidance_direction(
 }
 
 /* port: stock recorded planes and legacy fighters retain their original control. */
-static struct vehicle_definition *actor_move_plane_definition(struct actor_datum const *actor)
+static struct vehicle_definition *actor_move_plane_vehicle_definition(long vehicle_index)
 {
 	struct unit_datum *vehicle;
 	struct vehicle_definition *plane;
-	if (actor->input.vehicle_driver_type != _actor_vehicle_driver_directional_flying ||
-		actor->input.vehicle_index == NONE || !vehicle_is_human_plane(actor->input.vehicle_index)) return NULL;
-	vehicle = vehicle_get(actor->input.vehicle_index);
+	if (vehicle_index == NONE || !vehicle_is_human_plane(vehicle_index)) return NULL;
+	vehicle = vehicle_get(vehicle_index);
 	plane = vehicle_specific_definition_get(vehicle->definition_index);
 	if (!(plane->ai_steering_max_throttle > 0.f && plane->ai_steering_max_throttle <= 1.f &&
 		plane->ai_avoidance_distance > 0.f && plane->ai_avoidance_distance <= 12.f &&
 		plane->ai_pathfinding_radius > 0.f && plane->ai_pathfinding_radius <= 12.f)) return NULL;
 	return plane;
+}
+
+static struct vehicle_definition *actor_move_plane_definition(struct actor_datum const *actor)
+{
+	return actor->input.vehicle_driver_type == _actor_vehicle_driver_directional_flying ?
+		actor_move_plane_vehicle_definition(actor->input.vehicle_index) : NULL;
 }
 
 /* Transport routes describe the aircraft, not an offset seat that sweeps
@@ -2429,12 +2434,20 @@ boolean actor_move_to_prop(
 	return result;
 }
 
-boolean actor_move_plane_is_parked(struct actor_datum const *actor)
+boolean actor_move_plane_pilot_suspended(struct actor_datum const *actor, long vehicle_index)
 {
-	return actor && actor->state.action == _actor_action_alert &&
-		!actor->control.moving && !actor->control.path.path.valid &&
-		actor_move_plane_definition(actor) &&
-		TEST_FLAG(vehicle_get(actor->input.vehicle_index)->object.flags, _object_on_ground_bit);
+	/* HaloScript can suspend a pilot before seating it. Frozen actors do not
+	 * sample vehicle input, so the native driver seat supplies the aircraft. */
+	return actor && actor->meta.frozen && actor->state.action == _actor_action_none &&
+		actor_move_plane_vehicle_definition(vehicle_index) != NULL;
+}
+
+boolean actor_move_plane_is_parked(struct actor_datum const *actor, long vehicle_index)
+{
+	return actor && (actor_move_plane_pilot_suspended(actor, vehicle_index) ||
+		(actor->input.vehicle_index == vehicle_index && actor->state.action == _actor_action_alert &&
+		 !actor->control.moving && !actor->control.path.path.valid && actor_move_plane_definition(actor))) &&
+		TEST_FLAG(vehicle_get(vehicle_index)->object.flags, _object_on_ground_bit);
 }
 
 /* Keep the parked hull level when the pilot looks around before departure. */
@@ -2442,7 +2455,7 @@ boolean actor_move_plane_parked_facing(struct actor_datum const *actor, real_vec
 {
 	real_vector3d heading;
 
-	if (!actor_move_plane_is_parked(actor))
+	if (!actor || !actor_move_plane_is_parked(actor, actor->input.vehicle_index))
 		return FALSE;
 	heading = actor->input.position.body_facing;
 	heading.k = 0.f;

@@ -1516,6 +1516,23 @@ void vehicle_preprocess_node_orientations(
 	return;
 }
 
+static struct actor_datum const *vehicle_plane_ai_pilot(long vehicle_index, struct vehicle_datum const *vehicle)
+{
+	struct unit_datum const *pilot = unit_try_and_get(vehicle->unit.driver_object_index);
+	if (!pilot || pilot->object.parent_object_index != vehicle_index || pilot->unit.player_index != NONE ||
+		pilot->unit.actor_index == NONE)
+		return NULL;
+	return actor_try_and_get(pilot->unit.actor_index);
+}
+
+static real vehicle_plane_pilot_power(long vehicle_index, struct vehicle_datum const *vehicle)
+{
+	/* A suspended AI still occupies the driver seat. Let the unpowered hull
+	 * settle under native gravity instead of steering toward stale inputs. */
+	return actor_move_plane_pilot_suspended(vehicle_plane_ai_pilot(vehicle_index, vehicle), vehicle_index) ?
+		0.f : vehicle->unit.seat_power[0];
+}
+
 static void update_human_plane_physics(
 	long vehicle_index,
 	struct powered_mass_point_datum *state,
@@ -1539,6 +1556,7 @@ static void update_human_plane_physics(
 		real_vector3d torque;
 		real throttle;
 		real factor;
+		real pilot_power = vehicle_plane_pilot_power(vehicle_index, vehicle);
 
 		throttle = PIN(vehicle->vehicle.speed, 0.0f, definition->unknown2f8)/
 			definition->unknown2f8;
@@ -1546,9 +1564,9 @@ static void update_human_plane_physics(
 
 		factor = !TEST_FLAG(vehicle->vehicle.flags, 2) ? (TEST_FLAG(vehicle->vehicle.flags, 3) ? 1.0f : 0.75f) : 0.25f;
 		factor *= 1.0f-throttle;
-		interpolate_scalar(&vehicle->vehicle.hover, factor*vehicle->unit.seat_power[0], 0.05f);
+		interpolate_scalar(&vehicle->vehicle.hover, factor*pilot_power, 0.05f);
 
-		vehicle->vehicle.thrust = throttle*vehicle->unit.seat_power[0];
+		vehicle->vehicle.thrust = throttle*pilot_power;
 
 		desired_forward = vehicle->unit.desired_facing_vector;
 
@@ -1632,8 +1650,8 @@ static void update_human_plane_physics(
 			torque.k = (scaled.k-vehicle->object.angular_velocity.k)*scale;
 		}
 
-		scale_vector3d(&force, vehicle->unit.seat_power[0], &force);
-		scale_vector3d(&torque, vehicle->unit.seat_power[0], &torque);
+		scale_vector3d(&force, pilot_power, &force);
+		scale_vector3d(&torque, pilot_power, &torque);
 
 		physics_update(vehicle_index, NULL, mass_points, &force, &torque);
 	}
@@ -2489,17 +2507,9 @@ static boolean vehicle_controls_wake_physics(
 		vehicle->vehicle.speed == 0.f && vehicle->vehicle.slide == 0.f &&
 		vehicle->unit.throttle.i == 0.f && vehicle->unit.throttle.j == 0.f &&
 		!TEST_FLAG(vehicle->unit.control_flags, _unit_control_jump_bit) &&
-		vehicle->unit.driver_object_index != NONE && vehicle_is_landed(vehicle_index))
-	{
-		struct unit_datum const *pilot = unit_try_and_get(vehicle->unit.driver_object_index);
-		if (pilot && pilot->object.parent_object_index == vehicle_index &&
-			pilot->unit.player_index == NONE && pilot->unit.actor_index != NONE)
-		{
-			struct actor_datum const *actor = actor_try_and_get(pilot->unit.actor_index);
-			if (actor && actor->input.vehicle_index == vehicle_index && actor_move_plane_is_parked(actor))
-				return FALSE;
-		}
-	}
+		vehicle->unit.driver_object_index != NONE && vehicle_is_landed(vehicle_index) &&
+		actor_move_plane_is_parked(vehicle_plane_ai_pilot(vehicle_index, vehicle), vehicle_index))
+		return FALSE;
 
 	return (TEST_FLAG(definition->flags, 0) && vehicle->vehicle.speed != 0.f) ||
 		(TEST_FLAG(definition->flags, 1) && vehicle->vehicle.turn != 0.f) ||
