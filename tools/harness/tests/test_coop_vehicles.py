@@ -83,7 +83,7 @@ def test_forge_undo(case):
     assert status == 0, output
 
 
-@pytest.mark.parametrize('case', ['clear', 'blocked', 'original', 'occupied', 'client'])
+@pytest.mark.parametrize('case', ['clear', 'vehicle-self', 'scenery-self', 'scenery-blocked', 'blocked', 'original', 'occupied', 'client'])
 def test_forge_move_selected(case):
     status, output = run(build('coop_vehicles', generated()), 'move-' + case)
     assert status == 0, output

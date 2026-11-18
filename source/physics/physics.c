@@ -582,7 +582,7 @@ boolean physics_instance_new(
 /* Reuse the source body's native mass points and orientation to find the
  * lowest clear translated placement against a floor contact. */
 boolean physics_resting_placement(long object_index, real_point3d const *contact,
-	real_vector3d const *normal, real_point3d *position)
+	real_vector3d const *normal, long ignore_object_index, real_point3d *position)
 {
 	struct physics_instance instance;
 	struct object_datum *object = object_get(object_index);
@@ -629,7 +629,7 @@ boolean physics_resting_placement(long object_index, real_point3d const *contact
 
 		matrix4x3_transform_point(&instance.world_matrix, &point->position, &center);
 		if (collision_test_sphere(&center, point->radius, NONE) ||
-			(collision_get_features_in_sphere(flags, &center, point->radius, 0.0f, point->radius, NONE, &features) &&
+			(collision_get_features_in_sphere(flags, &center, point->radius, 0.0f, point->radius, ignore_object_index, &features) &&
 			 collision_features_test_point(&features, &center, &collision)))
 			return FALSE;
 	}

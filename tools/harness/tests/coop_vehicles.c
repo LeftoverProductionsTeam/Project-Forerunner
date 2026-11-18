@@ -80,7 +80,7 @@ static struct scenario_object_datum sources[4];
 static struct {long actual_count;} headers,*object_header_data=&headers;
 static short global_structure_bsp_index;
 static int enabled,connection,coop,percent,multiplier,blocked,sphere_blocked,floor_present,allocation_failed,nearby;
-static long now,new_count,last_copy;
+static long now,new_count,last_copy,placement_overlap;
 static boolean collision_model_instance_new(struct collision_model_instance *p,long index) {(void)p;(void)index;return TRUE;}
 static boolean collision_model_test_sphere(struct collision_model_instance const *p,real_point3d const *c,float r) {(void)p;(void)c;(void)r;return blocked;}
 
@@ -120,7 +120,11 @@ static boolean game_in_progress(void) { return TRUE; }
 #define valid_real isfinite
 static boolean valid_real_point3d(real_point3d const *p) { return isfinite(p->x)&&isfinite(p->y)&&isfinite(p->z); }
 static short objects_in_sphere(int f,unsigned long m,struct location const *l,real_point3d const *p,float r,long *indices,int max) {
- (void)f;(void)m;(void)l;(void)p;(void)r;(void)max;indices[0]=identifiers[9];return blocked || nearby;
+ short count=0;
+ (void)f;(void)m;(void)l;(void)p;(void)r;
+ if(placement_overlap!=NONE&&count<max)indices[count++]=placement_overlap;
+ if((blocked||nearby)&&count<max)indices[count++]=identifiers[9];
+ return count;
 }
 static void cross_product3d(real_vector3d const *a,real_vector3d const *b,real_vector3d *c) {
  c->i=a->j*b->k-a->k*b->j;c->j=a->k*b->i-a->i*b->k;c->k=a->i*b->j-a->j*b->i;
@@ -192,8 +196,8 @@ struct collision_feature_list { int unused; };
 struct collision_plane { int unused; };
 static boolean collision_get_features_in_sphere(unsigned long flags, real_point3d const *center,
  real enclosing, real height, real radius, long ignore, struct collision_feature_list *features) {
- (void)flags; (void)center; (void)enclosing; (void)height; (void)radius; (void)ignore; (void)features;
- return nearby;
+ (void)flags; (void)center; (void)enclosing; (void)height; (void)radius; (void)features;
+ return nearby || (placement_overlap!=NONE&&placement_overlap!=ignore);
 }
 static boolean collision_features_test_point(struct collision_feature_list const *features,
  real_point3d const *center, struct collision_plane *collision) {
@@ -257,7 +261,7 @@ static long reset(void) {
  memset(definitions,0,sizeof(definitions));
  for(i=0;i<8;i++){definitions[i].type=i;definitions[i].object.physics.index=0;definitions[i].object.bounding_radius=1;}
  enabled=coop=floor_present=1;connection=2;percent=50;multiplier=2;mode="per_player";blocked=sphere_blocked=allocation_failed=nearby=0;
- headers.actual_count=1;global_structure_bsp_index=0;now=new_count=0;for(i=0;i<5;i++)game.players[i]=1;
+ placement_overlap=NONE;headers.actual_count=1;global_structure_bsp_index=0;now=new_count=0;for(i=0;i<5;i++)game.players[i]=1;
  physics.mass_points.count=1;physics.mass_points.address=&mass_point;mass_point.radius=.2f;
  index=make(0,1);make(9,1);coop_vehicles_new_game();coop_vehicles_register(index,&sources[0]);return index;
 }
@@ -569,12 +573,14 @@ int main(int argc,char **argv) {
   char const *name=argv[1]+5;
   long source=reset(),copy,selected;
   struct test_object *object;
+  boolean scenery=!strncmp(name,"scenery-",8);
+  if(scenery)connection=0;
   forge_viewer=make(8,1);
-  get(source)->object.type=_object_type_vehicle;
+  get(source)->object.type=scenery?_object_type_scenery:_object_type_vehicle;
   copy=cheat_forge_clone(source);
   CHECK(copy!=NONE,"missing native copy");
   object=get(copy);
-  object->object.type=_object_type_vehicle;
+  object->object.type=get(source)->object.type;
   object->object.forward.i=1.f;
   object->object.up.k=1.f;
   object->object.translational_velocity.i=1.f;
@@ -593,13 +599,15 @@ int main(int argc,char **argv) {
   forge_hit.point.x=12.f;
   forge_hit.point.y=-2.f;
   forge_hit.plane.n.k=1.f;
-  if(!strcmp(name,"blocked"))nearby=TRUE;
+  if(strstr(name,"self")||!strcmp(name,"scenery-blocked"))placement_overlap=copy;
+  if(strstr(name,"blocked"))nearby=TRUE;
   if(!strcmp(name,"occupied"))object->object.first_child_object_index=123;
   if(!strcmp(name,"client"))connection=1;
-  if(!strcmp(name,"clear")) {
+  if(!strcmp(name,"clear")||strstr(name,"self")) {
+   float height=scenery?1.26f:.66f;
    CHECK(cheat_forge_move_selected()&&forge_activated==copy&&get(copy)==object,"copy was not moved in place");
    CHECK(object->object.position.x==12.f&&object->object.position.y==-2.f&&
-    fabsf(object->object.position.z-.66f)<.0001f&&get(source)->object.position.x!=12.f,"placement did not use the native floor contact");
+    fabsf(object->object.position.z-height)<.0001f&&get(source)->object.position.x!=12.f,"placement did not use the native floor contact");
    CHECK(object->object.forward.i==1.f&&object->object.up.k==1.f&&
     !object->object.translational_velocity.i&&!object->object.angular_velocity.k&&
     !TEST_FLAG(object->object.flags,_object_at_rest_bit),"move discarded the pose or kept stale physics");

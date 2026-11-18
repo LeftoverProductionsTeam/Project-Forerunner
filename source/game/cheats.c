@@ -409,14 +409,16 @@ boolean cheat_forge_pick(void)
 
 /* Faber's aim-based placement uses the native collision contact. Keep the
  * source's orientation and let the usual physics settle the object. */
-static boolean forge_aim_placement(long object_index, struct object_datum const *object, real_point3d *position)
+static boolean forge_aim_placement(long object_index, struct object_datum const *object,
+	long ignore_object_index, real_point3d *position)
 {
 	struct collision_result hit;
 	struct location location;
 	real_point3d center;
 	real_vector3d offset;
 	real radius;
-	long blocker;
+	long blockers[2];
+	short count;
 
 	if (!forge_aim_collision(&hit) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
 	{
@@ -429,7 +431,7 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 
 	if (object->object.type == _object_type_vehicle)
 	{
-		if (!physics_resting_placement(object_index, &hit.point, &hit.plane.n, position))
+		if (!physics_resting_placement(object_index, &hit.point, &hit.plane.n, ignore_object_index, position))
 		{
 			console_warning("Forge needs clear space for the vehicle");
 			return FALSE;
@@ -442,8 +444,15 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 	if (!valid_real_point3d(&center))
 		return FALSE;
 	scenario_location_from_point(&location, &center);
-	if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
-		objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile, &location, &center, radius, &blocker, 1))
+	if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE))
+	{
+		console_warning("Forge needs clear space around the target");
+		return FALSE;
+	}
+	/* A move may overlap its previous position. Any other object still blocks it. */
+	count = objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile,
+		&location, &center, radius, blockers, NUMBEROF(blockers));
+	if (count > 1 || (count == 1 && blockers[0] != ignore_object_index))
 	{
 		console_warning("Forge needs clear space around the target");
 		return FALSE;
@@ -467,7 +476,7 @@ long cheat_forge_place(void)
 		console_warning("forge_place needs an object selected with forge_pick");
 		return NONE;
 	}
-	if (!forge_aim_placement(forge_selection, object, &position))
+	if (!forge_aim_placement(forge_selection, object, NONE, &position))
 		return NONE;
 	return forge_clone_at_position(forge_selection, &position);
 }
@@ -512,7 +521,7 @@ boolean cheat_forge_move_selected(void)
 	struct object_datum *object = forge_editable_copy(forge_selection);
 	real_point3d position;
 
-	if (!object || !forge_aim_placement(forge_selection, object, &position))
+	if (!object || !forge_aim_placement(forge_selection, object, forge_selection, &position))
 		return FALSE;
 	object->object.translational_velocity = *global_zero_vector3d;
 	object->object.angular_velocity = *global_zero_vector3d;
