@@ -1108,12 +1108,15 @@ static void extraction_debrief(struct extraction_run *run)
 	for (index = 0; index < 4; index++) extraction_tell(run, lines[reverse ? 3 - index : index]);
 }
 
-static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout, boolean bring_stash)
+static boolean extraction_loadout(struct extraction_run *run, struct game_modes_inventory *loadout,
+	boolean bring_stash, short *weapons_to_reserve)
 {
 	struct player_datum *player;
 	struct unit_datum *unit;
 	short faction;
 	if (!gear_loadout(&run->gear, loadout, bring_stash)) return FALSE;
+	if (weapons_to_reserve)
+		*weapons_to_reserve = run->gear.record.phase == _gear_idle ? loadout->weapon_count : 0;
 	if (extraction.faction_names[0] == NONE && extraction.faction_names[1] == NONE) return TRUE;
 	player = player_try_and_get(run->player);
 	unit = player ? (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped) : NULL;
@@ -1128,7 +1131,7 @@ static void extraction_loadout_notice(struct extraction_run *run)
 {
 	struct game_modes_inventory loadout;
 	char text[128];
-	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !extraction_loadout(run, &loadout, TRUE))
+	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) || !extraction_loadout(run, &loadout, TRUE, NULL))
 	{
 		extraction_block(run, "LOADOUT PENDING | Native equipment or stash unavailable. Retry at the terminal."); return;
 	}
@@ -1329,12 +1332,32 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
+	short weapons_to_reserve, faction = extraction_faction((short)player->team_index);
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	run->discard_deadline = 0;
 	if (!extraction_open_gear(run, player) || !extraction_restore_squad(run, player) ||
 		!extraction_squad_deployment_ready(run)) return FALSE;
 	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
-		!extraction_loadout(run, &loadout, bring_stash) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear, bring_stash))
+		!extraction_loadout(run, &loadout, bring_stash, &weapons_to_reserve) ||
+		!game_modes_inventory_loadout_valid(&loadout))
+	{
+		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
+	}
+	/* Authored aircraft can hold the entire crew aboard until everyone banks.
+	 * Leave room for the largest native inventory while stash controls are reachable. */
+	if (VALID_INDEX(faction, 2) && extraction.dropship_boarding_groups[faction] != NONE)
+	{
+		int shortfall = run->gear.record.count - weapons_to_reserve + GAME_MODES_INVENTORY_WEAPONS - GEAR_CAPACITY;
+		if (shortfall > 0)
+		{
+			char notice[128];
+			snprintf(notice, sizeof(notice), "STASH FULL | Free %d stash slot%s at loadout or bring compatible stored gear.",
+				shortfall, shortfall == 1 ? "" : "s");
+			extraction_tell(run, notice);
+			return FALSE;
+		}
+	}
+	if (!gear_reserve(&run->gear, bring_stash))
 	{
 		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
 	}

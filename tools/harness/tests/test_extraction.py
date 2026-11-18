@@ -255,7 +255,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-admission-deployment', 'transport-admission-evacuation',
-    'transport-admission-pilot', 'transport-pilot-receipt',
+    'transport-admission-pilot', 'transport-pilot-receipt', 'transport-stash-space',
     'transport-missing-faction', 'transport-seat', 'transport-stale', 'transport-wrong-faction',
     'transport-dead', 'transport-disembark', 'transport-team-change', 'transport-replaced',
     'transport-crash-pending', 'transport-crash-silent', 'transport-crash-no-statistics', 'transport-crash-hub',

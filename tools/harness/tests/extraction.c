@@ -1296,6 +1296,19 @@ int main(int argc,char **argv)
   long craft=dropship_handles[faction],loot;
   boolean split_routes=!strncmp(case_name,"transport-called-split",22);
   boolean managed_call=!strcmp(case_name,"transport-called-managed-detour");
+  boolean stash_space=!strcmp(case_name,"transport-stash-space");
+  if(stash_space) {
+   struct gear_record filled;
+   touch(0,0);pickup(0,1);escape(0);
+   filled=run(0)->gear.record;
+   CHECK(filled.count==1,"native stash seed missing");
+   for(a=1;a<GEAR_CAPACITY;a++) {
+    filled.items[a]=filled.items[0];
+    filled.items[a].id[0]^=(byte)a;
+   }
+   filled.count=GEAR_CAPACITY;
+   CHECK(gear_commit(&run(0)->gear,&filled),"could not seed near-capacity stash");
+  }
   extraction_reset();scenario.object_names.count=5;
   if(!strncmp(case_name,"transport-called",16)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
@@ -1325,7 +1338,7 @@ int main(int argc,char **argv)
    }
   }
   if(!strcmp(case_name,"transport-admission-deployment")||!strcmp(case_name,"transport-admission-evacuation")||
-     !strcmp(case_name,"transport-admission-pilot")||!strcmp(case_name,"transport-pilot-receipt")) {
+     !strcmp(case_name,"transport-admission-pilot")||!strcmp(case_name,"transport-pilot-receipt")||stash_space) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
    strcpy(authored_groups[11].name,"extraction_pelican_landed");
@@ -1470,6 +1483,38 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"transport-boarded-duplicate")||!strcmp(case_name,"transport-boarded-capacity")||
      !strcmp(case_name,"transport-boarded-missing")||!strcmp(case_name,"transport-boarded-alias")) {
    CHECK(!extraction_owns_map()&&!boarding_changes,"invalid output binding changed native controls or admitted the hub");return 0;
+  }
+  if(stash_space) {
+   struct extraction_run *r=run(0);
+   unsigned long generation;
+   long live_count=weapon_count;
+   players[0].team_index=units[0].object.owner_team_index=_game_team_player;
+   dropships[0].object.first_child_object_index=units[0].object.first_child_object_index=NONE;
+   touch(2,0);generation=r->gear.record.generation;
+   touch(0,0);
+   CHECK(r->phase==_extraction_hub&&r->gear.record.phase==_gear_idle&&
+    r->gear.record.count==GEAR_CAPACITY&&r->gear.record.generation==generation&&
+    live_count==weapon_count,"full stash began a managed flight or changed ownership");
+   for(a=0;a<2;a++) {
+    units[0].unit.control_flags=FLAG(_unit_control_crouch_modifier_bit);
+    touch(2,0);advance(30);touch(2,0);
+   }
+   units[0].unit.control_flags=0;
+   CHECK(r->gear.record.count==GEAR_CAPACITY-2,"hub discard did not make room");
+   CHECK(!extraction_deploy(r,&players[0],FALSE)&&r->gear.record.count==GEAR_CAPACITY-2,
+    "safe-stash deployment counted saved weapons that were not chosen");
+   touch(0,0);
+   CHECK(r->phase==_extraction_deployed&&r->gear.record.reserved_count==2&&
+    r->gear.record.count+GAME_MODES_INVENTORY_WEAPONS==GEAR_CAPACITY,"legal reservation did not create exactly enough room");
+   pickup(0,1);pickup(0,2);
+   units[0].object.position.x=20;touch(1,0);advance(300);
+   CHECK(unit_can_enter_seat(unit_handles[0],craft,0,NULL),"capacity-safe passenger was refused");
+   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
+   CHECK(device_groups[10].actual_value==1.f,"capacity-safe boarded crew could not depart");
+   dropships[0].object.position.x=0;advance(1);
+   CHECK(r->phase==_extraction_returned&&r->gear.record.count==GEAR_CAPACITY&&
+    !r->gear.record.escrow_count,"largest native inventory did not safely fill the stash on return");
+   return 0;
   }
   if(!strncmp(case_name,"transport-admission-",20)) {
    long occupant=77;

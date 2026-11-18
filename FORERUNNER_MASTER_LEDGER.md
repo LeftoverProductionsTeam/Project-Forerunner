@@ -16,6 +16,15 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Managed aircraft deployment checks recovery space while players can still use
+the loadout terminal. It counts only the saved weapons selected for the run,
+leaving room for all four native weapon slots. Windows64 and 112 focused checks
+passed, including discard and a four-weapon return at exact capacity. Two
+verified Delta clients with seeded 30-item test stashes confirmed that keeping
+the stash untouched refused deployment without a write. Normal Use reserved
+a compatible pair for one player and left the other record intact. Native
+evidence: build/native-delta-transport-stash-space-native/result.json.
+
 Managed pickup detours (17 November): a completed Extraction call survives an
 approach outside the landing zone. The empty craft returns when its last
 valid caller is gone. Windows64, native CE609 compilation and 83 focused
