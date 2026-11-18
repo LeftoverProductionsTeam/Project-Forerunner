@@ -2300,6 +2300,9 @@ static boolean extraction_players_returned_for_squad(short squad)
 				run->squad_operation != extraction.squads[squad].operation) continue;
 			if (run->phase == _extraction_lost) continue;
 			if (run->phase != _extraction_returned || run->gear.pending) return FALSE;
+			/* Returning and banking settled this member's operation. Their
+			 * current body or position belongs to subsequent play. */
+			continue;
 		}
 		if (player->unit_index == NONE) continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);

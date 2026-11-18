@@ -128,7 +128,7 @@ static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes},
 static struct hs_script completion_script;
 static struct hs_script transport_scripts[3];
 static short completion_wakes, transport_wakes[2], transport_aborts[2];
-static struct hs_script squad_scripts[2];
+static struct hs_script squad_scripts[3];
 static short squad_wakes[2];
 static boolean hs_wake_by_name(char const *name)
 {
@@ -665,6 +665,11 @@ int main(int argc,char **argv)
    squad_scripts[i].return_type=_hs_type_void;squad_scripts[i].script_type=_hs_script_continuous;
   }
   device_groups[11].actual_value=1;scenario.hs_scripts.count=2;scenario.hs_scripts.address=squad_scripts;
+  if(!strcmp(case_name,"squad-return-roam")) {
+   strcpy(squad_scripts[2].name,"forerunner_extraction_complete");
+   squad_scripts[2].script_type=_hs_script_dormant;squad_scripts[2].return_type=_hs_type_void;
+   scenario.hs_scripts.count++;
+  }
   if(!strcmp(case_name,"squad-duplicate"))strcpy(names[10].name,names[9].name);
   if(!strcmp(case_name,"squad-alias"))control_handles[6]=control_handles[5];
   if(!strcmp(case_name,"squad-missing"))control_handles[6]=NONE;
@@ -955,13 +960,23 @@ int main(int argc,char **argv)
   a=pickup(0,1);escape(0);CHECK(!squad_wakes[0],"partial squad return notified completion");
   touch(0,0);CHECK(run(0)->phase==_extraction_returned,"returned member redeployed into an unfinished operation");
   touch(6,0);CHECK(run(0)->squad==0,"returned member abandoned unfinished squad");
+  if(!strcmp(case_name,"squad-return-roam")) {
+   units[0].object.position.x=20;advance(1);
+   CHECK(!squad_wakes[0],"banked member completed squad with a teammate still deployed");
+  }
   units[1].object.position.x=20;touch(1,1);advance(300);units[1].object.position.x=0;
-  if(!strcmp(case_name,"squad-pending")) {
+  if(!strcmp(case_name,"squad-pending")||!strcmp(case_name,"squad-return-roam")) {
    publish_failure=TRUE;advance(1);CHECK(run(1)->phase==_extraction_settling&&!squad_wakes[0],"pending banking completed squad");publish_failure=FALSE;advance(30);
   } else if(!strcmp(case_name,"squad-loss")) {
    units[1].object.damage_flags=FLAG(_object_dead_bit);advance(1);
   } else {advance(1);}
   CHECK(squad_wakes[0]==1&&!squad_wakes[1]&&run(0)->gear.record.count==1,"durable squad completion or individual stash wrong");
+  if(!strcmp(case_name,"squad-return-roam")) {
+   CHECK(run(1)->phase==_extraction_returned&&!run(1)->gear.pending,"last member did not durably settle");
+   CHECK(!completion_wakes,"named squad completion bypassed the global player return check");
+   units[0].object.position.x=0;advance(1);
+   CHECK(completion_wakes==1,"global mission stopped waiting for both players at the return point");
+  }
   advance(30);CHECK(squad_wakes[0]==1,"same operation repeated completion");
   if(!strcmp(case_name,"squad-restore")) {
    extraction_restored();advance(1);CHECK(squad_wakes[0]==1,"saved-world replay completed squad again");return 0;
