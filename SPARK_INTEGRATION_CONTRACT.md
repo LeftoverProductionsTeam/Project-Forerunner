@@ -18,15 +18,22 @@ boarded in native seats 4 and 1, and saw the Pelican lift off near
 (72, -118, 6.2) waypoint at a minimum throttle of .325. The existing plane
 controller now separates minimum turn thrust from aligned cruise in
 source/ai/actor_moving.c. Windows64 and 27 focused actor checks passed.
-With the change the pilot reached the final go-to-and-face command at
-(79, -124, 1.85), radius 1.8. Both players were still seated when the host
-confirmed the field volume and live pilot, with landed false. The closest
-sample to the final waypoint was 3.698 horizontal units, with ground contact
-and continued movement. The pilot never completed the final stop. Keep the
-native landing gate. Marine release, the remaining objectives, physical return,
-banking and same-session redeployment remain open on this export.
-Evidence: build/native-spark-black-echo-0ec0-route/result.json and
-build/native-spark-black-echo-0ec0-turn/result.json, debug-0.txt in the latter.
+The turn fix reached the final go-to-and-face command at (79, -124, 1.85),
+radius 1.8, but the pilot kept rolling outside the stop. Forerunner now applies
+native low lift and level steering on the close, grounded approach to a stop.
+The authored radius, native collision and physical landed check are retained.
+Two subsequent runs of the unchanged cache reached the field volume with
+landed and gs_pelican_insertion_complete true, at (77.729, -125.122, 1.870)
+and (80.789, -124.342, 1.884). The named Marine left the aircraft alive.
+In the second run the host and guest each used normal exit input and both
+replicas agreed both players were alive on foot. The pilot began its native
+empty hub_route and passed the first leg. The session stopped on the ground
+approach to the rescue volume. Marine rescue, the empty hub landing,
+evacuation, settlement and same-session redeployment still need proof on this
+export. Windows64 and the existing 27 focused actor checks passed.
+Evidence: build/native-spark-black-echo-0ec0-physical-landing/result.json,
+build/native-spark-black-echo-0ec0-paired-disembark/result.json and debug-0.txt
+in the latter.
 
 Preceding Black Echo handoff: Spark's CE609 build e0264213-06ba-499a-a70e-0e29fa8a752d
 is releases/black-echo-native-pilot-landing-20261117/be_native.map, SHA256

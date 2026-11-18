@@ -3117,6 +3117,7 @@ void actor_move_update(
 	real rotation_emergency_amount = 0.f;
 	real maximum_throttle = 1.f;
 	boolean plane_landing = FALSE;
+	boolean plane_ground_roll = FALSE;
 
 	match_assert_valid_real_normal3d(
 		"c:\\halo\\SOURCE\\ai\\actor_moving.c",
@@ -3519,19 +3520,28 @@ void actor_move_update(
 				real remaining = distance_squared2d(
 					(real_point2d const *)&actor->input.position.body_position,
 					(real_point2d const *)&actor->control.path.destination.point);
+				real approach_range = 2.f * MAX(plane->ai_avoidance_distance, plane->ai_pathfinding_radius);
+
 				plane_landing = remaining <= radius * radius;
+				/* Weight the wheels during the final ground roll. Cruise lift
+				 * leaves too little traction to steer to the authored stop. */
+				plane_ground_roll = remaining <= approach_range * approach_range &&
+					actor->control.path.destination.point.z <= actor->input.position.body_position.z;
 			}
 		}
 	}
-	if (plane_landing)
+	if (plane_landing || plane_ground_roll)
 	{
-		real_vector3d level = actor->input.facing_vector;
+		real_vector3d level = plane_landing
+			? actor->input.facing_vector
+			: actor->control.desired_facing_vector;
 		level.k = 0.f;
 		if (normalize3d(&level) > 0.f)
 			actor->control.desired_facing_vector = level;
-		actor->output.throttle.i = actor->output.throttle.j = 0.f;
 		actor->control.optional_facing_vector = FALSE;
 		actor->control.free_facing_vector = FALSE;
+		if (plane_landing)
+			actor->output.throttle.i = actor->output.throttle.j = 0.f;
 	}
 
 	match_assert_valid_real_normal3d(
@@ -3550,9 +3560,9 @@ void actor_move_update(
 		crouch = FALSE;
 	}
 
-	/* Native plane descent control removes cruise lift at a completed stop.
-	 * Ground friction then arrests the craft; no position/velocity is forced. */
-	if (plane_landing)
+	/* Use the native descent control during rollout and at the stop so the
+	 * wheels can steer and come to rest under normal ground friction. */
+	if (plane_landing || plane_ground_roll)
 		crouch = TRUE;
 
 	if (game_connection() == _game_connection_local && ai_debug.force_crouch)
