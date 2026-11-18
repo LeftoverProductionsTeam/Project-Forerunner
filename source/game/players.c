@@ -2349,6 +2349,22 @@ boolean player_teleport(
 	return result;
 }
 
+/* Chupathingy ed8b42bb70 and OpenH1 b3694d50. A crowded co-op placement
+ * can temporarily overlap player bipeds while terrain and objects still
+ * participate in the native placement checks. */
+boolean players_coop_teleport_stacked(
+	long player_index,
+	long source_unit_index,
+	real_point3d const *position)
+{
+	boolean arrived;
+
+	biped_fix_ignore_players(TRUE);
+	arrived = player_teleport(player_index, source_unit_index, position);
+	biped_fix_ignore_players(FALSE);
+	return arrived;
+}
+
 void players_debug_render(
 	void)
 {
@@ -3285,8 +3301,13 @@ static void players_coop_rescue_stranded(
 			teammate_index = players_coop_unit_where(iterator.datum_index, players_coop_unit_in_structure);
 		if (teammate_index != NONE)
 		{
+			struct object_datum const *teammate = object_get(teammate_index);
+
 			rescued = player_teleport(iterator.datum_index, teammate_index,
-				&object_get(teammate_index)->object.bounding_sphere_center);
+				&teammate->object.bounding_sphere_center);
+			if (!rescued && !extraction_owns_map() && teammate->object.parent_object_index == NONE)
+				rescued = players_coop_teleport_stacked(iterator.datum_index, teammate_index,
+					&teammate->object.bounding_sphere_center);
 		}
 		else
 		{
@@ -3786,6 +3807,7 @@ static void player_teleport_on_bsp_switch(
 	struct biped_datum *source_biped;
 	long unit_index;
 	boolean outside_switch_trigger;
+	boolean outside_structure;
 	boolean teleport_succeeded;
 
 	player = player_get(player_index);
@@ -3822,9 +3844,8 @@ static void player_teleport_on_bsp_switch(
 			outside_switch_trigger = FALSE;
 		}
 
-		if (scenario_leaf_index_from_point(
-			&biped->object.bounding_sphere_center) == NONE ||
-			outside_switch_trigger)
+		outside_structure = scenario_leaf_index_from_point(&biped->object.bounding_sphere_center) == NONE;
+		if (outside_structure || outside_switch_trigger)
 		{
 			if (biped->object.parent_object_index != NONE)
 			{
@@ -3845,7 +3866,17 @@ static void player_teleport_on_bsp_switch(
 				/* port: a big co-op team runs out of room around the
 				crosser, so the rest go beside whoever is already in */
 				if (!teleport_succeeded && network_coop_active())
+				{
 					teleport_succeeded = player_place_beside_teammate(player_index);
+					if (!teleport_succeeded && outside_structure && !extraction_owns_map())
+					{
+						source_biped = biped_try_and_get(source_unit_index);
+						if (source_biped && source_biped->object.parent_object_index == NONE &&
+							players_coop_teammate(player_index, source_biped->unit.player_index))
+							teleport_succeeded = players_coop_teleport_stacked(player_index, source_unit_index,
+								&source_biped->object.bounding_sphere_center);
+					}
+				}
 			}
 			else
 			{

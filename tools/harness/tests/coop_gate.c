@@ -29,8 +29,13 @@ static void *player_data;
 static long data_next_index(void *data,long previous){return previous+1<player_count?previous+1:NONE;}
 static struct player_datum *player_get(long i){CHECK(i>=0&&i<player_count,"invalid player");return &people[i];}
 static boolean coop_scripts_host(void){return host;}
-static boolean adaptations=TRUE;
-static boolean config_boolean(char const *name){CHECK(!strcmp(name,"network.coop_script_adaptations"),"unknown policy");return adaptations;}
+static boolean adaptations=TRUE,extraction;
+static boolean config_boolean(char const *name)
+{
+ if(!strcmp(name,"game.extraction"))return extraction;
+ CHECK(!strcmp(name,"network.coop_script_adaptations"),"unknown policy");
+ return adaptations;
+}
 static long player_index_from_unit_index(long index){int i;for(i=0;i<player_count;i++)if(people[i].unit_index==index)return i;return NONE;}
 static real_point3d *object_get_origin(long i,real_point3d *p){*p=objects[i].position;return p;}
 static void object_set_position(long i,real_point3d const *p,void *forward,void *up){objects[i].position=*p;rollbacks++;}
@@ -78,12 +83,12 @@ int main(int argc,char **argv){char const *name=argc>1?argv[1]:"";long list;int 
  }else if(!strcmp(name,"map-policy")){
   reset(6);long selected=object_list_new();object_list_add(selected,0);viewer=5;
   CHECK(!coop_scripts_native_player_actions(),"legacy map lost follower policy");
-  adaptations=FALSE;
+  extraction=TRUE;
   CHECK(hs_objects_can_see_flag(selected,1,45),"live config change interrupted legacy cutscene policy");
   coop_scripts_new_game();
   CHECK(coop_scripts_native_player_actions(),"loaded authored map did not expose native action policy");
   CHECK(!hs_objects_can_see_flag(selected,1,45),"new map did not select authored script semantics");
-  adaptations=TRUE;
+  extraction=FALSE;
   CHECK(!hs_objects_can_see_flag(selected,1,45),"live config change broadened an authored objective");
   coop_scripts_new_game();
   CHECK(hs_objects_can_see_flag(selected,1,45),"next map did not restore campaign policy");

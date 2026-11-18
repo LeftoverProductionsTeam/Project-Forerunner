@@ -33,7 +33,7 @@ struct structure_bsp {struct tag_block leaves,collision_bsp;};
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index;};
 struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags;} object;
-                     long weapon;short ammunition;};
+                     long weapon;short ammunition;struct {long player_index;} unit;};
 #define biped_datum object_datum
 
 static struct scenario scenario;
@@ -58,6 +58,10 @@ static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
 static int reject_load[2],reject_verify[2],loads[2],unloads[2];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
+static boolean crowded,solid,ignore_players,operations,opposed;
+static int stacked_calls,beside_retries;
+static long ticks;
+static struct {long stranded_since[2];} players_coop_state;
 
 static int slot(long unit)
 {
@@ -69,7 +73,12 @@ static struct player_datum *player_get(long player)
 static struct object_datum *object_try_and_get(long unit) {return unit==NONE?NULL:&objects[slot(unit)];}
 static struct object_datum *biped_try_and_get(long unit) {return object_try_and_get(unit);}
 static struct object_datum *biped_get(long unit) {return &objects[slot(unit)];}
+static struct object_datum *object_get(long unit) {return &objects[slot(unit)];}
 static boolean network_coop_active(void) {return coop;}
+static boolean extraction_owns_map(void) {return operations;}
+static boolean players_coop_teammate(long player,long other)
+{return other!=NONE&&player!=other&&!opposed;}
+static void biped_fix_ignore_players(boolean ignore) {ignore_players=ignore;}
 static int game_connection(void) {return connection;}
 static struct scenario *global_scenario_get(void) {return &scenario;}
 static struct structure_bsp *global_structure_bsp_get(void) {return global_structure_bsp;}
@@ -79,13 +88,33 @@ static struct player_datum *data_iterator_next(struct data_iterator *it)
 static boolean scenario_trigger_volume_test_object(short trigger,long unit) {return slot(unit)==0;}
 static short players_coop_bsp_switch_trigger(long unit) {return slot(unit)==0?0:NONE;}
 static long scenario_leaf_index_from_point(real_point3d const *p) {return p->x<200?0:NONE;}
+static long game_time_get(void) {return ticks;}
+static boolean player_input_enabled(void) {return TRUE;}
+static boolean players_coop_unit_in_structure(long unit)
+{return scenario_leaf_index_from_point(&objects[slot(unit)].object.position)!=NONE;}
+static boolean players_coop_unit_grounded(long unit) {return players_coop_unit_in_structure(unit);}
+static boolean players_coop_unit_stranded(long unit) {return !players_coop_unit_in_structure(unit);}
+static long players_coop_unit_where(long player,boolean (*eligible)(long))
+{return player==players[1]&&eligible(units[0])?units[0]:NONE;}
+static real_point3d const *players_checkpoint_position(long player) {return NULL;}
 static void biped_get_physics_pill(long unit,real_point3d *p,real *height,real *width)
 {*p=objects[slot(unit)].object.position;*height=1;*width=.2f;}
 static boolean collision_test_point(unsigned long mask,real_point3d const *p,long ignore) {return FALSE;}
 static void unit_exit_seat_end(long unit) {ejections++;objects[slot(unit)].object.parent_object_index=NONE;}
 static boolean player_teleport_internal(long player,long source,real_point3d const *p)
-{teleports++;objects[slot(player_get(player)->unit_index)].object.position=*p;return TRUE;}
-static boolean player_place_beside_teammate(long player) {CHECK(FALSE,"unexpected placement retry");return FALSE;}
+{
+    teleports++;
+    if(ignore_players)stacked_calls++;
+    if(solid||(crowded&&!ignore_players))return FALSE;
+    objects[slot(player_get(player)->unit_index)].object.position=*p;
+    return TRUE;
+}
+static boolean player_place_beside_teammate(long player)
+{
+    CHECK(crowded,"unexpected placement retry");
+    beside_retries++;
+    return FALSE;
+}
 /* The unchanged classic reconnect loop uses assignment as its condition. */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
@@ -146,6 +175,7 @@ static void setup(short old,short destination)
         objects[i].object.bounding_sphere_center=objects[i].object.position;
         objects[i].weapon=0x70007+i;
         objects[i].ammunition=30+i;
+        objects[i].unit.player_index=i<2?players[i]:NONE;
     }
     objects[0].object.parent_object_index=units[2];
     objects[1].object.parent_object_index=units[3];
@@ -163,6 +193,25 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if(!strncmp(name,"rescue-",7))
+    {
+        solid=!strcmp(name,"rescue-solid");
+        crowded=TRUE;
+        objects[0].object.parent_object_index=objects[1].object.parent_object_index=NONE;
+        objects[1].object.position.x=250.f;
+        ticks=1;
+        players_coop_rescue_stranded();
+        CHECK(!teleports,"stranded grace period was skipped");
+        ticks+=2*TICKS_PER_SECOND;
+        players_coop_rescue_stranded();
+        CHECK(teleports==2&&stacked_calls==1&&!ignore_players,"timed rescue did not restore collision policy");
+        CHECK(objects[1].object.position.x==(solid?250.f:objects[0].object.bounding_sphere_center.x),
+              "timed rescue accepted solid terrain or failed to reach the teammate");
+        ticks++;
+        players_coop_rescue_stranded();
+        CHECK(teleports==2,"timed rescue retried immediately");
+        return 0;
+    }
     if(!strcmp(name,"activation-cluster")||!strcmp(name,"activation-object"))
     {
         boolean cluster=!strcmp(name,"activation-cluster");
@@ -179,6 +228,16 @@ int main(int argc,char **argv)
     if(!strcmp(name,"split-refused")||!strcmp(name,"split-forward"))
     {coop=FALSE;players_globals->local_player_count=2;people[1].local_player_index=1;}
     if(!strcmp(name,"same-vehicle"))objects[1].object.parent_object_index=units[2];
+    crowded=!strncmp(name,"crowded-",8);
+    if(crowded)
+    {
+        solid=!strcmp(name,"crowded-solid");
+        operations=!strcmp(name,"crowded-operation");
+        opposed=!strcmp(name,"crowded-enemy");
+        objects[0].object.parent_object_index=objects[1].object.parent_object_index=NONE;
+        objects[1].object.position.x=!strcmp(name,"crowded-inside")?50.f:250.f;
+        objects[1].object.bounding_sphere_center=objects[1].object.position;
+    }
     memcpy(before,objects,sizeof(before));
     if(!strcmp(name,"no-pending")||!strcmp(name,"negative-pending")||!strcmp(name,"past-end-pending"))
     {
@@ -208,7 +267,18 @@ int main(int argc,char **argv)
               global_collision_bsp==&collisions[global_structure_bsp_index],"wrong loaded world");
         if(!refused)
         {
-            if(!strcmp(name,"same-vehicle"))
+            if(crowded)
+            {
+                boolean can_stack=!operations&&!opposed&&before[1].object.position.x>200.f;
+                CHECK(beside_retries==1,"existing nearby placement was skipped");
+                CHECK(stacked_calls==can_stack&&teleports==1+can_stack&&!ignore_players,
+                      "incorrect crowded placement retry or collision flag leaked");
+                CHECK(!ejections&&objects[1].weapon==before[1].weapon&&objects[1].ammunition==before[1].ammunition,
+                      "crowd recovery changed player body or equipment");
+                CHECK(objects[1].object.position.x==(can_stack&&!solid?before[0].object.bounding_sphere_center.x:before[1].object.position.x),
+                      "crowd recovery chose an obstructed or unexpected position");
+            }
+            else if(!strcmp(name,"same-vehicle"))
                 CHECK(!teleports&&!ejections&&objects[1].object.parent_object_index==units[2],"shared passengers separated");
             else
                 CHECK(teleports==1&&ejections==1&&objects[1].object.position.x==100&&

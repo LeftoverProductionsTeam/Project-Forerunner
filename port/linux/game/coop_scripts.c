@@ -220,15 +220,8 @@ static boolean teleport_to(
 	real_point3d const *point,
 	boolean stack)
 {
-	boolean arrived;
-
-	if (stack)
-		biped_fix_ignore_players(TRUE);
-	arrived = player_teleport(player_index, face_unit, point);
-	if (stack)
-		biped_fix_ignore_players(FALSE);
-
-	return arrived;
+	return stack ? players_coop_teleport_stacked(player_index, face_unit, point) :
+		player_teleport(player_index, face_unit, point);
 }
 
 /* A placement may fail after moving the unit, or find free ground outside

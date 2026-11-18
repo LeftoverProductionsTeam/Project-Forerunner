@@ -11,6 +11,7 @@ def generated(fault=None):
     players=function(read('source/hs/hs_library_external.c'),'hs_players')
     port=read('port/linux/game/coop_scripts.c')
     gather='static boolean coop_scripts_adaptations;\n'+'\n'.join(function(port,n) for n in ['coop_scripts_new_game','coop_scripts_adaptations_active','coop_scripts_native_player_actions','coop_scripts_any_player_will_do','coop_scripts_empty_player_list','teleport_to','gather_player_in_volume','coop_scripts_gather_in_volume'])
+    gather=function(read('source/game/players.c'),'players_coop_teleport_stacked')+'\n'+gather
     if fault=='adaptations':gather=mutated(gather,'config_boolean("network.coop_script_adaptations")','TRUE')
     gate=function(read('source/hs/hs_library_external.c'),'hs_trigger_volume_test_objects_all')
     if fault=='unverified':gate=mutated(gate,'inside = hs_trigger_volume_test_objects(trigger_volume_index, object_list_index, TRUE);','inside = TRUE;')

@@ -5,12 +5,15 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, function, mutated, read, run, structure
+from harness import CHECK_FAILED, build, constant, function, mutated, read, run, structure
 
 
 def generated(fault=None):
     players = read('source/game/players.c')
     reconnect = function(players, 'players_reconnect_to_structure_bsp')
+    tick_rate = constant(read('source/cseries/cseries.h'), 'TICKS_PER_SECOND')
+    rescue_timeout = next(line for line in players.splitlines() if line.startswith('#define COOP_STRANDED_TICKS '))
+    rescue = f'#define TICKS_PER_SECOND {tick_rate}\n{rescue_timeout}\n' + function(players, 'players_coop_rescue_stranded')
     if fault == 'destination':
         reconnect = mutated(reconnect,
                             'bsp_switch->destination_structure_bsp_index != global_structure_bsp_index',
@@ -23,7 +26,8 @@ def generated(fault=None):
         ('objects.inc', objects),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
-            'is_player_in_trigger', 'player_teleport_on_bsp_switch')) + '\n' + reconnect),
+            'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
+            'player_teleport_on_bsp_switch')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
     )
 
@@ -32,7 +36,8 @@ def generated(fault=None):
     'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'no-pending', 'negative-pending', 'past-end-pending',
-    'activation-cluster', 'activation-object',
+    'activation-cluster', 'activation-object', 'crowded-stranded', 'crowded-solid',
+    'crowded-inside', 'crowded-operation', 'crowded-enemy', 'rescue-crowded', 'rescue-solid',
 ])
 def test_bsp_reconnect(case):
     status, output = run(build('coop_bsp_switch', generated()), case)

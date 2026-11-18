@@ -371,6 +371,12 @@ boolean player_teleport(
 	long source_unit_index,
 	real_point3d const *position);
 
+/* Co-op placement fallback with ordinary structure and object checks. */
+boolean players_coop_teleport_stacked(
+	long player_index,
+	long source_unit_index,
+	real_point3d const *position);
+
 boolean local_player_exists(
 	long local_player_index);
 long local_player_get_player_index(
