@@ -9,6 +9,29 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+Current Black Echo handoff: Spark's CE609 build b3c5bc47-159c-4b05-a109-79197fbe232b
+is releases/black-echo-native-crew-20261117/be_native.map, SHA256
+fdc6ec89f9aac3e4068c3cbeee55fa391514988995bf2e70765425b63731ea39.
+Two verified Delta accounts loaded this exact map. Native seat queries confirm
+the Pelican pilot at P-driver, Marine at P-riderLM, and no Marine at P-riderLF.
+The Spirit pilot is in c_dropship driver. Its hub touchdown at
+(64.624, -87.927, 5.729) registered landed with up.k .982. These are actual
+startup results for fdc6 and supersede the 7ec2 crew and landing findings below.
+
+Both players deployed on foot. Before boarding, the Pelican pilot entered
+native Fight and the Pelican moved from (54.423, -107.867, 1.858) at tick 1350
+to (42.915, -111.107, 3.138) at tick 1500. The guest was incapacitated near
+(45.427, -110.080, 1.108), and neither player flew. Damage attribution remains
+unconfirmed. In the shared hub, keep the pilots and armed crew out of combat
+and the craft stationary at their authored pads through crew preparation and
+boarding. Use the existing HaloScript AI controls and retain the native
+boarded/landed gates before issuing the route command lists. Verify both front
+Pelican seats with live passengers before measuring the Marine's route from
+the LZ into be_survivors (45.846, -90.472, -1.922), dimensions (7, 7, 6).
+The released source enables both migration flags. Their gameplay outcome,
+Spirit flight, combat, extraction and banking are still open.
+Evidence: build/native-spark-black-echo-crew-fdc6-shared/result.json.
+
 17 November grounded Spirit handoff: Spark's exact CE609 map is
 releases/black-echo-spirit-routing-20261117/grounded/be_native.map, build
 3339d69c-f68b-4789-acad-bc4adcfdbc1d, SHA256
