@@ -605,7 +605,11 @@ verified identities and gear locks remain mandatory; membership does not transfe
 stash ownership. Active operations lock membership and faction selection for the
 squad. Choose a squad before its first member deploys. Members already selected
 can deploy in sequence, and a settled squad can admit members and redeploy
-independently of another.
+independently of another. In the same live Delta match, Deploy can restore the
+returning verified account's prior selection if the squad is idle, has room,
+and matches the player's native faction. Offline players free their places.
+A fresh match clears these choices. Disconnect equipment loss still applies.
+Native Windows evidence: build/native-delta-squad-choice-reconnect-ready/result.json.
 
 `forerunner_squad_01_complete`, `forerunner_squad_02_complete`, etc. are optional
 native void callbacks after that operation's living survivors physically return
@@ -617,8 +621,7 @@ survivors never produces success. Reuse a continuous script beginning with
 `extraction_update` and `extraction_players_returned_for_squad` own the gate.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
-not add alliances, scoped presentation, multiple aircraft
-per faction or reconnect-persistent squad membership. Existing discovery version
+not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version
 1 and legacy clients do not imply those capabilities; maps requiring this binding
 must target a runtime containing these helpers. No new packet/save format or
 editor subsystem is requested. Spark's next full mission handoff remains below.

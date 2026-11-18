@@ -16,6 +16,14 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Extraction squad reconnect (17 November): Deploy restores the selected squad for
+the same verified Delta account in the current match. The player must be at the
+hub with the same faction and a free place in an idle squad. The ordinary
+disconnect loss and independent operation gates still apply. Windows64 and 67
+focused checks passed. Two verified native players demonstrated guest departure,
+hub rejoin and redeployment without visiting the squad terminal again. Evidence:
+build/native-delta-squad-choice-reconnect-ready/result.json.
+
 VR input lifecycle repair (17 November, base `8e2ca5e0a2`): the existing OpenXR
 controller bridge can resume held fire/movement after focus loss or a menu.
 The retained focused reproduction fails on the original source. Reuse its existing

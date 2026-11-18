@@ -708,6 +708,57 @@ int main(int argc,char **argv)
    }
    return 0;
   }
+  if(!strncmp(case_name,"squad-reconnect",15)) {
+   delta_session=TRUE;
+   touch(5,1);
+   CHECK(run(1)->squad==0,"initial verified squad choice refused");
+   if(!strcmp(case_name,"squad-reconnect-leave")) {
+    touch(5,1);
+    CHECK(run(1)->squad==NONE,"explicit squad leave refused");
+   } else {
+    touch(0,1); pickup(1,2); escape(1); touch(0,1);
+    CHECK(run(1)->gear.record.reserved_count==1,"prior run did not put a real item at risk");
+   }
+   players[1].quit_out_of_game=TRUE; advance(1);
+   CHECK(!run(1)->gear.opened,"departed member kept their gear lock");
+   player_handles[1]+=0x10000; units[1].unit.player_index=player_handles[1];
+   players[1].quit_out_of_game=FALSE; advance(1);
+   CHECK(run(1)->squad==NONE,"new slot inherited live squad state");
+   if(!strcmp(case_name,"squad-reconnect-reset")) { extraction_reset(); advance(1); }
+   if(!strcmp(case_name,"squad-reconnect-reset")||!strcmp(case_name,"squad-reconnect-leave")) {
+    touch(0,1); CHECK(run(1)->phase==_extraction_hub&&run(1)->squad==NONE,"cleared choice returned");return 0;
+   }
+   if(!strcmp(case_name,"squad-reconnect-owner")) {
+    verified=FALSE;touch(0,1);
+    CHECK(run(1)->squad==NONE&&run(1)->phase==_extraction_hub,"unbound reconnect recovered squad");
+    verified=TRUE;remote_account[0]++;
+    touch(0,1);
+    CHECK(run(1)->squad==NONE&&run(1)->phase==_extraction_hub,"new owner inherited remembered squad");
+    remote_account[0]--;
+   } else if(!strcmp(case_name,"squad-reconnect-faction")) {
+    players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
+    touch(0,1);
+    CHECK(run(1)->squad==NONE&&run(1)->phase==_extraction_hub,"opposing faction recovered squad");
+    players[1].team_index=units[1].object.owner_team_index=_game_team_player;
+   } else if(!strcmp(case_name,"squad-reconnect-full")) {
+    active_players=8;
+    for(i=2;i<8;i++) {players[i].team_index=_game_team_player;run(i)->player=player_handles[i];run(i)->squad=0;}
+    touch(0,1);
+    CHECK(run(1)->squad==NONE&&run(1)->phase==_extraction_hub,"remembered choice overfilled the squad");
+    active_players=2;
+   } else if(!strcmp(case_name,"squad-reconnect-active")) {
+    touch(5,0);touch(0,0);
+    CHECK(run(0)->phase==_extraction_deployed,"remaining squad member did not deploy");
+    touch(0,1);
+    CHECK(run(1)->squad==NONE&&run(1)->phase==_extraction_hub,"reconnected player entered active operation");
+    escape(0);
+   }
+   touch(0,1);
+   CHECK(run(1)->squad==0&&run(1)->phase==_extraction_deployed&&run(1)->squad_operation,
+    "verified owner could not redeploy with their remembered squad");
+   CHECK(!run(1)->gear.record.reserved_count&&!run(1)->gear.record.count,"reconnect returned gear lost on disconnect");
+   return 0;
+  }
   touch(0,0);CHECK(run(0)->phase==_extraction_hub&&!weapon_count,"ungrouped player deployed without squad selection");
   if(!strcmp(case_name,"squad-capacity")) {
    active_players=7;

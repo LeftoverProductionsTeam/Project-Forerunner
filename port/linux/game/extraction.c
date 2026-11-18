@@ -101,6 +101,13 @@ struct extraction_run
 	struct gear_session gear;
 };
 
+struct extraction_squad_choice
+{
+	byte owner[GEAR_ID_BYTES];
+	short squad, faction;
+	boolean remembered;
+};
+
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
@@ -119,6 +126,9 @@ static struct
 	/* Optional hub choices only; native scripts still own mission objectives,
 	 * and every member keeps their existing independent gear transaction. */
 	struct { short name, ready_group; unsigned long operation; boolean notified; } squads[EXTRACTION_SQUADS];
+	/* Map-local choices for verified reconnects. Only live runs occupy seats. */
+	struct extraction_squad_choice squad_choices[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
+	short next_squad_choice;
 } extraction;
 static struct extraction_run extraction_runs[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 
@@ -1140,10 +1150,106 @@ static void extraction_squad_notice(short squad, char const *text)
 		if (extraction_runs[index].squad == squad) extraction_tell(&extraction_runs[index], text);
 }
 
+static struct extraction_squad_choice *extraction_squad_choice(byte const owner[GEAR_ID_BYTES])
+{
+	short index;
+	for (index = 0; index < NUMBEROF(extraction.squad_choices); index++)
+		if (extraction.squad_choices[index].remembered &&
+			!memcmp(extraction.squad_choices[index].owner, owner, GEAR_ID_BYTES))
+			return &extraction.squad_choices[index];
+	return NULL;
+}
+
+static boolean extraction_remember_squads(void)
+{
+#ifdef HALO_GAME_BROWSER
+	return game_connection() == _game_connection_network_server && delta_peer_game_on_delta();
+#else
+	return FALSE;
+#endif
+}
+
+static void extraction_remember_squad(struct extraction_run const *run, short faction)
+{
+	struct extraction_squad_choice *choice;
+	short index;
+	if (!extraction_remember_squads()) return;
+	choice = extraction_squad_choice(run->owner);
+	if (run->squad == NONE)
+	{
+		if (choice) choice->remembered = FALSE;
+		return;
+	}
+	if (!choice)
+	{
+		for (index = 0; index < NUMBEROF(extraction.squad_choices); index++)
+			if (!extraction.squad_choices[index].remembered) break;
+		if (index == NUMBEROF(extraction.squad_choices))
+		{
+			index = extraction.next_squad_choice;
+			extraction.next_squad_choice = (short)((index + 1) % NUMBEROF(extraction.squad_choices));
+		}
+		choice = &extraction.squad_choices[index];
+	}
+	memcpy(choice->owner, run->owner, GEAR_ID_BYTES);
+	choice->squad = run->squad;
+	choice->faction = faction;
+	choice->remembered = TRUE;
+}
+
+static boolean extraction_squad_admit(struct extraction_run const *run, short squad, short faction, short *count)
+{
+	short index, members = 0;
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run const *member = &extraction_runs[index];
+		struct player_datum *other;
+		if (member == run || member->squad != squad) continue;
+		other = player_try_and_get(member->player);
+		if (!other || other->quit_out_of_game) continue;
+		if (extraction_faction((short)other->team_index) != faction)
+		{
+			extraction_tell(run, "SQUAD FACTION MISMATCH | Join members of your faction or choose another squad."); return FALSE;
+		}
+		members++;
+	}
+	if (members >= EXTRACTION_SQUAD_MEMBERS)
+	{
+		extraction_tell(run, "SQUAD FULL | Six members maximum. Choose another squad."); return FALSE;
+	}
+	*count = members;
+	return TRUE;
+}
+
+static boolean extraction_restore_squad(struct extraction_run *run, struct player_datum const *player)
+{
+	struct extraction_squad_choice const *choice;
+	struct unit_datum const *unit;
+	short members;
+	if (run->squad != NONE || !extraction_remember_squads()) return TRUE;
+	choice = extraction_squad_choice(run->owner);
+	if (!choice) return TRUE;
+	unit = (struct unit_datum const *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
+	if (!unit || extraction_faction((short)player->team_index) != choice->faction ||
+		extraction_faction(unit->object.owner_team_index) != choice->faction)
+	{
+		extraction_tell(run, "SQUAD FACTION MISMATCH | Select your previous faction or choose another squad."); return FALSE;
+	}
+	if (extraction_squad_busy(choice->squad, run))
+	{
+		extraction_tell(run, "SQUAD IN FIELD | Wait for your squad to return or choose another squad."); return FALSE;
+	}
+	if (!extraction_squad_admit(run, choice->squad, choice->faction, &members)) return FALSE;
+	run->squad = choice->squad;
+	run->squad_operation = 0;
+	extraction_tell(run, "SQUAD REJOINED | Your selection has been restored.");
+	return TRUE;
+}
+
 static void extraction_squad_choose(struct extraction_run *run, struct player_datum const *player,
 	short squad, boolean in_hub)
 {
-	short index, members = 0;
+	short members;
 	short faction = extraction_faction((short)player->team_index);
 	char text[128];
 	if (!in_hub || unit_get(player->unit_index)->object.parent_object_index != NONE ||
@@ -1157,30 +1263,16 @@ static void extraction_squad_choose(struct extraction_run *run, struct player_da
 	if (run->squad == squad)
 	{
 		run->squad = NONE; run->squad_operation = 0;
+		extraction_remember_squad(run, faction);
 		extraction_tell(run, "SQUAD LEFT | TEAM radio: faction. Gear stays yours. Choose a squad before deployment."); return;
 	}
 	if (faction == NONE || extraction_faction(unit_get(player->unit_index)->object.owner_team_index) != faction)
 	{
 		extraction_tell(run, "SQUAD UNAVAILABLE | Select a compatible native faction first."); return;
 	}
-	for (index = 0; index < NUMBEROF(extraction_runs); index++)
-	{
-		struct extraction_run const *member = &extraction_runs[index];
-		struct player_datum *other;
-		if (member->squad != squad) continue;
-		other = player_try_and_get(member->player);
-		if (!other || other->quit_out_of_game) continue;
-		if (extraction_faction((short)other->team_index) != faction)
-		{
-			extraction_tell(run, "SQUAD FACTION MISMATCH | Join members of your faction or choose another squad."); return;
-		}
-		members++;
-	}
-	if (members >= EXTRACTION_SQUAD_MEMBERS)
-	{
-		extraction_tell(run, "SQUAD FULL | Six members maximum. Choose another squad."); return;
-	}
+	if (!extraction_squad_admit(run, squad, faction, &members)) return;
 	run->squad = squad; run->squad_operation = 0;
+	extraction_remember_squad(run, faction);
 	platform_log("extraction: player %ld joined squad %d", DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), squad + 1);
 	snprintf(text, sizeof(text), "SQUAD %02d | %d/6 members. TEAM radio: squad. Gear stays individually owned. Use again at hub to leave.",
 		squad + 1, members + 1);
@@ -1221,7 +1313,8 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	long created[GAME_MODES_INVENTORY_WEAPONS];
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	run->discard_deadline = 0;
-	if (!extraction_open_gear(run, player) || !extraction_squad_deployment_ready(run)) return FALSE;
+	if (!extraction_open_gear(run, player) || !extraction_restore_squad(run, player) ||
+		!extraction_squad_deployment_ready(run)) return FALSE;
 	if (!game_modes_inventory_grenade_room(run->player, run->gear.grenade_room) ||
 		!extraction_loadout(run, &loadout, bring_stash) || !game_modes_inventory_loadout_valid(&loadout) || !gear_reserve(&run->gear, bring_stash))
 	{
