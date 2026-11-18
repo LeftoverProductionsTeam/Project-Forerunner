@@ -9,6 +9,7 @@
 #define _object_mask_biped 1
 #define _object_dead_bit 0
 #define MAX(a,b) ((a)>(b)?(a):(b))
+#define MIN(a,b) ((a)<(b)?(a):(b))
 #define PIN(a,b,c) ((a)<(b)?(b):((a)>(c)?(c):(a)))
 #define csmemcpy memcpy
 struct unit_datum
@@ -105,7 +106,19 @@ int main(int argc,char **argv)
 	const char *case_name;int i;
 	CHECK(argc==2,"case required");case_name=argv[1];
 	for(i=0;i<8;i++)world_ids[i]=NONE;
-	CASE("plane-waypoint-position")
+	CASE("plane-waypoint-turn")
+	{
+		CHECK(actor_move_plane_approach_scale(0.9f, -0.2f, TRUE) == 0.15f,
+			"continuing waypoint kept cruise thrust while turning back");
+		CHECK(actor_move_plane_approach_scale(0.9f, 0.5f, TRUE) == 0.25f,
+			"turn thrust did not follow heading");
+		CHECK(actor_move_plane_approach_scale(0.2f, 1.f, TRUE) == 0.5f,
+			"aligned climb lost the cruise floor");
+		CHECK(actor_move_plane_approach_scale(0.1f, 1.f, FALSE) == 0.15f &&
+			actor_move_plane_approach_scale(2.f, 1.f, TRUE) == 1.f,
+			"landing or full cruise changed");
+	}
+	else CASE("plane-waypoint-position")
 	{
 		long ship=add(1);
 		native_actor.input.vehicle_index=ship;

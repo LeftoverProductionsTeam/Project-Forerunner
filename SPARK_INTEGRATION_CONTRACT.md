@@ -9,7 +9,26 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
-Current Black Echo handoff: Spark's CE609 build e0264213-06ba-499a-a70e-0e29fa8a752d
+Current Black Echo handoff: Spark's CE609 cache
+releases/black-echo-native-pelican-route-20261118/be_native.map, SHA256
+0ec05e4139e4f9a910eaee0527c6c25574ab363ee21b0aa4e8f49acb62d8bfd6.
+Two authenticated Windows clients loaded the exact cache, deployed as UNSC,
+boarded in native seats 4 and 1, and saw the Pelican lift off near
+(49.871, -104.219, 1.558). The original executable orbited the intermediate
+(72, -118, 6.2) waypoint at a minimum throttle of .325. The existing plane
+controller now separates minimum turn thrust from aligned cruise in
+source/ai/actor_moving.c. Windows64 and 27 focused actor checks passed.
+With the change the pilot reached the final go-to-and-face command at
+(79, -124, 1.85), radius 1.8. Both players were still seated when the host
+confirmed the field volume and live pilot, with landed false. The closest
+sample to the final waypoint was 3.698 horizontal units, with ground contact
+and continued movement. The pilot never completed the final stop. Keep the
+native landing gate. Marine release, the remaining objectives, physical return,
+banking and same-session redeployment remain open on this export.
+Evidence: build/native-spark-black-echo-0ec0-route/result.json and
+build/native-spark-black-echo-0ec0-turn/result.json, debug-0.txt in the latter.
+
+Preceding Black Echo handoff: Spark's CE609 build e0264213-06ba-499a-a70e-0e29fa8a752d
 is releases/black-echo-native-pilot-landing-20261117/be_native.map, SHA256
 dee2d9a79a6e9ca3cb13828852c340896d6ceba7985f798f6e97a9c5efb8dc94.
 Both authenticated clients loaded the exact cache. The new spirit_driver

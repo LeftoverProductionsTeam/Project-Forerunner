@@ -2415,6 +2415,15 @@ boolean actor_move_to_prop(
 	return result;
 }
 
+static real actor_move_plane_approach_scale(real distance_fraction, real heading_dot, boolean keep_moving)
+{
+	real alignment = PIN(heading_dot, 0.f, 1.f);
+	real distance_scale = PIN(distance_fraction, keep_moving ? 0.5f : 0.15f, 1.f);
+	/* The cruise floor sustains lift when aligned. During a tight turn the
+	 * plane needs less forward thrust even at a continuing waypoint. */
+	return MIN(distance_scale, MAX(0.15f, alignment * alignment));
+}
+
 static void actor_move_calculate_movement(
 	long actor_index,
 	boolean move_in_3d,
@@ -2695,14 +2704,13 @@ static void actor_move_calculate_movement(
 		struct unit_datum *vehicle = vehicle_get(actor->input.vehicle_index);
 		real_vector2d forward = {vehicle->object.forward.i, vehicle->object.forward.j};
 		real_vector2d toward = {facing_vector.i, facing_vector.j};
-		real minimum = actor->control.path.destination_orders.keep_moving ? 0.5f : 0.15f;
-		real approach = PIN(square_root(movement_distance_squared) / (2.f * MAX(plane->ai_avoidance_distance, plane->ai_pathfinding_radius)), minimum, 1.f);
+		real distance_fraction = square_root(movement_distance_squared) /
+			(2.f * MAX(plane->ai_avoidance_distance, plane->ai_pathfinding_radius));
+		real heading_dot = 1.f;
 		if (normalize2d(&forward) > 0.f && normalize2d(&toward) > 0.f)
-		{
-			real alignment = PIN(dot_product2d(&forward, &toward), 0.f, 1.f);
-			approach = MIN(approach, MAX(minimum, alignment * alignment));
-		}
-		maximum_throttle *= approach;
+			heading_dot = dot_product2d(&forward, &toward);
+		maximum_throttle *= actor_move_plane_approach_scale(distance_fraction, heading_dot,
+			actor->control.path.destination_orders.keep_moving);
 	}
 	if (!actor->control.path.destination_orders.keep_moving &&
 		movement_distance_squared < current_stopping_distance*current_stopping_distance)

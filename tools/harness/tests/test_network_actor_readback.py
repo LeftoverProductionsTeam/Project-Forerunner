@@ -11,7 +11,7 @@ ACTORS = 'port/linux/game/network_actors.c'
 TEST = 'port/linux/game/network_test.c'
 CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
-         'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position']
+         'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position', 'plane-waypoint-turn']
 CONTROLS = {
     'client-ai-state': ('if (host && actor_data && unit->unit.actor_index != NONE)',
                         'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
@@ -20,7 +20,10 @@ CONTROLS = {
     'stale-position': ('unit->object.position.x,', '0.0,', 'host-world'),
     'wrong-table': ('boolean host = game_connection() == _game_connection_network_server;',
                     'boolean host = TRUE;', 'client-world'),
-    'lost-salt': ('(unsigned long)units[index],', '(unsigned long)DATUM_INDEX_TO_ABSOLUTE_INDEX(units[index]),', 'host-world'),
+    'lost-salt': (
+        'now, role, (unsigned long)units[index], (unsigned long)unit->definition_index,',
+        'now, role, (unsigned long)DATUM_INDEX_TO_ABSOLUTE_INDEX(units[index]), (unsigned long)unit->definition_index,',
+        'host-world'),
     'no-corpse-readback': ('index < logged_actor_count;', 'index < 0;', 'remember-death'),
     'includes-player': ('unit->unit.player_index != NONE', 'FALSE', 'players-duplicates'),
     'reduced-capacity': ('*count >= MAXIMUM_NETWORK_ACTORS', '*count >= MAXIMUM_NETWORK_ACTORS - 1', 'capacity-priority'),
@@ -41,7 +44,8 @@ def generated(control=None):
     moving = read('source/ai/actor_moving.c')
     code += '\n' + enum_with(read('source/ai/actors.h'), '_actor_vehicle_driver_directional_flying')
     code += '\n' + '\n'.join(function(moving, name) for name in
-                                  ('actor_move_plane_definition', 'actor_move_sample_plane_position'))
+                                  ('actor_move_plane_definition', 'actor_move_sample_plane_position',
+                                   'actor_move_plane_approach_scale'))
     if control:
         before, after, _ = CONTROLS[control]
         code = mutated(code, before, after)
