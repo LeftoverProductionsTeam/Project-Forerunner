@@ -994,10 +994,14 @@ A fresh match clears these choices. Disconnect equipment loss still applies.
 Native Windows evidence: build/native-delta-squad-choice-reconnect-ready/result.json.
 
 `forerunner_squad_01_complete`, `forerunner_squad_02_complete`, etc. are optional
-native void callbacks after that operation's living survivors physically return
-and finish durable banking. Other squads and hub members who have not deployed
-in that operation are excluded. Pending banking/death blocks completion; zero
-survivors never produces success. Reuse a continuous script beginning with
+native void callbacks after that operation's survivors physically return and
+finish durable banking. Other squads and hub members who have not deployed in
+that operation are excluded. Pending banking or death blocks completion. A
+durable bank still counts for that operation after its owner disconnects. If the
+remaining members lose their runs, the callback can fire with nobody left at
+the return point. An operation with no durable escape never produces success.
+The two-account disconnect check is recorded at
+build/native-squad-bank-receipt/result.json. Reuse a continuous script beginning with
 `(sleep -1)` for later operations, as in the existing
 `tools/fixtures/extraction_factions_native.hsc`. These callbacks never award gear.
 `extraction_update` and `extraction_players_returned_for_squad` own the gate.

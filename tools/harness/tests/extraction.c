@@ -922,6 +922,35 @@ int main(int argc,char **argv)
    a=pickup(1,2);escape(1);CHECK(squad_wakes[1]==1&&run(1)->gear.record.count==1,"other squad did not bank separately");return 0;
   }
   CHECK(run(0)->squad_operation==run(1)->squad_operation,"same squad did not share operation epoch");
+  if(!strncmp(case_name,"squad-bank-",11)) {
+   boolean escrow=!strcmp(case_name,"squad-bank-escrow-disconnect");
+   boolean captured=strcmp(case_name,"squad-bank-unsettled-disconnect")!=0;
+   if(captured) {
+    a=pickup(1,2);
+    if(escrow) {
+     units[1].object.position.x=20.f;touch(1,1);advance(300);
+     publish_failure=TRUE;units[1].object.position.x=0.f;advance(1);
+     CHECK(run(1)->phase==_extraction_settling,"guest did not reach pending escrow");
+    } else escape(1);
+    CHECK(!weapon_try_and_get(a),"escaped item was not consumed");
+   }
+   CHECK(!squad_wakes[0],"unfinished squad accepted an early callback");
+   publish_failure=FALSE;
+   players[1].quit_out_of_game=TRUE;advance(1);
+   CHECK(!squad_wakes[0],"disconnect completed a squad member still in the field");
+   units[0].object.damage_flags=FLAG(_object_dead_bit);
+   publish_failure=TRUE;advance(1);
+   CHECK(run(0)->phase==_extraction_losing&&!squad_wakes[0],"pending loss completed the squad");
+   publish_failure=FALSE;advance(30);
+   CHECK(run(0)->phase==_extraction_lost&&!run(0)->gear.record.count,"surviving player earned gear from a loss");
+   CHECK(squad_wakes[0]==captured&&!squad_wakes[1],"same-squad durable bank vanished after disconnect or an unbanked run completed");
+   advance(30);CHECK(squad_wakes[0]==captured,"same operation sent duplicate callbacks");
+   units[0].object.damage_flags=0;touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&run(0)->squad_operation==2,"old completion blocked a new deployment");
+   units[0].object.damage_flags=FLAG(_object_dead_bit);advance(1);
+   CHECK(squad_wakes[0]==captured,"new operation inherited the previous bank");
+   return 0;
+  }
   touch(6,0);CHECK(run(0)->squad==0,"deployed member changed squad");
   a=pickup(0,1);escape(0);CHECK(!squad_wakes[0],"partial squad return notified completion");
   touch(0,0);CHECK(run(0)->phase==_extraction_returned,"returned member redeployed into an unfinished operation");
@@ -1863,7 +1892,7 @@ int main(int argc,char **argv)
     extraction_update_run(run(0),&players[0],++tick);
     old_arrival=*run(0);
     old_arrival.dropship+=0x10000;
-    extraction_remember_transport_bank(&old_arrival);
+    extraction_remember_bank(&old_arrival);
     CHECK(extraction.dropship_banked[0]==craft,"older aircraft settlement displaced the current aircraft receipt");
     advance(1);
    } else if(pending) {

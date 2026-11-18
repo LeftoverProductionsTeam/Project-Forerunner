@@ -126,7 +126,7 @@ static struct
 	long last_tick;
 	/* Optional hub choices only; native scripts still own mission objectives,
 	 * and every member keeps their existing independent gear transaction. */
-	struct { short name, ready_group; unsigned long operation; boolean notified; } squads[EXTRACTION_SQUADS];
+	struct { short name, ready_group; unsigned long operation; boolean notified, banked; } squads[EXTRACTION_SQUADS];
 	/* Map-local choices for verified reconnects. Only live runs occupy seats. */
 	struct extraction_squad_choice squad_choices[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 	short next_squad_choice;
@@ -437,12 +437,17 @@ static void extraction_block(struct extraction_run *run, char const *text)
 	run->blocked = TRUE;
 }
 
-static void extraction_remember_transport_bank(struct extraction_run const *run)
+static void extraction_remember_bank(struct extraction_run const *run)
 {
 	short faction;
-	if (run->dropship == NONE || run->gear.record.phase != _gear_idle ||
-		run->gear.record.outcome != _gear_escaped ||
+	if (run->gear.record.phase != _gear_idle || run->gear.record.outcome != _gear_escaped ||
 		memcmp(run->gear.record.settled_run, run->gear.run, GEAR_ID_BYTES)) return;
+	/* The durable escape outlives its player slot while the current squad
+	 * still has teammates in the field or settling their runs. */
+	if (run->squad_operation && VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) &&
+		run->squad_operation == extraction.squads[run->squad].operation)
+		extraction.squads[run->squad].banked = TRUE;
+	if (run->dropship == NONE) return;
 	faction = extraction_faction(run->dropship_team);
 	if (faction != NONE && extraction.dropship_names[faction] != NONE &&
 		object_index_from_name_index(extraction.dropship_names[faction]) == run->dropship)
@@ -462,7 +467,7 @@ static void extraction_run_close(struct extraction_run *run)
 				platform_log("extraction: ungranted loadout refund failed before session close");
 		}
 		else if (gear_lose(&run->gear) && run->phase == _extraction_settling)
-			extraction_remember_transport_bank(run);
+			extraction_remember_bank(run);
 		gear_close(&run->gear);
 	}
 	memset(run, 0, sizeof(*run));
@@ -1426,6 +1431,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		{
 			if (!++extraction.squads[run->squad].operation) ++extraction.squads[run->squad].operation;
 			extraction.squads[run->squad].notified = FALSE;
+			extraction.squads[run->squad].banked = FALSE;
 			if (extraction.squads[run->squad].ready_group != NONE)
 				device_group_set_actual_value(extraction.squads[run->squad].ready_group, 0.f);
 		}
@@ -1860,7 +1866,7 @@ static void extraction_finish_return(struct extraction_run *run)
 	}
 	if (run->report.staged && run->report.outcome == _gear_escaped &&
 		!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
-	extraction_remember_transport_bank(run);
+	extraction_remember_bank(run);
 	run->phase = _extraction_returned; run->blocked = FALSE;
 	if (extraction.debrief_name != NONE)
 		snprintf(text, sizeof(text), "GEAR BANKED | Debrief available at the hub.");
@@ -2305,7 +2311,7 @@ static boolean extraction_players_returned_for_squad(short squad)
 			!extraction_at_return(&extraction_runs[slot], player->unit_index)) return FALSE;
 		survivors++;
 	}
-	return survivors > 0;
+	return survivors > 0 || (VALID_INDEX(squad, NUMBEROF(extraction.squads)) && extraction.squads[squad].banked);
 }
 
 static boolean extraction_players_returned(void)
