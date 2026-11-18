@@ -261,6 +261,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-crash-pending', 'transport-crash-silent', 'transport-crash-no-statistics', 'transport-crash-hub',
     'transport-callback-other', 'transport-callback-field', 'transport-callback-crew',
     'transport-callback-pending', 'transport-callback-disconnect', 'transport-callback-escrow-disconnect',
+    'transport-callback-aborted', 'transport-callback-aborted-loss',
     'transport-callback-signature', 'transport-callback-replaced', 'transport-callback-stale-receipt',
     'transport-callback-continuous', 'transport-recall', 'transport-recall-state', 'transport-recall-missing',
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',

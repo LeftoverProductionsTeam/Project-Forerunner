@@ -31,6 +31,7 @@
 (global device_group tf_landed extraction_pelican_landed)
 
 (global boolean tf_banked false)
+(global boolean tf_aborted false)
 (global boolean tf_initialized false)
 
 (script static boolean tf_player_seated
@@ -67,6 +68,16 @@
   (sleep -1)
   (set tf_banked true)
   (print "transport: Spirit crew native equipment banked")
+)
+
+(script continuous forerunner_pelican_aborted
+  (sleep -1)
+  (set tf_aborted true)
+)
+
+(script continuous forerunner_spirit_aborted
+  (sleep -1)
+  (set tf_aborted true)
 )
 
 (script dormant forerunner_extraction_complete
@@ -176,6 +187,8 @@
   (unit_open (tf_ship))
   (sleep_until (and (tf_player_seated)
     (>= (device_group_get tf_boarded) 0.5)) 1)
+  (set tf_banked false)
+  (set tf_aborted false)
   (print "transport: extraction passenger physically seated")
   (unit_set_enterable_by_player (tf_ship) false)
   (unit_close (tf_ship))
@@ -187,17 +200,17 @@
   (ai_command_list tf_pilot tf_wait)
   (vehicle_hover (tf_ship) true)
   (unit_open (tf_ship))
-  (sleep_until tf_banked 1)
-  ; Keep boarding closed until the old crew has left. Earlier passengers may
-  ; prepare their next loadout without reboarding before debrief is complete.
-  (print "transport: arrived and banked; disembark and prepare the next operation")
+  (sleep_until (or tf_banked tf_aborted) 1)
+  (if tf_banked
+    (print "transport: arrived and banked; disembark and prepare the next operation")
+    (print "transport: crew lost; prepare the next operation"))
+  ; Keep boarding closed until the old crew has left.
   (sleep_until (not (tf_player_seated)) 1)
   (print "transport: crew disembarked; next deployment ready")
 )
 
 (script continuous tf_operation
   (sleep_until tf_initialized 1)
-  (set tf_banked false)
   (unit_open (tf_ship))
   (unit_set_enterable_by_player (tf_ship) true)
   ; Keep the call control available to squads already in the field. Initial

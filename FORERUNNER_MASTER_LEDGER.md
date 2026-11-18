@@ -16,6 +16,24 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Abandoned dropship return (17 November): after actual field boarding, the same
+living aircraft can rearm at the hub if its crew is lost or disconnects. An
+outstanding connected loss still waits for settlement. Windows64, final CE609
+HaloScript/map compilation and 87 focused checks passed. Two authenticated
+clients verified a guest disconnect after takeoff, an abort callback with no
+bank, and the same Pelican boarding and flying its next passenger. The
+isolated loss record had zero items and no escrow. Evidence:
+build/native-delta-pelican-aborted-after-boarding/result.json and loss-readback.json.
+
+Two-client Pelican banking (17 November, cd022000f2): both authenticated players
+deployed, boarded for insertion, disembarked, completed their call countdowns,
+and physically boarded for evacuation. Both received native successful bank
+notices for two stash items and the authored release fired once. Existing
+synchronization comparison found zero divergences in 289 seconds. After both
+banks, the observer stopped on the one-second landing sample before it recorded
+hub disembarkation or read the raw saves. Restart and redeploy remain open on
+this run. Evidence: build/native-delta-transport-two-banks-current/bank-and-sync.json.
+
 Dropship pilot reservation (17 November): managed transports reserve native
 driver seats for the authored pilot. A player cannot take or evict that seat
 or use it for boarding and gear recovery. Windows64 and 89 focused checks

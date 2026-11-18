@@ -127,13 +127,15 @@ static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
 static struct hs_script completion_script;
 static struct hs_script transport_scripts[3];
-static short completion_wakes, transport_wakes[2];
+static short completion_wakes, transport_wakes[2], transport_aborts[2];
 static struct hs_script squad_scripts[2];
 static short squad_wakes[2];
 static boolean hs_wake_by_name(char const *name)
 {
  if(!strcmp(name,"forerunner_pelican_complete"))transport_wakes[0]++;
  else if(!strcmp(name,"forerunner_spirit_complete"))transport_wakes[1]++;
+ else if(!strcmp(name,"forerunner_pelican_aborted"))transport_aborts[0]++;
+ else if(!strcmp(name,"forerunner_spirit_aborted"))transport_aborts[1]++;
  else if(!strcmp(name,"forerunner_squad_01_complete"))squad_wakes[0]++;
  else if(!strcmp(name,"forerunner_squad_02_complete"))squad_wakes[1]++;
  else {CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;}
@@ -1681,7 +1683,9 @@ int main(int argc,char **argv)
   }
   if(!strncmp(case_name,"transport-callback",18)) {
    boolean other=!strcmp(case_name,"transport-callback-other");
-   boolean field=!strcmp(case_name,"transport-callback-field");
+   boolean lost=!strcmp(case_name,"transport-callback-aborted-loss");
+   boolean aborted=lost||!strcmp(case_name,"transport-callback-aborted");
+   boolean field=aborted||!strcmp(case_name,"transport-callback-field");
    boolean disconnect=!strcmp(case_name,"transport-callback-disconnect");
    boolean escrow_disconnect=!strcmp(case_name,"transport-callback-escrow-disconnect");
    boolean pending=!strcmp(case_name,"transport-callback-pending")||disconnect;
@@ -1702,6 +1706,27 @@ int main(int argc,char **argv)
     CHECK(run(1)->dropship==dropship_handles[other?1:0],"second crew member did not board natively");
    }
    CHECK(!transport_wakes[0]&&!transport_wakes[1]&&!completion_wakes,"boarding alone released a transport");
+   if(aborted) {
+    strcpy(transport_scripts[1].name,"forerunner_pelican_aborted");
+    dropships[0].object.position.x=7;
+    if(lost) {fail_write=TRUE;units[0].object.damage_flags=FLAG(_object_dead_bit);}
+    else players[0].quit_out_of_game=TRUE;
+    advance(1);CHECK(!transport_aborts[0],"aborted flight released before reaching the hub");
+    dropships[0].object.position.x=0;
+    native_cinematic=TRUE;advance(1);
+    CHECK(!transport_aborts[0],"aborted flight released during the departure cinematic");
+    native_cinematic=FALSE;advance(1);
+    if(lost) {
+     CHECK(run(0)->phase==_extraction_losing&&!transport_aborts[0],"uncertain loss released the aircraft");
+     fail_write=FALSE;advance(30);
+     CHECK(run(0)->phase==_extraction_lost&&run(0)->gear.record.count==0,"failed flight banked gear");
+    }
+    CHECK(transport_aborts[0]==1&&!transport_wakes[0]&&!completion_wakes,
+     "abandoned aircraft could not rearm without signaling successful recovery");
+    CHECK(run(1)->phase==_extraction_deployed,"unboarded crew lost its independent operation");
+    advance(60);CHECK(transport_aborts[0]==1&&!transport_aborts[1],"same abandoned arrival repeated or released the other faction");
+    extraction_reset();return 0;
+   }
    dropships[0].object.position.x=0;
    native_cinematic=TRUE;advance(1);
    CHECK(!transport_wakes[0]&&!transport_wakes[1],"transport released during cinematic");

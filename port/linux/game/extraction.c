@@ -119,7 +119,7 @@ static struct
 	short dropship_landing_groups[2]; /* optional physical landing output/gate */
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
 	/* Full native handles for this arrival, cleared by actual LZ boarding. */
-	long dropship_banked[2], dropship_completed[2];
+	long dropship_evacuating[2], dropship_banked[2], dropship_completed[2];
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
@@ -487,6 +487,7 @@ void extraction_reset(void)
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
+	extraction.dropship_evacuating[0] = extraction.dropship_evacuating[1] = NONE;
 	extraction.dropship_banked[0] = extraction.dropship_banked[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
@@ -596,7 +597,7 @@ static void extraction_report_stage(struct extraction_run *run, short outcome)
 
 static void extraction_lose_run(struct extraction_run *run)
 {
-	run->dropship = NONE;
+	/* An aircraft still waits on a connected passenger's unresolved loss. */
 	run->phase = _extraction_losing;
 	run->activation_ticks = 0;
 	run->retry_tick = game_time_get();
@@ -606,6 +607,7 @@ static void extraction_lose_run(struct extraction_run *run)
 		if (run->report.staged && run->report.outcome == _gear_lost &&
 			!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
 		run->phase = _extraction_lost;
+		run->dropship = NONE;
 		run->blocked = FALSE;
 		extraction_tell(run, extraction.survival ?
 			"RUN LOST | Deployed gear lost. Remaining stash is safe; respawn follows the encounter's shared lives." :
@@ -664,6 +666,7 @@ static void extraction_bind(void)
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
+	extraction.dropship_evacuating[0] = extraction.dropship_evacuating[1] = NONE;
 	extraction.dropship_banked[0] = extraction.dropship_banked[1] = NONE;
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
@@ -1774,6 +1777,7 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 			scenario_trigger_volume_test_object(extraction.return_zone, dropship)) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
+		extraction.dropship_evacuating[faction] = dropship;
 		extraction.dropship_banked[faction] = extraction.dropship_completed[faction] = NONE;
 		extraction_tell(run, "BOARDED | Stay aboard through departure. Recovery follows arrival and the authored cinematic.");
 		return FALSE;
@@ -2052,13 +2056,17 @@ static void extraction_transport_completions(void)
 	short faction, index;
 	for (faction = 0; faction < 2; faction++)
 	{
+		struct unit_datum const *vehicle;
 		long ship;
 		boolean pending = FALSE;
 		if (extraction.dropship_names[faction] == NONE) continue;
 		ship = object_index_from_name_index(extraction.dropship_names[faction]);
-		if (ship == NONE || ship != extraction.dropship_banked[faction] || ship == extraction.dropship_completed[faction] ||
-			!object_try_and_get_and_verify_type(ship, _object_mask_vehicle) || !extraction_at_hub(ship) ||
-			cinematic_in_progress() || (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship))) continue;
+		if (ship == NONE || ship != extraction.dropship_evacuating[faction] || ship == extraction.dropship_completed[faction]) continue;
+		vehicle = (struct unit_datum const *)object_try_and_get_and_verify_type(ship, _object_mask_vehicle);
+		if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
+			extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.0f) ||
+			!extraction_at_hub(ship) || cinematic_in_progress() ||
+			(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship))) continue;
 		/* The durable bank belongs to the arrival even if its owner leaves.
 		 * Other squads and craft do not delay release. A connected boarded
 		 * crewmate still settling keeps this aircraft at the hub. */
@@ -2074,8 +2082,13 @@ static void extraction_transport_completions(void)
 		}
 		if (pending) continue;
 		extraction.dropship_completed[faction] = ship;
-		if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
-			platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
+		if (ship == extraction.dropship_banked[faction])
+		{
+			if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
+				platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
+		}
+		else if (extraction_wake_completion(faction ? "forerunner_spirit_aborted" : "forerunner_pelican_aborted", TRUE))
+			platform_log("extraction: %s evacuation aborted; authored transport release woken", faction ? "Spirit" : "Pelican");
 	}
 }
 

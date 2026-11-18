@@ -1398,7 +1398,13 @@ rearms the next trip. Authored
 handlers must remain wakeable for repeat trips; a finished one-shot script is not
 restarted by native `wake`. These crew handlers may be dormant, or continuous
 with `(sleep -1)` first on each pass. The whole-operation callback remains
-dormant-only and one-shot. The aircraft template uses sleeping continuous crew/
+dormant-only and one-shot. The optional `forerunner_pelican_aborted` and
+`forerunner_spirit_aborted` callbacks rearm a living aircraft after it returns
+from real field boarding with no successful bank or unresolved connected crew.
+Use these callbacks to release the flight script after the loss or departure of
+the entire boarded crew. The aircraft still waits for physical boarding at
+the field landing zone, including while players move outside the call volume.
+The aircraft template uses sleeping continuous crew/
 camera handlers, one startup pilot setup and a continuous trip coordinator. It
 keeps boarding closed at return until the previous passengers have disembarked;
 the next insertion follows actual gear/seat readiness rather than a stale shared
