@@ -11,6 +11,29 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
+Spark's elevated Spirit route CE609 cache is
+releases/black-echo-native-covenant-spirit-flight-20261118/be_native.map, SHA256
+8e8d33127c1ca3936e9f0c907f894884ccec3f8ba4d843ae3e55bb2d180e3121.
+Two authenticated Windows clients selected Covenant, deployed, physically
+boarded, and observed the native Spirit climb and fly the revised route.
+The host reported the native landed signal inside spirit_zone at
+(94.026, -131.955, 2.170). Both passengers physically exited alive at
+(90.871, -134.083, .750) and (90.806, -132.688, .812).
+
+The script never reached its passenger-arrival latch or spirit_home order.
+At tick 9270 both players were on foot inside spirit_zone, the hull was
+landed, the pilot occupied seat 0, and the built-in turret occupied seat 9.
+The retained actor handle e2770008 resolves through its definition
+e2ff018b to vehicles/c_dropship/cd_gun/cd_gun.biped. Native vehicle_riders
+includes every seated unit, so list_count stays above the authored 1
+after all passengers leave. Filter out installed vehicle components
+when checking occupancy, for example by intersecting the current riders
+with the current player bodies. Keep the existing live pilot, native
+landing and actual former-passenger checks. Review the recall and return
+waits that also compare the raw Spirit rider count to 1. Covenant rescue,
+combat, extraction and settlement remain open. Evidence is in
+build/native-spark-black-echo-8e8d-spirit-flight.
+
 Spark's pilot-hold CE609 cache is
 releases/black-echo-native-covenant-pilot-hold-20261118/be_native.map, SHA256
 88ff10400e68b6e6773bdcf20f90f7228c0392c2d591d0721190e79e07a0091d.
