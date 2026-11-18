@@ -1673,7 +1673,9 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index)
 {
 	struct unit_datum *unit, *vehicle;
 	struct player_datum *player;
-	short faction;
+	struct extraction_run const *run;
+	long slot;
+	short faction, zone;
 	if (!extraction_requested() || !extraction.bound || !extraction.admitted) return TRUE;
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.dropship_names[faction] != NONE &&
@@ -1684,13 +1686,28 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index)
 	if (unit->unit.player_index == NONE) return TRUE; /* Authored NPC crews. */
 	player = player_try_and_get(unit->unit.player_index);
 	vehicle = (struct unit_datum *)object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle);
-	return player && player->unit_index == unit_index && !player->quit_out_of_game &&
-		vehicle && !TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) && !extraction_unit_pending_death(vehicle) &&
-		vehicle->object.body_vitality > 0.0f &&
-		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) &&
-		!extraction_unit_pending_death(unit) && !extraction_medical_incapacitated(unit_index) &&
-		extraction_faction(unit->object.owner_team_index) == faction &&
-		extraction_faction((short)player->team_index) == faction;
+	if (!player || player->unit_index != unit_index || player->quit_out_of_game ||
+		!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(vehicle) ||
+		!(vehicle->object.body_vitality > 0.0f) || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		extraction_unit_pending_death(unit) || extraction_medical_incapacitated(unit_index) ||
+		extraction_faction(unit->object.owner_team_index) != faction ||
+		extraction_faction((short)player->team_index) != faction) return FALSE;
+	if (extraction.dropship_boarding_groups[faction] == NONE) return TRUE;
+
+	/* Ships with a crew-readiness signal reserve their seats for runs that
+	 * can actually depart. Ordinary Halo seating still owns distance,
+	 * facing, animation and occupied-seat checks. */
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
+	if (extraction.suspended || cinematic_in_progress() || !VALID_INDEX(slot, NUMBEROF(extraction_runs)) ||
+		(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(vehicle_index))) return FALSE;
+	run = &extraction_runs[slot];
+	if (run->player != unit->unit.player_index || run->unit != unit_index || !run->gear.opened ||
+		run->gear.pending || run->gear.record.phase != _gear_deployed) return FALSE;
+	if (extraction_at_hub(vehicle_index)) return run->phase == _extraction_deployed;
+	zone = extraction_zone_for_faction(faction);
+	return run->phase == _extraction_ready && zone != NONE &&
+		!scenario_trigger_volume_test_object(extraction.return_zone, vehicle_index) &&
+		scenario_trigger_volume_test_object(zone, vehicle_index) && extraction_squad_objectives_ready(run);
 }
 
 static boolean extraction_at_return(struct extraction_run const *run, long unit_index)

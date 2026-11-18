@@ -1441,6 +1441,13 @@ without a flight registry or new packet. Other factions and unrelated
 field operations are excluded. Empty crews, pending death, incapacitation, invalid
 ownership, cinematics and flight between pads do not authorize a new departure.
 The signal only coordinates flight; it grants no equipment or banking authority.
+A ship with this group also reserves its native passenger seats for players with
+a confirmed deployment. At the hub the player must deploy before boarding. At
+the matching field landing zone, the player must complete the extraction
+countdown and any authored squad objectives before boarding. If a matching
+landed group is authored, the craft must satisfy the native landing check.
+Keep the named hub, field and return volumes distinct. Halo still checks seat
+occupancy and physical access. Native AI crew can board through ordinary scripts.
 Seventy focused transport cases and Windows64/native HSC compilation pass.
 `build/native-delta-squad-transport-seat/result.json` now verifies two authenticated
 one-player squads' separate insertions and both serial evacuations/banks. The

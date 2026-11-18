@@ -16,6 +16,16 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Dropship seat admission (17 November): aircraft with an authored crew-readiness
+group require a confirmed deployment at the hub and a completed extraction
+countdown and squad objectives at the field landing zone. A matching landed
+group also requires the native landing check. Windows64 and 86 focused
+Extraction checks passed. Two verified Windows clients used the same Pelican
+entrance: the undeployed player was refused, and both peers observed the
+deployed player board seat 4. Evidence:
+build/native-delta-transport-phase-admission/result.json. The field gate was
+checked in the focused harness. Full Spark Black Echo remains pending.
+
 PvPvE kill credit (17 November): native scoring resolves the actual
 attacker's team and accepts recent damage from the start of play. An AI or
 environmental finish can credit a hostile player while an authored ally remains

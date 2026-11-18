@@ -1319,6 +1319,11 @@ int main(int argc,char **argv)
     strcpy(authored_groups[1].name,authored_groups[10].name);authored_groups[10].name[0]=0;
    }
   }
+  if(!strcmp(case_name,"transport-admission-deployment")||!strcmp(case_name,"transport-admission-evacuation")) {
+   scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[10].name,"extraction_pelican_boarded");
+   strcpy(authored_groups[11].name,"extraction_pelican_landed");
+  }
   if(!strncmp(case_name,"transport-boarded",17)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
@@ -1459,6 +1464,29 @@ int main(int argc,char **argv)
     players[0].unit_index=unit_handles[0];players[0].quit_out_of_game=TRUE;CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"departed owner boarded");
     players[0].quit_out_of_game=FALSE;units[0].unit.player_index=player_handles[0]+0x10000;
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"reused player salt boarded");
+   } else if(!strcmp(case_name,"transport-admission-deployment")) {
+    dropships[0].object.position.x=0;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,&occupant)&&occupant==NONE,
+     "undeployed player occupied a managed insertion seat");
+    touch(0,0);
+    CHECK(unit_can_enter_seat(unit_handles[0],craft,0,NULL),"confirmed deployment could not board at the hub");
+    CHECK(!unit_can_enter_seat(unit_handles[1],craft,1,NULL),"undeployed player took another crew member's seat");
+    dropships[0].object.up.k=.94f;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"invalid landing attitude admitted insertion boarding");
+    dropships[0].object.up.k=1;
+    native_cinematic=TRUE;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"cinematic admitted new insertion boarding");
+   } else if(!strcmp(case_name,"transport-admission-evacuation")) {
+    touch(0,0);units[0].object.position.x=20;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"field crew boarded without requesting extraction");
+    touch(1,0);
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"unfinished countdown admitted evacuation boarding");
+    advance(300);
+    CHECK(unit_can_enter_seat(unit_handles[0],craft,0,NULL),"ready crew could not board at its landing zone");
+    dropships[0].object.position.x=0;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"ready field crew could acquire a seat at the destination");
+    dropships[0].object.position.x=20;run(0)->gear.pending=TRUE;
+    CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"pending gear admitted evacuation boarding");
    } else if(!strcmp(case_name,"transport-admission-death")) {
     units[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"pending death boarded");
     units[0].object.damage_flags=0;dropships[0].object.damage_flags=FLAG(_object_dead_bit);
