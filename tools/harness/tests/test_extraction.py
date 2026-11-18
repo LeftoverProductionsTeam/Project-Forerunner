@@ -284,7 +284,7 @@ def test_native_transport_crash_negative_control():
 
 
 @pytest.mark.parametrize('case', [
-    'transport-called-loop', 'transport-called-ownership', 'transport-called-duplicate',
+    'transport-called-loop', 'transport-called-ownership', 'transport-called-managed-detour', 'transport-called-duplicate',
     'transport-called-capacity', 'transport-called-missing', 'transport-called-alias',
     'transport-called-split', 'transport-called-split-missing', 'transport-called-split-alias',
 ])

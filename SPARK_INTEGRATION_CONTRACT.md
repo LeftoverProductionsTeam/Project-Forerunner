@@ -1402,9 +1402,9 @@ dormant-only and one-shot. The optional `forerunner_pelican_aborted` and
 `forerunner_spirit_aborted` callbacks rearm a living aircraft after it returns
 from real field boarding with no successful bank or unresolved connected crew.
 Use these callbacks to release the flight script after the loss or departure of
-the entire boarded crew. The aircraft still waits for physical boarding at
-the field landing zone, including while players move outside the call volume.
-The aircraft template uses sleeping continuous crew/
+the entire boarded crew. The aircraft waits for physical boarding at the field
+landing zone while a completed managed call is active. The template uses
+sleeping continuous crew/
 camera handlers, one startup pilot setup and a continuous trip coordinator. It
 keeps boarding closed at return until the previous passengers have disembarked;
 the next insertion follows actual gear/seat readiness rather than a stale shared
@@ -1666,15 +1666,22 @@ and banking. A live dual-route flight remains open.
 
 Optional dedicated groups `extraction_pelican_called` / `extraction_spirit_called`
 separate requests made at shared or faction-specific controls. The host derives each
-output from living, correctly owned, same-faction activating/ready players still
-at the LZ (on foot or in their receipted ship). Cancellation, departure, loss and
-settlement clear the request; pending gear never requests flight. Use unique
+output from living, correctly owned, same-faction players. A countdown needs
+players inside their landing zone. For Extraction maps with a matching
+`*_boarded` group, a completed call stays active while its valid caller
+approaches on foot or aboard another vehicle. After physical boarding, the
+request lasts until the aircraft leaves its field pad. Other maps use the
+landing-zone presence rule for calls. Loss, disconnect, revoked objectives and
+settlement clear the request. Pending gear never requests flight. Use unique
 groups initially zero, with matching ships and no control power/position aliases.
 Source: `extraction.c::extraction_transport_called` and the existing readiness
 update. The aircraft HSC consumes its Pelican request while native activation
-continues; only the separate boarded signal authorizes departure. This optional
-binding requires a Forerunner runtime containing that function; older runtimes do
-not drive it. Existing maps without these groups keep their previous script path.
+continues. The separate boarded signal authorizes an occupied departure. If an
+empty craft reaches the pickup pad after all active callers are gone, the
+template takes the native route to the hub without an evacuation or bank.
+Use the empty-return branch with a runtime that retains completed requests
+outside the landing zone. Earlier call-group implementations require the
+field script to wait for boarding.
 Windows64 and native HSC/cache compilation, 44 focused transport workflows and
 two defect controls pass. `build/native-pelican-faction-call-deployed` verifies
 one authenticated player's confirmed deployment, physical boarding, insertion,

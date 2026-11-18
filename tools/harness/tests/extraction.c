@@ -1295,11 +1295,12 @@ int main(int argc,char **argv)
   short faction=!strcmp(case_name,"transport-covenant")?1:0;
   long craft=dropship_handles[faction],loot;
   boolean split_routes=!strncmp(case_name,"transport-called-split",22);
+  boolean managed_call=!strcmp(case_name,"transport-called-managed-detour");
   extraction_reset();scenario.object_names.count=5;
   if(!strncmp(case_name,"transport-called",16)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_called");
-   strcpy(authored_groups[11].name,"extraction_spirit_called");
+   strcpy(authored_groups[11].name,managed_call?"extraction_pelican_boarded":"extraction_spirit_called");
    device_groups[10].actual_value=device_groups[11].actual_value=1.f;
    if(split_routes) {
     scenario.object_names.count=11;scenario.trigger_volumes.count=4;
@@ -1415,6 +1416,24 @@ int main(int argc,char **argv)
    }
    touch(1,0);advance(1);
    CHECK(device_groups[10].actual_value==1.f&&!device_groups[11].actual_value,"UNSC request called Spirit or missed Pelican");
+   if(managed_call) {
+    units[0].object.position.x=7;advance(1);
+    CHECK(run(0)->phase==_extraction_deployed&&!device_groups[10].actual_value,
+     "unfinished managed countdown survived leaving the landing zone");
+    units[0].object.position.x=20;touch(1,0);advance(300);
+    CHECK(run(0)->phase==_extraction_ready&&device_groups[10].actual_value,
+     "completed managed countdown failed to call the craft");
+    units[0].object.position.x=7;advance(1);
+    CHECK(device_groups[10].actual_value&&!device_groups[11].actual_value,
+     "completed pickup was cancelled by an on-foot approach detour");
+    units[0].object.parent_object_index=dropship_handles[1];advance(1);
+    CHECK(device_groups[10].actual_value&&!device_groups[11].actual_value,
+     "travel in a different vehicle cancelled the pickup or authorized boarding");
+    units[0].object.parent_object_index=NONE;players[0].quit_out_of_game=TRUE;advance(1);
+    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value&&
+     run(1)->phase==_extraction_deployed,"departed requester held the aircraft or changed another run");
+    extraction_reset();return 0;
+   }
    /* Both players touch the same native switch. Its position must not choose
     * a faction or cancel the other player's active request. */
    touch(1,1);advance(1);

@@ -16,6 +16,14 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Managed pickup detours (17 November): a completed Extraction call survives an
+approach outside the landing zone. The empty craft returns when its last
+valid caller is gone. Windows64, native CE609 compilation and 83 focused
+checks passed. Two authenticated clients verified an actual guest detour,
+a disconnect before evacuation boarding, a saved loss with zero gear,
+and a new departure with the same aircraft. Evidence:
+build/native-delta-managed-pickup-detour-verified/result.json.
+
 Abandoned dropship return (17 November): after actual field boarding, the same
 living aircraft can rearm at the hub if its crew is lost or disconnects. An
 outstanding connected loss still waits for settlement. Windows64, final CE609

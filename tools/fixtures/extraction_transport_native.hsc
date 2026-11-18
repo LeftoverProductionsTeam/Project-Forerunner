@@ -32,6 +32,7 @@
 
 (global boolean tf_banked false)
 (global boolean tf_aborted false)
+(global boolean tf_crew_on_return false)
 (global boolean tf_initialized false)
 
 (script static boolean tf_player_seated
@@ -185,25 +186,32 @@
   (print "transport: extraction landed; board passenger seat")
   (unit_set_enterable_by_player (tf_ship) true)
   (unit_open (tf_ship))
-  (sleep_until (and (tf_player_seated)
-    (>= (device_group_get tf_boarded) 0.5)) 1)
+  (sleep_until (or
+    (and (tf_player_seated) (>= (device_group_get tf_boarded) 0.5))
+    (and (not (tf_player_seated)) (< (device_group_get tf_called) 0.5))) 1)
   (set tf_banked false)
   (set tf_aborted false)
-  (print "transport: extraction passenger physically seated")
+  (set tf_crew_on_return
+    (and (tf_player_seated) (>= (device_group_get tf_boarded) 0.5)))
+  (if tf_crew_on_return
+    (print "transport: extraction passenger physically seated")
+    (print "transport: no active callers; returning empty"))
   (unit_set_enterable_by_player (tf_ship) false)
   (unit_close (tf_ship))
   (vehicle_hover (tf_ship) false)
   (ai_command_list tf_pilot tf_home)
-  (wake tf_departure_camera)
+  (if tf_crew_on_return (wake tf_departure_camera))
   (sleep_until (and (volume_test_object extraction_return (tf_ship))
     (>= (device_group_get tf_landed) 0.5)) 1)
   (ai_command_list tf_pilot tf_wait)
   (vehicle_hover (tf_ship) true)
   (unit_open (tf_ship))
-  (sleep_until (or tf_banked tf_aborted) 1)
-  (if tf_banked
-    (print "transport: arrived and banked; disembark and prepare the next operation")
-    (print "transport: crew lost; prepare the next operation"))
+  (if tf_crew_on_return
+    (begin
+      (sleep_until (or tf_banked tf_aborted) 1)
+      (if tf_banked
+        (print "transport: arrived and banked; disembark and prepare the next operation")
+        (print "transport: crew lost; prepare the next operation"))))
   ; Keep boarding closed until the old crew has left.
   (sleep_until (not (tf_player_seated)) 1)
   (print "transport: crew disembarked; next deployment ready")
