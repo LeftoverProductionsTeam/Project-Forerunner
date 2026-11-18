@@ -49,6 +49,17 @@ the flight and passenger checks. The separate Covenant mission entry,
 Spirit flight and settlement remain open. Evidence from
 build/native-spark-black-echo-a5bf-parked-rest.
 
+A separate two-account exterior approach reached the west side of the
+authored berth at (53.425, -89.000, .169) and (53.516, -88.287, .116).
+Both clients had verified a stationary Spirit during deployment.
+The Pelican pilot entered Charge at tick 4530 and the Spirit pilot entered
+Charge at tick 4620. By the exterior approach the Spirit had landed at
+(55.899, -99.385, 1.333), inside the shared return volume and outside its
+authored spirit_return. The host had no eligible seat marker. Test
+passenger clearance after both standby pilots stay in their authored
+berths through the walk. Evidence from
+build/native-spark-black-echo-a5bf-exterior-seat.
+
 The optional-Flood predecessor 70641e813f97e4e8bf741489425ebe3bcd41b5053e3c3adcf8acf3f0f0bcecae
 puts be_containment east of the technology and records visits during the
 ownership poll. Both native two-account attempts boarded, flew, landed,
