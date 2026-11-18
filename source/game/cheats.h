@@ -69,6 +69,7 @@ long cheat_forge_place(void);
 boolean cheat_forge_undo(void);
 boolean cheat_forge_remove_selected(void);
 boolean cheat_forge_move_selected(void);
+boolean cheat_forge_undo_move(void);
 boolean cheat_forge_sidecar(boolean saving);
 long cheat_forge_clone_at(long object_index, union real_point3d const *position);
 long cheat_forge_clone(

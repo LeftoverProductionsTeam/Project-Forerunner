@@ -236,6 +236,18 @@ Windows LAN clients saw the same Pelican move, then restored the new position
 after save, undo and reload. The original map stayed intact. Evidence:
 build/native-forge-move-open-ground/result.json.
 
+Forge Undo Move restores one prior pose through the native object setter and
+keeps Undo Copy separate. Vehicles use the existing mass-point clearance
+query. Windows64 and 34 focused checks passed, including pose restoration
+and an occupied destination refusal. Two native Windows LAN clients agreed
+on the move and the copy stayed put when the server rejected the undo.
+At the imported pose (51.832, -86.302, 1.323), the same collision check
+still refused after the guest moved away. The follow-up from a position
+placed by Forge found no second valid aim placement within the tested
+corridor. Successful restoration in the native LAN session remains open.
+Evidence: build/native-forge-undo-move-occupied-then-clear/result.json and
+build/native-forge-repeat-move-undo/result.json.
+
 Forge placement persistence (17 November): Save and Load in Forge Tools use the
 OpenCE-Forge base-map placement format. Windows64 and 37 focused checks passed.
 Two native Windows LAN clients saw the saved Pelican at the same resting

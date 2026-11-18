@@ -134,10 +134,23 @@ static long forge_selection = NONE;
 static long forge_last_copy = NONE;
 static long forge_copies[MAXIMUM_OBJECTS_PER_MAP];
 
+struct forge_move_snapshot
+{
+	long object_index;
+	short bsp_index;
+	real_point3d position, center;
+	real_vector3d forward, up;
+	real radius, scale;
+	real_matrix4x3 vehicle_pose;
+};
+
+static struct forge_move_snapshot forge_last_move = { NONE };
+
 void cheats_forge_reset(void)
 {
 	forge_selection = NONE;
 	forge_last_copy = NONE;
+	forge_last_move.object_index = NONE;
 	memset(forge_copies, 0xff, sizeof(forge_copies));
 }
 
@@ -407,6 +420,16 @@ boolean cheat_forge_pick(void)
 	return FALSE;
 }
 
+/* A move may overlap the same instance. Any other object blocks it. */
+static boolean forge_space_occupied(struct location const *location, real_point3d const *center,
+	real radius, long ignore_object_index)
+{
+	long blockers[2];
+	short count = objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile,
+		location, center, radius, blockers, NUMBEROF(blockers));
+	return count > 1 || (count == 1 && blockers[0] != ignore_object_index);
+}
+
 /* Faber's aim-based placement uses the native collision contact. Keep the
  * source's orientation and let the usual physics settle the object. */
 static boolean forge_aim_placement(long object_index, struct object_datum const *object,
@@ -417,8 +440,6 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 	real_point3d center;
 	real_vector3d offset;
 	real radius;
-	long blockers[2];
-	short count;
 
 	if (!forge_aim_collision(&hit) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
 	{
@@ -449,10 +470,7 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 		console_warning("Forge needs clear space around the target");
 		return FALSE;
 	}
-	/* A move may overlap its previous position. Any other object still blocks it. */
-	count = objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile,
-		&location, &center, radius, blockers, NUMBEROF(blockers));
-	if (count > 1 || (count == 1 && blockers[0] != ignore_object_index))
+	if (forge_space_occupied(&location, &center, radius, ignore_object_index))
 	{
 		console_warning("Forge needs clear space around the target");
 		return FALSE;
@@ -514,20 +532,89 @@ static struct object_datum *forge_editable_copy(long object_index)
 	return object;
 }
 
-/* OpenCE-Forge moves the tracked instance with Halo's native position setter.
- * The existing object state sender and placement writer see the same handle. */
+/* The existing object state sender and placement writer see the same handle. */
+static void forge_move_copy(long object_index, struct object_datum *object,
+	real_point3d const *position, real_vector3d const *forward, real_vector3d const *up)
+{
+	object->object.translational_velocity = *global_zero_vector3d;
+	object->object.angular_velocity = *global_zero_vector3d;
+	SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
+	object_set_position(object_index, position, forward, up);
+	object_activate(object_index);
+}
+
+/* Adapt OpenCE-Forge's before-transform undo snapshot (SutlabSol/OpenCE-Forge). */
 boolean cheat_forge_move_selected(void)
 {
 	struct object_datum *object = forge_editable_copy(forge_selection);
+	struct physics_instance vehicle;
 	real_point3d position;
 
 	if (!object || !forge_aim_placement(forge_selection, object, forge_selection, &position))
 		return FALSE;
-	object->object.translational_velocity = *global_zero_vector3d;
-	object->object.angular_velocity = *global_zero_vector3d;
-	SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
-	object_set_position(forge_selection, &position, NULL, NULL);
-	object_activate(forge_selection);
+	if (object->object.type == _object_type_vehicle)
+	{
+		if (!physics_instance_new(&vehicle, forge_selection))
+			return FALSE;
+		forge_last_move.vehicle_pose = vehicle.world_matrix;
+	}
+	forge_last_move.object_index = forge_selection;
+	forge_last_move.bsp_index = global_structure_bsp_index;
+	forge_last_move.position = object->object.position;
+	forge_last_move.center = object->object.bounding_sphere_center;
+	forge_last_move.forward = object->object.forward;
+	forge_last_move.up = object->object.up;
+	forge_last_move.radius = object->object.bounding_sphere_radius;
+	forge_last_move.scale = object->object.scale;
+	forge_move_copy(forge_selection, object, &position, NULL, NULL);
+	return TRUE;
+}
+
+boolean cheat_forge_undo_move(void)
+{
+	long object_index = forge_last_move.object_index;
+	struct object_datum *object = forge_editable_copy(object_index);
+	struct location location;
+
+	if (!object || forge_last_move.bsp_index != global_structure_bsp_index ||
+		object->object.scale != forge_last_move.scale || !valid_real_point3d(&forge_last_move.center) ||
+		!valid_real_point3d(&forge_last_move.position))
+	{
+		console_warning("Forge move undo needs the same unused copy in its original BSP");
+		return FALSE;
+	}
+
+	/* Match object_reconnect_to_map. A vehicle resting on a slope may have its
+	 * origin inside the ground while its bounding center is in a valid leaf. */
+	scenario_location_from_point(&location, &forge_last_move.center);
+	if (location.cluster_index == NONE)
+		scenario_location_from_point(&location, &forge_last_move.position);
+	if (location.cluster_index == NONE)
+	{
+		console_warning("Forge move undo needs a previous position within the active BSP");
+		return FALSE;
+	}
+	if (object->object.type == _object_type_vehicle)
+	{
+		struct physics_instance vehicle;
+
+		if (!physics_instance_new(&vehicle, object_index))
+			return FALSE;
+		vehicle.world_matrix = forge_last_move.vehicle_pose;
+		if (!physics_placement_clear(&vehicle, object_index, FALSE))
+		{
+			console_warning("Forge needs clear space for the vehicle at its previous position");
+			return FALSE;
+		}
+	}
+	else if (forge_space_occupied(&location, &forge_last_move.center, forge_last_move.radius, object_index))
+	{
+		console_warning("Forge needs clear space around the copy's previous position");
+		return FALSE;
+	}
+
+	forge_move_copy(object_index, object, &forge_last_move.position, &forge_last_move.forward, &forge_last_move.up);
+	forge_last_move.object_index = NONE;
 	return TRUE;
 }
 
@@ -538,6 +625,7 @@ static boolean forge_remove_copy(long object_index)
 	object_delete(object_index);
 	if (forge_last_copy == object_index) forge_last_copy = NONE;
 	if (forge_selection == object_index) forge_selection = NONE;
+	if (forge_last_move.object_index == object_index) forge_last_move.object_index = NONE;
 	return TRUE;
 }
 

@@ -180,9 +180,10 @@ static void vector_from_points3d(real_point3d const *a, real_point3d const *b, r
 static void point_from_line3d(real_point3d const *p, real_vector3d const *v, real t, real_point3d *out) {
  out->x=p->x+v->i*t; out->y=p->y+v->j*t; out->z=p->z+v->k*t;
 }
+typedef struct { real_point3d position; } real_matrix4x3;
 struct physics_instance {
  struct physics_definition const *physics;
- struct { real_point3d position; } world_matrix;
+ real_matrix4x3 world_matrix;
 };
 static boolean physics_instance_new(struct physics_instance *instance, long index) {
  instance->physics=&physics;
@@ -574,6 +575,7 @@ int main(int argc,char **argv) {
   long source=reset(),copy,selected;
   struct test_object *object;
   boolean scenery=!strncmp(name,"scenery-",8);
+  boolean undo=!strcmp(name,"undo");
   if(scenery)connection=0;
   forge_viewer=make(8,1);
   get(source)->object.type=scenery?_object_type_scenery:_object_type_vehicle;
@@ -603,7 +605,8 @@ int main(int argc,char **argv) {
   if(strstr(name,"blocked"))nearby=TRUE;
   if(!strcmp(name,"occupied"))object->object.first_child_object_index=123;
   if(!strcmp(name,"client"))connection=1;
-  if(!strcmp(name,"clear")||strstr(name,"self")) {
+  if(!strcmp(name,"clear")||strstr(name,"self")||undo) {
+   real_point3d old_position=object->object.position;
    float height=scenery?1.26f:.66f;
    CHECK(cheat_forge_move_selected()&&forge_activated==copy&&get(copy)==object,"copy was not moved in place");
    CHECK(object->object.position.x==12.f&&object->object.position.y==-2.f&&
@@ -611,6 +614,25 @@ int main(int argc,char **argv) {
    CHECK(object->object.forward.i==1.f&&object->object.up.k==1.f&&
     !object->object.translational_velocity.i&&!object->object.angular_velocity.k&&
     !TEST_FLAG(object->object.flags,_object_at_rest_bit),"move discarded the pose or kept stale physics");
+   if(undo) {
+    object->object.forward.i=0.f;
+    object->object.forward.j=1.f;
+    nearby=TRUE;
+    CHECK(!cheat_forge_undo_move()&&object->object.position.x==12.f,"undo overlapped an occupant");
+    nearby=FALSE;
+    global_structure_bsp_index=1;
+    CHECK(!cheat_forge_undo_move(),"undo crossed BSPs");
+    global_structure_bsp_index=0;
+    connection=1;
+    CHECK(!cheat_forge_undo_move(),"client undid an authoritative move");
+    connection=0;
+    blocked=TRUE; /* Only the broad bounds overlap. The native hull is clear. */
+    CHECK(cheat_forge_undo_move()&&get(copy)==object&&
+     object->object.position.x==old_position.x&&object->object.position.y==old_position.y&&
+     object->object.position.z==old_position.z&&object->object.forward.i==1.f&&object->object.forward.j==0.f,
+     "undo did not restore the same copy's previous pose");
+    CHECK(!cheat_forge_undo_move(),"undo reused a consumed snapshot");
+   }
   } else {
    CHECK(!cheat_forge_move_selected()&&forge_activated==NONE&&object->object.position.x!=12.f&&
     get(source)->object.position.x!=12.f,"unsafe Forge target was moved");

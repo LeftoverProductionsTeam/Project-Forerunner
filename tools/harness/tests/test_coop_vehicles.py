@@ -30,18 +30,21 @@ def generated(fault=None):
     looks += '\n' + structure(coop, 'distributed_coop_object_look')
     looks += f'\n#define MAXIMUM_OBJECT_LOOKS_PER_MESSAGE {constant(coop, "MAXIMUM_OBJECT_LOOKS_PER_MESSAGE")}\n'
     looks += structure(coop, 'distributed_coop_object_looks_message') + '\n' + function(coop, 'host_send_object_looks')
+    cheats = read('source/game/cheats.c')
+    forge_state = cheats[cheats.index('static long forge_selection'):cheats.index('void cheats_forge_reset')]
     return (('unit_flags.inc', enum_with(read('source/units/units.h'), '_unit_not_enterable_by_player_bit')),
             ('under_test.inc', source),
             ('path.inc', path),
             ('looks.inc', looks),
-            ('clone.inc', 'static long forge_selection = NONE, forge_last_copy = NONE;\n'
-                'static long forge_copies[MAXIMUM_OBJECTS_PER_MAP];\n' +
-                function(read('source/physics/physics.c'), 'physics_resting_placement') + '\n' + '\n'.join(
-                function(read('source/game/cheats.c'), name) for name in (
+            ('clone.inc', forge_state +
+                '\n'.join(function(read('source/physics/physics.c'), name) for name in (
+                    'physics_placement_clear', 'physics_resting_placement')) + '\n' + '\n'.join(
+                function(cheats, name) for name in (
                     'cheats_forge_reset', 'forge_placeable_object_get', 'forge_aim_collision', 'cheat_forge_target',
                     'forge_create_copy', 'forge_clone_at_position', 'cheat_forge_clone', 'cheat_forge_clone_at',
-                    'cheat_forge_pick', 'forge_aim_placement', 'cheat_forge_place',
-                    'forge_editable_copy', 'cheat_forge_move_selected', 'forge_remove_copy',
+                    'cheat_forge_pick', 'forge_space_occupied', 'forge_aim_placement', 'cheat_forge_place',
+                    'forge_editable_copy', 'forge_move_copy', 'cheat_forge_move_selected',
+                    'cheat_forge_undo_move', 'forge_remove_copy',
                     'cheat_forge_undo', 'cheat_forge_remove_selected'))),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +
              structure(riders, 'coop_riding_vehicle') + '\n' + structure(riders, 'coop_kept_rider') + '\n' +
@@ -83,7 +86,8 @@ def test_forge_undo(case):
     assert status == 0, output
 
 
-@pytest.mark.parametrize('case', ['clear', 'vehicle-self', 'scenery-self', 'scenery-blocked', 'blocked', 'original', 'occupied', 'client'])
+@pytest.mark.parametrize('case', ['clear', 'vehicle-self', 'scenery-self', 'scenery-blocked', 'blocked',
+                                 'original', 'occupied', 'client', 'undo'])
 def test_forge_move_selected(case):
     status, output = run(build('coop_vehicles', generated()), 'move-' + case)
     assert status == 0, output
