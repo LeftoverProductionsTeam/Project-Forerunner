@@ -9,6 +9,31 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+17 November grounded Spirit handoff: Spark's exact CE609 map is
+releases/black-echo-spirit-routing-20261117/grounded/be_native.map, build
+3339d69c-f68b-4789-acad-bc4adcfdbc1d, SHA256
+7ec2a25af96ce53db421b875458b3b256166ad53ba7aa34f54f4302ca4ee1cb7.
+Two authenticated Windows clients matched the cache, spawned with equipment
+and admitted both transports. The Pelican produced a native landed signal.
+The Spirit stayed grounded at (64.818, -87.908, 5.082) with up.k .918.
+Author a level, clear hub touchdown surface and route inside spirit_return
+(55, -94.472, -1) to (75, -80.472, 7) to reach up.k >= .95.
+
+The Spirit's native driver seat is c_dropship driver. The spawned Grunt at
+tag index 0x849 uses the graph
+gs_assets_dbc466fb114a4fa7b92243697f64b4d4/characters/grunt/grunt.model_animations,
+which lacks that driver label in the compiled cache. It stayed on foot from
+tick 30 through 5700. Seat 9 belongs to cd_gun, the built-in turret. Bind the
+actual encounter actor to a graph with the driver's animation and usable
+weapon-class/type entries. Confirm the actual pilot remains seated and keep
+it from engaging UNSC players while the hub crew is preparing. The host took
+damage and died in the hub in this run. Exact damage source is unconfirmed.
+The Pelican Marine still uses P-riderLF and both rescue migration flags
+remain zero. Apply the existing P-riderLM and rescue requirements below.
+Faction selection, physical insertion/evacuation, objectives and banking
+remain unverified on this export. Evidence:
+build/native-spark-black-echo-grounded-authenticated/result.json.
+
 17 November actual revised Black Echo handoff: retain the delivered cache
 releases/black-echo-review-20261117/Spark-d9ba1102-014a-4223-804c-e06bf7000ac3/be_native.map,
 SHA256 c388d3d69219ba5b99f53729905b81d9baa43a57582eb016cd1c636f2c636649
