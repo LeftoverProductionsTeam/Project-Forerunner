@@ -10,6 +10,10 @@
 #define _object_mask_biped 1
 #define _object_dead_bit 0
 #define _object_on_ground_bit 1
+#define _object_at_rest_bit 2
+#define _unit_control_jump_bit 0
+#define _vehicle_type_human_plane 1
+#define vehicle_datum unit_datum
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define PIN(a,b,c) ((a)<(b)?(b):((a)>(c)?(c):(a)))
@@ -18,7 +22,9 @@ struct unit_datum
 {
 	long definition_index;
 	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags,flags;long parent_object_index;real_vector3d forward,translational_velocity;} object;
-	struct {long player_index,actor_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
+	struct {long player_index,actor_index,driver_object_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];
+		unsigned long control_flags;real_vector3d throttle;real seat_power[2];} unit;
+	struct {real speed,slide,turn;} vehicle;
 };
 struct obey_individual_complex_control {
  boolean destination_valid,destination_keep_moving;
@@ -87,11 +93,13 @@ static void platform_log(const char *format,...)
 	used+=(size_t)written;output[used++]='\n';output[used]=0;
 }
 /* Native transport sampling over the same bounded actor/world adapters. */
-struct vehicle_definition {real ai_steering_max_throttle,ai_avoidance_distance,ai_pathfinding_radius;};
-static struct vehicle_definition plane_tag={.65f,4.f,1.8f};
+struct vehicle_definition {real ai_steering_max_throttle,ai_avoidance_distance,ai_pathfinding_radius;unsigned long flags;short vehicle_type;};
+static struct vehicle_definition plane_tag={.65f,4.f,1.8f,0,_vehicle_type_human_plane};
 static boolean human_plane=TRUE;
 static struct actor_datum *actor_get(long index) { struct actor_datum *a=actor_try_and_get(index);CHECK(a,"unknown actor");return a; }
 static struct unit_datum *vehicle_get(long id) {return unit_get(id);}
+static struct unit_datum *unit_try_and_get(long id) {return object_try_and_get_and_verify_type(id,_object_mask_unit);}
+static boolean vehicle_is_landed(long id) {return TEST_FLAG(vehicle_get(id)->object.flags,_object_on_ground_bit);}
 static boolean vehicle_is_human_plane(long id) {(void)id;return human_plane;}
 static struct vehicle_definition *vehicle_specific_definition_get(long index) {(void)index;return &plane_tag;}
 static void object_get_origin(long id,real_point3d *p) {*p=unit_get(id)->object.position;}
@@ -167,6 +175,40 @@ int main(int argc,char **argv)
 		human_plane = FALSE;
 		CHECK(!actor_move_plane_parked_facing(&native_actor, &facing) && facing.i < 0.f,
 			"ordinary vehicle lost native steering");
+	}
+	else CASE("plane-parked-rest")
+	{
+		long ship_index = add(1), pilot_index = add(2);
+		struct unit_datum *ship = vehicle_get(ship_index), *pilot = unit_get(pilot_index);
+		ship->object.flags = FLAG(_object_at_rest_bit) | FLAG(_object_on_ground_bit);
+		ship->unit.driver_object_index = pilot_index;
+		ship->unit.seat_power[0] = 1.f;
+		ship->vehicle.turn = .012f;
+		plane_tag.flags = FLAG(1) | FLAG(2);
+		pilot->object.parent_object_index = ship_index;
+		pilot->unit.actor_index = 0x56780000;
+		native_actor.input.vehicle_index = ship_index;
+		native_actor.input.vehicle_driver_type = _actor_vehicle_driver_directional_flying;
+		native_actor.state.action = _actor_action_alert;
+		CHECK(!vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
+			"a powered idle pilot woke an already settled plane");
+		native_actor.control.path.path.valid = TRUE;
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "new route failed to wake the plane");
+		native_actor.control.path.path.valid = FALSE;
+		native_actor.state.action = _actor_action_obey;
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "a scripted facing order was held asleep");
+		native_actor.state.action = _actor_action_alert;
+		ship->unit.throttle.i = .5f;
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "native throttle failed to wake the plane");
+		ship->unit.throttle.i = 0.f;
+		ship->object.flags &= ~FLAG(_object_at_rest_bit);
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "collision wake was suppressed");
+		ship->object.flags |= FLAG(_object_at_rest_bit);
+		ship->unit.control_flags = FLAG(_unit_control_jump_bit);
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "lift control failed to wake the plane");
+		ship->unit.control_flags = 0;
+		pilot->unit.player_index = 1;
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "player pilot acquired AI parking");
 	}
 	else CASE("plane-landing-arrival")
 	{

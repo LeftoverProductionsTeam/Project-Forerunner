@@ -24,10 +24,30 @@ attached plasma pistols. Both stayed at full health through the approach.
 The guest stopped at (50.839, -102.842, .047), before a boarding attempt.
 The landed Spirit was already outside both its authored pad and the shared
 hub when both players deployed. At tick 8940 it was at (49.170, -71.942,
-1.590) with its pilot seated, alert and at zero throttle. Reposition and
-level the Spirit staging pad so it stays inside `spirit_return` throughout
-normal player preparation. Spirit boarding and flight remain open on this
-cache. Evidence from build/native-spark-black-echo-a5bf-spirit-return.
+1.590) with its pilot seated, alert and at zero throttle.
+Evidence from build/native-spark-black-echo-a5bf-spirit-return.
+
+Forerunner now preserves the native rest state of a landed, idle,
+AI-flown plane while its driver remains powered. Flight orders and
+collision wake-ups retain the normal path. Windows64 built and 117
+focused checks passed. On the exact a5bf cache, two authenticated
+clients reported the same parked Spirit origin (57.335, -87.223, 1.446)
+from tick 300 through 6270, after both players had deployed. At the
+approach the host read the Spirit landed inside both return volumes.
+The pair reached (55.451, -89.254, .111) and (56.196, -88.868, .087)
+via the east side of the Pelican apron.
+
+The parked Spirit still held at tick 7560. The Pelican pilot entered
+native Charge at tick 7530, and the Spirit pilot entered native Fight at
+tick 7620. The Spirit then moved while still reporting landed. The host
+came within 1.131 world units of the nearest available passenger marker
+and received no native boarding prompt. Both players remained alive and
+neither boarded. Keep both standby pilots out of autonomous combat during
+the shared approach and leave clearance to the actual passenger entrance
+near (54.2, -87.7, .64). Use the native authored crew controls and preserve
+the flight and passenger checks. The separate Covenant mission entry,
+Spirit flight and settlement remain open. Evidence from
+build/native-spark-black-echo-a5bf-parked-rest.
 
 The optional-Flood predecessor 70641e813f97e4e8bf741489425ebe3bcd41b5053e3c3adcf8acf3f0f0bcecae
 puts be_containment east of the technology and records visits during the

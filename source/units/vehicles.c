@@ -145,6 +145,7 @@ symbols in this file:
 #include "cseries.h"
 #include "cseries/errors.h"
 #include "cseries/profile.h"
+#include "ai/actors.h"
 #include "vehicles.h"
 #include "math/real_math.h"
 #include "game/game_globals.h"
@@ -2476,6 +2477,37 @@ body has the same padded size and 98 relocations. The remaining residual is
 instruction scheduling, branch layout, and relocation placement. Keep the
 file-static call topology intact while closing it. */
 
+/* A powered seat keeps its pilot aboard. It need not keep waking a plane
+ * the collision solver has already settled on the ground. */
+static boolean vehicle_controls_wake_physics(
+	long vehicle_index,
+	struct vehicle_datum const *vehicle,
+	struct vehicle_definition const *definition)
+{
+	if (definition->vehicle_type == _vehicle_type_human_plane &&
+		TEST_FLAG(vehicle->object.flags, _object_at_rest_bit) &&
+		vehicle->vehicle.speed == 0.f && vehicle->vehicle.slide == 0.f &&
+		vehicle->unit.throttle.i == 0.f && vehicle->unit.throttle.j == 0.f &&
+		!TEST_FLAG(vehicle->unit.control_flags, _unit_control_jump_bit) &&
+		vehicle->unit.driver_object_index != NONE && vehicle_is_landed(vehicle_index))
+	{
+		struct unit_datum const *pilot = unit_try_and_get(vehicle->unit.driver_object_index);
+		if (pilot && pilot->object.parent_object_index == vehicle_index &&
+			pilot->unit.player_index == NONE && pilot->unit.actor_index != NONE)
+		{
+			struct actor_datum const *actor = actor_try_and_get(pilot->unit.actor_index);
+			if (actor && actor->input.vehicle_index == vehicle_index && actor_move_plane_is_parked(actor))
+				return FALSE;
+		}
+	}
+
+	return (TEST_FLAG(definition->flags, 0) && vehicle->vehicle.speed != 0.f) ||
+		(TEST_FLAG(definition->flags, 1) && vehicle->vehicle.turn != 0.f) ||
+		(TEST_FLAG(definition->flags, 2) && vehicle->unit.seat_power[0] != 0.f) ||
+		(TEST_FLAG(definition->flags, 3) && vehicle->unit.seat_power[1] != 0.f) ||
+		(TEST_FLAG(definition->flags, 5) && vehicle->vehicle.slide != 0.f);
+}
+
 boolean vehicle_update(
 	long vehicle_index)
 {
@@ -2647,16 +2679,10 @@ boolean vehicle_update(
 		}
 	}
 
-	if (definition->unit.object.physics.index!=NONE)
+	if (definition->unit.object.physics.index != NONE &&
+		vehicle_controls_wake_physics(vehicle_index, vehicle, definition))
 	{
-		if ((TEST_FLAG(definition->flags, 0) && vehicle->vehicle.speed!=0.0f) ||
-			(TEST_FLAG(definition->flags, 1) && vehicle->vehicle.turn!=0.0f) ||
-			(TEST_FLAG(definition->flags, 2) && vehicle->unit.seat_power[0]!=0.0f) ||
-			(TEST_FLAG(definition->flags, 3) && vehicle->unit.seat_power[1]!=0.0f) ||
-			(TEST_FLAG(definition->flags, 5) && vehicle->vehicle.slide!=0.0f))
-		{
-			vehicle->object.flags &= ~FLAG(_object_at_rest_bit);
-		}
+		vehicle->object.flags &= ~FLAG(_object_at_rest_bit);
 	}
 
 	match_assert("c:\\halo\\SOURCE\\units\\vehicles.c", 308,

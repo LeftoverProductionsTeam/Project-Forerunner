@@ -2429,20 +2429,21 @@ boolean actor_move_to_prop(
 	return result;
 }
 
+boolean actor_move_plane_is_parked(struct actor_datum const *actor)
+{
+	return actor && actor->state.action == _actor_action_alert &&
+		!actor->control.moving && !actor->control.path.path.valid &&
+		actor_move_plane_definition(actor) &&
+		TEST_FLAG(vehicle_get(actor->input.vehicle_index)->object.flags, _object_on_ground_bit);
+}
+
 /* Keep the parked hull level when the pilot looks around before departure. */
 boolean actor_move_plane_parked_facing(struct actor_datum const *actor, real_vector3d *facing)
 {
-	struct unit_datum *ship;
 	real_vector3d heading;
 
-	if (actor->state.action != _actor_action_alert ||
-		actor->control.moving || actor->control.path.path.valid ||
-		!actor_move_plane_definition(actor))
+	if (!actor_move_plane_is_parked(actor))
 		return FALSE;
-	ship = vehicle_get(actor->input.vehicle_index);
-	if (!TEST_FLAG(ship->object.flags, _object_on_ground_bit))
-		return FALSE;
-
 	heading = actor->input.position.body_facing;
 	heading.k = 0.f;
 	if (normalize3d(&heading) <= 0.f)
