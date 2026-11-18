@@ -1855,6 +1855,8 @@ void actor_look_update(
 	}
 
 update_facing:
+	if (actor_move_plane_parked_facing(actor, &actor->control.desired_facing_vector))
+		actor->control.face_exactly = FALSE;
 	if (!actor->state.flying)
 	{
 		if (!realcmp(actor->control.desired_facing_vector.k, 0.0f))

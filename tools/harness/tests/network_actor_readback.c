@@ -1,6 +1,7 @@
 /* Production diagnostic code over a bounded world: no simulated network pass. */
 #include "harness.h"
 #include <stdarg.h>
+#include <math.h>
 #define MAXIMUM_NETWORK_ACTORS 4
 #define TICKS_PER_SECOND 30
 #define _game_connection_network_server 1
@@ -8,6 +9,7 @@
 #define _object_mask_unit 1
 #define _object_mask_biped 1
 #define _object_dead_bit 0
+#define _object_on_ground_bit 1
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define PIN(a,b,c) ((a)<(b)?(b):((a)>(c)?(c):(a)))
@@ -15,7 +17,7 @@
 struct unit_datum
 {
 	long definition_index;
-	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags;long parent_object_index;real_vector3d forward,translational_velocity;} object;
+	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags,flags;long parent_object_index;real_vector3d forward,translational_velocity;} object;
 	struct {long player_index,actor_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];} unit;
 };
 struct obey_individual_complex_control {
@@ -101,6 +103,17 @@ static real distance_squared3d(real_point3d const *a,real_point3d const *b)
 	real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;
 	return x*x+y*y+z*z;
 }
+static real normalize3d(real_vector3d *vector)
+{
+	real length = sqrtf(vector->i * vector->i + vector->j * vector->j + vector->k * vector->k);
+	if (length > 0.f)
+	{
+		vector->i /= length;
+		vector->j /= length;
+		vector->k /= length;
+	}
+	return length;
+}
 #include "under_test.inc"
 static long add(int slot)
 {
@@ -132,20 +145,28 @@ int main(int argc,char **argv)
 	}
 	else CASE("plane-parked-look")
 	{
+		real_vector3d facing = {-.947f, -.306f, -.102f};
 		native_actor.state.action = _actor_action_alert;
-		native_actor.input.position.body_facing = (real_vector3d){.934f,-.326f,.145f};
-		native_actor.input.facing_vector = (real_vector3d){-.945f,-.311f,-.103f};
-		CHECK(actor_move_plane_stop_facing(&native_actor, TRUE).i == .934f,
-			"idle pilot look steered the grounded hull");
-		CHECK(actor_move_plane_stop_facing(&native_actor, FALSE).i == -.945f,
+		native_actor.input.vehicle_index = add(1);
+		native_actor.input.vehicle_driver_type = _actor_vehicle_driver_directional_flying;
+		native_actor.input.position.body_facing = (real_vector3d){.971f, -.19f, .143f};
+		CHECK(!actor_move_plane_parked_facing(&native_actor, &facing) && facing.i < 0.f,
 			"airborne pilot lost native steering");
+		world[1].object.flags = FLAG(_object_on_ground_bit);
+		CHECK(actor_move_plane_parked_facing(&native_actor, &facing) && facing.i > .98f && facing.k == 0.f,
+			"look override steered the grounded hull");
+		facing.i = -.947f;
 		native_actor.control.path.path.valid = TRUE;
-		CHECK(actor_move_plane_stop_facing(&native_actor, TRUE).i == -.945f,
+		CHECK(!actor_move_plane_parked_facing(&native_actor, &facing) && facing.i < 0.f,
 			"active native route lost its heading");
 		native_actor.control.path.path.valid = FALSE;
 		native_actor.state.action = _actor_action_obey;
-		CHECK(actor_move_plane_stop_facing(&native_actor, TRUE).i == -.945f,
+		CHECK(!actor_move_plane_parked_facing(&native_actor, &facing) && facing.i < 0.f,
 			"authored stop lost its facing order");
+		native_actor.state.action = _actor_action_alert;
+		human_plane = FALSE;
+		CHECK(!actor_move_plane_parked_facing(&native_actor, &facing) && facing.i < 0.f,
+			"ordinary vehicle lost native steering");
 	}
 	else CASE("plane-landing-arrival")
 	{

@@ -11,6 +11,45 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
+Spark's current Covenant-body CE609 cache is
+releases/black-echo-native-covenant-body-20261118/be_native.map, SHA256
+2c8990af61f091ab524413cdc0ae41b0c1c5f2861955836ba96a9c8ba06569ec.
+Two authenticated Windows clients selected Covenant at the native control
+and deployed. Both peers read the actual Grunt bodies and each player's
+plasma pistol attached to that body. The Spirit pilot occupied its native
+driver seat. The Spirit reported ready, landed and inside spirit_return
+when the pair began walking. The first player died near (49.432, -104.133,
+.094) by tick 4650 and the second near (48.298, -103.584, .216) by tick 4980.
+Both clients saw the deaths and the host reported both runs lost. The damage
+source was not captured. Neither player reached a Spirit seat, and the
+landed Spirit drifted to (52.684, -76.772, 1.562) by tick 5280.
+
+Review the foot approach past the Pelican apron at those casualty coordinates
+and the Spirit's touchdown surface. Keep armed standby crews out of combat
+along shared hub approaches while preserving normal field allegiance. Author
+a Covenant objective entry after Spirit field touchdown and disembarkation.
+This cache's gs_mission waits on gs_pelican_insertion_complete. Preserve
+the existing UNSC objective gate. Evidence from build/native-spark-black-echo-2c89-spirit-pair and peer logs.
+
+On the same export, a UNSC run boarded the first player before the alert
+Pelican pilot's facing reversed at tick 1530. The pilot had zero throttle
+and no route. The hull rolled and settled by (56.866, -100.654, 1.491).
+The guest stayed outside the second seat's native interaction range.
+Forerunner now applies the parked hull heading after native AI look orders.
+Windows64 built and 119 focused actor and vehicle checks passed. The exact
+map on the rebuilt executable held its heading through tick 1530, when
+the previous build turned. At tick 2070 both peers saw both players in
+native seats 4 and 1. The Pelican took off, landed (78.656, -125.629, 2.011)
+inside the field volume, and both players disembarked.
+
+The host reached the authored rally with a living Marine. Both clients saw
+the cleared Covenant encounter and the technology attached to the same
+player by tick 6990. The Flood spawned, survived the attempted player fire,
+and the collector died before the defense and extraction gates opened.
+Physical evacuation, settlement and redeployment remain open on this map.
+Evidence from build/native-spark-black-echo-2c89-flood-defense and
+build/native-spark-black-echo-2c89-parked-look-override.
+
 Spark's primary CE609 rally cache is
 releases/black-echo-native-rescue-rally-20261118/be_native.map, SHA256
 0541509920a71bbd753fd279e6650542d967fc70628b3b2b9ebb415b2e76bede.
