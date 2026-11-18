@@ -9,7 +9,31 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
-Current Black Echo handoff: Spark's CE609 cache
+Current Black Echo handoff: Spark's CE609 apron cache
+releases/black-echo-native-apron-20261118/be_native.map, SHA256
+7074cffcd9b637912c0f0b947fe83d0ee40b41fdb7a43393b6a3bf10249d2714.
+In the first paired approach with a seat marker, the Pelican turned sharply
+around tick 960 while its pilot had zero throttle. The Spirit's pilot began
+native Charge at tick 1110 and later reached (53.214, -101.711, 1.391).
+The guest saw a seat prompt at tick 4860 while the host reported the guest alive
+below the hub volume. Departure then locked the seat before the guest's loss.
+Keep the standby Spirit crew out of autonomous combat until its authored route.
+Review dynamic clearance at the apron with both players approaching slowly.
+
+Forerunner now keeps deployed teammates in the hub crew until field arrival
+or loss, even across the return volume edge. The existing regression reproduces
+the early departure on the old code. Windows64 and 73 focused checks passed.
+On the fixed build, two authenticated clients physically entered seats 4 and 1,
+flew to (78.746, -125.713, 1.991), and exited normally. Both clients saw the
+living Marine, Covenant combat and death, and the technology spawn at tick
+6660. The empty Pelican landed near the apron at (53.233, -100.705, 1.520).
+The guest's input route stopped at (53.021, -92.560, .203); the live run ended
+before technology collection. Continue with one collector and one player
+near the field call point. Mission settlement and redeployment remain open.
+Evidence: build/native-spark-black-echo-7074-apron-approach/result.json and
+build/native-spark-black-echo-7074-crew-gate/result.json with peer logs.
+
+Earlier Black Echo handoff: Spark's CE609 cache
 releases/black-echo-native-escort-20261118/be_native.map, SHA256
 51ba08d64c12c2ea27f0eeb3e79b5b75db2ff5710c37443547251e5c82dcfa0b.
 On the existing Windows build, two authenticated clients boarded, flew, landed

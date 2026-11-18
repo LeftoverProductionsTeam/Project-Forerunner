@@ -86,7 +86,7 @@ struct extraction_run
 	long player, unit, activation_ticks, retry_tick;
 	short local_player;
 	enum extraction_phase phase;
-	boolean blocked, loadout_seen, stash_preview, discard_stash;
+	boolean blocked, loadout_seen, stash_preview, discard_stash, field_reached;
 	byte owner[GEAR_ID_BYTES];
 	byte discard_id[GEAR_ID_BYTES];
 	unsigned long discard_generation;
@@ -1410,6 +1410,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->statistics_started = TRUE; run->report_page = 0;
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->dropship = NONE;
+	run->field_reached = FALSE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	extraction_tell(run, !extraction.survival && !run->gear.record.reserved_count && !run->gear.record.reserved_grenades[0] && !run->gear.record.reserved_grenades[1] ?
 		"DEPLOYED | Stored gear stays safe. Native starters/carried gear and field loot must escape to be recovered. No raid timer." : extraction.survival ?
@@ -1682,6 +1683,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	}
 	if (run->phase == _extraction_deployed && run->unit == unit_index)
 	{
+		run->field_reached = TRUE;
 		run->phase = _extraction_activating; run->activation_ticks = 10 * TICKS_PER_SECOND;
 		extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
 		return FALSE;
@@ -1903,6 +1905,16 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		}
 		return; /* Retain owned gear while alive; an incapacitated body cannot escape. */
 	}
+	if (run->phase == _extraction_deployed && !run->field_reached && unit->object.parent_object_index != NONE)
+	{
+		short faction = extraction_faction(unit->object.owner_team_index);
+		long ship = extraction_player_dropship(unit);
+		short zone = extraction_zone_for_faction(faction);
+		if (ship != NONE && zone != NONE && scenario_trigger_volume_test_object(zone, ship) &&
+			!scenario_trigger_volume_test_object(extraction.return_zone, ship) &&
+			(extraction.dropship_landing_groups[faction] == NONE || vehicle_is_landed(ship)))
+			run->field_reached = TRUE;
+	}
 	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&
 		!extraction_squad_objectives_ready(run))
 	{
@@ -2022,9 +2034,11 @@ static boolean extraction_transport_boarded(short faction)
 		if (!legacy_crew && (!VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) || !(crew_squads & FLAG(run->squad)) ||
 			run->squad_operation != extraction.squads[run->squad].operation)) continue;
 		if (at_lz && run->phase == _extraction_activating) return FALSE;
+		/* A deployed teammate may approach a seat outside the hub volume.
+		 * Only actual field arrival releases a run from the insertion crew. */
 		if (at_lz ? run->phase != _extraction_ready :
-			(run->phase != _extraction_deployed || (unit->object.parent_object_index != ship &&
-				!extraction_at_hub(player->unit_index)))) continue;
+			(run->phase != _extraction_deployed ||
+				(run->field_reached && unit->object.parent_object_index != ship))) continue;
 		passengers++;
 		if (run->unit != player->unit_index || unit->unit.player_index != run->player ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||

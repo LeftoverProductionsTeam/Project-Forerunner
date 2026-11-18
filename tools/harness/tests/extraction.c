@@ -1612,11 +1612,17 @@ int main(int argc,char **argv)
     dropships[0].object.position.x=0;touch(0,0);touch(0,1);
     units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
     CHECK(!device_groups[10].actual_value,"first insertion passenger abandoned deployed hub teammate");
+    units[1].object.position.x=6.f;advance(1);
+    CHECK(!device_groups[10].actual_value,"crossing the hub boundary removed an approaching insertion passenger");
     units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
     CHECK(device_groups[10].actual_value==1.f,"fully boarded insertion crew not ready");
     before=boarding_changes;advance(5);CHECK(boarding_changes==before,"unchanged readiness repeatedly snapped native groups");
     units[1].object.parent_object_index=NONE;advance(1);
     CHECK(!device_groups[10].actual_value,"disembarking insertion passenger retained readiness");
+    units[1].object.parent_object_index=craft;dropships[0].object.position.x=20.f;advance(1);
+    units[1].object.parent_object_index=NONE;units[1].object.position.x=8.f;
+    dropships[0].object.position.x=0.f;advance(1);
+    CHECK(device_groups[10].actual_value==1.f,"a passenger already inserted into the field blocked the next crew");
     extraction_reset();return 0;
    }
   }
