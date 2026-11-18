@@ -11,7 +11,35 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
-Spark's latest Spirit occupancy CE609 cache is
+Spark's pilots-hold CE609 cache is
+releases/black-echo-native-both-pilots-hold-20261118/be_native.map,
+SHA256 eed5856bc7d785522130b1b633a59266d1d23724ff1c7a5452a81cf180e47ef9.
+The first two-account run found the old short walking line obstructed near
+the parked Pelican, at (54.341, -103.839, .014). Both clients took the east
+side around the hull in the next run, boarded the Spirit, flew and landed
+at (94.063, -131.952, 2.170), and exited at full health. Both peers saw the
+Pelican remain at (53.339, -102.537, 1.348) through the Spirit insertion.
+
+The arrival latch spawned the Covenant ally. Both players reached
+be_survivors on foot at (50.746, -89.466, .152) and (50.361, -89.568, .153).
+Host readback showed one living Covenant ally, players inside the rally,
+the ally outside, and zero facility defenders. The ally stayed in native
+Guard with no movement destination at (58.811, -89.541, .046).
+
+The compiled be_covenant encounter has a single native_squad, eight zero
+firing-group masks, and one firing point near its spawn at
+(58.846, -89.472, .078). ai_follow_target_players selects players for
+native squad migration in encounter_update_follow. With these masks it
+has no destination. Author a Covenant return squad with compiler-derived
+ground firing positions inside be_survivors and native guard/attack
+groups, following the existing be_marines/be_return pattern. Alternatively
+attach an authored ground command list that physically leads the ally
+into the rally. Retain the living-ally and player-volume checks.
+Facility combat, collection and evacuation remain open. Evidence is in
+build/native-spark-black-echo-eed5-east-corridor, including both peer logs
+and the host console readback.
+
+Spark's previous Spirit occupancy CE609 cache is
 releases/black-echo-native-covenant-spirit-occupancy-20261118/be_native.map,
 SHA256 7b3940f61ee960a158ee2281219a92cead6709a90f9b36b6c11bd950a1f0ba9d.
 The extracted script now checks player bodies in the actual seat labels.
