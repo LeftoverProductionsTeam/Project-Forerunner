@@ -41,7 +41,8 @@ def generated(fault=None):
                     'physics_placement_clear', 'physics_placement_lift', 'physics_resting_placement')) + '\n' + '\n'.join(
                 function(cheats, name) for name in (
                     'cheats_forge_reset', 'forge_placeable_object_get', 'forge_aim_collision', 'cheat_forge_target',
-                    'forge_create_copy', 'forge_clone_at_position', 'cheat_forge_clone', 'cheat_forge_clone_at',
+                    'forge_copy_scale_supported', 'forge_create_copy', 'forge_clone_at_position',
+                    'cheat_forge_clone', 'cheat_forge_clone_at',
                     'cheat_forge_pick', 'forge_space_occupied', 'forge_aim_placement', 'cheat_forge_place',
                     'forge_editable_copy', 'forge_move_copy', 'forge_remember_transform',
                     'cheat_forge_move_selected', 'forge_settle_turned_vehicle',

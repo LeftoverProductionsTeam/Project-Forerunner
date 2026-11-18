@@ -316,6 +316,12 @@ long cheat_forge_target(void)
 	return hit.object_index;
 }
 
+static boolean forge_copy_scale_supported(real scale)
+{
+	return !global_network_game_server_get() || scale == 0.f || scale == 1.f ||
+		(network_coop_active() && !cheats_console_objects_xbox() && scale > 0.f && scale < 100.f);
+}
+
 static long forge_create_copy(struct object_placement_data *placement, real scale)
 {
 	long clone_index;
@@ -370,9 +376,7 @@ static long forge_clone_at_position(
 	missed creation. Native zero means the unscaled model, as does one.
 	Ordinary multiplayer/Xbox has no scaled equivalent. Keep exactly
 	the receiving scale bounds; never create a differently sized replica. */
-	if (global_network_game_server_get() && object->object.scale != 0.0f && object->object.scale != 1.0f &&
-		(!network_coop_active() || cheats_console_objects_xbox() ||
-		 !(object->object.scale > 0.0f && object->object.scale < 100.0f)))
+	if (!forge_copy_scale_supported(object->object.scale))
 	{
 		console_warning("forge_clone needs supported native co-op for scaled network objects (scale >0 and <100; no Xbox)");
 		return NONE;
@@ -747,6 +751,13 @@ boolean cheat_forge_remove_selected(void)
 enum { FORGE_SIDECAR_OBJECTS = 128, FORGE_SIDECAR_BYTES = 128 * 512 + 512 };
 static char const forge_header[] = "[OpenCE Forge Map]";
 static char const forge_author[] = "Author: Forerunner";
+static char const forge_object_scale[] = "OBJECT_SCALE|";
+
+struct forge_sidecar_placement
+{
+	struct object_placement_data object;
+	real scale;
+};
 
 static char const *forge_sidecar_leaf(char const *name)
 {
@@ -842,7 +853,7 @@ static boolean forge_sidecar_base_matches(char const *name, char const *referenc
 		!_stricmp(forge_sidecar_leaf(name), reference);
 }
 
-static boolean forge_sidecar_parse(char *text, char const *reference, struct object_placement_data *placements,
+static boolean forge_sidecar_parse(char *text, char const *reference, struct forge_sidecar_placement *placements,
 	short *count, boolean own)
 {
 	boolean header = FALSE, base_found = FALSE, author_found = FALSE, state = FALSE;
@@ -864,10 +875,26 @@ static boolean forge_sidecar_parse(char *text, char const *reference, struct obj
 		}
 		else if (state)
 		{
-			if (*count >= FORGE_SIDECAR_OBJECTS || strncmp(line, "OBJECT|", 7) ||
-				!forge_sidecar_object(line + 7, &placements[*count]))
-				return FALSE;
-			(*count)++;
+			if (!strncmp(line, forge_object_scale, sizeof(forge_object_scale) - 1))
+			{
+				char const *value = line + sizeof(forge_object_scale) - 1;
+				char *end;
+				real scale = strtof(value, &end);
+
+				if (!*count || placements[*count - 1].scale != 0.f ||
+					end == value || *end || !(scale > 0.f && scale < 100.f) ||
+					!forge_copy_scale_supported(scale))
+					return FALSE;
+				placements[*count - 1].scale = scale;
+			}
+			else
+			{
+				if (*count >= FORGE_SIDECAR_OBJECTS || strncmp(line, "OBJECT|", 7) ||
+					!forge_sidecar_object(line + 7, &placements[*count].object))
+					return FALSE;
+				placements[*count].scale = 0.f;
+				(*count)++;
+			}
 		}
 		else if (!strcmp(line, "[ForgeState]"))
 			state = TRUE;
@@ -902,6 +929,7 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 		unsigned long group;
 		real pitch, yaw, roll, cp, sp, cy, sy;
 		struct location location;
+		char scale_row[48] = "";
 
 		struct object_header_datum *header = handle != NONE ? object_header_try_and_get(handle) : NULL;
 
@@ -922,7 +950,8 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 		path = tag_get_name(object->definition_index);
 		if (++count > FORGE_SIDECAR_OBJECTS || !path || !path[0] || strlen(path) > 255 ||
 			strpbrk(path, "|\r\n") || tag_loaded(group, path) != object->definition_index ||
-			(object->object.scale != 0.f && object->object.scale != 1.f) || object->object.variant_number != 0 ||
+			object->object.variant_number != 0 || !forge_copy_scale_supported(object->object.scale) ||
+			(object->object.scale != 0.f && !(object->object.scale > 0.f && object->object.scale < 100.f)) ||
 			(group == 'scen' && global_network_game_server_get()) ||
 			(group == 'weap' && weapon_is_flag(handle)) ||
 			!valid_real_point3d(&object->object.position) ||
@@ -947,10 +976,14 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 			roll = arctangent(sy * object->object.up.i - cy * object->object.up.j,
 				-cy * sp * object->object.up.i - sy * sp * object->object.up.j + cp * object->object.up.k);
 		}
+		/* Keep the upstream OBJECT row readable. Older editors ignore the
+		 * optional property and place these objects at their default scale. */
+		if (object->object.scale != 0.f && object->object.scale != 1.f)
+			snprintf(scale_row, sizeof(scale_row), "%s%.9g\r\n", forge_object_scale, object->object.scale);
 		written = snprintf(text + *size, FORGE_SIDECAR_BYTES - *size,
-			"OBJECT|%lu|0|0|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f|%d|%s\r\n", group,
+			"OBJECT|%lu|0|0|%.6f|%.6f|%.6f|%.6f|%.6f|%.6f|%d|%s\r\n%s", group,
 			object->object.position.x, object->object.position.y, object->object.position.z,
-			yaw, pitch, roll, (int)object->object.owner_team_index, path);
+			yaw, pitch, roll, (int)object->object.owner_team_index, path, scale_row);
 		if (written < 0 || (posix_ulong)written >= FORGE_SIDECAR_BYTES - *size)
 			return FALSE;
 		*size += (posix_ulong)written;
@@ -960,7 +993,7 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 	return had_copies;
 }
 
-static boolean forge_sidecar_restore(struct object_placement_data *placements, short count)
+static boolean forge_sidecar_restore(struct forge_sidecar_placement const *placements, short count)
 {
 	long created[FORGE_SIDECAR_OBJECTS], slot, previous_count = cheats_console_objects_made;
 	short index;
@@ -970,8 +1003,9 @@ static boolean forge_sidecar_restore(struct object_placement_data *placements, s
 			return FALSE; /* Load onto a fresh layout, never duplicate existing copies. */
 	for (index = 0; index < count; index++)
 	{
-		struct object_placement_data placement = placements[index];
-		created[index] = forge_create_copy(&placement, 0.f);
+		struct forge_sidecar_placement const *saved = &placements[index];
+		struct object_placement_data placement = saved->object;
+		created[index] = forge_create_copy(&placement, saved->scale);
 		if (created[index] == NONE)
 		{
 			while (index > 0)
@@ -986,8 +1020,8 @@ static boolean forge_sidecar_restore(struct object_placement_data *placements, s
 		}
 		/* Native vehicle birth raises the hull above the input position.
 		 * Apply the saved pose to the new copy before the next physics tick. */
-		object_set_position(created[index], &placements[index].position,
-			&placements[index].forward, &placements[index].up);
+		object_set_position(created[index], &saved->object.position,
+			&saved->object.forward, &saved->object.up);
 	}
 	return TRUE;
 }
@@ -998,7 +1032,7 @@ boolean cheat_forge_sidecar(boolean saving)
 #ifdef NATIVE_FORGE_SIDECARS
 	char const *base;
 	char reference[144], path[1100], lock_path[1105];
-	struct object_placement_data *placements;
+	struct forge_sidecar_placement *placements;
 	char *text;
 	int lock = -1, read;
 	posix_ulong size;

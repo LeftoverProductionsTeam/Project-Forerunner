@@ -268,8 +268,19 @@ build/native-forge-sidecar-restored/result.json and
 build/native-forge-import-verified/result.json. The existing menu also saves
 removal of the last copy, while Save on a freshly opened session preserves the
 previous layout. Two native LAN clients passed this path in
-build/native-forge-empty-layout/result.json. Scale and other Forge edits still
-need a compatible representation.
+build/native-forge-empty-layout/result.json.
+
+Forge scale persistence (18 November) uses an optional OBJECT_SCALE row
+immediately after its existing OpenCE-Forge OBJECT row. Save and Load
+retain scale through the existing native creation and co-op appearance
+paths. Standard rows keep their default scale. The reviewed OpenCE-Forge
+reader ignores the optional property. Windows64 built and 19 focused
+clone/appearance checks passed. Two independent Windows LAN game clients
+saved a .625-scale copy and a default copy, restarted both processes and
+loaded both through Forge Tools with the same scales. Non-finite and
+duplicate properties created no objects. The original map hash and the
+saved file after reload matched. Evidence from
+build/native-forge-scale-sidecar/result.json.
 
 Campaign co-op handoff (17 November): the next round preserves the host's
 friendly-fire setting across the playlist reset. The real reset test reproduced
