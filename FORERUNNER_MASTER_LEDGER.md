@@ -19,6 +19,13 @@ account proof and inputs. Defense, evacuation, settlement, banking and
 redeployment remain open on this candidate. See the Spark contract for
 the route and asset handoff.
 
+Windows x64 now uses BirchWood's ChupathingyCE fallback for omitted point-physics tags
+(`b486040c04`). The focused lookup cleared 64 bytes instead of 131,072, while
+retaining loaded-tag and invalid-index behavior. All 12 focused contrail and particle
+checks passed. The native 343 Guilty Spark opening rendered rain and water splashes in
+both builds at tick 330 with matching camera and player state. Frame rate was not
+measured. Local receipt: `build/native-point-physics-c10/`.
+
 Native HaloScript now widens a signed `short` to `long` using BirchWood's
 ChupathingyCE fix at `64fbc42977`. Windows x64 built and 90 focused checks
 passed. The baseline console refused both assignments and retained 42424.
