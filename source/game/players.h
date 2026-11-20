@@ -383,6 +383,7 @@ long local_player_get_player_index(
 	short local_player_index);
 struct object_placement_data;
 void placement_data_set_change_color(struct object_placement_data *placement_data, real_rgb_color const *change_color);
+void player_apply_profile_color(long unit_index, real_rgb_color const *color, boolean armor_only);
 
 void players_set_local_player_unit(
 	short local_player_index,

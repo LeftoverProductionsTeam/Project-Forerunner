@@ -389,6 +389,7 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 	next->unit.cause_for_camo_regrowth = old->unit.cause_for_camo_regrowth;
 	memcpy(next->unit.grenade_counts, old->unit.grenade_counts, sizeof(next->unit.grenade_counts));
 	memcpy(powerups, player->powerup_durations, sizeof(powerups));
+	player_apply_profile_color(replacement, &color, TRUE);
 	/* Reuse the same native attachment path as MCC possession. No new
 	 * controller, identity, body replication message or equipment snapshot. */
 	if (game_connection() == _game_connection_local)

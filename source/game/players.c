@@ -1383,24 +1383,25 @@ long find_best_starting_location_index(
 	return best_starting_location_index;
 }
 
-/* port: paints a network co-op player's unit in their profile colour. The
-campaign Spartan is always green because its tag fixes that colour, which
-overrides the colour the unit is created with; this replaces fixed colours. */
-static void players_coop_color_unit(
+/* port: apply the profile after native tag permutations have initialized the
+ * body. Authored faction armor uses channel A; other channels keep tag colors. */
+void player_apply_profile_color(
 	long unit_index,
-	real_rgb_color const *color)
+	real_rgb_color const *color,
+	boolean armor_only)
 {
 	struct object_datum *object = object_get(unit_index);
 	struct object_definition *definition = object_definition_get(object->definition_index);
 	short index;
 
-	for (index = 0; index < definition->object.change_colors.count && index < NUMBER_OF_OBJECT_CHANGE_COLORS; index++)
+	short color_count = armor_only ? _object_change_color_a + 1 : NUMBER_OF_OBJECT_CHANGE_COLORS;
+	for (index = 0; index < MIN(definition->object.change_colors.count, color_count); index++)
 	{
 		struct object_change_color_definition *change_color = TAG_BLOCK_GET_ELEMENT(
 			&definition->object.change_colors, index, struct object_change_color_definition);
 
 		/* skip colours driven by a function, like the shield glow */
-		if (change_color->permutations.count > 0 && !change_color->scaled_by && !change_color->darken_by)
+		if ((armor_only || change_color->permutations.count > 0) && !change_color->scaled_by && !change_color->darken_by)
 		{
 			object->object.base_change_colors[index] = *color;
 			object->object.outgoing_change_colors[index] = *color;
@@ -1531,8 +1532,8 @@ static void player_spawn(
 					&placement_data,
 					&change_color);
 				unit_index = object_new(&placement_data);
-				if (unit_index != NONE && network_coop_active())
-					players_coop_color_unit(unit_index, &change_color);
+				if (unit_index != NONE && (faction_profile != NONE || network_coop_active()))
+					player_apply_profile_color(unit_index, &change_color, faction_profile != NONE);
 				if (unit_index != NONE)
 				{
 					unit = unit_try_and_get(unit_index);

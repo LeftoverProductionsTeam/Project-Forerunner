@@ -44,7 +44,8 @@ struct tag_reference {long index;};
 #include "medical_hud_types.inc"
 #include "equipment_ownership.inc"
 struct object_fields { long first_child_object_index, next_object_index; short type; long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
- real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up,translational_velocity,angular_velocity; };
+ real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up,translational_velocity,angular_velocity;
+ real_rgb_color base_change_colors[4], outgoing_change_colors[4]; };
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_animation_data { short state, seat_index; };
 struct unit_datum { long definition_index; struct object_fields object;
@@ -291,7 +292,7 @@ static void item_in_unit_inventory(long w,long u)
 {struct weapon_datum *item=weapon_get(w);item->object.owner_player_index=unit_get(u)->unit.player_index;
  item->item.flags=FLAG(_item_attached_to_unit_bit)|(unit_get(u)->unit.player_index!=NONE?FLAG(_item_belongs_to_player_bit):0);}
 static real_rgb_color *game_engine_player_get_change_color(real_rgb_color *color,long player)
-{(void)player;color->r=color->g=color->b=1;return color;}
+{*color=player==player_handles[0]?(real_rgb_color){.8f,.2f,.1f}:(real_rgb_color){.1f,.6f,.9f};return color;}
 static void placement_data_set_change_color(struct object_placement_data *placement,real_rgb_color const *color)
 {(void)placement;(void)color;}
 static boolean game_engine_has_teams(void) {return FALSE;}
@@ -370,6 +371,14 @@ static void firefight_notice(char const *text);
 #include "survival_lives.inc"
 
 #include "equipment_flags.inc"
+enum {_object_change_color_a=0, NUMBER_OF_OBJECT_CHANGE_COLORS=4};
+struct object_change_color_definition {short scaled_by, darken_by;struct tag_block permutations;};
+struct object_definition {struct {struct tag_block change_colors;} object;};
+static struct object_change_color_definition armor_channels[2]={{0,0,{1,NULL}},{0,0,{1,NULL}}};
+static struct object_definition armor_model={{{2,armor_channels}}};
+static struct object_definition *object_definition_get(long definition){return &armor_model;}
+static struct object_datum *object_get(long index);
+#include "body_armor_color.inc"
 #include "equipment.inc"
 /* Native object-list adapters; list allocation/provenance itself is exercised
  * with the real pool code in coop_gate and script_stale_objects. */
@@ -1212,6 +1221,20 @@ int main(int argc,char **argv)
    CHECK(!extraction_owns_map()&&!body_creations,"bad character binding admitted or created a body");return 0;
   }
   CHECK(extraction_owns_map(),"valid native character bindings refused");
+  if(!strcmp(case_name,"body-armor-color")) {
+   touch(4,0);touch(4,1);
+   for(i=0;i<2;i++) {
+    real_rgb_color selected;
+    unit=unit_get(players[i].unit_index);
+    game_engine_player_get_change_color(&selected,player_handles[i]);
+    CHECK(unit->definition_index==5&&unit->unit.player_index==player_handles[i],"Covenant model lost its player");
+    CHECK(unit->object.base_change_colors[0].r==selected.r&&unit->object.outgoing_change_colors[0].b==selected.b,
+          "faction body did not receive its player's individual color");
+    CHECK(!unit->object.base_change_colors[1].r&&!unit->object.outgoing_change_colors[1].b,
+          "personal armor color replaced an authored secondary color channel");
+   }
+   return 0;
+  }
   if(!strcmp(case_name,"body-stash")) {
    incompatible_body_weapon=1;touch(4,0);
    CHECK(players[0].unit_index!=old&&run(0)->gear.record.count==1&&!run(0)->gear.record.reserved_count&&

@@ -2403,6 +2403,28 @@ First-person hands/HUD stay map-native.
 Spark must supply compatible character animations, native seat labels, faction
 objectives and actual approach/landing/departure content for transport acceptance.
 
+Use a native Elite as the default Covenant player body in new operations.
+Bind it through the existing extraction_covenant_body placement and pair it
+with a compatible extraction_covenant starting profile. Explicit author
+choices can still bind other species. The current Black Echo Grunt cache has
+no Elite biped or animation graph. Read-only a50 tag inspection found
+characters/elite/elite with 0.8 standing height, 0.2 collision radius, the
+stand pistol pp animation and CD-passengerL01 exit clips. Verify the actual
+exported Elite's native weapon checks with technology_grunt and its exact
+Spirit seats. Confirm collision, animation, first-person arms and weapons,
+HUD, shields and sound in the delivered map. The current first-person hands
+lookup uses a map-wide native interface, so mixed-faction hands still need a
+verified per-body binding.
+
+The existing Player Setup color picker stores the selected profile color.
+Faction replacement and respawn apply it to native armor channel A after tag
+permutations initialize the body, using the existing replicated appearance.
+The stock Elite's torso, arms, legs and head shaders already read channel A.
+Custom armor should keep that binding and preserve function-driven effects.
+The focused check exercises two distinct profile colors and
+preservation of a secondary channel. Lobby readback, reconnect, transitions
+and rendered two-client Elite colors require native Elite acceptance.
+
 Physical boarding continuation (base `770f0c65b2`, 16 November): existing native
 `unit_can_enter_seat` now enforces assigned Pelican/Spirit factions for actual
 player bodies through `extraction.c::extraction_transport_can_board`. NPC crews,
