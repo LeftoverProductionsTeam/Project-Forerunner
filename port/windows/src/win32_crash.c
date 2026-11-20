@@ -546,7 +546,7 @@ static int crash_ask(void)
 	document) */
 	message_box_timeout_proc message_box_timeout =
 		(message_box_timeout_proc)(void *)GetProcAddress(GetModuleHandleW(L"user32.dll"), "MessageBoxTimeoutW");
-	UINT style = MB_YESNO | MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND;
+	UINT style = MB_YESNO | MB_DEFBUTTON2 | MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND;
 	int answer = message_box_timeout ? message_box_timeout(NULL, text, L"Forerunner crashed", style, 0,
 		CONSENT_WAIT_MILLISECONDS) : MessageBoxW(NULL, text, L"Forerunner crashed", style);
 

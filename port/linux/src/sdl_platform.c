@@ -548,14 +548,14 @@ asked about as crash_reports.upload says */
 static void crash_reports_start(void)
 {
 	static const SDL_MessageBoxButtonData buttons[] = {
-		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Yes" },
-		{ SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No" },
+		{ 0, 1, "Yes" },
+		{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, "No" },
 	};
 	static const char text[] =
 		"Forerunner crashed the last time it ran.\n\n"
 		"Send crash reports to the developers?\n\n"
 		"A report holds the game's version, where it crashed and the end of debug.txt, with IP addresses "
-		"removed.\n\n"
+		"removed. Reports go to the service set in network.browser_url.\n\n"
 		"Yes sends this report and later ones. No never sends one.";
 	SDL_MessageBoxData question = { SDL_MESSAGEBOX_WARNING, NULL, "Forerunner crashed", text, 2, buttons, NULL };
 	char folder[1024], log[1024], old_folder[1024], old_log[1024];

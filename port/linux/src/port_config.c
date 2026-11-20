@@ -2340,11 +2340,11 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"approved since this build are downloaded too; empty for none\n"
 		"(docs/map_torrents.md)." },
 	/* ---- crash_reports */
-	{ "crash_reports.upload", _config_string, "\"yes\"", "HALO_CRASH_REPORTS", _environment_value, _platform_desktop,
+	{ "crash_reports.upload", _config_string, "\"ask\"", "HALO_CRASH_REPORTS", _environment_value, _platform_desktop,
 		"Send a report of each crash to the developers, through network.browser_url\n"
 		"(port/linux/src/crash_report.h: the build, where it crashed, the end of the\n"
 		"log without IP addresses, and on Windows a minidump): \"yes\" sends them\n"
-		"(this fork's default), \"no\" never does, \"ask\" asks after the next crash\n"
+		"automatically, \"no\" never does, \"ask\" (Forerunner's default) asks after the next crash\n"
 		"and writes the answer here." },
 
 	/* ---- server: OpenCE's dedicated server (halo --server) */
@@ -5862,7 +5862,7 @@ static const struct
 	{ "network.shield_effects", { "stock", "glow", "light_show", "overshield", "glow_overshield",
 		"light_show_overshield", "players", NULL }, NULL },
 	{ "network.coop_enemies_mode", { "none", "per_player", "multiplier", NULL }, "\"none\"" },
-	{ "crash_reports.upload", { "ask", "yes", "no", NULL }, "\"yes\"" },
+	{ "crash_reports.upload", { "ask", "yes", "no", NULL }, "\"ask\"" },
 	{ "display.hud_button_style", { "classic", "gems", "menu_gems", "dark_gems", "xbox_modern",
 		"ps_classic", "ps_gems", "ps_dark_gems", "ps_modern", "switch_classic", "switch_gems", "switch_modern", "keyboard", NULL }, NULL },
 	{ "display.hud_button_style_xbox", { "classic", "gems", "menu_gems", "dark_gems", "xbox_modern", NULL }, NULL },
