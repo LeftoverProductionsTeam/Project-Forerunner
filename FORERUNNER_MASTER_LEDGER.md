@@ -9,9 +9,10 @@ use, Elite deployment, and physical Spirit boarding, flight, landing and
 disembarkation with full health and shields. The authored Covenant rescue
 and rally completed. The southern route cleared the facility guard in
 native combat and the Elite physically collected the authored technology.
-Defense activated and the guard survived the attempted shots. Confirm the
-equipped weapon after the pickup replaces the active pistol. A disposable
-cache rendered the credited CMT Elite arms with the starter plasma pistol.
+The keyboard switch equipped the plasma pistol after pickup. The tested
+outer flank around the parked Spirit let the Elite damage the defender
+before the run ended. A disposable cache rendered the credited CMT Elite
+arms with the starter plasma pistol.
 Paired play, defense, evacuation and durable settlement remain open on
 this candidate. See the Spark contract for the route and asset handoff.
 

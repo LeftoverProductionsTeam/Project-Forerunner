@@ -71,15 +71,16 @@ and (76.4, -95.8). Native combat killed the defender and spawned
 the physical pickup and acquired the exact tag, setting `gs_collected_4`
 true. The pickup replaced the active pistol and the defense actor kept
 full vitality while the technology occupied the equipped slot. The other
-inventory slot retained the plasma pistol. A second run repeated combat
-and collection, but a controller weapon-switch request and three firing
-attempts left the defense actor alive at (59.85, -85.47, 0.10) and
-`gs_extraction_armed` false. Static BSP and the sampled Spirit collision
-pose both leave a clear ray from the pickup position. Confirm the actual
-equipped weapon and firing view with the native keyboard switch before
-attributing this to a content or runtime defect. Field evacuation and
-banking remain open. Evidence: `build/native-black-echo-04d9-elite-bsp-approach`
-and `build/native-black-echo-04d9-elite-field-extraction`.
+inventory slot retained the plasma pistol. The native keyboard switch
+equipped it with full battery. The firing capture from the pickup position
+shows the landed Spirit in front of the defender at (59.85, -85.47, 0.10).
+The inner flank left the defender at full vitality. The outer route via
+(58.17, -90.69), (62.13, -90.62) and (62.45, -87.78) exposed both sides
+to fire. The Elite removed the defender's shields and took damage in
+return. The bounded run ended with the defender alive and
+`gs_extraction_armed` false. Field evacuation and banking remain open.
+Evidence: `build/native-black-echo-04d9-elite-bsp-approach` and
+`build/native-black-echo-04d9-elite-defense-keyboard`.
 
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
