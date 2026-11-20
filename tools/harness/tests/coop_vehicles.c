@@ -17,7 +17,7 @@
 #define _game_connection_network_server 2
 enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit, _object_on_ground_bit };
 #include "unit_flags.inc"
-enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle };
+enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle, _object_type_biped };
 #define _object_mask_scenery FLAG(_object_type_scenery)
 #define _object_mask_weapon FLAG(_object_type_weapon)
 #define _object_mask_equipment FLAG(_object_type_equipment)
@@ -33,7 +33,7 @@ struct player_datum {long unit_index;};
 struct location {long leaf_index; short cluster_index;};
 struct test_object {
  long definition_index;
- struct {long parent_object_index,first_child_object_index,owner_player_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
+ struct {long parent_object_index,first_child_object_index,next_object_index,owner_object_index,owner_player_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
  real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
  float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];} object;
  struct {unsigned long flags; long driver_object_index,player_index;} unit;
@@ -137,7 +137,8 @@ static void cross_product3d(real_vector3d const *a,real_vector3d const *b,real_v
 static long make(int slot,int definition) {
  struct test_object *v=&objects[slot];memset(v,0,sizeof(*v));
  identifiers[slot]=0x10000+slot;v->definition_index=definition;v->object.parent_object_index=NONE;
- v->object.first_child_object_index=NONE;v->object.owner_player_index=NONE;v->object.name_index=NONE;
+ v->object.first_child_object_index=NONE;v->object.next_object_index=NONE;v->object.owner_object_index=NONE;
+ v->object.owner_player_index=NONE;v->object.name_index=NONE;
  v->object.flags=FLAG(_object_connected_to_map_bit);v->object.forward.i=1;v->object.up.k=1;
  v->unit.driver_object_index=NONE;v->unit.player_index=NONE;v->object.bounding_sphere_radius=.7f;return identifiers[slot];
 }
@@ -751,6 +752,18 @@ int main(int argc,char **argv) {
   placed=get(copy);
   placed->object.type=_object_type_vehicle;
   if(!strcmp(name,"occupied")) placed->object.first_child_object_index=123;
+  if(!strcmp(name,"mounted") || !strcmp(name,"rider") || strstr(name,"-weapon")) {
+   long attachment=make(31,1);
+   struct test_object *child=get(attachment);
+
+   placed->object.first_child_object_index=attachment;
+   child->object.parent_object_index=copy;
+   child->object.owner_object_index=!strcmp(name,"foreign-weapon")?first:copy;
+   child->object.type=!strcmp(name,"rider")?_object_type_biped:_object_type_weapon;
+   child->item.flags=FLAG(_item_attached_to_unit_bit);
+   if(!strcmp(name,"owned-weapon")) child->item.flags|=FLAG(_item_belongs_to_player_bit);
+   if(!strcmp(name,"objective-weapon")) clone_objective=TRUE;
+  }
   if(!strcmp(name,"held")) {
    placed->object.type=_object_type_weapon;
    placed->item.flags=FLAG(_item_belongs_to_player_bit);
@@ -761,7 +774,7 @@ int main(int argc,char **argv) {
   if(!strcmp(name,"restore")) cheats_forge_reset();
   if(!strcmp(name,"client")) connection=1;
   if(!strcmp(name,"permission")) clone_refused=TRUE;
-  if(!strcmp(name,"latest")) {
+  if(!strcmp(name,"latest")||!strcmp(name,"mounted")) {
    CHECK(cheat_forge_undo()&&!get(copy),"undo did not delete last copy");
    CHECK(!cheat_forge_undo(),"undo reused deleted copy");
   } else {

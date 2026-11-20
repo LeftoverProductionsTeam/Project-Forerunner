@@ -19,6 +19,15 @@ account proof and inputs. Defense, evacuation, settlement, banking and
 redeployment remain open on this candidate. See the Spark contract for
 the route and asset handoff.
 
+A remote Forge host can now undo an armed Warthog copy without treating
+its factory weapon as an occupant. On stock Blood Gulch, one connected
+guest and one late joiner received the host's Spark HMV Warthog and gun.
+All three Windows x64 instances removed both objects after Undo Copy.
+The 60 focused Forge checks passed, including rider, foreign weapon,
+player-owned weapon and objective protection. The isolated session used
+OpenCE protocol and loopback only. Evidence is in
+`build/native-remote-forge-hmv/result.json`.
+
 Windows x64 now uses BirchWood's ChupathingyCE fallback for omitted point-physics tags
 (`b486040c04`). The focused lookup cleared 64 bytes instead of 131,072, while
 retaining loaded-tag and invalid-index behavior. All 12 focused contrail and particle
@@ -42,8 +51,8 @@ reached the lobby. Spark QuickForge now imports, edits and exports HMV with
 unsupported records retained. Chupathingy Windows nightly `7e2024d2` and
 Forerunner exchanged a Warthog layout on identical Blood Gulch data.
 Forerunner's native Forge menu also loaded Spark `7c31919`'s export and
-spawned the moved Warthog at the edited position. More record types and
-multiplayer editing remain open. Evidence:
+spawned the moved Warthog at the edited position. Additional record types
+and remote transform editing remain open. Evidence:
 `build/native-hmv-chupa-forerunner-roundtrip` and `build/native-spark-hmv-forerunner`.
 
 SparkLink's acknowledged placement export from Spark `cfe0a2c` now passes

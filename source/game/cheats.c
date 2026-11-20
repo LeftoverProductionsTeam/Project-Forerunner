@@ -649,6 +649,27 @@ long cheat_forge_place(void)
 	return forge_clone_at_position(forge_selection, &position);
 }
 
+/* A copied vehicle's factory weapon is created with the vehicle as
+ * its owner and is attached when readied. Stock object deletion already
+ * removes that attachment. Any rider or independently owned child blocks edits. */
+static boolean forge_editable_children(long object_index, struct object_datum const *object)
+{
+	long child_index = object->object.first_child_object_index;
+	while (child_index != NONE)
+	{
+		struct item_datum const *child = item_try_and_get(child_index);
+		if (object->object.type != _object_type_vehicle || !child ||
+			child->object.type != _object_type_weapon || child->object.parent_object_index != object_index ||
+			child->object.owner_object_index != object_index || child->object.owner_player_index != NONE ||
+			child->object.name_index != NONE || child->object.first_child_object_index != NONE ||
+			!TEST_FLAG(child->item.flags, _item_attached_to_unit_bit) ||
+			TEST_FLAG(child->item.flags, _item_belongs_to_player_bit) || weapon_is_flag(child_index))
+			return FALSE;
+		child_index = child->object.next_object_index;
+	}
+	return TRUE;
+}
+
 static struct object_datum *forge_editable_copy(long object_index)
 {
 	long slot;
@@ -670,7 +691,7 @@ static struct object_datum *forge_editable_copy(long object_index)
 	/* Native edits cannot disturb riders, owned equipment or scenario objects. */
 	object = forge_placeable_object_get(object_index);
 	if (!object || object->object.name_index != NONE || object->object.owner_player_index != NONE ||
-		object->object.first_child_object_index != NONE)
+		!forge_editable_children(object_index, object))
 		return NULL;
 
 	item = item_try_and_get(object_index);
