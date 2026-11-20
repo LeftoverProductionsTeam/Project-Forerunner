@@ -3029,6 +3029,17 @@ weapon from riders and independently owned attachments. This uses the
 stock object lifecycle and existing multiplayer channel. Remote Fixed or
 Phased placement, device wiring, guest editing and live SparkLink control
 remain open. Evidence is in `build/native-remote-forge-hmv/result.json`.
+
+A separate private Windows x64 OpenCE-protocol run on the same cache
+verified **Move Selected Copy**, **Undo Move or Rotate**, and **Redo Move
+or Rotate** for one armed Warthog through the native Forge menu. Positions
+on the host and connected guest matched within 0.02 world units at the
+sampled edits. Spark read the moved position and original title and
+author from the saved HMV. A late joiner received the edited position.
+This establishes translation of a normal base-map vehicle. Remote
+rotation is still unverified. Evidence is in
+`build/native-remote-forge-transform/result.json`.
+
 On Windows x64, two consecutive offline native host sessions showed the
 decoded title and accented author, saved all four metadata fields,
 reopened the Warthog through **Load Saved (.HMV)** after restarting, and
