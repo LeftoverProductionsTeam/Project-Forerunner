@@ -33,7 +33,10 @@ imported armed Warthog about 6.7 world units. A connected guest observed
 the same handle and all three positions through Move, Undo and Redo.
 Spark read back the edited HMV, and a late joiner received the new
 position. Evidence is in `build/native-remote-forge-transform/result.json`.
-Remote rotation remains open.
+A separate run verified Rotate, Undo and Redo on the same native object
+identity. Runtime yaw after the late join agreed to within 0.003 degrees.
+Spark read the new 88.08-degree yaw and creator credits from the saved
+HMV. Evidence is in `build/native-remote-forge-rotate/result.json`.
 
 Windows x64 now uses BirchWood's ChupathingyCE fallback for omitted point-physics tags
 (`b486040c04`). The focused lookup cleared 64 bytes instead of 131,072, while
@@ -59,7 +62,7 @@ unsupported records retained. Chupathingy Windows nightly `7e2024d2` and
 Forerunner exchanged a Warthog layout on identical Blood Gulch data.
 Forerunner's native Forge menu also loaded Spark `7c31919`'s export and
 spawned the moved Warthog at the edited position. Additional record types
-and remote rotation remain open. Evidence:
+and multiplayer special physics remain open. Evidence:
 `build/native-hmv-chupa-forerunner-roundtrip` and `build/native-spark-hmv-forerunner`.
 
 SparkLink's acknowledged placement export from Spark `cfe0a2c` now passes

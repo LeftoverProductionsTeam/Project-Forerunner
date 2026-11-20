@@ -2918,6 +2918,11 @@ slot. This local host accepts stock scenery and plain `mach` and `ctrl`
 HMV records placed at start, with normal physics and the existing record
 limits. The added objects use native creation and keep their tag defaults.
 Set up linked switches, power groups and scripts in the native scenario.
+Readback of stock Silent Cartographer found control 3 and nearby machine
+50 share position group 1 and power group 2. Both groups start at 1, and
+group 1 is repeatable. That pair is a candidate for the in-game switch
+trial. The stock cache was preserved, and physical Use and machine motion
+remain unverified. Evidence is in `build/native-b30-device-binding/result.json`.
 The HMV writer saves these devices with the original classes. Device
 records stay outside the text sidecar and remote-hosted HMV path. Spark
 can expose the local device export when the runtime advertises this
@@ -3036,9 +3041,16 @@ or Rotate** for one armed Warthog through the native Forge menu. Positions
 on the host and connected guest matched within 0.02 world units at the
 sampled edits. Spark read the moved position and original title and
 author from the saved HMV. A late joiner received the edited position.
-This establishes translation of a normal base-map vehicle. Remote
-rotation is still unverified. Evidence is in
-`build/native-remote-forge-transform/result.json`.
+This establishes translation of a normal base-map vehicle. Evidence is
+in `build/native-remote-forge-transform/result.json`.
+
+A second native session verified **Rotate Selected Copy**, undo, redo
+and late join on an armed Warthog. Read-only runtime samples taken from
+the same native object identity showed the final heading on all three
+instances to within 0.003 degrees. Spark read 88.08 degrees of yaw and
+the original creator metadata from the saved HMV. This used Windows x64,
+the OpenCE protocol and loopback. Evidence is in
+`build/native-remote-forge-rotate/result.json`.
 
 On Windows x64, two consecutive offline native host sessions showed the
 decoded title and accented author, saved all four metadata fields,
