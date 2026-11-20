@@ -1745,6 +1745,16 @@ int main(int argc,char **argv)
   }
   units[0].object.position.x=0;advance(1);
   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"foot return bypassed physical boarding");
+  if(!strcmp(case_name,"transport-landed-loop")) {
+   units[0].object.position.x=20;
+   dropships[0].object.flags&=~FLAG(_object_on_ground_bit);
+   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
+   advance(1);CHECK(run(0)->dropship==NONE,"airborne field attachment counted as landed boarding");
+   dropships[0].object.position.x=0;dropships[0].object.flags|=FLAG(_object_on_ground_bit);
+   advance(1);CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),
+    "landing at the hub counted after attachment to an airborne craft");
+   units[0].object.parent_object_index=NONE;dropships[0].object.position.x=20;
+  }
   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
   if(!strcmp(case_name,"transport-pilot-receipt"))transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
   if(!strcmp(case_name,"transport-seat"))units[0].unit.parent_seat_index=2;

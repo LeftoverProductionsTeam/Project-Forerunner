@@ -18,6 +18,10 @@ The facility guard moved. The compiled technology weapon still uses hp,
 which the Covenant player cannot equip with the supplied Grunt graph.
 This candidate has compiled-cache readback only. The Covenant strand still needs
 the compatible weapon definition and matching objective described below.
+The extracted gs_mission begins by waiting on gs_spirit_player_arrived.
+For a shared two-faction delivery, author a UNSC entry that follows the
+Pelican insertion and live disembarkation, then use the correct faction's
+rescue and objective flow.
 
 Spark's Covenant rally and Spirit return CE609 cache is
 releases/black-echo-native-covenant-rally-return-20261118/be_native.map,
@@ -1985,12 +1989,14 @@ publish actual native ground contact (five ticks before parking), upright attitu
 and settled linear/angular motion. Native hover preserves the actual grounded
 collision flag and parked pose; it does not manufacture a touchdown. They are host outputs, initially zero, with the same
 unique matching-vehicle and control-group isolation rules. Binding one also
-requires that faction's aircraft to be landed for boarding readiness and seated
-hub banking; maps without these optional groups retain the existing contract.
+requires that faction's aircraft to be landed before an evacuation boarding
+can count, when publishing crew readiness, and when banking while seated at
+the hub. Maps without these optional groups retain the existing contract.
 Spark must wait for both the correct pad volume and this landed output before
 opening doors or reporting arrival. A volume, hover command or elapsed timer
 does not establish a landing. Source: `source/units/vehicles.c::vehicle_is_landed`,
-`extraction.c::{extraction_at_return,extraction_transport_boarded,extraction_transport_readiness}`.
+`extraction.c::{extraction_return_ready,extraction_at_return,
+extraction_transport_boarded,extraction_transport_readiness}`.
 No packet/save version or second pilot system is added. Native pilot support is
 opted in through existing human-plane tag AI throttle (>0..1), positive avoidance
 distance and pathfinding radius (at most 12 units): authored hull clearance,

@@ -1840,7 +1840,8 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (extraction_medical_incapacitated(run->unit) ||
-			!extraction_transport_at_field(faction, dropship)) return FALSE;
+			!extraction_transport_at_field(faction, dropship) ||
+			(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(dropship))) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
 		extraction.dropship_evacuating[faction] = dropship;
