@@ -5,7 +5,7 @@ miniupnpcstrings.h.in: written here for this project's builds
 #define MINIUPNPCSTRINGS_H_INCLUDED
 
 #define OS_STRING "Halo-CE-Universal/1.0"
-#define MINIUPNPC_VERSION_STRING "2.3.3"
+#define MINIUPNPC_VERSION_STRING "2.3.5"
 
 /* according to "UPnP Device Architecture 1.1" */
 #define UPNP_VERSION_MAJOR 1

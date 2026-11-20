@@ -4,10 +4,9 @@ The MiniUPnP project's UPnP IGD client library in C, by Thomas Bernard,
 licensed under the BSD 3-Clause License (see `LICENSE`).
 
 Upstream: https://github.com/miniupnp/miniupnp (https://miniupnp.tuxfamily.org),
-release `miniupnpc-2.3.3`, `miniupnpc-2.3.3.tar.gz`, SHA-256
-`d52a0afa614ad6c088cc9ddff1ae7d29c8c595ac5fdd321170a05f41e634bd1a`
-(its sources match the repository's `miniupnpc_2_3_3` tag but for their
-`$Id$` lines).
+release `miniupnpc_2_3_5` at commit `e1db7c47295d38b2b416c892779dae9afa434016`.
+The GitHub archive for this commit has SHA-256
+`0ef406e3d0b4a922100719a4f3457a055a1476d906779901c9ff9f46cf1b827f`.
 
 Only the library's sources in `src/` (not its test and command-line
 programs), `include/` and `LICENSE` are kept, without their build files,
