@@ -33,6 +33,47 @@ native placements and scaling flags for the intended on-screen size.
 The 960x540 captures are build/black-echo-hud-before.png and
 build/stock-ce-hud-reference.png.
 
+The same cache has one native player start at (40, -110, 1.43069).
+After a controlled two-client wipe, the original engine reused it for both
+bodies. At tick 4020 both bodies had zero health and the same XY at Z 6.331
+and 6.431. They continued rising six world units per second. Hub respawn now
+waits for a free native start and preserves base health when the authored
+equipment profile has two zero vitality modifiers. The exact-map retest
+spawned both at full body health after the first moved clear. Spark should
+place separate, grounded hub starts for all intended players, with clear
+routes to the controls and passenger doors. Isolated controlled wipe evidence
+is in build/native-spark-black-echo-d4ca-hub-repro/checkpoints.json and
+build/native-spark-black-echo-d4ca-hub-respawn-fixed/result.json.
+
+The hub deploy control is at (41, -110, 1.42002). The field call control is
+at (71, -129, 0.78456). Check the actual control model bases against the BSP
+and verify the front markers are reachable from the routes players use.
+The visual terminal floor gap and the first unexpected death are unverified
+in the controlled run. Normal input from either probed position produced no
+host touch offer. Persistent deployment needs two bound Delta accounts, with
+each participant opting into Share My Profile in Delta Profile > Privacy.
+
+The compiled gs_mission powers extraction_activate off and sleeps on
+gs_spirit_player_arrived before starting its objectives. A UNSC Pelican
+insertion cannot satisfy that transition. The Pelican's existing
+gs_pelican_insertion_complete tracks the authored troop disembarkation.
+Use the existing Spark passenger-arrival tracking for both craft and start
+each faction's objectives from its own living, previously seated passenger
+after grounded disembarkation. The field controls must remain reachable
+and become usable when their faction's objectives are met. Use the existing
+operation and transport callbacks to rearm repeat deployment.
+
+For reusable insertion, use native passenger seats and the existing Spark
+transport controller for the Pelican or Spirit approach, landing and exit.
+Opening the mission from the occupied craft can use its current passenger
+view or an optional aircraft-relative camera. Support creator-supplied
+briefing, radio, pilot, landing, departure and extraction cues through
+native sound tags, subtitles and timed HaloScript. Missing cues and skipped
+shots must leave the same aircraft, selected gear, physical arrival checks
+and gameplay outcome intact. Keep each cue optional and keep camera cleanup
+independent of flight. Use original or user-supplied media. Verify both
+faction paths with two authenticated people using their own controls.
+
 Spark's previous facility-cover CE609 cache is
 releases/black-echo-native-covenant-facility-cover-20261118/be_native.map,
 SHA256 ce892c715ccdb5eaaccb9c44a1a60b6148bc52b092244e12bc4632489a89b7bf.
@@ -1151,7 +1192,14 @@ Native two-account evidence includes departure from the return area
 (build/native-squad-bank-receipt/result.json). Reuse a continuous script beginning with
 `(sleep -1)` for later operations, as in the existing
 `tools/fixtures/extraction_factions_native.hsc`. These callbacks never award gear.
-`extraction_update` and `extraction_players_returned_for_squad` own the gate.
+`extraction_update` uses the same active squad membership gate as redeployment.
+The optional void callback `forerunner_squad_01_aborted` (and the same
+pattern for other squads) lets the author reset objectives after a failed
+operation. It fires once after all members finish and no member banked. An
+escape escrow that could not finish writing before a disconnect suppresses
+the abort. Existing bank, transport and map-wide callbacks retain their
+own gates. This path is compiled and harness-verified; native scripted
+acceptance remains open.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
 not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version

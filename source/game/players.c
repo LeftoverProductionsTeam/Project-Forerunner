@@ -1371,7 +1371,10 @@ long find_best_starting_location_index(
 	no game engine) has no starting location for no game type, every one
 	being for its game types: the player starts at any of them, not at none
 	(outside the map, with no pause menu) */
-	if (best_starting_location_index == NONE && !game_engine_running() && starting_location_count > 0)
+	/* Extraction uses the same hub starts for every return. If all are
+	 * blocked, let its normal respawn tick retry after a start clears. */
+	if (best_starting_location_index == NONE && !game_engine_running() &&
+		starting_location_count > 0 && !extraction_owns_map())
 	{
 		best_starting_location_index = (short)PIN(
 			(short)(real_random_range(0.0f, 1.0f) * starting_location_count), 0, starting_location_count - 1);
@@ -4996,11 +4999,11 @@ void player_add_equipment(
 			if (reset_equipment)
 			{
 				unit_delete_all_weapons(unit_index);
-				/* port: optional Firefight can reuse a map's equipment-only
+				/* port: Firefight and Extraction can reuse a map's equipment-only
 				 * respawn kit. Zero modifiers must not wipe this biped's
 				 * native vitality; explicit vitality profiles and classic
 				 * campaign resets retain the original behavior. */
-				if (!coop_enemies_firefight_active() ||
+				if ((!coop_enemies_firefight_active() && !extraction_owns_map()) ||
 					starting_profile->starting_health_modifier != 0.f ||
 					starting_profile->starting_shield_modifier != 0.f)
 				{

@@ -16,6 +16,10 @@ ForerunnerTest account now authenticate as distinct, bound players in private
 native sessions. Original identity files remain unchanged; credentials and new
 device recovery material stay in owner-only ignored storage.
 
+Deferred Extraction option: earn and spend currency on authored vehicle drops
+such as Warthogs and Scorpions. Keep the existing gear, transport and operation
+authority. Begin after the two-faction Black Echo loop passes human acceptance.
+
 Managed aircraft deployment checks recovery space while players can still use
 the loadout terminal. It counts only the saved weapons selected for the run,
 leaving room for all four native weapon slots. Windows64 and 112 focused checks
