@@ -33,6 +33,15 @@ enum
 	MACHINE_DEFINITION_VERSION = 1,
 };
 
+/* Native machine tag values in HEK and Invader. */
+enum
+{
+	_machine_type_door,
+	_machine_type_platform,
+	_machine_type_gear,
+	NUMBER_OF_MACHINE_TYPES,
+};
+
 enum
 {
 	_machine_is_pathfinding_obstacle_bit = 0,

@@ -67,8 +67,6 @@ enum
 	NUMBER_OF_PROJECTILE_EXPORT_FUNCTION_MODES = 4,
 	/* devices.c, device_export_function_values */
 	NUMBER_OF_DEVICE_FUNCTION_MODES = 7,
-	/* device_machines.c: door, platform, gear */
-	NUMBER_OF_MACHINE_TYPES = 3,
 	/* device_controls.c, control_toggle's switch (its default asserts) */
 	NUMBER_OF_CONTROL_TYPES = 4,
 	/* device_controls.c: touched, destroyed */

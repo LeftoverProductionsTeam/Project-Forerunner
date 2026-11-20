@@ -39,12 +39,6 @@ symbols in this file:
 
 enum
 {
-	_machine_type_door = 0,
-	_machine_type_platform = 2,
-};
-
-enum
-{
 	_device_position_changed_bit = 2,
 };
 
@@ -193,7 +187,8 @@ boolean machine_update(
 	struct machine_datum *machine = machine_get(machine_index);
 
 	definition = machine_definition_get(machine->definition_index);
-	if (definition->machine.type == _machine_type_platform)
+	/* A gear continuously advances its phase, including its position group. */
+	if (definition->machine.type == _machine_type_gear)
 	{
 		machine->device.position +=
 			(1.0f - machine->device.power) * definition->device.runtime_maximum_depowered_position_velocity +
