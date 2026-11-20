@@ -2962,7 +2962,24 @@ file and applied one placement with zero skipped. The harness's final
 ordinary item sample timed out in Chupathingy's monitor mode. Its native
 layout-application log records the outcome. Source maps and the imported file
 were preserved. Evidence: `build/native-hmv-chupa-forerunner-roundtrip`.
-Two-client HMV replication and advanced layout properties remain open.
+Spark `cfe0a2cc517d1067451d6a7de027268885afd717`'s production SparkLink
+exporter reproduced the recorded acknowledged revision 35 exactly. Its HMV
+SHA-256 is `1dab054291db7851a29fce60ca2bdb06f6d584d7a57fff7d7a4a66bd22edeb59`.
+Both Windows Forge runtimes loaded these bytes against Blood Gulch SHA-256
+`50fe52406f075d975e24100a65b26ff696458023dd3509878953052ab0ef858f`.
+Forerunner showed “SparkLink revision 35” and “Created by Équipe Forge” on
+the HUD, spawned the edited vehicle at (104.25, -160.85, 0.45), and saved
+team 0 with intact metadata. Chupathingy nightly `7e2024d2` reported one
+placement and zero skips. Its native object inspection showed the Warthog
+at the same XY with elevation 1.01 at that sample, facing (0.732, 0.682, 0),
+team 0 and normal physics. The two samples do not establish identical
+settling or simulation. Both imports and original map hashes matched after
+the runs. Evidence: `build/native-sparklink-1dab-forerunner`
+and `build/native-sparklink-1dab-chupa`. See the [pinned Chupathingy Forge
+command reference](https://github.com/ChupathingyCE/chupathingyce/blob/7e2024d2/docs/forge.md).
+
+Two-client HMV replication, live runtime editing and other advanced layout
+properties remain open.
 On Windows x64, two consecutive offline native host sessions showed the
 decoded title and accented author, saved all four metadata fields,
 reopened the Warthog through **Load Saved (.HMV)** after restarting, and

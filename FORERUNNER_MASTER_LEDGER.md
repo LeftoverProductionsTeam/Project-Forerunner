@@ -31,6 +31,15 @@ spawned the moved Warthog at the edited position. More record types and
 multiplayer editing remain open. Evidence:
 `build/native-hmv-chupa-forerunner-roundtrip` and `build/native-spark-hmv-forerunner`.
 
+SparkLink's acknowledged placement export from Spark `cfe0a2c` now passes
+native interchange on the identical Blood Gulch cache. Export SHA-256 begins
+`1dab0542`. Forerunner placed the edited red-team Warthog, displayed the
+revision title and Équipe Forge credit, and kept the metadata when saved.
+Chupathingy nightly `7e2024d2` placed the same record with zero skipped
+and reported team 0. The native receipts are in
+`build/native-sparklink-1dab-forerunner` and `build/native-sparklink-1dab-chupa`.
+Live runtime editing and client replication stay open.
+
 Forge Tools displays the HMV title and creator on the host HUD and keeps
 the title, author, description and date on save. **Load Saved (.HMV)**
 reopens the local edit with the original import still in place. Windows
