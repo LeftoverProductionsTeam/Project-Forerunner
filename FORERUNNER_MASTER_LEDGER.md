@@ -4,16 +4,15 @@ Updated: 20 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
 Current priority: complete Black Echo with two authenticated players.
-Native HMV exchange passed for plain placements on matching caches.
-Spark's current
-Elite and four-start cache `04d9ccd1` passed offline hub terminal use, Elite
-selection, starter plasma-pistol deployment, and Spirit passenger boarding
-and takeoff. A disposable Forerunner build also compiled and rendered the
-credited CMT Elite arms with the starter plasma pistol. Spark's authored
-cache with those arms remains a separate handoff. Complete both faction
-routes through landing, combat, evacuation, settlement, reconnect and
-redeployment. The enabled Spark authoring path and asset review are recorded
-in the existing integration contract.
+Spark's Elite and four-start cache `04d9ccd1` passed offline hub terminal
+use, Elite deployment, and physical Spirit boarding, flight, landing and
+disembarkation with full health and shields. The authored Covenant rescue
+and rally completed, activating the facility opponent. The local run
+stopped there with that opponent alive. A separate disposable cache
+rendered the credited CMT Elite arms with the starter plasma pistol.
+Paired play, the facility fight, technology collection, evacuation and
+durable settlement remain open on this candidate. See the Spark contract
+for the exact map, evidence and first-person asset handoff.
 
 Forge now saves and loads plain base-map `.hmv` placements using the original
 Chupathingy codec and the existing host placement path. One Windows x64 host
@@ -21,9 +20,11 @@ saved a Pelican through Forge Tools, restarted, refused a timed placement
 intact, and restored the Pelican. The LAN attempt stopped before the guest
 reached the lobby. Spark QuickForge now imports, edits and exports HMV with
 unsupported records retained. Chupathingy Windows nightly `7e2024d2` and
-Forerunner exchanged a Warthog layout on identical Blood Gulch data. More
-record types and multiplayer editing remain open. Evidence:
-`build/native-hmv-chupa-forerunner-roundtrip`.
+Forerunner exchanged a Warthog layout on identical Blood Gulch data.
+Forerunner's native Forge menu also loaded Spark `7c31919`'s export and
+spawned the moved Warthog at the edited position. More record types and
+multiplayer editing remain open. Evidence:
+`build/native-hmv-chupa-forerunner-roundtrip` and `build/native-spark-hmv-forerunner`.
 
 Forge Tools can redo the latest undone move or rotation with the existing
 host clearance checks. Windows x64 and 18 focused cases passed. A native

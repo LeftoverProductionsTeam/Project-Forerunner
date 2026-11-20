@@ -40,13 +40,19 @@ that Elite and the sampled player had full body and shield vitality.
 Evidence: `build/native-black-echo-04d9-elite-selection/result.json` and its
 native trace.
 
-Another run walked the existing southern foot route and used the landed
-Spirit's passenger offer from (53.971, -88.542, 0.144). The Elite occupied
-seat 5 at ticks 4050 through 4200 with full vitality. The Spirit moved
-under native pilot throttle from (57.281, -87.291, 1.415) to
-(55.653, -80.670, 4.271), airborne. Landing, physical disembarkation and
-the rest of the operation remain open on this cache. Evidence:
-`build/native-black-echo-04d9-spirit-passenger/result.json`.
+An offline Windows x64 input run walked to the Spirit and boarded seat 5
+through the native passenger offer. The pilot flew to the field and landed
+at (93.934, -132.037, 2.106) at tick 6150. The Elite used the native exit
+and disembarked at (91.337, -133.815, 0.740) with full health and shields.
+The Spirit began its scripted return after disembarkation. Evidence:
+`build/native-black-echo-04d9-spirit-first-landing/result.json` and its trace.
+
+The next offline run confirmed `gs_spirit_player_arrived`. A player and the
+living Covenant rescue actor both reached `be_survivors`, and the facility
+encounter spawned one opponent. The scripted shots at the earlier candidate's
+target location left that opponent alive. Technology collection and field
+extraction were not reached. Evidence:
+`build/native-black-echo-04d9-elite-objectives/result.json` and its console trace.
 
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
@@ -2499,8 +2505,9 @@ This binding has no network packet or save-format extension.
 The native Windows test used Invader to retain a renamed existing Spartan
 hands model through an unused scenery palette entry. Forerunner rendered
 its arms and weapon without the global hands reference. The capture is
-`build/native-first-person-authored-model/viewmodel.png`. Actual Elite
-models, mixed-faction first-person multiplayer and VR remain unverified.
+`build/native-first-person-authored-model/viewmodel.png`. The CMT test
+above also verifies Elite arms with the starter plasma pistol. Mixed-faction
+first-person multiplayer and VR remain unverified.
 
 The selected approach extends the existing mapper in
 `source/interface/first_person_weapons.c`. Reviewed OpenCE
@@ -2869,12 +2876,14 @@ Reuse source: ChupathingyCE `1b732f52d73f214d4f0068178d45753cca56dcf3`
 This adapter uses existing Forerunner host object creation, replication and
 text sidecar rollback. It does not negotiate a new network protocol.
 
-Spark `a9d36c0` implements HMV import, pose edits and export in QuickForge.
-Its existing history tracks the edits and preserves unsupported records with
-the original layout. Chupathingy's standalone decoder read Spark's exported
-object pose and retained player spawn. A Forerunner playtest must match the
-runtime cache and require `forge.hmv_base_placements.v1` before preparing
-`import.hmv` with the supported placement subset.
+Spark `7c31919` exports the Forerunner placement subset as `import.hmv`
+through its existing Forge layouts editor. Its history tracks pose edits
+and preserves unsupported records for Chupathingy export. A Forerunner
+playtest must match the runtime cache and require
+`forge.hmv_base_placements.v1`. On Windows x64, Forerunner loaded the
+production Spark export through Forge Tools and spawned a Warthog at the
+edited Blood Gulch position (103.19, -160.85, 0.48). The import hash and
+source maps were preserved. Evidence: `build/native-spark-hmv-forerunner/result.json`.
 The HMV codec stays in Forerunner under its upstream license. A contribution
 for upstream review can isolate this runtime placement adapter from Spark's
 authoring code.
