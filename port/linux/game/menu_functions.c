@@ -13320,17 +13320,6 @@ Profile's DELTA button, which opens the screen of code */
 #define DELTA_HELP_WIDTH 40
 #define DELTA_HELP_LENGTH 256
 
-#if defined(HALO_GAME_BROWSER) && !defined(HALO_CONSOLE_NO_DELTA_PROFILE)
-
-void browser_screen_open(void);
-
-static struct
-{
-	/* Online Games' Start opened it: back there when it closes */
-	boolean from_online_games;
-	short section;
-} delta_menus;
-
 static void utf8_wide_text(char const *text, wchar_t *wide, long size)
 {
 	unsigned char const *cursor = (unsigned char const *)text;
@@ -13363,6 +13352,17 @@ static void utf8_wide_text(char const *text, wchar_t *wide, long size)
 	}
 	wide[used] = 0;
 }
+
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_CONSOLE_NO_DELTA_PROFILE)
+
+void browser_screen_open(void);
+
+static struct
+{
+	/* Online Games' Start opened it: back there when it closes */
+	boolean from_online_games;
+	short section;
+} delta_menus;
 
 /* a widget's text from UTF-8 (NULL or empty: none) */
 static void delta_text(struct widget_instance *widget, char const *text)
@@ -13791,7 +13791,7 @@ boolean pc_menu_forge_offered(void)
 static boolean forerunner_forge_action(char const *action)
 {
 	boolean was_terminal_command = terminal_command_running;
-	char const *notice;
+	char const *notice, *title = NULL, *author = NULL;
 
 	if (!pc_menu_forge_offered() || !game_in_progress() || network_game_distributed_client())
 		return FALSE;
@@ -13827,13 +13827,28 @@ static boolean forerunner_forge_action(char const *action)
 		notice = cheat_forge_sidecar(FALSE) ? "Forge placements loaded." :
 			"Load failed. Open the matching base map and start with an empty Forge layout.";
 	else if (!strcmp(action, "port forge save hmv"))
-		notice = cheat_forge_hmv(TRUE) ? "Saved forerunner.hmv." :
-			"HMV save failed. Use unscaled base-map copies and a writable save slot.";
+		notice = cheat_forge_hmv(_forge_hmv_save, &title, &author) ? "Saved forerunner.hmv." :
+			"HMV save failed. Use unscaled base-map copies. Load an existing credited save before editing it.";
 	else
-		notice = cheat_forge_hmv(FALSE) ? "HMV placements loaded." :
+		notice = cheat_forge_hmv(!strcmp(action, "port forge load saved hmv") ? _forge_hmv_load_saved : _forge_hmv_load,
+			&title, &author) ? "HMV placements loaded." :
 			"HMV load failed. Use the exact base map, an empty layout and plain base-map placements.";
 	terminal_command_running = was_terminal_command;
-	hud_print_notice(0, notice);
+	if (title)
+	{
+		wchar_t line[63];
+		if (*author)
+		{
+			char credit[63];
+			snprintf(credit, sizeof(credit), "Created by %s", author);
+			utf8_wide_text(credit, line, NUMBEROF(line));
+			hud_print_message(0, line);
+		}
+		utf8_wide_text(title, line, NUMBEROF(line));
+		hud_print_message(0, line);
+	}
+	else
+		hud_print_notice(0, notice);
 	return TRUE;
 }
 
@@ -14076,7 +14091,8 @@ boolean pc_menu_event_function_invoke(
 			!strcmp(name, "port forge undo") || !strcmp(name, "port forge remove") || !strcmp(name, "port forge move") ||
 			!strcmp(name, "port forge rotate") || !strcmp(name, "port forge undo move") || !strcmp(name, "port forge redo move") ||
 			!strcmp(name, "port forge save") || !strcmp(name, "port forge load") ||
-			!strcmp(name, "port forge save hmv") || !strcmp(name, "port forge load hmv"))
+			!strcmp(name, "port forge save hmv") || !strcmp(name, "port forge load hmv") ||
+			!strcmp(name, "port forge load saved hmv"))
 		{
 			return forerunner_forge_action(name);
 		}

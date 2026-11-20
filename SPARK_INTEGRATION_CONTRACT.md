@@ -82,6 +82,16 @@ return. The bounded run ended with the defender alive and
 Evidence: `build/native-black-echo-04d9-elite-bsp-approach` and
 `build/native-black-echo-04d9-elite-defense-keyboard`.
 
+The follow-up outer flank via (58.14, -90.79), (61.93, -90.68) and
+(62.44, -87.90) reached the fight at full vitality. The defender moved
+from (59.72, -85.31, 0.10) toward cover near (58.25, -85.47, 0.06);
+the Elite damaged it to 72% health. One defender survived and
+`gs_extraction_armed` stayed false. Evidence:
+`build/native-black-echo-04d9-elite-outer-defense/result.json`.
+Both faction routes still need two consenting players using independent
+Delta identities and physical controls. This local run did not exchange
+account proofs or reach the field call, banking or redeployment.
+
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
 SHA256 d4ca73c8f3250501efc1448b81f86fa5e150e53f9833125f366977b91fd15213.
@@ -2885,8 +2895,13 @@ Desktop builds advertising `forge.hmv_base_placements.v1` expose **Save Layout
 (.HMV)** and **Load Layout (.HMV)** in the existing host Forge Tools. The
 directory is `<save root>/forge/<scenario short name>/`. Save writes
 `forerunner.hmv`. Load prefers a supplied `import.hmv`, then the saved layout
-when the import file is absent. Imported files are read-only. The load validates
-the complete layout before applying a batch to an empty Forge layout.
+when the import file is absent. **Load Saved (.HMV)** opens
+`forerunner.hmv` directly, so the original `import.hmv` can stay in place.
+Both actions validate the complete layout before applying a batch to an
+empty Forge layout and show the title and creator on the host HUD.
+Forerunner saves carry forward the HMV title, author, description and date.
+To revise an existing credited save, open that save in the current Forge
+session before editing. Forerunner never writes to `import.hmv`.
 
 Use the matching compiled cache, including the native map checksum. This
 placement interface accepts up to 128 unscaled base-map vehicle, weapon,
@@ -2931,6 +2946,12 @@ ordinary item sample timed out in Chupathingy's monitor mode. Its native
 layout-application log records the outcome. Source maps and the imported file
 were preserved. Evidence: `build/native-hmv-chupa-forerunner-roundtrip`.
 Two-client HMV replication and advanced layout properties remain open.
+On Windows x64, two consecutive offline native host sessions showed the
+decoded title and accented author, saved all four metadata fields,
+reopened the Warthog through **Load Saved (.HMV)** after restarting, and
+saved again. Original map hashes and import bytes matched afterward.
+Evidence: `build/native-forge-hmv-creator-credits-final/result.json`
+and `reload.jpg` in the same directory.
 
 The refreshed branch includes compatible OpenCE transfer fixes now cherry-picked
 here with original authorship (`ebfa05b7`, `796df195`). Existing map sharing asks

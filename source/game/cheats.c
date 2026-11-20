@@ -136,6 +136,18 @@ static long forge_selection = NONE;
 static long forge_last_copy = NONE;
 static long forge_copies[MAXIMUM_OBJECTS_PER_MAP];
 
+#ifdef NATIVE_FORGE_SIDECARS
+static struct
+{
+	char title[FORGE_FILE_TITLE_SIZE];
+	char author[FORGE_FILE_AUTHOR_SIZE];
+	char description[FORGE_FILE_DESCRIPTION_SIZE];
+	char date[FORGE_FILE_DATE_SIZE];
+	posix_ulong saved_size;
+	unsigned int saved_crc;
+} forge_hmv_metadata;
+#endif
+
 struct forge_move_snapshot
 {
 	long object_index;
@@ -158,6 +170,9 @@ void cheats_forge_reset(void)
 	forge_last_destination.object_index = NONE;
 	forge_move_undone = FALSE;
 	memset(forge_copies, 0xff, sizeof(forge_copies));
+#ifdef NATIVE_FORGE_SIDECARS
+	memset(&forge_hmv_metadata, 0, sizeof(forge_hmv_metadata));
+#endif
 }
 
 void cheats_dispose_from_old_map(
@@ -1129,7 +1144,11 @@ boolean cheat_forge_sidecar(boolean saving)
 	if (saving)
 		success = forge_sidecar_capture(text, base, reference, &size) && posix_gear_replace(path, text, size);
 	else if (read)
+	{
 		success = forge_sidecar_restore(placements, count);
+		if (success)
+			memset(&forge_hmv_metadata, 0, sizeof(forge_hmv_metadata));
+	}
 done:
 	posix_gear_unlock(lock);
 	free(placements);
@@ -1186,8 +1205,18 @@ static boolean forge_hmv_capture(struct forge_file_layout *layout, char const *m
 
 	memset(layout, 0, sizeof(*layout));
 	strcpy(layout->map_name, map);
-	strcpy(layout->title, forge_hmv_title);
-	strcpy(layout->author, forge_hmv_author);
+	if (forge_hmv_metadata.title[0])
+	{
+		strcpy(layout->title, forge_hmv_metadata.title);
+		strcpy(layout->author, forge_hmv_metadata.author);
+		strcpy(layout->description, forge_hmv_metadata.description);
+		strcpy(layout->date, forge_hmv_metadata.date);
+	}
+	else
+	{
+		strcpy(layout->title, forge_hmv_title);
+		strcpy(layout->author, forge_hmv_author);
+	}
 	layout->map_hash = (unsigned int)cache_files_get_checksum();
 	for (slot = 0; slot < NUMBEROF(forge_copies); slot++)
 	{
@@ -1258,7 +1287,7 @@ static boolean forge_hmv_placements(struct forge_file_layout const *layout, stru
 }
 #endif
 
-boolean cheat_forge_hmv(boolean saving)
+boolean cheat_forge_hmv(enum forge_hmv_action action, char const **title, char const **author)
 {
 #ifdef NATIVE_FORGE_SIDECARS
 	char map[FORGE_FILE_MAP_NAME_SIZE], folder[1060], path[1100], lock_path[1105];
@@ -1268,10 +1297,13 @@ boolean cheat_forge_hmv(boolean saving)
 	int lock = -1, read, written;
 	posix_ulong size;
 	boolean success = FALSE;
+	boolean saving = action == _forge_hmv_save;
+	boolean saved_file = action != _forge_hmv_load;
 
+	*title = *author = NULL;
 	if (!forge_hmv_folder(map, folder, saving))
 		return FALSE;
-	snprintf(path, sizeof(path), "%s/%s", folder, saving ? "forerunner.hmv" : "import.hmv");
+	snprintf(path, sizeof(path), "%s/%s", folder, saved_file ? "forerunner.hmv" : "import.hmv");
 	if (!posix_mcc_share_path_safe(path))
 		return FALSE;
 	bytes = malloc(FORGE_FILE_MAXIMUM_SIZE);
@@ -1287,8 +1319,9 @@ boolean cheat_forge_hmv(boolean saving)
 			goto done;
 	}
 	read = posix_gear_read(path, bytes, FORGE_FILE_MAXIMUM_SIZE, &size);
-	if (!read && !saving)
+	if (!read && !saved_file)
 	{
+		saved_file = TRUE;
 		snprintf(path, sizeof(path), "%s/forerunner.hmv", folder);
 		if (!posix_mcc_share_path_safe(path))
 			goto done;
@@ -1299,17 +1332,36 @@ boolean cheat_forge_hmv(boolean saving)
 		goto done;
 	if (saving)
 	{
-		if (read && (strcmp(layout->title, forge_hmv_title) || strcmp(layout->author, forge_hmv_author) ||
-			layout->description[0] || layout->date[0]))
+		/* An edited import owns the save slot only after it has written it
+		 * or explicitly loaded it. Keep existing legacy saves writable. */
+		if (read && (forge_hmv_metadata.saved_size != size ||
+			forge_file_crc32(0, bytes, (int)size) != forge_hmv_metadata.saved_crc) &&
+			(forge_hmv_metadata.title[0] || strcmp(layout->title, forge_hmv_title) ||
+			strcmp(layout->author, forge_hmv_author) || layout->description[0] || layout->date[0]))
 			goto done;
 		if (forge_hmv_capture(layout, map))
 		{
 			written = forge_file_encode(layout, bytes, FORGE_FILE_MAXIMUM_SIZE, NULL);
 			success = written > 0 && posix_gear_replace(path, bytes, (posix_ulong)written);
+			if (success)
+			{
+				forge_hmv_metadata.saved_size = (posix_ulong)written;
+				forge_hmv_metadata.saved_crc = forge_file_crc32(0, bytes, written);
+			}
 		}
 	}
-	else if (read)
-		success = forge_sidecar_restore(placements, layout->record_count);
+	else if (read && forge_sidecar_restore(placements, layout->record_count))
+	{
+		strcpy(forge_hmv_metadata.title, layout->title);
+		strcpy(forge_hmv_metadata.author, layout->author);
+		strcpy(forge_hmv_metadata.description, layout->description);
+		strcpy(forge_hmv_metadata.date, layout->date);
+		forge_hmv_metadata.saved_size = saved_file ? size : 0;
+		forge_hmv_metadata.saved_crc = saved_file ? forge_file_crc32(0, bytes, (int)size) : 0;
+		*title = forge_hmv_metadata.title;
+		*author = forge_hmv_metadata.author;
+		success = TRUE;
+	}
 done:
 	posix_gear_unlock(lock);
 	free(placements);
@@ -1317,7 +1369,8 @@ done:
 	free(bytes);
 	return success;
 #else
-	(void)saving;
+	(void)action;
+	*title = *author = NULL;
 	return FALSE;
 #endif
 }

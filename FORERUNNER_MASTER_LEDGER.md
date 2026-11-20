@@ -11,10 +11,13 @@ and rally completed. The southern route cleared the facility guard in
 native combat and the Elite physically collected the authored technology.
 The keyboard switch equipped the plasma pistol after pickup. The tested
 outer flank around the parked Spirit let the Elite damage the defender
-before the run ended. A disposable cache rendered the credited CMT Elite
+to 72% health. The guard recovered its shields in cover and the Extraction
+unlock stayed false. A disposable cache rendered the credited CMT Elite
 arms with the starter plasma pistol.
-Paired play, defense, evacuation and durable settlement remain open on
-this candidate. See the Spark contract for the route and asset handoff.
+Two authenticated people must play both faction routes with their own
+account proof and inputs. Defense, evacuation, settlement, banking and
+redeployment remain open on this candidate. See the Spark contract for
+the route and asset handoff.
 
 Forge now saves and loads plain base-map `.hmv` placements using the original
 Chupathingy codec and the existing host placement path. One Windows x64 host
@@ -27,6 +30,13 @@ Forerunner's native Forge menu also loaded Spark `7c31919`'s export and
 spawned the moved Warthog at the edited position. More record types and
 multiplayer editing remain open. Evidence:
 `build/native-hmv-chupa-forerunner-roundtrip` and `build/native-spark-hmv-forerunner`.
+
+Forge Tools displays the HMV title and creator on the host HUD and keeps
+the title, author, description and date on save. **Load Saved (.HMV)**
+reopens the local edit with the original import still in place. Windows
+x64 and 57 focused checks passed. A native offline host loaded, saved,
+restarted, reloaded and resaved a credited layout with one native Warthog.
+Evidence: `build/native-forge-hmv-creator-credits-final/result.json`.
 
 Forge Tools can redo the latest undone move or rotation with the existing
 host clearance checks. Windows x64 and 18 focused cases passed. A native

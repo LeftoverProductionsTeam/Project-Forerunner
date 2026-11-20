@@ -73,7 +73,13 @@ boolean cheat_forge_rotate_selected(void);
 boolean cheat_forge_undo_move(void);
 boolean cheat_forge_redo_move(void);
 boolean cheat_forge_sidecar(boolean saving);
-boolean cheat_forge_hmv(boolean saving);
+enum forge_hmv_action
+{
+	_forge_hmv_load,
+	_forge_hmv_load_saved,
+	_forge_hmv_save
+};
+boolean cheat_forge_hmv(enum forge_hmv_action action, char const **title, char const **author);
 long cheat_forge_clone_at(long object_index, union real_point3d const *position);
 long cheat_forge_clone(
 	long object_index);

@@ -456,7 +456,7 @@ static char const *const port_function_names[] =
 	"port forerunner menu init", "port forerunner host infection",
 	"port forerunner host forge", "port forge pick", "port forge place", "port forge undo",
 	"port forge save", "port forge load", "port forge remove", "port forge move", "port forge undo move",
-	"port forge rotate", "port forge save hmv", "port forge load hmv", "port forge redo move",
+	"port forge rotate", "port forge save hmv", "port forge load hmv", "port forge redo move", "port forge load saved hmv",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
