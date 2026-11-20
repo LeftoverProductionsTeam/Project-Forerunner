@@ -63,13 +63,23 @@ The Spirit began its scripted return after disembarkation. Evidence:
 The offline run confirmed `gs_spirit_player_arrived`. A player and the
 living Covenant rescue actor both reached `be_survivors`, and the facility
 encounter spawned one opponent. Native actor readback located the opponent
-near (81.99, -94.00, 1.78). The direct approach from the rally stopped
-at a rock face near (65.66, -88.50, 2.03). The capture shows shots hitting
-the rock. A lateral attempt reached the slope north of the rock, and the
-opponent retained full health and shields. Confirm a walkable route and
-clear line of sight from the rally to the facility before retrying the
-technology and extraction gates. Evidence:
-`build/native-black-echo-04d9-elite-facility-to-extraction`.
+near (81.99, -94.00, 1.78). A rock face blocked the direct approach.
+The verified foot route from the rally goes south via (55.6, -94.2),
+(58.0, -96.6), (60.4, -98.6), (61.6, -99), (65.6, -99), (70.8, -95.8)
+and (76.4, -95.8). Native combat killed the defender and spawned
+`technology_grunt` at (55.84, -86.44, 0.07). The Elite returned, used
+the physical pickup and acquired the exact tag, setting `gs_collected_4`
+true. The pickup replaced the active pistol and the defense actor kept
+full vitality while the technology occupied the equipped slot. The other
+inventory slot retained the plasma pistol. A second run repeated combat
+and collection, but a controller weapon-switch request and three firing
+attempts left the defense actor alive at (59.85, -85.47, 0.10) and
+`gs_extraction_armed` false. Static BSP and the sampled Spirit collision
+pose both leave a clear ray from the pickup position. Confirm the actual
+equipped weapon and firing view with the native keyboard switch before
+attributing this to a content or runtime defect. Field evacuation and
+banking remain open. Evidence: `build/native-black-echo-04d9-elite-bsp-approach`
+and `build/native-black-echo-04d9-elite-field-extraction`.
 
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,

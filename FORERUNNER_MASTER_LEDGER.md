@@ -7,12 +7,13 @@ Current priority: complete Black Echo with two authenticated players.
 Spark's Elite and four-start cache `04d9ccd1` passed offline hub terminal
 use, Elite deployment, and physical Spirit boarding, flight, landing and
 disembarkation with full health and shields. The authored Covenant rescue
-and rally completed, activating the facility opponent. A rock face blocked
-the tested direct approach, and the opponent remained alive. A disposable
+and rally completed. The southern route cleared the facility guard in
+native combat and the Elite physically collected the authored technology.
+Defense activated and the guard survived the attempted shots. Confirm the
+equipped weapon after the pickup replaces the active pistol. A disposable
 cache rendered the credited CMT Elite arms with the starter plasma pistol.
-Paired play, the facility fight, technology collection, evacuation and
-durable settlement remain open on this candidate. See the Spark contract
-for the exact map, evidence and first-person asset handoff.
+Paired play, defense, evacuation and durable settlement remain open on
+this candidate. See the Spark contract for the route and asset handoff.
 
 Forge now saves and loads plain base-map `.hmv` placements using the original
 Chupathingy codec and the existing host placement path. One Windows x64 host
