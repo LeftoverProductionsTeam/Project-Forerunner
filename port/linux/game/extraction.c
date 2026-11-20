@@ -146,7 +146,7 @@ static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
 static boolean extraction_players_returned(void);
-static boolean extraction_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES]);
+static char const *extraction_resolve_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES]);
 
 /* Match Halo's three native forced-death requests. Do not consume the flags,
  * clear death, or substitute settlement for native death and loot disposal. */
@@ -239,7 +239,7 @@ boolean extraction_script_players(char const *name, long *object_list)
 			 run->phase != _extraction_settling && run->phase != _extraction_returned)) continue;
 		player = player_try_and_get(run->player);
 		if (!player || player->quit_out_of_game || player->unit_index != run->unit || !run->gear.opened ||
-			!extraction_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES)) continue;
+			extraction_resolve_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES)) continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(run->unit, _object_mask_biped);
 		if (!unit || unit->unit.player_index != run->player || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
 			extraction_unit_pending_death(unit)) continue;
@@ -519,7 +519,8 @@ void extraction_restored(void)
 	medical_restored = medical_enabled;
 }
 
-static boolean extraction_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES])
+/* Return the deployment prompt on failure, or fill owner and return NULL. */
+static char const *extraction_resolve_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES])
 {
 	boolean local = player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS;
 #ifdef HALO_GAME_BROWSER
@@ -534,28 +535,31 @@ static boolean extraction_owner(struct player_datum const *player, long player_i
 		long machine = local ? player->network_player_data.machine_index :
 			distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
 		if (machine == NONE || !delta_peer_game_player_identity((int)machine,
-			player->network_player_data.controller_index, &identity) || !identity.bound) return FALSE;
+			player->network_player_data.controller_index, &identity) || !identity.bound)
+			return "DEPLOYMENT BLOCKED | Link your Delta account and enable Share My Profile in Delta Profile > Privacy.";
 		gear_account_owner(identity.account, owner);
-		return TRUE;
+		return NULL;
 	}
 #endif
 	if (local)
 	{
 		char directory[MAXIMUM_FILENAME_LENGTH + 1];
 		if (player_ui_get_active_player_profile_index(player->local_player_index) == NONE ||
-			!player_ui_get_path_to_local_player_profile_directory(player->local_player_index, directory) || !directory[0]) return FALSE;
+			!player_ui_get_path_to_local_player_profile_directory(player->local_player_index, directory) || !directory[0])
+			return "DEPLOYMENT BLOCKED | Select a saved player profile in Settings.";
 		gear_profile_owner(directory, owner);
-		return TRUE;
+		return NULL;
 	}
-	return FALSE;
+	return "DEPLOYMENT BLOCKED | This session cannot verify a gear owner.";
 }
 
 static boolean extraction_open_gear(struct extraction_run *run, struct player_datum const *player)
 {
 	byte owner[GEAR_ID_BYTES];
-	if (!extraction_owner(player, run->player, owner))
+	char const *blocked = extraction_resolve_owner(player, run->player, owner);
+	if (blocked)
 	{
-		extraction_block(run, "DEPLOYMENT BLOCKED | Select a saved profile locally, or verify your multiplayer identity.");
+		extraction_block(run, blocked);
 		return FALSE;
 	}
 	if (memcmp(run->owner, owner, GEAR_ID_BYTES))
@@ -1917,7 +1921,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) || unit->object.parent_object_index != NONE ||
 			extraction_medical_incapacitated(player->unit_index) || cinematic_in_progress() ||
 			!extraction_at_hub(player->unit_index) ||
-			!extraction_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES))
+			extraction_resolve_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES))
 			run->discard_deadline = 0;
 	}
 	if (run->phase == _extraction_settling || run->phase == _extraction_losing || run->phase == _extraction_cancelling)
@@ -1935,7 +1939,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 	if ((run->phase == _extraction_returned || run->phase == _extraction_lost) &&
 		extraction.debrief_name != NONE && run->report.ready && !run->report.announced && !run->gear.pending &&
-		!cinematic_in_progress() && extraction_owner(player, run->player, owner) && !memcmp(owner, run->owner, GEAR_ID_BYTES))
+		!cinematic_in_progress() && !extraction_resolve_owner(player, run->player, owner) && !memcmp(owner, run->owner, GEAR_ID_BYTES))
 	{
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (unit && unit->unit.player_index == run->player && unit->object.parent_object_index == NONE &&
@@ -1947,7 +1951,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(run->unit, _object_mask_biped);
 	if (player->unit_index != run->unit || player->local_player_index != run->local_player || !unit ||
 		unit->unit.player_index != run->player || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-		!extraction_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES))
+		extraction_resolve_owner(player, run->player, owner) || memcmp(owner, run->owner, GEAR_ID_BYTES))
 	{
 		extraction_lose_run(run); return;
 	}

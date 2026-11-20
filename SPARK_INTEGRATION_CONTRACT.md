@@ -11,7 +11,18 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
-Spark's 20 November CE609 candidate is
+Spark's current 20 November CE609 candidate (Spark `8e4f912`) is
+`releases/black-echo-elite-separated-starts-20261120/be_native.map`,
+SHA-256 `04d9ccd199fef0bba6d30a54e7c7f3682f9766ddc0f94ee347cde6c9677c113f`.
+It combines the reviewed Elite faction placement with four grounded hub starts.
+Forerunner admitted the exact cache in a bounded Windows x64 offline run. The
+player spawned at (43.002, -110.999, 1.076) with full health and shields and
+stayed there through tick 510. The diagnostic aim sweep did not reach a usable
+hub control. Authenticated paired respawn, physical terminal use, Elite selection
+and the rest of the operation remain open. See
+`build/native-black-echo-elite-04d9-admission/result.json`.
+
+The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
 SHA256 d4ca73c8f3250501efc1448b81f86fa5e150e53f9833125f366977b91fd15213.
 The compiled weapon forerunner/be_native/technology_grunt uses pp and the
@@ -2406,13 +2417,15 @@ objectives and actual approach/landing/departure content for transport acceptanc
 Use a native Elite as the default Covenant player body in new operations.
 Bind it through the existing extraction_covenant_body placement and pair it
 with a compatible extraction_covenant starting profile. Explicit author
-choices can still bind other species. The current Black Echo Grunt cache has
-no Elite biped or animation graph. Read-only a50 tag inspection found
-characters/elite/elite with 0.8 standing height, 0.2 collision radius, the
-stand pistol pp animation and CD-passengerL01 exit clips. Verify the actual
-exported Elite's native weapon checks with technology_grunt and its exact
-Spirit seats. Confirm collision, animation, first-person arms and weapons,
-HUD, shields and sound in the delivered map.
+choices can still bind other species. The current Black Echo cache binds
+`gs_assets_04f1039aa23e4ef98e06328f629bf34a\characters\elite\elite` through
+the native Covenant body placement. It retains the technology weapon's
+`pp` label, which the imported Elite animation graph has for stand and
+crouch. Spark's seat readback found all eight exact Spirit passenger labels
+in the graph. Verify physical pickup and Spirit boarding in a live match.
+The matching cooked `_fp` model is missing. Add it using the exact namespaced
+biped path and the scenery palette binding described below. Confirm hands,
+HUD, collision, animation, shields and sound on the delivered character.
 
 The existing Player Setup color picker stores the selected profile color.
 Faction replacement and respawn apply it to native armor channel A after tag

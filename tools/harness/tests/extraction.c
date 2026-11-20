@@ -2743,6 +2743,7 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"account-host-unbound")) {
    verified=FALSE;touch(0,0);
    CHECK(!file_count&&run(0)->phase==_extraction_hub,"unbound Delta host fell back to a local profile stash");
+   CHECK(strstr(local_notice_history[(local_notices-1)%4],"Share My Profile"),"Delta host did not get the account requirement");
   } else {
    if(!strcmp(case_name,"account-host-role"))memcpy(host_account,remote_account,16);
    gear_account_owner(host_account,expected);touch(0,0);
@@ -2760,6 +2761,8 @@ int main(int argc,char **argv)
   client=TRUE; connection=_game_connection_network_client; advance(1); CHECK(!extraction_owns_map() && !file_count,"client storage access");
   client=FALSE; connection=_game_connection_network_server; profile=FALSE; verified=FALSE;
   touch(0,0); touch(0,1); CHECK(!file_count,"unidentified player opened storage");
+  CHECK(strstr(local_notice_history[(local_notices-1)%4],"saved player profile"),"local player did not get the profile requirement");
+  CHECK(strstr(last_remote_notice,"Share My Profile"),"guest did not get the account requirement");
   verified=TRUE; touch(0,1); CHECK(run(1)->phase==_extraction_deployed,"verified owner refused");
   remote_account[0]++; advance(1); CHECK(run(1)->phase==_extraction_lost,"changed identity retained run");
  } else if(!strcmp(case_name,"stash-discard")) {
