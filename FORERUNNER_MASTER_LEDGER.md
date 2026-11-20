@@ -1,9 +1,22 @@
 # Forerunner engineering checkpoint
 
-Updated: 17 November 2026. The persistent engineering goal remains active.
+Updated: 20 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
-Owner's current acceptance order: A, two independent clients using verified Delta
+Current priority is the exact Elite and four-start Black Echo cache
+`04d9ccd1`. Bounded offline admission passed. Both factions, two authenticated
+players with distinct Elite colors, physical terminal use and the complete
+mission, evacuation and redeployment still require gameplay acceptance. The
+existing Spark contract records the missing Elite first-person model binding.
+
+Forge now saves and loads plain base-map `.hmv` placements using the original
+Chupathingy codec and the existing host placement path. One Windows x64 host
+saved a Pelican through Forge Tools, restarted, refused a timed placement
+intact, and restored the Pelican. The LAN attempt stopped before the guest
+reached the lobby. Actual upstream-runtime exchange and Spark authoring remain
+open. Evidence: `build/native-forge-hmv-verified/result.json`.
+
+Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or
 loss; B, Spark's delivered CE609 Black Echo and real mission outcomes; C, actual
 UNSC/Covenant selection, compatible equipment/allegiances/objectives, Pelican/

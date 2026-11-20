@@ -2788,11 +2788,11 @@ Desktop Forge Tools accept base-map OBJECT rows with zero source and baked-cache
 flags. See source/game/cheats.c::forge_sidecar_parse and cheat_forge_sidecar.
 Use the matching installed map and an empty Forge layout. The per-map slot is
 the virtual save path z:\custom_maps\forge-<map>.txt (CE uses <map>@ce in the
-filename and custom_maps\<map> for Base Map). Save writes unscaled base-map
-placements and preserves files authored by other tools. Windows LAN verification
-covers a Pelican restored after restart and rollback when a batch exceeds the
-host object quota. Streamed tags, properties and other record kinds remain
-outside this placement subset.
+filename and custom_maps\<map> for Base Map). Save preserves files authored by
+other tools. The Forerunner-only OBJECT_SCALE row retains supported scaled
+copies. Windows LAN verification covers Pelican restoration after restart and
+rollback when a batch exceeds the host object quota. Streamed tags and other
+record kinds remain outside this placement subset.
 The fork's source selects stock protocol for ordinary games and Forge-specific
 `0x4630` / game kind `0x46` for Forge at the refreshed pin (the README's older
 `0x462A` description is stale); its messages and tag-streaming paths are
@@ -2802,6 +2802,47 @@ A placement file does not supply missing client gameplay tags: every peer must
 resolve compatible content and dependencies before spawning, including late
 joiners. Existing visual-only loose-tag mods do not meet that requirement.
 Keep proprietary base MCC data local; no asset-sharing capability is implied.
+
+### Chupathingy HMV layout handoff
+
+Desktop builds advertising `forge.hmv_base_placements.v1` expose **Save Layout
+(.HMV)** and **Load Layout (.HMV)** in the existing host Forge Tools. The
+directory is `<save root>/forge/<scenario short name>/`. Save writes
+`forerunner.hmv`. Load prefers a supplied `import.hmv`, then the saved layout
+when the import file is absent. Imported files are read-only. The load validates
+the complete layout before applying a batch to an empty Forge layout.
+
+Use the matching compiled cache, including the native map checksum. This
+placement interface accepts up to 128 unscaled base-map vehicle, weapon,
+equipment or locally supported scenery records. Each is an ordinary single
+object placed at start with its native tag path, team and pose. Respawn timers,
+variants, AI, game markers, packs and special physics require support beyond
+this interface. A file requiring such features is refused intact. Host limits
+and gameplay-object restrictions still apply. Scenery is currently excluded
+from network-hosted placement, as it is for the text sidecar.
+
+Reuse source: ChupathingyCE `1b732f52d73f214d4f0068178d45753cca56dcf3`
+`port/linux/game/forge_files.c` and `forge_files.h`, retained verbatim under
+[GPL-3.0](LICENSE.GPL-3.0). The original Forge integration is credited to
+[ChupathingyCE contributors](https://github.com/ChupathingyCE/chupathingyce/commit/81d5526eb7716eaed82c13737b91ce3553f36231).
+This adapter uses existing Forerunner host object creation, replication and
+text sidecar rollback. It does not negotiate a new network protocol.
+
+Spark can add HMV import and export to QuickForge's existing file actions.
+Use the discovery feature check in `crates/spark-core/src/runtime.rs` and
+feed supported placement records into the existing editable selection and
+history workflow. Retain other records with their source layout and refuse a
+lossy conversion. Match the runtime cache before preparing `import.hmv`.
+The HMV codec stays in Forerunner under its upstream license. A contribution
+for upstream review can isolate this runtime placement adapter from Spark's
+authoring code.
+
+Windows x64 native Forge Tools saved a 180-byte version-1 layout with one
+Pelican, then loaded it after process restart. The same host refused an
+import with a 30-second respawn property before placement and retained its
+bytes. Spark discovery returned the capability without writing files.
+Evidence: `build/native-forge-hmv-verified/result.json`. Two-client HMV
+replication and opening the export in a separate Chupathingy build remain open.
 
 The refreshed branch includes compatible OpenCE transfer fixes now cherry-picked
 here with original authorship (`ebfa05b7`, `796df195`). Existing map sharing asks

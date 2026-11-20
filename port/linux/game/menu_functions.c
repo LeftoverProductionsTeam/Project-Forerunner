@@ -13819,10 +13819,16 @@ static boolean forerunner_forge_action(char const *action)
 		notice = cheat_forge_undo_move() ? "Previous pose restored" : "Undo requires an unused copy and a clear original spot.";
 	else if (!strcmp(action, "port forge save"))
 		notice = cheat_forge_sidecar(TRUE) ? "Forge placements saved." :
-			"Save failed. Use unscaled base-map copies and a writable Forerunner save slot.";
-	else
+			"Save failed. Use base-map copies and a writable Forerunner save slot.";
+	else if (!strcmp(action, "port forge load"))
 		notice = cheat_forge_sidecar(FALSE) ? "Forge placements loaded." :
 			"Load failed. Open the matching base map and start with an empty Forge layout.";
+	else if (!strcmp(action, "port forge save hmv"))
+		notice = cheat_forge_hmv(TRUE) ? "Saved forerunner.hmv." :
+			"HMV save failed. Use unscaled base-map copies and a writable save slot.";
+	else
+		notice = cheat_forge_hmv(FALSE) ? "HMV placements loaded." :
+			"HMV load failed. Use the exact base map, an empty layout and plain base-map placements.";
 	terminal_command_running = was_terminal_command;
 	hud_print_notice(0, notice);
 	return TRUE;
@@ -14066,7 +14072,8 @@ boolean pc_menu_event_function_invoke(
 		else if (!strcmp(name, "port forge pick") || !strcmp(name, "port forge place") ||
 			!strcmp(name, "port forge undo") || !strcmp(name, "port forge remove") || !strcmp(name, "port forge move") ||
 			!strcmp(name, "port forge rotate") || !strcmp(name, "port forge undo move") ||
-			!strcmp(name, "port forge save") || !strcmp(name, "port forge load"))
+			!strcmp(name, "port forge save") || !strcmp(name, "port forge load") ||
+			!strcmp(name, "port forge save hmv") || !strcmp(name, "port forge load hmv"))
 		{
 			return forerunner_forge_action(name);
 		}
