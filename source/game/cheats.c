@@ -136,8 +136,9 @@ static long forge_selection = NONE;
 static long forge_last_copy = NONE;
 static long forge_copies[MAXIMUM_OBJECTS_PER_MAP];
 
+enum { FORGE_SIDECAR_OBJECTS = 128 };
 #ifdef NATIVE_FORGE_SIDECARS
-enum { FORGE_SIDECAR_OBJECTS = 128, FORGE_SIDECAR_BYTES = 128 * 512 + 512 };
+enum { FORGE_SIDECAR_BYTES = FORGE_SIDECAR_OBJECTS * 512 + 512 };
 
 struct forge_fixed_pose
 {
@@ -570,14 +571,24 @@ boolean cheat_forge_pick(void)
 	return FALSE;
 }
 
-/* A move may overlap the same instance. Any other object blocks it. */
+/* A solid copy can share space with Phased pieces. Keep checking past
+ * those pieces so they cannot hide a solid object behind them. */
 static boolean forge_space_occupied(struct location const *location, real_point3d const *center,
 	real radius, long ignore_object_index)
 {
-	long blockers[2];
-	short count = objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile,
+	long blockers[FORGE_SIDECAR_OBJECTS + 2];
+	short index, count = objects_in_sphere(0, _object_mask_all & ~_object_mask_projectile,
 		location, center, radius, blockers, NUMBEROF(blockers));
-	return count > 1 || (count == 1 && blockers[0] != ignore_object_index);
+
+	for (index = 0; index < count; index++)
+	{
+		long object_index = blockers[index];
+		if (object_index != ignore_object_index &&
+			!TEST_FLAG(object_get(object_index)->object.flags, _object_forge_phased_bit))
+			return TRUE;
+	}
+	/* A layout beyond the saved-object limit can fill this list. */
+	return count == NUMBEROF(blockers);
 }
 
 /* Faber's aim-based placement uses the native collision contact. Keep the

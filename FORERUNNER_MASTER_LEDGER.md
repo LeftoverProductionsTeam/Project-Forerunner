@@ -100,8 +100,14 @@ loaded a layout made by Spark's exporter on stock Blood Gulch. The fixed
 Warthog stayed at z 6 while the normal and phased copies fell. Save and
 process restart retained all three modes and the creator metadata. The
 existing 55 Forge checks and focused phased collision checks passed.
-Evidence is in `build/native-local-forge-hmv-physics/`. See the Spark contract
-for capability discovery and exact acceptance scope.
+Evidence is in `build/native-local-forge-hmv-physics/`. Windows x64 keyboard
+input on Blood Gulch also passed through a Phased Warthog and stopped short
+of a Fixed Warthog in separate Local Forge trials. The occupancy fix then
+let the native Forge Tools rotate, undo and redo a solid boulder sharing
+space with two Phased boulders. Spark's HMV reader confirmed 90°, 0°, 90°
+and no changes to either Phased placement. Fourteen focused cases passed.
+Receipts: `build/native-forge-physics-walking/result.json` and
+`build/native-forge-phased-overlap/result.json`. Remote physics remains open.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or

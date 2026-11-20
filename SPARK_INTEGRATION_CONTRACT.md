@@ -2918,11 +2918,16 @@ slot. This local host accepts stock scenery and plain `mach` and `ctrl`
 HMV records placed at start, with normal physics and the existing record
 limits. The added objects use native creation and keep their tag defaults.
 Set up linked switches, power groups and scripts in the native scenario.
-Readback of stock Silent Cartographer found control 3 and nearby machine
-50 share position group 1 and power group 2. Both groups start at 1, and
-group 1 is repeatable. That pair is a candidate for the in-game switch
-trial. The stock cache was preserved, and physical Use and machine motion
-remain unverified. Evidence is in `build/native-b30-device-binding/result.json`.
+Stock Silent Cartographer control 3 and machine 50 share position group
+1 and power group 2. Control 3 has the scenario's
+`not_usable_from_any_side` flag, and the native runtime reported it unusable.
+This pair can check bindings. For physical actuation, Spark should export
+a reviewed CE609 scenario with a player-usable control and an animated
+machine sharing a powered, repeatable position group. Place the control
+within native interaction range of a safe spawn and leave room for the
+machine to move. Physical Use and linked machine motion remain unverified.
+The stock cache was preserved. Readback is in
+`build/native-b30-device-binding/result.json`.
 The HMV writer saves these devices with the original classes. Device
 records stay outside the text sidecar and remote-hosted HMV path. Spark
 can expose the local device export when the runtime advertises this
@@ -2940,8 +2945,10 @@ or Phased flag. The reviewed runtime must advertise both local Forge
 features before Spark enables this export. Fixed copies return to the saved
 position and orientation when loose. Existing Forge transform edits,
 undo and redo set the updated pose. Phased copies use native non-collision
-and can still be selected with the Forge aim tool. Both flags survive HMV
-save and reload. The existing plain HMV and text sidecar paths keep their
+and can still be selected with the Forge aim tool. Phased pieces do not
+block the occupied-space check for moving, rotating or restoring a nearby
+solid copy. The same check still rejects solid blockers. Both flags survive
+HMV save and reload. The existing plain HMV and text sidecar paths keep their
 previous limits.
 
 The implementation adapts BirchWood's

@@ -15,7 +15,7 @@
 #define csmemcmp memcmp
 #define SET_FLAG(value,bit,on) ((on)?((value)|=FLAG(bit)):((value)&=~FLAG(bit)))
 #define _game_connection_network_server 2
-enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit, _object_on_ground_bit };
+enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit, _object_on_ground_bit, _object_forge_phased_bit };
 #include "unit_flags.inc"
 enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle, _object_type_biped };
 #define _object_mask_scenery FLAG(_object_type_scenery)
@@ -82,7 +82,7 @@ static struct scenario_object_datum sources[4];
 static struct {long actual_count;} headers,*object_header_data=&headers;
 static short global_structure_bsp_index;
 static int enabled,connection,coop,percent,multiplier,blocked,sphere_blocked,floor_present,allocation_failed,nearby;
-static long now,new_count,last_copy,placement_overlap;
+static long now,new_count,last_copy,placement_overlap,placement_phase_overlap=NONE;
 static boolean collision_model_instance_new(struct collision_model_instance *p,long index) {(void)p;(void)index;return TRUE;}
 static boolean collision_model_test_sphere(struct collision_model_instance const *p,real_point3d const *c,float r) {(void)p;(void)c;(void)r;return blocked;}
 
@@ -128,6 +128,7 @@ static short objects_in_sphere(int f,unsigned long m,struct location const *l,re
  short count=0;
  (void)f;(void)m;(void)l;(void)p;(void)r;
  if(placement_overlap!=NONE&&count<max)indices[count++]=placement_overlap;
+ if(placement_phase_overlap!=NONE&&count<max)indices[count++]=placement_phase_overlap;
  if((blocked||nearby)&&count<max)indices[count++]=identifiers[9];
  return count;
 }
@@ -611,10 +612,16 @@ int main(int argc,char **argv) {
   forge_hit.point.y=-2.f;
   forge_hit.plane.n.k=1.f;
   if(strstr(name,"self")||!strcmp(name,"scenery-blocked"))placement_overlap=copy;
+  if(strstr(name,"phased")) {
+   placement_overlap=make(10,1);
+   placement_phase_overlap=make(11,1);
+   get(placement_overlap)->object.flags|=FLAG(_object_forge_phased_bit);
+   get(placement_phase_overlap)->object.flags|=FLAG(_object_forge_phased_bit);
+  }
   if(strstr(name,"blocked"))nearby=TRUE;
   if(!strcmp(name,"occupied"))object->object.first_child_object_index=123;
   if(!strcmp(name,"client"))connection=1;
-  if(!strcmp(name,"clear")||strstr(name,"self")||undo) {
+  if(!strcmp(name,"clear")||strstr(name,"self")||!strcmp(name,"scenery-phased")||undo) {
    real_point3d old_position=object->object.position;
    float height=scenery?1.26f:.66f;
    CHECK(cheat_forge_move_selected()&&forge_activated==copy&&get(copy)==object,"copy was not moved in place");
