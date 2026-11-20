@@ -701,6 +701,9 @@ int delta_peer_protocol(void)
 #if !defined(HALO_ANDROID) && !defined(HALO_WEB) && !defined(HALO_CONSOLE)
 		/* Forerunner co-op medical v1, in negotiated UNIT_VITALS bytes. */
 		local.capabilities |= (delta_u32)1 << _delta_capability_coop;
+#if !defined(HALO_XBOX_CONSOLE) && !defined(HALO_BROWSER)
+		local.capabilities |= (delta_u32)1 << _delta_capability_forge_physics;
+#endif
 #endif
 		/* (the host's rules for its players' extras: host_rules.c; a host
 		sends them, a client plays by them) */

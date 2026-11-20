@@ -221,6 +221,9 @@ static void print_spark_capabilities(void)
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 	server_json_string(&json, NULL, "forge.hmv_local_devices.v1");
 	server_json_string(&json, NULL, "forge.hmv_local_physics.v1");
+#ifdef HALO_GAME_BROWSER
+	server_json_string(&json, NULL, "forge.hmv_host_physics.v1");
+#endif
 #endif
 	server_json_array_end(&json);
 #endif

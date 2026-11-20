@@ -112,7 +112,7 @@ let the native Forge Tools rotate, undo and redo a solid boulder sharing
 space with two Phased boulders. Spark's HMV reader confirmed 90°, 0°, 90°
 and no changes to either Phased placement. Fourteen focused cases passed.
 Receipts: `build/native-forge-physics-walking/result.json` and
-`build/native-forge-phased-overlap/result.json`. Remote physics remains open.
+`build/native-forge-phased-overlap/result.json`.
 
 Windows x64 Local Forge now edits physics through **Change Physics** on
 an unused copy. Spark read the three saved modes after native menu input
@@ -121,6 +121,13 @@ trial kept the selected boulder Phased when an overlapping solid boulder
 blocked the return to Normal. Windows x64 and 36 focused checks passed,
 including independent HaloScript and Forge collision flags. Receipts are in
 `build/native-forge-edit-physics/` and `build/native-forge-edit-physics-occupied/`.
+
+Delta Forge hosts now load and save Fixed and Phased base-map placements.
+Windows x64 replicated a Spark-authored pair to a connected guest and
+late joiner and kept a legacy client outside the active layout before
+spawn. Spark read both mode flags back from the host save. The existing
+read-only discovery advertises `forge.hmv_host_physics.v1`. Twenty-seven focused
+checks passed. Guest edit requests and human play remain open.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or

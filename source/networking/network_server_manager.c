@@ -453,6 +453,7 @@ symbols in this file:
 #include "cseries/cseries_windows.h"
 #include "cseries/errors.h"
 #include "game/game.h"
+#include "game/cheats.h"
 #include "game/game_engine.h"
 #include "game/player_queues_new.h"
 #include "game/players.h"
@@ -3610,8 +3611,8 @@ void network_game_server_update_ticks(
 			}
 
 #ifdef HALO_GAME_BROWSER
-			/* port: a Bomb game type, or a pack's map of an unlisted build,
-			adds no player of a machine still in its Delta handshake's
+			/* A Delta-only layout adds no player of a machine
+			still in its Delta handshake's
 			window: it loads nothing of the game until it is known to have
 			what the game needs (else it is dropped,
 			network_game_server_delta_refusals) */
@@ -3621,7 +3622,9 @@ void network_game_server_update_ticks(
 					server->waiting_player_count > 0 ? server->waiting_players[0].machine_index : NONE;
 
 				if (VALID_INDEX(machine_index, MAXIMUM_NETWORK_MACHINE_COUNT) &&
-					delta_peer_game_machine_pending(machine_index))
+					(delta_peer_game_machine_pending(machine_index) ||
+						(cheats_forge_remote_physics_active() &&
+							delta_peer_game_machine_lacks(machine_index, _delta_capability_forge_physics))))
 				{
 					break;
 				}
@@ -7253,13 +7256,12 @@ static void network_game_server_delta_frame(
 
 void network_distributed_host_notice(char const *text);
 
-/* whether the game is played only between Delta machines: a Bomb game type,
-or a pack's map of a build the cache files do not list (cache_files.c,
-cache_files_map_needs_delta) */
+/* Whether the map, mode or active Forge layout requires Delta peers. */
 static boolean network_game_server_delta_only(
 	struct network_game_server *server)
 {
-	return server->game.variant.game_engine_index == game_engine_bomb ||
+	return cheats_forge_remote_physics_active() ||
+		server->game.variant.game_engine_index == game_engine_bomb ||
 		cache_files_map_needs_delta(server->game.map.name) ||
 		/* (an MCC map: its Delta machines must have mcc_maps) */
 		mcc_level_name(server->game.map.name);
@@ -7295,8 +7297,10 @@ static void network_game_server_delta_refusals(
 		mcc_maps follows it, HOST_NUMBER; any other leaves with a notice) */
 		unsigned joined_number = network_game_server_machine_joined_number(server, machine);
 		boolean number_changed = joined_number && joined_number != (unsigned)delta_legacy_announce();
+		boolean forge_physics = cheats_forge_remote_physics_active() &&
+			delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_forge_physics);
 
-		if ((!bomb && !pack_map && !mcc_map && !number_changed) ||
+		if ((!bomb && !pack_map && !mcc_map && !number_changed && !forge_physics) ||
 			!network_game_server_client_machine_is_joined_to_game(server, machine) ||
 			network_game_server_client_machine_is_local(server, machine) ||
 			machine->machine_index < 0 || machine->machine_index >= MAXIMUM_NETWORK_MACHINE_COUNT)
@@ -7304,7 +7308,7 @@ static void network_game_server_delta_refusals(
 			refused_addresses[index] = 0;
 			continue;
 		}
-		if (number_changed && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) &&
+		if (!forge_physics && number_changed && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) &&
 			!delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_mcc_maps))
 		{
 			number_changed = FALSE;
@@ -7312,16 +7316,16 @@ static void network_game_server_delta_refusals(
 				continue;
 		}
 		/* (bomb_traits: a Grifball test build 2 or 3 says TRAITS as 18) */
-		if (!number_changed && bomb && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_bomb) &&
+		if (!forge_physics && !number_changed && bomb && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_bomb) &&
 			!delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_bomb_traits))
 		{
 			continue;
 		}
-		if (!number_changed && pack_map && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform))
+		if (!forge_physics && !number_changed && pack_map && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform))
 			continue;
 		/* (an MCC map: a machine without Delta, OpenCE's own, plays it by its own
 		MCC support; a Delta machine needs mcc_maps: docs/delta.md, bit 24) */
-		if (!number_changed && mcc_map && (delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) ||
+		if (!forge_physics && !number_changed && mcc_map && (delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) ||
 			!delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_mcc_maps)))
 		{
 			continue;
@@ -7360,7 +7364,14 @@ static void network_game_server_delta_refusals(
 				}
 				names[length] = 0;
 			}
-			if (number_changed)
+			if (forge_physics)
+			{
+				snprintf(notice, sizeof(notice), "%s needs Forge placement physics to play this layout.",
+					names[0] ? names : "A player");
+				network_event("forge: client machine #%ld did not negotiate placement physics: dropped",
+					(long)machine->machine_index);
+			}
+			else if (number_changed)
 			{
 				snprintf(notice, sizeof(notice), "%s left: %s", names[0] ? names : "A player",
 					mcc_map ? "Needs MCC maps (this game now plays an MCC map)" :

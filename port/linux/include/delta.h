@@ -200,6 +200,12 @@ enum delta_capability
 	support */
 	_delta_capability_mcc_maps = 24,
 
+	/* Reserved upstream values. This build does not offer either capability. */
+	_delta_capability_game_modes = 25,
+	_delta_capability_lobby_ready = 26,
+	/* Forerunner: native HMV placement physics in a Forge match. */
+	_delta_capability_forge_physics = 27,
+
 	NUMBER_OF_DELTA_CAPABILITIES
 };
 

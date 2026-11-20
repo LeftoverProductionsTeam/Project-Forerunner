@@ -44,6 +44,7 @@ same datum index (identifier and all), so that any message can name one:
 
 #include "cseries.h"
 #include "game/game.h"
+#include "game/cheats.h"
 #include "game/game_engine.h"
 #include "game/players.h"
 #include "networking/network_game_globals.h"
@@ -303,6 +304,14 @@ enum
 	_distributed_object_feigned_bit,
 };
 
+/* Only the reliable creation record uses these two otherwise clear bits.
+ * Object states keep their independent flags and use the old padding byte. */
+enum
+{
+	_distributed_create_forge_fixed_bit = 6,
+	_distributed_create_forge_phased_bit = 7,
+};
+
 struct distributed_object_change
 {
 	byte change;
@@ -330,7 +339,7 @@ struct distributed_object_state
 {
 	long object_index;
 	byte flags;
-	byte pad;
+	byte forge_physics;
 	/* the client's tick, its low 16 bits: a vehicle prediction's, and
 	(_distributed_object_predicted_bit) the one the host has it at.
 	For a feigned nonplayer biped instead, its packed positive body vitality. */
@@ -1082,6 +1091,7 @@ static void distributed_state_from_object(
 
 	csmemset(state, 0, sizeof(*state));
 	state->object_index = object_index;
+	state->forge_physics = (byte)cheats_forge_network_physics(object_index);
 	SET_FLAG(state->flags, _distributed_object_at_rest_bit, TEST_FLAG(object->object.flags, _object_at_rest_bit));
 	SET_FLAG(state->flags, _distributed_object_dead_bit, TEST_FLAG(_object_mask_unit, object->object.type) &&
 		TEST_FLAG(object->object.damage_flags, _object_dead_bit));
@@ -1314,6 +1324,11 @@ static void distributed_change_from_object(
 	change->angular_velocity = object->object.angular_velocity;
 	csmemcpy(change->change_colors, object->object.base_change_colors, sizeof(change->change_colors));
 	csmemcpy(change->region_permutations, object->object.region_permutations, sizeof(change->region_permutations));
+	{
+		enum forge_physics_mode physics = cheats_forge_network_physics(object_index);
+		SET_FLAG(change->flags, _distributed_create_forge_fixed_bit, physics == _forge_physics_fixed);
+		SET_FLAG(change->flags, _distributed_create_forge_phased_bit, physics == _forge_physics_phased);
+	}
 	SET_FLAG(change->flags, _distributed_object_at_rest_bit, TEST_FLAG(object->object.flags, _object_at_rest_bit));
 	SET_FLAG(change->flags, _distributed_object_dead_bit, TEST_FLAG(_object_mask_unit, object->object.type) &&
 		TEST_FLAG(object->object.damage_flags, _object_dead_bit));
@@ -3518,6 +3533,17 @@ as it is) */
 		}
 	}
 	object_set_garbage(object_index, FALSE);
+#ifdef HALO_GAME_BROWSER
+	if ((TEST_FLAG(change->flags, _distributed_create_forge_fixed_bit) ||
+		TEST_FLAG(change->flags, _distributed_create_forge_phased_bit)) &&
+		delta_peer_game_room_has(_delta_capability_forge_physics))
+	{
+		enum forge_physics_mode mode = TEST_FLAG(change->flags, _distributed_create_forge_fixed_bit) ?
+			_forge_physics_fixed : _forge_physics_phased;
+		cheats_forge_receive_physics(object_index, mode, &change->position,
+			&object->object.forward, &object->object.up);
+	}
+#endif
 	/* (in a unit's inventory: the next inventories put it there) */
 	if (TEST_FLAG(change->flags, _distributed_object_carried_bit) &&
 		TEST_FLAG(object->object.flags, _object_connected_to_map_bit) &&
@@ -4028,6 +4054,11 @@ void network_objects_handle_states(
 		distributed_object_state_unpack(state, &forward, &up, &velocity, &angular_velocity);
 		if (!distributed_transform_valid(&state->position, &forward, &up, NULL, NULL, &forward, &up))
 			continue;
+#ifdef HALO_GAME_BROWSER
+		if (state->forge_physics && delta_peer_game_room_has(_delta_capability_forge_physics))
+			cheats_forge_receive_physics(state->object_index, (enum forge_physics_mode)state->forge_physics,
+				&state->position, &forward, &up);
+#endif
 		/* The host sends item transforms only while they are in the world.
 		 * Dead NPCs receive no later living inventory, so apply their actual
 		 * drop here. A late ground sample must not strip a living carrier. */

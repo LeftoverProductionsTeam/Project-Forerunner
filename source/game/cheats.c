@@ -82,6 +82,9 @@ symbols in this file:
 #include "forge_files.h"
 #include "networking/network_game_globals.h"
 #include "networking/network_game_manager.h"
+#ifdef HALO_GAME_BROWSER
+#include "../../port/linux/src/delta_peer.h"
+#endif
 #include "../../port/linux/src/posix.h"
 void platform_translate_path(char const *xbox_path, char *host_path, unsigned long host_path_size);
 char const *platform_save_root(void);
@@ -149,6 +152,7 @@ struct forge_fixed_pose
 
 static struct forge_fixed_pose forge_fixed_poses[FORGE_SIDECAR_OBJECTS];
 static short forge_fixed_count;
+static boolean forge_remote_physics_active;
 
 static struct
 {
@@ -185,6 +189,7 @@ void cheats_forge_reset(void)
 	memset(forge_copies, 0xff, sizeof(forge_copies));
 #ifdef NATIVE_FORGE_SIDECARS
 	forge_fixed_count = 0;
+	forge_remote_physics_active = FALSE;
 	memset(&forge_hmv_metadata, 0, sizeof(forge_hmv_metadata));
 #endif
 }
@@ -302,8 +307,17 @@ static boolean forge_local_host(void)
 {
 	return network_game_forge_hosting() && network_game_is_splitscreen_local();
 }
+static boolean forge_physics_supported(void)
+{
+#ifdef HALO_GAME_BROWSER
+	if (network_game_forge_hosting() && delta_peer_game_room_has(_delta_capability_forge_physics))
+		return TRUE;
+#endif
+	return forge_local_host();
+}
+
 /* Adapt ChupathingyCE forge_physics.inc (1b732f52, GPL-3.0) to the
- * existing Local Forge handles. HMV physics stays in loopback sessions. */
+ * existing Forge handles. A negotiated match uses the same fixed poses. */
 static struct forge_fixed_pose *forge_fixed_pose_get(long object_index)
 {
 	short index;
@@ -335,8 +349,77 @@ static void forge_apply_placement_physics(long object_index, unsigned char physi
 		SET_FLAG(object_get(object_index)->object.flags, _object_forge_phased_bit, TRUE);
 	else if (physics == FORGE_RECORD_PHYSICS_FIXED)
 		forge_fixed_pose_capture(&forge_fixed_poses[forge_fixed_count++], object_index);
+
+	if (physics && !forge_local_host())
+		forge_remote_physics_active = TRUE;
 }
 #endif
+
+boolean cheats_forge_remote_physics_active(void)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	return forge_remote_physics_active;
+#else
+	return FALSE;
+#endif
+}
+
+enum forge_physics_mode cheats_forge_network_physics(long object_index)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	/* Ordinary objects keep their original network description. */
+	if (forge_remote_physics_active && forge_copies[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)] == object_index)
+	{
+		unsigned char physics = forge_placement_physics(object_index, object_get(object_index));
+		if (physics == FORGE_RECORD_PHYSICS_FIXED)
+			return _forge_physics_fixed;
+		if (physics == FORGE_RECORD_PHYSICS_PHASED)
+			return _forge_physics_phased;
+		return _forge_physics_normal;
+	}
+#else
+	(void)object_index;
+#endif
+	return _forge_physics_refused;
+}
+
+void cheats_forge_receive_physics(long object_index, enum forge_physics_mode mode,
+	real_point3d const *position, real_vector3d const *forward, real_vector3d const *up)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	struct object_datum *object = object_get(object_index);
+	struct forge_fixed_pose *fixed;
+
+	if (mode < _forge_physics_normal || mode > _forge_physics_phased ||
+		!TEST_FLAG(_object_mask_vehicle | _object_mask_weapon | _object_mask_equipment, object->object.type))
+		return;
+	fixed = forge_fixed_pose_get(object_index);
+	if (mode == _forge_physics_fixed)
+	{
+		if (!fixed)
+		{
+			if (forge_fixed_count == NUMBEROF(forge_fixed_poses))
+				return;
+			fixed = &forge_fixed_poses[forge_fixed_count++];
+			fixed->object_index = object_index;
+		}
+		/* Native object replication carries the edited home pose. While an
+		 * item is carried the host omits its pose from world state updates. */
+		fixed->position = *position;
+		fixed->forward = *forward;
+		fixed->up = *up;
+	}
+	else if (fixed)
+		*fixed = forge_fixed_poses[--forge_fixed_count];
+	SET_FLAG(object->object.flags, _object_forge_phased_bit, mode == _forge_physics_phased);
+#else
+	(void)object_index;
+	(void)mode;
+	(void)position;
+	(void)forward;
+	(void)up;
+#endif
+}
 
 void cheats_forge_update(void)
 {
@@ -534,7 +617,7 @@ static long forge_clone_at_position(
 	csmemcpy(placement.change_colors, object->object.base_change_colors, sizeof(placement.change_colors));
 #ifdef NATIVE_FORGE_SIDECARS
 	physics = forge_placement_physics(object_index, object);
-	if (physics && !forge_local_host())
+	if (physics && !forge_physics_supported())
 		return NONE;
 	if (physics == FORGE_RECORD_PHYSICS_FIXED && forge_fixed_count == NUMBEROF(forge_fixed_poses))
 		return NONE;
@@ -1515,7 +1598,7 @@ static boolean forge_hmv_placements(struct forge_file_layout const *layout, stru
 		real_euler_angles3d angles;
 		unsigned char physics = record->flags & FORGE_RECORD_PHYSICS_MASK;
 		if (record->kind != _forge_record_object || (record->flags & ~FORGE_RECORD_PHYSICS_MASK) != FORGE_RECORD_PLACE_AT_START ||
-			(physics && !forge_local_host()) ||
+			(physics && !forge_physics_supported()) ||
 			record->game_types || record->variant || record->respawn_seconds || record->ai_team ||
 			record->count != 1 || record->path_index >= layout->path_count)
 			return FALSE;
