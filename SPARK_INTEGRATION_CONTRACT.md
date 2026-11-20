@@ -11,6 +11,14 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
+Spark's newest retained facility-cover CE609 cache is
+releases/black-echo-native-covenant-facility-cover-20261118/be_native.map,
+SHA256 ce892c715ccdb5eaaccb9c44a1a60b6148bc52b092244e12bc4632489a89b7bf.
+The facility guard moved. The compiled technology weapon still uses hp,
+which the Covenant player cannot equip with the supplied Grunt graph.
+This candidate has compiled-cache readback only. The Covenant strand still needs
+the compatible weapon definition and matching objective described below.
+
 Spark's Covenant rally and Spirit return CE609 cache is
 releases/black-echo-native-covenant-rally-return-20261118/be_native.map,
 SHA256 dfa84b9590929393e16a36b59a568b7ec0b1420e7cd7e2526505fb4a7a36d0b0.
