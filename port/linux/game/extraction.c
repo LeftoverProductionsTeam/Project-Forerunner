@@ -126,7 +126,7 @@ static struct
 	long last_tick;
 	/* Optional hub choices only; native scripts still own mission objectives,
 	 * and every member keeps their existing independent gear transaction. */
-	struct { short name, ready_group; unsigned long operation; boolean notified, banked; } squads[EXTRACTION_SQUADS];
+	struct { short name, ready_group; unsigned long operation; boolean notified, banked, unconfirmed_escape; } squads[EXTRACTION_SQUADS];
 	/* Map-local choices for verified reconnects. Only live runs occupy seats. */
 	struct extraction_squad_choice squad_choices[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 	short next_squad_choice;
@@ -146,7 +146,6 @@ static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
 static boolean extraction_players_returned(void);
-static boolean extraction_players_returned_for_squad(short squad);
 static boolean extraction_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES]);
 
 /* Match Halo's three native forced-death requests. Do not consume the flags,
@@ -466,8 +465,16 @@ static void extraction_run_close(struct extraction_run *run)
 			if (!gear_cancel_reservation(&run->gear))
 				platform_log("extraction: ungranted loadout refund failed before session close");
 		}
-		else if (gear_lose(&run->gear) && run->phase == _extraction_settling)
-			extraction_remember_bank(run);
+		else if (gear_lose(&run->gear))
+		{
+			if (run->phase == _extraction_settling) extraction_remember_bank(run);
+		}
+		else if (run->phase == _extraction_settling && VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) &&
+			run->squad_operation && run->squad_operation == extraction.squads[run->squad].operation)
+		{
+			/* A disconnected escape escrow may still bank when reopened. */
+			extraction.squads[run->squad].unconfirmed_escape = TRUE;
+		}
 		gear_close(&run->gear);
 	}
 	memset(run, 0, sizeof(*run));
@@ -1183,12 +1190,12 @@ static boolean extraction_squad_busy(short squad, struct extraction_run const *e
 	for (index = 0; index < NUMBEROF(extraction_runs); index++)
 	{
 		struct extraction_run const *member = &extraction_runs[index];
-		struct player_datum *player;
 		if (member == except || member->squad != squad || !member->squad_operation ||
 			member->squad_operation != extraction.squads[squad].operation) continue;
-		player = player_try_and_get(member->player);
-		if (!player || player->quit_out_of_game) continue;
-		if (member->phase != _extraction_hub && member->phase != _extraction_returned && member->phase != _extraction_lost)
+		/* A departed slot still belongs to this operation until the update
+		 * closes its gear and records the outcome. */
+		if (member->phase == _extraction_returned ? member->gear.pending :
+			(member->phase != _extraction_hub && member->phase != _extraction_lost))
 			return TRUE;
 	}
 	return FALSE;
@@ -1432,6 +1439,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 			if (!++extraction.squads[run->squad].operation) ++extraction.squads[run->squad].operation;
 			extraction.squads[run->squad].notified = FALSE;
 			extraction.squads[run->squad].banked = FALSE;
+			extraction.squads[run->squad].unconfirmed_escape = FALSE;
 			if (extraction.squads[run->squad].ready_group != NONE)
 				device_group_set_actual_value(extraction.squads[run->squad].ready_group, 0.f);
 		}
@@ -2243,14 +2251,18 @@ void extraction_update(void)
 	extraction_transport_completions();
 	for (index = 0; index < NUMBEROF(extraction.squads); index++)
 		if (!extraction.survival && extraction.squads[index].operation && !extraction.squads[index].notified &&
-			extraction_players_returned_for_squad(index))
+			!extraction_squad_busy(index, NULL))
 		{
 			char script[32], text[128];
+			boolean banked = extraction.squads[index].banked;
 			extraction.squads[index].notified = TRUE;
-			snprintf(script, sizeof(script), "forerunner_squad_%02d_complete", index + 1);
-			platform_log("extraction: squad %d operation %lu settled; authored completion %s", index + 1,
-				extraction.squads[index].operation, extraction_wake_completion(script, TRUE) ? "woken" : "absent or unsupported");
-			snprintf(text, sizeof(text), "SQUAD %02d READY | Survivors banked. Redeploy at the hub.", index + 1);
+			if (!banked && extraction.squads[index].unconfirmed_escape) continue;
+			snprintf(script, sizeof(script), "forerunner_squad_%02d_%s", index + 1, banked ? "complete" : "aborted");
+			platform_log("extraction: squad %d operation %lu settled; authored %s %s", index + 1,
+				extraction.squads[index].operation, banked ? "completion" : "abort",
+				extraction_wake_completion(script, TRUE) ? "woken" : "absent or unsupported");
+			snprintf(text, sizeof(text), "SQUAD %02d READY | %s Redeploy at the hub.", index + 1,
+				banked ? "Survivors banked." : "Operation lost.");
 			extraction_squad_notice(index, text);
 		}
 	/* The optional authored continuation runs once per fresh map, after actual
@@ -2279,7 +2291,7 @@ boolean extraction_survival_settlement_pending(void)
 	return FALSE;
 }
 
-static boolean extraction_players_returned_for_squad(short squad)
+static boolean extraction_players_returned(void)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
@@ -2290,19 +2302,7 @@ static boolean extraction_players_returned_for_squad(short squad)
 		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
 		struct unit_datum *unit;
 		if (player->quit_out_of_game) continue;
-		if (squad != NONE)
-		{
-			struct extraction_run const *run;
-			if (!VALID_INDEX(slot, NUMBEROF(extraction_runs))) continue;
-			run = &extraction_runs[slot];
-			if (run->player != iterator.datum_index || run->squad != squad ||
-				run->squad_operation != extraction.squads[squad].operation) continue;
-			if (run->phase == _extraction_lost) continue;
-			if (run->phase != _extraction_returned || run->gear.pending) return FALSE;
-			/* Returning and banking settled this member's operation. Their
-			 * current body or position belongs to subsequent play. */
-			continue;
-		}
+
 		if (player->unit_index == NONE) continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (!unit || unit->unit.player_index != iterator.datum_index) return FALSE;
@@ -2313,12 +2313,7 @@ static boolean extraction_players_returned_for_squad(short squad)
 			!extraction_at_return(&extraction_runs[slot], player->unit_index)) return FALSE;
 		survivors++;
 	}
-	return survivors > 0 || (VALID_INDEX(squad, NUMBEROF(extraction.squads)) && extraction.squads[squad].banked);
-}
-
-static boolean extraction_players_returned(void)
-{
-	return extraction_players_returned_for_squad(NONE);
+	return survivors > 0;
 }
 
 boolean extraction_survival_evacuation_ready(void)

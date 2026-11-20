@@ -128,8 +128,8 @@ static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes},
 static struct hs_script completion_script;
 static struct hs_script transport_scripts[3];
 static short completion_wakes, transport_wakes[2], transport_aborts[2];
-static struct hs_script squad_scripts[3];
-static short squad_wakes[2];
+static struct hs_script squad_scripts[5];
+static short squad_wakes[2], squad_aborts[2];
 static boolean hs_wake_by_name(char const *name)
 {
  if(!strcmp(name,"forerunner_pelican_complete"))transport_wakes[0]++;
@@ -138,6 +138,8 @@ static boolean hs_wake_by_name(char const *name)
  else if(!strcmp(name,"forerunner_spirit_aborted"))transport_aborts[1]++;
  else if(!strcmp(name,"forerunner_squad_01_complete"))squad_wakes[0]++;
  else if(!strcmp(name,"forerunner_squad_02_complete"))squad_wakes[1]++;
+ else if(!strcmp(name,"forerunner_squad_01_aborted"))squad_aborts[0]++;
+ else if(!strcmp(name,"forerunner_squad_02_aborted"))squad_aborts[1]++;
  else {CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;}
  return TRUE;
 }
@@ -663,11 +665,13 @@ int main(int argc,char **argv)
    controls[5+i].object.name_index=9+i;controls[5+i].device.position_group_index=10;controls[5+i].device.power_group_index=11;
    snprintf(squad_scripts[i].name,32,"forerunner_squad_%02d_complete",i+1);
    squad_scripts[i].return_type=_hs_type_void;squad_scripts[i].script_type=_hs_script_continuous;
+   snprintf(squad_scripts[2+i].name,32,"forerunner_squad_%02d_aborted",i+1);
+   squad_scripts[2+i].return_type=_hs_type_void;squad_scripts[2+i].script_type=_hs_script_continuous;
   }
-  device_groups[11].actual_value=1;scenario.hs_scripts.count=2;scenario.hs_scripts.address=squad_scripts;
+  device_groups[11].actual_value=1;scenario.hs_scripts.count=4;scenario.hs_scripts.address=squad_scripts;
   if(!strcmp(case_name,"squad-return-roam")) {
-   strcpy(squad_scripts[2].name,"forerunner_extraction_complete");
-   squad_scripts[2].script_type=_hs_script_dormant;squad_scripts[2].return_type=_hs_type_void;
+   strcpy(squad_scripts[4].name,"forerunner_extraction_complete");
+   squad_scripts[4].script_type=_hs_script_dormant;squad_scripts[4].return_type=_hs_type_void;
    scenario.hs_scripts.count++;
   }
   if(!strcmp(case_name,"squad-duplicate"))strcpy(names[10].name,names[9].name);
@@ -915,6 +919,18 @@ int main(int argc,char **argv)
    device_groups[8].actual_value=1;escape(0);CHECK(run(0)->gear.record.count==1&&run(1)->phase==_extraction_deployed,"scoped objective escape changed other squad");
    touch(0,0);CHECK(run(0)->phase==_extraction_deployed&&device_groups[8].actual_value==0,"new operation inherited old mission success");return 0;
   }
+  if(!strcmp(case_name,"squad-wipe-independent")) {
+   touch(6,1);touch(0,0);touch(0,1);
+   CHECK(run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,"independent squads did not deploy");
+   units[0].object.damage_flags=FLAG(_object_dead_bit);advance(1);
+   CHECK(squad_aborts[0]==1&&!squad_aborts[1]&&!completion_wakes,"wipe crossed squads or advanced global success");
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.record.phase==_gear_deployed,"wipe changed the other squad's run");
+   units[0].object.damage_flags=0;touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&run(0)->squad_operation==2,"wiped squad could not redeploy");
+   pickup(0,1);escape(0);
+   CHECK(squad_aborts[0]==1&&squad_wakes[0]==1&&!squad_wakes[1],"redeployed squad could not bank independently");
+   return 0;
+  }
   touch(!strcmp(case_name,"squad-independent")?6:5,1);
   CHECK(run(1)->squad==(!strcmp(case_name,"squad-independent")?1:0),"second member not assigned");
   touch(0,0);touch(0,1);
@@ -928,7 +944,8 @@ int main(int argc,char **argv)
   }
   CHECK(run(0)->squad_operation==run(1)->squad_operation,"same squad did not share operation epoch");
   if(!strncmp(case_name,"squad-bank-",11)) {
-   boolean escrow=!strcmp(case_name,"squad-bank-escrow-disconnect");
+   boolean unconfirmed=!strcmp(case_name,"squad-bank-escrow-unconfirmed");
+   boolean escrow=!strcmp(case_name,"squad-bank-escrow-disconnect")||unconfirmed;
    boolean captured=strcmp(case_name,"squad-bank-unsettled-disconnect")!=0;
    if(captured) {
     a=pickup(1,2);
@@ -940,20 +957,21 @@ int main(int argc,char **argv)
     CHECK(!weapon_try_and_get(a),"escaped item was not consumed");
    }
    CHECK(!squad_wakes[0],"unfinished squad accepted an early callback");
-   publish_failure=FALSE;
+   publish_failure=unconfirmed;
    players[1].quit_out_of_game=TRUE;advance(1);
-   CHECK(!squad_wakes[0],"disconnect completed a squad member still in the field");
+   CHECK(!squad_wakes[0]&&!squad_aborts[0],"disconnect ended an operation with a member still in the field");
    units[0].object.damage_flags=FLAG(_object_dead_bit);
    publish_failure=TRUE;advance(1);
-   CHECK(run(0)->phase==_extraction_losing&&!squad_wakes[0],"pending loss completed the squad");
+   CHECK(run(0)->phase==_extraction_losing&&!squad_wakes[0]&&!squad_aborts[0],"pending loss ended the squad operation");
    publish_failure=FALSE;advance(30);
    CHECK(run(0)->phase==_extraction_lost&&!run(0)->gear.record.count,"surviving player earned gear from a loss");
-   CHECK(squad_wakes[0]==captured&&!squad_wakes[1],"same-squad durable bank vanished after disconnect or an unbanked run completed");
-   advance(30);CHECK(squad_wakes[0]==captured,"same operation sent duplicate callbacks");
+   CHECK(squad_wakes[0]==(captured&&!unconfirmed)&&!squad_wakes[1],"same-squad durable bank vanished after disconnect or an unbanked run completed");
+   CHECK(squad_aborts[0]==!captured&&!squad_aborts[1],"loss callback missing, crossed squads, or presumed an unknown escrow lost");
+   advance(30);CHECK(squad_wakes[0]==(captured&&!unconfirmed)&&squad_aborts[0]==!captured,"same operation sent duplicate callbacks");
    units[0].object.damage_flags=0;touch(0,0);
    CHECK(run(0)->phase==_extraction_deployed&&run(0)->squad_operation==2,"old completion blocked a new deployment");
    units[0].object.damage_flags=FLAG(_object_dead_bit);advance(1);
-   CHECK(squad_wakes[0]==captured,"new operation inherited the previous bank");
+   CHECK(squad_wakes[0]==(captured&&!unconfirmed)&&squad_aborts[0]==1+!captured,"new operation inherited the previous outcome");
    return 0;
   }
   touch(6,0);CHECK(run(0)->squad==0,"deployed member changed squad");

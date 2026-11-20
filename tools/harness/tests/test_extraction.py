@@ -151,6 +151,7 @@ def test_native_squad_radio(case):
 @pytest.mark.parametrize('case', [
     'squad-loop', 'squad-independent', 'squad-pending', 'squad-loss', 'squad-restore', 'squad-return-roam',
     'squad-bank-disconnect', 'squad-bank-escrow-disconnect', 'squad-bank-unsettled-disconnect',
+    'squad-bank-escrow-unconfirmed', 'squad-wipe-independent',
     'squad-capacity', 'squad-state', 'squad-identity', 'squad-faction', 'squad-leave', 'squad-join-active',
     'squad-duplicate', 'squad-alias', 'squad-missing',
     'squad-reconnect', 'squad-reconnect-active', 'squad-reconnect-full', 'squad-reconnect-faction',
@@ -240,8 +241,8 @@ def test_squad_objective_negative_control(before, after, case):
 
 @pytest.mark.parametrize('before,after,case', [
     ('members >= EXTRACTION_SQUAD_MEMBERS', 'members > EXTRACTION_SQUAD_MEMBERS', 'squad-capacity'),
-    ('if (run->player != iterator.datum_index || run->squad != squad ||',
-     'if (run->player != iterator.datum_index || FALSE ||', 'squad-independent'),
+    ('member == except || member->squad != squad || !member->squad_operation',
+     'member == except || !member->squad_operation', 'squad-independent'),
 ])
 def test_native_squad_negative_control(before, after, case):
     files = tuple((name, mutated(text, before, after)) if name == 'extraction.inc' else (name, text)
