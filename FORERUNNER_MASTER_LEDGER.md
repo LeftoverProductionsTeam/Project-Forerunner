@@ -19,6 +19,14 @@ account proof and inputs. Defense, evacuation, settlement, banking and
 redeployment remain open on this candidate. See the Spark contract for
 the route and asset handoff.
 
+Native HaloScript now widens a signed `short` to `long` using BirchWood's
+ChupathingyCE fix at `64fbc42977`. Windows x64 built and 90 focused checks
+passed. The baseline console refused both assignments and retained 42424.
+The rebuilt runtime assigned 30000 and -32768 and read both back exactly.
+The installed Invader CE and MCC script targets rejected this construct at
+compile time, so a newer-tool compiled cache remains unverified here.
+Evidence: `build/native-haloscript-short-long`.
+
 Forge now saves and loads plain base-map `.hmv` placements using the original
 Chupathingy codec and the existing host placement path. One Windows x64 host
 saved a Pelican through Forge Tools, restarted, refused a timed placement
