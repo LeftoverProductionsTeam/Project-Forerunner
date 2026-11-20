@@ -71,8 +71,7 @@ import java.util.zip.ZipInputStream;
  * over it.
  */
 final class Updater {
-    /* ChupathingyCE's releases; a fork's builds name their own repository's
-       (HALO_UPDATE_REPOSITORY: the one tools/ci_build.py builds in) */
+    /* Empty until Forerunner has an approved release signing identity. */
     private static final String REPOSITORY = BuildConfig.HALO_UPDATE_REPOSITORY;
     private static final String USER_AGENT = "ChupathingyCE/" + BuildConfig.HALO_VERSION + " (Android arm64)";
     /** the logcat tag, the native side's (port/android/host/host.h) */
@@ -101,8 +100,14 @@ final class Updater {
         }
     }
 
+    static boolean enabled() {
+        return !REPOSITORY.isEmpty();
+    }
+
     /** At the game's start: looks for a new version, in the background. */
     static void start(Activity activity) {
+        if (!enabled())
+            return;
         File config = configFile(activity);
 
         if (!(BuildConfig.HALO_RELEASE_BUILD || !BuildConfig.HALO_UPDATE_CHANNEL.isEmpty()) || config == null
@@ -656,6 +661,8 @@ final class Updater {
      * (LauncherActivity). Release builds only: others have no release.
      */
     static void switchTo64Bit(Activity activity) {
+        if (!enabled())
+            return;
         update(activity, BuildConfig.HALO_VERSION, ASSET_64BIT, null);
     }
 

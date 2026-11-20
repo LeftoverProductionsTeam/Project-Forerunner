@@ -107,11 +107,11 @@ public class LauncherActivity extends Activity {
                 + "fixed address. It installs over this one and keeps your game data and saves.")
             .setCancelable(false)
             .setPositiveButton("Get the 64-bit build", (dialog, which) -> {
-                if (BuildConfig.HALO_RELEASE_BUILD) {
+                if (Updater.enabled() && BuildConfig.HALO_RELEASE_BUILD) {
                     Updater.switchTo64Bit(this);
                 } else {
                     startActivity(new Intent(Intent.ACTION_VIEW,
-                        Uri.parse("https://github.com/ChupathingyCE/chupathingyce/releases")));
+                        Uri.parse("https://github.com/LeftoverProductionsTeam/Project-Forerunner/releases")));
                     finish();
                 }
             })

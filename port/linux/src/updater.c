@@ -100,7 +100,9 @@ macos_build.py; the Android app's version is its own, build.gradle) */
 #define HALO_VERSION "dev"
 #endif
 
-#if !defined(HALO_ANDROID) && !defined(HALO_WEB)
+/* Signed local fixtures exercise the inherited updater. Production builds
+use the stubs until Forerunner has an approved signing identity. */
+#if defined(HALO_UPDATE_TEST) && defined(HALO_UPDATE_TEST_KEY) && !defined(HALO_ANDROID) && !defined(HALO_WEB)
 
 #include "zlib_prefixed.h"
 
@@ -345,17 +347,20 @@ static const char *updater_asset(void)
 server (HALO_UPDATE_TEST) */
 static void updater_url(char *url, size_t size, int api, const char *path)
 {
-#ifdef HALO_UPDATE_TEST
 	const char *server = getenv("HALO_UPDATE_TEST_SERVER");
+	const char *port = NULL;
 
-	if (server && *server)
+	if (server && !strncmp(server, "https://localhost:", 18))
+		port = server + 18;
+	else if (server && !strncmp(server, "https://127.0.0.1:", 18))
+		port = server + 18;
+	if (!port || !*port || port[strspn(port, "0123456789")])
 	{
-		snprintf(url, size, "%s/%s/%s", server, api ? "repos/" UPDATE_REPOSITORY : UPDATE_REPOSITORY "/releases/download",
-			path);
+		url[0] = 0;
 		return;
 	}
-#endif
-	snprintf(url, size, "%s/%s", api ? UPDATE_API : UPDATE_DOWNLOADS, path);
+	snprintf(url, size, "%s/%s/%s", server, api ? "repos/" UPDATE_REPOSITORY : UPDATE_REPOSITORY "/releases/download",
+		path);
 }
 
 /* ---------- paths */
@@ -2744,10 +2749,14 @@ int updater_server_install_poll(char *error, int size)
 	return -1;
 }
 
-#ifdef HALO_WEB
-#include <SDL3/SDL.h>
+#ifdef HALO_CONSOLE_SETUP_SCREENS
+void updater_console_check(void)
+{
+}
+#endif
 
-/* (the site updates itself: port/web/site/sw.js) */
+#ifndef HALO_ANDROID
+#include <SDL3/SDL.h>
 void updater_poll(SDL_Window *window)
 {
 	(void)window;

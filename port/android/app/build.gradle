@@ -30,12 +30,8 @@ def sdlJava = new File(rootDir, "../../build/android/third_party/SDL3/android-pr
 // the version (tools/version.py): HALO_VERSION from the release workflow
 // (0.5.0b, 0.5.0b-nightly.42), else VERSION's, a development build; only a
 // release's build (HALO_RELEASE_BUILD) looks for updates (Updater.java)
-// the GitHub repository whose releases it updates from (tools/ci_build.py:
-// the one it is built in, so a fork's builds update from the fork)
-def updateRepository = System.getenv("HALO_UPDATE_REPOSITORY") ?: ""
-if (!(updateRepository ==~ /[A-Za-z0-9-]+\/[A-Za-z0-9._-]+/)) {
-    updateRepository = "ChupathingyCE/chupathingyce"
-}
+// Forerunner has no approved APK update signing identity yet.
+def updateRepository = ""
 def haloVersion = System.getenv("HALO_VERSION") ?: (new File(rootDir, "../../VERSION").text.trim() + "-dev")
 def releaseBuild = System.getenv("HALO_RELEASE_BUILD") == "1"
 // a nightly's or a test build's update channel (tools/version.py's
