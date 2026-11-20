@@ -1669,9 +1669,10 @@ void halo_test_screenshot(void);
 /* the mouse's tokens of debug.test_input "menu:": move:<x>:<y>,
 click:<x>:<y>, rclick:<x>:<y> and wheel:<notches> (positive away from the
 user), at a point of the menus' 640x480 (the middle 640 of a wide screen);
-a click moves there first and clicks 300 ms later. And shot saves the
-window to debug.screenshot_directory. Each acts once in its second. */
-static void test_input_menu_pointer(void)
+a click moves there first and clicks 300 ms later. aim:<dx>:<dy> supplies
+relative mouse movement in play. shot saves the window to
+debug.screenshot_directory. Each acts once in its second. */
+static void test_input_menu_pointer(struct platform_input_state *input)
 {
 	static Uint64 step_done = (Uint64)-1;
 	static Uint64 click_step = (Uint64)-1;
@@ -1754,6 +1755,16 @@ static void test_input_menu_pointer(void)
 		step_done = step;
 		return;
 	}
+	if (sscanf(text, "aim:%6d:%6d", &x, &y) == 2)
+	{
+		if (step_done != step && !input->menus && !input->mouse_released)
+		{
+			input->mouse_dx += (float)x;
+			input->mouse_dy += (float)y;
+		}
+		step_done = step;
+		return;
+	}
 	if (sscanf(text, "move:%d:%d", &x, &y) != 2 && sscanf(text, "click:%d:%d", &x, &y) != 2 &&
 		sscanf(text, "rclick:%d:%d", &x, &y) != 2)
 	{
@@ -1784,9 +1795,6 @@ static void test_input_menu_keys(struct platform_input_state *input)
 	char names[64];
 	char *name, *next;
 
-#ifndef HALO_ANDROID
-	test_input_menu_pointer();
-#endif
 	/* (hold:<keys> keeps them down all of the token's second, for a walk or
 	a climb a test drives; key:<keys> taps them) */
 	token = test_input_menu_current(&length);
@@ -3437,6 +3445,9 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 			if (input.mouse_dx || input.mouse_dy || input.mouse_wheel) mouse |= 0x100;
 			keyboard_prompt_keys(input.keys, sizeof(input.keys), mouse);
 		}
+#ifndef HALO_ANDROID
+		test_input_menu_pointer(&input);
+#endif
 		mouse_poll(&input);
 		wheel_update();
 		keyboard_actions_held = 0;

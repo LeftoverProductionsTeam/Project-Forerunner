@@ -15,12 +15,38 @@ Spark's current 20 November CE609 candidate (Spark `8e4f912`) is
 `releases/black-echo-elite-separated-starts-20261120/be_native.map`,
 SHA-256 `04d9ccd199fef0bba6d30a54e7c7f3682f9766ddc0f94ee347cde6c9677c113f`.
 It combines the reviewed Elite faction placement with four grounded hub starts.
-Forerunner admitted the exact cache in a bounded Windows x64 offline run. The
-player spawned at (43.002, -110.999, 1.076) with full health and shields and
-stayed there through tick 510. The diagnostic aim sweep did not reach a usable
-hub control. Authenticated paired respawn, physical terminal use, Elite selection
-and the rest of the operation remain open. See
-`build/native-black-echo-elite-04d9-admission/result.json`.
+The exact cache admitted and deployed a fresh offline Windows x64 profile
+through native movement, aiming and Use. The player spawned at
+(43.002, -110.999, 1.076), walked around the terminal, and received the
+native device offer from (40.313, -110.229, 1.428) while looking toward the
+control center. Use opened one disposable gear record and advanced the
+operation to deployed. The prior probes stopped farther away. This checks
+the hub deploy control. Field calls, paired faction play, evacuation and
+banking still require gameplay acceptance. See
+`build/native-black-echo-04d9-close-terminal/result.json`.
+
+Native test recordings can use `aim:<dx>:<dy>` for relative mouse input
+through the existing input script. The original map currently supplies a
+placeholder name for the deploy terminal. Forerunner's existing HUD
+fallback now shows a usable device prompt for that case. The Windows native
+readback shows **Press [E] to use device** above the deployed notice.
+Evidence: `build/native-black-echo-04d9-terminal-label`.
+
+A fresh offline profile used the Covenant control from
+(37.423, -104.510, 1.028). The runtime changed the native body from the
+Spartan to the authored Elite, then retained the Elite on deployment.
+The native inventory trace showed the starter plasma pistol attached to
+that Elite and the sampled player had full body and shield vitality.
+Evidence: `build/native-black-echo-04d9-elite-selection/result.json` and its
+native trace.
+
+Another run walked the existing southern foot route and used the landed
+Spirit's passenger offer from (53.971, -88.542, 0.144). The Elite occupied
+seat 5 at ticks 4050 through 4200 with full vitality. The Spirit moved
+under native pilot throttle from (57.281, -87.291, 1.415) to
+(55.653, -80.670, 4.271), airborne. Landing, physical disembarkation and
+the rest of the operation remain open on this cache. Evidence:
+`build/native-black-echo-04d9-spirit-passenger/result.json`.
 
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
@@ -2423,9 +2449,24 @@ the native Covenant body placement. It retains the technology weapon's
 `pp` label, which the imported Elite animation graph has for stand and
 crouch. Spark's seat readback found all eight exact Spirit passenger labels
 in the graph. Verify physical pickup and Spirit boarding in a live match.
-The matching cooked `_fp` model is missing. Add it using the exact namespaced
-biped path and the scenery palette binding described below. Confirm hands,
-HUD, collision, animation, shields and sound on the delivered character.
+The released cache lacks the matching cooked `_fp` model. Spark `8fc1914` exposes
+**Include authored first-person arms** in the native faction review and
+validates the carrier palette and model dependency. The inspected CE SDK
+archive supplied no compatible Elite first-person model. Prepare that asset
+using the exact namespaced biped path and the scenery palette binding
+described below. Confirm hands, HUD, collision, animation, shields and sound
+on the delivered character.
+
+Forerunner validated the CMT Elite arms locally. The archive credits CMT,
+Teh lag, and MMAMONSTERRR-D92209. All 37 model nodes match the exact
+starter plasma-pistol graph in `04d9ccd1`. A disposable CE609 derivative
+`fbf24551` cooked the exact namespaced `elite_fp` model and scenery carrier,
+accepted native Covenant and deploy interaction, and rendered the arms
+holding the plasma pistol. Use Spark's existing authoring path to prepare
+its own cache for the paired run. The CMT asset and derived map were kept
+out of source and distribution. [CMT Elite FP Arms](https://www.halomaps.org/hce/detail.cfm?fid=5764).
+Evidence: `build/cmt-elite-arms-native-build/result.json` and
+`build/native-black-echo-cmt-arms-render/result.json`.
 
 The existing Player Setup color picker stores the selected profile color.
 Faction replacement and respawn apply it to native armor channel A after tag
@@ -2828,11 +2869,12 @@ Reuse source: ChupathingyCE `1b732f52d73f214d4f0068178d45753cca56dcf3`
 This adapter uses existing Forerunner host object creation, replication and
 text sidecar rollback. It does not negotiate a new network protocol.
 
-Spark can add HMV import and export to QuickForge's existing file actions.
-Use the discovery feature check in `crates/spark-core/src/runtime.rs` and
-feed supported placement records into the existing editable selection and
-history workflow. Retain other records with their source layout and refuse a
-lossy conversion. Match the runtime cache before preparing `import.hmv`.
+Spark `a9d36c0` implements HMV import, pose edits and export in QuickForge.
+Its existing history tracks the edits and preserves unsupported records with
+the original layout. Chupathingy's standalone decoder read Spark's exported
+object pose and retained player spawn. A Forerunner playtest must match the
+runtime cache and require `forge.hmv_base_placements.v1` before preparing
+`import.hmv` with the supported placement subset.
 The HMV codec stays in Forerunner under its upstream license. A contribution
 for upstream review can isolate this runtime placement adapter from Spark's
 authoring code.
@@ -2841,8 +2883,17 @@ Windows x64 native Forge Tools saved a 180-byte version-1 layout with one
 Pelican, then loaded it after process restart. The same host refused an
 import with a 30-second respawn property before placement and retained its
 bytes. Spark discovery returned the capability without writing files.
-Evidence: `build/native-forge-hmv-verified/result.json`. Two-client HMV
-replication and opening the export in a separate Chupathingy build remain open.
+Evidence: `build/native-forge-hmv-verified/result.json`.
+
+An official Chupathingy Windows nightly at `7e2024d2` saved a one-Warthog HMV
+on Blood Gulch. Forerunner loaded it through Forge Tools, observed an added
+native Warthog at (102.32, -160.85, 0.47), and exported it with the same
+map checksum (56503715) and tag. The same nightly loaded that Forerunner
+file and applied one placement with zero skipped. The harness's final
+ordinary item sample timed out in Chupathingy's monitor mode. Its native
+layout-application log records the outcome. Source maps and the imported file
+were preserved. Evidence: `build/native-hmv-chupa-forerunner-roundtrip`.
+Two-client HMV replication and advanced layout properties remain open.
 
 The refreshed branch includes compatible OpenCE transfer fixes now cherry-picked
 here with original authorship (`ebfa05b7`, `796df195`). Existing map sharing asks

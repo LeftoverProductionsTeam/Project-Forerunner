@@ -354,9 +354,9 @@ static long get_object_icon_text_index(
 		object_get(object_index)->definition_index)->object.icon_text_index;
 }
 
-/* port: campaign/custom vehicles may use the HUD table's placeholder name
- * (the native cryotube uses entry zero). Keep authored names, including a
- * valid custom entry zero; missing names need a usable action prompt instead. */
+/* Campaign/custom vehicles and controls may use the HUD table's placeholder
+ * name (the native cryotube uses entry zero). Keep valid authored names.
+ * Missing names need a usable action prompt. */
 static boolean hud_action_name_available(short index)
 {
 	long tag_index = hud_globals->messaging.alternate_icon_text.index;
@@ -494,6 +494,11 @@ static void hud_show_action_response(
 				0,
 				control->control.custom_name_index,
 				TRUE);
+		}
+		else if (!hud_action_name_available(item_name_index))
+		{
+			hud_enable_custom_state_message(render.local_player_index, TRUE);
+			hud_set_state_text(render.local_player_index, L"Press %action to use device");
 		}
 		else
 		{
