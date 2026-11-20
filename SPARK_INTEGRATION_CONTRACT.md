@@ -2929,6 +2929,22 @@ save evidence: `build/native-forge-local-devices-play/result.json`
 (Danger Canyon control) and `build/native-forge-local-machine/result.json`
 (Wizard machine). Both runs bound UDP to loopback.
 
+Spark `630f91ab15bb3592047724caadd0be8a6ea852d2`'s Local Forge export
+also passed direct playback. A fresh Level Editor export with SHA-256
+`7eddb139014709a62868457a5a6a23e58581bae6e05b725bd3c6739aaffa3e62`
+placed the native holo command control at (3.774, 16.842, 1.434) on the
+matching Danger Canyon CE609 cache. Forerunner saved a byte-identical
+layout, removed the copy through **Undo Copy**, and restored it through
+**Load Saved (.HMV)** with the original import still present. The control
+had its tag defaults and no native switch binding. UDP listeners stayed
+on loopback and the original cache and import matched their input hashes.
+Evidence: `build/native-spark-local-forge-7eddb139/result.json`.
+
+Chupathingy nightly `7e2024d2` uses a stock Xbox multiplayer map list for
+its local Forge launcher, which excludes Danger Canyon. The verified
+shared case for that nightly remains the Blood Gulch SparkLink HMV below.
+[Chupathingy Forge map list](https://github.com/ChupathingyCE/chupathingyce/blob/7e2024d2/port/linux/game/forge.c#L363-L378)
+
 Reuse source: ChupathingyCE `1b732f52d73f214d4f0068178d45753cca56dcf3`
 `port/linux/game/forge_files.c` and `forge_files.h`, retained verbatim under
 [GPL-3.0](LICENSE.GPL-3.0). The original Forge integration is credited to

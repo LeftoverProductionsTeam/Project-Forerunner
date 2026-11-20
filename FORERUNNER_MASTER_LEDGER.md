@@ -65,9 +65,10 @@ Two-client redo remains an acceptance check.
 place normal HMV machine and control records from the exact base cache.
 Windows x64 placed and saved a Danger Canyon holo control and a Wizard
 alert-light machine, with all game UDP listeners on loopback. Both input
-caches and imports retained their hashes. Device wiring, fixed/phased HMV
-physics and remote replication remain open. See the Spark contract for
-the capability and native evidence.
+caches and imports retained their hashes. A Spark-exported Danger Canyon
+HMV also completed import, byte-identical save, Undo Copy and Load Saved
+in the native runtime. Device wiring, fixed/phased HMV physics and remote
+replication remain open. See the Spark contract for the native evidence.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or
