@@ -639,6 +639,18 @@ int main(int argc,char **argv) {
      object->object.position.z==old_position.z&&object->object.forward.i==1.f&&object->object.forward.j==0.f,
      "undo did not restore the same copy's previous pose");
     CHECK(!cheat_forge_undo_move(),"undo reused a consumed snapshot");
+    nearby=TRUE;
+    CHECK(!cheat_forge_redo_move()&&object->object.position.x==old_position.x,"redo overlapped an occupant");
+    nearby=FALSE;
+    connection=1;
+    CHECK(!cheat_forge_redo_move(),"client redid an authoritative move");
+    connection=0;
+    CHECK(cheat_forge_redo_move()&&get(copy)==object&&object->object.position.x==12.f&&
+     object->object.forward.i==1.f&&object->object.forward.j==0.f,"redo restored a drifted pose instead of the edit");
+    CHECK(!cheat_forge_redo_move(),"redo reapplied an already current edit");
+    CHECK(cheat_forge_undo_move(),"redone move could not be undone again");
+    forge_hit.point.x=14.f;
+    CHECK(cheat_forge_move_selected()&&!cheat_forge_redo_move(),"new move retained an obsolete redo");
    }
   } else {
    CHECK(!cheat_forge_move_selected()&&forge_activated==NONE&&object->object.position.x!=12.f&&
@@ -694,6 +706,9 @@ int main(int argc,char **argv) {
    "rotated hull intersects the support plane");
   CHECK(cheat_forge_undo_move()&&object->object.forward.i==1.f&&object->object.forward.j==0.f,
    "undo did not restore the previous orientation");
+  CHECK(cheat_forge_redo_move()&&object->object.forward.i==0.f&&object->object.forward.j==1.f&&
+   fabsf(object->object.position.z-position.z-(grounded?.26f:0.f))<.0001f,
+   "redo did not restore the same turned hull and clearance");
   CHECK(new_count==1&&get(source)&&get(copy),"rotation changed object count");
   return 0;
  }

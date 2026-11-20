@@ -147,12 +147,16 @@ struct forge_move_snapshot
 };
 
 static struct forge_move_snapshot forge_last_move = { NONE };
+static struct forge_move_snapshot forge_last_destination = { NONE };
+static boolean forge_move_undone;
 
 void cheats_forge_reset(void)
 {
 	forge_selection = NONE;
 	forge_last_copy = NONE;
 	forge_last_move.object_index = NONE;
+	forge_last_destination.object_index = NONE;
+	forge_move_undone = FALSE;
 	memset(forge_copies, 0xff, sizeof(forge_copies));
 }
 
@@ -550,24 +554,36 @@ static void forge_move_copy(long object_index, struct object_datum *object,
 }
 
 /* Adapt OpenCE-Forge's before-transform undo snapshot (SutlabSol/OpenCE-Forge). */
-static boolean forge_remember_transform(long object_index, struct object_datum const *object)
+static boolean forge_remember_transform(long object_index, struct object_datum const *object,
+	struct forge_move_snapshot *snapshot)
 {
 	if (object->object.type == _object_type_vehicle)
 	{
 		struct physics_instance vehicle;
 		if (!physics_instance_new(&vehicle, object_index))
 			return FALSE;
-		forge_last_move.vehicle_pose = vehicle.world_matrix;
+		snapshot->vehicle_pose = vehicle.world_matrix;
 	}
-	forge_last_move.object_index = object_index;
-	forge_last_move.bsp_index = global_structure_bsp_index;
-	forge_last_move.position = object->object.position;
-	forge_last_move.center = object->object.bounding_sphere_center;
-	forge_last_move.forward = object->object.forward;
-	forge_last_move.up = object->object.up;
-	forge_last_move.radius = object->object.bounding_sphere_radius;
-	forge_last_move.scale = object->object.scale;
+	snapshot->object_index = object_index;
+	snapshot->bsp_index = global_structure_bsp_index;
+	snapshot->position = object->object.position;
+	snapshot->center = object->object.bounding_sphere_center;
+	snapshot->forward = object->object.forward;
+	snapshot->up = object->object.up;
+	snapshot->radius = object->object.bounding_sphere_radius;
+	snapshot->scale = object->object.scale;
 	return TRUE;
+}
+
+/* Like ChupathingyCE's Forge history, retain the edited pose itself rather
+ * than capturing the possibly shifted body when undo is requested. */
+static void forge_commit_transform(long object_index, struct object_datum *object,
+	real_point3d const *position, real_vector3d const *forward, real_vector3d const *up)
+{
+	forge_move_copy(object_index, object, position, forward, up);
+	forge_last_destination.object_index = NONE;
+	forge_remember_transform(object_index, object, &forge_last_destination);
+	forge_move_undone = FALSE;
 }
 
 boolean cheat_forge_move_selected(void)
@@ -576,9 +592,9 @@ boolean cheat_forge_move_selected(void)
 	real_point3d position;
 
 	if (!object || !forge_aim_placement(forge_selection, object, forge_selection, &position) ||
-		!forge_remember_transform(forge_selection, object))
+		!forge_remember_transform(forge_selection, object, &forge_last_move))
 		return FALSE;
-	forge_move_copy(forge_selection, object, &position, NULL, NULL);
+	forge_commit_transform(forge_selection, object, &position, NULL, NULL);
 	return TRUE;
 }
 
@@ -667,34 +683,35 @@ boolean cheat_forge_rotate_selected(void)
 	}
 	/* Connect the turned bounding center to the BSP, as object placement does. */
 	scenario_location_from_point(&location, &center);
-	if (location.cluster_index == NONE || !forge_remember_transform(forge_selection, object))
+	if (location.cluster_index == NONE || !forge_remember_transform(forge_selection, object, &forge_last_move))
 		return FALSE;
-	forge_move_copy(forge_selection, object, &position, &forward, &up);
+	forge_commit_transform(forge_selection, object, &position, &forward, &up);
 	return TRUE;
 }
 
-boolean cheat_forge_undo_move(void)
+static boolean forge_restore_transform(boolean redo)
 {
-	long object_index = forge_last_move.object_index;
+	struct forge_move_snapshot const *target = redo ? &forge_last_destination : &forge_last_move;
+	long object_index = target->object_index;
 	struct object_datum *object = forge_editable_copy(object_index);
 	struct location location;
 
-	if (!object || forge_last_move.bsp_index != global_structure_bsp_index ||
-		object->object.scale != forge_last_move.scale || !valid_real_point3d(&forge_last_move.center) ||
-		!valid_real_point3d(&forge_last_move.position))
+	if (redo != forge_move_undone || !object || target->bsp_index != global_structure_bsp_index ||
+		object->object.scale != target->scale || !valid_real_point3d(&target->center) ||
+		!valid_real_point3d(&target->position))
 	{
-		console_warning("Forge move undo needs the same unused copy in its original BSP");
+		console_warning("Forge transform history needs the same unused copy in its original BSP");
 		return FALSE;
 	}
 
 	/* Match object_reconnect_to_map. A vehicle resting on a slope may have its
 	 * origin inside the ground while its bounding center is in a valid leaf. */
-	scenario_location_from_point(&location, &forge_last_move.center);
+	scenario_location_from_point(&location, &target->center);
 	if (location.cluster_index == NONE)
-		scenario_location_from_point(&location, &forge_last_move.position);
+		scenario_location_from_point(&location, &target->position);
 	if (location.cluster_index == NONE)
 	{
-		console_warning("Forge move undo needs a previous position within the active BSP");
+		console_warning("Forge transform history needs a previous position within the active BSP");
 		return FALSE;
 	}
 	if (object->object.type == _object_type_vehicle)
@@ -704,25 +721,35 @@ boolean cheat_forge_undo_move(void)
 
 		if (!physics_instance_new(&vehicle, object_index))
 			return FALSE;
-		vehicle.world_matrix = forge_last_move.vehicle_pose;
+		vehicle.world_matrix = target->vehicle_pose;
 		if (!physics_placement_clear(&vehicle, object_index, FALSE, &blocker_index))
 		{
 			struct object_datum const *blocker = object_try_and_get(blocker_index);
 			char const *name = blocker ? tag_get_name(blocker->definition_index) : NULL;
-			console_warning("Forge needs clear space for the vehicle at its previous position");
-			if (name) console_warning("Forge undo blocker: %08lx %s", (unsigned long)blocker_index, name);
+			console_warning("Forge needs clear space for the vehicle at its saved position");
+			if (name) console_warning("Forge transform blocker: %08lx %s", (unsigned long)blocker_index, name);
 			return FALSE;
 		}
 	}
-	else if (forge_space_occupied(&location, &forge_last_move.center, forge_last_move.radius, object_index))
+	else if (forge_space_occupied(&location, &target->center, target->radius, object_index))
 	{
 		console_warning("Forge needs clear space around the copy's previous position");
 		return FALSE;
 	}
 
-	forge_move_copy(object_index, object, &forge_last_move.position, &forge_last_move.forward, &forge_last_move.up);
-	forge_last_move.object_index = NONE;
+	forge_move_copy(object_index, object, &target->position, &target->forward, &target->up);
+	forge_move_undone = !redo;
 	return TRUE;
+}
+
+boolean cheat_forge_undo_move(void)
+{
+	return forge_restore_transform(FALSE);
+}
+
+boolean cheat_forge_redo_move(void)
+{
+	return forge_restore_transform(TRUE);
 }
 
 static boolean forge_remove_copy(long object_index)
@@ -732,7 +759,12 @@ static boolean forge_remove_copy(long object_index)
 	object_delete(object_index);
 	if (forge_last_copy == object_index) forge_last_copy = NONE;
 	if (forge_selection == object_index) forge_selection = NONE;
-	if (forge_last_move.object_index == object_index) forge_last_move.object_index = NONE;
+	if (forge_last_move.object_index == object_index)
+	{
+		forge_last_move.object_index = NONE;
+		forge_last_destination.object_index = NONE;
+		forge_move_undone = FALSE;
+	}
 	return TRUE;
 }
 

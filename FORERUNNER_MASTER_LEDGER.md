@@ -16,6 +16,12 @@ intact, and restored the Pelican. The LAN attempt stopped before the guest
 reached the lobby. Actual upstream-runtime exchange and Spark authoring remain
 open. Evidence: `build/native-forge-hmv-verified/result.json`.
 
+Forge Tools can redo the latest undone move or rotation with the existing
+host clearance checks. Windows x64 and 18 focused cases passed. A native
+single host selected a Pelican, stepped clear, rotated it, undid the turn
+and redid it on the same object. Evidence: `build/native-forge-redo-validated/result.json`.
+Two-client redo remains an acceptance check.
+
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or
 loss; B, Spark's delivered CE609 Black Echo and real mission outcomes; C, actual

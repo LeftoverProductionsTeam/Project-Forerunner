@@ -237,7 +237,8 @@
 		<child widget="forerunner/forge/tools/move" x="192" y="332" />
 		<child widget="forerunner/forge/tools/rotate" x="192" y="362" />
 		<child widget="forerunner/forge/tools/undo_move" x="192" y="392" />
-		<child widget="forerunner/forge/back" x="192" y="428" />
+		<child widget="forerunner/forge/tools/redo_move" x="192" y="422" />
+		<child widget="forerunner/forge/back" x="192" y="452" />
 	</widget>
 	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="SELECT AIMED OBJECT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge pick" close="all" />
@@ -292,6 +293,11 @@
 	<widget name="forerunner/forge/tools/undo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="UNDO MOVE OR ROTATE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge undo move" close="all" />
 		<on event="start" run="port forge undo move" close="all" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/redo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="REDO MOVE OR ROTATE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge redo move" close="all" />
+		<on event="start" run="port forge redo move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/spark" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="SPARK MISSIONS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
