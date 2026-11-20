@@ -78,6 +78,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from tools.version import base_version, commit, release_build, version  # noqa: E402
+from tools import third_party_notices  # noqa: E402
 
 # what each port's build leaves, and what goes into dist/
 OUTPUTS = {
@@ -299,6 +300,16 @@ def main() -> int:
             shutil.copy2(pdb, symbols)
             print(f"{pdb.relative_to(ROOT)} -> {symbols.relative_to(ROOT)}", flush=True)
     keep_native_symbols(args.platform, args.config)
+    features = [] if args.platform == "freebsd64" else ["sdl3"]
+    if args.platform == "android64":
+        features.append("vulkan-android")
+    if (ROOT / "build" / args.platform / "bgfx").is_dir():
+        features.append("bgfx")
+        if args.platform in ("linux64", "windows64"):
+            features.append("vulkan")
+        if args.platform in ("macos", "windows64"):
+            features.append("spirv-cross")
+    third_party_notices.write(dist / third_party_notices.NAME, "game", features)
     # the fork's licence, the AGPL (OpenCE's, which the whole is under), and
     # ChupathingyCE's GPL, which its parts keep: each asks every copy to
     # carry its text
@@ -527,6 +538,7 @@ def server_dist(platform: str, config: str, outputs: list) -> int:
                          ("port/linux/ui/fonts/OFL.txt", "NotoSans-OFL.txt"),
                          ("port/linux/ui/fonts/KENNEY-CC0.txt", "Kenney-Input-Prompts-CC0.txt")):
         shutil.copy2(ROOT / source, dist / name)
+    third_party_notices.write(dist / third_party_notices.NAME, "server")
     print(f"{output} -> {dist.relative_to(ROOT)}", flush=True)
     return 0
 

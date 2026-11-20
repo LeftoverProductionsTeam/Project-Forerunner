@@ -35,7 +35,8 @@ from tools.version import commit, commit_inputs, release_build, version  # noqa:
 
 MANIFEST = ROOT / "port/notices/components.json"
 NAME = "THIRD-PARTY-NOTICES.txt"
-REPOSITORY = "https://github.com/ChupathingyCE/chupathingyce"
+REPOSITORY = "https://github.com/LeftoverProductionsTeam/Project-Forerunner"
+COMMUNITY_FILES = ("CONTRIBUTORS.md", "THIRD_PARTY_NOTICES.md", "AUTHORS.md", "LICENSE.GPL-3.0")
 FEATURES = ("sdl3", "bgfx", "vulkan", "spirv-cross", "appimage", "vulkan-android")
 PACKAGES = ("game", "server")
 RULE = "=" * 78
@@ -56,6 +57,7 @@ def inputs() -> List[Path]:
     """every file the notices are made from (for the builds' rules)"""
     data = manifest()
     files = {MANIFEST, Path(__file__).resolve()}
+    files.update(ROOT / name for name in COMMUNITY_FILES)
     files.update(ROOT / text["file"] for text in data["shared_texts"].values())
     for entry in data["components"]:
         files.update(ROOT / name for name in entry.get("files", []))
@@ -83,7 +85,7 @@ def source_line() -> str:
 
 
 def header(package: str) -> str:
-    what = "the Chupathingy dedicated server" if package == "server" else "Chupathingy"
+    what = "the Forerunner dedicated server" if package == "server" else "Forerunner"
     return "\n".join([
         "THIRD-PARTY NOTICES",
         "",
@@ -91,7 +93,7 @@ def header(package: str) -> str:
         f"{version()} (commit {commit()}), with the copyright notices and license texts",
         "their licenses ask a download to carry.",
         "",
-        "Chupathingy itself is free software under the GNU General Public License,",
+        "Forerunner is free software under the GNU Affero General Public License,",
         "version 3 or later: see LICENSE.txt beside this file.",
         "",
         "The source code, with each component's license beside it:",
@@ -142,6 +144,8 @@ def render(package: str, features: Iterable[str]) -> str:
             text = data["shared_texts"][key]
             users = ", ".join(entry["name"] for entry in entries if entry.get("shared") == key)
             out += [f"--- {text['title']} ({users}) ---", "", read_text(text["file"])]
+    for name in COMMUNITY_FILES:
+        out += [RULE, name, RULE, "", read_text(name)]
     return "\n".join(out).rstrip() + "\n"
 
 

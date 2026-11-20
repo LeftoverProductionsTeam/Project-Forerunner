@@ -1,4 +1,4 @@
-"""Writes the web site's licenses.txt (tools/web_build.py): OpenCE's licence,
+"""Writes the web site's licenses.txt (tools/web_build.py): Forerunner's licence,
 and the notices of the code and fonts that halo.wasm and the page carry,
 which their licences ask copies to include, as the other builds' releases
 carry them (tools/ci_build.py).
@@ -33,18 +33,20 @@ NOTICES = [
 def main() -> None:
     output, sdl_license = Path(sys.argv[1]), Path(sys.argv[2])
     parts = [
-        "OpenCE for the web\n\n"
-        "OpenCE is free software under the GNU Affero General Public License, version 3 or (at\n"
+        "Forerunner for the web\n\n"
+        "Forerunner is free software under the GNU Affero General Public License, version 3 or (at\n"
         "your option) any later version; its text is at the end of this file. Its source is at\n"
-        "https://github.com/OpenCommunityEdition/OpenCE, and each release's at its tag. The game\n"
-        "data comes from the player's own disc. OpenCE carries the following, under their\n"
+        "https://github.com/LeftoverProductionsTeam/Project-Forerunner, with each release at its tag.\n"
+        "The game data comes from the player's own copy. These components retain their\n"
         "licences:\n",
         f"\n==================== SDL 3 (windows, input and audio)\n\n{sdl_license.read_text(encoding='utf-8')}",
     ]
     for title, path in NOTICES:
         parts.append(f"\n==================== {title}\n\n{(ROOT / path).read_text(encoding='utf-8')}")
-    parts.append(f"\n==================== OpenCE (GNU Affero General Public License)\n\n"
+    parts.append(f"\n==================== Forerunner (GNU Affero General Public License)\n\n"
                  f"{(ROOT / 'LICENSE').read_text(encoding='utf-8')}")
+    for name in ("CONTRIBUTORS.md", "THIRD_PARTY_NOTICES.md", "AUTHORS.md", "LICENSE.GPL-3.0"):
+        parts.append(f"\n==================== {name}\n\n{(ROOT / name).read_text(encoding='utf-8')}")
     output.write_text("".join(parts), encoding="utf-8")
 
 

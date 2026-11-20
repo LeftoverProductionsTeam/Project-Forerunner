@@ -7,9 +7,9 @@ Current priority: complete Black Echo with two authenticated players.
 Spark's Elite and four-start cache `04d9ccd1` passed offline hub terminal
 use, Elite deployment, and physical Spirit boarding, flight, landing and
 disembarkation with full health and shields. The authored Covenant rescue
-and rally completed, activating the facility opponent. The local run
-stopped there with that opponent alive. A separate disposable cache
-rendered the credited CMT Elite arms with the starter plasma pistol.
+and rally completed, activating the facility opponent. A rock face blocked
+the tested direct approach, and the opponent remained alive. A disposable
+cache rendered the credited CMT Elite arms with the starter plasma pistol.
 Paired play, the facility fight, technology collection, evacuation and
 durable settlement remain open on this candidate. See the Spark contract
 for the exact map, evidence and first-person asset handoff.

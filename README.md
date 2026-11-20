@@ -5,6 +5,9 @@ FractumSeraph's combined OpenCE/Chupathingy source history. Upstream authorship,
 licenses and notices remain intact. The full unified-engine acceptance target
 has not been met; there is no Forerunner release yet.
 
+See [Community Contributors](CONTRIBUTORS.md) and
+[Third-party notices](THIRD_PARTY_NOTICES.md) for credited work and distribution terms.
+
 Start with the [engineering checkpoint](FORERUNNER_MASTER_LEDGER.md),
 [test evidence](TEST_EVIDENCE.md), [feature provenance](UPSTREAM_FEATURE_MATRIX.md),
 [compatibility matrix](COMPATIBILITY_MATRIX.md) and

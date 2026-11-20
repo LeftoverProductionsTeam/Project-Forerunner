@@ -851,12 +851,10 @@ def generate_android_build(n: Writer, sln: Any) -> None:
     # the Custom Edition maps' torrents, likewise (maps.torrent_index)
     staged_map_torrents = assets_dir / "map_torrents.txt"
     n.build(outputs=staged_map_torrents, rule="android_copy", inputs=Path("port/assets/network/map_torrents.txt"))
-    # Include MCC's decoder notice in the APK as well as the release archive.
-    staged_bcdec_license = assets_dir / "bcdec-LICENSE.txt"
-    n.build(outputs=staged_bcdec_license, rule="android_copy", inputs=Path("port/third_party/bcdec/LICENSE"))
+    staged_licenses = ninja_notices(n, "android", assets_dir, ["sdl3"])
     n.build(outputs="android", rule="phony",
             inputs=[libmain, staged_sdl, staged_image, staged_brokers, staged_map_torrents,
-                    staged_bcdec_license])
+                    *staged_licenses])
 
     apk = PORT_DIR / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
     n.rule(
@@ -868,7 +866,7 @@ def generate_android_build(n: Writer, sln: Any) -> None:
         pool="console",
     )
     n.build(outputs=apk, rule="android_gradle",
-            inputs=[libmain, staged_sdl, staged_image, staged_brokers, staged_map_torrents, staged_bcdec_license],
+            inputs=[libmain, staged_sdl, staged_image, staged_brokers, staged_map_torrents, *staged_licenses],
             implicit=[SDL_DIR / SDL_ANDROID_MOUSE_LISTENER])
     n.build(outputs="android_apk", rule="phony", inputs=apk)
     n.newline()

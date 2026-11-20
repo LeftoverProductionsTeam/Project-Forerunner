@@ -9553,7 +9553,8 @@ static boolean about_open(struct widget_instance *widget)
 #ifdef HALO_GUIDE
 	extern void guide_about_open(void);
 
-	if (widget->local_player_index != 0)
+	/* Settings opened from the main menu has no assigned local player. */
+	if (widget->local_player_index > 0)
 		return FALSE;
 	guide_about_open();
 	return TRUE;

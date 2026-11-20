@@ -1,7 +1,7 @@
 /*
 ABOUT.C
 
-The About screen's page (about.h): CHUPATHINGY, CONTRIBUTORS, THANKS and a
+The About screen's page (about.h): FORERUNNER, COMMUNITY CONTRIBUTORS, THANKS and a
 LICENSES row, top to bottom, as lines that scroll; the LICENSES row opens
 the list of what Chupathingy uses and their licenses in its place. The same
 words as the README's Credits, by handle only.
@@ -42,15 +42,18 @@ struct about_entry
 
 static const struct about_entry page[] =
 {
-	{ _line_heading, "CHUPATHINGY" },
+	{ _line_heading, "FORERUNNER" },
 	{ _line_version, NULL },
 	{ _line_platform, NULL },
-	{ _line_text, "stats.chupathingy.org" },
-	{ _line_text, "github.com/ChupathingyCE/chupathingyce" },
-	{ _line_text, "By Milenko and contributors." },
+	{ _line_text, "github.com/LeftoverProductionsTeam/Project-Forerunner" },
 	{ _line_gap, NULL },
 
-	{ _line_heading, "CONTRIBUTORS" },
+	{ _line_heading, "COMMUNITY CONTRIBUTORS" },
+	{ _line_text, "Halo: Bungie, Microsoft and the original game teams." },
+	{ _line_text, "Runtime foundations: OpenCE, Milenko and ChupathingyCE, FractumSeraph, and OpenH1." },
+	{ _line_text, "Forge and Firefight references: Mota (OpenCE-Faber) and Watanoge (Halo Content Evolved)." },
+	{ _line_text, "CMT Elite FP Arms, privately tested: CMT, MMAMONSTERRR-D92209 and Teh lag." },
+	{ _line_text, "Full credits: CONTRIBUTORS.md on GitHub and in the download notices." },
 	{ _line_text, "Tyberious, thelinkin3000, xshxdex98, zimm3rmann, nsafran1217, saulob, natsu-anon, lantos1618, "
 		"pfista, JoshRob297, HiIAmMoot, oatkrs, Renkoto, JizzyRivers, startupfoundry, pastudan, chestahh, "
 		"mOTA-lEV, bitmoda, theLlamaNet." },
@@ -84,6 +87,7 @@ static const struct about_entry page[] =
 static const struct about_entry licenses[] =
 {
 	{ _line_heading, "LICENSES" },
+	{ _line_text, "Forerunner: AGPL-3.0 or later." },
 	{ _line_text, "Chupathingy: GPL-3.0 or later." },
 	{ _line_gap, NULL },
 	{ _line_text, "SDL3: zlib License." },

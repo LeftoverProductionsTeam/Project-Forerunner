@@ -9,6 +9,19 @@ Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 handoff; each team updates only its own source/checkpoint at meaningful milestones.
 No separate coordination service or repeated cross-project polling/builds.
 
+## Community credits and package handoff
+
+Forerunner's [contributors](CONTRIBUTORS.md) and
+[third-party notices](THIRD_PARTY_NOTICES.md) record runtime provenance and
+asset permissions. Spark `db01563` connects its existing Preservation
+records to native Storage map exports. Each export carries a credits
+sidecar with the map hash, recorded creator/source/permissions and
+matching imported native asset provenance. Keep that sidecar with
+map packages and credit the distributed content in release notes.
+The native map format stays compatible. The CMT Elite FP Arms were
+used in disposable private builds, and public redistribution permission
+remains unverified.
+
 ## Current Black Echo candidates
 
 Spark's current 20 November CE609 candidate (Spark `8e4f912`) is
@@ -47,12 +60,16 @@ and disembarked at (91.337, -133.815, 0.740) with full health and shields.
 The Spirit began its scripted return after disembarkation. Evidence:
 `build/native-black-echo-04d9-spirit-first-landing/result.json` and its trace.
 
-The next offline run confirmed `gs_spirit_player_arrived`. A player and the
+The offline run confirmed `gs_spirit_player_arrived`. A player and the
 living Covenant rescue actor both reached `be_survivors`, and the facility
-encounter spawned one opponent. The scripted shots at the earlier candidate's
-target location left that opponent alive. Technology collection and field
-extraction were not reached. Evidence:
-`build/native-black-echo-04d9-elite-objectives/result.json` and its console trace.
+encounter spawned one opponent. Native actor readback located the opponent
+near (81.99, -94.00, 1.78). The direct approach from the rally stopped
+at a rock face near (65.66, -88.50, 2.03). The capture shows shots hitting
+the rock. A lateral attempt reached the slope north of the rock, and the
+opponent retained full health and shields. Confirm a walkable route and
+clear line of sight from the rally to the facility before retrying the
+technology and extraction gates. Evidence:
+`build/native-black-echo-04d9-elite-facility-to-extraction`.
 
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,

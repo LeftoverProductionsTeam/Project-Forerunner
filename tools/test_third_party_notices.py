@@ -2,8 +2,7 @@
 port/notices/components.json): every library in port/third_party, every
 bundled font and data set and every license file under port/ has an entry;
 the generated file carries each entry's license texts in full; and the
-packages carry it and LICENSE.txt, not the separate license files they once
-did."""
+native packages use the generator."""
 import json
 import re
 from pathlib import Path
@@ -65,7 +64,7 @@ def test_every_license_file_under_port_has_an_entry():
     missing = []
     for path in sorted((ROOT / "port").rglob("*")):
         relative = path.relative_to(ROOT).as_posix()
-        if (path.is_file() and LICENSE_FILE.search(path.name) and "/build" not in relative
+        if (path.is_file() and path.suffix != ".py" and LICENSE_FILE.search(path.name) and "/build" not in relative
                 and not relative.startswith("port/android/app/build") and not is_covered(relative, paths)):
             missing.append(relative)
     assert not missing, f"license files with no entry in port/notices/components.json: {missing}"
@@ -105,6 +104,8 @@ def test_generated_file_carries_every_license_text(package, tmp_path):
             shared = manifest()["shared_texts"][entry["shared"]]["file"]
             assert normalized(notices.read_text(shared)) in text, f"{entry['name']}: {shared}"
     assert "https://github.com/ChupathingyCE/chupathingyce" in text
+    for name in notices.COMMUNITY_FILES:
+        assert normalized(notices.read_text(name)) in text
     assert "LICENSE.txt" in text
 
 
@@ -158,21 +159,19 @@ def test_header_names_the_source(monkeypatch, fresh_commit):
     monkeypatch.setenv("HALO_RELEASE_BUILD", "1")
     monkeypatch.setenv("HALO_COMMIT", "0123abcd")
     text = notices.render("game", [])
-    assert "https://github.com/ChupathingyCE/chupathingyce/tree/v1.2.3" in text
+    assert "https://github.com/LeftoverProductionsTeam/Project-Forerunner/tree/v1.2.3" in text
     monkeypatch.delenv("HALO_RELEASE_BUILD")
     monkeypatch.delenv("HALO_UPDATE_CHANNEL", raising=False)
     monkeypatch.setenv("HALO_VERSION", "1.2.3-nightly.4")
-    assert "https://github.com/ChupathingyCE/chupathingyce/tree/0123abcd" in notices.render("game", [])
+    assert "https://github.com/LeftoverProductionsTeam/Project-Forerunner/tree/0123abcd" in notices.render("game", [])
 
 
-def test_packages_carry_only_the_two_files():
-    """tools/ci_build.py copies no license file but LICENSE.txt and writes
-    the notices; the Android builds put both in the APK"""
+def test_packages_carry_the_consolidated_notices():
+    """Native distributions and Android APKs use the existing generator."""
     ci_build = (ROOT / "tools/ci_build.py").read_text(encoding="utf-8")
-    assert "third_party_notices" in ci_build
-    copied = re.findall(r"""["']([^"'\s]*(?:LICEN[CS]E|COPYING|OFL|CC0)[^"'\s]*)["']""", ci_build)
-    assert set(copied) <= {"LICENSE", "LICENSE.txt"}, copied
-    for build in ("tools/android_build.py", "tools/android64_build.py"):
+    assert 'third_party_notices.write(dist / third_party_notices.NAME, "game", features)' in ci_build
+    assert 'third_party_notices.write(dist / third_party_notices.NAME, "server")' in ci_build
+    for build in ("tools/android_build.py", "tools/android32_build.py", "tools/android64_build.py"):
         text = (ROOT / build).read_text(encoding="utf-8")
         assert "ninja_notices(n, " in text, build
         assert "bcdec-LICENSE" not in text, build

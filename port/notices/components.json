@@ -39,7 +39,7 @@
     {
       "name": "Mbed TLS",
       "use": "Secure connections: the game list, updates, Delta and the server's control panel.",
-      "source": "https://github.com/Mbed-TLS/mbedtls (release 3.6.7)",
+      "source": "https://github.com/Mbed-TLS/mbedtls (release 3.6.8)",
       "copyright": [
         "Copyright The Mbed TLS Contributors"
       ],
@@ -58,9 +58,9 @@
     {
       "name": "miniupnpc",
       "use": "Opening the game's port on the router (UPnP) for internet play.",
-      "source": "https://miniupnp.tuxfamily.org (release 2.3.3)",
+      "source": "https://miniupnp.tuxfamily.org (release 2.3.5)",
       "copyright": [
-        "Copyright (c) 2005-2025, Thomas BERNARD"
+        "Copyright (c) 2005-2026, Thomas BERNARD"
       ],
       "license": "BSD-3-Clause",
       "files": [
@@ -73,6 +73,46 @@
       "covers": [
         "port/third_party/miniupnpc"
       ]
+    },
+    {
+      "name": "jsmn",
+      "use": "JSON parsing in the multiplayer browser and dedicated server.",
+      "source": "https://github.com/zserge/jsmn",
+      "copyright": ["Copyright (c) 2010 Serge A. Zaitsev"],
+      "license": "MIT",
+      "files": ["port/third_party/jsmn/LICENSE"],
+      "packages": ["game", "server"],
+      "covers": ["port/third_party/jsmn"]
+    },
+    {
+      "name": "Lucide icons",
+      "use": "Speaker icons and Mods menu status icons.",
+      "source": "https://lucide.dev",
+      "copyright": ["Copyright (c) 2026 Lucide Icons and Contributors"],
+      "license": "ISC",
+      "files": ["port/assets/icons/lucide/LICENSE"],
+      "packages": ["game"],
+      "covers": ["port/assets/icons/lucide"]
+    },
+    {
+      "name": "Gran Turismo 7 tone mapping",
+      "use": "The tone mapping operator adapted into the Vulkan post-processing shader.",
+      "source": "https://blog.selfshadow.com/publications/s2025-shading-course/pdi/supplemental/gt7_tone_mapping.cpp",
+      "copyright": ["Copyright (c) 2025 Polyphony Digital Inc."],
+      "license": "MIT",
+      "files": ["port/third_party/gt7_tone_mapping/LICENSE"],
+      "packages": ["game"],
+      "covers": ["port/third_party/gt7_tone_mapping"]
+    },
+    {
+      "name": "english-words",
+      "use": "Source-only word list used to check streamer-mode filter rules.",
+      "source": "https://github.com/dwyl/english-words/tree/20f5cc9b3f0ccc8ce45d814c532b7c2031bba31c",
+      "copyright": ["dwyl and the english-words contributors"],
+      "license": "Unlicense",
+      "files": ["port/third_party/english-words/LICENSE.md"],
+      "packages": [],
+      "covers": ["port/third_party/english-words"]
     },
     {
       "name": "Expat",
@@ -482,7 +522,8 @@
       ],
       "covers": [
         "port/assets/fonts/CyborgInterfaceGothic-OFL.txt",
-        "port/assets/fonts/CyborgInterfaceGothic-Regular.ttf"
+        "port/assets/fonts/CyborgInterfaceGothic-Regular.ttf",
+        "port/web/assets/loading/CyborgInterfaceGothic-OFL.txt"
       ]
     },
     {
@@ -505,6 +546,19 @@
         "port/assets/fonts/Overpass-750.ttf",
         "port/assets/fonts/Overpass-900.ttf"
       ]
+    },
+    {
+      "name": "OpenCE title font",
+      "use": "Title font used by the browser interface and credited in its generated notices.",
+      "source": "https://github.com/OpenCommunityEdition/OpenCE",
+      "copyright": [
+        "Copyright 2026 The OpenCE Project Authors, for its changes to Newtown's spacing",
+        "Newtown: copyright (c) Roger White, 1994, released by its author into the public domain"
+      ],
+      "license": "SIL Open Font License 1.1 (OpenCE); public domain (Newtown)",
+      "files": ["port/assets/fonts/OpenCE-OFL.txt", "port/assets/fonts/Newtown-LICENSE.txt"],
+      "packages": [],
+      "covers": ["port/assets/fonts/OpenCE-Regular.ttf"]
     },
     {
       "name": "Chupathingy Titles and Newtown",
@@ -622,8 +676,8 @@
         "Copyright OpenH1 contributors",
         "Copyright chestahh (GulchCE)"
       ],
-      "license": "GPL-3.0-or-later, like the rest of the game",
-      "credit": "The Xbox's HRTF and DSP reverb models by the OpenH1 contributors, brought into GulchCE by chestahh, credited with thanks.",
+      "license": "AGPL-3.0-or-later for the current OpenH1-derived files",
+      "credit": "The Xbox HRTF and DSP reverb models are by OpenH1 contributors, previously brought into GulchCE by chestahh. The current adapted files identify OpenH1 revision 6750db5a6c9716857bd1e63d9ec188a20c49f1d3.",
       "packages": [
         "game",
         "server"
@@ -633,6 +687,16 @@
         "port/linux/src/dsound_xbox_reverb.inl",
         "port/linux/src/dsound_xbox_types.h"
       ]
+    },
+    {
+      "name": "SADIE II HRTF data",
+      "use": "Reduced and resampled binaural responses used by the desktop headphone mixer.",
+      "source": "https://www.york.ac.uk/sadie-project/database.html",
+      "copyright": ["SADIE II Database. Copyright 2018, University of York (AudioLab, Department of Electronic Engineering)."],
+      "license": "Apache-2.0",
+      "files": ["port/assets/hrtf/LICENSE-Apache-2.0.txt", "port/assets/hrtf/README.md"],
+      "packages": ["game"],
+      "covers": ["port/assets/hrtf"]
     },
     {
       "name": "Halo PC Restored HUD art",

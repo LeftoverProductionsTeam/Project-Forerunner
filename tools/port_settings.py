@@ -788,7 +788,7 @@ STRING_OVERRIDES = {
         "Adjust the video and\\ninterface settings.\\n\\nProfile:",
         "Adjust the audio settings.\\n\\n\\nProfile:",
         "Adjust the network, chat\\nand privacy settings.\\n\\nProfile:",
-        "About Chupathingy.\\n\\n\\nProfile:",
+        "About Forerunner.\\n\\n\\nProfile:",
     ],
 }
 

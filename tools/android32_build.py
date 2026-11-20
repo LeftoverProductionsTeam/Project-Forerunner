@@ -47,6 +47,7 @@ from .android_build import (
     ndk_toolchain,
 )
 from .embed_assets import hud_assets_build, hud_configure_inputs, ui_fonts_build
+from .third_party_notices import ninja_build as ninja_notices
 from .linux_build import (
     PORT_CONFIG as LINUX_PORT_CONFIG,
     Linux32Units,
@@ -202,7 +203,8 @@ def generate_android32_build(n: Writer, sln: Any) -> None:
     # internet play's MQTT brokers, in the APK (android64_main.c)
     staged_brokers = build_dir / "assets" / "brokers.txt"
     n.build(outputs=staged_brokers, rule="android32_copy", inputs=Path("port/assets/network/brokers.txt"))
-    n.build(outputs="android32", rule="phony", inputs=[libmain, staged_sdl, staged_brokers])
+    staged_licenses = ninja_notices(n, "android32", build_dir / "assets", ["sdl3"])
+    n.build(outputs="android32", rule="phony", inputs=[libmain, staged_sdl, staged_brokers, *staged_licenses])
 
     # the app (port/android/app with -Pnative32, into its build-native32)
     apk = PORT_DIR / "app" / "build-native32" / "outputs" / "apk" / "debug" / "app-debug.apk"
@@ -213,6 +215,6 @@ def generate_android32_build(n: Writer, sln: Any) -> None:
         description="ANDROID32 GRADLE $out",
         pool="console",
     )
-    n.build(outputs=apk, rule="android32_gradle", inputs=[libmain, staged_sdl, staged_brokers])
+    n.build(outputs=apk, rule="android32_gradle", inputs=[libmain, staged_sdl, staged_brokers, *staged_licenses])
     n.build(outputs="android32_apk", rule="phony", inputs=apk)
     n.newline()
