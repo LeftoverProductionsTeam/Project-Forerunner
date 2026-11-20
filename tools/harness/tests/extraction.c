@@ -1452,6 +1452,11 @@ int main(int argc,char **argv)
    CHECK(unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"deployed Covenant player could not board at spirit_return");
    units[1].object.parent_object_index=spirit;units[1].unit.parent_seat_index=0;advance(1);
    CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release Spirit insertion at spirit_return");
+   CHECK(device_groups[11].actual_value==1.f,"ready Spirit did not publish landing");
+   ship->object.flags&=~FLAG(_object_on_ground_bit);advance(1);
+   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"Spirit output pair stayed ready after liftoff");
+   ship->object.flags|=FLAG(_object_on_ground_bit);advance(1);
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"Spirit output pair did not rearm on touchdown");
    units[1].object.parent_object_index=NONE;
    units[1].object.position.x=ship->object.position.x=20.f;
    pickup(1,2);touch(1,1);advance(300);
@@ -1521,9 +1526,9 @@ int main(int argc,char **argv)
     CHECK(run(1)->phase==_extraction_ready,"Covenant activation did not finish");
     dropships[1].object.position.x=20;units[1].object.parent_object_index=dropship_handles[1];
     units[1].unit.parent_seat_index=0;advance(1);
-    CHECK(run(1)->dropship==NONE&&!extraction_transport_boarded(1),"wrong landing zone produced a Spirit boarding receipt");
+    CHECK(run(1)->dropship==NONE&&!extraction_transport_crew_ready(1,dropship_handles[1]),"wrong landing zone produced a Spirit boarding receipt");
     dropships[1].object.position.x=30;advance(1);
-    CHECK(run(1)->dropship==dropship_handles[1]&&extraction_transport_boarded(1),"correct Spirit landing zone refused boarding");
+    CHECK(run(1)->dropship==dropship_handles[1]&&extraction_transport_crew_ready(1,dropship_handles[1]),"correct Spirit landing zone refused boarding");
     dropships[1].object.position.x=0;advance(1);
     CHECK(run(1)->phase==_extraction_returned&&run(0)->phase==_extraction_deployed,"Spirit arrival did not settle only its passengers");
     extraction_reset();return 0;
@@ -1703,6 +1708,9 @@ int main(int argc,char **argv)
     units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
     CHECK(device_groups[10].actual_value==1.f,"fully boarded insertion crew not ready");
     before=boarding_changes;advance(5);CHECK(boarding_changes==before,"unchanged readiness repeatedly snapped native groups");
+    dropships[0].object.flags&=~FLAG(_object_on_ground_bit);advance(1);
+    CHECK(device_groups[10].actual_value==1.f,"map without a landing group acquired a new readiness gate");
+    dropships[0].object.flags|=FLAG(_object_on_ground_bit);
     units[1].object.parent_object_index=NONE;advance(1);
     CHECK(!device_groups[10].actual_value,"disembarking insertion passenger retained readiness");
     units[1].object.parent_object_index=craft;dropships[0].object.position.x=20.f;advance(1);
@@ -1746,16 +1754,23 @@ int main(int argc,char **argv)
   units[0].object.position.x=0;advance(1);
   CHECK(run(0)->phase==_extraction_ready&&weapon_try_and_get(loot),"foot return bypassed physical boarding");
   if(!strcmp(case_name,"transport-landed-loop")) {
+   players[0].team_index=_game_team_player;
    units[0].object.position.x=20;
    dropships[0].object.flags&=~FLAG(_object_on_ground_bit);
    units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
    advance(1);CHECK(run(0)->dropship==NONE,"airborne field attachment counted as landed boarding");
+   units[0].object.parent_object_index=NONE;
+   CHECK(!extraction_transport_can_board(unit_handles[0],craft,0),
+    "landing-only map offered the airborne craft for native boarding");
+   units[0].object.parent_object_index=craft;
    dropships[0].object.position.x=0;dropships[0].object.flags|=FLAG(_object_on_ground_bit);
    advance(1);CHECK(run(0)->gear.record.phase==_gear_deployed&&weapon_try_and_get(loot),
     "landing at the hub counted after attachment to an airborne craft");
    units[0].object.parent_object_index=NONE;dropships[0].object.position.x=20;
   }
   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
+  if(!strcmp(case_name,"transport-landed-loop"))
+   CHECK(extraction_transport_can_board(unit_handles[0],craft,0),"landing-only map refused native boarding after touchdown");
   if(!strcmp(case_name,"transport-pilot-receipt"))transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
   if(!strcmp(case_name,"transport-seat"))units[0].unit.parent_seat_index=2;
   if(!strcmp(case_name,"transport-stale"))units[0].object.parent_object_index=craft+0x10000;

@@ -1989,14 +1989,16 @@ publish actual native ground contact (five ticks before parking), upright attitu
 and settled linear/angular motion. Native hover preserves the actual grounded
 collision flag and parked pose; it does not manufacture a touchdown. They are host outputs, initially zero, with the same
 unique matching-vehicle and control-group isolation rules. Binding one also
-requires that faction's aircraft to be landed before an evacuation boarding
-can count, when publishing crew readiness, and when banking while seated at
-the hub. Maps without these optional groups retain the existing contract.
+requires that faction's aircraft to be landed for native player seat admission,
+credit for field boarding, and seated hub banking. The landed and crew-ready
+outputs use the same native craft and landing sample. Crew-ready also requires
+the eligible passengers to be aboard. Maps without the optional landing
+group retain their existing crew-readiness contract.
 Spark must wait for both the correct pad volume and this landed output before
 opening doors or reporting arrival. A volume, hover command or elapsed timer
 does not establish a landing. Source: `source/units/vehicles.c::vehicle_is_landed`,
 `extraction.c::{extraction_return_ready,extraction_at_return,
-extraction_transport_boarded,extraction_transport_readiness}`.
+extraction_transport_crew_ready,extraction_transport_readiness}`.
 No packet/save version or second pilot system is added. Native pilot support is
 opted in through existing human-plane tag AI throttle (>0..1), positive avoidance
 distance and pathfinding radius (at most 12 units): authored hull clearance,
@@ -2215,7 +2217,7 @@ driver boarded without deployment and correctly could not depart. The successful
 probe stops at recall initiation, with gear still deployed and no bank/exception.
 Spirit requests and independent factions have automated coverage only; completed
 recall/evacuation, multi-client signal acceptance and other platforms remain open.
-Source: `extraction.c::{extraction_transport_boarded,extraction_transport_readiness}`
+Source: `extraction.c::{extraction_transport_crew_ready,extraction_transport_readiness}`
 and native `devices.c::device_group_find_named`. Existing device replication is
 reused; no protocol, custom HaloScript opcode or map format is introduced.
 The owned aircraft HSC now waits for this signal and recognizes all ten native

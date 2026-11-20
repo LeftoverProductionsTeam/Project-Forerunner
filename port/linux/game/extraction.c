@@ -1788,6 +1788,7 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 		extraction_unit_pending_death(unit) || extraction_medical_incapacitated(unit_index) ||
 		extraction_faction(unit->object.owner_team_index) != faction ||
 		extraction_faction((short)player->team_index) != faction) return FALSE;
+	if (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(vehicle_index)) return FALSE;
 	if (extraction.dropship_boarding_groups[faction] == NONE) return TRUE;
 	if (!extraction_transport_seat_allowed(vehicle, seat_index, TRUE)) return FALSE;
 
@@ -1795,8 +1796,7 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 	 * can actually depart. Ordinary Halo seating still owns distance,
 	 * facing, animation and occupied-seat checks. */
 	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
-	if (extraction.suspended || cinematic_in_progress() || !VALID_INDEX(slot, NUMBEROF(extraction_runs)) ||
-		(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(vehicle_index))) return FALSE;
+	if (extraction.suspended || cinematic_in_progress() || !VALID_INDEX(slot, NUMBEROF(extraction_runs))) return FALSE;
 	run = &extraction_runs[slot];
 	if (run->player != unit->unit.player_index || run->unit != unit_index || !run->gear.opened ||
 		run->gear.pending || run->gear.record.phase != _gear_deployed) return FALSE;
@@ -2012,16 +2012,12 @@ static boolean extraction_wake_completion(char const *name, boolean reusable)
 	return FALSE;
 }
 
-static boolean extraction_transport_boarded(short faction)
+static boolean extraction_transport_crew_ready(short faction, long ship)
 {
-	long ship;
 	short index, passengers = 0;
 	unsigned long crew_squads = 0;
 	boolean at_hub, at_lz, legacy_crew = FALSE;
-	if (extraction.suspended || cinematic_in_progress() || extraction.dropship_names[faction] == NONE) return FALSE;
-	ship = object_index_from_name_index(extraction.dropship_names[faction]);
-	if (ship == NONE || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
-	if (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship)) return FALSE;
+	if (cinematic_in_progress() || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
 	at_hub = extraction_in_hub_volume(extraction_transport_return_zone(faction), ship);
 	at_lz = extraction_transport_at_field(faction, ship);
 	if (at_hub == at_lz) return FALSE;
@@ -2111,18 +2107,20 @@ static void extraction_transport_readiness(void)
 	short faction;
 	for (faction = 0; faction < 2; faction++)
 	{
-		if (extraction.dropship_landing_groups[faction] != NONE)
+		short landing_group = extraction.dropship_landing_groups[faction];
+		short boarding_group = extraction.dropship_boarding_groups[faction];
+		if (landing_group != NONE || boarding_group != NONE)
 		{
-			long ship = object_index_from_name_index(extraction.dropship_names[faction]);
-			real landed = !extraction.suspended && ship != NONE && vehicle_is_landed(ship) ? 1.f : 0.f;
-			if (device_group_get_value(extraction.dropship_landing_groups[faction]) != landed)
-				device_group_set_actual_value(extraction.dropship_landing_groups[faction], landed);
-		}
-		if (extraction.dropship_boarding_groups[faction] != NONE)
-		{
-			real ready = extraction_transport_boarded(faction) ? 1.f : 0.f;
-			if (device_group_get_value(extraction.dropship_boarding_groups[faction]) != ready)
-				device_group_set_actual_value(extraction.dropship_boarding_groups[faction], ready);
+			long ship = extraction.suspended ? NONE : object_index_from_name_index(extraction.dropship_names[faction]);
+			/* Both outputs refer to the same native craft and landing sample.
+			 * Older maps may declare only the crew output. */
+			real landed = landing_group != NONE && ship != NONE && vehicle_is_landed(ship) ? 1.f : 0.f;
+			real ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || landed > 0.f) &&
+				extraction_transport_crew_ready(faction, ship) ? 1.f : 0.f;
+			if (landing_group != NONE && device_group_get_value(landing_group) != landed)
+				device_group_set_actual_value(landing_group, landed);
+			if (boarding_group != NONE && device_group_get_value(boarding_group) != ready)
+				device_group_set_actual_value(boarding_group, ready);
 		}
 		if (extraction.dropship_call_groups[faction] != NONE)
 		{
