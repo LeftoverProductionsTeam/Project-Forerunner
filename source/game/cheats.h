@@ -64,6 +64,7 @@ boolean cheats_console_object_made(
 long cheat_forge_target(void);
 union real_point3d;
 void cheats_forge_reset(void);
+void cheats_forge_update(void);
 boolean cheat_forge_pick(void);
 long cheat_forge_place(void);
 boolean cheat_forge_undo(void);

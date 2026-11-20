@@ -435,6 +435,7 @@ void game_tick(
 	profile_scope(game_tick_recorded_animations_section, recorded_animations_update();)
 	HALO_PERF_BEGIN(_halo_perf_tick_objects);
 	profile_scope(game_tick_objects_section, objects_update();)
+	cheats_forge_update();
 	HALO_PERF_END(_halo_perf_tick_objects);
 	HALO_PERF_BEGIN(_halo_perf_tick_units);
 	profile_scope(game_tick_players_after_section, players_update_after_game();)

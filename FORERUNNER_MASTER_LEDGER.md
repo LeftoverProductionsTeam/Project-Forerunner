@@ -74,8 +74,15 @@ Windows x64 placed and saved a Danger Canyon holo control and a Wizard
 alert-light machine, with all game UDP listeners on loopback. Both input
 caches and imports retained their hashes. A Spark-exported Danger Canyon
 HMV also completed import, byte-identical save, Undo Copy and Load Saved
-in the native runtime. Device wiring, fixed/phased HMV physics and remote
-replication remain open. See the Spark contract for the native evidence.
+in the native runtime. Device wiring and remote replication remain open.
+
+Local Forge now loads version 7 Fixed and Phased properties. Windows x64
+loaded a layout made by Spark's exporter on stock Blood Gulch. The fixed
+Warthog stayed at z 6 while the normal and phased copies fell. Save and
+process restart retained all three modes and the creator metadata. The
+existing 55 Forge checks and focused phased collision checks passed.
+Evidence is in `build/native-local-forge-hmv-physics/`. See the Spark contract
+for capability discovery and exact acceptance scope.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or

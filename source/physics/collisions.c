@@ -1648,9 +1648,10 @@ static boolean object_test_point(
 			if ((flags & FLAG(object_type + _collision_test_objects_first_type_bit)) &&
 				point_in_sphere(point, &object->object.bounding_sphere_center, object->object.bounding_sphere_radius))
 			{
-				boolean hit;
+				boolean hit = FALSE;
+				boolean test_shape = !TEST_FLAG(object->object.flags, _object_forge_phased_bit);
 
-				if (TEST_FLAG(_object_mask_vehicle, object_type) &&
+				if (test_shape && TEST_FLAG(_object_mask_vehicle, object_type) &&
 					(flags & FLAG(_collision_test_use_vehicle_physics_bit)))
 				{
 					struct physics_instance instance;
@@ -1658,7 +1659,7 @@ static boolean object_test_point(
 					hit = physics_instance_new(&instance, object_index) &&
 						physics_test_point(&instance, point);
 				}
-				else
+				else if (test_shape)
 				{
 					struct collision_model_instance instance;
 
@@ -1714,7 +1715,10 @@ static boolean object_test_vector(
 				&object->object.bounding_sphere_center,
 				(object->object.bounding_sphere_radius)))
 		{
-			if (TEST_FLAG(_object_mask_vehicle, object->object.type) &&
+			boolean test_shape = !TEST_FLAG(object->object.flags, _object_forge_phased_bit) ||
+				TEST_FLAG(flags, _collision_test_forge_phased_objects_bit);
+
+			if (test_shape && TEST_FLAG(_object_mask_vehicle, object->object.type) &&
 				TEST_FLAG(flags, _collision_test_use_vehicle_physics_bit))
 			{
 				struct physics_instance instance;
@@ -1740,7 +1744,7 @@ static boolean object_test_vector(
 					hit = TRUE;
 				}
 			}
-			else
+			else if (test_shape)
 			{
 				struct collision_model_instance instance;
 				struct collision_model_test_vector_result result;

@@ -60,6 +60,7 @@ enum { _collision_result_structure, _collision_result_object };
 #define _collision_test_objects_weapons_bit 8
 #define _collision_test_objects_equipment_bit 9
 #define _collision_test_objects_projectiles_bit 10
+#define _collision_test_forge_phased_objects_bit 11
 #define _collision_test_objects_all_types_flags 0xffffUL
 struct collision_result {
  short type;

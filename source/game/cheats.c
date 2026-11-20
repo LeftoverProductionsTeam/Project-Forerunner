@@ -137,6 +137,18 @@ static long forge_last_copy = NONE;
 static long forge_copies[MAXIMUM_OBJECTS_PER_MAP];
 
 #ifdef NATIVE_FORGE_SIDECARS
+enum { FORGE_SIDECAR_OBJECTS = 128, FORGE_SIDECAR_BYTES = 128 * 512 + 512 };
+
+struct forge_fixed_pose
+{
+	long object_index;
+	real_point3d position;
+	real_vector3d forward, up;
+};
+
+static struct forge_fixed_pose forge_fixed_poses[FORGE_SIDECAR_OBJECTS];
+static short forge_fixed_count;
+
 static struct
 {
 	char title[FORGE_FILE_TITLE_SIZE];
@@ -171,6 +183,7 @@ void cheats_forge_reset(void)
 	forge_move_undone = FALSE;
 	memset(forge_copies, 0xff, sizeof(forge_copies));
 #ifdef NATIVE_FORGE_SIDECARS
+	forge_fixed_count = 0;
 	memset(&forge_hmv_metadata, 0, sizeof(forge_hmv_metadata));
 #endif
 }
@@ -288,7 +301,79 @@ static boolean forge_local_host(void)
 {
 	return network_game_forge_hosting() && network_game_is_splitscreen_local();
 }
+/* Adapt ChupathingyCE forge_physics.inc (1b732f52, GPL-3.0) to the
+ * existing Local Forge handles. HMV physics stays in loopback sessions. */
+static struct forge_fixed_pose *forge_fixed_pose_get(long object_index)
+{
+	short index;
+	for (index = 0; index < forge_fixed_count; index++)
+		if (forge_fixed_poses[index].object_index == object_index)
+			return &forge_fixed_poses[index];
+	return NULL;
+}
+
+static void forge_fixed_pose_capture(struct forge_fixed_pose *pose, long object_index)
+{
+	struct object_datum const *object = object_get(object_index);
+	pose->object_index = object_index;
+	pose->position = object->object.position;
+	pose->forward = object->object.forward;
+	pose->up = object->object.up;
+}
+
+static unsigned char forge_placement_physics(long object_index, struct object_datum const *object)
+{
+	if (TEST_FLAG(object->object.flags, _object_forge_phased_bit))
+		return FORGE_RECORD_PHYSICS_PHASED;
+	return forge_fixed_pose_get(object_index) ? FORGE_RECORD_PHYSICS_FIXED : 0;
+}
+
+static void forge_apply_placement_physics(long object_index, unsigned char physics)
+{
+	if (physics == FORGE_RECORD_PHYSICS_PHASED)
+	{
+		object_scripting_set_collideable(object_index, FALSE);
+		SET_FLAG(object_get(object_index)->object.flags, _object_forge_phased_bit, TRUE);
+	}
+	else if (physics == FORGE_RECORD_PHYSICS_FIXED)
+		forge_fixed_pose_capture(&forge_fixed_poses[forge_fixed_count++], object_index);
+}
 #endif
+
+void cheats_forge_update(void)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	short index = 0;
+	while (index < forge_fixed_count)
+	{
+		struct forge_fixed_pose const *pose = &forge_fixed_poses[index];
+		long handle = pose->object_index;
+		struct object_header_datum *header = object_header_try_and_get(handle);
+		struct object_datum *object = object_try_and_get(handle);
+		if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit) ||
+			!object || TEST_FLAG(object->object.damage_flags, _object_dead_bit))
+		{
+			forge_fixed_poses[index] = forge_fixed_poses[--forge_fixed_count];
+			continue;
+		}
+		index++;
+		if (object->object.parent_object_index != NONE)
+			continue;
+		if (distance_squared3d(&object->object.position, &pose->position) > 0.005f * 0.005f ||
+			dot_product3d(&object->object.forward, &pose->forward) < 0.99999f ||
+			dot_product3d(&object->object.up, &pose->up) < 0.99999f ||
+			magnitude_squared3d(&object->object.translational_velocity) > 0.f ||
+			magnitude_squared3d(&object->object.angular_velocity) > 0.f)
+		{
+			object_set_position(handle, &pose->position, &pose->forward, &pose->up);
+			object = object_get(handle);
+			object->object.translational_velocity = *global_zero_vector3d;
+			object->object.angular_velocity = *global_zero_vector3d;
+			SET_FLAG(object->object.flags, _object_at_rest_bit, TRUE);
+		}
+	}
+#endif
+}
 
 static boolean forge_has_remote_players(void)
 {
@@ -323,7 +408,7 @@ static struct object_datum *forge_placeable_object_get(long object_index)
 /* Port: Faber's Forge 3D selection uses the native world collision ray.
  * Use the living local player so console selection cannot target through
  * BSP geometry or from another player's camera. */
-static boolean forge_aim_collision(struct collision_result *hit)
+static boolean forge_aim_collision(struct collision_result *hit, boolean select_phased)
 {
 	long unit_index;
 	struct unit_datum *unit;
@@ -343,7 +428,8 @@ static boolean forge_aim_collision(struct collision_result *hit)
 	unit_get_aiming_vector(unit_index, &ray);
 	scale_vector3d(&ray, 20.0f, &ray);
 	return collision_test_vector(_collision_test_for_line_of_sight_flags |
-		FLAG(_collision_test_objects_weapons_bit) | FLAG(_collision_test_objects_equipment_bit),
+		FLAG(_collision_test_objects_weapons_bit) | FLAG(_collision_test_objects_equipment_bit) |
+		(select_phased ? FLAG(_collision_test_forge_phased_objects_bit) : 0),
 		&origin, &ray, unit_index, hit);
 }
 
@@ -352,7 +438,7 @@ long cheat_forge_target(void)
 	struct collision_result hit;
 	struct object_datum *object;
 
-	if (!forge_aim_collision(&hit) || hit.type != _collision_result_object)
+	if (!forge_aim_collision(&hit, TRUE) || hit.type != _collision_result_object)
 		return NONE;
 
 	object = forge_placeable_object_get(hit.object_index);
@@ -392,7 +478,10 @@ static long forge_clone_at_position(
 {
 	struct object_datum *object;
 	struct object_placement_data placement;
-
+	long copy;
+#ifdef NATIVE_FORGE_SIDECARS
+	unsigned char physics;
+#endif
 
 	if (!terminal_command_running || network_game_distributed_client() || network_game_host_cheats_refused())
 	{
@@ -445,8 +534,20 @@ static long forge_clone_at_position(
 	placement.owner_team_index = object->object.owner_team_index;
 	placement.variant_number = object->object.variant_number;
 	csmemcpy(placement.change_colors, object->object.base_change_colors, sizeof(placement.change_colors));
+#ifdef NATIVE_FORGE_SIDECARS
+	physics = forge_placement_physics(object_index, object);
+	if (physics && !forge_local_host())
+		return NONE;
+	if (physics == FORGE_RECORD_PHYSICS_FIXED && forge_fixed_count == NUMBEROF(forge_fixed_poses))
+		return NONE;
+#endif
 	/* object_new may move the source's storage; retain no pointer across it. */
-	return forge_create_copy(&placement, object->object.scale);
+	copy = forge_create_copy(&placement, object->object.scale);
+#ifdef NATIVE_FORGE_SIDECARS
+	if (copy != NONE && physics)
+		forge_apply_placement_physics(copy, physics);
+#endif
+	return copy;
 }
 
 long cheat_forge_clone(long object_index)
@@ -490,7 +591,7 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 	real_vector3d offset;
 	real radius;
 
-	if (!forge_aim_collision(&hit) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
+	if (!forge_aim_collision(&hit, FALSE) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
 	{
 		console_warning("Forge needs visible ground within 20 units");
 		return FALSE;
@@ -590,6 +691,14 @@ static void forge_move_copy(long object_index, struct object_datum *object,
 	SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
 	object_set_position(object_index, position, forward, up);
 	object_activate(object_index);
+#ifdef NATIVE_FORGE_SIDECARS
+	if (forge_fixed_count)
+	{
+		struct forge_fixed_pose *pose = forge_fixed_pose_get(object_index);
+		if (pose)
+			forge_fixed_pose_capture(pose, object_index);
+	}
+#endif
 }
 
 /* Adapt OpenCE-Forge's before-transform undo snapshot (SutlabSol/OpenCE-Forge). */
@@ -821,7 +930,6 @@ boolean cheat_forge_remove_selected(void)
 #ifdef NATIVE_FORGE_SIDECARS
 /* Base-map OBJECT rows from OpenCE-Forge (SutlabSol, 91099ce3,
  * forge_runtime_tags.c and forge_3d_mode.c). AGPL-3.0-or-later. */
-enum { FORGE_SIDECAR_OBJECTS = 128, FORGE_SIDECAR_BYTES = 128 * 512 + 512 };
 static char const forge_header[] = "[OpenCE Forge Map]";
 static char const forge_author[] = "Author: Forerunner";
 static char const forge_object_scale[] = "OBJECT_SCALE|";
@@ -830,6 +938,7 @@ struct forge_sidecar_placement
 {
 	struct object_placement_data object;
 	real scale;
+	unsigned char physics;
 };
 
 static char const *forge_sidecar_leaf(char const *name)
@@ -982,6 +1091,7 @@ static boolean forge_sidecar_parse(char *text, char const *reference, struct for
 					!forge_sidecar_object(line + 7, &placements[*count].object))
 					return FALSE;
 				placements[*count].scale = 0.f;
+				placements[*count].physics = 0;
 				(*count)++;
 			}
 		}
@@ -1084,7 +1194,7 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 		if (!object)
 			continue;
 		if (++count > FORGE_SIDECAR_OBJECTS || !forge_layout_pose(handle, object, &group, &path, &angles) ||
-			group == 'mach' || group == 'ctrl')
+			group == 'mach' || group == 'ctrl' || forge_placement_physics(handle, object))
 			return FALSE;
 		/* Keep the upstream OBJECT row readable. Older editors ignore the
 		 * optional property and place these objects at their default scale. */
@@ -1133,6 +1243,10 @@ static boolean forge_sidecar_restore(struct forge_sidecar_placement const *place
 		object_set_position(created[index], &saved->object.position,
 			&saved->object.forward, &saved->object.up);
 	}
+	/* A fresh layout owns the new handles only after every placement succeeds. */
+	forge_fixed_count = 0;
+	for (index = 0; index < count; index++)
+		forge_apply_placement_physics(created[index], placements[index].physics);
 	return TRUE;
 }
 #endif
@@ -1280,7 +1394,7 @@ static boolean forge_hmv_capture(struct forge_file_layout *layout, char const *m
 		memcpy(record->position, object->object.position.n, sizeof(record->position));
 		memcpy(record->angles, angles.n, sizeof(record->angles));
 		record->count = 1;
-		record->flags = FORGE_RECORD_PLACE_AT_START;
+		record->flags = FORGE_RECORD_PLACE_AT_START | forge_placement_physics(handle, object);
 	}
 	return had_copies;
 }
@@ -1299,7 +1413,9 @@ static boolean forge_hmv_placements(struct forge_file_layout const *layout, stru
 		struct forge_file_path const *path;
 		real_point3d position;
 		real_euler_angles3d angles;
-		if (record->kind != _forge_record_object || record->flags != FORGE_RECORD_PLACE_AT_START ||
+		unsigned char physics = record->flags & FORGE_RECORD_PHYSICS_MASK;
+		if (record->kind != _forge_record_object || (record->flags & ~FORGE_RECORD_PHYSICS_MASK) != FORGE_RECORD_PLACE_AT_START ||
+			(physics && !forge_local_host()) ||
 			record->game_types || record->variant || record->respawn_seconds || record->ai_team ||
 			record->count != 1 || record->path_index >= layout->path_count)
 			return FALSE;
@@ -1309,6 +1425,7 @@ static boolean forge_hmv_placements(struct forge_file_layout const *layout, stru
 		if (!forge_layout_placement(path->group_tag, path->path, &position, &angles, record->team, TRUE, &placements[i].object))
 			return FALSE;
 		placements[i].scale = 1.f;
+		placements[i].physics = physics;
 	}
 	return TRUE;
 }

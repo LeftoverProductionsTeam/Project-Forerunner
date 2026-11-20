@@ -54,6 +54,8 @@ enum
 	/* port: no players' bipeds (a player's own movement in a co-op game
 	without player collisions: network_coop_player_collisions) */
 	_collision_test_skip_player_bipeds_bit,
+	/* ChupathingyCE Forge: only the editor's selection ray hits phased shapes. */
+	_collision_test_forge_phased_objects_bit,
 
 	NUMBER_OF_COLLISION_TEST_FLAGS,
 
