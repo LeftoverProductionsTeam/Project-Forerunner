@@ -613,14 +613,16 @@ void network_actors_log_units(
 	void)
 {
 	long units[MAXIMUM_NETWORK_ACTORS];
-	boolean host = game_connection() == _game_connection_network_server;
-	char const *role = host ? "host" : "client";
-	short tracked = host ? host_actor_count : client_actor_count;
+	short connection = game_connection();
+	boolean host = connection == _game_connection_network_server;
+	boolean local = connection == _game_connection_local;
+	char const *role = local ? "local" : host ? "host" : "client";
+	short tracked = local ? 0 : host ? host_actor_count : client_actor_count;
 	short count = 0;
 	short index;
 	long now = game_time_get();
 
-	if (!host && game_connection() != _game_connection_network_client)
+	if (!host && !local && connection != _game_connection_network_client)
 		return;
 	for (index = 0; index < tracked; index++)
 	{
@@ -653,9 +655,8 @@ void network_actors_log_units(
 			(unsigned long)unit->unit.weapon_object_indices[0], (unsigned long)unit->unit.weapon_object_indices[1],
 			(unsigned long)unit->unit.weapon_object_indices[2], (unsigned long)unit->unit.weapon_object_indices[3],
 			(int)unit->unit.current_weapon_index);
-		/* The host alone owns AI decisions. Keep this behind the existing
-		 * bounded readback; never interpret a client's actor index as local AI. */
-		if (host && actor_data && unit->unit.actor_index != NONE)
+		/* Sample authoritative AI decisions in host and local play. */
+		if ((host || local) && actor_data && unit->unit.actor_index != NONE)
 		{
 			struct actor_datum *actor = actor_try_and_get(unit->unit.actor_index);
 			if (actor && actor->meta.unit_index == units[index])

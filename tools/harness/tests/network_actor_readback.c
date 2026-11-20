@@ -4,6 +4,7 @@
 #include <math.h>
 #define MAXIMUM_NETWORK_ACTORS 4
 #define TICKS_PER_SECOND 30
+#define _game_connection_local 0
 #define _game_connection_network_server 1
 #define _game_connection_network_client 2
 #define _object_mask_unit 1
@@ -58,13 +59,26 @@ static int summaries;
 /* The existing shared diagnostic also observes terminals/player actions.
    This actor-only world has none; keep those iteration boundaries explicit. */
 #define _object_mask_control 2
-struct object_iterator {long index;};
+struct object_iterator {long index, next;};
 struct data_iterator {long datum_index;};
 struct player_datum {short local_player_index,action_result;long action_object_index;};
 struct object_datum {struct {short name_index;real_point3d bounding_sphere_center;real bounding_sphere_radius;} object;};
 static int player_data;
-static void object_iterator_new(struct object_iterator *i,int mask,int flags) {(void)i;(void)mask;(void)flags;}
-static int object_iterator_next(struct object_iterator *i) {(void)i;return FALSE;}
+static long local_world_unit=NONE;
+static void object_iterator_new(struct object_iterator *i,int mask,int flags)
+{
+	(void)flags;
+	i->index=NONE;
+	i->next=mask==_object_mask_biped ? local_world_unit : NONE;
+}
+static int object_iterator_next(struct object_iterator *i)
+{
+	if (i->next==NONE)
+		return FALSE;
+	i->index=i->next;
+	i->next=NONE;
+	return TRUE;
+}
 static struct object_datum *object_get(long index) {(void)index;CHECK(FALSE,"no terminals in actor world");return NULL;}
 static int device_can_change_position(long index) {(void)index;return FALSE;}
 static void data_iterator_new(struct data_iterator *i,int data) {(void)i;(void)data;}
@@ -343,7 +357,9 @@ int main(int argc,char **argv)
 	{
 		host_actors[0].unit_index=add(0);host_actor_count=1;network_actors_log_units();
 		network_actors_new_game();CHECK(!logged_actor_count&&!host_actor_count&&!client_actor_count,"map reset kept units");
-		clear_output();connection=0;network_actors_log_units();CHECK(!used,"local play emitted network evidence");
+		clear_output();connection=_game_connection_local;local_world_unit=world_ids[0];network_actors_log_units();
+		expect("actor 30 local 12340000 43210000 1.250000 2.500000 3.750000 0.625000 0.250000 0 ffffffff -1 0");
+		expect("actors 30 local 1");
 	}
 	else CASE("disabled")
 	{

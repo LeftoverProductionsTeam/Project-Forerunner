@@ -14,7 +14,7 @@ CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'delete
          'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position', 'plane-waypoint-turn',
          'plane-landing-arrival', 'plane-parked-look', 'plane-parked-rest']
 CONTROLS = {
-    'client-ai-state': ('if (host && actor_data && unit->unit.actor_index != NONE)',
+    'client-ai-state': ('if ((host || local) && actor_data && unit->unit.actor_index != NONE)',
                         'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
     'stale-ai-owner': ('if (actor && actor->meta.unit_index == units[index])',
                        'if (actor)', 'host-control'),
@@ -23,7 +23,7 @@ CONTROLS = {
                            '/* keep the look override */', 'plane-parked-look'),
     'powered-seat-wakes-parked-plane': ('actor_move_plane_is_parked(vehicle_plane_ai_pilot(vehicle_index, vehicle), vehicle_index)',
                                       'FALSE', 'plane-parked-rest'),
-    'wrong-table': ('boolean host = game_connection() == _game_connection_network_server;',
+    'wrong-table': ('boolean host = connection == _game_connection_network_server;',
                     'boolean host = TRUE;', 'client-world'),
     'lost-salt': (
         'now, role, (unsigned long)units[index], (unsigned long)unit->definition_index,',
