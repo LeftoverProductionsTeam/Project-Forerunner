@@ -114,6 +114,14 @@ and no changes to either Phased placement. Fourteen focused cases passed.
 Receipts: `build/native-forge-physics-walking/result.json` and
 `build/native-forge-phased-overlap/result.json`. Remote physics remains open.
 
+Windows x64 Local Forge now edits physics through **Change Physics** on
+an unused copy. Spark read the three saved modes after native menu input
+cycled one solid boulder through Fixed, Phased and Normal. A second native
+trial kept the selected boulder Phased when an overlapping solid boulder
+blocked the return to Normal. Windows x64 and 36 focused checks passed,
+including independent HaloScript and Forge collision flags. Receipts are in
+`build/native-forge-edit-physics/` and `build/native-forge-edit-physics-occupied/`.
+
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or
 loss; B, Spark's delivered CE609 Black Echo and real mission outcomes; C, actual

@@ -332,10 +332,7 @@ static unsigned char forge_placement_physics(long object_index, struct object_da
 static void forge_apply_placement_physics(long object_index, unsigned char physics)
 {
 	if (physics == FORGE_RECORD_PHYSICS_PHASED)
-	{
-		object_scripting_set_collideable(object_index, FALSE);
 		SET_FLAG(object_get(object_index)->object.flags, _object_forge_phased_bit, TRUE);
-	}
 	else if (physics == FORGE_RECORD_PHYSICS_FIXED)
 		forge_fixed_pose_capture(&forge_fixed_poses[forge_fixed_count++], object_index);
 }
@@ -712,6 +709,77 @@ static struct object_datum *forge_editable_copy(long object_index)
 		return NULL;
 
 	return object;
+}
+
+boolean cheats_forge_physics_available(void)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	return forge_local_host();
+#else
+	return FALSE;
+#endif
+}
+
+#ifdef NATIVE_FORGE_SIDECARS
+static boolean forge_phase_exit_clear(long object_index, struct object_datum const *object)
+{
+	struct location location;
+	real_point3d const *center = &object->object.bounding_sphere_center;
+	real radius = object->object.bounding_sphere_radius;
+
+	if (object->object.type == _object_type_vehicle)
+	{
+		struct physics_instance vehicle;
+		/* The vehicle is already resting against the BSP. Check other objects. */
+		return physics_instance_new(&vehicle, object_index) &&
+			physics_placement_clear(&vehicle, object_index, FALSE, NULL);
+	}
+
+	scenario_location_from_point(&location, center);
+	return location.cluster_index != NONE && !forge_space_occupied(&location, center, radius, object_index);
+}
+#endif
+
+enum forge_physics_mode cheat_forge_cycle_physics(void)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	long object_index = forge_selection;
+	struct object_datum *object;
+	struct forge_fixed_pose *fixed;
+
+	if (!cheats_forge_physics_available() || !(object = forge_editable_copy(object_index)))
+		return _forge_physics_refused;
+
+	if (TEST_FLAG(object->object.flags, _object_forge_phased_bit))
+	{
+		if (!forge_phase_exit_clear(object_index, object))
+			return _forge_physics_refused;
+		SET_FLAG(object->object.flags, _object_forge_phased_bit, FALSE);
+		SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
+		object_activate(object_index);
+		return _forge_physics_normal;
+	}
+
+	fixed = forge_fixed_pose_get(object_index);
+	if (fixed)
+	{
+		*fixed = forge_fixed_poses[--forge_fixed_count];
+		forge_apply_placement_physics(object_index, FORGE_RECORD_PHYSICS_PHASED);
+		SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
+		object_activate(object_index);
+		return _forge_physics_phased;
+	}
+
+	if (forge_fixed_count == NUMBEROF(forge_fixed_poses))
+		return _forge_physics_refused;
+	forge_apply_placement_physics(object_index, FORGE_RECORD_PHYSICS_FIXED);
+	object->object.translational_velocity = *global_zero_vector3d;
+	object->object.angular_velocity = *global_zero_vector3d;
+	SET_FLAG(object->object.flags, _object_at_rest_bit, TRUE);
+	return _forge_physics_fixed;
+#else
+	return _forge_physics_refused;
+#endif
 }
 
 /* The existing object state sender and placement writer see the same handle. */

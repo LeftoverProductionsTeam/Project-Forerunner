@@ -1817,7 +1817,7 @@ static void object_get_features_in_sphere(
 
 		if (object_index != ignore_object_index &&
 			!TEST_FLAG(object->object.flags, _object_invisible_bit) &&
-			!TEST_FLAG(object->object.flags, _object_no_collisions_bit) &&
+			!(object->object.flags & OBJECT_NON_SOLID_FLAGS) &&
 			(!TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
 				object->object.type != _object_type_biped))
 		{

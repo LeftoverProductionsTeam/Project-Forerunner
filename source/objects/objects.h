@@ -98,6 +98,9 @@ enum
 	NUMBER_OF_OBJECT_DATA_FLAGS,
 };
 
+/* Script collision state and Forge phasing have independent owners. */
+#define OBJECT_NON_SOLID_FLAGS (FLAG(_object_no_collisions_bit) | FLAG(_object_forge_phased_bit))
+
 enum
 {
 	_new_object_mirrored_bit = 0,

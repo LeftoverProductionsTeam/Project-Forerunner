@@ -35,6 +35,7 @@ FIRE too.
 #include "cseries.h"
 #include "bitmaps/bitmap_group.h"
 #include "game/game.h"
+#include "game/cheats.h"
 #include "tag_files/tag_groups.h"
 #include "cache/cache_files.h"
 #include "text/text_group.h"
@@ -457,6 +458,7 @@ static char const *const port_function_names[] =
 	"port forerunner host forge", "port forerunner host forge local", "port forge pick", "port forge place", "port forge undo",
 	"port forge save", "port forge load", "port forge remove", "port forge move", "port forge undo move",
 	"port forge rotate", "port forge save hmv", "port forge load hmv", "port forge redo move", "port forge load saved hmv",
+	"port forge cycle physics",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
@@ -1262,6 +1264,8 @@ static boolean child_left_out(struct halo_menu_child const *entry)
 	char const *name = entry->nested != HALO_MENU_NONE ? build.menus->widgets[entry->nested].name : entry->widget;
 	char const *leaf = name && strrchr(name, '/') ? strrchr(name, '/') + 1 : name;
 
+	if (name && !strcmp(name, "forerunner/forge/tools/physics"))
+		return !build.game_map || !cheats_forge_physics_available();
 	if (!leaf || strcmp(leaf, "setup_entry"))
 		return FALSE;
 	setup_left_out = build.game_map || !pc_menu_setup_offered();

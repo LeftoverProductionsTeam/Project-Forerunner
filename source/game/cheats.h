@@ -73,6 +73,15 @@ boolean cheat_forge_move_selected(void);
 boolean cheat_forge_rotate_selected(void);
 boolean cheat_forge_undo_move(void);
 boolean cheat_forge_redo_move(void);
+enum forge_physics_mode
+{
+	_forge_physics_refused,
+	_forge_physics_normal,
+	_forge_physics_fixed,
+	_forge_physics_phased,
+};
+boolean cheats_forge_physics_available(void);
+enum forge_physics_mode cheat_forge_cycle_physics(void);
 boolean cheat_forge_sidecar(boolean saving);
 enum forge_hmv_action
 {

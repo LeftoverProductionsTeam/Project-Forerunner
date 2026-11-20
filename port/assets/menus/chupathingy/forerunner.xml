@@ -245,6 +245,7 @@
 		<child widget="forerunner/forge/tools/rotate" x="192" y="362" />
 		<child widget="forerunner/forge/tools/undo_move" x="192" y="392" />
 		<child widget="forerunner/forge/tools/redo_move" x="192" y="422" />
+		<child widget="forerunner/forge/tools/physics" x="451" y="452" platform="desktop" />
 		<child widget="forerunner/forge/back" x="192" y="452" />
 	</widget>
 	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="SELECT AIMED OBJECT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
@@ -300,6 +301,11 @@
 	<widget name="forerunner/forge/tools/rotate" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="ROTATE COPY 90°" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge rotate" close="all" />
 		<on event="start" run="port forge rotate" close="all" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/physics" type="text" width="178" height="28" bitmap="bitmaps/list_item_bkd" text="CHANGE PHYSICS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge cycle physics" close="all" />
+		<on event="start" run="port forge cycle physics" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/forge/tools/undo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="UNDO MOVE OR ROTATE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">

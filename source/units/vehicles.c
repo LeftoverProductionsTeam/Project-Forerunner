@@ -2740,7 +2740,7 @@ boolean vehicle_update(
 		if (TEST_FLAG(vehicle->object.flags, _object_at_rest_bit))
 			vehicle->vehicle.stop_time = 15;
 
-		if (!TEST_FLAG(vehicle->object.flags, _object_no_collisions_bit) &&
+		if (!(vehicle->object.flags & OBJECT_NON_SOLID_FLAGS) &&
 			TEST_FLAG(FLAG(_vehicle_type_human_plane) | FLAG(_vehicle_type_alien_fighter),
 				definition->vehicle_type))
 		{

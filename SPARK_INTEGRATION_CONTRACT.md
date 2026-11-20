@@ -2964,7 +2964,11 @@ undo and redo set the updated pose. Phased copies use native non-collision
 and can still be selected with the Forge aim tool. Phased pieces do not
 block the occupied-space check for moving, rotating or restoring a nearby
 solid copy. The same check still rejects solid blockers. Both flags survive
-HMV save and reload. The existing plain HMV and text sidecar paths keep their
+HMV save and reload. In Local Forge, select an unused copy and choose
+**Change Physics** in Forge Tools to cycle Normal, Fixed and Phased. Clearing
+Phased requires room for solid collision. Forge uses its own phase flag, so a
+HaloScript collision setting survives the edit. Save the layout as HMV to
+retain the mode. The existing plain HMV and text sidecar paths keep their
 previous limits.
 
 The implementation adapts BirchWood's

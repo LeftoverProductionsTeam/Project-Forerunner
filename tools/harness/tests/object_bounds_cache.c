@@ -298,14 +298,22 @@ static boolean same_features(void)
 
 static double seconds(unsigned long (*queries)(void))
 {
-	struct timespec start, end;
 	int round;
-
+#ifdef _WIN32
+	clock_t start = clock();
+#else
+	struct timespec start, end;
 	clock_gettime(CLOCK_MONOTONIC, &start);
+#endif
+
 	for (round = 0; round < 10; round++)
 		queries();
+#ifdef _WIN32
+	return (double)(clock() - start) / CLOCKS_PER_SEC;
+#else
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	return (double)(end.tv_sec - start.tv_sec) + (double)(end.tv_nsec - start.tv_nsec) / 1e9;
+#endif
 }
 
 int main(int argc, char **argv)
@@ -391,6 +399,30 @@ int main(int argc, char **argv)
 			}
 		}
 		CHECK(missed > (long)QUERIES * OBJECTS / 2, "the cache says only %ld vectors miss: too few to compare", missed);
+		return 0;
+	}
+	CASE("forge-phased")
+	{
+		struct object_datum *object = &objects[7];
+		struct collision_feature_list features;
+		unsigned long flags = _collision_test_objects_all_types_flags;
+		long index = OBJECT_INDEX(7);
+
+		object->object.flags = 0;
+		object->object.first_child_object_index = NONE;
+		feature_total = 0;
+		collision_features_new(&features);
+		object_get_features_in_sphere(flags, index, &object->object.bounding_sphere_center, 1.f, 0.f, 0.f, NONE, &features);
+		CHECK(feature_total == 1, "a solid scenery copy produced no collision feature");
+		object->object.flags = FLAG(_object_forge_phased_bit);
+		object_get_features_in_sphere(flags, index, &object->object.bounding_sphere_center, 1.f, 0.f, 0.f, NONE, &features);
+		CHECK(feature_total == 1, "a Phased copy still produced a collision feature");
+		object->object.flags = FLAG(_object_no_collisions_bit);
+		object_get_features_in_sphere(flags, index, &object->object.bounding_sphere_center, 1.f, 0.f, 0.f, NONE, &features);
+		CHECK(feature_total == 1, "clearing Forge phasing disturbed script collision");
+		object->object.flags = 0;
+		object_get_features_in_sphere(flags, index, &object->object.bounding_sphere_center, 1.f, 0.f, 0.f, NONE, &features);
+		CHECK(feature_total == 2, "clearing both flags did not restore collision");
 		return 0;
 	}
 	/* not a check: how long the queries take without and with the cache */
