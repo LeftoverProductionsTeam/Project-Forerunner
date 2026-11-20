@@ -37,6 +37,7 @@ void first_person_weapons_initialize_for_new_map(
 	void);
 void first_person_weapons_dispose_from_old_map(
 	void);
+void first_person_weapons_restore_hands(void);
 void first_person_weapons_update(
 	void);
 long first_person_weapon_get_local_index(

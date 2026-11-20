@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, function, mutated, read, run, structure
 
-CASES = ['melee', 'weapon', 'graph', 'within a tick', 'gap', 'not a number', 'half turn', 'large turn']
+CASES = ['melee', 'weapon', 'graph', 'within a tick', 'gap', 'not a number', 'half turn', 'large turn', 'authored hands']
 CONTROLS = [
     # the distance limit the weapon's identity replaced
     ('<= REAL_MAX))', '<= 0.25f * 0.25f))', 'melee'),
@@ -51,7 +51,10 @@ def generated(fault=None):
           'render_interpolation_first_person']])
     if fault:
         code = mutated(code, *fault)
-    return (('config.inc', config), ('under_test.inc', code))
+    hands = read('source/interface/first_person_weapons.c')
+    hands_code = '\n'.join(function(hands, name) for name in (
+        'model_build_remapping_table_for_animation_graph', 'first_person_weapon_select_hands'))
+    return (('config.inc', config), ('under_test.inc', code), ('hands.inc', hands_code))
 
 
 @pytest.mark.parametrize('case', CASES)

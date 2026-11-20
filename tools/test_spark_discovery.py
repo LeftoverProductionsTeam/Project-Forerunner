@@ -96,6 +96,14 @@ def test_reference_client_requires_native_squad_features(runtime):
     assert "extraction.squad_radio.v1" in reply["native_features"]
 
 
+def test_reference_client_discovers_per_biped_hands(runtime):
+    from spark_runtime import discover
+
+    _, executable = runtime
+    reply = discover(executable, required_features=["character.biped_hands.v1"])
+    assert "character.biped_hands.v1" in reply["native_features"]
+
+
 def test_reference_client_refuses_unknown_native_feature(runtime):
     from spark_runtime import RuntimeContractError, discover
 

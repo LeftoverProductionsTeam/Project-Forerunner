@@ -125,7 +125,9 @@ symbols in this file:
 #include "scenario/scenario.h"
 #include "sound/game_sound.h"
 #include "sound/sound_manager.h"
+#include "tag_files/files.h"
 #include "units/units.h"
+#include <stdio.h>
 #ifdef HALO_64BIT
 #include "rasterizer/rasterizer_model_types.h"
 #endif
@@ -415,6 +417,55 @@ differently with none. The state's current_sound_index holds the sound's
 definition, that the sound was begun. (A stale index, after a saved game is
 loaded, stops nothing: an index names its sound only.) */
 static long first_person_weapon_sound_indices[MAXIMUM_NUMBER_OF_LOCAL_PLAYERS];
+/* Derived from the body and weapon tags, so old save images keep their layout. */
+static long first_person_weapon_hands_models[MAXIMUM_NUMBER_OF_LOCAL_PLAYERS];
+
+static long first_person_weapon_select_hands(
+	struct unit_datum const *unit,
+	long animation_graph_index,
+	long default_model,
+	short *remapping)
+{
+	if (unit->object.type == _object_type_biped)
+	{
+		char name[MAXIMUM_FILENAME_LENGTH + 1];
+		char const *biped_name = tag_get_name(unit->definition_index);
+		int length = biped_name ? snprintf(name, sizeof(name), "%s_fp", biped_name) : 0;
+
+		/* Optional native model included by the author in the same cache. */
+		if (length > 0 && (size_t)length < sizeof(name))
+		{
+			long model_index = tag_loaded(MODELS_GROUP_TAG, name);
+			if (model_index != NONE)
+			{
+				struct model const *model = model_definition_get(model_index);
+				if (model->nodes.count > 0 && model->nodes.count <= MAXIMUM_NODES_PER_ANIMATION &&
+					model_build_remapping_table_for_animation_graph(model_index, animation_graph_index, remapping))
+					return model_index;
+			}
+		}
+	}
+	if (default_model != NONE &&
+		model_build_remapping_table_for_animation_graph(default_model, animation_graph_index, remapping))
+		return default_model;
+	return NONE;
+}
+
+static void first_person_weapon_bind_hands(
+	short local_player_index,
+	struct unit_datum const *unit,
+	long animation_graph_index)
+{
+	struct first_person_weapon *first_person_weapon = first_person_weapon_get(local_player_index);
+	struct tag_block *interfaces = &scenario_get_game_globals()->first_person_interface;
+	long default_model = interfaces->count > 0 ?
+		TAG_BLOCK_GET_ELEMENT(interfaces, 0, struct game_globals_first_person_interface)->hands.index : NONE;
+	long model_index = first_person_weapon_select_hands(unit, animation_graph_index, default_model,
+		first_person_weapon->hands_node_remapping_table);
+
+	first_person_weapon_hands_models[local_player_index] = model_index;
+	first_person_weapon->hands_node_remapping_table_valid = model_index != NONE;
+}
 
 /* ---------- public code */
 
@@ -468,6 +519,7 @@ void first_person_weapons_initialize_for_new_map(
 		first_person_weapons[local_player_index].current_sound_index= NONE;
 		first_person_weapons[local_player_index].current_sound_state= NONE;
 		first_person_weapon_sound_indices[local_player_index]= NONE;
+		first_person_weapon_hands_models[local_player_index] = NONE;
 	}
 
 	return;
@@ -477,6 +529,25 @@ void first_person_weapons_dispose_from_old_map(
 	void)
 {
 	return;
+}
+
+void first_person_weapons_restore_hands(void)
+{
+	short local_player_index;
+	for (local_player_index = 0; local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS; local_player_index++)
+	{
+		struct first_person_weapon *first_person_weapon = first_person_weapon_get(local_player_index);
+		struct unit_datum *unit = unit_try_and_get(first_person_weapon->unit_index);
+		struct weapon_datum *weapon = weapon_try_and_get(first_person_weapon->weapon_index);
+		first_person_weapon_hands_models[local_player_index] = NONE;
+		first_person_weapon->hands_node_remapping_table_valid = FALSE;
+		if (unit && weapon)
+		{
+			long graph = weapon_definition_get(weapon->definition_index)->weapon.interface_definition.first_person_animations.index;
+			if (graph != NONE)
+				first_person_weapon_bind_hands(local_player_index, unit, graph);
+		}
+	}
 }
 
 long first_person_weapon_get_local_index(
@@ -582,11 +653,7 @@ void first_person_weapon_draw(
 				{
 					struct real_matrix4x3 model_node_matrices[MAXIMUM_NODES_PER_ANIMATION];
 					struct render_model_effect model_effect;
-					struct game_globals_first_person_interface *first_person_interface=
-						TAG_BLOCK_GET_ELEMENT(
-							&scenario_get_game_globals()->first_person_interface,
-							0,
-							struct game_globals_first_person_interface);
+					long hands_model = first_person_weapon_hands_models[render.local_player_index];
 					struct animation_graph *animation_graph= animation_graph_definition_get(
 						weapon_definition->weapon.interface_definition.first_person_animations.index);
 					struct render_lighting *lighting= object_get_cached_render_lighting(unit_index, FLT_MAX);
@@ -686,7 +753,7 @@ void first_person_weapon_draw(
 					/* (port: the unseen fists' arms only for the punch:
 					first_person_weapon_fists_frame) */
 					if (first_person_weapon->hands_node_remapping_table_valid &&
-						first_person_interface->hands.index!=NONE
+						hands_model != NONE
 #ifdef HALO_GAME_BROWSER
 						&& (!first_person_weapon_fists_frame(first_person_weapon, &fists_frame_index, &fists_drop) ||
 							fists_frame_index!=NONE)
@@ -694,13 +761,13 @@ void first_person_weapon_draw(
 						)
 					{
 						model_remap_node_matrices_to_match_animation_graph(
-							first_person_interface->hands.index,
+							hands_model,
 							model_node_matrices,
 							weapon_definition->weapon.interface_definition.first_person_animations.index,
 							first_person_weapon->node_matrices,
 							first_person_weapon->hands_node_remapping_table);
 						render_model(
-							first_person_interface->hands.index,
+							hands_model,
 							0.0f,
 							model_node_matrices,
 							NULL,
@@ -1789,6 +1856,8 @@ static void first_person_weapon_switch_weapons(
 	boolean visible= first_person_weapon->visible;
 
 	first_person_weapon->weapon_index= NONE;
+	first_person_weapon_hands_models[local_player_index] = NONE;
+	first_person_weapon->hands_node_remapping_table_valid = FALSE;
 	if (visible)
 	{
 		first_person_weapon_set_visibility(local_player_index, FALSE);
@@ -1822,8 +1891,6 @@ static void first_person_weapon_switch_weapons(
 
 					if (first_person_weapon_animations)
 					{
-						struct game_globals_first_person_interface *first_person_interface;
-
 						first_person_weapon->overlay_animation_index= NONE;
 						if (VALID_INDEX(
 							_first_person_weapon_animation_overlays,
@@ -1844,18 +1911,8 @@ static void first_person_weapon_switch_weapons(
 							}
 						}
 
-						first_person_interface= TAG_BLOCK_GET_ELEMENT(
-							&scenario_get_game_globals()->first_person_interface,
-							0,
-							struct game_globals_first_person_interface);
-						if (first_person_interface->hands.index!=NONE)
-						{
-							first_person_weapon->hands_node_remapping_table_valid=
-								model_build_remapping_table_for_animation_graph(
-									first_person_interface->hands.index,
-									weapon_definition->weapon.interface_definition.first_person_animations.index,
-									first_person_weapon->hands_node_remapping_table);
-						}
+						first_person_weapon_bind_hands(local_player_index, unit,
+							weapon_definition->weapon.interface_definition.first_person_animations.index);
 						first_person_weapon->weapon_node_remapping_table_valid=
 							model_build_remapping_table_for_animation_graph(
 								weapon_definition->weapon.interface_definition.first_person_model.index,

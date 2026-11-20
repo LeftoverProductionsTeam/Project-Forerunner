@@ -28,6 +28,32 @@ static real interpolation_fraction;
 
 #include "under_test.inc"
 
+enum {_object_type_biped, _object_type_vehicle, MAXIMUM_FILENAME_LENGTH=255, MAXIMUM_NODES_PER_ANIMATION=2};
+#define MODELS_GROUP_TAG 0x6d6f6465L
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+struct tag_block { long count; void *address; };
+#define TAG_BLOCK_GET_ELEMENT(block, index, type) (&((type *)(block)->address)[index])
+#define csstrcmp strcmp
+struct unit_datum { long definition_index; struct {short type;} object; };
+struct model_node { char name[32]; };
+struct animation_graph_node { char name[32]; };
+struct model { struct tag_block nodes; };
+struct animation_graph { struct tag_block nodes; };
+static struct model_node stock_nodes[]={{"left hand"}}, alternate_nodes[]={{"right hand"}};
+static struct animation_graph_node graph_nodes[]={{"left hand"},{"right hand"}};
+static struct animation_graph hand_graph={{2,graph_nodes}};
+static struct model stock_hands={{1,stock_nodes}}, alternate_hands={{1,alternate_nodes}};
+static boolean alternate_present=TRUE;
+static struct model *model_definition_get(long index) { return index==1 ? &stock_hands : &alternate_hands; }
+static struct animation_graph *animation_graph_definition_get(long graph) { return &hand_graph; }
+static char const *tag_get_name(long definition) { return definition==1 ? "characters\\elite\\elite" : NULL; }
+static long tag_loaded(long group, char const *name)
+{
+	CHECK(group==MODELS_GROUP_TAG && !strcmp(name,"characters\\elite\\elite_fp"),"hands lookup used an unrelated tag");
+	return alternate_present ? 2 : NONE;
+}
+#include "hands.inc"
+
 static struct render_camera camera = { { 0.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f } };
 static real_matrix4x3 nodes[NODES];
 
@@ -68,6 +94,24 @@ static void expect(real x)
 int main(int argc, char **argv)
 {
 	char const *case_name = argc > 1 ? argv[1] : "";
+
+	CASE("authored hands")
+	{
+		struct unit_datum body={1,{_object_type_biped}};
+		short mapping[2]={NONE,NONE};
+		CHECK(first_person_weapon_select_hands(&body,GRAPH,1,mapping)==2 && mapping[0]==1,
+			"authored body did not use the held weapon's matching hand node");
+		strcpy(alternate_nodes[0].name,"unmatched");
+		CHECK(first_person_weapon_select_hands(&body,GRAPH,1,mapping)==1 && mapping[0]==0,
+			"incompatible arms did not rebuild the stock remap");
+		alternate_hands.nodes.count=3;
+		CHECK(first_person_weapon_select_hands(&body,GRAPH,1,mapping)==1,"oversized arms did not fall back");
+		alternate_hands.nodes.count=0;
+		CHECK(first_person_weapon_select_hands(&body,GRAPH,1,mapping)==1,"empty arms did not fall back");
+		alternate_present=FALSE;
+		CHECK(first_person_weapon_select_hands(&body,GRAPH,NONE,mapping)==NONE,"absent arms produced a model");
+		return 0;
+	}
 
 	frame(10, 1.0f, WEAPON, GRAPH, 0.0f);
 	/* a melee swings the weapon further in a tick than any limit that would

@@ -757,7 +757,7 @@ The response has these fields:
 | `simulation_hz` | Classic simulation rate, currently 30 |
 | `network` | Compiled advertised version 45 and native layout 44; preserve the accepted 44/45 bridge |
 | `operations` | Currently only `runtime.discover` |
-| `native_features` | Optional native desktop CE feature identifiers. `extraction.squad_objectives.v1` covers the binding below, not an RPC or platform/gameplay certification. Older/unsupported target builds omit it. |
+| `native_features` | Optional native desktop CE feature identifiers. These include `extraction.squad_objectives.v1` and `character.biped_hands.v1`. Older or unsupported builds omit features they lack. |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
 | `startup_map` | Optional desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Windows64 fresh-profile/native-hub startup passes on the exact binary above; other targets remain unverified. Older and non-desktop/server builds may omit it. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
@@ -2412,9 +2412,7 @@ characters/elite/elite with 0.8 standing height, 0.2 collision radius, the
 stand pistol pp animation and CD-passengerL01 exit clips. Verify the actual
 exported Elite's native weapon checks with technology_grunt and its exact
 Spirit seats. Confirm collision, animation, first-person arms and weapons,
-HUD, shields and sound in the delivered map. The current first-person hands
-lookup uses a map-wide native interface, so mixed-faction hands still need a
-verified per-body binding.
+HUD, shields and sound in the delivered map.
 
 The existing Player Setup color picker stores the selected profile color.
 Faction replacement and respawn apply it to native armor channel A after tag
@@ -2424,6 +2422,43 @@ Custom armor should keep that binding and preserve function-driven effects.
 The focused check exercises two distinct profile colors and
 preservation of a secondary channel. Lobby readback, reconnect, transitions
 and rendered two-client Elite colors require native Elite acceptance.
+
+### First-person arms for authored characters
+
+Forerunner desktop CE builds advertising `character.biped_hands.v1` can
+select arms by the player's actual biped definition. Name the authored
+hands model after that exact cooked biped path followed by `_fp`. For
+`characters\elite_mp\elite_mp_special.biped`, the matching CE source tag is
+`characters\elite_mp\elite_mp_special_fp.gbxmodel`. Include the model through
+an ordinary scenery tag in the scenario's scenery palette. A world placement
+is unnecessary. Check the exported cache for the exact path, including any
+namespace introduced by asset import.
+
+The existing weapon graph supplies the animation and bone matrices.
+Each arms model node must match that graph by name. Keep the default hands
+in Globals for other characters, unsupported runtimes and weapons whose
+graphs cannot remap the authored arms. Spark can expose this as an optional
+First-person arms selection in its existing native faction-body workflow
+and check the chosen starter weapon graphs and cooked model at build time.
+This binding has no network packet or save-format extension.
+
+The native Windows test used Invader to retain a renamed existing Spartan
+hands model through an unused scenery palette entry. Forerunner rendered
+its arms and weapon without the global hands reference. The capture is
+`build/native-first-person-authored-model/viewmodel.png`. Actual Elite
+models, mixed-faction first-person multiplayer and VR remain unverified.
+
+The selected approach extends the existing mapper in
+`source/interface/first_person_weapons.c`. Reviewed OpenCE
+`a1a4dfd0a1abc751f179eb6dc99b88bc401b5a41` (GPL-3.0), Fractum/Chupathingy
+`cd7fd91f376a18da21674872c8da9d693d9dea02` (AGPL-3.0). The inspected
+draw/remap code in OpenH1 `96aa534b860d`, SlipstreamCE `75dd78a44c53`,
+Faber `e4ffe0fe9874` and Halo Content Evolved `aff7a5d1b8ef` also uses a
+map-wide hands reference (AGPL-3.0). The native build used Invader
+`0.55.0.r4134.33518109` (GPL-3.0-only). DarkZealot's 2008
+[Elite MP Tags 2.0](https://www.halomaps.org/hce/detail.cfm?fid=3739)
+documents the map-wide player biped assignment. The listing does not specify
+redistribution terms. No assets from the release were added.
 
 Physical boarding continuation (base `770f0c65b2`, 16 November): existing native
 `unit_can_enter_seat` now enforces assigned Pelican/Spirit factions for actual

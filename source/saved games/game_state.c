@@ -131,6 +131,7 @@ symbols in this file:
 #include "mcc_checkpoint.h" /* port: port/linux/game/mcc_checkpoint.h */
 #include "hs_console_state.h" /* port: port/linux/game/hs_console_state.inl */
 #include "extraction.h" /* port: port/linux/game/extraction.c */
+#include "interface/first_person_weapons.h"
 #include "vr_render.h" /* port: optional tracked aim is outside the saved image. */
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_invalidate(void);
@@ -245,6 +246,7 @@ static game_state_after_load_proc after_load_procs[] =
 	structure_detail_objects_flush,
 	game_state_set_revert_time,
 	player_control_fix_for_loaded_game_state,
+	first_person_weapons_restore_hands,
 	director_initialize_for_saved_game,
 	scripted_hud_messages_clear,
 	/* port: restore matching homes or forget an unrelated disk/core load. */
