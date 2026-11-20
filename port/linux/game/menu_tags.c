@@ -454,7 +454,7 @@ static char const *const port_function_names[] =
 	"port update install",
 	"port forerunner host native", "port forerunner host firefight", "port forerunner host extraction",
 	"port forerunner menu init", "port forerunner host infection",
-	"port forerunner host forge", "port forge pick", "port forge place", "port forge undo",
+	"port forerunner host forge", "port forerunner host forge local", "port forge pick", "port forge place", "port forge undo",
 	"port forge save", "port forge load", "port forge remove", "port forge move", "port forge undo move",
 	"port forge rotate", "port forge save hmv", "port forge load hmv", "port forge redo move", "port forge load saved hmv",
 };

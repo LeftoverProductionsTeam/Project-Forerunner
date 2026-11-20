@@ -131,6 +131,7 @@ int main(int argc, char **argv)
 	disposing = &host;
 	bss_004566dc.server = &host; bss_004566dc.client = &client;
 	bss_004566dc.quickstart_local = bss_004566dc.client_started = TRUE;
+	network_game_hosting_local = TRUE;
 	network_game_server_memory_do_not_use_directly_in_use = TRUE;
 	strcpy(network_game_server_cooperative_next_map, "next-level");
 	expected_message = _message_server_graceful_game_exit_pregame;
@@ -165,7 +166,7 @@ int main(int argc, char **argv)
 	if (back || reopen)
 		CHECK(!bss_004566dc.server && !bss_004566dc.client && !bss_004566dc.quickstart_local && !bss_004566dc.client_started &&
 			clients_closed == 1 && new_servers == reopen && joins_cleared == back && variants_cleared == back &&
-			!network_game_port_pc_menus_hosting,
+			!network_game_port_pc_menus_hosting && !network_game_hosting_local,
 			"menu lifecycle state changed");
 	return 0;
 }

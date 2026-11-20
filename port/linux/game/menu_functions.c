@@ -5417,6 +5417,7 @@ boolean ui_widget_port_cooperative_level_choose(char const *map_name, short diff
 short ui_widget_port_gametypes(long *indices, short maximum, short *last_used);
 boolean ui_widget_port_gametype_choose(long profile_index);
 boolean ui_widget_port_host(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
+boolean ui_widget_port_host_local(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
 boolean ui_widget_port_browse(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
 boolean ui_widget_port_open(struct widget_instance *widget, char const *name, boolean *widget_deleted);
 boolean network_game_client_advertised_game_in_progress(void *client, struct advertised_game *game);
@@ -5709,19 +5710,21 @@ static boolean forerunner_operation_chooser;
 static boolean forerunner_infection_chooser;
 
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
-	boolean *widget_deleted)
+	boolean *widget_deleted, boolean local_only)
 {
 	forerunner_operation_chooser = FALSE;
 	forerunner_infection_chooser = FALSE;
 	multiplayer_mode_set(widget);
 	if (!multiplayer_player(controller))
 		return FALSE;
-	p2p_set_hosting_allowed(multiplayer.mode == _multiplayer_mode_host_internet);
+	p2p_set_hosting_allowed(!local_only && multiplayer.mode == _multiplayer_mode_host_internet);
 	/* (in the server browser, if PUBLIC: Server Setup's LISTING, which a
 	new game starts with as network.host_public says) */
 	multiplayer.game_private = !config_boolean("network.host_public");
-	p2p_set_hosting_public(multiplayer.mode == _multiplayer_mode_host_internet && !multiplayer.game_private);
+	p2p_set_hosting_public(!local_only && multiplayer.mode == _multiplayer_mode_host_internet && !multiplayer.game_private);
 	multiplayer.cooperative_maximum_players_set = FALSE;
+	if (local_only)
+		return ui_widget_port_host_local(widget, event, widget_deleted);
 #ifdef HALO_BROWSER
 	/* (in the browser the server is reached through a room of the page's,
 	which this opens: port/web/src/web_online_ui.c) */
@@ -13857,7 +13860,8 @@ static short forerunner_operation_mode(char const *action)
 {
 	if (!strcmp(action, "port forerunner host extraction")) return 2;
 	if (!strcmp(action, "port forerunner host firefight")) return 1;
-	if (!strcmp(action, "port forerunner host native") || !strcmp(action, "port forerunner host forge")) return 0;
+	if (!strcmp(action, "port forerunner host native") || !strcmp(action, "port forerunner host forge") ||
+		!strcmp(action, "port forerunner host forge local")) return 0;
 	return NONE;
 }
 
@@ -14083,7 +14087,7 @@ boolean pc_menu_event_function_invoke(
 		}
 		else if (!strcmp(name, "port forerunner host infection"))
 		{
-			if (!multiplayer_host(widget, event, controller, widget_deleted)) return FALSE;
+			if (!multiplayer_host(widget, event, controller, widget_deleted, FALSE)) return FALSE;
 			forerunner_infection_chooser = TRUE;
 			return TRUE;
 		}
@@ -14100,6 +14104,7 @@ boolean pc_menu_event_function_invoke(
 		{
 			struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
 			short mode = forerunner_operation_mode(name);
+			boolean local_forge = !strcmp(name, "port forerunner host forge local");
 			if (!option || !gametype_option_setting_write(option, mode)) return campaign_fail();
 			/* Authored operations own exact crew and encounter counts. The
 			 * ordinary co-op menu keeps its configurable enemy scaling. */
@@ -14108,8 +14113,8 @@ boolean pc_menu_event_function_invoke(
 				option = gametype_option_named("coop_extra_enemies_spinner");
 				if (!option || !gametype_option_setting_write(option, 2)) return campaign_fail();
 			}
-			if (!multiplayer_host(widget, event, controller, widget_deleted)) return FALSE;
-			if (!strcmp(name, "port forerunner host forge"))
+			if (!multiplayer_host(widget, event, controller, widget_deleted, local_forge)) return FALSE;
+			if (local_forge || !strcmp(name, "port forerunner host forge"))
 				network_game_enable_forge();
 			else
 				forerunner_operation_chooser = TRUE;
@@ -14163,7 +14168,7 @@ boolean pc_menu_event_function_invoke(
 		}
 		else if (!strcmp(name, "join controller to mp game"))
 		{
-			return multiplayer_host(widget, event, controller, widget_deleted);
+			return multiplayer_host(widget, event, controller, widget_deleted, FALSE);
 		}
 		else if (!strcmp(name, "mp level list initialize"))
 		{

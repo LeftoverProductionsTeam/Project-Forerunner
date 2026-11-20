@@ -6637,6 +6637,21 @@ boolean ui_widget_port_host(
 	return result;
 }
 
+/* Local Forge shares the stock split-screen server's loopback-only transport. */
+boolean ui_widget_port_host_local(
+	struct widget_instance *widget,
+	struct event_record *event,
+	boolean *widget_deleted)
+{
+	dispose_global_network_game_client();
+	dispose_global_network_game_server();
+	player_ui_clear_multiplayer_variant();
+	if (!split_screen_game_initialize(widget, event, widget_deleted))
+		return FALSE;
+	network_game_server_pause_countdown(global_network_game_server_get(), TRUE);
+	return TRUE;
+}
+
 /* the game browsing (as the Xbox's server list): found games' client */
 boolean ui_widget_port_browse(
 	struct widget_instance *widget,

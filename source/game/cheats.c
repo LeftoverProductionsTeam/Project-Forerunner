@@ -283,17 +283,41 @@ boolean cheats_console_object_made(
 	return TRUE;
 }
 
+#ifdef NATIVE_FORGE_SIDECARS
+static boolean forge_local_host(void)
+{
+	return network_game_forge_hosting() && network_game_is_splitscreen_local();
+}
+#endif
+
+static boolean forge_has_remote_players(void)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	if (forge_local_host())
+		return FALSE;
+#endif
+	return global_network_game_server_get() != NULL;
+}
+
 static struct object_datum *forge_placeable_object_get(long object_index)
 {
 	struct object_header_datum *header = object_header_try_and_get(object_index);
 	struct object_datum *object = object_try_and_get(object_index);
 	if (!header || TEST_FLAG(header->flags, _object_header_being_deleted_bit) ||
 		!object || object->object.parent_object_index != NONE ||
-		TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
-		!TEST_FLAG(_object_mask_scenery | _object_mask_weapon | _object_mask_equipment | _object_mask_vehicle,
-			object->object.type))
+		TEST_FLAG(object->object.damage_flags, _object_dead_bit))
 		return NULL;
-	return object;
+	if (TEST_FLAG(_object_mask_scenery | _object_mask_weapon | _object_mask_equipment | _object_mask_vehicle,
+		object->object.type))
+		return object;
+#ifdef NATIVE_FORGE_SIDECARS
+	/* Exact HMV-created devices can be edited. Native scenario bindings
+	 * and live linked switches stay with the original map. */
+	if (forge_local_host() && TEST_FLAG(_object_mask_machine | _object_mask_control, object->object.type) &&
+		forge_copies[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)] == object_index)
+		return object;
+#endif
+	return NULL;
 }
 
 /* Port: Faber's Forge 3D selection uses the native world collision ray.
@@ -388,7 +412,7 @@ static long forge_clone_at_position(
 	}
 	/* port: native object creation does not replicate scenery. A host-only
 	copy would leave the other machines without its geometry/collision. */
-	if (global_network_game_server_get() && object->object.type == _object_type_scenery)
+	if (forge_has_remote_players() && object->object.type == _object_type_scenery)
 	{
 		console_warning("forge_clone needs local play for scenery; network creation does not carry scenery");
 		return NONE;
@@ -851,13 +875,17 @@ static boolean forge_sidecar_slot(char const **base, char reference[144], char p
 }
 
 static boolean forge_layout_placement(unsigned long group, char const *path, real_point3d const *position,
-	real_euler_angles3d const *angles, short team, struct object_placement_data *placement)
+	real_euler_angles3d const *angles, short team, boolean hmv, struct object_placement_data *placement)
 {
 	long definition;
 	struct location location;
 
-	if ((group != 'vehi' && group != 'weap' && group != 'eqip' && group != 'scen') ||
-		(group == 'scen' && global_network_game_server_get()) ||
+	/* ChupathingyCE Forge creates machines and controls with object_new
+	 * and leaves their scenario links to the map. The co-op state sender
+	 * assumes those devices already exist on each peer, so host them locally. */
+	boolean device = hmv && forge_local_host() && (group == 'mach' || group == 'ctrl');
+	if ((!device && group != 'vehi' && group != 'weap' && group != 'eqip' && group != 'scen') ||
+		(group == 'scen' && forge_has_remote_players()) ||
 		strchr(path, '|') || team < NONE || team >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS ||
 		!valid_real_point3d(position) || !valid_real(angles->yaw) || !valid_real(angles->pitch) || !valid_real(angles->roll) ||
 		angles->yaw < -2.f * M_PI || angles->yaw > 2.f * M_PI ||
@@ -898,7 +926,7 @@ static boolean forge_sidecar_object(char const *line, struct object_placement_da
 	return !strncmp(fields, "|0|0|", 5) &&
 		sscanf(fields + 5, "%f|%f|%f|%f|%f|%f|%3hd|%255[^\r\n]",
 			&position.x, &position.y, &position.z, &angles.yaw, &angles.pitch, &angles.roll, &team, path) == 8 &&
-		forge_layout_placement(group, path, &position, &angles, team, placement);
+		forge_layout_placement(group, path, &position, &angles, team, FALSE, placement);
 }
 
 static boolean forge_sidecar_base_matches(char const *name, char const *reference)
@@ -994,15 +1022,13 @@ static boolean forge_layout_pose(long handle, struct object_datum const *object,
 		object->object.owner_player_index != NONE ||
 		object->object.owner_team_index < NONE || object->object.owner_team_index >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS)
 		return FALSE;
-	group = object->object.type == _object_type_vehicle ? 'vehi' :
-		object->object.type == _object_type_weapon ? 'weap' :
-		object->object.type == _object_type_equipment ? 'eqip' : 'scen';
+	group = tag_get_group_tag(object->definition_index);
 	path = tag_get_name(object->definition_index);
 	if (!path || !path[0] || strlen(path) > 255 ||
 		strpbrk(path, "|\r\n") || tag_loaded(group, path) != object->definition_index ||
 		object->object.variant_number != 0 || !forge_copy_scale_supported(object->object.scale) ||
 		(object->object.scale != 0.f && !(object->object.scale > 0.f && object->object.scale < 100.f)) ||
-		(group == 'scen' && global_network_game_server_get()) ||
+		(group == 'scen' && forge_has_remote_players()) ||
 		(group == 'weap' && weapon_is_flag(handle)) ||
 		!valid_real_point3d(&object->object.position) ||
 		!valid_real_vector3d_axes2(&object->object.forward, &object->object.up))
@@ -1057,7 +1083,8 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 			had_copies = TRUE;
 		if (!object)
 			continue;
-		if (++count > FORGE_SIDECAR_OBJECTS || !forge_layout_pose(handle, object, &group, &path, &angles))
+		if (++count > FORGE_SIDECAR_OBJECTS || !forge_layout_pose(handle, object, &group, &path, &angles) ||
+			group == 'mach' || group == 'ctrl')
 			return FALSE;
 		/* Keep the upstream OBJECT row readable. Older editors ignore the
 		 * optional property and place these objects at their default scale. */
@@ -1279,7 +1306,7 @@ static boolean forge_hmv_placements(struct forge_file_layout const *layout, stru
 		path = &layout->paths[record->path_index];
 		memcpy(position.n, record->position, sizeof(record->position));
 		memcpy(angles.n, record->angles, sizeof(record->angles));
-		if (!forge_layout_placement(path->group_tag, path->path, &position, &angles, record->team, &placements[i].object))
+		if (!forge_layout_placement(path->group_tag, path->path, &position, &angles, record->team, TRUE, &placements[i].object))
 			return FALSE;
 		placements[i].scale = 1.f;
 	}

@@ -2910,7 +2910,24 @@ object placed at start with its native tag path, team and pose. Respawn timers,
 variants, AI, game markers, packs and special physics require support beyond
 this interface. A file requiring such features is refused intact. Host limits
 and gameplay-object restrictions still apply. Scenery is currently excluded
-from network-hosted placement, as it is for the text sidecar.
+from sessions that accept remote connections, as it is for the text sidecar.
+
+Desktop discovery feature `forge.hmv_local_devices.v1` adds **Forge → Local
+Forge**. Use the matching multiplayer cache and the same `import.hmv`
+slot. This local host accepts stock scenery and plain `mach` and `ctrl`
+HMV records placed at start, with normal physics and the existing record
+limits. The added objects use native creation and keep their tag defaults.
+Set up linked switches, power groups and scripts in the native scenario.
+The HMV writer saves these devices with the original classes. Device
+records stay outside the text sidecar and remote-hosted HMV path. Spark
+can expose the local device export when the runtime advertises this
+feature. Keep the base-placement export for older runtimes and remote
+sessions. The [Chupathingy Forge placement
+path](https://github.com/ChupathingyCE/chupathingyce/blob/0ec9360d7dcf96d4a99636fde6d2c5c1388ff56d/port/linux/game/forge.c#L2126-L2178)
+uses the same native object creation. Windows x64 native placement and
+save evidence: `build/native-forge-local-devices-play/result.json`
+(Danger Canyon control) and `build/native-forge-local-machine/result.json`
+(Wizard machine). Both runs bound UDP to loopback.
 
 Reuse source: ChupathingyCE `1b732f52d73f214d4f0068178d45753cca56dcf3`
 `port/linux/game/forge_files.c` and `forge_files.h`, retained verbatim under

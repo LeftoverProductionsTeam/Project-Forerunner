@@ -200,12 +200,18 @@
 	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Open Forge Tools from the pause menu to copy objects." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
-		<child widget="forerunner/forge/join" x="60" y="350" />
+		<child widget="forerunner/forge/create_lan_local" x="60" y="350" platform="desktop" />
+		<child widget="forerunner/forge/join" x="60" y="384" />
 		<child widget="forerunner/forge/back" x="336" y="414" />
 	</widget>
 	<widget name="forerunner/forge/native_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="CREATE SESSION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/create_lan_local" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="LOCAL FORGE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge local" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge local" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/forge/join" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">

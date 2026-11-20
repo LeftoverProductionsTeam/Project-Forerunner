@@ -44,6 +44,14 @@ single host selected a Pelican, stepped clear, rotated it, undid the turn
 and redid it on the same object. Evidence: `build/native-forge-redo-validated/result.json`.
 Two-client redo remains an acceptance check.
 
+**Forge → Local Forge** uses the existing loopback-only Halo host and can
+place normal HMV machine and control records from the exact base cache.
+Windows x64 placed and saved a Danger Canyon holo control and a Wizard
+alert-light machine, with all game UDP listeners on loopback. Both input
+caches and imports retained their hashes. Device wiring, fixed/phased HMV
+physics and remote replication remain open. See the Spark contract for
+the capability and native evidence.
+
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or
 loss; B, Spark's delivered CE609 Black Echo and real mission outcomes; C, actual

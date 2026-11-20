@@ -218,6 +218,9 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "extraction.faction_landing_zones.v1");
 	server_json_string(&json, NULL, "character.biped_hands.v1");
 	server_json_string(&json, NULL, "forge.hmv_base_placements.v1");
+#if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
+	server_json_string(&json, NULL, "forge.hmv_local_devices.v1");
+#endif
 	server_json_array_end(&json);
 #endif
 	/* Optional local startup metadata, not a gameplay or editing operation. */
