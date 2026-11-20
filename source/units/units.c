@@ -5118,7 +5118,8 @@ boolean unit_try_and_exit_seat(
 	boolean result = FALSE;
 
 	if (unit->object.parent_object_index!=NONE &&
-		unit->unit.parent_seat_index!=NONE)
+		unit->unit.parent_seat_index!=NONE &&
+		extraction_transport_can_disembark(unit))
 	{
 		if (unit->object.type==_object_type_vehicle)
 		{

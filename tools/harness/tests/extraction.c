@@ -46,9 +46,11 @@ struct tag_reference {long index;};
 struct object_fields { long first_child_object_index, next_object_index; short type; long parent_object_index, owner_player_index; unsigned long flags; short name_index; long damage_flags; real_point3d position;
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct object_datum { long definition_index; struct object_fields object; };
+struct unit_animation_data { short state, seat_index; };
 struct unit_datum { long definition_index; struct object_fields object;
- struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4]; short current_weapon_index, desired_weapon_index, parent_seat_index;
+ struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4], driver_object_index; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags,flags;
+  struct unit_animation_data animation;
   real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth; } unit;
  struct { unsigned long flags; unsigned char on_ground_ticks; } vehicle; };
 struct weapon_datum { long definition_index; struct object_fields object;
@@ -442,6 +444,14 @@ static boolean unit_set_or_test_seat_and_weapon_label(long u,char const *seat,ch
  if(weapon){CHECK(!strcmp(weapon,"unarmed")&&!change,"exit mutated a supported unarmed binding");exit_pose_queries++;return exit_unarmed_supported;}
  CHECK(change,"exit fallback was not applied");exit_pose_fallbacks++;exit_ground_pose=exit_stand_supported;return exit_stand_supported;
 }
+#include "native_unit_state.inc"
+static boolean unit_animation_busy(struct unit_animation_data const *animation){return animation->state==_unit_state_exiting_seat;}
+static void unit_exit_seat_end(long u){unit_get(u)->object.parent_object_index=NONE;}
+static void unit_open(long u){}
+static short animation_choose_random_permutation(long graph,short index){return index;}
+static void unit_set_animation(long u,long graph,short index){CHECK(index==1,"wrong native exit animation");}
+static void object_set_visibility(long u,boolean visible){}
+static void ai_handle_exit_vehicle(long u,long parent){}
 #include "native_seats.inc"
 #include "controls.inc"
 
@@ -1456,6 +1466,30 @@ int main(int argc,char **argv)
    dropships[a].object.flags|=FLAG(_object_on_ground_bit);dropships[a].vehicle.on_ground_ticks=5;
   }
   advance(1);
+  if(!strcmp(case_name,"transport-landed-egress")) {
+   native_animation_graph.unit_seats=(struct tag_block){1,&native_animation_seat};
+   native_animation_seat.animations=(struct tag_block){9,native_animation_indices};
+   native_animation_indices[8].animation_index=1;
+   units[0].definition_index=4;units[0].unit.parent_seat_index=0;
+   for(a=0;a<2;a++) {
+    units[0].object.parent_object_index=dropship_handles[a];
+    dropships[a].object.flags&=~FLAG(_object_on_ground_bit);
+    CHECK(!unit_try_and_exit_seat(unit_handles[0]),"live passenger started exit while aircraft was airborne");
+    dropships[a].object.flags|=FLAG(_object_on_ground_bit);
+    CHECK(unit_try_and_exit_seat(unit_handles[0]),"grounded passenger exit was refused");
+    units[0].unit.animation.state=_unit_state_idle;
+   }
+   dropships[1].object.flags&=~FLAG(_object_on_ground_bit);
+   dropships[1].object.damage_flags=FLAG(_object_die_act_of_god_bit);
+   CHECK(unit_try_and_exit_seat(unit_handles[0]),"failing aircraft trapped its passenger");
+   dropships[1].object.damage_flags=0;units[0].unit.animation.state=_unit_state_idle;
+   units[0].unit.player_index=NONE;
+   CHECK(unit_try_and_exit_seat(unit_handles[0]),"authored NPC exit was refused");
+   units[0].unit.player_index=player_handles[0];units[0].unit.animation.state=_unit_state_idle;
+   extraction.dropship_landing_groups[1]=NONE;
+   CHECK(unit_try_and_exit_seat(unit_handles[0]),"legacy authored exit was refused");
+   return 0;
+  }
   if(!strcmp(case_name,"transport-spirit-return")) {
    long spirit=dropship_handles[1];
    struct unit_datum *ship=&dropships[1];

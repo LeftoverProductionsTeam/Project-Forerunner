@@ -1814,6 +1814,26 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 		extraction_squad_objectives_ready(run);
 }
 
+boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
+{
+	long ship = passenger->object.parent_object_index;
+	short faction;
+	if (passenger->unit.player_index == NONE || ship == NONE ||
+		!extraction_requested() || !extraction.bound || !extraction.admitted) return TRUE;
+	for (faction = 0; faction < 2; faction++)
+		if (extraction.dropship_names[faction] != NONE && extraction.dropship_landing_groups[faction] != NONE &&
+			object_index_from_name_index(extraction.dropship_names[faction]) == ship)
+		{
+			struct unit_datum *vehicle = (struct unit_datum *)
+				object_try_and_get_and_verify_type(ship, _object_mask_vehicle);
+			/* A damaged or destroyed craft must still release its passengers. */
+			return !vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
+				extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.f) ||
+				vehicle_is_landed(ship);
+		}
+	return TRUE;
+}
+
 static boolean extraction_at_return(struct extraction_run const *run, long unit_index)
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
