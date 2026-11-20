@@ -11,7 +11,29 @@ No separate coordination service or repeated cross-project polling/builds.
 
 ## Current Black Echo candidates
 
-Spark's newest retained facility-cover CE609 cache is
+Spark's 20 November CE609 candidate is
+releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
+SHA256 d4ca73c8f3250501efc1448b81f86fa5e150e53f9833125f366977b91fd15213.
+The compiled weapon forerunner/be_native/technology_grunt uses pp and the
+native unit_has_weapon objective tests that same definition. Two Windows
+clients joined the private session and matched the exact cache. The hub
+admitted the map. Account proofs were not exchanged with profile sharing
+off. Live technology pickup and authenticated banking remain unverified.
+
+Black Echo's large HUD is present in the cooked CE609 tags. At 960x540,
+the radar is about twice the width of stock CE with the same runtime.
+The candidate ui/hud/cyborg shield background and health background have
+scaling flags 0 and offsets (0,2) and (-10,36). The stock tag uses the
+high-resolution scale flag (4) with (0,1) and (-5,18). On the assault
+rifle HUD, the candidate static and meter flags are 0 at (0,42) and
+(-2,40), where stock uses 4 at (0,20) and (-1,20). Match the radar panel
+and blip positions together. The candidate's single-player blip anchor
+is (104,103) versus (41,41) in stock. Preserve the artwork and align the
+native placements and scaling flags for the intended on-screen size.
+The 960x540 captures are build/black-echo-hud-before.png and
+build/stock-ce-hud-reference.png.
+
+Spark's previous facility-cover CE609 cache is
 releases/black-echo-native-covenant-facility-cover-20261118/be_native.map,
 SHA256 ce892c715ccdb5eaaccb9c44a1a60b6148bc52b092244e12bc4632489a89b7bf.
 The facility guard moved. The compiled technology weapon still uses hp,
