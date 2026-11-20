@@ -4,9 +4,10 @@ A TLS library in C99, by the Mbed TLS contributors, licensed under the
 Apache License 2.0 or the GNU General Public License 2.0 or later (see
 `LICENSE`).
 
-Upstream: https://github.com/Mbed-TLS/mbedtls, release `mbedtls-3.6.7` (the
-3.6 long-term support branch), `mbedtls-3.6.7.tar.bz2`, SHA-256
-`a7e8bcbec0e6f761b4af24f25677626b35f762f68eef79c08677a363212d11f6`.
+Upstream: https://github.com/Mbed-TLS/mbedtls, release `v3.6.8` (the 3.6
+long-term support branch), commit `82e69999f91126589a28b70dd75b69fbcabe2711`.
+GitHub's source archive for this commit has SHA-256
+`49562d7a841503708ab8a8d2ef4939e655dfa3d2363ab8400c2f426684f60492`.
 
 Only `library/`, `include/` and `LICENSE` of the release are kept, without
 their build files, and nothing in them is changed. The default configuration
