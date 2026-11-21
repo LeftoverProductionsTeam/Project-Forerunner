@@ -134,7 +134,14 @@ Spark-authored Fixed Warthog 90 degrees with host opt-in. Host Undo and
 Redo replicated and a late joiner received the same object and pose. Spark
 read the final angle and Fixed mode from the host save. The runtime advertises
 `forge.guest_rotate.v1`. Evidence is in `build/native-guest-forge-rotate/result.json`.
-Guest move, clone, removal and authenticated human verification remain open.
+Private Delta guests can also select, place, move, and remove eligible
+objects. Windows x64 loopback verified matching placements and deletions,
+late join, and Spark readback of the host's HMV. It also verified a guest
+selection becoming stale after a replicated host undo, host redo, and
+reloading the saved layout after restarting. Discovery advertises
+`forge.guest_placements.v1`. See `build/native-guest-forge-placements/result.json`
+and `build/native-guest-forge-recovery/result.json`.
+Authenticated human play remains open.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or

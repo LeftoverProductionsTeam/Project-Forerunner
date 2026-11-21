@@ -506,6 +506,30 @@ enum
 	DISTRIBUTED_RELAYED_ACTION_MAXIMUM_SIZE = 14 + 2 * (DISTRIBUTED_INPUT_HISTORY - 1),
 };
 
+/* The original rotation entry is also the observed pose in guest edits. */
+struct distributed_forge_pose
+{
+	long player_index;
+	long unit_index;
+	long object_index;
+	real_point3d position;
+	struct distributed_vector forward, up;
+};
+struct distributed_forge_edit
+{
+	struct distributed_forge_pose pose;
+	long action;
+};
+typedef char distributed_forge_pose_size_assert[sizeof(struct distributed_forge_pose) == 36 ? 1 : -1];
+typedef char distributed_forge_edit_size_assert[sizeof(struct distributed_forge_edit) == 40 ? 1 : -1];
+
+static struct
+{
+	boolean selected;
+	unsigned long last_request;
+	struct distributed_forge_pose selection;
+} distributed_forge_guests[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+
 struct distributed_pickup
 {
 	byte player_index;
@@ -5286,7 +5310,8 @@ typedef char distributed_kinds_known_assert[_distributed_message_votekick == _di
 	_distributed_message_map_vote_choice + 1 == _distributed_message_checkpoint &&
 	_distributed_message_mcc_game_speed + 3 == _distributed_message_mcc_share_request &&
 	_distributed_message_vehicle_riding_map + 1 == _distributed_message_forge_rotate &&
-	_distributed_message_forge_rotate + 1 == NUMBER_OF_DISTRIBUTED_MESSAGES ? 1 : -1];
+	_distributed_message_forge_rotate + 1 == _distributed_message_forge_edit &&
+	_distributed_message_forge_edit + 1 == NUMBER_OF_DISTRIBUTED_MESSAGES ? 1 : -1];
 
 /* a message of a kind this build does not know, from the host (machine_index
 NONE) or a client: dropped, as ever. A kind the layout of the sender's
@@ -5560,6 +5585,7 @@ static void distributed_reset_checkpoint_state(boolean reset_received_times)
 	short sender, type, player_index;
 
 	distributed_last_sent_time = NONE;
+	csmemset(distributed_forge_guests, 0, sizeof(distributed_forge_guests));
 	csmemset(distributed_deaths, 0, sizeof(distributed_deaths));
 	csmemset(distributed_seat_disagreements, 0, sizeof(distributed_seat_disagreements));
 	csmemset(distributed_predictions, 0, sizeof(distributed_predictions));
@@ -6020,107 +6046,179 @@ void distributed_send_notice_to_machine(
 		(word)(sizeof(message.header) + length + 1));
 }
 
-/* A request carries the observed pose so delayed edits cannot blindly rotate a
- * copy another editor just moved. The host computes and validates the new pose. */
-struct distributed_forge_rotate
+#ifdef HALO_GAME_BROWSER
+static void distributed_capture_forge_pose(struct distributed_forge_pose *pose, struct object_datum const *object)
 {
-	long player_index;
-	long unit_index;
-	long object_index;
-	real_point3d position;
-	struct distributed_vector forward, up;
-};
-typedef char distributed_forge_rotate_size_assert[sizeof(struct distributed_forge_rotate) == 36 ? 1 : -1];
+	pose->position = object->object.position;
+	distributed_vector_pack(&object->object.forward, DISTRIBUTED_UNIT_SCALE, &pose->forward);
+	distributed_vector_pack(&object->object.up, DISTRIBUTED_UNIT_SCALE, &pose->up);
+}
 
-boolean network_distributed_request_forge_rotation(void)
+static boolean distributed_forge_pose_matches(struct distributed_forge_pose const *pose)
+{
+	struct object_datum const *object = object_try_and_get(pose->object_index);
+	real_vector3d forward, up;
+
+	if (!object || !distributed_point_valid(&pose->position, UNIT_WORLD_BOUND))
+		return FALSE;
+	distributed_vector_unpack(&pose->forward, DISTRIBUTED_UNIT_SCALE, &forward);
+	distributed_vector_unpack(&pose->up, DISTRIBUTED_UNIT_SCALE, &up);
+	return distributed_axes_make_valid(&forward, &up) &&
+		distance_squared3d(&pose->position, &object->object.position) <= 0.25f * 0.25f &&
+		dot_product3d(&forward, &object->object.forward) >= 0.999f &&
+		dot_product3d(&up, &object->object.up) >= 0.999f;
+}
+#endif
+
+boolean network_distributed_request_forge_edit(short action)
 {
 #ifdef HALO_GAME_BROWSER
 	struct
 	{
 		struct distributed_message_header header;
-		struct distributed_forge_rotate request;
+		struct distributed_forge_edit request;
 	} message;
-	long unit_index, object_index;
+	struct distributed_forge_pose *pose = &message.request.pose;
+	long unit_index;
 	struct unit_datum const *unit;
-	struct object_datum const *object;
 
 	if (!game_in_progress() || game_connection() != _game_connection_network_client ||
-		!network_objects_client_synchronized() || !delta_peer_game_host_agreed_forge_edits())
+		!network_objects_client_synchronized() || !delta_peer_game_host_agreed_forge_edits() ||
+		!VALID_INDEX(action, NUMBER_OF_FORGE_GUEST_ACTIONS) ||
+		(action != _forge_guest_rotate && !delta_peer_game_host_agreed_forge_placements()))
 		return FALSE;
 	unit_index = player_control_get_unit_index(0);
 	unit = (struct unit_datum const *)object_try_and_get_and_verify_type(unit_index, _object_mask_unit);
-	if (!unit || !distributed_player_is_local(unit->unit.player_index))
-		return FALSE;
-	object_index = cheats_forge_aimed_object(unit_index);
-	object = object_try_and_get(object_index);
-	if (!object)
+	if (!unit || !distributed_player_is_local(unit->unit.player_index) ||
+		unit->object.parent_object_index != NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return FALSE;
 
 	csmemset(&message, 0, sizeof(message));
-	message.request.player_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
-	message.request.unit_index = unit_index;
-	message.request.object_index = object_index;
-	message.request.position = object->object.position;
-	distributed_vector_pack(&object->object.forward, DISTRIBUTED_UNIT_SCALE, &message.request.forward);
-	distributed_vector_pack(&object->object.up, DISTRIBUTED_UNIT_SCALE, &message.request.up);
-	distributed_send(&message, _distributed_message_forge_rotate, 1, (word)sizeof(message),
-		_distributed_to_host_reliably);
+	pose->player_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
+	pose->unit_index = unit_index;
+	pose->object_index = NONE;
+	if (action != _forge_guest_move && action != _forge_guest_place)
+	{
+		struct object_datum const *object;
+
+		pose->object_index = cheats_forge_aimed_object(unit_index);
+		object = object_try_and_get(pose->object_index);
+		if (!object)
+			return FALSE;
+		distributed_capture_forge_pose(pose, object);
+	}
+	message.request.action = action;
+	if (action == _forge_guest_rotate)
+		distributed_send(&message, _distributed_message_forge_rotate, 1,
+			(word)(sizeof(message.header) + sizeof(*pose)), _distributed_to_host_reliably);
+	else
+		distributed_send(&message, _distributed_message_forge_edit, 1, (word)sizeof(message),
+			_distributed_to_host_reliably);
 	return TRUE;
 #else
+	(void)action;
 	return FALSE;
 #endif
 }
 
-static void distributed_handle_forge_rotate(long machine_index, void const *entries)
+static void distributed_handle_forge_edit(long machine_index, byte type, void const *entries)
 {
 #ifdef HALO_GAME_BROWSER
-	static unsigned long last_request[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
-	struct distributed_forge_rotate request;
+	struct distributed_forge_edit request;
+	struct distributed_forge_pose const *pose = &request.pose;
 	struct player_datum const *player;
-	struct object_datum const *object;
-	real_vector3d forward, up;
+	boolean rotate = type == _distributed_message_forge_rotate;
+	enum forge_guest_action action;
 	unsigned long now;
+	char const *notice;
+	static char const * const success[] =
+	{
+		"Forge: copy rotated.", "Forge: object selected.",
+		"Forge: copy placed.", "Forge: copy moved.", "Forge: copy removed."
+	};
+	static char const * const refused[] =
+	{
+		"Forge: aim at an unused copy with space to rotate.", NULL,
+		"Forge: aim at clear ground with room for this copy.",
+		"Forge: aim at clear ground and select an unused copy to move.",
+		"Forge: only unused Forge copies can be removed."
+	};
 
-	if (machine_index < 0 || machine_index >= HALO_PORT_MAXIMUM_NETWORK_MACHINES ||
+	if (!VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES) ||
 		delta_peer_game_machine_pending((int)machine_index) ||
 		delta_peer_game_machine_lacks((int)machine_index, _delta_capability_forge_guest_edits) ||
+		(!rotate && delta_peer_game_machine_lacks((int)machine_index, _delta_capability_forge_guest_placements)) ||
 		!cheats_forge_guest_edits_allowed())
 		return;
 	now = system_milliseconds();
-	if (last_request[machine_index] && now - last_request[machine_index] < 300)
+	if (distributed_forge_guests[machine_index].last_request &&
+		now - distributed_forge_guests[machine_index].last_request < 300)
 		return;
-	last_request[machine_index] = now;
+	distributed_forge_guests[machine_index].last_request = now;
 
-	csmemcpy(&request, entries, sizeof(request));
-	if (request.player_index < 0 || request.player_index >= MAXIMUM_TRACKED_PLAYERS ||
-		!distributed_machine_has_player(machine_index, (short)request.player_index))
-		return;
-	player = distributed_player((short)request.player_index);
-	if (!player || player->quit_out_of_game || request.unit_index == NONE ||
-		distributed_living_unit(player) != request.unit_index)
-		return;
-	object = object_try_and_get(request.object_index);
-	distributed_vector_unpack(&request.forward, DISTRIBUTED_UNIT_SCALE, &forward);
-	distributed_vector_unpack(&request.up, DISTRIBUTED_UNIT_SCALE, &up);
-	if (!object || !distributed_point_valid(&request.position, UNIT_WORLD_BOUND) ||
-		!distributed_axes_make_valid(&forward, &up) ||
-		distance_squared3d(&request.position, &object->object.position) > 0.25f * 0.25f ||
-		dot_product3d(&forward, &object->object.forward) < 0.999f ||
-		dot_product3d(&up, &object->object.up) < 0.999f)
+	if (rotate)
 	{
-		distributed_send_notice_to_machine(machine_index, "Forge: copy changed. Aim again to rotate it.");
+		csmemcpy(&request.pose, entries, sizeof(request.pose));
+		request.action = _forge_guest_rotate;
+	}
+	else
+		csmemcpy(&request, entries, sizeof(request));
+	if (!VALID_INDEX(request.action, NUMBER_OF_FORGE_GUEST_ACTIONS) ||
+		(!rotate && request.action == _forge_guest_rotate) ||
+		!VALID_INDEX(pose->player_index, MAXIMUM_TRACKED_PLAYERS) ||
+		!distributed_machine_has_player(machine_index, (short)pose->player_index))
+		return;
+	player = distributed_player((short)pose->player_index);
+	if (!player || player->quit_out_of_game || pose->unit_index == NONE ||
+		distributed_living_unit(player) != pose->unit_index)
+		return;
+
+	action = (enum forge_guest_action)request.action;
+	if (action == _forge_guest_move || action == _forge_guest_place)
+	{
+		/* A ground action uses the host's live aim and its own selection. */
+		pose = &distributed_forge_guests[machine_index].selection;
+		if (!distributed_forge_guests[machine_index].selected ||
+			pose->unit_index != request.pose.unit_index || pose->player_index != request.pose.player_index)
+		{
+			distributed_send_notice_to_machine(machine_index, "Forge: select an object first.");
+			return;
+		}
+	}
+	if (!distributed_forge_pose_matches(pose))
+	{
+		distributed_forge_guests[machine_index].selected = FALSE;
+		distributed_send_notice_to_machine(machine_index, "Forge: the object changed. Select or aim again.");
 		return;
 	}
-	if (cheats_forge_aimed_object(request.unit_index) != request.object_index)
+
+	if (action != _forge_guest_move && action != _forge_guest_place &&
+		cheats_forge_aimed_object(pose->unit_index) != pose->object_index)
 	{
 		distributed_send_notice_to_machine(machine_index, "Forge: the host could not confirm your aim.");
 		return;
 	}
-	distributed_send_notice_to_machine(machine_index,
-		cheats_forge_rotate_request(request.object_index) ?
-			"Forge: copy rotated." : "Forge: aim at an unused copy with space to rotate.");
+	if (action == _forge_guest_select)
+	{
+		distributed_forge_guests[machine_index].selection = *pose;
+		distributed_forge_guests[machine_index].selected = TRUE;
+		notice = success[action];
+	}
+	else if (cheats_forge_guest_edit(action, pose->unit_index, pose->object_index))
+	{
+		if (action == _forge_guest_move)
+			distributed_capture_forge_pose(&distributed_forge_guests[machine_index].selection, object_get(pose->object_index));
+		if (action == _forge_guest_remove && distributed_forge_guests[machine_index].selected &&
+			distributed_forge_guests[machine_index].selection.object_index == pose->object_index)
+			distributed_forge_guests[machine_index].selected = FALSE;
+		notice = success[action];
+	}
+	else
+		notice = refused[action];
+	distributed_send_notice_to_machine(machine_index, notice);
 #else
 	(void)machine_index;
+	(void)type;
 	(void)entries;
 #endif
 }
@@ -6675,7 +6773,10 @@ void network_distributed_machine_gone(
 	long machine_index)
 {
 	if (machine_index >= 0 && machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
+	{
 		distributed_machine_ready[machine_index] = FALSE;
+		csmemset(&distributed_forge_guests[machine_index], 0, sizeof(distributed_forge_guests[machine_index]));
+	}
 }
 
 void network_distributed_lobby_budget_reset(
@@ -7453,7 +7554,8 @@ static word distributed_kind_entry_size(
 	case _distributed_message_coop_screen_effect: size = network_coop_screen_effect_entry_size(); break;
 	case _distributed_message_coop_device_states: size = network_coop_device_state_entry_size(); break;
 	case _distributed_message_pickups: size = sizeof(struct distributed_pickup); break;
-	case _distributed_message_forge_rotate: size = sizeof(struct distributed_forge_rotate); break;
+	case _distributed_message_forge_rotate: size = sizeof(struct distributed_forge_pose); break;
+	case _distributed_message_forge_edit: size = sizeof(struct distributed_forge_edit); break;
 	case _distributed_message_aim_assist_policy: size = NETWORK_RULES_AIM_ASSIST_SIZE - sizeof(struct distributed_message_header); break;
 	case _distributed_message_shield_effects: size = NETWORK_RULES_SHIELD_EFFECTS_SIZE - sizeof(struct distributed_message_header); break;
 	case _distributed_message_chat_up:
@@ -7628,10 +7730,12 @@ static void distributed_handle_message(
 	case _distributed_message_coop_device_states: entry_size = network_coop_device_state_entry_size(); break;
 	case _distributed_message_pickups: entry_size = sizeof(struct distributed_pickup); break;
 	case _distributed_message_forge_rotate:
+	case _distributed_message_forge_edit:
+		entry_size = header.type == _distributed_message_forge_rotate ?
+			sizeof(struct distributed_forge_pose) : sizeof(struct distributed_forge_edit);
 		if (!distributed_handling_stream_message || distributed_handling_batch ||
-			header.count != 1 || size != sizeof(header) + sizeof(struct distributed_forge_rotate))
+			header.count != 1 || size != sizeof(header) + entry_size)
 			return;
-		entry_size = sizeof(struct distributed_forge_rotate);
 		break;
 	case _distributed_message_votekick: entry_size = network_votekick_request_entry_size(); break;
 	case _distributed_message_votekick_status: entry_size = network_votekick_status_entry_size(); break;
@@ -7723,6 +7827,7 @@ static void distributed_handle_message(
 	case _distributed_message_coop_skip_vote:
 	case _distributed_message_votekick:
 	case _distributed_message_forge_rotate:
+	case _distributed_message_forge_edit:
 	case _distributed_message_chat_up:
 	case _distributed_message_fire_origins:
 		if (machine_index == NONE || game_connection() != _game_connection_network_server)
@@ -7809,7 +7914,8 @@ static void distributed_handle_message(
 		network_coop_handle_skip_vote(machine_index, entries);
 		break;
 	case _distributed_message_forge_rotate:
-		distributed_handle_forge_rotate(machine_index, entries);
+	case _distributed_message_forge_edit:
+		distributed_handle_forge_edit(machine_index, header.type, entries);
 		break;
 	case _distributed_message_votekick:
 		/* (port, this fork: not a machine of a version before 41's votes,
@@ -8469,6 +8575,17 @@ static boolean distributed_wire_entries(
 		}
 		return TRUE;
 	}
+	case _distributed_message_forge_rotate:
+	case _distributed_message_forge_edit:
+		if (count == 1 && size == (type == _distributed_message_forge_rotate ?
+			sizeof(struct distributed_forge_pose) : sizeof(struct distributed_forge_edit)))
+		{
+			distributed_wire_swap(entries, 6, sizeof(long));
+			distributed_wire_swap(entries + 6 * sizeof(long), 6, sizeof(short));
+			if (type == _distributed_message_forge_edit)
+				distributed_wire_swap(entries + sizeof(struct distributed_forge_pose), 1, sizeof(long));
+		}
+		return TRUE;
 	case _distributed_message_player_inputs:
 	{
 		struct distributed_player_input *inputs = (struct distributed_player_input *)entries;
@@ -8773,13 +8890,6 @@ static word distributed_wire_sample(
 		}
 		return (word)(2 * sizeof(*pickups));
 	}
-	case _distributed_message_forge_rotate:
-		if (count == 1 && size == sizeof(struct distributed_forge_rotate))
-		{
-			distributed_wire_swap(entries, 6, sizeof(long));
-			distributed_wire_swap(entries + 6 * sizeof(long), 6, sizeof(short));
-		}
-		return TRUE;
 	case _distributed_message_player_inputs:
 	{
 		struct distributed_player_input *inputs = (struct distributed_player_input *)entries;

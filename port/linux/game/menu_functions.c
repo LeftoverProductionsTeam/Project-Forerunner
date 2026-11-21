@@ -13800,6 +13800,40 @@ boolean pc_menu_forge_guest_offered(void)
 #endif
 }
 
+boolean pc_menu_forge_guest_placements_offered(void)
+{
+#ifdef HALO_GAME_BROWSER
+	extern int delta_peer_game_host_agreed_forge_placements(void);
+
+	return pc_menu_forge_guest_offered() && delta_peer_game_host_agreed_forge_placements();
+#else
+	return FALSE;
+#endif
+}
+
+static boolean forerunner_forge_guest_action(char const *name)
+{
+	enum forge_guest_action action;
+
+	if (!strcmp(name, "port forge guest rotate"))
+		action = _forge_guest_rotate;
+	else if (!strcmp(name, "port forge pick"))
+		action = _forge_guest_select;
+	else if (!strcmp(name, "port forge place"))
+		action = _forge_guest_place;
+	else if (!strcmp(name, "port forge move"))
+		action = _forge_guest_move;
+	else if (!strcmp(name, "port forge guest remove"))
+		action = _forge_guest_remove;
+	else
+		return FALSE;
+
+	if (!network_distributed_request_forge_edit((short)action))
+		hud_print_notice(0, action == _forge_guest_place || action == _forge_guest_move ?
+			"Join the Forge match before editing." : "Aim at a Forge object first.");
+	return TRUE;
+}
+
 boolean pc_menu_forge_offered(void)
 {
 	return (network_game_forge_hosting() && !pc_menu_split_players()) || pc_menu_forge_guest_offered();
@@ -13812,15 +13846,9 @@ static boolean forerunner_forge_action(char const *action)
 
 	if (!pc_menu_forge_offered() || !game_in_progress())
 		return FALSE;
-	if (!strcmp(action, "port forge guest rotate"))
-	{
-		if (!pc_menu_forge_guest_offered())
-			return FALSE;
-		hud_print_notice(0, network_distributed_request_forge_rotation() ?
-			"Forge rotation requested." : "Aim at an unused Forge copy.");
-		return TRUE;
-	}
 	if (network_game_distributed_client())
+		return pc_menu_forge_guest_offered() && forerunner_forge_guest_action(action);
+	if (!strcmp(action, "port forge guest rotate") || !strcmp(action, "port forge guest remove"))
 		return FALSE;
 	if (network_game_host_cheats_refused())
 	{
@@ -14129,6 +14157,7 @@ boolean pc_menu_event_function_invoke(
 			!strcmp(name, "port forge undo") || !strcmp(name, "port forge remove") || !strcmp(name, "port forge move") ||
 			!strcmp(name, "port forge rotate") || !strcmp(name, "port forge undo move") || !strcmp(name, "port forge redo move") ||
 			!strcmp(name, "port forge cycle physics") || !strcmp(name, "port forge guest rotate") ||
+			!strcmp(name, "port forge guest remove") ||
 			!strcmp(name, "port forge save") || !strcmp(name, "port forge load") ||
 			!strcmp(name, "port forge save hmv") || !strcmp(name, "port forge load hmv") ||
 			!strcmp(name, "port forge load saved hmv"))

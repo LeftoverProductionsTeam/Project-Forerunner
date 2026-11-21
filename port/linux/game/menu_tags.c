@@ -77,6 +77,7 @@ boolean network_game_is_active(void);
 boolean team_change_pause_offered(void);
 boolean pc_menu_forge_offered(void);
 boolean pc_menu_forge_guest_offered(void);
+boolean pc_menu_forge_guest_placements_offered(void);
 int config_boolean(char const *name);
 
 /* cache_files.c's (port) */
@@ -461,6 +462,7 @@ static char const *const port_function_names[] =
 	"port forge rotate", "port forge save hmv", "port forge load hmv", "port forge redo move", "port forge load saved hmv",
 	"port forge cycle physics",
 	"port forge guest rotate",
+	"port forge guest remove",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
@@ -1270,8 +1272,15 @@ static boolean child_left_out(struct halo_menu_widget const *parent, struct halo
 	{
 		if (!strcmp(name, "forerunner/forge/tools/guest_rotate"))
 			return !build.game_map || !pc_menu_forge_guest_offered();
+		if (!strcmp(name, "forerunner/forge/tools/guest_remove"))
+			return !build.game_map || !pc_menu_forge_guest_placements_offered();
 		if (strcmp(name, "forerunner/forge/back") && pc_menu_forge_guest_offered())
-			return TRUE;
+		{
+			return !pc_menu_forge_guest_placements_offered() ||
+				(strcmp(name, "forerunner/forge/tools/pick") &&
+				strcmp(name, "forerunner/forge/tools/place") &&
+				strcmp(name, "forerunner/forge/tools/move"));
+		}
 	}
 	if (name && !strcmp(name, "forerunner/forge/tools/physics"))
 		return !build.game_map || !cheats_forge_physics_available();

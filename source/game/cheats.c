@@ -684,7 +684,7 @@ static boolean forge_space_occupied(struct location const *location, real_point3
 
 /* Faber's aim-based placement uses the native collision contact. Keep the
  * source's orientation and let the usual physics settle the object. */
-static boolean forge_aim_placement(long object_index, struct object_datum const *object,
+static boolean forge_aim_placement(long unit_index, long object_index, struct object_datum const *object,
 	long ignore_object_index, real_point3d *position)
 {
 	struct collision_result hit;
@@ -693,7 +693,7 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 	real_vector3d offset;
 	real radius;
 
-	if (!forge_aim_collision(&hit, FALSE) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
+	if (!forge_unit_aim_collision(unit_index, &hit, FALSE) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f)
 	{
 		console_warning("Forge needs visible ground within 20 units");
 		return FALSE;
@@ -736,9 +736,9 @@ static boolean forge_aim_placement(long object_index, struct object_datum const 
 	return location.cluster_index != NONE;
 }
 
-long cheat_forge_place(void)
+static long forge_place_copy(long unit_index, long object_index)
 {
-	struct object_datum const *object = forge_placeable_object_get(forge_selection);
+	struct object_datum const *object = forge_placeable_object_get(object_index);
 	real_point3d position;
 
 	if (!object)
@@ -746,9 +746,17 @@ long cheat_forge_place(void)
 		console_warning("forge_place needs an object selected with forge_pick");
 		return NONE;
 	}
-	if (!forge_aim_placement(forge_selection, object, NONE, &position))
+	if (!forge_aim_placement(unit_index, object_index, object, NONE, &position))
 		return NONE;
-	return forge_clone_at_position(forge_selection, &position);
+	return forge_clone_at_position(object_index, &position);
+}
+
+long cheat_forge_place(void)
+{
+	if (!terminal_command_running || network_game_distributed_client() ||
+		network_game_host_cheats_refused() || !game_in_progress())
+		return NONE;
+	return forge_place_copy(player_control_get_unit_index(0), forge_selection);
 }
 
 /* A copied vehicle's factory weapon is created with the vehicle as
@@ -928,16 +936,21 @@ static void forge_commit_transform(long object_index, struct object_datum *objec
 	forge_move_undone = FALSE;
 }
 
-boolean cheat_forge_move_selected(void)
+static boolean forge_move_selected_copy(long unit_index, long object_index)
 {
-	struct object_datum *object = forge_editable_copy(forge_selection);
+	struct object_datum *object = forge_editable_copy(object_index);
 	real_point3d position;
 
-	if (!object || !forge_aim_placement(forge_selection, object, forge_selection, &position) ||
-		!forge_remember_transform(forge_selection, object, &forge_last_move))
+	if (!object || !forge_aim_placement(unit_index, object_index, object, object_index, &position) ||
+		!forge_remember_transform(object_index, object, &forge_last_move))
 		return FALSE;
-	forge_commit_transform(forge_selection, object, &position, NULL, NULL);
+	forge_commit_transform(object_index, object, &position, NULL, NULL);
 	return TRUE;
+}
+
+boolean cheat_forge_move_selected(void)
+{
+	return forge_move_selected_copy(player_control_get_unit_index(0), forge_selection);
 }
 
 static boolean forge_settle_turned_vehicle(struct physics_instance *vehicle, long object_index,
@@ -1049,19 +1062,6 @@ int cheats_forge_guest_edits_allowed(void)
 #endif
 }
 
-boolean cheats_forge_rotate_request(long object_index)
-{
-	boolean old_terminal_state = terminal_command_running;
-	boolean rotated;
-
-	if (object_index == NONE || !cheats_forge_guest_edits_allowed())
-		return FALSE;
-	terminal_command_running = TRUE;
-	rotated = forge_rotate_copy(object_index);
-	terminal_command_running = old_terminal_state;
-	return rotated;
-}
-
 static boolean forge_restore_transform(boolean redo)
 {
 	struct forge_move_snapshot const *target = redo ? &forge_last_destination : &forge_last_move;
@@ -1139,6 +1139,26 @@ static boolean forge_remove_copy(long object_index)
 		forge_move_undone = FALSE;
 	}
 	return TRUE;
+}
+
+boolean cheats_forge_guest_edit(enum forge_guest_action action, long unit_index, long object_index)
+{
+	boolean old_terminal_state = terminal_command_running;
+	boolean edited = FALSE;
+
+	if (object_index == NONE || !cheats_forge_guest_edits_allowed())
+		return FALSE;
+	terminal_command_running = TRUE;
+	switch (action)
+	{
+	case _forge_guest_rotate: edited = forge_rotate_copy(object_index); break;
+	case _forge_guest_place: edited = forge_place_copy(unit_index, object_index) != NONE; break;
+	case _forge_guest_move: edited = forge_move_selected_copy(unit_index, object_index); break;
+	case _forge_guest_remove: edited = forge_remove_copy(object_index); break;
+	default: break;
+	}
+	terminal_command_running = old_terminal_state;
+	return edited;
 }
 
 boolean cheat_forge_undo(void)

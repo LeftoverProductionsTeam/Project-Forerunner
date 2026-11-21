@@ -183,6 +183,7 @@ enum
 	ids from _distributed_message_mcc_grenades up outside MCC games */
 	_distributed_message_vehicle_riding_map = 107,
 	_distributed_message_forge_rotate = 108,
+	_distributed_message_forge_edit = 109,
 
 	NUMBER_OF_DISTRIBUTED_MESSAGES
 };
@@ -398,7 +399,7 @@ real distributed_vitality_unpack(word value);
 (machine_index; NONE: the host's own) */
 void distributed_send_notice(char const *text);
 void distributed_send_notice_to_machine(long machine_index, char const *text);
-boolean network_distributed_request_forge_rotation(void);
+boolean network_distributed_request_forge_edit(short action);
 /* (the host: a dedicated server's ban command) the next ban's reason and end
 (seconds since 1970; 0: for ever), written in its bans.txt line */
 void network_distributed_ban_details(char const *reason, unsigned long until);

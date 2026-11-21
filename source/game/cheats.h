@@ -64,7 +64,16 @@ boolean cheats_console_object_made(
 long cheat_forge_target(void);
 long cheats_forge_aimed_object(long unit_index);
 int cheats_forge_guest_edits_allowed(void);
-boolean cheats_forge_rotate_request(long object_index);
+enum forge_guest_action
+{
+	_forge_guest_rotate,
+	_forge_guest_select,
+	_forge_guest_place,
+	_forge_guest_move,
+	_forge_guest_remove,
+	NUMBER_OF_FORGE_GUEST_ACTIONS
+};
+boolean cheats_forge_guest_edit(enum forge_guest_action action, long unit_index, long object_index);
 union real_point3d;
 void cheats_forge_reset(void);
 void cheats_forge_update(void);

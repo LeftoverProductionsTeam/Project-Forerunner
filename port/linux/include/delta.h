@@ -207,6 +207,8 @@ enum delta_capability
 	_delta_capability_forge_physics = 27,
 	/* A private Forge host can accept approved placement edit requests. */
 	_delta_capability_forge_guest_edits = 28,
+	/* Private Forge guests can select, place, move and remove copies. */
+	_delta_capability_forge_guest_placements = 29,
 
 	NUMBER_OF_DELTA_CAPABILITIES
 };

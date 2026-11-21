@@ -348,7 +348,8 @@ static int game_capability_disabled(void *context, int capability)
 {
 	(void)context;
 #ifdef HALO_GAME_BROWSER
-	if (capability == _delta_capability_forge_guest_edits && delta_game.role == _role_host &&
+	if ((capability == _delta_capability_forge_guest_edits || capability == _delta_capability_forge_guest_placements) &&
+		delta_game.role == _role_host &&
 		!cheats_forge_guest_edits_allowed())
 		return 1;
 #endif
@@ -710,6 +711,7 @@ int delta_peer_protocol(void)
 #if !defined(HALO_XBOX_CONSOLE) && !defined(HALO_BROWSER)
 		local.capabilities |= (delta_u32)1 << _delta_capability_forge_physics;
 		local.capabilities |= (delta_u32)1 << _delta_capability_forge_guest_edits;
+		local.capabilities |= (delta_u32)1 << _delta_capability_forge_guest_placements;
 #endif
 #endif
 		/* (the host's rules for its players' extras: host_rules.c; a host
@@ -1460,6 +1462,12 @@ int delta_peer_game_host_agreed_forge_edits(void)
 	return delta_game.ready && delta_game.role == _role_client &&
 		delta_game.peer.client_state == _delta_peer_client_delta &&
 		(delta_game.peer.agreed & ((delta_u32)1 << _delta_capability_forge_guest_edits)) != 0;
+}
+
+int delta_peer_game_host_agreed_forge_placements(void)
+{
+	return delta_peer_game_host_agreed_forge_edits() &&
+		(delta_game.peer.agreed & ((delta_u32)1 << _delta_capability_forge_guest_placements)) != 0;
 }
 
 unsigned delta_peer_game_host_number(void)
