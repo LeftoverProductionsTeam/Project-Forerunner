@@ -92,6 +92,17 @@ Both faction routes still need two consenting players using independent
 Delta identities and physical controls. This local run did not exchange
 account proofs or reach the field call, banking or redeployment.
 
+A follow-up offline input run cleared the facility, collected technology
+and approached the defense guard from south (62.36, -88.20, 0.50) and north
+(61.67, -83.46, 0.43). The guard lost its shields and retreated to
+(58.44, -85.25, 0.06). It recovered to full shields at 95% health. The
+field terminal remained locked. Readback of the exact Spirit root collision
+mesh with native center-of-mass adjustment and the recorded parked pose
+(59.04, -84.50, 1.52) intersects both tested torso-height firing lanes in
+the static reconstruction. Spark should check the guard’s fallback firing
+positions against the parked hull and place them in reachable cover with
+a clear approach. Preserve the native guard-death and boarding gates.
+
 The managed Pelican/Spirit call checks incapacitation before accepting a
 completed request from outside the landing zone. Revival can restore that
 request without a new countdown or gear write. The regression failed before
