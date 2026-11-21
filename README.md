@@ -6,8 +6,6 @@ I've been modding Halo 1 since the MacGamingMods days, and I've always had this 
 
 **I want one Halo 1 engine that brings together the best work from across the community.** Keep classic Halo running great on older hardware, add the newer stuff, support the maps and mods we've built over the years, and see how far we can push the game.
 
-I'm not trying to replace Chupathingy, OpenCE, OpenH1 or anyone else's project. **Forerunner wouldn't exist without their work.** And if we build something useful here, I'd love to help get it upstream, too.
-
 **I'm still working on this.** There's a lot happening in the code, but Forerunner isn't ready for a full release. Most of the newer features have been tested on Windows so far, and I've still got plenty more to do. You'll need your own Halo game files.
 
 ## What's working so far
@@ -54,7 +52,7 @@ A lot of people deserve credit for making Halo 1 what it is today. Forerunner wo
 
 That's not everybody, either. See [CONTRIBUTORS.md](CONTRIBUTORS.md), [AUTHORS.md](AUTHORS.md), [UPSTREAM_FEATURE_MATRIX.md](UPSTREAM_FEATURE_MATRIX.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for individual credits, source history and licenses. I want the original authors recognized, and I'm not going to bundle someone else's assets without permission.
 
-**If something we make helps Chupathingy, OpenCE, OpenH1 or another project, I'd love to contribute it back.** No reason to keep good fixes to ourselves.
+**For anyone working on another Halo fork: if you find something useful here, take it!** Just keep the original credits and licenses intact.
 
 ## For developers and contributors
 
