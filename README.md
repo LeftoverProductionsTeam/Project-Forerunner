@@ -1,28 +1,84 @@
-# Project Forerunner
+# PROJECT FORERUNNER
 
-Forerunner is an independent Halo 1 runtime integration in progress, built on
-FractumSeraph's combined OpenCE/Chupathingy source history. Upstream authorship,
-licenses and notices remain intact. The full unified-engine acceptance target
-has not been met; there is no Forerunner release yet.
+### ONE ENGINE. EVERY FORK.
 
-See [Community Contributors](CONTRIBUTORS.md) and
-[Third-party notices](THIRD_PARTY_NOTICES.md) for credited work and distribution terms.
+I grew up modding Halo 1. I've watched people in this community build tools, maps, ports, engines and fixes that have kept the game alive for decades. Forerunner is my attempt to bring more of that work together instead of making yet another fork that splits everyone up.
 
-Start with the [engineering checkpoint](FORERUNNER_MASTER_LEDGER.md),
-[test evidence](TEST_EVIDENCE.md), [feature provenance](UPSTREAM_FEATURE_MATRIX.md),
-[compatibility matrix](COMPATIBILITY_MATRIX.md) and
-[known limitations](KNOWN_LIMITATIONS.md). The complete
-[engineering directive](docs/forerunner/MASTER_DIRECTIVE_2026-11-14.md) remains open.
+**The goal is one Halo 1 engine that brings the best compatible technology from across the community together.** Keep classic Halo fast on old hardware, add modern capabilities where they make sense, preserve the maps and mods people already built, and let us keep pushing Halo 1 further.
 
-The Windows x86 baseline can be built from tracked source into a new external
-directory with `python tools/forerunner_build.py --work <new-directory>
---toolchain <LLVM-directory>`. See `--help` for explicit compiler, MSVC, SDK and
-Ninja paths. The helper preserves a source/tool identity manifest and never
-copies game data. Builds need the user's own Halo data for gameplay.
+I'm not trying to replace Chupathingy, OpenCE, OpenH1 or anyone else's work. **Forerunner stands on their shoulders.** If an improvement from this project could be useful upstream, I want to work with those developers to get it back to them.
 
-The upstream documentation below is retained for provenance and implementation
-details. Its releases, services and feature claims belong to the named upstream
-projects; current Forerunner verification is recorded in the evidence above.
+**Current state:** Active source development, not a finished game or a packaged Forerunner release. The details below are based on scoped builds and native tests, not a blanket claim of platform support or universal cross-play. You must supply your own legally obtained Halo game data.
+
+## What we're developing
+
+I want developers to be able to see what's here, reuse what makes sense, and help finish the parts that aren't there yet.
+
+| System | Current implementation and native evidence |
+| --- | --- |
+| **Multiplayer Forge** | Host-approved guests can select, place, move, rotate and remove supported objects. Tested on Windows Delta peers with late-join synchronization, host-managed Undo/Redo, stale-edit rejection and save/restart recovery. |
+| **Forge physics** | Normal, Fixed and Phased placements; host and guest changes; overlap and collision safeguards; synchronized state and HMV save/readback. Physics Undo/Redo and wider multiplayer acceptance remain under development. |
+| **Chupathingy Forge layouts** | Reuses Chupathingy's native HMV codec and validation. A Spark-authored layout was loaded by both Forerunner and Chupathingy using the same Blood Gulch cache. Layout titles and creator credits survive Forerunner save/reload. |
+| **Native switches, doors and machines** | Host and guest operated native switches; a moving door synchronized its animation and collision, then allowed the guest through. The complete Spark-authored project-to-game workflow still needs acceptance. |
+| **Co-op and Extraction** | Native squad objectives, gear ownership, transport, banking and redeployment have passed specific two-client scenarios. Black Echo's complete two-player campaign-style Extraction mission is still unfinished. |
+| **Firefight and Infection** | Real native test scenarios and two-client game-mode checks exist. That does not mean my original Zombie Apocalypse restoration or full Firefight gameplay is finished. |
+| **HaloScript, AI and engine fixes** | Focused fixes, performance work and native regressions, including selected improvements inherited from and credited to Chupathingy contributors. |
+| **Guilty Spark integration** | Versioned capability discovery, Forge layout interchange, preserved asset identity and native map handoffs with [Project Guilty Spark](https://github.com/LeftoverProductionsTeam/Project-Guilty-Spark). Complete live editing is still a goal. |
+
+Evidence lives in the [engineering checkpoint](FORERUNNER_MASTER_LEDGER.md), [test records](TEST_EVIDENCE.md), [Spark integration contract](SPARK_INTEGRATION_CONTRACT.md) and [compatibility matrix](COMPATIBILITY_MATRIX.md). Source code, a passing test, a native multiplayer demonstration and a finished feature are four different things.
+
+## Where I want to take it
+
+**One engine, every fork** is the ambition, not a claim that every engine already interconnects perfectly.
+
+- **Preserve classic Halo.** Keep the original feel, deterministic gameplay, low-end graphics performance and compatibility with existing maps. Modern additions should be optional, not an excuse to break old hardware.
+- **Bring the community together.** Build and verify interoperability with OpenCE, Chupathingy and other compatible forks through real network tests and explicit capability negotiation. A matching network number isn't sufficient.
+- **Modern graphics and VR.** Integrate the best compatible ideas from OpenH1, including optional rendering and OpenXR interaction work, without discarding the classic renderer. Vulkan, Metal, lighting improvements and ray tracing are development targets, not universally working or released features.
+- **Actual games, not just systems.** Finish Extraction/PvPvE, the original Zombie Apocalypse, Firefight, cooperative campaigns, custom modes and the player-created content that goes with them.
+- **MegaWorld.** Connect 19 Halo regions with usable paths, caves, tunnels, roads, AI and meaningful multiplayer gameplay. The two-region source and native build work is only a foundation; the complete world is not playable.
+- **Real creation workflows.** Let people use Spark to build, edit and test content and Forerunner to run it, including eventually in-game live editing, Forge, machinima and VR creation.
+- **Platform and player scale.** Improve support across desktop and community hardware platforms, six-player co-op and eventually verified 128-player sessions. None of those larger targets should be presented as complete before real testing.
+
+## The community this builds on
+
+This project would not exist without the people who rebuilt and preserved Halo 1. They deserve credit by name, in the code, and in anything we eventually release.
+
+- **Bungie**, with **Microsoft** and **Gearbox Software** — the original Halo and PC port.
+- **punpckhdq and bnunu** — foundational Halo source reconstruction and research.
+- **[FractumSeraph and contributors](https://github.com/FractumSeraph/OpenCE)** — the combined OpenCE/Chupathingy source history that Forerunner is based on, plus substantial networking, platform and compatibility work.
+- **[Milenko and the ChupathingyCE team](https://github.com/ChupathingyCE/chupathingyce)** — Delta, the classic rendering and port work, original Forge and the HMV layout format. We have reused their Forge implementation and preserved original authorship, including **BirchWood** for upstream HaloScript and physics fixes.
+- **[Open Community Edition](https://github.com/OpenCommunityEdition/OpenCE)** and its contributors — engine, networking, co-op, map support and much of the shared foundation.
+- **[OpenH1 / GOAT H1](https://github.com/OpenH1/goath1)** and contributors including **goatbutt, startupfoundry and pastudan** — graphics, input and VR work that we're studying and adapting where compatible. This is not a claim that all OpenH1 systems have been integrated.
+- **[Mota / OpenCE-Forge](https://github.com/SutlabSol/OpenCE-Forge)**, **[OpenCE-Faber](https://github.com/SutlabSol/OpenCE-Faber)** and **[Watanoge's Halo Content Evolved](https://github.com/Watanoge/halo-content-evolved)** — multiplayer Forge, Firefight and other creator-system foundations and references.
+- **[GulchCE](https://github.com/chestahh/GulchCE)**, **[Invader](https://github.com/SnowyMouse/invader)**, **[Chimera](https://github.com/SnowyMouse/chimera)** and the modders, artists, testers and tool authors who kept Halo moving forward.
+
+This is not the full list. See [CONTRIBUTORS.md](CONTRIBUTORS.md), [AUTHORS.md](AUTHORS.md), [UPSTREAM_FEATURE_MATRIX.md](UPSTREAM_FEATURE_MATRIX.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for individual credits, source history and license details. Attribution doesn't by itself grant redistribution rights over third-party art or Halo content.
+
+**I'd rather send a clean, compatible improvement back upstream than keep useful fixes locked in another fork.** Community maintainers decide what belongs in their projects, and we should respect their process.
+
+## For developers and contributors
+
+If you're working on Halo networking, AI, Forge, co-op, game modes, map formats, graphics, VR, engine performance or modding tools, there's useful work to do here. Bug reports with reproducible steps, platform tests, profiling data, source-reviewed fixes and focused contributions are welcome.
+
+Please check the [upstream feature matrix](UPSTREAM_FEATURE_MATRIX.md), [known limitations](KNOWN_LIMITATIONS.md) and [compatibility requirements](COMPATIBILITY_MATRIX.md) before building a competing implementation. For large cross-fork changes, talk to the relevant maintainers first. Respect original licenses, contributor names and user-created assets.
+
+### Building the current Windows x86 baseline
+
+Requires Python 3.9+, Git, Ninja, LLVM, x86 MSVC libraries and the Windows SDK. Build in a **new directory outside the checkout**; the helper refuses to overwrite an existing directory and does not copy Halo game data.
+
+~~~powershell
+python tools/forerunner_build.py --work C:/Temp/forerunner-build-001 --toolchain C:/Tools/LLVM
+~~~
+
+Run the helper with --help for explicit compiler, SDK and Ninja options. Other architectures and hardware require separate validation.
+
+Forerunner is distributed as source under [AGPL-3.0](LICENSE), together with applicable [third-party notices](THIRD_PARTY_NOTICES.md). The engine license does not give permission to distribute Halo game assets.
+
+---
+
+## Inherited upstream documentation — preserved for attribution and reference
+
+**The following section is the inherited FractumSeraph fork README. Its downloads, hosted services and feature descriptions belong to the named upstream projects; they are not a Forerunner release or Forerunner acceptance claims.** Our current development status and evidence are above.
 
 # Halo in the browser and on every platform (FractumSeraph's fork)
 
