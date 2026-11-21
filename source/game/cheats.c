@@ -169,6 +169,9 @@ struct forge_move_snapshot
 {
 	long object_index;
 	short bsp_index;
+#ifdef NATIVE_FORGE_SIDECARS
+	enum forge_physics_mode physics;
+#endif
 	real_point3d position, center;
 	real_vector3d forward, up;
 	real radius, scale;
@@ -863,63 +866,47 @@ static boolean forge_phase_exit_clear(long object_index, struct object_datum con
 	scenario_location_from_point(&location, center);
 	return location.cluster_index != NONE && !forge_space_occupied(&location, center, radius, object_index);
 }
-#endif
 
-static enum forge_physics_mode forge_cycle_copy_physics(long object_index)
+static boolean forge_can_set_copy_physics(long object_index, struct object_datum const *object,
+	enum forge_physics_mode mode)
 {
-#ifdef NATIVE_FORGE_SIDECARS
-	struct object_datum *object;
-	struct forge_fixed_pose *fixed;
+	return cheats_forge_physics_available() &&
+		(forge_local_host() || TEST_FLAG(_object_mask_vehicle | _object_mask_weapon | _object_mask_equipment,
+			object->object.type)) &&
+		(mode != _forge_physics_fixed || forge_fixed_count < NUMBEROF(forge_fixed_poses) ||
+			forge_fixed_pose_get(object_index));
+}
 
-	if (!cheats_forge_physics_available() || !(object = forge_editable_copy(object_index)) ||
-		(!forge_local_host() && !TEST_FLAG(_object_mask_vehicle | _object_mask_weapon | _object_mask_equipment,
-			object->object.type)))
-		return _forge_physics_refused;
+static void forge_set_copy_physics(long object_index, struct object_datum *object, enum forge_physics_mode mode)
+{
+	struct forge_fixed_pose *fixed = forge_fixed_pose_get(object_index);
 
-	if (TEST_FLAG(object->object.flags, _object_forge_phased_bit))
-	{
-		if (!forge_phase_exit_clear(object_index, object))
-			return _forge_physics_refused;
-		SET_FLAG(object->object.flags, _object_forge_phased_bit, FALSE);
-		SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
-		object_activate(object_index);
-		return _forge_physics_normal;
-	}
-
-	fixed = forge_fixed_pose_get(object_index);
 	if (fixed)
-	{
 		*fixed = forge_fixed_poses[--forge_fixed_count];
-		forge_apply_placement_physics(object_index, FORGE_RECORD_PHYSICS_PHASED);
+	SET_FLAG(object->object.flags, _object_forge_phased_bit, FALSE);
+	if (mode == _forge_physics_fixed)
+	{
+		forge_apply_placement_physics(object_index, FORGE_RECORD_PHYSICS_FIXED);
+		object->object.translational_velocity = *global_zero_vector3d;
+		object->object.angular_velocity = *global_zero_vector3d;
+		SET_FLAG(object->object.flags, _object_at_rest_bit, TRUE);
+#ifdef HALO_GAME_BROWSER
+		if (!forge_local_host())
+		{
+			extern void network_objects_forge_physics_changed(long object_index);
+			network_objects_forge_physics_changed(object_index);
+		}
+#endif
+	}
+	else
+	{
+		if (mode == _forge_physics_phased)
+			forge_apply_placement_physics(object_index, FORGE_RECORD_PHYSICS_PHASED);
 		SET_FLAG(object->object.flags, _object_at_rest_bit, FALSE);
 		object_activate(object_index);
-		return _forge_physics_phased;
 	}
-
-	if (forge_fixed_count == NUMBEROF(forge_fixed_poses))
-		return _forge_physics_refused;
-	forge_apply_placement_physics(object_index, FORGE_RECORD_PHYSICS_FIXED);
-	object->object.translational_velocity = *global_zero_vector3d;
-	object->object.angular_velocity = *global_zero_vector3d;
-	SET_FLAG(object->object.flags, _object_at_rest_bit, TRUE);
-#ifdef HALO_GAME_BROWSER
-	if (!forge_local_host())
-	{
-		extern void network_objects_forge_physics_changed(long object_index);
-		network_objects_forge_physics_changed(object_index);
-	}
-#endif
-	return _forge_physics_fixed;
-#else
-	(void)object_index;
-	return _forge_physics_refused;
-#endif
 }
-
-enum forge_physics_mode cheat_forge_cycle_physics(void)
-{
-	return forge_cycle_copy_physics(forge_selection);
-}
+#endif
 
 /* The existing object state sender and placement writer see the same handle. */
 static void forge_move_copy(long object_index, struct object_datum *object,
@@ -940,7 +927,7 @@ static void forge_move_copy(long object_index, struct object_datum *object,
 #endif
 }
 
-/* Adapt OpenCE-Forge's before-transform undo snapshot (SutlabSol/OpenCE-Forge). */
+/* Adapt OpenCE-Forge's pose and property snapshots (SutlabSol/OpenCE-Forge). */
 static boolean forge_remember_transform(long object_index, struct object_datum const *object,
 	struct forge_move_snapshot *snapshot)
 {
@@ -953,6 +940,9 @@ static boolean forge_remember_transform(long object_index, struct object_datum c
 	}
 	snapshot->object_index = object_index;
 	snapshot->bsp_index = global_structure_bsp_index;
+#ifdef NATIVE_FORGE_SIDECARS
+	snapshot->physics = cheats_forge_object_physics(object_index);
+#endif
 	snapshot->position = object->object.position;
 	snapshot->center = object->object.bounding_sphere_center;
 	snapshot->forward = object->object.forward;
@@ -960,6 +950,38 @@ static boolean forge_remember_transform(long object_index, struct object_datum c
 	snapshot->radius = object->object.bounding_sphere_radius;
 	snapshot->scale = object->object.scale;
 	return TRUE;
+}
+
+static enum forge_physics_mode forge_cycle_copy_physics(long object_index)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	struct object_datum *object = forge_editable_copy(object_index);
+	enum forge_physics_mode current, next;
+
+	if (!object)
+		return _forge_physics_refused;
+	current = cheats_forge_object_physics(object_index);
+	next = current == _forge_physics_phased ? _forge_physics_normal :
+		current == _forge_physics_fixed ? _forge_physics_phased : _forge_physics_fixed;
+	if (!forge_can_set_copy_physics(object_index, object, next) ||
+		(current == _forge_physics_phased && !forge_phase_exit_clear(object_index, object)) ||
+		!forge_remember_transform(object_index, object, &forge_last_move))
+		return _forge_physics_refused;
+
+	forge_set_copy_physics(object_index, object, next);
+	forge_last_destination = forge_last_move;
+	forge_last_destination.physics = next;
+	forge_move_undone = FALSE;
+	return next;
+#else
+	(void)object_index;
+	return _forge_physics_refused;
+#endif
+}
+
+enum forge_physics_mode cheat_forge_cycle_physics(void)
+{
+	return forge_cycle_copy_physics(forge_selection);
 }
 
 /* Like ChupathingyCE's Forge history, retain the edited pose itself rather
@@ -1105,6 +1127,11 @@ static boolean forge_restore_transform(boolean redo)
 	long object_index = target->object_index;
 	struct object_datum *object = forge_editable_copy(object_index);
 	struct location location;
+	boolean restoring_phased = FALSE;
+#ifdef NATIVE_FORGE_SIDECARS
+	struct forge_move_snapshot const *source = redo ? &forge_last_move : &forge_last_destination;
+	boolean changing_physics = source->physics != target->physics;
+#endif
 
 	if (redo != forge_move_undone || !object || target->bsp_index != global_structure_bsp_index ||
 		object->object.scale != target->scale || !valid_real_point3d(&target->center) ||
@@ -1113,6 +1140,16 @@ static boolean forge_restore_transform(boolean redo)
 		console_warning("Forge transform history needs the same unused copy in its original BSP");
 		return FALSE;
 	}
+
+#ifdef NATIVE_FORGE_SIDECARS
+	if (cheats_forge_object_physics(object_index) != source->physics ||
+		(changing_physics && !forge_can_set_copy_physics(object_index, object, target->physics)))
+	{
+		console_warning("Forge history cannot restore the recorded physics mode");
+		return FALSE;
+	}
+	restoring_phased = changing_physics && target->physics == _forge_physics_phased;
+#endif
 
 	/* Match object_reconnect_to_map. A vehicle resting on a slope may have its
 	 * origin inside the ground while its bounding center is in a valid leaf. */
@@ -1124,7 +1161,7 @@ static boolean forge_restore_transform(boolean redo)
 		console_warning("Forge transform history needs a previous position within the active BSP");
 		return FALSE;
 	}
-	if (object->object.type == _object_type_vehicle)
+	if (!restoring_phased && object->object.type == _object_type_vehicle)
 	{
 		struct physics_instance vehicle;
 		long blocker_index;
@@ -1141,13 +1178,17 @@ static boolean forge_restore_transform(boolean redo)
 			return FALSE;
 		}
 	}
-	else if (forge_space_occupied(&location, &target->center, target->radius, object_index))
+	else if (!restoring_phased && forge_space_occupied(&location, &target->center, target->radius, object_index))
 	{
 		console_warning("Forge needs clear space around the copy's previous position");
 		return FALSE;
 	}
 
 	forge_move_copy(object_index, object, &target->position, &target->forward, &target->up);
+#ifdef NATIVE_FORGE_SIDECARS
+	if (changing_physics)
+		forge_set_copy_physics(object_index, object, target->physics);
+#endif
 	forge_move_undone = !redo;
 	return TRUE;
 }

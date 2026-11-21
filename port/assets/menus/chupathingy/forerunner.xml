@@ -320,12 +320,12 @@
 		<on event="start" run="port forge cycle physics" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/undo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="UNDO MOVE OR ROTATE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/undo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="UNDO EDIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge undo move" close="all" />
 		<on event="start" run="port forge undo move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/redo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="REDO MOVE OR ROTATE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/redo_move" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="REDO EDIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge redo move" close="all" />
 		<on event="start" run="port forge redo move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />

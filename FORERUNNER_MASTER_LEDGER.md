@@ -152,7 +152,10 @@ Hosted Change Physics now also operates on eligible copies. Native Windows
 verified host and guest edits, late joining, refusal beside a boulder,
 restoring Normal after moving to clear ground, and HMV readback. See
 `build/native-remote-forge-live-physics/result.json`.
-Authenticated human play remains open.
+Host Undo and Redo now restore the recorded mode and pose. Windows x64
+verified guest edits across both peers and a late joiner, HMV readback,
+and a blocked Undo that succeeded after clearance. See the Forge physics
+history receipts in the Spark contract. Authenticated human play remains open.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or
