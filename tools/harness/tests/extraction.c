@@ -1623,7 +1623,16 @@ int main(int argc,char **argv)
     units[0].object.parent_object_index=dropship_handles[1];advance(1);
     CHECK(device_groups[10].actual_value&&!device_groups[11].actual_value,
      "travel in a different vehicle cancelled the pickup or authorized boarding");
-    units[0].object.parent_object_index=NONE;players[0].quit_out_of_game=TRUE;advance(1);
+    units[0].object.parent_object_index=NONE;
+    medical_enabled=TRUE;units[0].object.body_vitality=-.1f;
+    CHECK(extraction_medical_lethal(unit_handles[0]),"pickup caller could not enter native incapacitation");
+    advance(1);
+    CHECK(!device_groups[10].actual_value&&run(0)->phase==_extraction_ready&&run(0)->gear.record.phase==_gear_deployed,
+     "downed player kept the aircraft called or lost their completed activation");
+    units[0].object.body_vitality=.25f;advance(1);
+    CHECK(device_groups[10].actual_value&&!device_groups[11].actual_value,
+     "revived player could not resume the completed pickup");
+    players[0].quit_out_of_game=TRUE;advance(1);
     CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value&&
      run(1)->phase==_extraction_deployed,"departed requester held the aircraft or changed another run");
     extraction_reset();return 0;

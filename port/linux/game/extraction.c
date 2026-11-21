@@ -2121,12 +2121,12 @@ static boolean extraction_transport_called(short faction)
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(run->unit, _object_mask_biped);
 		if (!unit || unit->unit.player_index != run->player || extraction_faction(unit->object.owner_team_index) != faction ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit)) continue;
+		if (extraction_medical_incapacitated(run->unit)) continue;
 		/* A completed managed pickup stays open while living callers approach.
 		 * Countdown presence and actual boarding still use the field volume. */
 		if (!extraction.survival && extraction.dropship_boarding_groups[faction] != NONE &&
 			run->phase == _extraction_ready && run->dropship == NONE &&
 			extraction_player_dropship(unit) == NONE && extraction_squad_objectives_ready(run)) return TRUE;
-		if (extraction_medical_incapacitated(run->unit)) continue;
 		if (unit->object.parent_object_index == NONE ? scenario_trigger_volume_test_object(zone, run->unit) :
 			(extraction_player_dropship(unit) == run->dropship && run->dropship != NONE &&
 				scenario_trigger_volume_test_object(zone, run->dropship))) return TRUE;

@@ -92,6 +92,15 @@ Both faction routes still need two consenting players using independent
 Delta identities and physical controls. This local run did not exchange
 account proofs or reach the field call, banking or redeployment.
 
+The managed Pelican/Spirit call checks incapacitation before accepting a
+completed request from outside the landing zone. Revival can restore that
+request without a new countdown or gear write. The regression failed before
+the repair and passed after it. Windows x64 and 38 focused checks passed.
+The exact cache spawned a healthy offline player in the native smoke run.
+Chupathingy source 9990568 has native map and vehicle paths. Forerunner
+owns this map’s Extraction aircraft signals and gear settlement. A native
+Chupathingy run of this exact cache is unverified.
+
 The preceding Grunt CE609 candidate was
 releases/black-echo-native-covenant-technology-grunt-20261120/be_native.map,
 SHA256 d4ca73c8f3250501efc1448b81f86fa5e150e53f9833125f366977b91fd15213.
@@ -1141,6 +1150,14 @@ conversion path for a separate version-609 candidate; do not flip its header.
 Earlier experimental recovery has missing original audio, reviewed placement/carrier
 deviations and native spawner/physics faults. Preserve its credits and mechanics;
 do not call that recovery faithful or gameplay-accepted.
+
+The recorded automatic-release counterexample is CE609 `1d6bb622` and the
+commanded-exit control is `79589da5` (Spark C51). Spark’s preservation index
+places both and the C57 Timberland–Sidewinder cache `c84a1ed4` in
+`recovery-archives/C62-expanded-cold-history/payload-003.zip`. The
+archive volume was unavailable in the inspected checkout. A read-only
+handoff of those caches would let Forerunner run the original carrier
+comparison and attempt Timberland–Sidewinder on foot and in a Warthog.
 
 Smallest intended end-to-end gate, still unimplemented/unverified:
 
