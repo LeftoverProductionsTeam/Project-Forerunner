@@ -134,6 +134,12 @@ static int native_children(char const *name) {
   long before[FIREFIGHT_MAX_TRACKED_ENEMIES];memcpy(before,firefight.units,sizeof(before));
   CHECK(!coop_enemies_firefight_track_spawned_unit(0x20000,child)&&firefight.phase==4&&notices==1&&!wakes&&
         !memcmp(before,firefight.units,sizeof(before)),"invalid/capacity request displaced a live or spawning owner");
+  self.unit.flags|=FLAG(_unit_spawned_actors_bit);
+  coop_enemies_firefight_spawn_finished(child);
+  CHECK(!garbage_releases,"an untracked child released a native corpse");
+  coop_enemies_firefight_spawn_finished(0x20000);
+  CHECK(garbage_unit==0x20000&&garbage_value&&garbage_releases==1,
+        "failed native spawn left the carrier held after the round aborted");
   return 0;
  }
  CHECK(coop_enemies_firefight_track_spawned_unit(0x20000,child)&&firefight.phase==2,"completed dead slot refused a native child");
@@ -146,6 +152,10 @@ static int native_children(char const *name) {
  if(!strcmp(name,"partial")) {
   CHECK(!coop_enemies_firefight_track_spawned_unit(0x20000,NONE)&&firefight.phase==4&&notices==1&&
         firefight.units[0]==0x20000,"partial native creation lost its parent or failed to abort");
+  self.unit.flags|=FLAG(_unit_spawned_actors_bit);
+  coop_enemies_firefight_spawn_finished(0x20000);
+  CHECK(garbage_unit==0x20000&&garbage_value&&garbage_releases==1,
+        "partial native spawn left its completed carrier held");
   return 0;
  }
  if(strcmp(name,"append"))CHECK(!coop_enemies_firefight_tracks_unit(retired),"completed corpse remained tracked");

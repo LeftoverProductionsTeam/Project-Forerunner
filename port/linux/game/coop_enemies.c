@@ -516,13 +516,13 @@ void coop_enemies_firefight_enemy_died(long unit_index)
 }
 
 /* Native unit_test_spawning has finished (including a valid zero-child roll).
-The children are already tracked; normal corpse collection is safe again. Direct
-native destruction is not changed or replaced with a synthetic spawn. */
+The native attempt may have aborted the wave after failing to track a child.
+Release the tracked corpse even after that outcome so normal collection resumes. */
 void coop_enemies_firefight_spawn_finished(long unit_index)
 {
 	short index;
 
-	if (!coop_enemies_firefight_active() || firefight.phase != 2)
+	if (!coop_enemies_firefight_active())
 		return;
 	for (index = 0; index < firefight.unit_count; index++)
 	{
