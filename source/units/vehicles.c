@@ -2518,6 +2518,25 @@ static boolean vehicle_controls_wake_physics(
 		(TEST_FLAG(definition->flags, 5) && vehicle->vehicle.slide != 0.f);
 }
 
+static void vehicle_damage_falling_children(long vehicle_index, long child_index, long damage_effect_index)
+{
+	if (damage_effect_index == NONE) return;
+
+	while (child_index != NONE)
+	{
+		struct object_datum const *child = object_try_and_get(child_index);
+		struct damage_data damage;
+		long next_child_index;
+
+		if (!child || child->object.parent_object_index != vehicle_index) break;
+		/* A fatal hit can detach the passenger and clear its sibling link. */
+		next_child_index = child->object.next_object_index;
+		damage_data_new(&damage, damage_effect_index);
+		object_cause_damage(&damage, child_index, NONE, NONE, NONE, NULL);
+		child_index = next_child_index;
+	}
+}
+
 boolean vehicle_update(
 	long vehicle_index)
 {
@@ -2782,17 +2801,8 @@ boolean vehicle_update(
 		if (vehicle->object.translational_velocity.k<
 			-falling_damage->runtime_maximum_falling_velocity)
 		{
-			long child_index = vehicle->object.first_child_object_index;
-
-			while (child_index!=NONE)
-			{
-				struct object_datum *child = object_get(child_index);
-				struct damage_data damage_data;
-
-				damage_data_new(&damage_data, falling_damage->maximum_distance_damage.index);
-				object_cause_damage(&damage_data, child_index, NONE, NONE, NONE, NULL);
-				child_index = child->object.next_object_index;
-			}
+			vehicle_damage_falling_children(vehicle_index, vehicle->object.first_child_object_index,
+				falling_damage->maximum_distance_damage.index);
 		}
 	}
 

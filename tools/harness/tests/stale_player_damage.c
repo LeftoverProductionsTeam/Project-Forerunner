@@ -8,7 +8,12 @@ typedef unsigned short word;
 enum { _object_dead_bit, _unit_record_damage_driver_seat_type = 0 };
 enum { _game_connection_local, _game_connection_network_server, _game_connection_network_client };
 enum { MAXIMUM_HIT_REPORTS_PER_TICK = 256 };
-struct object_fields { long owner_player_index; short type, owner_team_index; unsigned long damage_flags; };
+struct object_fields
+{
+	long owner_player_index, parent_object_index, next_object_index;
+	short type, owner_team_index;
+	unsigned long damage_flags;
+};
 struct object_datum { struct object_fields object; };
 struct unit_datum
 {
@@ -105,6 +110,27 @@ static void distributed_damage_from_data(struct damage_data const *damage, struc
 static void object_get_origin(long index, real_point3d *point) { memset(point, 0, sizeof(*point)); }
 static long distributed_latest_host_time(void) { return 10; }
 static void distributed_damage_material(struct damage_data *damage, long index, short material) { material_calls++; }
+static unsigned long falling_damage_hits;
+
+static struct object_datum *object_get(long index)
+{
+	struct object_datum *object = object_try_and_get(index);
+	CHECK(object, "fall damage read a stale attachment");
+	return object;
+}
+
+static void object_cause_damage(struct damage_data *damage, long index, short node,
+	short region, short material, real_vector3d const *normal)
+{
+	struct object_datum *object = object_get(index);
+	CHECK(damage->definition_index == 42, "fall damage applied an absent or incorrect effect");
+	CHECK(!(falling_damage_hits & FLAG(index)), "passenger was damaged twice");
+	falling_damage_hits |= FLAG(index);
+	/* Native unit death can detach the passenger and clear its sibling link. */
+	object->object.parent_object_index = NONE;
+	object->object.next_object_index = NONE;
+}
+
 #define csmemset memset
 #include "under_test.inc"
 
@@ -199,6 +225,17 @@ static void check_death_credit(char const *case_name)
 int main(int argc, char **argv)
 {
 	char const *case_name = argv[1]; int players;
+	if (!strncmp(case_name, "vehicle-fall-", 13))
+	{
+		boolean missing_effect = !strcmp(case_name, "vehicle-fall-missing-effect");
+		objects[1].object.parent_object_index = objects[2].object.parent_object_index = 0;
+		objects[1].object.next_object_index = 2;
+		objects[2].object.next_object_index = NONE;
+		vehicle_damage_falling_children(0, 1, missing_effect ? NONE : 42);
+		CHECK(falling_damage_hits == (missing_effect ? 0 : FLAG(1) | FLAG(2)),
+			"fall damage skipped a sibling when the first passenger detached");
+		return 0;
+	}
 	for (players = 2; players <= 128; players++)
 	{
 		struct player_datum *owner; struct damage_data damage, expected;

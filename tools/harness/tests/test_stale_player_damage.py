@@ -31,6 +31,8 @@ def generated(fault=None):
     config += structure(read('source/objects/objects.h'), 'location') + '\n'
     config += structure(read('source/objects/damage.h'), 'damage_data') + '\n'
     code = '\n'.join([
+        function(damage, 'damage_data_new'),
+        function(read('source/units/vehicles.c'), 'vehicle_damage_falling_children'),
         function(read('source/networking/network_game_manager.c'), 'network_game_player_forget'),
         function(units, 'unit_record_damage'),
         function(read('source/game/game_statistics.c'), 'game_statistics_record_kill'),
@@ -52,6 +54,12 @@ def test_case(case):
 def test_negative_control(before, after, case):
     status, output = run(build('stale_player_damage', generated((before, after))), case)
     assert status == CHECK_FAILED, output
+
+
+@pytest.mark.parametrize('case', ['vehicle-fall-detach', 'vehicle-fall-missing-effect'])
+def test_native_vehicle_fall_damage(case):
+    status, output = run(build('stale_player_damage', generated()), case)
+    assert status == 0, output
 
 
 def test_admission_before_normalization():
