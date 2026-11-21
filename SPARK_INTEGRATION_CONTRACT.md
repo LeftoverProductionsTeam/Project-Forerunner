@@ -24,8 +24,17 @@ remains unverified.
 
 ## Current Black Echo candidates
 
-Spark now supplies two separate CE609 candidates from the preserved Elite start
-layout. The UNSC export at
+Spark's current UNSC handoff is
+`releases/black-echo-elite-unsc-grounded-pickup-20261120/be_native.map`,
+SHA-256 `7026f5facce487a79d9dc580fe724937ee1388d2c0ee4410a4b02f0fbb19ce73`.
+Forerunner independently checked that file's hash. Spark `16949e1` reports
+defeating the facility defender, collecting the moved native technology
+and starting defense in a private Forerunner run on that exact cache.
+Rifle selection, defense completion and evacuation remain unverified in
+that handoff.
+
+The separate CE609 faction exports before the UNSC pickup correction were
+derived from the preserved Elite start layout. The UNSC export at
 `releases/black-echo-elite-unsc-20261120/be_native.map` has SHA-256
 `700af26afbb9e7d63d86fb55b4683240187a0d4f6edecc8184a3b98e326a7b16`.
 The Covenant defense-cover export at
@@ -33,7 +42,19 @@ The Covenant defense-cover export at
 `88a13c271422a4f480f91e43ec31f8f1948e8ed6730969fbafbd03f188ad6e7f`.
 Use the corresponding export for each faction route.
 
-Forerunner independently ran the UNSC export with one offline player. Normal
+Forerunner ran the exact Covenant defense-cover export with one offline
+player. Native seat 5 boarding, field landing, voluntary dismount, the
+rescue rally and facility combat passed. The defender died near
+(81.763, -93.901, 1.788). The Elite reached (55.276, -86.547, 0.061) at full
+vitality, about 0.58 units from the authored technology at (55.846, -86.472,
+0.078). The sampled aim and Use inputs did not obtain a native pickup offer.
+Defense never spawned and the extraction control stayed locked. Spark can
+check access around the parked Spirit and reuse its UNSC grounded-pickup
+placement workflow on the Covenant route if another approach remains
+obstructed. Keep the exact technology tag and its artifact-volume trigger.
+The scoped native receipt is `build/native-black-echo-88a1-covenant-route.json`.
+
+Forerunner independently ran the earlier UNSC export with one offline player. Normal
 deployment, Pelican seat 4 boarding, field landing and voluntary dismount
 left the Spartan at full health and shields. The Marine and player reached
 the rally and the native `be_covenant` facility guard spawned near
