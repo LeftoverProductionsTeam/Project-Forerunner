@@ -1350,6 +1350,7 @@ unsigned delta_peer_game_host_number(void);
 int delta_peer_game_host_agreed_mcc_maps(void);
 int delta_peer_game_host_agreed_forge_edits(void);
 int delta_peer_game_host_agreed_forge_placements(void);
+int delta_peer_game_host_agreed_forge_guest_physics(void);
 delta_u32 delta_peer_game_host_rules(struct delta_wire_host_rules *rules);
 int delta_peer_game_machine_lacks(int machine_index, int capability);
 /* whether a player's machine agreed to a capability with the host, as this

@@ -71,6 +71,7 @@ enum forge_guest_action
 	_forge_guest_place,
 	_forge_guest_move,
 	_forge_guest_remove,
+	_forge_guest_cycle_physics,
 	NUMBER_OF_FORGE_GUEST_ACTIONS
 };
 boolean cheats_forge_guest_edit(enum forge_guest_action action, long unit_index, long object_index);
@@ -95,6 +96,7 @@ enum forge_physics_mode
 boolean cheats_forge_physics_available(void);
 boolean cheats_forge_remote_physics_active(void);
 enum forge_physics_mode cheats_forge_network_physics(long object_index);
+enum forge_physics_mode cheats_forge_object_physics(long object_index);
 union real_vector3d;
 void cheats_forge_receive_physics(long object_index, enum forge_physics_mode mode,
 	union real_point3d const *position, union real_vector3d const *forward, union real_vector3d const *up);

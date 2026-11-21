@@ -518,7 +518,9 @@ struct distributed_forge_pose
 struct distributed_forge_edit
 {
 	struct distributed_forge_pose pose;
-	long action;
+	short action;
+	/* The former zero high word of the action. Old actions still send zero. */
+	short observed_physics;
 };
 typedef char distributed_forge_pose_size_assert[sizeof(struct distributed_forge_pose) == 36 ? 1 : -1];
 typedef char distributed_forge_edit_size_assert[sizeof(struct distributed_forge_edit) == 40 ? 1 : -1];
@@ -6085,7 +6087,8 @@ boolean network_distributed_request_forge_edit(short action)
 	if (!game_in_progress() || game_connection() != _game_connection_network_client ||
 		!network_objects_client_synchronized() || !delta_peer_game_host_agreed_forge_edits() ||
 		!VALID_INDEX(action, NUMBER_OF_FORGE_GUEST_ACTIONS) ||
-		(action != _forge_guest_rotate && !delta_peer_game_host_agreed_forge_placements()))
+		(action != _forge_guest_rotate && !delta_peer_game_host_agreed_forge_placements()) ||
+		(action == _forge_guest_cycle_physics && !delta_peer_game_host_agreed_forge_guest_physics()))
 		return FALSE;
 	unit_index = player_control_get_unit_index(0);
 	unit = (struct unit_datum const *)object_try_and_get_and_verify_type(unit_index, _object_mask_unit);
@@ -6106,6 +6109,8 @@ boolean network_distributed_request_forge_edit(short action)
 		if (!object)
 			return FALSE;
 		distributed_capture_forge_pose(pose, object);
+		if (action == _forge_guest_cycle_physics)
+			message.request.observed_physics = (short)cheats_forge_object_physics(pose->object_index);
 	}
 	message.request.action = action;
 	if (action == _forge_guest_rotate)
@@ -6134,14 +6139,15 @@ static void distributed_handle_forge_edit(long machine_index, byte type, void co
 	static char const * const success[] =
 	{
 		"Forge: copy rotated.", "Forge: object selected.",
-		"Forge: copy placed.", "Forge: copy moved.", "Forge: copy removed."
+		"Forge: copy placed.", "Forge: copy moved.", "Forge: copy removed.", NULL
 	};
 	static char const * const refused[] =
 	{
 		"Forge: aim at an unused copy with space to rotate.", NULL,
 		"Forge: aim at clear ground with room for this copy.",
 		"Forge: aim at clear ground and select an unused copy to move.",
-		"Forge: only unused Forge copies can be removed."
+		"Forge: only unused Forge copies can be removed.",
+		"Forge: aim at an unused copy. Solid physics needs clear space."
 	};
 
 	if (!VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES) ||
@@ -6160,11 +6166,13 @@ static void distributed_handle_forge_edit(long machine_index, byte type, void co
 	{
 		csmemcpy(&request.pose, entries, sizeof(request.pose));
 		request.action = _forge_guest_rotate;
+		request.observed_physics = 0;
 	}
 	else
 		csmemcpy(&request, entries, sizeof(request));
 	if (!VALID_INDEX(request.action, NUMBER_OF_FORGE_GUEST_ACTIONS) ||
 		(!rotate && request.action == _forge_guest_rotate) ||
+		(request.action != _forge_guest_cycle_physics && request.observed_physics != 0) ||
 		!VALID_INDEX(pose->player_index, MAXIMUM_TRACKED_PLAYERS) ||
 		!distributed_machine_has_player(machine_index, (short)pose->player_index))
 		return;
@@ -6198,6 +6206,21 @@ static void distributed_handle_forge_edit(long machine_index, byte type, void co
 		distributed_send_notice_to_machine(machine_index, "Forge: the host could not confirm your aim.");
 		return;
 	}
+	if (action == _forge_guest_cycle_physics)
+	{
+		if (delta_peer_game_machine_lacks((int)machine_index, _delta_capability_forge_guest_physics))
+			return;
+		if (!cheats_forge_physics_available())
+		{
+			distributed_send_notice_to_machine(machine_index, "Forge: every joined player needs Forge physics support.");
+			return;
+		}
+		if (request.observed_physics != (short)cheats_forge_object_physics(pose->object_index))
+		{
+			distributed_send_notice_to_machine(machine_index, "Forge: the object's physics changed. Aim again.");
+			return;
+		}
+	}
 	if (action == _forge_guest_select)
 	{
 		distributed_forge_guests[machine_index].selection = *pose;
@@ -6211,7 +6234,14 @@ static void distributed_handle_forge_edit(long machine_index, byte type, void co
 		if (action == _forge_guest_remove && distributed_forge_guests[machine_index].selected &&
 			distributed_forge_guests[machine_index].selection.object_index == pose->object_index)
 			distributed_forge_guests[machine_index].selected = FALSE;
-		notice = success[action];
+		if (action == _forge_guest_cycle_physics)
+		{
+			enum forge_physics_mode mode = cheats_forge_object_physics(pose->object_index);
+			notice = mode == _forge_physics_fixed ? "Forge: object set to Fixed." :
+				mode == _forge_physics_phased ? "Forge: object set to Phased." : "Forge: object set to Normal.";
+		}
+		else
+			notice = success[action];
 	}
 	else
 		notice = refused[action];
@@ -8583,7 +8613,7 @@ static boolean distributed_wire_entries(
 			distributed_wire_swap(entries, 6, sizeof(long));
 			distributed_wire_swap(entries + 6 * sizeof(long), 6, sizeof(short));
 			if (type == _distributed_message_forge_edit)
-				distributed_wire_swap(entries + sizeof(struct distributed_forge_pose), 1, sizeof(long));
+				distributed_wire_swap(entries + sizeof(struct distributed_forge_pose), 2, sizeof(short));
 		}
 		return TRUE;
 	case _distributed_message_player_inputs:

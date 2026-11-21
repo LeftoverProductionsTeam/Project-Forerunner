@@ -13811,6 +13811,17 @@ boolean pc_menu_forge_guest_placements_offered(void)
 #endif
 }
 
+boolean pc_menu_forge_physics_offered(void)
+{
+#ifdef HALO_GAME_BROWSER
+	extern int delta_peer_game_host_agreed_forge_guest_physics(void);
+
+	if (pc_menu_forge_guest_placements_offered())
+		return delta_peer_game_host_agreed_forge_guest_physics();
+#endif
+	return network_game_forge_hosting() && !pc_menu_split_players();
+}
+
 static boolean forerunner_forge_guest_action(char const *name)
 {
 	enum forge_guest_action action;
@@ -13825,6 +13836,8 @@ static boolean forerunner_forge_guest_action(char const *name)
 		action = _forge_guest_move;
 	else if (!strcmp(name, "port forge guest remove"))
 		action = _forge_guest_remove;
+	else if (!strcmp(name, "port forge cycle physics"))
+		action = _forge_guest_cycle_physics;
 	else
 		return FALSE;
 
@@ -13878,7 +13891,9 @@ static boolean forerunner_forge_action(char const *action)
 		case _forge_physics_fixed: notice = "Object physics set to Fixed."; break;
 		case _forge_physics_phased: notice = "Object physics set to Phased."; break;
 		case _forge_physics_normal: notice = "Object physics set to Normal."; break;
-		default: notice = "Select an unused copy. Solid physics needs clear space."; break;
+		default: notice = cheats_forge_physics_available() ?
+			"Select an unused copy. Solid physics needs clear space." :
+			"Every joined player needs Forge physics support."; break;
 		}
 	}
 	else if (!strcmp(action, "port forge undo move"))

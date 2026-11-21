@@ -364,19 +364,32 @@ boolean cheats_forge_remote_physics_active(void)
 #endif
 }
 
+enum forge_physics_mode cheats_forge_object_physics(long object_index)
+{
+#ifdef NATIVE_FORGE_SIDECARS
+	struct object_datum const *object = object_try_and_get(object_index);
+	unsigned char physics;
+
+	if (!object)
+		return _forge_physics_refused;
+	physics = forge_placement_physics(object_index, object);
+	if (physics == FORGE_RECORD_PHYSICS_FIXED)
+		return _forge_physics_fixed;
+	if (physics == FORGE_RECORD_PHYSICS_PHASED)
+		return _forge_physics_phased;
+	return _forge_physics_normal;
+#else
+	(void)object_index;
+	return _forge_physics_refused;
+#endif
+}
+
 enum forge_physics_mode cheats_forge_network_physics(long object_index)
 {
 #ifdef NATIVE_FORGE_SIDECARS
 	/* Ordinary objects keep their original network description. */
 	if (forge_remote_physics_active && forge_copies[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)] == object_index)
-	{
-		unsigned char physics = forge_placement_physics(object_index, object_get(object_index));
-		if (physics == FORGE_RECORD_PHYSICS_FIXED)
-			return _forge_physics_fixed;
-		if (physics == FORGE_RECORD_PHYSICS_PHASED)
-			return _forge_physics_phased;
-		return _forge_physics_normal;
-	}
+		return cheats_forge_object_physics(object_index);
 #else
 	(void)object_index;
 #endif
@@ -816,7 +829,7 @@ static struct object_datum *forge_editable_copy(long object_index)
 boolean cheats_forge_physics_available(void)
 {
 #ifdef NATIVE_FORGE_SIDECARS
-	return forge_local_host();
+	return forge_physics_supported();
 #else
 	return FALSE;
 #endif
@@ -832,9 +845,19 @@ static boolean forge_phase_exit_clear(long object_index, struct object_datum con
 	if (object->object.type == _object_type_vehicle)
 	{
 		struct physics_instance vehicle;
+		long blocker_index;
+
 		/* The vehicle is already resting against the BSP. Check other objects. */
-		return physics_instance_new(&vehicle, object_index) &&
-			physics_placement_clear(&vehicle, object_index, FALSE, NULL);
+		if (!physics_instance_new(&vehicle, object_index))
+			return FALSE;
+		if (!physics_placement_clear(&vehicle, object_index, FALSE, &blocker_index))
+		{
+			struct object_datum const *blocker = object_try_and_get(blocker_index);
+			if (blocker)
+				error(_error_log, "Forge: %s prevents restoring solid collision.", tag_get_name(blocker->definition_index));
+			return FALSE;
+		}
+		return TRUE;
 	}
 
 	scenario_location_from_point(&location, center);
@@ -842,14 +865,15 @@ static boolean forge_phase_exit_clear(long object_index, struct object_datum con
 }
 #endif
 
-enum forge_physics_mode cheat_forge_cycle_physics(void)
+static enum forge_physics_mode forge_cycle_copy_physics(long object_index)
 {
 #ifdef NATIVE_FORGE_SIDECARS
-	long object_index = forge_selection;
 	struct object_datum *object;
 	struct forge_fixed_pose *fixed;
 
-	if (!cheats_forge_physics_available() || !(object = forge_editable_copy(object_index)))
+	if (!cheats_forge_physics_available() || !(object = forge_editable_copy(object_index)) ||
+		(!forge_local_host() && !TEST_FLAG(_object_mask_vehicle | _object_mask_weapon | _object_mask_equipment,
+			object->object.type)))
 		return _forge_physics_refused;
 
 	if (TEST_FLAG(object->object.flags, _object_forge_phased_bit))
@@ -878,10 +902,23 @@ enum forge_physics_mode cheat_forge_cycle_physics(void)
 	object->object.translational_velocity = *global_zero_vector3d;
 	object->object.angular_velocity = *global_zero_vector3d;
 	SET_FLAG(object->object.flags, _object_at_rest_bit, TRUE);
+#ifdef HALO_GAME_BROWSER
+	if (!forge_local_host())
+	{
+		extern void network_objects_forge_physics_changed(long object_index);
+		network_objects_forge_physics_changed(object_index);
+	}
+#endif
 	return _forge_physics_fixed;
 #else
+	(void)object_index;
 	return _forge_physics_refused;
 #endif
+}
+
+enum forge_physics_mode cheat_forge_cycle_physics(void)
+{
+	return forge_cycle_copy_physics(forge_selection);
 }
 
 /* The existing object state sender and placement writer see the same handle. */
@@ -1155,6 +1192,7 @@ boolean cheats_forge_guest_edit(enum forge_guest_action action, long unit_index,
 	case _forge_guest_place: edited = forge_place_copy(unit_index, object_index) != NONE; break;
 	case _forge_guest_move: edited = forge_move_selected_copy(unit_index, object_index); break;
 	case _forge_guest_remove: edited = forge_remove_copy(object_index); break;
+	case _forge_guest_cycle_physics: edited = forge_cycle_copy_physics(object_index) != _forge_physics_refused; break;
 	default: break;
 	}
 	terminal_command_running = old_terminal_state;

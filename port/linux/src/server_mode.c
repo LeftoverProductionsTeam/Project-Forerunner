@@ -225,6 +225,7 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "forge.hmv_host_physics.v1");
 	server_json_string(&json, NULL, "forge.guest_rotate.v1");
 	server_json_string(&json, NULL, "forge.guest_placements.v1");
+	server_json_string(&json, NULL, "forge.live_physics.v1");
 #endif
 #endif
 	server_json_array_end(&json);

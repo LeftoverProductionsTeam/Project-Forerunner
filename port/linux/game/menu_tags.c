@@ -78,6 +78,7 @@ boolean team_change_pause_offered(void);
 boolean pc_menu_forge_offered(void);
 boolean pc_menu_forge_guest_offered(void);
 boolean pc_menu_forge_guest_placements_offered(void);
+boolean pc_menu_forge_physics_offered(void);
 int config_boolean(char const *name);
 
 /* cache_files.c's (port) */
@@ -1270,6 +1271,8 @@ static boolean child_left_out(struct halo_menu_widget const *parent, struct halo
 
 	if (name && !strcmp(parent->name, "forerunner/forge/tools/choices"))
 	{
+		if (!strcmp(name, "forerunner/forge/tools/physics"))
+			return !build.game_map || !pc_menu_forge_physics_offered();
 		if (!strcmp(name, "forerunner/forge/tools/guest_rotate"))
 			return !build.game_map || !pc_menu_forge_guest_offered();
 		if (!strcmp(name, "forerunner/forge/tools/guest_remove"))
@@ -1282,8 +1285,6 @@ static boolean child_left_out(struct halo_menu_widget const *parent, struct halo
 				strcmp(name, "forerunner/forge/tools/move"));
 		}
 	}
-	if (name && !strcmp(name, "forerunner/forge/tools/physics"))
-		return !build.game_map || !cheats_forge_physics_available();
 	if (!leaf || strcmp(leaf, "setup_entry"))
 		return FALSE;
 	setup_left_out = build.game_map || !pc_menu_setup_offered();

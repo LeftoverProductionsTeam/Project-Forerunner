@@ -1709,6 +1709,13 @@ enum
 	_host_state_to_all,
 };
 
+/* Send a freshly fixed copy through the existing rest-state repeat schedule. */
+void network_objects_forge_physics_changed(long object_index)
+{
+	if (distributed_object_index_valid(object_index))
+		objects_host_state_moving[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)] = TRUE;
+}
+
 /* whether an object at rest is due to every client again: it came to rest
 this tick, or REST_STATE_REPEAT_TICKS after one of its sends */
 static boolean distributed_host_rest_state_due(

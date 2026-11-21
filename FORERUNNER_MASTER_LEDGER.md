@@ -148,6 +148,10 @@ selection becoming stale after a replicated host undo, host redo, and
 reloading the saved layout after restarting. Discovery advertises
 `forge.guest_placements.v1`. See `build/native-guest-forge-placements/result.json`
 and `build/native-guest-forge-recovery/result.json`.
+Hosted Change Physics now also operates on eligible copies. Native Windows
+verified host and guest edits, late joining, refusal beside a boulder,
+restoring Normal after moving to clear ground, and HMV readback. See
+`build/native-remote-forge-live-physics/result.json`.
 Authenticated human play remains open.
 
 Existing acceptance gates: A, two independent clients using verified Delta
