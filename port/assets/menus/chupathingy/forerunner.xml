@@ -197,7 +197,7 @@
 		<child widget="forerunner/forge/choices" x="0" y="0" />
 	</widget>
 	<widget name="forerunner/forge/title" type="text" width="520" height="35" text="FORGE" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Press F7 for tools. In Local Forge, press F8 to fly or return to play. Use Space and Ctrl to ascend and descend." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Press F7 to open tools. In Local Forge, F8 or D-pad Down toggles flight. Use Space/Ctrl or the bumpers for altitude. Press X while flying to open tools." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
 		<child widget="forerunner/forge/create_lan_local" x="60" y="350" platform="desktop" />

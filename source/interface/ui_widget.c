@@ -10880,6 +10880,13 @@ void process_ui_widgets(
 		int tools_key_down, fly_key_down, vertical;
 
 		halo_linux_forge_keys(&tools_key_down, &fly_key_down, &vertical);
+		if (input_has_gamepad(0) && network_game_port_hosting_local())
+		{
+			struct gamepad_state const *pad = input_get_gamepad_state(0);
+			fly_key_down |= pad->buttons[_gamepad_binary_button_dpad_down] != 0;
+			if (director_forge_flight_active(0))
+				tools_key_down |= pad->buttons[_gamepad_analog_button_x] != 0;
+		}
 
 		if (!widget_globals.active_widgets[0] &&
 			!download_screen_active() && !console_is_active() && !network_chat_typing() &&

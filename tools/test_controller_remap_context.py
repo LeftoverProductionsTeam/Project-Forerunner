@@ -138,6 +138,7 @@ static void director_choose_game_perspective(short local,int force){}
 static void director_rotate_cameras(short local,short const *modes,short count){rotations++;}
 static int network_game_distributed_client(void){return client;}
 static int players_coop_waiting_to_start(long player){return 0;}
+static int late_join_waiting(long player){return 0;}
 static int coop_spectating(void){return 0;}
 static long coop_spectate_unit(short local){return NONE;}
 static void coop_spectate_camera(struct dead_camera *p){}

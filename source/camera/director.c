@@ -847,7 +847,7 @@ void director_toggle_forge_flight(void)
 		flying_camera_new_from_point_and_vector((struct flying_camera *)director->camera_data, &origin, &forward);
 		director_set_camera(0, (director_camera_update_proc)director_forge_flight_update, FALSE);
 		forge_flight_unit = unit_index;
-		hud_print_notice(0, "Forge flight  |  Space/Ctrl: up/down  |  F7: tools  |  F8: play");
+		hud_print_notice(0, "Forge flight  |  F7 / X: tools  |  F8 / D-pad Down: play");
 	}
 }
 
@@ -891,11 +891,17 @@ static boolean director_update_forge_controls(short local_player_index, struct c
 		int tools_key, flight_key, vertical;
 
 		halo_linux_forge_keys(&tools_key, &flight_key, &vertical);
+		if (input_has_gamepad(0))
+		{
+			struct gamepad_state const *pad = input_get_gamepad_state(0);
+			vertical += !!pad->buttons[_gamepad_analog_button_black] -
+				!!pad->buttons[_gamepad_analog_button_white];
+		}
 		controls->facing_delta.yaw = player_control_port_debug_facing[0].yaw;
 		controls->facing_delta.pitch = player_control_port_debug_facing[0].pitch;
 		controls->position_delta.i = throttle.i * speed;
 		controls->position_delta.j = throttle.j * speed;
-		controls->position_delta.k = vertical * speed;
+		controls->position_delta.k = PIN(vertical, -1, 1) * speed;
 		controls->active = TRUE;
 	}
 	return TRUE;

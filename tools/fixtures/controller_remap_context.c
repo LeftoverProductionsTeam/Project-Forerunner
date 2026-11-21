@@ -20,7 +20,7 @@ struct widget_instance {short local_player_index;};
 static struct widget_instance root_widget = {-1};
 static struct {int initialized; struct widget_instance *active_widgets[4];} widget_globals = {1,{&root_widget,0,0,0}};
 struct game_input_preferences {unsigned char game_control_to_xbox_buttons[12];};
-static struct player_datum {short local_player_index;long unit_index;struct {int deaths;} statistics;} fake_player = {0};
+static struct player_datum {short local_player_index;long unit_index,dead_unit_index;struct {int deaths;} statistics;} fake_player = {.dead_unit_index=NONE};
 static int main_menu, console_open, chat_owner = NONE;
 static int main_menu_is_active(void){return main_menu;}
 static int console_is_active(void){return console_open;}
@@ -62,6 +62,7 @@ static struct gamepad_state const *input_get_gamepad_state(short p){return &game
 static struct mouse_state const *input_get_mouse_state(void){return NULL;}
 static int input_key_is_down(int key){return 0;}
 static int passenger_camera_enabled(short p){return 0;}
+static int on_foot_camera_enabled(short p){return 0;}
 #define SET_FLAG(v,b,on) ((v) = ((v)&~(1u<<(b))) | ((on)?(1u<<(b)):0))
 #define director_process_variables(p,f,w) ((void)0)
 #define director_inhibit_input(p) ((void)0)
