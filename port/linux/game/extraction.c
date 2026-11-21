@@ -2264,6 +2264,13 @@ void extraction_update(void)
 				else if (outcome < 0 && (run->phase == _extraction_deployed || run->phase == _extraction_activating || run->phase == _extraction_ready)) extraction_lose_run(run);
 			}
 			extraction_update_run(run, player, now);
+			if (extraction.suspended)
+			{
+				/* Clear the published aircraft signals before HaloScript runs
+				 * again. Other passengers must keep their live inventory. */
+				extraction_transport_readiness();
+				return;
+			}
 		}
 	}
 	for (index = 0; index < NUMBEROF(extraction_runs); index++)

@@ -280,6 +280,16 @@ def test_native_transport_settlement(case):
     assert status == 0, output
 
 
+def test_failed_native_consume_suspends_same_tick_crew_settlement():
+    fault = (
+        'if (!game_modes_inventory_capture(player_index, &current) || memcmp(&current, inventory, sizeof(current))) return FALSE;',
+        'if (player_index == player_handles[0]) return FALSE;\n\t'
+        'if (!game_modes_inventory_capture(player_index, &current) || memcmp(&current, inventory, sizeof(current))) return FALSE;',
+    )
+    status, output = run(build('extraction', generated(fault=fault)), 'transport-callback-settlement-fault')
+    assert status == 0, output
+
+
 def test_native_transport_crash_negative_control():
     files = tuple((name, mutated(text, '\n\t\textraction_unit_pending_death(vehicle) ||', ''))
                   if name == 'extraction.inc' else (name, text) for name, text in generated())

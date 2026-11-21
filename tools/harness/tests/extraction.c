@@ -1449,7 +1449,8 @@ int main(int argc,char **argv)
    }
   }
   if(!strcmp(case_name,"transport-admission-deployment")||!strcmp(case_name,"transport-admission-evacuation")||
-     !strcmp(case_name,"transport-admission-pilot")||!strcmp(case_name,"transport-pilot-receipt")||stash_space) {
+     !strcmp(case_name,"transport-admission-pilot")||!strcmp(case_name,"transport-pilot-receipt")||
+     !strcmp(case_name,"transport-callback-settlement-fault")||stash_space) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
    strcpy(authored_groups[11].name,"extraction_pelican_landed");
@@ -2041,6 +2042,24 @@ int main(int argc,char **argv)
     publish_failure=FALSE;players[0].quit_out_of_game=players[1].quit_out_of_game=TRUE;
     advance(1);CHECK(transport_wakes[0]==1&&!completion_wakes,
      "durable escrow banking on close lost its physical transport receipt");
+    extraction_reset();return 0;
+   } else if(!strcmp(case_name,"transport-callback-settlement-fault")) {
+    long crewmate_loot=units[1].unit.weapon_object_indices[0];
+    CHECK(weapon_try_and_get(crewmate_loot),"second crew member had no native loot before arrival");
+    CHECK(device_groups[11].actual_value==1.f,"fixture did not publish landing before recovery");
+    advance(1);
+    CHECK(extraction.suspended&&run(0)->gear.record.phase==_gear_escrow&&weapon_try_and_get(loot),
+     "fixture did not stop at an unconsumed first-player escrow");
+    CHECK(run(1)->phase==_extraction_ready&&run(1)->gear.record.phase==_gear_deployed&&
+     units[1].unit.weapon_object_indices[0]==crewmate_loot&&weapon_try_and_get(crewmate_loot),
+     "second crew member settled after the world suspended banking");
+    CHECK(!transport_wakes[0]&&!transport_wakes[1]&&!completion_wakes,
+     "suspended settlement released the transport or completed the mission");
+    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,
+     "suspended settlement left aircraft signals enabled");
+    advance(30);
+    CHECK(run(1)->gear.record.phase==_gear_deployed&&weapon_try_and_get(crewmate_loot),
+     "suspended settlement retried another passenger automatically");
     extraction_reset();return 0;
    } else if(!strcmp(case_name,"transport-callback-replaced")) {
     dropship_handles[0]+=0x10000;
