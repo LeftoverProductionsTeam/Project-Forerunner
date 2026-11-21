@@ -40,13 +40,14 @@ def generated(fault=None):
                 '\n'.join(function(read('source/physics/physics.c'), name) for name in (
                     'physics_placement_clear', 'physics_placement_lift', 'physics_resting_placement')) + '\n' + '\n'.join(
                 function(cheats, name) for name in (
-                    'cheats_forge_reset', 'forge_has_remote_players', 'forge_placeable_object_get', 'forge_aim_collision', 'cheat_forge_target',
+                    'cheats_forge_reset', 'forge_has_remote_players', 'forge_placeable_object_get',
+                    'forge_unit_aim_collision', 'forge_aim_collision', 'forge_target_from_hit', 'cheat_forge_target',
                     'forge_copy_scale_supported', 'forge_create_copy', 'forge_clone_at_position',
                     'cheat_forge_clone', 'cheat_forge_clone_at',
                     'cheat_forge_pick', 'forge_space_occupied', 'forge_aim_placement', 'cheat_forge_place',
                     'forge_editable_children', 'forge_editable_copy', 'forge_move_copy', 'forge_remember_transform', 'forge_commit_transform',
                     'cheat_forge_move_selected', 'forge_settle_turned_vehicle',
-                    'forge_quarter_turn', 'cheat_forge_rotate_selected',
+                    'forge_quarter_turn', 'forge_rotate_copy', 'cheat_forge_rotate_selected',
                     'forge_restore_transform', 'cheat_forge_undo_move', 'cheat_forge_redo_move', 'forge_remove_copy',
                     'cheat_forge_undo', 'cheat_forge_remove_selected'))),
             ('rider_types.inc', enum_with(riders, 'MAXIMUM_KEPT_RIDERS =') + '\n' +

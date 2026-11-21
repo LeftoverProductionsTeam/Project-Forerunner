@@ -76,6 +76,7 @@ boolean network_game_is_active(void);
 /* whether the pause menu has CHANGE TEAMS (team_change.c) */
 boolean team_change_pause_offered(void);
 boolean pc_menu_forge_offered(void);
+boolean pc_menu_forge_guest_offered(void);
 int config_boolean(char const *name);
 
 /* cache_files.c's (port) */
@@ -459,6 +460,7 @@ static char const *const port_function_names[] =
 	"port forge save", "port forge load", "port forge remove", "port forge move", "port forge undo move",
 	"port forge rotate", "port forge save hmv", "port forge load hmv", "port forge redo move", "port forge load saved hmv",
 	"port forge cycle physics",
+	"port forge guest rotate",
 };
 
 /* the PC version's game data functions that the Xbox's have not, from
@@ -1258,12 +1260,19 @@ setup screen) in a game's menus, where it would end the game, and where
 launcher.menu_entry turns it off */
 static boolean setup_left_out;
 
-static boolean child_left_out(struct halo_menu_child const *entry)
+static boolean child_left_out(struct halo_menu_widget const *parent, struct halo_menu_child const *entry)
 {
 	extern boolean pc_menu_setup_offered(void);
 	char const *name = entry->nested != HALO_MENU_NONE ? build.menus->widgets[entry->nested].name : entry->widget;
 	char const *leaf = name && strrchr(name, '/') ? strrchr(name, '/') + 1 : name;
 
+	if (name && !strcmp(parent->name, "forerunner/forge/tools/choices"))
+	{
+		if (!strcmp(name, "forerunner/forge/tools/guest_rotate"))
+			return !build.game_map || !pc_menu_forge_guest_offered();
+		if (strcmp(name, "forerunner/forge/back") && pc_menu_forge_guest_offered())
+			return TRUE;
+	}
 	if (name && !strcmp(name, "forerunner/forge/tools/physics"))
 		return !build.game_map || !cheats_forge_physics_available();
 	if (!leaf || strcmp(leaf, "setup_entry"))
@@ -1452,7 +1461,7 @@ static void *widget_build(long widget_index)
 	}
 	/* the children (but SETUP, where it is left out: child_left_out) */
 	for (count = 0, child = source->first_child; child != HALO_MENU_NONE; child = menus->children[child].next)
-		count += !child_left_out(&menus->children[child]);
+		count += !child_left_out(source, &menus->children[child]);
 	if (definition->type == _widget_type_spinner_list && count != 0 && count != 1 && count != 3)
 		problem(source->file, source->line, "a spinner has 0, 1 or 3 children:", source->name);
 	if (count)
@@ -1467,7 +1476,7 @@ static void *widget_build(long widget_index)
 			long tag_index;
 			char const *name, *child_leaf;
 
-			if (child_left_out(entry))
+			if (child_left_out(source, entry))
 				continue;
 			tag_index = entry->nested != HALO_MENU_NONE ? build.widget_tags[entry->nested] :
 				tag_named(UI_WIDGET_DEFINITION_TAG, entry->widget, entry->file, entry->line);

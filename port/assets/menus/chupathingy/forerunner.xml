@@ -232,6 +232,7 @@
 	</widget>
 	<widget name="forerunner/forge/tools/title" type="text" width="264" height="30" text="FORGE TOOLS" font="ui\large_ui" color="#FFE3F4F6" />
 	<widget name="forerunner/forge/tools/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/forge/tools/guest_rotate" x="192" y="62" platform="desktop" />
 		<child widget="forerunner/forge/tools/pick" x="192" y="62" />
 		<child widget="forerunner/forge/tools/place" x="192" y="92" />
 		<child widget="forerunner/forge/tools/undo" x="192" y="122" />
@@ -247,6 +248,11 @@
 		<child widget="forerunner/forge/tools/redo_move" x="192" y="422" />
 		<child widget="forerunner/forge/tools/physics" x="451" y="452" platform="desktop" />
 		<child widget="forerunner/forge/back" x="192" y="452" />
+	</widget>
+	<widget name="forerunner/forge/tools/guest_rotate" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="ROTATE AIMED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forge guest rotate" close="all" />
+		<on event="start" run="port forge guest rotate" close="all" />
+		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="SELECT AIMED OBJECT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge pick" close="all" />

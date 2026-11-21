@@ -62,6 +62,9 @@ boolean cheats_console_object_made(
 	long object_index);
 /* port: a fresh native Forge copy, at the source transform; console only. */
 long cheat_forge_target(void);
+long cheats_forge_aimed_object(long unit_index);
+int cheats_forge_guest_edits_allowed(void);
+boolean cheats_forge_rotate_request(long object_index);
 union real_point3d;
 void cheats_forge_reset(void);
 void cheats_forge_update(void);

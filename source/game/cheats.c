@@ -487,20 +487,12 @@ static struct object_datum *forge_placeable_object_get(long object_index)
 }
 
 /* Port: Faber's Forge 3D selection uses the native world collision ray.
- * Use the living local player so console selection cannot target through
- * BSP geometry or from another player's camera. */
-static boolean forge_aim_collision(struct collision_result *hit, boolean select_phased)
+ * Guests and hosts both use the aiming vector of a living native unit. */
+static boolean forge_unit_aim_collision(long unit_index, struct collision_result *hit, boolean select_phased)
 {
-	long unit_index;
-	struct unit_datum *unit;
+	struct unit_datum *unit = unit_try_and_get(unit_index);
 	real_point3d origin;
 	real_vector3d ray;
-
-	if (!terminal_command_running || network_game_distributed_client() ||
-		network_game_host_cheats_refused() || !game_in_progress())
-		return FALSE;
-	unit_index = player_control_get_unit_index(0);
-	unit = unit_try_and_get(unit_index);
 	if (!unit || unit->object.parent_object_index != NONE ||
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return FALSE;
@@ -514,18 +506,37 @@ static boolean forge_aim_collision(struct collision_result *hit, boolean select_
 		&origin, &ray, unit_index, hit);
 }
 
+static boolean forge_aim_collision(struct collision_result *hit, boolean select_phased)
+{
+	return terminal_command_running && !network_game_distributed_client() &&
+		!network_game_host_cheats_refused() && game_in_progress() &&
+		forge_unit_aim_collision(player_control_get_unit_index(0), hit, select_phased);
+}
+
+static long forge_target_from_hit(struct collision_result const *hit)
+{
+	struct object_datum *object;
+
+	if (hit->type != _collision_result_object)
+		return NONE;
+
+	object = forge_placeable_object_get(hit->object_index);
+	if (!object || (object->object.type == _object_type_weapon && weapon_is_flag(hit->object_index)))
+		return NONE;
+	return hit->object_index;
+}
+
+long cheats_forge_aimed_object(long unit_index)
+{
+	struct collision_result hit;
+	return game_in_progress() && forge_unit_aim_collision(unit_index, &hit, TRUE) ?
+		forge_target_from_hit(&hit) : NONE;
+}
+
 long cheat_forge_target(void)
 {
 	struct collision_result hit;
-	struct object_datum *object;
-
-	if (!forge_aim_collision(&hit, TRUE) || hit.type != _collision_result_object)
-		return NONE;
-
-	object = forge_placeable_object_get(hit.object_index);
-	if (!object || (object->object.type == _object_type_weapon && weapon_is_flag(hit.object_index)))
-		return NONE;
-	return hit.object_index;
+	return forge_aim_collision(&hit, TRUE) ? forge_target_from_hit(&hit) : NONE;
 }
 
 static boolean forge_copy_scale_supported(real scale)
@@ -958,9 +969,9 @@ static real_vector3d forge_quarter_turn(real_vector3d v)
 	return turned;
 }
 
-boolean cheat_forge_rotate_selected(void)
+static boolean forge_rotate_copy(long object_index)
 {
-	struct object_datum *object = forge_editable_copy(forge_selection);
+	struct object_datum *object = forge_editable_copy(object_index);
 	real_point3d position, center;
 	real_vector3d forward, up, offset;
 	real radius;
@@ -986,7 +997,7 @@ boolean cheat_forge_rotate_selected(void)
 	{
 		struct physics_instance vehicle;
 		long blocker_index;
-		if (!physics_instance_new(&vehicle, forge_selection))
+		if (!physics_instance_new(&vehicle, object_index))
 			return FALSE;
 		vector_from_points3d(&position, &vehicle.world_matrix.position, &offset);
 		offset = forge_quarter_turn(offset);
@@ -994,9 +1005,9 @@ boolean cheat_forge_rotate_selected(void)
 		vehicle.world_matrix.forward = forward;
 		vehicle.world_matrix.up = up;
 		cross_product3d(&up, &forward, &vehicle.world_matrix.left);
-		if (!physics_placement_clear(&vehicle, forge_selection, TRUE, &blocker_index) &&
+		if (!physics_placement_clear(&vehicle, object_index, TRUE, &blocker_index) &&
 			(blocker_index != NONE || !TEST_FLAG(object->object.flags, _object_on_ground_bit) ||
-			!forge_settle_turned_vehicle(&vehicle, forge_selection, &position, &center, radius, &blocker_index)))
+			!forge_settle_turned_vehicle(&vehicle, object_index, &position, &center, radius, &blocker_index)))
 		{
 			struct object_datum const *blocker = object_try_and_get(blocker_index);
 			char const *name = blocker ? tag_get_name(blocker->definition_index) : NULL;
@@ -1009,15 +1020,46 @@ boolean cheat_forge_rotate_selected(void)
 	{
 		scenario_location_from_point(&location, &center);
 		if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
-			forge_space_occupied(&location, &center, radius, forge_selection))
+			forge_space_occupied(&location, &center, radius, object_index))
 			return FALSE;
 	}
 	/* Connect the turned bounding center to the BSP, as object placement does. */
 	scenario_location_from_point(&location, &center);
-	if (location.cluster_index == NONE || !forge_remember_transform(forge_selection, object, &forge_last_move))
+	if (location.cluster_index == NONE || !forge_remember_transform(object_index, object, &forge_last_move))
 		return FALSE;
-	forge_commit_transform(forge_selection, object, &position, &forward, &up);
+	forge_commit_transform(object_index, object, &position, &forward, &up);
 	return TRUE;
+}
+
+boolean cheat_forge_rotate_selected(void)
+{
+	return forge_rotate_copy(forge_selection);
+}
+
+int cheats_forge_guest_edits_allowed(void)
+{
+#if defined(NATIVE_FORGE_SIDECARS) && defined(HALO_GAME_BROWSER)
+	extern int config_boolean(char const *name);
+	extern int p2p_hosting_public_game(void);
+	return network_game_forge_hosting() && !forge_local_host() &&
+		config_boolean("network.forge_guest_edits") && !p2p_hosting_public_game() &&
+		!network_game_host_cheats_refused();
+#else
+	return 0;
+#endif
+}
+
+boolean cheats_forge_rotate_request(long object_index)
+{
+	boolean old_terminal_state = terminal_command_running;
+	boolean rotated;
+
+	if (object_index == NONE || !cheats_forge_guest_edits_allowed())
+		return FALSE;
+	terminal_command_running = TRUE;
+	rotated = forge_rotate_copy(object_index);
+	terminal_command_running = old_terminal_state;
+	return rotated;
 }
 
 static boolean forge_restore_transform(boolean redo)

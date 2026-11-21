@@ -127,7 +127,14 @@ Windows x64 replicated a Spark-authored pair to a connected guest and
 late joiner and kept a legacy client outside the active layout before
 spawn. Spark read both mode flags back from the host save. The existing
 read-only discovery advertises `forge.hmv_host_physics.v1`. Twenty-seven focused
-checks passed. Guest edit requests and human play remain open.
+checks passed.
+
+On Windows x64, a guest in a private Delta Forge session turned a
+Spark-authored Fixed Warthog 90 degrees with host opt-in. Host Undo and
+Redo replicated and a late joiner received the same object and pose. Spark
+read the final angle and Fixed mode from the host save. The runtime advertises
+`forge.guest_rotate.v1`. Evidence is in `build/native-guest-forge-rotate/result.json`.
+Guest move, clone, removal and authenticated human verification remain open.
 
 Existing acceptance gates: A, two independent clients using verified Delta
 identities extract/bank, disconnect, restart and redeploy without duplication or

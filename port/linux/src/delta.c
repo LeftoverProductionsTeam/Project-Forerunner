@@ -109,7 +109,7 @@ static const char *const delta_capability_names[] =
 	"platform", "profile", "server_messages", "chat", "ce_maps", "md_maps", "coop", "ai_sync", "vote",
 	"console_slots", "moderation", "bomb", "ping", "bomb_movement", "bomb_traits", "team_change",
 	"server_badge", "object_sync", "host_cheats", "host_rules", "identity",
-	"party_teams", "voice", "reports", "mcc_maps", "game_modes", "lobby_ready", "forge_physics",
+	"party_teams", "voice", "reports", "mcc_maps", "game_modes", "lobby_ready", "forge_physics", "forge_guest_edits",
 };
 _Static_assert(sizeof(delta_capability_names) / sizeof(*delta_capability_names) == NUMBER_OF_DELTA_CAPABILITIES,
 	"a name for each capability");

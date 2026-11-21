@@ -86,6 +86,8 @@ their handlers open opens.
 
 #include "cseries.h"
 #include "game/cheats.h"
+#include "math/real_math.h"
+#include "network_distributed.h"
 #include "game/game.h"
 #include "interface/hud_messaging.h"
 #include "interface/terminal.h"
@@ -13786,9 +13788,21 @@ static boolean profile_list_delta_chosen(struct widget_instance const *widget)
 
 #endif
 
+boolean pc_menu_forge_guest_offered(void)
+{
+#ifdef HALO_GAME_BROWSER
+	extern int delta_peer_game_host_agreed_forge_edits(void);
+
+	return !pc_menu_split_players() &&
+		delta_peer_game_host_agreed_forge_edits();
+#else
+	return FALSE;
+#endif
+}
+
 boolean pc_menu_forge_offered(void)
 {
-	return network_game_forge_hosting() && !pc_menu_split_players();
+	return (network_game_forge_hosting() && !pc_menu_split_players()) || pc_menu_forge_guest_offered();
 }
 
 static boolean forerunner_forge_action(char const *action)
@@ -13796,7 +13810,17 @@ static boolean forerunner_forge_action(char const *action)
 	boolean was_terminal_command = terminal_command_running;
 	char const *notice, *title = NULL, *author = NULL;
 
-	if (!pc_menu_forge_offered() || !game_in_progress() || network_game_distributed_client())
+	if (!pc_menu_forge_offered() || !game_in_progress())
+		return FALSE;
+	if (!strcmp(action, "port forge guest rotate"))
+	{
+		if (!pc_menu_forge_guest_offered())
+			return FALSE;
+		hud_print_notice(0, network_distributed_request_forge_rotation() ?
+			"Forge rotation requested." : "Aim at an unused Forge copy.");
+		return TRUE;
+	}
+	if (network_game_distributed_client())
 		return FALSE;
 	if (network_game_host_cheats_refused())
 	{
@@ -14104,7 +14128,7 @@ boolean pc_menu_event_function_invoke(
 		else if (!strcmp(name, "port forge pick") || !strcmp(name, "port forge place") ||
 			!strcmp(name, "port forge undo") || !strcmp(name, "port forge remove") || !strcmp(name, "port forge move") ||
 			!strcmp(name, "port forge rotate") || !strcmp(name, "port forge undo move") || !strcmp(name, "port forge redo move") ||
-			!strcmp(name, "port forge cycle physics") ||
+			!strcmp(name, "port forge cycle physics") || !strcmp(name, "port forge guest rotate") ||
 			!strcmp(name, "port forge save") || !strcmp(name, "port forge load") ||
 			!strcmp(name, "port forge save hmv") || !strcmp(name, "port forge load hmv") ||
 			!strcmp(name, "port forge load saved hmv"))

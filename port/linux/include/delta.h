@@ -205,6 +205,8 @@ enum delta_capability
 	_delta_capability_lobby_ready = 26,
 	/* Forerunner: native HMV placement physics in a Forge match. */
 	_delta_capability_forge_physics = 27,
+	/* A private Forge host can accept approved placement edit requests. */
+	_delta_capability_forge_guest_edits = 28,
 
 	NUMBER_OF_DELTA_CAPABILITIES
 };

@@ -30,6 +30,7 @@ HALO_GAME_BROWSER; network.protocol = "opence" turns all of it off.
 #ifdef HALO_GAME_BROWSER
 #include "browser.h"
 #include "p2p.h"
+int cheats_forge_guest_edits_allowed(void);
 #endif
 #ifdef HALO_DELTA_PEER_IDENTITY
 #include "identity.h"
@@ -346,6 +347,11 @@ itself: delta_legacy_refresh) */
 static int game_capability_disabled(void *context, int capability)
 {
 	(void)context;
+#ifdef HALO_GAME_BROWSER
+	if (capability == _delta_capability_forge_guest_edits && delta_game.role == _role_host &&
+		!cheats_forge_guest_edits_allowed())
+		return 1;
+#endif
 	return delta_capability_disabled(capability);
 }
 #endif
@@ -703,6 +709,7 @@ int delta_peer_protocol(void)
 		local.capabilities |= (delta_u32)1 << _delta_capability_coop;
 #if !defined(HALO_XBOX_CONSOLE) && !defined(HALO_BROWSER)
 		local.capabilities |= (delta_u32)1 << _delta_capability_forge_physics;
+		local.capabilities |= (delta_u32)1 << _delta_capability_forge_guest_edits;
 #endif
 #endif
 		/* (the host's rules for its players' extras: host_rules.c; a host
@@ -1446,6 +1453,13 @@ int delta_peer_game_host_agreed_mcc_maps(void)
 	return delta_game.ready && delta_game.role == _role_client &&
 		delta_game.peer.client_state == _delta_peer_client_delta &&
 		(delta_game.peer.agreed & ((delta_u32)1 << _delta_capability_mcc_maps)) != 0;
+}
+
+int delta_peer_game_host_agreed_forge_edits(void)
+{
+	return delta_game.ready && delta_game.role == _role_client &&
+		delta_game.peer.client_state == _delta_peer_client_delta &&
+		(delta_game.peer.agreed & ((delta_u32)1 << _delta_capability_forge_guest_edits)) != 0;
 }
 
 unsigned delta_peer_game_host_number(void)
