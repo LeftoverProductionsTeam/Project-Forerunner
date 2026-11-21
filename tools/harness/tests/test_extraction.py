@@ -271,6 +271,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
     'transport-boarded-pending', 'transport-boarded-ship', 'transport-boarded-identity', 'transport-boarded-duplicate',
     'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
+    'transport-boarded-owner-state',
     'transport-boarded-squad-field', 'transport-boarded-squad-hub',
     'transport-boarded-squad-wait', 'transport-boarded-squad-mixed',
     'transport-boarded-squad-stale',
@@ -331,7 +332,8 @@ def test_native_transport_release_negative_control(before, after, case):
 
 
 @pytest.mark.parametrize('file,before,after,case', [
-    ('extraction.inc', 'extraction_player_dropship(unit) != ship ||', 'FALSE ||', 'transport-boarded-hub'),
+    ('extraction.inc', 'extraction_player_dropship(unit) != ship ||\n\t\t\t(at_lz', 'FALSE ||\n\t\t\t(at_lz',
+     'transport-boarded-hub'),
     ('extraction.inc', 'if (at_lz && run->phase == _extraction_activating) return FALSE;',
      'if (FALSE) return FALSE;', 'transport-boarded-lz'),
     ('device_binding.inc', 'found != NONE || index >= device_groups_data->maximum_count',

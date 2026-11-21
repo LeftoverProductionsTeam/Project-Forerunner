@@ -1783,7 +1783,7 @@ int main(int argc,char **argv)
   }
   if(!strncmp(case_name,"transport-boarded",17)) {
    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"authored stale boarding outputs survived binding");
-   units[0].object.owner_team_index=units[1].object.owner_team_index=_game_team_player;
+   for(a=0;a<2;a++)players[a].team_index=units[a].object.owner_team_index=_game_team_player;
    if(!strcmp(case_name,"transport-boarded-hub")) {
     dropships[0].object.position.x=0;touch(0,0);touch(0,1);
     units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
@@ -1937,7 +1937,7 @@ int main(int argc,char **argv)
     }
     extraction_reset();return 0;
    }
-   units[1].object.owner_team_index=other?_game_team_covenant:_game_team_player;
+   players[1].team_index=units[1].object.owner_team_index=other?_game_team_covenant:_game_team_player;
    touch(0,1);units[1].object.position.x=20;touch(1,1);advance(1);
    CHECK(device_groups[10].actual_value==(other?1.f:0.f),"activation crew/faction readiness incorrect");
    advance(300);CHECK(device_groups[10].actual_value==(other?1.f:0.f),"unboarded requesting crew counted as seated");
@@ -1952,6 +1952,15 @@ int main(int argc,char **argv)
    } else if(!strcmp(case_name,"transport-boarded-identity")) {
     units[0].unit.player_index=NONE;advance(1);
     CHECK(!device_groups[10].actual_value,"unowned body authorized departure");
+   } else if(!strcmp(case_name,"transport-boarded-owner-state")) {
+    run(0)->gear.pending=TRUE;extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"pending gear authorized a boarded departure");
+    run(0)->gear.pending=FALSE;extraction_transport_readiness();
+    CHECK(device_groups[10].actual_value==1.f,"valid gear did not recover departure readiness");
+    players[0].team_index=_game_team_covenant;extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"changed player allegiance authorized a stale seat");
+    players[0].team_index=_game_team_player;extraction_transport_readiness();
+    CHECK(device_groups[10].actual_value==1.f,"matching allegiance did not recover departure readiness");
    } else {
     units[0].object.parent_object_index=NONE;advance(1);
     CHECK(!device_groups[10].actual_value,"lost seat retained departure readiness");

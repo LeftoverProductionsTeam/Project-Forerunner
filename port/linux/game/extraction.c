@@ -2064,8 +2064,12 @@ static boolean extraction_transport_crew_ready(short faction, long ship)
 		if (!player || player->quit_out_of_game ||
 			(at_lz ? run->phase != _extraction_ready && run->phase != _extraction_activating : run->phase != _extraction_deployed)) continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
-		if (!unit || extraction_player_dropship(unit) != ship) continue;
-		if (run->unit != player->unit_index || unit->unit.player_index != run->player ||
+		if (!unit || unit->object.parent_object_index != ship) continue;
+		/* Preserve the native seat-admission requirements until departure.
+		 * A still-attached rider with stale ownership cannot release a crew. */
+		if (extraction_player_dropship(unit) != ship || extraction_faction((short)player->team_index) != faction ||
+			run->unit != player->unit_index || unit->unit.player_index != run->player ||
+			!run->gear.opened || run->gear.pending || run->gear.record.phase != _gear_deployed ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
 			extraction_medical_incapacitated(player->unit_index)) return FALSE;
 		if (run->squad == NONE) legacy_crew = TRUE;

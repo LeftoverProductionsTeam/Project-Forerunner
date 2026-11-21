@@ -24,7 +24,31 @@ remains unverified.
 
 ## Current Black Echo candidates
 
-Spark's current 20 November CE609 candidate (Spark `8e4f912`) is
+Spark now supplies two separate CE609 candidates from the preserved Elite start
+layout. The UNSC export at
+`releases/black-echo-elite-unsc-20261120/be_native.map` has SHA-256
+`700af26afbb9e7d63d86fb55b4683240187a0d4f6edecc8184a3b98e326a7b16`.
+The Covenant defense-cover export at
+`releases/black-echo-elite-defense-cover-20261120/be_native.map` has SHA-256
+`88a13c271422a4f480f91e43ec31f8f1948e8ed6730969fbafbd03f188ad6e7f`.
+Use the corresponding export for each faction route.
+
+Forerunner independently ran the UNSC export with one offline player. Normal
+deployment, Pelican seat 4 boarding, field landing and voluntary dismount
+left the Spartan at full health and shields. The Marine and player reached
+the rally and the native `be_covenant` facility guard spawned near
+(58.86, -89.41, 0.05). The field control at (70.928, -128.997, 0.820)
+remained locked before the facility encounter was cleared. With the revised
+crew-readiness check, a second run passed deployment, boarding, landing
+and voluntary dismount. The input driver then stopped at (72.77, -124.191,
+0.713) outside its 0.8-unit intermediate waypoint tolerance. That stop
+did not demonstrate a collision or mission-script failure. Combat,
+technology, evacuation, banking, redeployment and paired authenticated
+play remain open. Native receipts are
+`build/native-black-echo-700a-unsc-field.json` and
+`build/native-black-echo-700a-facility.json`.
+
+The preserved 20 November CE609 candidate (Spark `8e4f912`) is
 `releases/black-echo-elite-separated-starts-20261120/be_native.map`,
 SHA-256 `04d9ccd199fef0bba6d30a54e7c7f3682f9766ddc0f94ee347cde6c9677c113f`.
 It combines the reviewed Elite faction placement with four grounded hub starts.
