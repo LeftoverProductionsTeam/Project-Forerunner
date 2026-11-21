@@ -103,6 +103,23 @@ the static reconstruction. Spark should check the guard’s fallback firing
 positions against the parked hull and place them in reachable cover with
 a clear approach. Preserve the native guard-death and boarding gates.
 
+The same exact cache also admits native default UNSC deployment. An
+offline Spartan boarded Pelican seat 1, landed at (78.091, -124.922, 1.633),
+and voluntarily disembarked at (78.549, -124.952, 0.409) at full health and
+shields. The player walked into the compiled be_survivors bounds and stayed
+there at (50.492, -89.956, 0.185). The living Marine remained at
+(78.170, -124.909, 0.472), the facility encounter was absent, and the field
+terminal was unusable through tick 6495. Compact native receipt:
+build/native-black-echo-04d9-unsc-objective-readback.json.
+
+Invader recovery from this exact cache independently confirms that gs_mission
+waits exclusively on gs_spirit_player_arrived, then starts the Covenant rescue
+encounter. gs_pelican_insertion_complete reports the authored troop sequence.
+Spark needs a UNSC mission entry that observes the living Pelican passenger’s
+grounded disembarkation, using the existing Spirit passenger check as a
+reference, and drives the Marine rescue route before the field terminal is
+powered. Keep the Covenant branch and native gear/boarding requirements.
+
 The managed Pelican/Spirit call checks incapacitation before accepting a
 completed request from outside the landing zone. Revival can restore that
 request without a new countdown or gear write. The regression failed before
