@@ -197,7 +197,7 @@
 		<child widget="forerunner/forge/choices" x="0" y="0" />
 	</widget>
 	<widget name="forerunner/forge/title" type="text" width="520" height="35" text="FORGE" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Open Forge Tools from the pause menu to copy objects." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Press F7 for tools. In Local Forge, press F8 to fly or return to play. Use Space and Ctrl to ascend and descend." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
 		<child widget="forerunner/forge/create_lan_local" x="60" y="350" platform="desktop" />
@@ -227,28 +227,32 @@
 	<widget name="forerunner/forge/tools" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
 		<on event="b" back="true" />
 		<on event="back" back="true" />
-		<child widget="forerunner/forge/tools/title" x="192" y="22" />
+		<child widget="forerunner/forge/tools/title" x="48" y="23" />
+		<child widget="forerunner/forge/tools/edit_title" x="48" y="63" />
+		<child widget="forerunner/forge/tools/layout_title" x="336" y="63" platform="desktop" />
 		<child widget="forerunner/forge/tools/choices" />
 	</widget>
 	<widget name="forerunner/forge/tools/title" type="text" width="264" height="30" text="FORGE TOOLS" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/forge/tools/edit_title" type="text" width="256" height="23" text="EDIT OBJECTS" font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/tools/layout_title" type="text" width="256" height="23" text="LAYOUT FILES" font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/tools/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
-		<child widget="forerunner/forge/tools/pick" x="192" y="62" />
-		<child widget="forerunner/forge/tools/place" x="192" y="92" />
-		<child widget="forerunner/forge/tools/undo" x="192" y="122" />
-		<child widget="forerunner/forge/tools/save" x="192" y="152" platform="desktop" />
-		<child widget="forerunner/forge/tools/load" x="192" y="182" platform="desktop" />
-		<child widget="forerunner/forge/tools/save_hmv" x="192" y="212" platform="desktop" />
-		<child widget="forerunner/forge/tools/load_hmv" x="192" y="242" platform="desktop" />
-		<child widget="forerunner/forge/tools/load_saved_hmv" x="192" y="272" platform="desktop" />
-		<child widget="forerunner/forge/tools/remove" x="192" y="302" />
-		<child widget="forerunner/forge/tools/guest_remove" x="192" y="302" platform="desktop" />
-		<child widget="forerunner/forge/tools/move" x="192" y="332" />
-		<child widget="forerunner/forge/tools/rotate" x="192" y="362" />
-		<child widget="forerunner/forge/tools/guest_rotate" x="192" y="362" platform="desktop" />
-		<child widget="forerunner/forge/tools/undo_move" x="192" y="392" />
-		<child widget="forerunner/forge/tools/redo_move" x="192" y="422" />
-		<child widget="forerunner/forge/tools/physics" x="451" y="452" platform="desktop" />
-		<child widget="forerunner/forge/back" x="192" y="452" />
+		<child widget="forerunner/forge/tools/pick" x="48" y="92" />
+		<child widget="forerunner/forge/tools/place" x="48" y="124" />
+		<child widget="forerunner/forge/tools/move" x="48" y="156" />
+		<child widget="forerunner/forge/tools/rotate" x="48" y="188" />
+		<child widget="forerunner/forge/tools/guest_rotate" x="48" y="188" platform="desktop" />
+		<child widget="forerunner/forge/tools/remove" x="48" y="220" />
+		<child widget="forerunner/forge/tools/guest_remove" x="48" y="220" platform="desktop" />
+		<child widget="forerunner/forge/tools/undo" x="48" y="252" />
+		<child widget="forerunner/forge/tools/undo_move" x="48" y="284" />
+		<child widget="forerunner/forge/tools/redo_move" x="48" y="316" />
+		<child widget="forerunner/forge/tools/physics" x="48" y="348" platform="desktop" />
+		<child widget="forerunner/forge/tools/save" x="336" y="92" platform="desktop" />
+		<child widget="forerunner/forge/tools/load" x="336" y="124" platform="desktop" />
+		<child widget="forerunner/forge/tools/save_hmv" x="336" y="156" platform="desktop" />
+		<child widget="forerunner/forge/tools/load_hmv" x="336" y="188" platform="desktop" />
+		<child widget="forerunner/forge/tools/load_saved_hmv" x="336" y="220" platform="desktop" />
+		<child widget="forerunner/forge/back" x="48" y="412" />
 	</widget>
 	<widget name="forerunner/forge/tools/guest_remove" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="REMOVE AIMED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge guest remove" close="all" />
@@ -315,7 +319,7 @@
 		<on event="start" run="port forge rotate" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/physics" type="text" width="178" height="28" bitmap="bitmaps/list_item_bkd" text="CHANGE PHYSICS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/physics" type="text" width="256" height="28" bitmap="bitmaps/list_item_bkd" text="CHANGE PHYSICS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="port forge cycle physics" close="all" />
 		<on event="start" run="port forge cycle physics" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />

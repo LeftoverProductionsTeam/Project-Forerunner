@@ -92,6 +92,7 @@ symbols in this file:
 #include "interface/hud_messaging.h"
 #include "interface/terminal.h"
 #include "interface/virtual_keyboard.h"
+#include "interface/ui_widget.h"
 #include "interface/weapon_hud_interface_definition.h"
 #include "main/main.h"
 #include "math/real_math.h"
@@ -773,6 +774,12 @@ void interface_draw_screen(
 
 	/* port: the HUD in the interface's units, after the screen effect
 	(render_interface_begin) */
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	/* The tools own this surface. The gameplay HUD and scoreboard resume
+	 * as soon as the panel closes. */
+	if (render.local_player_index == 0 && ui_widget_forge_tools_active())
+		return;
+#endif
 	render_interface_begin(FALSE);
 	hud_draw_screen();
 	game_engine_post_rasterize();

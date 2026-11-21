@@ -23,6 +23,9 @@ and the deterministic camera used for shooting keeps its original view.
 #include "units/unit_definitions.h"
 #include "units/units.h"
 #include "units/vehicles.h"
+#ifdef HALO_OPENXR
+#include "../src/vr_openxr.h"
+#endif
 
 #include <string.h>
 
@@ -31,32 +34,54 @@ int config_boolean(const char *name);
 static boolean reticle_active;
 static real_point2d reticle_offset;
 
+static struct unit_datum *local_camera_unit(short local_player_index)
+{
+	long unit_index, player_index;
+	struct player_datum const *player;
+	struct unit_datum *unit;
+
+	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS ||
+		game_engine_running() || cinematic_in_progress() ||
+		(director_camera_scripted && *director_camera_scripted))
+		return NULL;
+	player_index = local_player_get_player_index(local_player_index);
+	player = player_try_and_get(player_index);
+	unit_index = player_control_get_unit_index(local_player_index);
+	if (!player || player->unit_index != unit_index)
+		return NULL;
+	unit = unit_try_and_get(unit_index);
+	return unit && !TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ? unit : NULL;
+}
+
+boolean on_foot_camera_enabled(short local_player_index)
+{
+	struct unit_datum const *unit;
+
+	if (!config_boolean("display.on_foot_third_person"))
+		return FALSE;
+#ifdef HALO_OPENXR
+	if (vr_openxr_running())
+		return FALSE;
+#endif
+	unit = local_camera_unit(local_player_index);
+	return unit && unit->object.type == _object_type_biped &&
+		unit->object.parent_object_index == NONE && unit->unit.current_zoom_level == NONE;
+}
+
 /* Match stock vehicle tag paths, including the PC multiplayer Warthog.
 Seat roles identify the passengers without relying on their array order. */
 static struct unit_seat const *reference_seat(short local_player_index, long *vehicle_index)
 {
-	long unit_index, player_index;
 	struct unit_datum *unit, *vehicle;
 	struct unit_definition const *definition;
 	struct unit_seat const *seat;
 	char const *name;
 	short reference_role, index;
 
-	/* (not in multiplayer, where seeing around the vehicle is an advantage the
-	other players do not have) */
-	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS ||
-		!config_boolean("display.passenger_third_person") || game_engine_running() || cinematic_in_progress() ||
-		(director_camera_scripted && *director_camera_scripted))
+	if (!config_boolean("display.passenger_third_person"))
 		return NULL;
-	player_index = local_player_get_player_index(local_player_index);
-	if (player_index == NONE)
-		return NULL;
-	unit_index = player_control_get_unit_index(local_player_index);
-	if (unit_index == NONE || player_get(player_index)->unit_index != unit_index)
-		return NULL;
-	unit = unit_try_and_get(unit_index);
-	if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
-		unit->object.parent_object_index == NONE || unit->unit.parent_seat_index < 0)
+	unit = local_camera_unit(local_player_index);
+	if (!unit || unit->object.parent_object_index == NONE || unit->unit.parent_seat_index < 0)
 		return NULL;
 	vehicle = vehicle_try_and_get(unit->object.parent_object_index);
 	if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit))
@@ -143,7 +168,7 @@ boolean passenger_camera_reticle_begin(short local_player_index, long weapon_ind
 	struct collision_result collision;
 
 	reticle_active = FALSE;
-	if (!passenger_camera_enabled(local_player_index) ||
+	if ((!passenger_camera_enabled(local_player_index) && !on_foot_camera_enabled(local_player_index)) ||
 		director_get_perspective(local_player_index) != _director_perspective_third_person)
 		return TRUE;
 	unit_index = player_control_get_unit_index(local_player_index);

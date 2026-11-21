@@ -121,20 +121,15 @@ SCREENS = {
     "video_settings": {
         "screen": "video_settings_screen",
         "header": ("header_profile_video_settings", f"{PE}/video_settings/header_profile_video_settings"),
-        # (close together, for the twelve rows of INTERFACE to fit above the
-        # help line, which is lower)
-        "spacing": 24,
+        # Keep the last full row above the description and confirmation buttons.
+        "spacing": 26,
         "help_top": 368,
+        "help_height": 44,
         # (rows in the place of the row before them: Window Size in
         # Resolution's, port/linux/game/menu_functions.c showing the one the
         # display mode chosen uses; Android's resolution and anti-aliasing in
         # the desktop's)
-        "same_place": ["display.window_size", "resolution_android", "display.interpolation",
-                       "anti_aliasing_android"],
-        # (rows written but placed on no page: Smooth Motion, which Frame
-        # Rate sets on every platform, kept so the rows after it keep their
-        # strings)
-        "unplaced": ["display.interpolation"],
+        "same_place": ["display.window_size", "resolution_android", "anti_aliasing_android"],
         "rows": [
             ("GRAPHICS:", "graphics.preset", [("CLASSIC", "classic"), ("ENHANCED", "enhanced"), ("CUSTOM", "custom")],
              "Choose shading, shadows, model detail and filtering.\nPreview here; OK saves, Cancel keeps your settings.", "desktop", "graphics_preset"),
@@ -156,54 +151,24 @@ SCREENS = {
              [("480 (XBOX)", "480"), ("720", "720"), ("900", "900"), ("1080", "1080"), ("NATIVE", "native")],
              "Higher is sharper, but uses more battery.",
              "android", "resolution_android"),
-            # (OpenCE's platforms, Android's too: the part of the resolution
-            # drawn each way, d3d8_gl.c)
-            ("RESOLUTION SCALING:", "display.resolution_scaling",
-             [("NATIVE", "native"), ("75%", "75%"), ("50%", "50%"), ("25%", "25%"), ("ORIGINAL", "original")],
-             "Native draws at the resolution, 75% to 25% that\npart each way; Original, the Xbox's 480 lines.",
-             "desktop android web"),
-            ("V-SYNC:", "display.vsync", ON_OFF,
-             "Sync frames to the display.", NOT_CONSOLE),
-            # (display.vrr: sdl_platform.c's platform_vrr, port/linux/src/vrr.h)
-            ("VARIABLE REFRESH:", "display.vrr", [("OFF", "off"), ("ON", "on"), ("AUTO", "auto")],
-             "For G-SYNC or FreeSync: V-Sync with the frame rate held\njust under the refresh rate. Auto follows the system.",
-             "desktop"),
-            # (port/linux/game/menu_functions.c: 30 also turns display.interpolation
-            # off, the others on, on every platform. Android's has the rates
-            # its displays have (OpenCE's FRAME RATE LIMIT there). Instant Aim,
-            # display.direct_camera, is in config.toml alone)
-            ("FRAME RATE:", "display.max_fps",
-             [("30 (XBOX)", "30"), ("AUTO", "0"), ("60", "60"), ("120", "120"), ("144", "144"),
-              ("165", "165"), ("240", "240"), ("NONE", "-1")],
-             "The frame rate limit; 30 is the Xbox's. Auto is twice\nthe display's refresh rate.",
-             "desktop web switch console"),
-            ("FRAME RATE:", "display.max_fps",
-             [("30 (XBOX)", "30"), ("AUTO", "0"), ("60", "60"), ("120", "120"), ("NONE", "-1")],
-             "The frame rate limit; 30 is the Xbox's. Auto is twice\nthe display's refresh rate.",
-             "android", "max_fps_android"),
-            ("SMOOTH MOTION:", "display.interpolation", ON_OFF,
-             "Draw a frame for every display refresh.", "android"),
-            ("WIDESCREEN LOADING:", "display.widescreen_loading", ON_OFF,
-             "Widen the original loading screen, keeping its\nstock sweep and glow trails.", None),
-            ("ANTI-ALIASING:", "display.anti_aliasing",
-             [("OFF", "off"), ("FXAA", "fxaa"), ("SMAA", "smaa"), ("SSAA 2X", "ssaa2x"), ("MSAA 2X", "msaa2x"),
-              ("MSAA 4X", "msaa4x"), ("MSAA 8X", "msaa8x")],
-             "Vulkan/Metal/D3D11: FXAA or MSAA, GPU permitting.\nVR MSAA is unverified. SMAA/SSAA require OpenGL.",
-             "desktop"),
-            ("ANTI-ALIASING:", "display.anti_aliasing",
-             [("OFF", "off"), ("FXAA", "fxaa"), ("MSAA 2X", "msaa2x"), ("MSAA 4X", "msaa4x")],
-             "Smooth jagged edges.",
-             "android web", "anti_aliasing_android"),
-            # (display.fov and display.viewmodel_fov: port/linux/game/view_fov.c)
-            ("FIELD OF VIEW:", "display.fov", [("DEFAULT", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
-             "On foot, horizontal at 16:9, in degrees.\nDefault keeps the stock view.", None),
-            ("VIEWMODEL FOV:", "display.viewmodel_fov",
-             [("DEFAULT", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
-             "How wide your weapon is drawn, horizontal at 16:9.\nDefault keeps the weapon's stock view.", None),
         ],
-        # (rows that open a nested list in the same screen: VIEWS)
         "views": [
-            ("advanced", "ADVANCED", "Shadows, lighting and detail.", [
+            ("advanced", "RENDERING", "Resolution scaling, edges, shadows and model detail.", [
+                # (OpenCE's platforms, Android's too: the part of the resolution
+                # drawn each way, d3d8_gl.c)
+                ("RESOLUTION SCALING:", "display.resolution_scaling",
+                 [("NATIVE", "native"), ("75%", "75%"), ("50%", "50%"), ("25%", "25%"), ("ORIGINAL", "original")],
+                 "Native draws at the resolution, 75% to 25% that\npart each way; Original, the Xbox's 480 lines.",
+                 "desktop android web"),
+                ("ANTI-ALIASING:", "display.anti_aliasing",
+                 [("OFF", "off"), ("FXAA", "fxaa"), ("SMAA", "smaa"), ("SSAA 2X", "ssaa2x"), ("MSAA 2X", "msaa2x"),
+                  ("MSAA 4X", "msaa4x"), ("MSAA 8X", "msaa8x")],
+                 "Vulkan/Metal/D3D11: FXAA or MSAA, GPU permitting.\nVR MSAA is unverified. SMAA/SSAA require OpenGL.",
+                 "desktop"),
+                ("ANTI-ALIASING:", "display.anti_aliasing",
+                 [("OFF", "off"), ("FXAA", "fxaa"), ("MSAA 2X", "msaa2x"), ("MSAA 4X", "msaa4x")],
+                 "Smooth jagged edges.",
+                 "android web", "anti_aliasing_android"),
                 ("SHADOW RESOLUTION:", "display.shadow_resolution",
                  [("128", "128"), ("256", "256"), ("512", "512"), ("1024", "1024")],
                  "The detail of object shadows.",
@@ -212,14 +177,6 @@ SCREENS = {
                  [("UNLIMITED", "0")] + [(str(n), str(n)) for n in (8, 16, 32, 64, 128, 256)],
                  "Favor larger shadows when crowds are expensive.\nUnlimited preserves stock selection; a soft, fading budget.",
                  None),
-                ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
-                 "Light models per pixel on OpenGL or bgfx.\nOff keeps the Xbox's vertex lighting.", None),
-                ("LIGHT EFFECTS:", "display.light_effects",
-                 [("AUTO", "auto"), ("HIGH", "high"), ("LOW", "low"), ("OFF", "off"), ("CUSTOM", "custom")],
-                 "Native effects on OpenGL/bgfx; bgfx is unverified.\nCustom uses your choices under CUSTOM LIGHT EFFECTS.",
-                 "desktop"),
-                ("DOORS BLOCK LIGHT:", "display.doors_block_light", ON_OFF,
-                 "A closed door stops light from the other side.\nOff lets it through, as on the Xbox.", None),
                 ("FULL MODEL DETAIL:", "display.full_model_detail", ON_OFF,
                  "Always draw models at their highest detail.", None),
                 ("MODEL DETAIL:", "display.model_detail",
@@ -232,9 +189,53 @@ SCREENS = {
                 ("FAR CLIP:", "display.far_clip_distance",
                  [("1024 (XBOX)", "1024"), ("2048", "2048"), ("4096", "4096"), ("8192", "8192"), ("10000", "10000")],
                  "How far the world is drawn.", None),
+                ("RENDERER:", "display.renderer",
+                 [("OPENGL", "gl"), ("VULKAN", "bgfx"), ("DIRECT3D 11", "d3d11")],
+                 "Applies on restart. If the chosen backend cannot start, use OpenGL.", "desktop"),
             ]),
-            ("custom_light_effects", "CUSTOM LIGHT EFFECTS",
-             "Used when Advanced > Light effects is Custom.\nbgfx model effects are source-only and unverified.", [
+            ("timing", "FRAME RATE", "Frame rate and display synchronization.", [
+                ("V-SYNC:", "display.vsync", ON_OFF,
+                 "Sync frames to the display.", NOT_CONSOLE),
+                # (display.vrr: sdl_platform.c's platform_vrr, port/linux/src/vrr.h)
+                ("VARIABLE REFRESH:", "display.vrr", [("OFF", "off"), ("ON", "on"), ("AUTO", "auto")],
+                 "For G-SYNC or FreeSync: V-Sync with the frame rate held\njust under the refresh rate. Auto follows the system.",
+                 "desktop"),
+                # (port/linux/game/menu_functions.c: 30 also turns display.interpolation
+                # off, the others on, on every platform. Android's has the rates
+                # its displays have (OpenCE's FRAME RATE LIMIT there). Instant Aim,
+                # display.direct_camera, is in config.toml alone)
+                ("FRAME RATE:", "display.max_fps",
+                 [("30 (XBOX)", "30"), ("AUTO", "0"), ("60", "60"), ("120", "120"), ("144", "144"),
+                  ("165", "165"), ("240", "240"), ("NONE", "-1")],
+                 "The frame rate limit; 30 is the Xbox's. Auto is twice\nthe display's refresh rate.",
+                 "desktop web switch console"),
+                ("FRAME RATE:", "display.max_fps",
+                 [("30 (XBOX)", "30"), ("AUTO", "0"), ("60", "60"), ("120", "120"), ("NONE", "-1")],
+                 "The frame rate limit; 30 is the Xbox's. Auto is twice\nthe display's refresh rate.",
+                 "android", "max_fps_android"),
+            ]),
+            ("lighting", "LIGHTING", "Dynamic lighting, light limits and world effects.", [
+                ("PER-PIXEL LIGHTING:", "display.per_pixel_lighting", ON_OFF,
+                 "Light models per pixel on OpenGL or bgfx.\nOff keeps the Xbox's vertex lighting.", None),
+                ("LIGHT EFFECTS:", "display.light_effects",
+                 [("AUTO", "auto"), ("HIGH", "high"), ("LOW", "low"), ("OFF", "off"), ("CUSTOM", "custom")],
+                 "Native effects on OpenGL/bgfx; bgfx is unverified.\nCustom uses your choices under WEAPON & SHIELD LIGHTS.",
+                 "desktop"),
+                ("DOORS BLOCK LIGHT:", "display.doors_block_light", ON_OFF,
+                 "A closed door stops light from the other side.\nOff lets it through, as on the Xbox.", None),
+                ("LEVEL LIGHT LIMIT:", "display.dynamic_light_limit",
+                 [("UNLIMITED", "0")] + [(str(n), str(n)) for n in (2, 4, 8, 16, 32, 64)],
+                 "Cap the number of moving lights that illuminate the level.", None),
+                ("SPECULAR LIGHT LIMIT:", "display.specular_light_limit",
+                 [("UNLIMITED", "0")] + [(str(n), str(n)) for n in (1, 2, 4, 8, 16)],
+                 "Cap how many moving lights add reflections to surfaces.", None),
+                ("VEHICLE LIGHT:", "display.vehicle_lighting", ON_OFF,
+                 "Engine and headlight illumination. Used with Light effects: Custom.", "desktop"),
+                ("WORLD LIGHT:", "display.world_lighting", ON_OFF,
+                 "Powerup and teleporter illumination. Used with Light effects: Custom.", "desktop"),
+            ]),
+            ("custom_light_effects", "WEAPON & SHIELD LIGHTS",
+             "Used when Lighting > Light effects is Custom.", [
                 (label + ":", "display." + key, ON_OFF,
                  help_text + "\nUsed with Light effects: Custom; GPU limits apply.", "desktop")
                 for label, key, help_text in [
@@ -248,12 +249,17 @@ SCREENS = {
                     ("FUEL ROD LIGHT", "fuel_rod_lighting", "Illumination from exposed Grunt and Hunter fuel rods."),
                     ("WEAPON GLOW", "weapon_glow", "Soft illumination from held energy weapons."),
                     ("PLASMA PRONG LIGHT", "plasma_prong_lighting", "Forward spill from plasma-weapon prongs."),
-                    ("VEHICLE LIGHT", "vehicle_lighting", "Illumination from engines and headlights."),
-                    ("WORLD LIGHT", "world_lighting", "Illumination from visible powerups and teleporters."),
                 ]
             ], "desktop"),
-            # (the first person's: port/linux/game/view_fov.c and the rest)
-            ("viewmodels", "VIEWMODELS", "Your weapon, arms and legs in first person.", [
+            ("viewmodels", "CAMERA & VIEWMODELS", "Field of view, camera, arms and weapon display.", [
+                # (display.fov and display.viewmodel_fov: port/linux/game/view_fov.c)
+                ("FIELD OF VIEW:", "display.fov", [("DEFAULT", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
+                 "On foot, horizontal at 16:9, in degrees.\nDefault keeps the stock view.", None),
+                ("VIEWMODEL FOV:", "display.viewmodel_fov",
+                 [("DEFAULT", "0")] + [(str(n), str(n)) for n in range(80, 151, 5)],
+                 "How wide your weapon is drawn, horizontal at 16:9.\nDefault keeps the weapon's stock view.", None),
+                ("ON-FOOT THIRD PERSON:", "display.on_foot_third_person", ON_OFF,
+                 "Follow your character on foot in campaign and co-op.\nScoped weapons return to first person while zoomed.", None),
                 ("VIEWMODELS:", "display.viewmodel_visible", ON_OFF,
                  "Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off.", None),
                 ("PASSENGER THIRD PERSON:", "display.passenger_third_person", ON_OFF,
@@ -267,7 +273,6 @@ SCREENS = {
                  [("DEFAULT", "default")] + [(color.upper(), color) for color in SHIELD_COLORS],
                  "Your shield's flare in an armor color, whatever\nyour armor. Only you see it. Default: its own.", None),
             ]),
-            # (the visual modifiers the stock game has not)
             ("extra_effects", "EXTRA EFFECTS", "Effects the stock game does not have, such as\nthe shield glow.", [
                 ("OVERSHIELD:", "display.overshield_effect", ON_OFF,
                  "The overshield rises up the body and stays lit,\nin its own color. Online: the host's choice.", None),
@@ -280,6 +285,9 @@ SCREENS = {
                  "Keep highlights past white and tone-map the 3D view.\nOpenGL only; bgfx currently renders SDR.", None),
                 ("HDR DISPLAY:", "display.hdr_output", ON_OFF,
                  "OpenGL with an HDR display: show highlights brighter.\nNeeds Windows HDR; applies from the next start.", "desktop"),
+                ("EXPOSURE:", "display.hdr_exposure",
+                 [(f"{value:g}X", f"{value:g}") for value in (0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4)],
+                 "Brightness of the 3D view before tone mapping. OpenGL HDR only.", None),
                 ("TONE CURVE:", "display.hdr_tone_mapping",
                  [("GT7", "gt7"), ("NEUTRAL", "neutral"), ("ACES", "aces"), ("REINHARD", "reinhard")],
                  "GT7: bright light turns white, as on film. Neutral:\nas drawn. ACES: more contrast. Reinhard: softer.",
@@ -296,9 +304,7 @@ SCREENS = {
                              "Set Peak Brightness and Paper White by eye,\nwith patterns brighter than white.",
                              "desktop"),
             ]),
-            # (input.keyboard_prompts is in config.toml alone: the prompts
-            # follow the device used last)
-            ("interface", "INTERFACE", "The menus, HUD and scoreboard.", [
+            ("interface", "MENUS & DISPLAY", "The menus, HUD fidelity and frame counter.", [
                 # (read when the game starts: menu_tags.c)
                 ("MENU STYLE:", "display.menus",
                  [("CHUPATHINGY", "chupathingy"), ("XBOX", "xbox"), ("GEARBOX", "gearbox")],
@@ -313,6 +319,18 @@ SCREENS = {
                 # BUTTON APPEARANCE, the controller_appearance screen)
                 ("SHOW FRAMES:", "display.show_fps", ON_OFF,
                  "Draw the frame rate at the bottom right of a game,\ncounted over half a second.", None),
+                ("WIDESCREEN LOADING:", "display.widescreen_loading", ON_OFF,
+                 "Widen the original loading screen, keeping its\nstock sweep and glow trails.", None),
+                ("VERSION WATERMARK:", "display.version_watermark", ON_OFF,
+                 "Show the version while playing.", None),
+                ("TITLE FONT:", "display.title_font", [("CLASSIC", "classic"), ("CYBORG", "cyborg"), ("HALO", "halo")],
+                 "Classic looks like Halo's titles. Cyborg matches the text.\nHalo makes them from your own Halo files.",
+                 # (not on the consoles, the Switch included, which have the
+                 # classic titles only: HALO_CONSOLE_NO_TITLE_CHOICE; last,
+                 # so the Switch's list has no gap)
+                 "desktop android"),
+            ]),
+            ("playerhud", "HUD & SCOREBOARD", "Player names, scoreboard, timers and spectator camera.", [
                 ("PLAYER NAMES:", "display.player_names",
                  [("NONE", "none"), ("ALL", "all"), ("ALLIES", "allies"), ("ENEMIES", "enemies")],
                  "Names above players, where the host allows them.", NOT_CONSOLE),
@@ -333,57 +351,50 @@ SCREENS = {
                 ("FOLLOW CAMERA:", "display.follow_camera",
                  [("OFF", "off"), ("LONG WAITS", "long_waits"), ("ALWAYS", "always")],
                  "While dead, follow a player's view, if the host allows it.", None),
-                ("VERSION WATERMARK:", "display.version_watermark", ON_OFF,
-                 "Show the version while playing.", None),
-                ("TITLE FONT:", "display.title_font", [("CLASSIC", "classic"), ("CYBORG", "cyborg"), ("HALO", "halo")],
-                 "Classic looks like Halo's titles. Cyborg matches the text.\nHalo makes them from your own Halo files.",
-                 # (not on the consoles, the Switch included, which have the
-                 # classic titles only: HALO_CONSOLE_NO_TITLE_CHOICE; last,
-                 # so the Switch's list has no gap)
-                 "desktop android"),
             ]),
         ],
     },
     "audio_settings": {
         "screen": "audio_settings_screen",
         "header": ("header_profile_audio_settings", f"{PE}/audio_settings/header_profile_audio_settings"),
-        # (the desktop's eleven rows and the VOICE CHAT link: closer together,
-        # the help lower, as Display's)
-        "spacing": 24,
+        "spacing": 26,
         "help_top": 368,
+        "help_height": 44,
         "rows": [
             ("MASTER VOLUME:", "audio.volume", VOLUMES, "Adjust the overall volume.", None),
             ("MUSIC VOLUME:", "audio.music_volume", VOLUMES, "Adjust the music volume.", None),
             ("EFFECTS VOLUME:", "audio.effects_volume", VOLUMES,
              "Adjust the effects and speech volume.", None),
-            # (port/linux/game/menu_tags.c adds the devices SDL finds; a name
-            # too long for the spinner scrolls while its row has the focus:
-            # menu_functions.c's pc_menu_text_marquee)
-            ("OUTPUT DEVICE:", "audio.output_device", [("SYSTEM DEFAULT", "default")],
-             "Where the game's sound and the voices play.", "desktop"),
-            ("INPUT DEVICE:", "audio.input_device", [("SYSTEM DEFAULT", "default")],
-             "The microphone voice chat listens to.", "desktop"),
-            # (read when the game starts: dsound_sdl.c)
-            ("SPEAKERS:", "audio.channels", [("AUTO", "auto"), ("STEREO", "stereo"), ("5.1", "5.1"), ("7.1", "7.1")],
-             "Stereo or surround. Takes effect on restart.", "desktop"),
-            ("HEADPHONE 3D:", "audio.hrtf", [("OFF", "off"), ("ON", "on"), ("AUTO", "auto"), ("XBOX", "xbox")],
-             "3D sound as on the Xbox. Turn off for speakers.", None),
-            ("REVERB:", "audio.reverb", ON_OFF,
-             "Room echo, and muffled sound behind walls.", None),
-            ("DOPPLER:", "audio.doppler", ON_OFF,
-             "Pitch shift of moving sounds, as on the Xbox.", None),
-            ("STEREO DOPPLER:", "audio.stereo_doppler", ON_OFF,
-             "Shift stereo sounds' pitch as they come and go,\nas 3D sounds' is. The Xbox played them flat.", None),
-            # (port/linux/src/dsound_sdl.c)
-            ("RESAMPLER:", "audio.resampler", [("XBOX", "xbox"), ("SINC", "sinc"), ("LINEAR", "linear")],
-             "Xbox models the original sound. Sinc reduces\naliasing; linear gives a brighter sound.",
-             None),
             ("SOUND:", "audio.enabled", ON_OFF,
              "Turn all sound on or off. Takes effect on restart.", None),
         ],
         "views": [
+            ("spatial", "OUTPUT & SPATIAL AUDIO", "Playback device, speakers and spatial sound.", [
+                # (port/linux/game/menu_tags.c adds the devices SDL finds; a name
+                # too long for the spinner scrolls while its row has the focus:
+                # menu_functions.c's pc_menu_text_marquee)
+                ("OUTPUT DEVICE:", "audio.output_device", [("SYSTEM DEFAULT", "default")],
+                 "Where the game's sound and the voices play.", "desktop"),
+                # (read when the game starts: dsound_sdl.c)
+                ("SPEAKERS:", "audio.channels", [("AUTO", "auto"), ("STEREO", "stereo"), ("5.1", "5.1"), ("7.1", "7.1")],
+                 "Stereo or surround. Takes effect on restart.", "desktop"),
+                ("HEADPHONE 3D:", "audio.hrtf", [("OFF", "off"), ("ON", "on"), ("AUTO", "auto"), ("XBOX", "xbox")],
+                 "3D sound as on the Xbox. Turn off for speakers.", None),
+                ("REVERB:", "audio.reverb", ON_OFF,
+                 "Room echo, and muffled sound behind walls.", None),
+                ("DOPPLER:", "audio.doppler", ON_OFF,
+                 "Pitch shift of moving sounds, as on the Xbox.", None),
+                ("STEREO DOPPLER:", "audio.stereo_doppler", ON_OFF,
+                 "Shift stereo sounds' pitch as they come and go,\nas 3D sounds' is. The Xbox played them flat.", None),
+                # (port/linux/src/dsound_sdl.c)
+                ("RESAMPLER:", "audio.resampler", [("XBOX", "xbox"), ("SINC", "sinc"), ("LINEAR", "linear")],
+                 "Xbox models the original sound. Sinc reduces\naliasing; linear gives a brighter sound.",
+                 None),
+            ]),
             # (this machine's own: port/linux/game/network_voice.c)
             ("voice", "VOICE CHAT", "Talking to the other players, and their voices.", [
+                ("INPUT DEVICE:", "audio.input_device", [("SYSTEM DEFAULT", "default")],
+                 "The microphone voice chat listens to.", "desktop"),
                 ("VOICE CHAT:", "audio.voice_chat",
                  [("PUSH TO TALK", "push_to_talk"), ("OPEN MIC", "open_mic"), ("OFF", "off")],
                  "Talk in network games: while PUSH TO TALK is held\n(Controls), whenever you speak, or never.", None),

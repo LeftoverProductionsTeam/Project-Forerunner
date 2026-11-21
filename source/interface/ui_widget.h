@@ -100,6 +100,9 @@ void widget_free(
 	void *ptr);
 boolean ui_widgets_active(
 	void);
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+boolean ui_widget_forge_tools_active(void);
+#endif
 boolean ui_widgets_active_for_local_player(
 	short local_player_index);
 /* port: a menu, the virtual keyboard or a screen of code over them takes

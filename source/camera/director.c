@@ -146,6 +146,19 @@ symbols in this file:
 
 #include "units/unit_definitions.h"
 #include "units/units.h"
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+#include "cutscene/cinematics.h"
+#include "interface/hud_messaging.h"
+#include "interface/ui_widget.h"
+#include "networking/network_game_globals.h"
+#include "physics/collision_features.h"
+#include "physics/collisions.h"
+#include "static_camera.h"
+#include "network_chat.h"
+#ifdef HALO_OPENXR
+#include "../../port/linux/src/vr_openxr.h"
+#endif
+#endif
 
 /* port: the player's movement and turn before the director's inhibit zeroes
 them (player_control.c), which move the debug camera */
@@ -201,6 +214,10 @@ static boolean director_update_controls(
 	struct camera_control *controls);
 
 /* ---------- globals */
+
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+static long forge_flight_unit = NONE;
+#endif
 
 static char const *director_camera_mode_names[NUMBER_OF_DIRECTOR_CAMERA_MODES] =
 {
@@ -698,8 +715,9 @@ static void director_choose_game_perspective(
 	boolean force)
 {
 	/* port: remember only local display choices, never a shared seat flag */
-	static boolean passenger_views[MAXIMUM_NUMBER_OF_LOCAL_PLAYERS];
-	boolean passenger = passenger_camera_enabled(local_player_index);
+	static boolean local_following_views[MAXIMUM_NUMBER_OF_LOCAL_PLAYERS];
+	boolean local_following = passenger_camera_enabled(local_player_index) ||
+		on_foot_camera_enabled(local_player_index);
 	director_perspective perspective;
 	short following;
 	long unit_index;
@@ -707,13 +725,12 @@ static void director_choose_game_perspective(
 
 	unit_index = player_control_get_unit_index(local_player_index);
 	following = director_desired_perspective(unit_index, &perspective);
-	/* port: the local passenger view must not change the deterministic
-	camera used by player_aim_projectile. Reconsider a menu toggle even
-	when the seat's enter/exit state has not changed. */
-	if (passenger)
+	/* Local third-person views use the same deterministic aiming camera.
+	 * Reconsider setting and zoom changes even when the seat state agrees. */
+	if (local_following)
 		following = TRUE;
 	if (force || director->seat_state != perspective ||
-		passenger != passenger_views[local_player_index])
+		local_following != local_following_views[local_player_index])
 	{
 		if (following == TRUE)
 		{
@@ -739,7 +756,7 @@ static void director_choose_game_perspective(
 	}
 
 	/* port: a menu toggle can change the view without changing seats */
-	passenger_views[local_player_index] = passenger;
+	local_following_views[local_player_index] = local_following;
 	return;
 }
 
@@ -772,6 +789,118 @@ void director_script_camera(
 
 	return;
 }
+
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+/* Adapt Faber/OpenCE-Forge's Play/Monitor split and native collision
+ * checks. In local Forge, park the player's unit while the camera flies. */
+static boolean director_forge_flight_allowed(long unit_index)
+{
+	struct unit_datum const *unit;
+
+	if (!network_game_port_hosting_local() || !network_game_forge_hosting() ||
+		network_game_host_cheats_refused() || !game_in_progress() ||
+		cinematic_in_progress() || *director_camera_scripted || local_player_get_next(0) != NONE)
+		return FALSE;
+#ifdef HALO_OPENXR
+	if (vr_openxr_running())
+		return FALSE;
+#endif
+	unit = unit_try_and_get(unit_index);
+	return unit && unit->object.parent_object_index == NONE &&
+		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit);
+}
+
+static void director_forge_flight_update(struct flying_camera *camera,
+	struct flying_camera_action const *controls, struct camera_command *command)
+{
+	real_point3d origin = camera->position;
+	struct collision_plane contact;
+	real_vector3d displacement, clipped_velocity;
+
+	flying_camera_update(camera, controls, command);
+	if (!controls->active)
+		return;
+
+	vector_from_points3d(&origin, &camera->position, &displacement);
+	collision_move_sphere(FLAG(_collision_test_structure_bit), &origin, &displacement, 0.20f,
+		NONE, &camera->position, &clipped_velocity, 1, &contact);
+	command->position = camera->position;
+}
+
+void director_toggle_forge_flight(void)
+{
+	long unit_index = player_control_get_unit_index(0);
+
+	if (forge_flight_unit != NONE)
+	{
+		forge_flight_unit = NONE;
+		director_choose_game_perspective(0, TRUE);
+		hud_print_notice(0, "Play mode");
+	}
+	else if (director_forge_flight_allowed(unit_index))
+	{
+		struct director *director = director_get(0);
+		real_point3d origin;
+		real_vector3d forward;
+		unit_get_camera_position(unit_index, &origin);
+		unit_get_aiming_vector(unit_index, &forward);
+		flying_camera_new_from_point_and_vector((struct flying_camera *)director->camera_data, &origin, &forward);
+		director_set_camera(0, (director_camera_update_proc)director_forge_flight_update, FALSE);
+		forge_flight_unit = unit_index;
+		hud_print_notice(0, "Forge flight  |  Space/Ctrl: up/down  |  F7: tools  |  F8: play");
+	}
+}
+
+boolean director_forge_flight_active(short local_player_index)
+{
+	return local_player_index == 0 && forge_flight_unit != NONE;
+}
+
+boolean director_forge_flight_aim(long unit_index, real_point3d *position, real_vector3d *forward)
+{
+	struct observer_result const *view;
+	if (unit_index == NONE || unit_index != forge_flight_unit ||
+		player_control_get_unit_index(0) != unit_index ||
+		!director_forge_flight_allowed(unit_index))
+		return FALSE;
+	view = observer_get_camera(0);
+	*position = view->position;
+	*forward = view->forward;
+	return TRUE;
+}
+
+static boolean director_update_forge_controls(short local_player_index, struct camera_control *controls)
+{
+	if (local_player_index != 0 || forge_flight_unit == NONE)
+		return FALSE;
+	if (player_control_get_unit_index(0) != forge_flight_unit ||
+		!director_forge_flight_allowed(forge_flight_unit))
+	{
+		forge_flight_unit = NONE;
+		if (!*director_camera_scripted)
+			director_choose_game_perspective(0, TRUE);
+		return FALSE;
+	}
+
+	director_inhibit_input(0);
+	director_inhibit_facing(0);
+	if (!ui_widgets_take_input() && !console_is_active() && !network_chat_typing())
+	{
+		real_vector2d throttle = player_control_port_debug_throttle[0];
+		real speed = MIN(controls->seconds_elapsed, 0.05f) * 5.f;
+		int tools_key, flight_key, vertical;
+
+		halo_linux_forge_keys(&tools_key, &flight_key, &vertical);
+		controls->facing_delta.yaw = player_control_port_debug_facing[0].yaw;
+		controls->facing_delta.pitch = player_control_port_debug_facing[0].pitch;
+		controls->position_delta.i = throttle.i * speed;
+		controls->position_delta.j = throttle.j * speed;
+		controls->position_delta.k = vertical * speed;
+		controls->active = TRUE;
+	}
+	return TRUE;
+}
+#endif
 
 static void director_choose_camera_game(
 	short local_player_index,
@@ -819,6 +948,13 @@ static void director_choose_camera_game(
 		if (director->camera_proc == (director_camera_update_proc)sightjack_camera_update)
 			director_choose_game_perspective(local_player_index, TRUE);
 
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+		if (local_player_index == 0 && forge_flight_unit != NONE)
+		{
+			director->perspective = _director_perspective_third_person;
+			return;
+		}
+#endif
 		/* (port: not a client in another's game, the host's rules: a flying
 		camera would see all of it, and one behind the player round its
 		corners) */
@@ -939,6 +1075,10 @@ static boolean director_update_controls(
 	halo_linux_debug_camera_input(&middle, &key_up, &key_down, &wheel);
 	controls->local_player_index = local_player_index;
 	controls->seconds_elapsed = director_globals.dtime;
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	if (director_update_forge_controls(local_player_index, controls))
+		return FALSE;
+#endif
 	player_index = player_get(
 		local_player_get_player_index(local_player_index))->local_player_index;
 	if (player_index != NONE && input_has_gamepad((short)player_index))
@@ -1025,8 +1165,9 @@ static boolean director_update_controls(
 		struct mouse_state const *mouse = input_get_mouse_state();
 
 		switch_camera = input_key_is_down(_key_backspace) == TRUE;
-		/* port: the passenger follows their aim, never the debug mouse orbit */
-		if (!passenger_camera_enabled(local_player_index) && ((director->camera_proc !=
+		/* Local follow views stay aligned with normal aim input. */
+		if (!passenger_camera_enabled(local_player_index) && !on_foot_camera_enabled(local_player_index) &&
+			((director->camera_proc !=
 				(director_camera_update_proc)first_person_camera_update &&
 			mouse->buttons[1]) || input_key_is_down(_key_tab)))
 		{
@@ -1135,6 +1276,9 @@ void director_initialize_for_new_map(
 {
 	short local_player_index;
 
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	forge_flight_unit = NONE;
+#endif
 	sound_listener_motion_reset(NONE); /* port: also called when restoring a saved game */
 	controller_remap_reset(); /* port: release held actions and camera context between maps */
 

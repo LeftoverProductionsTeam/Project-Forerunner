@@ -578,6 +578,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"of the view) or \"bottom_right\" (the view's bottom right corner)." },
 	{ "display.passenger_third_person", _config_boolean, "false", "HALO_PASSENGER_THIRD_PERSON", _environment_value, _platform_all,
 		"Third-person Warthog and Scorpion passengers. Weapon zoom is disabled." },
+	{ "display.on_foot_third_person", _config_boolean, "false", "HALO_ON_FOOT_THIRD_PERSON", _environment_value, _platform_all,
+		"Follow your own character on foot in campaign or co-op.\n"
+		"Weapon zoom uses first person. Vehicle and cinematic cameras keep their usual behavior." },
 	{ "display.powerup_timers", _config_boolean, "false", "HALO_POWERUP_TIMERS", _environment_value, _platform_all | _platform_xbox,
 		"Show the seconds left on your active camouflage, overshield and\n"
 		"full spectrum vision." },

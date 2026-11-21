@@ -645,6 +645,11 @@ struct widget_instance;
 #include "game/players.h"
 #include "hs/hs.h"
 #include "input/input.h"
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+#include "main/console.h"
+#include "network_chat.h"
+#include "camera/director.h"
+#endif
 #include "input/input_abstraction.h"
 #include "interface/attract_mode.h"
 #include "interface/hud.h"
@@ -7699,6 +7704,14 @@ static void ui_mouse_note_target(
 		if (!parent)
 			return;
 		kind = _ui_mouse_target_value;
+		/* The drawn arrows can sit outside the value's text box. */
+		if (definition->list_header_bitmap.index != NONE)
+		{
+			short wider = spinner_string_list_extra_wider(definition->text_label_string_list.index);
+			bounds.x0 = MIN(bounds.x0, offset.x + definition->list_header_bounds.x0 - wider);
+		}
+		if (definition->list_footer_bitmap.index != NONE)
+			bounds.x1 = MAX(bounds.x1, offset.x + definition->list_footer_bounds.x1);
 	}
 	else if (ui_mouse_widget_is_item(widget))
 	{
@@ -10668,6 +10681,16 @@ static void ui_widget_port_menu_trace(
 #define ui_widget_port_menu_trace()
 #endif
 
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+static char const forge_tools_screen[] = "pc\\forerunner\\forge\\tools";
+
+boolean ui_widget_forge_tools_active(void)
+{
+	struct widget_instance const *active = widget_globals.active_widgets[0];
+	return active && !strcmp(tag_get_name(active->definition_tag_index), forge_tools_screen);
+}
+#endif
+
 void process_ui_widgets(
 	void)
 {
@@ -10849,6 +10872,28 @@ void process_ui_widgets(
 
 		return;
 	}
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	/* A Forge session can open its tools directly, while still in the match. */
+	{
+		extern boolean pc_menu_forge_offered(void);
+		static boolean tools_key_was_down, fly_key_was_down;
+		int tools_key_down, fly_key_down, vertical;
+
+		halo_linux_forge_keys(&tools_key_down, &fly_key_down, &vertical);
+
+		if (!widget_globals.active_widgets[0] &&
+			!download_screen_active() && !console_is_active() && !network_chat_typing() &&
+			game_in_progress() && !we_are_at_the_main_menu && pc_menu_forge_offered())
+		{
+			if (fly_key_down && !fly_key_was_down)
+				director_toggle_forge_flight();
+			if (tools_key_down && !tools_key_was_down)
+				ui_widget_load_by_name_or_tag(forge_tools_screen, NONE, NULL, NONE, NONE, NONE, 0);
+		}
+		tools_key_was_down = tools_key_down;
+		fly_key_was_down = fly_key_down;
+	}
+#endif
 	pause_pressed = ui_check_for_pause_game();
 	any_modal_widget_active = FALSE;
 	for (widget_index = 0;

@@ -919,6 +919,19 @@ static long spinner_split(struct halo_menu_widget const *widget, boolean values,
 	long widths[MAXIMUM_STRINGS], heights[MAXIMUM_STRINGS];
 	long added, index;
 
+#ifdef HALO_BGFX
+	if (widget->setting && !strcmp(widget->setting, "display.renderer") && count == 3)
+	{
+#ifndef _WIN32
+		/* Direct3D 11 is a Windows backend. Keep labels and values paired. */
+		count--;
+#endif
+#ifdef __APPLE__
+		if (!values) pieces[1] = "METAL";
+#endif
+		return count;
+	}
+#endif
 	if (widget->setting && (!strcmp(widget->setting, "audio.output_device") ||
 		!strcmp(widget->setting, "audio.input_device")))
 	{
@@ -1269,6 +1282,8 @@ static boolean child_left_out(struct halo_menu_widget const *parent, struct halo
 	char const *name = entry->nested != HALO_MENU_NONE ? build.menus->widgets[entry->nested].name : entry->widget;
 	char const *leaf = name && strrchr(name, '/') ? strrchr(name, '/') + 1 : name;
 
+	if (name && !strcmp(name, "forerunner/forge/tools/layout_title") && pc_menu_forge_guest_offered())
+		return TRUE;
 	if (name && !strcmp(parent->name, "forerunner/forge/tools/choices"))
 	{
 		if (!strcmp(name, "forerunner/forge/tools/physics"))
@@ -1285,6 +1300,12 @@ static boolean child_left_out(struct halo_menu_widget const *parent, struct halo
 				strcmp(name, "forerunner/forge/tools/move"));
 		}
 	}
+#ifndef HALO_BGFX
+	if (leaf && !strcmp(leaf, "op_renderer") &&
+		!strncmp(name, "main_menu/settings_select/player_setup/player_profile_edit/video_settings/",
+			sizeof("main_menu/settings_select/player_setup/player_profile_edit/video_settings/") - 1))
+		return TRUE;
+#endif
 	if (!leaf || strcmp(leaf, "setup_entry"))
 		return FALSE;
 	setup_left_out = build.game_map || !pc_menu_setup_offered();

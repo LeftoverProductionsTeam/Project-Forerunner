@@ -7,6 +7,7 @@
 struct player_control_unit_camera_info;
 
 boolean passenger_camera_enabled(short local_player_index);
+boolean on_foot_camera_enabled(short local_player_index);
 boolean passenger_camera_info(short local_player_index, struct player_control_unit_camera_info *info);
 void passenger_camera_clamp_facing(short local_player_index, real_euler_angles2d *facing);
 

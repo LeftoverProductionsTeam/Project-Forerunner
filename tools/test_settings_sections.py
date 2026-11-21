@@ -18,3 +18,17 @@ def test_each_section_is_one_run():
     runs = [section for index, section in enumerate(sections) if index == 0 or sections[index - 1] != section]
     repeated = sorted({section for section in runs if runs.count(section) > 1})
     assert not repeated, f"sections split in the settings table: {repeated}"
+
+
+def test_audio_and_video_rows_fit_before_help():
+    from port_settings import SCREENS, _layout
+
+    for name in ("video_settings", "audio_settings"):
+        spec = SCREENS[name]
+        assert spec["help_top"] + spec["help_height"] <= 414
+        entries, _, _ = _layout(spec)
+        for kind, *entry in entries:
+            if kind not in ("row", "link"):
+                continue
+            for _, position in entry[2]:
+                assert 73 + position * spec["spacing"] + 28 <= spec["help_top"], entry

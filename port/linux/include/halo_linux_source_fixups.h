@@ -183,5 +183,6 @@ int platform_missing_map_message(const char *name, char *text, int size);
 middle button, R and F are held, and the wheel's notches since the last call
 (port/linux/src/xinput_sdl.c) */
 int halo_linux_debug_camera_input(int *middle, int *up, int *down, float *wheel);
+void halo_linux_forge_keys(int *tools, int *flight, int *vertical);
 
 #endif

@@ -196,13 +196,14 @@ void following_camera_update(
 {
 	struct player_control_unit_camera_info camera_info;
 	struct camera_command *command;
-	boolean passenger; /* port: only this local display view borrows a seat's camera */
+	boolean passenger, on_foot;
 
 	match_assert("c:\\halo\\SOURCE\\camera\\following_camera.c", 138, camera);
 	match_assert("c:\\halo\\SOURCE\\camera\\following_camera.c", 139, result);
 
 	player_control_get_unit_camera_info(controls->local_player_index, &camera_info);
 	passenger = passenger_camera_info(controls->local_player_index, &camera_info);
+	on_foot = on_foot_camera_enabled(controls->local_player_index);
 	command = &result->command;
 
 	command->position = camera_info.position;
@@ -237,7 +238,7 @@ void following_camera_update(
 			camera->crouched = crouched;
 		}
 
-		if (controls->active && !passenger) /* port: no free orbit outside the passenger's firing arc */
+		if (controls->active && !passenger && !on_foot)
 		{
 			camera->facing_offset.yaw += controls->facing_delta.yaw;
 			camera->facing_offset.pitch += controls->facing_delta.pitch;
@@ -268,16 +269,26 @@ void following_camera_update(
 			magnitude3d(&command->forward) < 1.0001f,
 			"magnitude3d(&result->forward) > 0.9999f && magnitude3d(&result->forward) < 1.0001f");
 
-		camera_track_splut(camera_info.camera, facing.pitch, &track_offset);
-		command->depth = magnitude3d(&track_offset);
-		command->offset.i =
-			(command->depth * cosine(facing.pitch) + track_offset.i) * camera->distance_scale;
-		command->offset.j = -track_offset.j * camera->distance_scale;
-		command->offset.k =
-			(command->depth * sine(facing.pitch) + track_offset.k) * camera->distance_scale;
-		command->depth = MAX(
-			(command->depth - 0.6f) * camera->distance_scale + 0.6f,
-			0.6f);
+		if (on_foot)
+		{
+			/* Halo's observer keeps its normal obstruction checks. Use a
+			 * shoulder offset even for bipeds without a camera track. */
+			set_real_vector3d(&command->offset, 0.f, 0.45f, 0.25f);
+			command->depth = 2.1f;
+		}
+		else
+		{
+			camera_track_splut(camera_info.camera, facing.pitch, &track_offset);
+			command->depth = magnitude3d(&track_offset);
+			command->offset.i =
+				(command->depth * cosine(facing.pitch) + track_offset.i) * camera->distance_scale;
+			command->offset.j = -track_offset.j * camera->distance_scale;
+			command->offset.k =
+				(command->depth * sine(facing.pitch) + track_offset.k) * camera->distance_scale;
+			command->depth = MAX(
+				(command->depth - 0.6f) * camera->distance_scale + 0.6f,
+				0.6f);
+		}
 
 		object_get_velocities(camera_info.unit_index, &command->velocity, NULL);
 		SET_FLAG(command->flags, 0, TRUE);

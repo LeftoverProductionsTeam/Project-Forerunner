@@ -2825,6 +2825,10 @@ static boolean view_mark_has(char const *mark, char const *view)
 	size_t length = strlen(view);
 
 	mark += 5;
+	/* A settings view can itself have underscores. The inherited controls
+	 * marks still support membership in multiple single-name views. */
+	if (!strcmp(mark, view))
+		return TRUE;
 	while (*mark)
 	{
 		size_t part = strcspn(mark, "_");

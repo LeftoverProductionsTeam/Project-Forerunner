@@ -152,6 +152,12 @@ void director_save_camera(
 void director_load_camera(
 	void);
 /* port: audio_probe.c's */
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+void director_toggle_forge_flight(void);
+boolean director_forge_flight_active(short local_player_index);
+boolean director_forge_flight_aim(long unit_index, real_point3d *position, real_vector3d *forward);
+#endif
+
 void director_set_flying_camera(
 	short local_player_index,
 	real_point3d const *position,

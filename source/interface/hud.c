@@ -1599,6 +1599,22 @@ static void hud_draw_match_timer(
 	return;
 }
 
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+static void hud_draw_forge_aim(void)
+{
+	rectangle2d bounds;
+	long font_index = hud_get_font_index();
+	short x = (render.camera.viewport_bounds.x1 - render.camera.viewport_bounds.x0) / 2;
+	short y = (render.camera.viewport_bounds.y1 - render.camera.viewport_bounds.y0) / 2;
+
+	if (font_index == NONE)
+		return;
+	set_rectangle2d(&bounds, x - 14, y - 8, x + 14, y + 14);
+	draw_string_set_draw_mode(font_index, NONE, 2, 0, global_real_argb_white);
+	rasterizer_draw_unicode_string(&bounds, NULL, NULL, 0, L"+");
+}
+#endif
+
 void hud_draw_screen(
 	void)
 {
@@ -1690,6 +1706,10 @@ void hud_draw_screen(
 			stubbs_player_hud_draw(render.local_player_index, player->unit_index);
 		}
 
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+		if (director_forge_flight_active(render.local_player_index))
+			hud_draw_forge_aim();
+#endif
 		hud_messaging_update(render.local_player_index);
 		/* port: network games' text chat, the lines this view's player hears */
 		network_chat_draw(render.local_player_index);

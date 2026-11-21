@@ -513,8 +513,13 @@ static boolean forge_unit_aim_collision(long unit_index, struct collision_result
 		TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return FALSE;
 
-	unit_get_camera_position(unit_index, &origin);
-	unit_get_aiming_vector(unit_index, &ray);
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	if (!director_forge_flight_aim(unit_index, &origin, &ray))
+#endif
+	{
+		unit_get_camera_position(unit_index, &origin);
+		unit_get_aiming_vector(unit_index, &ray);
+	}
 	scale_vector3d(&ray, 20.0f, &ray);
 	return collision_test_vector(_collision_test_for_line_of_sight_flags |
 		FLAG(_collision_test_objects_weapons_bit) | FLAG(_collision_test_objects_equipment_bit) |
