@@ -19,6 +19,13 @@ account proof and inputs. Defense, evacuation, settlement, banking and
 redeployment remain open on this candidate. See the Spark contract for
 the route and asset handoff.
 
+A spawned Windows x64 loopback guest used keyboard E to actuate the
+authored switch and machine on both peers. A separate CE609 door fixture
+verified closed collision, matching open animation transforms, and
+physical guest traversal after opening. Both fixture receipts and the
+power and spawn requirements are linked in the Spark contract. The full
+reopened Spark desktop project-to-game workflow and human play remain open.
+
 A remote Forge host can now undo an armed Warthog copy without treating
 its factory weapon as an occupant. On stock Blood Gulch, one connected
 guest and one late joiner received the host's Spark HMV Warthog and gun.

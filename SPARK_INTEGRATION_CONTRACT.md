@@ -2939,15 +2939,31 @@ the stock control with a disposable Wizard machine set to platform and
 presses moved the group and machine phase from 0.25 to 1 and then to 0. A separate
 Slayer loopback host and connected client reached the same three states.
 The input was on the host and the guest was still awaiting spawn.
-Guest use and human acceptance remain open. Receipts are in
-`build/native-ce-position-switch-ramped/result.json` and
+Receipts are in `build/native-ce-position-switch-ramped/result.json` and
 `build/native-ce-remote-switch/result.json`. Both were rebuilt fixtures.
 Spark's original `b7f3b855` cache was disposed of after its compile check.
 Stock inputs were preserved. Spark revision `ad73c05` records editable
 switch settings, Save and Undo/Redo, independent CE609 readback, and the
-same E-key host and connected-client phase sequence. Direct guest Use,
-collision through the transition, and the full reopened project-to-game
-check remain open.
+same E-key host and connected-client phase sequence.
+
+A two-start CE609 variant verified direct guest keyboard E on Windows x64.
+The guest received the native Use offer. Both peers recorded the group's
+0.25 to 1.0 to 0.0 sequence and intermediate machine animation phases.
+In a second variant with an owned collidable A10 sliding door, the closed
+panels stopped the guest at x 1.125. Guest E opened the door. Both peers
+recorded matching open panel transforms, and the guest crossed the same
+lane to x 2.843 with the host observing x 2.743. The corresponding
+receipts are `build/native-ce-guest-switch/result.json` and
+`build/native-ce-guest-door-collision/result.json`. The source caches
+were preserved and disposable tags, maps and runtime folders were removed.
+
+For a recovered control, clear Initially Off or assign a powered group as
+well as enabling interaction. Map readback should verify the control and
+machine share the intended position group. Provide separately usable starts
+for network players. Slayer rejects a start within two world units of a
+live opponent, so use separation beyond that floor and provide enough
+valid starts for the variant. The full reopened Spark desktop
+project-to-game workflow and human play remain open.
 The HMV writer saves these devices with the original classes. Device
 records stay outside the text sidecar and remote-hosted HMV path. Spark
 can expose the local device export when the runtime advertises this
