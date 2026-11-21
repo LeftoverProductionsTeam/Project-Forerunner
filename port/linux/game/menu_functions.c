@@ -5752,8 +5752,8 @@ MULTIPLAYER maps, CUSTOM SINGLEPLAYER or CUSTOM MULTIPLAYER maps (the map
 lists', above). A level or Halo PC campaign map chosen lists the
 difficulties (B goes back to the map) and is hosted as a network co-op game,
 which goes to Server Setup; a multiplayer map goes on to the gametypes.
-Split screen hosts only multiplayer maps, its chooser kept to the
-multiplayer kinds. */
+Ordinary split screen hosts only multiplayer maps. Local Forge can also
+open campaign maps over its existing loopback session. */
 
 enum
 {
@@ -5894,7 +5894,10 @@ static boolean map_list_initialize(struct widget_instance *list)
 	short mcc_kind = map_list.kind;
 	boolean operation = forerunner_operation_chooser;
 
-	map_list.hosting = global_network_game_server_get() != NULL && !network_game_is_splitscreen_local();
+	/* Local Forge can host a campaign cache for editing using the native
+	 * co-op chooser. Ordinary local multiplayer keeps its map kinds. */
+	map_list.hosting = global_network_game_server_get() != NULL &&
+		(!network_game_is_splitscreen_local() || network_game_forge_hosting());
 	/* (the list found first, so that the view knows the sources it has) */
 	ui_widget_port_multiplayer_maps(&names, NULL);
 	map_view_open(&create_game_view);

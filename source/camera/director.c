@@ -154,6 +154,8 @@ symbols in this file:
 #include "physics/collision_features.h"
 #include "physics/collisions.h"
 #include "static_camera.h"
+#include "tag_files/tag_files.h"
+#include "units/biped_definitions.h"
 #include "network_chat.h"
 #ifdef HALO_OPENXR
 #include "../../port/linux/src/vr_openxr.h"
@@ -217,6 +219,7 @@ static boolean director_update_controls(
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 static long forge_flight_unit = NONE;
+static long forge_monitor_biped = NONE;
 #endif
 
 static char const *director_camera_mode_names[NUMBER_OF_DIRECTOR_CAMERA_MODES] =
@@ -818,13 +821,19 @@ static void director_forge_flight_update(struct flying_camera *camera,
 	real_vector3d displacement, clipped_velocity;
 
 	flying_camera_update(camera, controls, command);
-	if (!controls->active)
-		return;
-
-	vector_from_points3d(&origin, &camera->position, &displacement);
-	collision_move_sphere(FLAG(_collision_test_structure_bit), &origin, &displacement, 0.20f,
-		NONE, &camera->position, &clipped_velocity, 1, &contact);
-	command->position = camera->position;
+	if (controls->active)
+	{
+		vector_from_points3d(&origin, &camera->position, &displacement);
+		collision_move_sphere(FLAG(_collision_test_structure_bit), &origin, &displacement, 0.20f,
+			NONE, &camera->position, &clipped_velocity, 1, &contact);
+		command->position = camera->position;
+	}
+	if (forge_monitor_biped != NONE)
+	{
+		/* Keep the Monitor below and just to the left of the placement ray. */
+		command->depth = 1.45f;
+		set_real_vector3d(&command->offset, 0.f, 0.33f, 0.22f);
+	}
 }
 
 void director_toggle_forge_flight(void)
@@ -834,6 +843,7 @@ void director_toggle_forge_flight(void)
 	if (forge_flight_unit != NONE)
 	{
 		forge_flight_unit = NONE;
+		forge_monitor_biped = NONE;
 		director_choose_game_perspective(0, TRUE);
 		hud_print_notice(0, "Play mode");
 	}
@@ -847,13 +857,23 @@ void director_toggle_forge_flight(void)
 		flying_camera_new_from_point_and_vector((struct flying_camera *)director->camera_data, &origin, &forward);
 		director_set_camera(0, (director_camera_update_proc)director_forge_flight_update, FALSE);
 		forge_flight_unit = unit_index;
-		hud_print_notice(0, "Forge flight  |  F7 / X: tools  |  F8 / D-pad Down: play");
+		forge_monitor_biped = tag_loaded(BIPED_DEFINITION_TAG, "characters\\monitor\\monitor");
+		if (forge_monitor_biped != NONE && biped_definition_get(forge_monitor_biped)->object.model.index == NONE)
+			forge_monitor_biped = NONE;
+		hud_print_notice(0, forge_monitor_biped != NONE ?
+			"Monitor  |  F7 / X: tools  |  F8 / D-pad Down: play" :
+			"Forge flight  |  F7 / X: tools  |  F8 / D-pad Down: play");
 	}
 }
 
 boolean director_forge_flight_active(short local_player_index)
 {
 	return local_player_index == 0 && forge_flight_unit != NONE;
+}
+
+long director_forge_monitor_biped(short local_player_index)
+{
+	return director_forge_flight_active(local_player_index) ? forge_monitor_biped : NONE;
 }
 
 boolean director_forge_flight_aim(long unit_index, real_point3d *position, real_vector3d *forward)
@@ -877,6 +897,7 @@ static boolean director_update_forge_controls(short local_player_index, struct c
 		!director_forge_flight_allowed(forge_flight_unit))
 	{
 		forge_flight_unit = NONE;
+		forge_monitor_biped = NONE;
 		if (!*director_camera_scripted)
 			director_choose_game_perspective(0, TRUE);
 		return FALSE;
@@ -1284,6 +1305,7 @@ void director_initialize_for_new_map(
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 	forge_flight_unit = NONE;
+	forge_monitor_biped = NONE;
 #endif
 	sound_listener_motion_reset(NONE); /* port: also called when restoring a saved game */
 	controller_remap_reset(); /* port: release held actions and camera context between maps */

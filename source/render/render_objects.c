@@ -108,6 +108,11 @@ symbols in this file:
 #include "interface/first_person_weapons.h"
 #include "sightjack.h" /* port (this fork): port/linux/game/sightjack.c */
 #include "camera/director.h"
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+#include "camera/observer.h"
+#include "models/model_definitions.h"
+#include "units/biped_definitions.h"
+#endif
 #include "cutscene/cinematics.h"
 #include "tag_files/tag_files.h"
 #include "saved games/game_state.h"
@@ -469,6 +474,41 @@ struct render_lighting *object_get_cached_render_lighting(
 	return &lighting_storage;
 }
 
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+/* OpenCE-Forge uses the map's native Monitor biped as the editor avatar.
+ * Submit its model through this renderer without creating a simulation unit. */
+static void render_forge_monitor(void)
+{
+	short local = render.local_player_index;
+	long biped_index = director_forge_monitor_biped(local);
+	struct biped_definition const *biped;
+	struct model const *model;
+	struct observer_result const *view;
+	real_point3d origin;
+	real radius, pixels;
+	real_matrix4x3 nodes[MAXIMUM_NODES_PER_MODEL];
+	struct render_lighting lighting;
+
+	if (biped_index == NONE)
+		return;
+	biped = biped_definition_get(biped_index);
+	model = model_definition_get(biped->object.model.index);
+	if (!model || model->nodes.count <= 0 || model->nodes.count > NUMBEROF(nodes))
+		return;
+	origin = *observer_get_focus_position(local);
+	radius = biped->object.bounding_radius;
+	if (radius <= 0.f || distance_squared3d(&render.camera.position, &origin) <= radius * radius ||
+		!render_frustum_sphere_visible(&render.frustum, &origin, radius))
+		return;
+	view = observer_get_camera(local);
+	pixels = render_frustum_sphere_diameter_in_pixels(&render.frustum, &origin, radius);
+	model_get_node_matrices(model, nodes, &origin, &view->forward, &view->up);
+	lights_distant_lighting_at_point(0, &origin, &lighting);
+	render_model(biped->object.model.index, pixels, nodes, NULL, NULL, NULL, &lighting,
+		&origin, radius, NULL, NONE, NONE, 0);
+}
+#endif
+
 void render_objects(
 	void)
 {
@@ -511,6 +551,9 @@ void render_objects(
 	/* port: Stubbs mode's corn (port/linux/game/stubbs_vegetation.c) */
 	if (stubbs_mode_active())
 		stubbs_vegetation_render();
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	render_forge_monitor();
+#endif
 
 	rasterizer_models_end();
 
@@ -1459,6 +1502,10 @@ static void process_rendered_objects(
 	struct object_render_data *data)
 {
 	short rendered_object_index;
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	long parked_player = director_forge_monitor_biped(render.local_player_index) != NONE ?
+		player_control_get_unit_index(render.local_player_index) : NONE;
+#endif
 
 	for (rendered_object_index = 0;
 		rendered_object_index < render_object_globals.rendered_object_count;
@@ -1466,6 +1513,10 @@ static void process_rendered_objects(
 	{
 		data->object_index =
 			render_object_globals.rendered_object_indices[rendered_object_index];
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+		if (data->object_index == parked_player)
+			continue;
+#endif
 		render_object(data);
 	}
 
