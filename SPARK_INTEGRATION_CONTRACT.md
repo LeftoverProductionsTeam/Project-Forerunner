@@ -1607,7 +1607,28 @@ not sample the same second rollover transition, so its physical release
 still needs live confirmation. The standard carrier graph rejection
 persisted. Original hashes held and the staged copy was removed.
 
-The same executable also passed deterministic native seat exit in solo
+A second Windows loopback test kept this exact audio-prefix cache on
+executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
+A guest launched at host tick 1863. Both peers observed the authored
+120-second Alpha refresh at tick 3603, with actor count rising from 18 to
+21. The three new living Alpha handles matched at tick 3606 (e68c010a,
+e68d010b and e68e010c), already on foot in the first sample. This verifies
+timed spawning after a late join. Individual seat-exit frames were outside
+the sample. Both processes exited zero after tick 4458, pinned hashes held,
+and staging was removed.
+
+On that same cache and executable, two weapon probes selected the moving
+Evolved spawner object 127 and failed to collect it. The other original
+Evolved spawner, object 128, stayed at (40.51, -78.99, 0.95).
+After camera-based staging with the camera settled, the guest observed the
+host's weapon-swap target 128 at ticks 333 and 336. The test issued E but
+neither peer observed an inventory transfer or a shot from that weapon.
+This leaves original pickup open at the transition from the brief native
+swap prompt to actual ownership. The held-start Evolved firing result
+above remains valid. Both peers exited zero, hashes held, and staging
+was removed.
+
+The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
 cleared only its named Pelican's collision-model reference and updated the
 header checksum. Its SHA-256 was
