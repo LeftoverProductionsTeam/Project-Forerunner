@@ -42,6 +42,19 @@ struct cache_file_header;
 struct cache_file_tag_header;
 struct cache_file_structure_bsp_header;
 
+enum scenario_bsp_prepare_result
+{
+	_scenario_bsp_prepare_deferred,
+	_scenario_bsp_prepare_failed,
+	_scenario_bsp_prepare_ready,
+};
+
+struct scenario_bsp_prepared
+{
+	void *header;
+	void *structure;
+};
+
 struct tag_iterator
 {
 	byte reserved0[4];
@@ -140,6 +153,13 @@ long scenario_tags_load(
 /* Checks the reference without detaching the current BSP or reading new geometry. */
 boolean scenario_structure_bsp_reference_is_valid(
 	struct scenario_structure_bsp_reference const *reference);
+enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
+	struct scenario_structure_bsp_reference const *active,
+	struct scenario_structure_bsp_reference const *destination,
+	struct scenario_bsp_prepared *prepared);
+void scenario_structure_bsp_activate_prepared(
+	struct scenario_structure_bsp_reference const *reference,
+	struct scenario_bsp_prepared const *prepared);
 boolean scenario_structure_bsp_load(
 	struct scenario_structure_bsp_reference *reference);
 void tag_files_close(

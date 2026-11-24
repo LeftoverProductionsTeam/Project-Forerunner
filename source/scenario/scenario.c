@@ -1073,6 +1073,8 @@ boolean scenario_switch_structure_bsp(
 	boolean had_old_structure_bsp;
 	boolean loaded;
 	struct scenario_structure_bsp_reference *reference;
+	struct scenario_bsp_prepared prepared;
+	enum scenario_bsp_prepare_result preparation = _scenario_bsp_prepare_deferred;
 	/* port: (the bsp loaded before, loaded again if the new one is refused) */
 	short old_structure_bsp_index = NONE;
 
@@ -1107,14 +1109,24 @@ boolean scenario_switch_structure_bsp(
 
 		if (global_structure_bsp_index != NONE)
 		{
+			struct scenario_structure_bsp_reference *active = TAG_BLOCK_GET_ELEMENT(
+				&global_scenario->structure_bsp_references,
+				global_structure_bsp_index,
+				struct scenario_structure_bsp_reference);
+
+			preparation = scenario_structure_bsp_prepare(active, reference, &prepared);
+			if (preparation == _scenario_bsp_prepare_failed)
+			{
+				players_cancel_bsp_switch_gather();
+				collision_log_enable(TRUE);
+				main_start_time();
+				return FALSE;
+			}
 			scenario_call_disconnect_from_structure_bsp_procs();
 
 			had_old_structure_bsp = TRUE;
 			old_structure_bsp_index = global_structure_bsp_index;
-			scenario_structure_bsp_unload(TAG_BLOCK_GET_ELEMENT(
-				&global_scenario->structure_bsp_references,
-				global_structure_bsp_index,
-				struct scenario_structure_bsp_reference));
+			scenario_structure_bsp_unload(active);
 			scenario_globals->structure_bsp_index = NONE;
 			global_structure_bsp_index = NONE;
 		}
@@ -1122,8 +1134,16 @@ boolean scenario_switch_structure_bsp(
 		/* port: and a bsp whose counts the game's fixed arrays can't hold
 		(its clusters above all: structure_bsp_port_verify) is refused, as
 		one that didn't load */
-		loaded = scenario_structure_bsp_load(reference);
-		if (loaded &&
+		if (preparation == _scenario_bsp_prepare_ready)
+		{
+			scenario_structure_bsp_activate_prepared(reference, &prepared);
+			loaded = TRUE;
+		}
+		else
+		{
+			loaded = scenario_structure_bsp_load(reference);
+		}
+		if (loaded && preparation != _scenario_bsp_prepare_ready &&
 			!structure_bsp_port_verify(structure_bsp_definition_get(reference->structure_bsp.index)))
 		{
 			error(_error_silent, "structure bsp #%d has more than the game can hold", structure_bsp_index);

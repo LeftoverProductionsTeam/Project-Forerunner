@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, constant, function, mutated, read, run, structure
+from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 
 
 def generated(fault=None):
@@ -23,14 +23,20 @@ def generated(fault=None):
     if fault == 'activation':
         objects = mutated(objects, '\t\tobject_pvs_clear();', '\t\t;')
     mcc_cache = read('port/linux/game/mcc_cache.c')
+    cache = read('source/cache/cache_files.c')
+    cache_header = read('source/cache/cache_files.h')
     bsp_limits = [('MAXIMUM_CLUSTERS_PER_STRUCTURE', 'source/structures/structures.h'),
                   ('MAXIMUM_SURFACES_PER_STRUCTURE', 'source/render/render.h')]
     bsp_verifier = function(read('source/structures/structure_bsp_definitions.c'), 'structure_bsp_port_verify')
     return (
         ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
          '\n'.join(function(mcc_cache, name) for name in
-                   ('mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked')) + '\n' +
-         function(read('source/cache/cache_files.c'), 'scenario_structure_bsp_reference_is_valid')),
+                   ('mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked',
+                    'mcc_cache_bsp_can_prepare')) + '\n' +
+         enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +
+         structure(cache_header, 'scenario_bsp_prepared') + '\n' +
+         '\n'.join(function(cache, name) for name in ('scenario_structure_bsp_reference_is_valid',
+             'scenario_structure_bsp_prepare', 'scenario_structure_bsp_activate_prepared'))),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
         ('objects.inc', objects),
@@ -66,6 +72,7 @@ def generated(fault=None):
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
+    'mcc-prepare-success', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

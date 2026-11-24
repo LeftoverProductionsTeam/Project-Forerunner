@@ -147,7 +147,8 @@ symbols in this file:
 #include "stubbs_looks.h"
 #endif
 #include "models/models.h"
-#include "mcc_cache.h" /* port: port/linux/game/mcc_cache.c */
+#include "mcc_cache.h"
+#include "structures/structure_bsp_definitions.h" /* port: port/linux/game/mcc_cache.c */
 #include "mcc_pause_runtime.h" /* port: port/linux/game/mcc_pause_runtime.c */
 #include "map_share.h" /* port: port/linux/game/map_share.c */
 #include "mcc_share.h" /* port: port/linux/game/mcc_share.c */
@@ -2427,6 +2428,34 @@ boolean scenario_structure_bsp_reference_is_valid(
 		cache_file_structure_bsp_reference_verify(reference);
 }
 
+/* A disjoint MCC destination can be converted and verified while the active
+ * cache header and native simulation still refer to the old BSP. */
+enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
+	struct scenario_structure_bsp_reference const *active,
+	struct scenario_structure_bsp_reference const *destination,
+	struct scenario_bsp_prepared *prepared)
+{
+	if (!mcc_cache_bsp_can_prepare(active, destination))
+		return _scenario_bsp_prepare_deferred;
+
+	if (!mcc_cache_bsp_load(destination, &prepared->header, &prepared->structure))
+		return _scenario_bsp_prepare_failed;
+	if (!structure_bsp_port_verify(prepared->structure))
+	{
+		mcc_cache_bsp_unload(destination);
+		return _scenario_bsp_prepare_failed;
+	}
+	return _scenario_bsp_prepare_ready;
+}
+
+void scenario_structure_bsp_activate_prepared(
+	struct scenario_structure_bsp_reference const *reference,
+	struct scenario_bsp_prepared const *prepared)
+{
+	cache_file_globals.structure_bsp_header = prepared->header;
+	cache_get_tag_instance(reference->structure_bsp.index)->base_address = xbox_address(prepared->structure);
+}
+
 boolean scenario_structure_bsp_load(
 	struct scenario_structure_bsp_reference *reference)
 {
@@ -2441,11 +2470,10 @@ boolean scenario_structure_bsp_load(
 	/* port: an MCC map's bsp is read and converted by mcc_cache.c */
 	if (mcc_cache_tags_loaded())
 	{
-		void *mcc_header, *mcc_structure;
-		if (!mcc_cache_bsp_load(reference, &mcc_header, &mcc_structure))
+		struct scenario_bsp_prepared prepared;
+		if (!mcc_cache_bsp_load(reference, &prepared.header, &prepared.structure))
 			return FALSE;
-		cache_file_globals.structure_bsp_header = mcc_header;
-		cache_get_tag_instance(reference->structure_bsp.index)->base_address = xbox_address(mcc_structure);
+		scenario_structure_bsp_activate_prepared(reference, &prepared);
 		return TRUE;
 	}
 

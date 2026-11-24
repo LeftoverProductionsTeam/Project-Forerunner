@@ -294,14 +294,48 @@ static int mcc_runtime_read(struct mcc_runtime *runtime,uint32_t offset,uint32_t
 static boolean structure_bsp_port_verify(struct structure_bsp const *bsp);
 static boolean mcc_cache_tags_loaded(void) {return mcc_loaded;}
 #define TAG_CACHE_SIZE 1
-static struct {struct {long tag_data_size;} header;} cache_file_globals;
+static struct {struct {long tag_data_size;} header;void *structure_bsp_header;} cache_file_globals;
+static struct {void *base_address;} test_tag_instances[2];
+static int mcc_prepared_loads,mcc_prepared_releases;
+#define cache_get_tag_instance(index) (&test_tag_instances[index])
+static boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *ref, void **header, void **structure)
+{
+    short index=(short)ref->structure_bsp.index;
+
+    CHECK(global_structure_bsp_index==1-index && !disconnects && !unloads[1-index],
+          "preparing a destination detached the active BSP");
+    CHECK(cache_file_globals.structure_bsp_header==&references[1-index] &&
+          test_tag_instances[1-index].base_address==&structures[1-index] &&
+          !test_tag_instances[index].base_address,"preparing a destination changed the live cache header");
+    mcc_prepared_loads++;
+    if (reject_load[index]) return FALSE;
+    *header=&references[index];
+    *structure=&structures[index];
+    return TRUE;
+}
+static void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *ref)
+{
+    CHECK(global_structure_bsp_index!=ref->structure_bsp.index &&
+          cache_file_globals.structure_bsp_header!=ref,"refused preparation released the active BSP");
+    mcc_prepared_releases++;
+}
 static boolean cache_file_structure_bsp_tag_valid(struct scenario_structure_bsp_reference const *ref)
 {return !reject_reference[ref->structure_bsp.index];}
 #define cache_file_structure_bsp_reference_verify cache_file_structure_bsp_tag_valid
 #include "mcc_bsp.inc"
 static boolean scenario_structure_bsp_load(struct scenario_structure_bsp_reference *ref)
 {loads[ref->structure_bsp.index]++;return !reject_reference[ref->structure_bsp.index] && !reject_load[ref->structure_bsp.index];}
-static void scenario_structure_bsp_unload(struct scenario_structure_bsp_reference *ref) {unloads[ref->structure_bsp.index]++;}
+static void scenario_structure_bsp_unload(struct scenario_structure_bsp_reference *ref)
+{
+    long index=ref->structure_bsp.index;
+
+    unloads[index]++;
+    if (mcc_loaded)
+    {
+        test_tag_instances[index].base_address=NULL;
+        cache_file_globals.structure_bsp_header=NULL;
+    }
+}
 static struct structure_bsp *structure_bsp_definition_get(long index) {return &structures[index];}
 #define BIT_VECTOR_SIZE_IN_BYTES(count) (4u * (((count) + 31u) / 32u))
 #include "bsp_limits.inc"
@@ -485,6 +519,63 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strncmp(name, "mcc-prepare-",12))
+    {
+        boolean overlap=!strcmp(name,"mcc-prepare-overlap");
+        boolean limits=!strcmp(name,"mcc-prepare-limits");
+        boolean refused=!strcmp(name,"mcc-prepare-refused");
+        struct mcc_cache_bsp pair[2]={
+            {.file_offset=0x4000,.size=0x800,.address=0x50001000,.tag_handle=0,.structure_address=0x50001018},
+            {.file_offset=0x1000,.size=0x800,.address=0x50001800,.tag_handle=1,.structure_address=0x50001818}
+        };
+
+        if (overlap)
+        {
+            pair[1].address-=0x400;
+            pair[1].structure_address-=0x400;
+        }
+        mcc_loaded=TRUE;
+        mcc_loaded_cache.report.bsp_count=2;
+        mcc_loaded_cache.report.bsps=pair;
+        for (short i=0;i<2;i++)
+        {
+            references[i].base_address=pair[i].address;
+            references[i].file_offset=pair[i].file_offset;
+            references[i].file_size=pair[i].size;
+        }
+        mcc_file_structure.collision_bsp.count=1;
+        mcc_file_structure.leaves.count=1;
+        mcc_file_structure.clusters.count=1;
+        mcc_file_structure.cluster_data.size=4;
+        cache_file_globals.structure_bsp_header=&references[old];
+        test_tag_instances[old].base_address=&structures[old];
+        reject_load[destination]=refused;
+        reject_verify[destination]=limits;
+
+        CHECK(scenario_switch_structure_bsp(destination)==(!limits&&!refused),"wrong outcome for staged BSP");
+        CHECK(clock_stops==1&&clock_starts==1&&collision_log&&!menu,"staging did not restore the clock");
+        CHECK(mcc_prepared_loads==!overlap&&mcc_prepared_releases==limits,"unexpected preparation lifetime");
+        if (refused || limits)
+        {
+            CHECK(!disconnects&&!reconnects&&!unloads[old]&&!loads[destination]&&!ejections&&!teleports&&
+                  global_structure_bsp_index==old&&global_structure_bsp==&structures[old]&&
+                  cache_file_globals.structure_bsp_header==&references[old]&&
+                  test_tag_instances[old].base_address==&structures[old]&&
+                  players_globals->pending_teleport_starting_location_index==NONE,
+                  "refused staging mutated the active BSP or its players");
+        }
+        else
+        {
+            CHECK(disconnects==1&&reconnects==1&&unloads[old]==1&&loads[destination]==overlap&&
+                  global_structure_bsp_index==destination&&global_collision_bsp==&collisions[destination],
+                  "activation repeated the staged load or bypassed the normal reconnect");
+            if (!overlap)
+                CHECK(cache_file_globals.structure_bsp_header==&references[destination]&&
+                      test_tag_instances[destination].base_address==&structures[destination],
+                      "activation did not publish the prepared target");
+        }
+        return 0;
+    }
     if (!strcmp(name, "item-rested-surface-bsp"))
     {
         struct collision_surface old_floor={4},new_floor={9};

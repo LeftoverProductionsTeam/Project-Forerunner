@@ -578,6 +578,17 @@ boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference 
     return FALSE;
 }
 
+boolean mcc_cache_bsp_can_prepare(struct scenario_structure_bsp_reference const *active,
+    struct scenario_structure_bsp_reference const *destination)
+{
+    struct mcc_cache_bsp const *from = mcc_cache_bsp_reference(active);
+    struct mcc_cache_bsp const *to = mcc_cache_bsp_reference(destination);
+
+    return from && to && from->tag_handle != to->tag_handle &&
+        ((uint64_t)from->address + from->size <= to->address ||
+            (uint64_t)to->address + to->size <= from->address);
+}
+
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     void **header, void **structure)
 {

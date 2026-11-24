@@ -3003,6 +3003,28 @@ passed geometry readback, but the private lobby stayed on Carousel because
 the installed assets lacked a compatible `sounds.map`. That prevented
 native MCC D40 switch acceptance.
 
+The native scenario switch now prepares and validates a disjoint MCC13
+destination before disconnecting the active BSP. Refusal restores the
+clock and cancels the pending gather while the active scene and cache
+header remain intact. After successful preparation, the ordinary switch
+unloads the previous BSP and publishes the checked destination once.
+Overlapping linked windows still use the normal unload-and-load path.
+
+The Windows x64 executable
+`de6da5376ecb3ae01935c4d7c5cf5eb83053434f8d4890baa75166d89278990a`
+passed 59 focused switch tests. These cover the preparation transaction,
+early refusal or budget rejection, and overlapping fallback. Two native
+D40 Xbox-cache peers agreed on BSP 1 at tick 45, BSP 0 at tick 60 and
+BSP 1 at tick 75 using scripted switches. Separate twelve-region native
+smokes verified synchronized movement on MCC13 within 0.049 units and
+on CE609 with Chupathingy within 0.075 units. All peers exited zero.
+The disjoint preparation path was exercised by the focused harness.
+
+Spark reports that H1A Tool compiled the two Chiron corridor structure
+tags. The compiled scenario, lightmaps and native cache handoff remain
+pending for the physical cross-region test. Independent simultaneous
+simulation is still open.
+
 The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal
 is verified separately above. Both currently exercise one resident BSP.
