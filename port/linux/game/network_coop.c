@@ -2685,8 +2685,11 @@ void network_coop_note_bsp_switch(
 		if (player_indices[index] == NONE)
 			continue;
 		{
-			struct player_datum *player = player_get(player_indices[index]);
+			struct player_datum const *player = player_try_and_get(player_indices[index]);
 			long character;
+
+			if (!player)
+				continue;
 
 			/* (printable ASCII of the player's name) */
 			for (character = 0; character < (long)NUMBEROF(player->name) && player->name[character] &&

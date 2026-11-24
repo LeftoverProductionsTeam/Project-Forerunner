@@ -2797,6 +2797,16 @@ also started a private dedicated D40 campaign. One native client reached
 tick 90 in BSP 8, and both processes exited zero. A live dedicated majority
 crossing remains open. The inherited majorities are from `cf9fad600`.
 
+The dedicated `coop_bsp_switch` event and player notice now follow a
+successful native load. The host keeps the vote roster with its queued
+destination and drops it on refusal or rollback. The existing event schema
+is unchanged. All 41 focused checks passed, including no event on invalid
+references or failed loads and one event on success. Windows x64
+`6f3129053c03d645d8b79b9efe4ac1dda5c65ca07aabff02441d62659b51074e`
+also passed a stock D40 listen-host crossing. Both native peers reported
+BSP 0 at tick 366 after normal host movement and exited zero. The dedicated
+event timing is harness-verified.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

@@ -499,6 +499,9 @@ static struct
 	a script or a skipped cutscene (players_coop_bsp_switch_ready) */
 	short structure_bsp_index;
 	long bsp_switch_time;
+	/* The dedicated vote roster is reported only after the native load. */
+	short bsp_crossing_from, bsp_crossing_to, bsp_crossing_count;
+	long bsp_crossing_players[NETWORK_GAME_MAXIMUM_PLAYER_COUNT];
 	/* when each local player was last told the host's crossing switches
 	the BSP (players_coop_show_host_wait) */
 	long host_wait_message_times[MAXIMUM_LOCAL_PLAYERS];
@@ -3715,7 +3718,7 @@ static short players_coop_bsp_switch_trigger(
 	return NONE;
 }
 
-/* port: a dedicated co-op server's loading zones (players_coop_bsp_switch_allowed):
+/* port: a dedicated co-op server's loading zones (players_coop_queue_bsp_switch):
 whether more than half of the living players who are not away, on machines
 that have the BSP, stand in zones from the loaded BSP to the one this zone
 leads to. Those waiting are told how many more it needs (or the cooldown's
@@ -3749,7 +3752,12 @@ static boolean players_coop_bsp_switch_majority(
 	}
 	if (in * 2 > total)
 	{
-		network_coop_note_bsp_switch(global_structure_bsp_index, target->destination_structure_bsp_index, crossing, in);
+		if (!main_switch_structure_bsp(target->destination_structure_bsp_index))
+			return FALSE;
+		players_coop_state.bsp_crossing_from = global_structure_bsp_index;
+		players_coop_state.bsp_crossing_to = target->destination_structure_bsp_index;
+		players_coop_state.bsp_crossing_count = (short)in;
+		csmemcpy(players_coop_state.bsp_crossing_players, crossing, in * sizeof(*crossing));
 		return TRUE;
 	}
 	{
@@ -3760,6 +3768,21 @@ static boolean players_coop_bsp_switch_majority(
 	}
 
 	return FALSE;
+}
+
+void players_coop_finish_bsp_switch(
+	short from,
+	short to,
+	boolean loaded)
+{
+	short count = players_coop_state.bsp_crossing_count;
+
+	players_coop_state.bsp_crossing_count = 0;
+	if (loaded && count > 0 && from == players_coop_state.bsp_crossing_from &&
+		to == players_coop_state.bsp_crossing_to)
+	{
+		network_coop_note_bsp_switch(from, to, players_coop_state.bsp_crossing_players, count);
+	}
 }
 
 /* port: whether a network co-op host lets any trigger switch the BSP yet.
@@ -3816,9 +3839,10 @@ the host's does, and brings the whole team to the host
 back drags the others through the level. With none of the host's players
 alive anyone's does, so the team never waits on the host's respawn. Never
 while the unit's machine still loads the host's BSP. */
-static boolean players_coop_bsp_switch_allowed(
+static boolean players_coop_queue_bsp_switch(
 	long unit_index,
-	short bsp_switch_trigger_volume_index)
+	short bsp_switch_trigger_volume_index,
+	short destination)
 {
 	long player_index = unit_get(unit_index)->unit.player_index;
 
@@ -3830,7 +3854,7 @@ static boolean players_coop_bsp_switch_allowed(
 	drags the team back through the level */
 	if (network_coop_bsp_switch_majority())
 		return players_coop_bsp_switch_majority(bsp_switch_trigger_volume_index);
-	return player_get(player_index)->local_player_index != NONE || !players_coop_host_alive();
+	return (player_get(player_index)->local_player_index != NONE || !players_coop_host_alive()) && main_switch_structure_bsp(destination);
 }
 
 /* port: tells a co-op client's players standing on a loading zone that the
@@ -4048,7 +4072,7 @@ void players_reconnect_to_structure_bsp(
 		}
 
 		/* port: this machine's players first (the network co-op host's, whose
-		crossing switched: players_coop_bsp_switch_allowed), not a client
+		crossing switched: players_coop_queue_bsp_switch), not a client
 		waiting on the trigger for them */
 		for (pass = 0; pass < 2 && !found_player; pass++)
 		{
@@ -5592,9 +5616,10 @@ static void player_queue_structure_bsp_switch(
 			global_structure_bsp_index &&
 			player_in_bsp_switch_volume(
 				bsp_switch_trigger_volume, player->unit_index, root_object_index) &&
-			(!coop ||
-				players_coop_bsp_switch_allowed(player->unit_index, bsp_switch_trigger_volume_index)) &&
-			main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index))
+			(coop ?
+				players_coop_queue_bsp_switch(player->unit_index, bsp_switch_trigger_volume_index,
+					bsp_switch_trigger_volume->destination_structure_bsp_index) :
+				main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index)))
 		{
 			if (players_globals->local_player_triggered_switch !=
 				_local_player_triggered_switch_none &&

@@ -37,7 +37,8 @@ def generated(fault=None):
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('scripted_bsp.inc', function(read('source/hs/hs.c'), 'scenario_switch_structure_bsp_evaluate')),
         ('queue_bsp_switch.inc', function(players, 'player_queue_structure_bsp_switch')),
-        ('majority_bsp_vote.inc', function(players, 'players_coop_bsp_switch_majority')),
+        ('majority_bsp_vote.inc', '\n'.join(function(players, name) for name in
+            ('players_coop_bsp_switch_majority', 'players_coop_finish_bsp_switch'))),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp', 'main_switch_to_structure_bsp_private')) +
             '\n' + '\n'.join(function(read('port/linux/game/network_distributed.c'), name) for name in

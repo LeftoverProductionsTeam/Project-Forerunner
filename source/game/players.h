@@ -423,6 +423,10 @@ void players_respawn_at_start(
 	void);
 void players_cancel_bsp_switch_gather(
 	void);
+void players_coop_finish_bsp_switch(
+	short from,
+	short to,
+	boolean loaded);
 void players_reconnect_to_structure_bsp(
 	void);
 

@@ -82,7 +82,12 @@ static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_sta
 static boolean crowded,solid,ignore_players,operations,opposed,connected,dedicated_vote_routes;
 static int stacked_calls,beside_retries;
 static long ticks;
-static struct {long stranded_since[2],bsp_switch_time;} players_coop_state;
+static struct {
+    long stranded_since[2],bsp_switch_time;
+    short bsp_crossing_from,bsp_crossing_to,bsp_crossing_count;
+    long bsp_crossing_players[NETWORK_GAME_MAXIMUM_PLAYER_COUNT];
+} players_coop_state;
+#define csmemcpy memcpy
 
 static int slot(long unit)
 {
@@ -229,16 +234,17 @@ static void distributed_handle_unit_state(long host_time,struct distributed_unit
     CHECK(host_time>0&&state->player_index==0,"invalid snapshot passed to unit handler");
     unit_snapshots_applied++;
 }
+void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
 
-static boolean players_coop_bsp_switch_allowed(long unit, short trigger)
+static boolean players_coop_queue_bsp_switch(long unit, short trigger, short destination)
 {
-    return unit == units[0] && trigger >= 0;
+    return unit == units[0] && trigger >= 0 && main_switch_structure_bsp(destination);
 }
 #include "queue_bsp_switch.inc"
 
 static long vote_excluded_player = NONE, vote_crossers, voted_players[2];
-static short vote_destination;
+static short vote_source, vote_destination;
 static int vote_announced, vote_waiting;
 static long vote_waiting_player;
 static boolean network_coop_player_has_structure_bsp(long player) {return TRUE;}
@@ -251,8 +257,9 @@ static void network_coop_tell_bsp_switch_waiting(long player, long more, long in
 }
 static void network_coop_note_bsp_switch(short from, short to, long const *crossers, long count)
 {
-    CHECK(from == global_structure_bsp_index && count > 0 && count <= 2, "invalid route announcement");
+    CHECK(to == global_structure_bsp_index && count > 0 && count <= 2, "invalid route announcement");
     vote_announced++;
+    vote_source = from;
     vote_destination = to;
     vote_crossers = count;
     memcpy(voted_players, crossers, (size_t)count * sizeof(long));
@@ -309,15 +316,32 @@ int main(int argc,char **argv)
         CHECK(!players_coop_bsp_switch_majority(0) && !vote_announced &&
               vote_waiting == 1 && vote_waiting_player == players[0],
               "an unrelated route received another destination's votes");
-        CHECK(players_coop_bsp_switch_majority(1) && vote_announced == 1,
-              "overlap hid a player's vote for the destination their teammate chose");
-        CHECK(vote_destination == destination && vote_crossers == 2 &&
-              voted_players[0] == players[0] && voted_players[1] == players[1],
-              "expected one vote per player including the occupied vehicle root");
+        reject_reference[destination] = TRUE;
+        CHECK(!players_coop_bsp_switch_majority(1) && !vote_announced &&
+              main_globals.switch_to_structure_bsp_index == NONE,
+              "an invalid destination queued or announced a crossing");
+        reject_reference[destination] = FALSE;
         vote_excluded_player = players[1];
-        CHECK(players_coop_bsp_switch_majority(1) && vote_crossers == 1 &&
-              voted_players[0] == players[0],
+        CHECK(players_coop_bsp_switch_majority(1) && players_coop_state.bsp_crossing_count == 1 &&
+              players_coop_state.bsp_crossing_players[0] == players[0],
               "away teammate was counted in the destination's voting population");
+        CHECK(!vote_announced, "players were told they crossed before the native BSP load");
+        reject_load[destination] = TRUE;
+        main_switch_to_structure_bsp_private();
+        CHECK(!vote_announced && global_structure_bsp_index == old &&
+              !players_coop_state.bsp_crossing_count,
+              "rolled-back load sent or retained a crossing announcement");
+
+        reject_load[destination] = FALSE;
+        vote_excluded_player = NONE;
+        CHECK(players_coop_bsp_switch_majority(1) && !vote_announced,
+              "overlap hid a valid vote or announced before the load");
+        players_globals->pending_teleport_starting_location_index = 1;
+        main_switch_to_structure_bsp_private();
+        CHECK(vote_announced == 1 && vote_source == old && vote_destination == destination &&
+              vote_crossers == 2 && voted_players[0] == players[0] && voted_players[1] == players[1] &&
+              !players_coop_state.bsp_crossing_count,
+              "successful load did not announce exactly one crossing with both players");
         return 0;
     }
     if (!strcmp(name, "overlapping-coop-routes"))
