@@ -278,6 +278,9 @@ if not is_windows():
 out = io.StringIO()
 n = ninja_syntax.Writer(out)
 n.variable("ninja_required_version", "1.3")
+# A WSL build of a Windows checkout must keep its own Ninja dependency log.
+if not console_only and sys.platform == "linux" and os.environ.get("WSL_DISTRO_NAME"):
+    n.variable("builddir", (sln.build_dir / ".ninja-wsl").as_posix())
 n.newline()
 
 configure_script = Path(os.path.relpath(os.path.abspath(sys.argv[0])))

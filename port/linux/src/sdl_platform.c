@@ -5545,6 +5545,10 @@ it types arrives as keys. Elsewhere text input stays off, as before, so that
 no input method takes the keys the field reads: a Wayland touch screen's
 keyboard (text-input-v3) would type text events, which the field does not
 read. */
+/* SDL 3.4.2 headers omit this hint macro. The hint uses SDL's string API. */
+#ifndef SDL_HINT_ENABLE_STEAM_SCREEN_KEYBOARD
+#define SDL_HINT_ENABLE_STEAM_SCREEN_KEYBOARD "SDL_ENABLE_STEAM_SCREEN_KEYBOARD"
+#endif
 static SDL_AtomicInt screen_keyboard_wanted;
 /* (each field begun, which brings the keyboard up again: Steam does not say
 when its keyboard goes, by its own Enter or closed by hand, so SDL holds it
