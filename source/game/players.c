@@ -3677,12 +3677,24 @@ boolean player_position_switches_bsp(
 	return FALSE;
 }
 
+/* Continuous co-op crossings classify an occupied vehicle by its root on
+ * both sides of the seam. Marked transitions keep their native seat test. */
+static boolean player_in_bsp_switch_volume(
+	struct scenario_bsp_switch_trigger_volume const *volume,
+	long unit_index,
+	long root_index)
+{
+	return scenario_trigger_volume_test_object(volume->trigger_volume_index,
+		volume->cutscene_flag_index == NONE && network_coop_active() ? root_index : unit_index);
+}
+
 /* port: the trigger that switches away from the loaded structure BSP the
 unit stands in, or NONE */
 static short players_coop_bsp_switch_trigger(
 	long unit_index)
 {
 	struct scenario *scenario = global_scenario_get();
+	long root_index = object_get_ultimate_parent(unit_index);
 	short index;
 
 	/* port: a short counter stops at SHORT_MAX (a map's count) */
@@ -3692,7 +3704,7 @@ static short players_coop_bsp_switch_trigger(
 			&scenario->bsp_switch_trigger_volumes, index, struct scenario_bsp_switch_trigger_volume);
 
 		if (volume->source_structure_bsp_index == global_structure_bsp_index &&
-			scenario_trigger_volume_test_object(volume->trigger_volume_index, unit_index))
+			player_in_bsp_switch_volume(volume, unit_index, root_index))
 		{
 			return index;
 		}
@@ -5648,9 +5660,8 @@ void players_update_after_game(
 						struct scenario_bsp_switch_trigger_volume);
 					if (bsp_switch_trigger_volume->source_structure_bsp_index ==
 						global_structure_bsp_index &&
-						scenario_trigger_volume_test_object(
-							bsp_switch_trigger_volume->trigger_volume_index,
-							player->unit_index) &&
+						player_in_bsp_switch_volume(
+							bsp_switch_trigger_volume, player->unit_index, root_object_index) &&
 						(!network_coop_active() ||
 							players_coop_bsp_switch_allowed(player->unit_index, bsp_switch_trigger_volume_index)))
 					{

@@ -2084,6 +2084,15 @@ seat straddles the seam. Explicit gather markers and stranded recovery keep
 their existing behavior. Windows x64 compiled and 41 focused checks passed.
 Physical testing still requires the connected native map.
 
+Continuous co-op admission also tests the vehicle root. This aligns the host
+switch, dedicated-server vote and client waiting hint with reconnect. The
+focused suite checks root-inside/seat-outside, the inverse, infantry, local
+play and marked transitions. Windows x64 compiled and 43 checks passed.
+The stock B40 fallback loaded BSP 2 on both peers but the camera-based setup
+left both players at the opening coordinates. No physical crossing was run.
+The B40 hash is recorded above. The tested executable SHA-256 was
+`4fd0fa96437af30380c2a2f12e0487a7a947ac43e639533967969aaaf0d1db67`.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

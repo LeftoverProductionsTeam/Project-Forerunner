@@ -33,7 +33,7 @@ def generated(fault=None):
         ('players.inc', '\n'.join(function(players, name) for name in (
             'player_teleport_with_policy', 'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
-            'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
+            'player_in_bsp_switch_volume', 'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp')) + '\n' +
@@ -47,7 +47,7 @@ def generated(fault=None):
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-unrelated',
-    'no-pending', 'negative-pending', 'past-end-pending',
+    'no-pending', 'negative-pending', 'past-end-pending', 'crossing-root-trigger',
     'activation-cluster', 'activation-object', 'crowded-stranded', 'crowded-solid',
     'crowded-inside', 'crowded-operation', 'crowded-enemy', 'rescue-crowded', 'rescue-solid',
 ])

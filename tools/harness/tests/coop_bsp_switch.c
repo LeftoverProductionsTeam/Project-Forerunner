@@ -226,6 +226,25 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "crossing-root-trigger"))
+    {
+        switches[0].cutscene_flag_index = NONE;
+        CHECK(!player_in_bsp_switch_volume(&switches[0], units[0], units[2]),
+              "seat triggered a continuous switch before the vehicle entered");
+        connected = TRUE;
+        CHECK(player_in_bsp_switch_volume(&switches[0], units[1], units[2]),
+              "vehicle entered without detecting its occupied seat");
+        CHECK(player_in_bsp_switch_volume(&switches[0], units[0], units[0]),
+              "continuous infantry crossing did not trigger");
+        switches[0].cutscene_flag_index = 0;
+        CHECK(!player_in_bsp_switch_volume(&switches[0], units[1], units[2]),
+              "vehicle root overrode a marked transition's native trigger");
+        coop = FALSE;
+        switches[0].cutscene_flag_index = NONE;
+        CHECK(player_in_bsp_switch_volume(&switches[0], units[0], units[2]),
+              "local crossing stopped using the native seat trigger");
+        return 0;
+    }
     if(!strcmp(name,"host-superseded"))
     {
         struct distributed_structure_bsp message={destination,0};
