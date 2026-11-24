@@ -186,6 +186,8 @@ struct host_actor
 	struct unit_control_data control;
 	/* the control flags of the last tick's entry */
 	word sent_control_flags;
+	/* A seat transition can occur before the actor next supplies control. */
+	short seat_transition_sends;
 	/* the latest impulse, how many more entries carry it, and its number */
 	short impulse;
 	short impulse_sends;
@@ -414,7 +416,12 @@ static void actor_state_from_unit(
 	state->active_camouflage = (byte)(long)floor(camouflage * 255.0f + 0.5f);
 	state->team = unit->object.owner_team_index >= 0 && unit->object.owner_team_index < NO_TEAM ?
 		(byte)unit->object.owner_team_index : NO_TEAM;
-	state->position = unit->object.position;
+	/* A seated object's position is relative to its marker. Cadence and
+	 * peers awaiting the vehicle need its world position. */
+	if (TEST_FLAG(state->flags, _distributed_actor_rides_bit))
+		object_get_origin(actor->unit_index, &state->position);
+	else
+		state->position = unit->object.position;
 	distributed_vector_pack(&unit->object.translational_velocity, DISTRIBUTED_VELOCITY_SCALE, &state->velocity);
 	distributed_vector_pack(&unit->object.forward, DISTRIBUTED_UNIT_SCALE, &state->forward);
 	distributed_vector_pack(&unit->object.up, DISTRIBUTED_UNIT_SCALE, &state->up);
@@ -541,7 +548,8 @@ static boolean actor_state_apply(
 	if (TEST_FLAG(state->flags, _distributed_actor_running_blindly_bit))
 		unit->unit.run_blindly_angle = distributed_angle_unpack(state->run_blindly_angle, FALSE);
 	/* vehicles are placed only by the host's object states (network_objects.c) */
-	if (unit->object.parent_object_index == NONE && unit->object.type != _object_type_vehicle)
+	if (!TEST_FLAG(state->flags, _distributed_actor_rides_bit) &&
+		unit->object.parent_object_index == NONE && unit->object.type != _object_type_vehicle)
 	{
 		real dx = state->position.x - unit->object.position.x;
 		real dy = state->position.y - unit->object.position.y;
@@ -693,6 +701,33 @@ void network_actors_note_control(
 		return;
 	actor->noted = TRUE;
 	actor->control = *control_data;
+}
+
+/* A native seat change registers actors that never called unit_control
+ * (for example, dormant passengers placed before the first AI update). */
+void network_actors_note_seat_transition(long unit_index)
+{
+	struct unit_datum *unit;
+	struct host_actor *actor;
+
+	if (game_connection() != _game_connection_network_server ||
+		!actor_unit_valid(unit_index))
+		return;
+	unit = unit_get(unit_index);
+	if (unit->unit.actor_index == NONE && unit->unit.swarm_actor_index == NONE)
+		return;
+	actor = host_actor_for(unit_index);
+	if (!actor)
+		return;
+	if (!actor->noted)
+	{
+		csmemset(&actor->control, 0, sizeof(actor->control));
+		actor->control.animation_state = _unit_state_idle;
+		unit_get_facing_vector(unit_index, &actor->control.facing_vector);
+		unit_get_aiming_vector(unit_index, &actor->control.aiming_vector);
+		unit_get_looking_vector(unit_index, &actor->control.looking_vector);
+	}
+	actor->seat_transition_sends = IMPULSE_REPEAT_TICKS;
 }
 
 /* host: an impulse or action for an AI unit, sent in the next few entries */
@@ -849,20 +884,24 @@ void network_actors_host_tick(
 		struct host_actor *actor = &host_actors[index];
 
 		if (!actor_unit_valid(actor->unit_index) ||
-			(!actor->noted && !TEST_FLAG(unit_get(actor->unit_index)->unit.flags, _unit_running_blindly_bit) &&
-			(!vehicle_riding_enabled() || unit_get(actor->unit_index)->object.parent_object_index == NONE ||
+			(!actor->noted && !actor->seat_transition_sends &&
+			!TEST_FLAG(unit_get(actor->unit_index)->unit.flags, _unit_running_blindly_bit) &&
+			(unit_get(actor->unit_index)->object.parent_object_index == NONE ||
 			unit_get(actor->unit_index)->unit.parent_seat_index == NONE)))
 		{
 			host_actors[index--] = host_actors[--host_actor_count];
 			continue;
 		}
 		actor_state_from_unit(actor, &states[state_count]);
-		urgent[state_count] = states[state_count].impulse != NO_IMPULSE || states[state_count].speech_sound != NONE ||
+		urgent[state_count] = actor->seat_transition_sends > 0 ||
+			states[state_count].impulse != NO_IMPULSE || states[state_count].speech_sound != NONE ||
 			states[state_count].user_animation_graph != NONE ||
 			(states[state_count].control_flags & ~actor->sent_control_flags & ONE_SHOT_CONTROL_FLAGS) != 0;
 		actor->sent_control_flags = states[state_count].control_flags;
 		state_count++;
 		actor->noted = FALSE;
+		if (actor->seat_transition_sends > 0)
+			actor->seat_transition_sends--;
 		if (actor->impulse_sends > 0)
 			actor->impulse_sends--;
 		if (actor->speech_sends > 0)

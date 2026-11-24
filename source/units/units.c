@@ -712,6 +712,7 @@ symbols in this file:
 /* port: the control and animation impulses the host's actors give their
 units go to the clients' copies (port/linux/game/network_actors.c) */
 void network_actors_note_control(long unit_index, struct unit_control_data const *control_data);
+void network_actors_note_seat_transition(long unit_index);
 void network_actors_note_impulse(long unit_index, short animation_impulse, real_vector2d const *alignment_vector);
 void network_actors_note_melee(long unit_index, real_vector2d const *alignment_vector);
 void network_actors_note_leap(long unit_index, real_vector2d const *alignment_vector);
@@ -3332,6 +3333,7 @@ boolean unit_enter_seat(
 
 		extraction_transport_seat_transition_started(unit);
 		ai_handle_enter_vehicle(unit_index, target_unit_index);
+		network_actors_note_seat_transition(unit_index);
 		unit_unzoom(unit_index);
 		result = TRUE;
 	}
@@ -3455,6 +3457,7 @@ void unit_exit_seat_end(
 			biped_exit_seat_end(unit_index, parent_unit_index);
 		}
 		object_compute_node_matrices_recursive(unit_index);
+		network_actors_note_seat_transition(unit_index);
 	}
 
 	return;

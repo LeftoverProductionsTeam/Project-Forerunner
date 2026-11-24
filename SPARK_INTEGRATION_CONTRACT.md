@@ -1526,9 +1526,20 @@ both peers reported the same final player positions and 16 living actors
 through tick 780. Both exited cleanly after repairing optional HUD-font
 and model-shader references and keeping mounted actor placement host-owned.
 The exact executable SHA-256 is `5b59a9ec2e1c292d2322c9b49bd5750d5806a40c470c59eed12993ce90d8929c`.
-One zombie container creation refusal still appeared on both peers. The
-run did not observe a rider leaving its seat or establish combat and round
-completion. The unmodified export still requires Spark's audio correction.
+The standard zombie container (vehicle tag #1251, `mgm\fonzie\sparky\tags\zombie container`)
+is refused by native `unit_new` because its animation graph reference is NONE.
+The Evolved and Alpha variants retain their graphs. Spark's existing C45
+same-hierarchy animation binding must reach the next compiled handoff.
+Keep the original tags and all five audio findings above.
+
+A finer two-peer capture sampled nine living riders in the valid carriers.
+Six stayed in their native seats on the host but never attached on the
+guest. Forerunner now publishes AI seat transitions and keeps idle seated
+actors in the existing actor stream even when optional deck walking is off.
+Both peers matched all nine unit, parent and seat tuples through tick 612 on
+the same diagnostic cache. The Windows x64 executable SHA-256 is
+`cff418e234acf3f37256862f332c967f419c126d6a315256b5647776a05d4d75`. Both processes exited normally.
+No living rider release, combat or round completion was observed.
 
 The MCC spawner still references its original zombie container.vehicle.
 The native weapon path now uses projectile metadata, targeting and tracer
