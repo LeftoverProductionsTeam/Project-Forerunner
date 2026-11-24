@@ -4055,13 +4055,16 @@ static boolean game_engine_force_team_spawns(
 
 		if ((starting_location->team_index == _team_red ||
 				starting_location->team_index == _team_blue) &&
-			match_game_type(game_engine_ctf, 4, starting_location->game_types))
+			match_game_type(game_engine_ctf, 4, starting_location->game_types) &&
+			player_starting_location_in_active_bsp(starting_location))
 		{
 			team_has_spawn[starting_location->team_index] = TRUE;
+			if (team_has_spawn[_team_red] && team_has_spawn[_team_blue])
+				return TRUE;
 		}
 	}
 
-	return team_has_spawn[_team_red] && team_has_spawn[_team_blue];
+	return FALSE;
 }
 
 static real default_starting_location_rate_function(
@@ -6359,7 +6362,7 @@ static long find_netgame_flags_in_structure(
 			}
 		}
 
-		if (structure && !scenario_structure_bsp_contains_point(structure, &flag->position))
+		if (structure && !scenario_structure_bsp_contains_placement(structure, &flag->position))
 			continue;
 
 		flag_indices[found_count++] = flag_index;
@@ -8984,6 +8987,9 @@ real game_engine_get_starting_location_rating(
 	long player_index,
 	struct player_starting_location const *starting_location)
 {
+	if (!player_starting_location_in_active_bsp(starting_location))
+		return 0.0f;
+
 	/* port: (or CTF's: game_engine_force_team_spawns) */
 	if (!match_game_type(
 		game_engine_force_team_spawns(player_index) ? game_engine_ctf : game_engine_get_type(),

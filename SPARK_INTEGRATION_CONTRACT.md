@@ -3098,6 +3098,28 @@ The fixture SHA-256 was
 Regional pairing was verified by the existing BSP harness. Spark's lit
 Chiron probe is awaiting a retained playable handoff for live two-BSP tests.
 
+#### Regional native player starts
+
+On multi-BSP MCC13 multiplayer maps, a player start must belong to the
+active BSP. Set its native `structure_bsp_reference_index` to the authored
+BSP, or use `NONE` for a start classified by its position. Team-spawn
+selection and solo preview fallback honor the same rule. A membership probe
+just above the floor admits starts and native teleporter markers authored
+exactly on a collision plane while retaining their coordinates. Classic
+and campaign spawn rules remain unchanged.
+
+Windows x64 `edaf5b56726390297d33760a447e09a66c2ad4b3997cb6e47881c09e0dc27736`
+passed all 64 focused BSP cases. Forerunner also loaded a disposable two-BSP
+MCC13 layout derived from the verified twelve-region cache. Its two BSPs
+shared linked address `0x53901568` and used the same source geometry. Two of
+68 starts belonged to BSP 0. Both private peers agreed on those two spawns
+at tick 30 and recorded the floor-level regional teleporter at tick 60.
+The host activated BSP 1 at tick 75, and both processes exited normally.
+The fixture CRC was `481a70fa` and its SHA-256 was
+`eca7b415df4fb503b333565b6898c148dd09e8efbed1b292fa6b4a9a6d065d1d`.
+This verifies the placement rules and a host switch on the overlapping
+layout. Chiron traversal and simultaneous regional occupancy remain open.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.

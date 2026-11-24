@@ -43,7 +43,12 @@ struct scenario_structure_bsp_reference {
     uint32_t base_address;
     long file_offset,file_size;
 };
-struct scenario {struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags;};
+struct scenario {
+    struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags;
+    short type;
+};
+struct player_starting_location {real_point3d position;short structure_bsp_reference_index;};
+enum {_scenario_type_multiplayer=1};
 struct scenario_netgame_flag {real_point3d position; short type,team_index;};
 enum {MAXIMUM_SCENARIO_NETGAME_FLAGS_PER_SCENARIO=200};
 struct collision_surface {long plane_designator;};
@@ -194,13 +199,13 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
 static long prepared_crossing_leaf;
-static boolean test_regional_teleporters;
+static boolean test_region_lookup;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
-    if (test_regional_teleporters)
+    if (test_region_lookup)
     {
         CHECK(node==0&&tree==(struct bsp3d const *)&collisions[global_structure_bsp_index],"incorrect flag collision tree");
-        return (point->x < 200)==(global_structure_bsp_index==0) ? 0 : NONE;
+        return point->z >= 0 && (point->x < 200)==(global_structure_bsp_index==0) ? 0 : NONE;
     }
     CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_structure_bsp_index==0&&
           global_collision_bsp==&collisions[0]&&!disconnects,"destination test replaced active collision");
@@ -414,6 +419,7 @@ static real distance_squared3d(real_point3d const *a, real_point3d const *b)
     return x*x+y*y+z*z;
 }
 #include "netgame_flags.inc"
+#include "regional_start.inc"
 struct distributed_structure_bsp {short structure_bsp_index,pad;};
 static boolean loading_hud;
 static void hud_load(boolean value) {loading_hud=value;}
@@ -580,6 +586,39 @@ int main(int argc,char **argv)
     short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "regional-starts"))
+    {
+        struct player_starting_location local={{100,0,0},0};
+        struct player_starting_location foreign={{100,0,0},1};
+        struct player_starting_location outside={{210,0,0},0};
+        struct player_starting_location unset={{105,0,0},NONE};
+        struct player_starting_location floor={{100,0,-.01f},0};
+        struct player_starting_location buried={{100,0,-1},0};
+
+        scenario.type=_scenario_type_multiplayer;
+        test_region_lookup=mcc_loaded=TRUE;
+        structures[0].clusters.count=structures[1].clusters.count=4;
+        CHECK(player_starting_location_in_active_bsp(&local),"rejected a valid authored start");
+        CHECK(!player_starting_location_in_active_bsp(&foreign),"admitted a foreign authored start inside shared geometry");
+        CHECK(!player_starting_location_in_active_bsp(&outside),"admitted a start without valid collision");
+        CHECK(player_starting_location_in_active_bsp(&unset),"rejected an unassigned start in valid geometry");
+        CHECK(player_starting_location_in_active_bsp(&floor)&&floor.position.z==-.01f,
+              "rejected a floor start or moved its authored position");
+        CHECK(!player_starting_location_in_active_bsp(&buried),"admitted a buried start");
+        global_structure_bsp_index=1;
+        global_structure_bsp=&structures[1];
+        CHECK(!player_starting_location_in_active_bsp(&local),"did not follow the active BSP");
+        outside.structure_bsp_reference_index=1;
+        CHECK(player_starting_location_in_active_bsp(&outside),"rejected a destination BSP start");
+        global_structure_bsp_index=NONE;
+        CHECK(!player_starting_location_in_active_bsp(&unset),"admitted a start with no active BSP");
+        scenario.type=0;
+        CHECK(player_starting_location_in_active_bsp(&outside),"changed campaign spawn rules");
+        scenario.type=_scenario_type_multiplayer;
+        mcc_loaded=FALSE;
+        CHECK(player_starting_location_in_active_bsp(&outside),"changed classic multiplayer spawn rules");
+        return 0;
+    }
     if (!strcmp(name, "regional-teleporters"))
     {
         struct scenario_netgame_flag markers[284]={0};
@@ -590,9 +629,10 @@ int main(int argc,char **argv)
         scenario.netgame_flags=(struct tag_block){NUMBEROF(markers),markers};
         markers[0]=(struct scenario_netgame_flag){{201,0,0},_netgame_flag_teleporter_target,channel};
         markers[1]=(struct scenario_netgame_flag){{200.1f,0,0},_netgame_flag_teleporter_source,channel};
-        markers[282]=(struct scenario_netgame_flag){{50,0,0},_netgame_flag_teleporter_target,channel};
-        markers[283]=(struct scenario_netgame_flag){{199.6f,0,0},_netgame_flag_teleporter_source,channel};
-        test_regional_teleporters=mcc_loaded=TRUE;
+        markers[2]=(struct scenario_netgame_flag){{50,0,-1},_netgame_flag_teleporter_target,channel};
+        markers[282]=(struct scenario_netgame_flag){{50,0,-.01f},_netgame_flag_teleporter_target,channel};
+        markers[283]=(struct scenario_netgame_flag){{199.6f,0,-.01f},_netgame_flag_teleporter_source,channel};
+        test_region_lookup=mcc_loaded=TRUE;
         structures[0].clusters.count=structures[1].clusters.count=4;
 
         CHECK(game_engine_find_teleporter(&border,.5f,_netgame_flag_teleporter_source,NONE)==283,

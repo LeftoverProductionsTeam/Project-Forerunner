@@ -46,6 +46,7 @@ def generated(fault=None):
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_structure_support'))),
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
+        ('regional_start.inc', function(players, 'player_starting_location_in_active_bsp')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +
          '\n'.join(function(read('source/game/game_engine.c'), name)
@@ -58,7 +59,8 @@ def generated(fault=None):
             'players_coop_pending_continuous_bsp_switch', 'players_coop_can_activate_structure_bsp',
             'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
         ('region_location.inc', '\n'.join(function(read('source/scenario/scenario.c'), name) for name in
-            ('scenario_location_in_bsp_tree', 'scenario_structure_bsp_contains_point'))),
+            ('scenario_location_in_bsp_tree', 'scenario_structure_bsp_contains_point',
+             'scenario_structure_bsp_contains_placement'))),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('scripted_bsp.inc', function(read('source/hs/hs.c'), 'scenario_switch_structure_bsp_evaluate')),
         ('queue_bsp_switch.inc', function(players, 'player_queue_structure_bsp_switch')),
@@ -82,7 +84,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'regional-teleporters', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'regional-teleporters', 'regional-starts', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

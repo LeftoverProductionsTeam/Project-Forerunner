@@ -18,4 +18,7 @@ short player_get_starting_location_count(
 struct player_starting_location *player_get_starting_location(
 	short starting_location_index);
 
+boolean player_starting_location_in_active_bsp(
+	struct player_starting_location const *start);
+
 #endif // __PLAYERS_RUNTIME_H

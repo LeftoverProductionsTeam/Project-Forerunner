@@ -892,6 +892,22 @@ boolean scenario_structure_bsp_contains_point(
 	return location.cluster_index != NONE;
 }
 
+boolean scenario_structure_bsp_contains_placement(
+	struct structure_bsp const *structure,
+	const real_point3d *position)
+{
+	real_point3d probe;
+
+	if (scenario_structure_bsp_contains_point(structure, position))
+		return TRUE;
+
+	/* Authored origins can lie on the floor plane. The probe determines
+	 * membership only, so users retain their exact placement. */
+	probe = *position;
+	probe.z += 0.05f;
+	return scenario_structure_bsp_contains_point(structure, &probe);
+}
+
 void scenario_location_from_line(
 	struct location *location,
 	const struct location *start_location,
