@@ -1766,6 +1766,23 @@ animation graph. This cache contains no five-node animation graph. The
 authored C45-style same-hierarchy binding is still required. Original hashes
 held and all staging was removed.
 
+Legacy native debugger readback resolved the group assertion to
+`weapons.c::weapon_precache_projectile_trails` at Chupathingy RVA `0x73c972`.
+The first trigger on spawner tags 1332 (Evolved), 1413 (Alpha), and 1419
+(standard) points directly to vehicle tag 996, 1414, and 1251 respectively.
+Chupathingy `2e5eac00` reads those references as `proj` and gets `vehi`.
+The same run subsequently stopped in collision-model node lookup.
+Forerunner already type-checks the projectile-only path in `34af72440`.
+
+A disposable control cleared only those three trigger handles. Cache
+SHA-256 `6c2bdfb44d9c2bf595163859a4083455b6e059c88086111269354e35642126cd`
+loaded in the same legacy executable, reached tick 150 with zero assertions,
+and exited normally. Clearing the handles disables the three carrier
+launches. For a legacy build, Spark can test its existing native projectile
+wrapper with a real effect location and the C46 hierarchy and collider
+repairs. The wrapper's carrier delivery and legacy round remain unverified.
+Original hashes held and both debugger stages were removed.
+
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
 cleared only its named Pelican's collision-model reference and updated the
