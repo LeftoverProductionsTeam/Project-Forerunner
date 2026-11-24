@@ -2767,6 +2767,17 @@ choice leaves the previously selected region available. The existing BSP
 harness reproduced the first-selection failure and then passed all 39 checks.
 The Windows x64 build linked. Competitive recovery is covered by the harness.
 
+When authored exit volumes overlap, the co-op host now keeps the first
+accepted route in scenario order and its gather marker through the deferred
+load. A refused route still allows a valid alternative. The focused harness
+reproduced replacement of the queued route and passed all 40 checks after
+the fix, including legacy local priority. A Windows x64 build
+(`abc5b2b1b4da3c46c1be48c9d3585407318ed0fb325d9508696d6f3b218cd3e4`)
+also passed an unchanged stock D40 crossing with two private peers. After
+one approach placement the host walked from x=-24.378 to -27.377. Both peers
+reported BSP 0 at tick 366 and exited zero. The stock crossing exercises
+the normal native path. Overlapping exits were exercised in the harness.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

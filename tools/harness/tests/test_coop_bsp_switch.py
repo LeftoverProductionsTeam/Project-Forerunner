@@ -36,6 +36,7 @@ def generated(fault=None):
             'player_in_bsp_switch_volume', 'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('scripted_bsp.inc', function(read('source/hs/hs.c'), 'scenario_switch_structure_bsp_evaluate')),
+        ('queue_bsp_switch.inc', function(players, 'player_queue_structure_bsp_switch')),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp', 'main_switch_to_structure_bsp_private')) +
             '\n' + '\n'.join(function(read('port/linux/game/network_distributed.c'), name) for name in
@@ -46,7 +47,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', [
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
-    'scripted-selection',
+    'scripted-selection', 'overlapping-coop-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated',

@@ -52,14 +52,19 @@ static struct scenario scenario;
 static struct scenario *global_scenario=&scenario;
 static struct {short structure_bsp_index;} scenario_state;
 static __typeof__(scenario_state) *scenario_globals=&scenario_state;
-static struct {short pending_teleport_starting_location_index,local_player_count;boolean respawn_failed;} player_state;
+enum {_local_player_triggered_switch_none = -2};
+static struct {
+    short pending_teleport_starting_location_index,local_player_count;
+    short local_player_triggered_switch,bsp_check_recursive_switch_ticks;
+    boolean respawn_failed;
+} player_state;
 static __typeof__(player_state) *players_globals=&player_state;
 static struct player_datum people[2];
 static struct object_datum objects[4];
 static long units[4]={0x10000,0x20001,0x30002,0x40003};
 static long players[2]={0x50000,0x60001};
 static void *player_data;
-static struct scenario_bsp_switch_trigger_volume switches[1];
+static struct scenario_bsp_switch_trigger_volume switches[2];
 static struct scenario_cutscene_flag flags[1];
 static struct scenario_structure_bsp_reference references[4];
 static struct structure_bsp structures[2],*global_structure_bsp;
@@ -73,7 +78,7 @@ static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_sta
 static boolean crowded,solid,ignore_players,operations,opposed,connected;
 static int stacked_calls,beside_retries;
 static long ticks;
-static struct {long stranded_since[2];} players_coop_state;
+static struct {long stranded_since[2],bsp_switch_time;} players_coop_state;
 
 static int slot(long unit)
 {
@@ -221,6 +226,12 @@ static void distributed_handle_unit_state(long host_time,struct distributed_unit
 }
 #include "bsp_receive.inc"
 
+static boolean players_coop_bsp_switch_allowed(long unit, short trigger)
+{
+    return unit == units[0] && trigger >= 0;
+}
+#include "queue_bsp_switch.inc"
+
 static void setup(short old,short destination)
 {
     scenario.bsp_switch_trigger_volumes=(struct tag_block){1,switches};
@@ -261,6 +272,36 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "overlapping-coop-routes"))
+    {
+        scenario.bsp_switch_trigger_volumes.count = 2;
+        scenario.structure_bsp_references.count = 3;
+        references[2].structure_bsp.index = 2;
+        switches[1] = (struct scenario_bsp_switch_trigger_volume){1,old,2,0};
+        ticks = 90;
+
+        player_queue_structure_bsp_switch(&people[0], units[2]);
+        CHECK(main_globals.switch_to_structure_bsp_index == destination &&
+            players_globals->pending_teleport_starting_location_index == 0 &&
+            players_coop_state.bsp_switch_time == ticks,
+            "a second overlapping route replaced the accepted co-op destination and gather");
+
+        main_globals.switch_to_structure_bsp_index = NONE;
+        reject_reference[destination] = TRUE;
+        player_queue_structure_bsp_switch(&people[0], units[2]);
+        CHECK(main_globals.switch_to_structure_bsp_index == 2 &&
+            players_globals->pending_teleport_starting_location_index == 1,
+            "a refused first route stopped a valid alternative");
+
+        main_globals.switch_to_structure_bsp_index = NONE;
+        reject_reference[destination] = FALSE;
+        coop = FALSE;
+        player_queue_structure_bsp_switch(&people[0], units[2]);
+        CHECK(main_globals.switch_to_structure_bsp_index == 2 &&
+            players_globals->pending_teleport_starting_location_index == 1,
+            "local multiplayer changed legacy route priority");
+        return 0;
+    }
     if (!strcmp(name, "scripted-selection"))
     {
         reject_load[destination] = TRUE;

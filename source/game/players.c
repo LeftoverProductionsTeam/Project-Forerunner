@@ -5572,6 +5572,63 @@ void players_show_telefragged(
 	return;
 }
 
+static void player_queue_structure_bsp_switch(
+	struct player_datum const *player,
+	long root_object_index)
+{
+	struct scenario *scenario;
+	struct scenario_bsp_switch_trigger_volume *bsp_switch_trigger_volume;
+	short bsp_switch_trigger_volume_index;
+	boolean coop = network_coop_active();
+
+	scenario = global_scenario_get();
+	for (bsp_switch_trigger_volume_index = 0;
+		bsp_switch_trigger_volume_index < scenario->bsp_switch_trigger_volumes.count;
+		bsp_switch_trigger_volume_index++)
+	{
+		bsp_switch_trigger_volume = TAG_BLOCK_GET_ELEMENT(
+			&scenario->bsp_switch_trigger_volumes,
+			bsp_switch_trigger_volume_index,
+			struct scenario_bsp_switch_trigger_volume);
+		if (bsp_switch_trigger_volume->source_structure_bsp_index ==
+			global_structure_bsp_index &&
+			player_in_bsp_switch_volume(
+				bsp_switch_trigger_volume, player->unit_index, root_object_index) &&
+			(!coop ||
+				players_coop_bsp_switch_allowed(player->unit_index, bsp_switch_trigger_volume_index)) &&
+			main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index))
+		{
+			if (players_globals->local_player_triggered_switch !=
+				_local_player_triggered_switch_none &&
+				players_globals->local_player_triggered_switch !=
+				player->local_player_index)
+			{
+				error(
+					2,
+					"!!!WARNING!!! teleported player triggering a bsp switch!!!");
+			}
+
+#ifdef HALO_CONSOLE_BRINGUP_LOG
+			/* port: bring-up (the console developer tools), the volume that asked for it */
+			error(_error_silent, "bsp switch trigger volume %d (volume %d): %d -> %d",
+				bsp_switch_trigger_volume_index, bsp_switch_trigger_volume->trigger_volume_index,
+				bsp_switch_trigger_volume->source_structure_bsp_index,
+				bsp_switch_trigger_volume->destination_structure_bsp_index);
+#endif
+			players_globals->bsp_check_recursive_switch_ticks = 0;
+			players_globals->local_player_triggered_switch =
+				player->local_player_index;
+			players_globals->pending_teleport_starting_location_index =
+				bsp_switch_trigger_volume_index;
+			players_coop_state.bsp_switch_time = game_time_get();
+
+			/* The first accepted co-op route owns this deferred load and its gather. */
+			if (coop)
+				break;
+		}
+	}
+}
+
 void players_update_after_game(
 	void)
 {
@@ -5579,11 +5636,8 @@ void players_update_after_game(
 	struct player_datum *player;
 	struct unit_datum *unit;
 	struct object_datum *root_object;
-	struct scenario *scenario;
-	struct scenario_bsp_switch_trigger_volume *bsp_switch_trigger_volume;
 	long telefrag_ticks;
 	long root_object_index;
-	short bsp_switch_trigger_volume_index;
 
 	profile_enter(PLAYERS_UPDATE_AFTER_GAME_PROFILE);
 
@@ -5666,48 +5720,7 @@ void players_update_after_game(
 			if (!TEST_FLAG(root_object->object.flags, _object_outside_of_map_bit) &&
 				!(network_coop_active() && (network_game_distributed_client() || !players_coop_bsp_switch_ready())))
 			{
-				scenario = global_scenario_get();
-				for (bsp_switch_trigger_volume_index = 0;
-					bsp_switch_trigger_volume_index < scenario->bsp_switch_trigger_volumes.count;
-					bsp_switch_trigger_volume_index++)
-				{
-					bsp_switch_trigger_volume = TAG_BLOCK_GET_ELEMENT(
-						&scenario->bsp_switch_trigger_volumes,
-						bsp_switch_trigger_volume_index,
-						struct scenario_bsp_switch_trigger_volume);
-					if (bsp_switch_trigger_volume->source_structure_bsp_index ==
-						global_structure_bsp_index &&
-						player_in_bsp_switch_volume(
-							bsp_switch_trigger_volume, player->unit_index, root_object_index) &&
-						(!network_coop_active() ||
-							players_coop_bsp_switch_allowed(player->unit_index, bsp_switch_trigger_volume_index)) &&
-						main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index))
-					{
-						if (players_globals->local_player_triggered_switch !=
-							_local_player_triggered_switch_none &&
-							players_globals->local_player_triggered_switch !=
-							player->local_player_index)
-						{
-							error(
-								2,
-								"!!!WARNING!!! teleported player triggering a bsp switch!!!");
-						}
-
-#ifdef HALO_CONSOLE_BRINGUP_LOG
-						/* port: bring-up (the console developer tools), the volume that asked for it */
-						error(_error_silent, "bsp switch trigger volume %d (volume %d): %d -> %d",
-							bsp_switch_trigger_volume_index, bsp_switch_trigger_volume->trigger_volume_index,
-							bsp_switch_trigger_volume->source_structure_bsp_index,
-							bsp_switch_trigger_volume->destination_structure_bsp_index);
-#endif
-						players_globals->bsp_check_recursive_switch_ticks = 0;
-						players_globals->local_player_triggered_switch =
-							player->local_player_index;
-						players_globals->pending_teleport_starting_location_index =
-							bsp_switch_trigger_volume_index;
-						players_coop_state.bsp_switch_time = game_time_get();
-					}
-				}
+				player_queue_structure_bsp_switch(player, root_object_index);
 			}
 		}
 
