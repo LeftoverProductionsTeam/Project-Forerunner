@@ -28,12 +28,16 @@ def generated(fault=None):
     bsp_limits = [('MAXIMUM_CLUSTERS_PER_STRUCTURE', 'source/structures/structures.h'),
                   ('MAXIMUM_SURFACES_PER_STRUCTURE', 'source/render/render.h')]
     bsp_verifier = function(read('source/structures/structure_bsp_definitions.c'), 'structure_bsp_port_verify')
+    breakables = read('source/physics/breakable_surfaces.c')
+    breakables_header = read('source/physics/breakable_surfaces.h')
+    coop = read('port/linux/game/network_coop.c')
     return (
         ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
          '\n'.join(function(mcc_cache, name) for name in
                    ('mcc_runtime_linked_bsp_limit', 'mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked',
                     'mcc_cache_bsp_resident_address', 'mcc_cache_bsp_prepare_address', 'mcc_cache_bsp_release', 'mcc_cache_drop_retained_bsp',
-                    'mcc_cache_bsp_load', 'mcc_cache_bsp_retain', 'mcc_cache_bsp_unload')) + '\n' +
+                    'mcc_cache_bsp_retained_structure', 'mcc_cache_bsp_load', 'mcc_cache_bsp_retain',
+                    'mcc_cache_bsp_unload')) + '\n' +
          enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +
          structure(cache_header, 'scenario_bsp_prepared') + '\n' +
          '\n'.join(function(cache, name) for name in ('scenario_structure_bsp_reference_is_valid',
@@ -41,6 +45,23 @@ def generated(fault=None):
              'cache_files_unbind_mcc_bsp', 'scenario_structure_bsp_retain'))),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
+        ('surface_breaks.inc',
+         enum_with(breakables_header, 'MAXIMUM_BREAKABLE_SURFACES_PER_MAP') + '\n' +
+         structure(breakables_header, 'structure_breakable_surface') + '\n' +
+         structure(breakables_header, 'breakable_surface_datum') + '\n' +
+         structure(breakables, 'breakable_surface_globals') + '\n' +
+         structure(coop, 'distributed_coop_event') + '\n' +
+         'static struct breakable_surface_globals surface_state, *globals = &surface_state;\n' +
+         'static struct distributed_coop_event sent_surfaces[16];\n' +
+         'static struct distributed_coop_event *event_new(byte kind)\n'
+         '{ CHECK(kind == _coop_event_surface_broken && surface_events < 16, "invalid fracture event");'
+         ' return &sent_surfaces[surface_events++]; }\n' +
+         function(read('source/scenario/scenario.c'), 'scenario_structure_bsp_try_and_get') + '\n' +
+         '\n'.join(function(breakables, name) for name in (
+             'breakable_surface_indices_valid', 'breakable_surface_extant_in_bsp',
+             'breakable_surface_port_break')) + '\n' +
+         '\n'.join(function(coop, name) for name in (
+             'network_coop_note_surface_broken', 'host_send_broken_surfaces'))),
         ('objects.inc', objects),
         ('item_structure_support.inc', '\n'.join(function(read('source/items/items.c'), name)
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_structure_support'))),
@@ -85,7 +106,7 @@ def generated(fault=None):
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
-    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
+    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

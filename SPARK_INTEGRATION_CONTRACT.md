@@ -3127,8 +3127,24 @@ harness passed 21 checks including the park-and-resume case. Stock Xbox D40
 completed BSP 1 → 0 → 1 with two private native peers on Windows x64 executable
 `801b16423799bc44775d1492263dddd9be71a22f106dfb60d54a876b9b74ca26`.
 That legacy smoke and the focused harness leave authored MCC13 AI combat and
-simultaneous squad occupancy open. Host collision, AI updates and replicated
-world snapshots still follow one active BSP.
+simultaneous squad occupancy open. Host physics, AI updates and general world
+snapshots still follow one active BSP.
+
+Forerunner can query the active and retained MCC13 multiplayer geometry by
+scenario BSP index without activating the neighbor. Co-op glass refresh
+uses that lookup and the native per-BSP fracture tables. The existing
+surface event carries the BSP index. A fracture in a retained region changes
+only its collision state and produces effects only in the active region.
+Refreshes continue to send both resident regions' fracture state to peers
+that missed an update. This uses the existing wire format and requires no
+new Spark data. Windows x64 compiled and 66 focused BSP checks passed,
+including same-index glass in two regions, resend and eviction.
+A private stock Xbox B40 smoke let the native insertion finish and observed
+both player slots. Both peers held BSP 4 then BSP 0 across refreshes and
+exited normally. The B40 map hash is recorded above. Windows x64 executable
+`d757a5c8312c57d2623801ab1aefa3b7304b87864fd815f03797defba86610ae`.
+Full simultaneous simulation and native two-BSP fracture playback remain
+open.
 
 #### Regional native player starts
 

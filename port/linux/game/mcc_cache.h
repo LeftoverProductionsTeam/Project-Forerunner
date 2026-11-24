@@ -3,6 +3,7 @@
 
 struct cache_file_tag_header;
 struct scenario_structure_bsp_reference;
+struct structure_bsp;
 struct bitmap_data;
 
 /* Path ownership is decided before stripping a filename. MCC never searches
@@ -27,6 +28,7 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
     struct scenario_structure_bsp_reference const *destination);
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     unsigned long address, void **header, void **structure);
+struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference);
 boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference);
 void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *reference);
 short mcc_cache_part_palette(void const *buffer, byte const **nodes);
@@ -41,6 +43,7 @@ the shared code calls do nothing, their arguments unevaluated */
 #define mcc_cache_bsp_reference_checked(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_cache_bsp_prepare_address(active, destination) ((void)sizeof(active), (void)sizeof(destination), 0ul)
 #define mcc_cache_bsp_load(a0, a1, a2, a3) ((void)sizeof(a0), (void)sizeof(a1), (void)sizeof(a2), (void)sizeof(a3), (boolean)0)
+#define mcc_cache_bsp_retained_structure(reference) ((void)sizeof(reference), (struct structure_bsp *)0)
 #define mcc_cache_bsp_retain(reference) ((void)sizeof(reference), (boolean)0)
 #define mcc_cache_bsp_unload(reference) ((void)0)
 #define mcc_cache_checksum(a0) ((void)sizeof(a0), (unsigned long)0)

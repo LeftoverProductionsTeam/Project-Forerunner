@@ -78,6 +78,7 @@ struct breakable_surface_datum *breakable_surface_get(
 for a network co-op client the host told (port/linux/game/network_coop.c);
 nothing if it is already broken */
 void breakable_surface_port_break(
+	short structure_bsp_index,
 	short breakable_surface_index,
 	real_point3d const *epicenter);
 void breakable_surfaces_initialize(
@@ -95,6 +96,9 @@ void breakable_surfaces_reset(
 byte *breakable_surface_flags_get(
 	void);
 boolean breakable_surface_extant(
+	short breakable_surface_index);
+boolean breakable_surface_extant_in_bsp(
+	short structure_bsp_index,
 	short breakable_surface_index);
 void breakable_surface_damage(
 	short breakable_surface_index,

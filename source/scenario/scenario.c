@@ -414,6 +414,27 @@ boolean scenario_uses_regional_gameplay(
 		scenario->structure_bsp_references.count > 1;
 }
 
+/* Query checked geometry without rebinding the active BSP. A retained
+ * pointer is borrowed until the next load or unload. */
+struct structure_bsp const *scenario_structure_bsp_try_and_get(
+	short structure_bsp_index)
+{
+	struct scenario *scenario = global_scenario;
+	struct scenario_structure_bsp_reference const *reference;
+
+	if (!scenario || !VALID_INDEX(structure_bsp_index, scenario->structure_bsp_references.count) ||
+		!VALID_INDEX(structure_bsp_index, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+		return NULL;
+	if (structure_bsp_index == global_structure_bsp_index)
+		return global_structure_bsp;
+	if (!scenario_uses_regional_gameplay(scenario))
+		return NULL;
+
+	reference = TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
+		structure_bsp_index, struct scenario_structure_bsp_reference);
+	return mcc_cache_bsp_retained_structure(reference);
+}
+
 struct structure_bsp *global_structure_bsp_get(
 	void)
 {

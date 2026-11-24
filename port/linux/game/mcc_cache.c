@@ -634,6 +634,15 @@ static void mcc_cache_drop_retained_bsp(void)
     }
 }
 
+struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    uint32_t address;
+    if (!bsp || bsp != mcc_retained_bsp || !(address = mcc_cache_bsp_resident_address(bsp)))
+        return NULL;
+    return xbox_pointer(address + (bsp->structure_address - bsp->address));
+}
+
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     unsigned long address, void **header, void **structure)
 {
@@ -642,7 +651,7 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     if (bsp == mcc_retained_bsp) {
         uint32_t resident = mcc_cache_bsp_resident_address(bsp);
         *header = xbox_pointer(resident);
-        *structure = xbox_pointer(resident + (bsp->structure_address - bsp->address));
+        *structure = mcc_cache_bsp_retained_structure(reference);
         mcc_retained_bsp = NULL;
         return TRUE;
     }
@@ -664,7 +673,7 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
 boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    if (!bsp || mcc_retained_bsp) return FALSE;
+    if (!bsp || mcc_retained_bsp || !mcc_cache_bsp_resident_address(bsp)) return FALSE;
     mcc_retained_bsp = bsp;
     return TRUE;
 }

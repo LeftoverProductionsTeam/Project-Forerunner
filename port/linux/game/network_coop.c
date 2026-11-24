@@ -2171,11 +2171,11 @@ static void client_apply_event(
 		client_stop_script_sounds();
 		break;
 	case _coop_event_surface_broken:
-		if (event->frame == global_structure_bsp_index)
+		if (VALID_INDEX(event->frame, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
 		{
 			real_point3d epicenter = { event->reals[0], event->reals[1], event->reals[2] };
 
-			breakable_surface_port_break(event->value, &epicenter);
+			breakable_surface_port_break((short)event->frame, event->value, &epicenter);
 		}
 		break;
 	case _coop_event_unit_open:
@@ -3426,6 +3426,7 @@ void network_coop_note_effect(
 }
 
 void network_coop_note_surface_broken(
+	short structure_bsp_index,
 	short breakable_surface_index,
 	real_point3d const *epicenter)
 {
@@ -3434,40 +3435,52 @@ void network_coop_note_surface_broken(
 	if (!event)
 		return;
 	event->value = breakable_surface_index;
-	event->frame = global_structure_bsp_index;
+	event->frame = structure_bsp_index;
 	event->reals[0] = epicenter->x;
 	event->reals[1] = epicenter->y;
 	event->reals[2] = epicenter->z;
 }
 
-/* host: a few broken surfaces again each refresh, round them all, for a
-machine that joined since or lost the message (broken from their middle) */
+/* Resend native fracture state for late joiners and dropped messages. */
 static void host_send_broken_surfaces(
 	void)
 {
-	enum { SURFACES_PER_REFRESH = 8 };
-	static short cursor;
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
-	short count = (short)structure_bsp->breakable_surfaces.count;
-	short sent = 0;
-	short step;
+	enum { SURFACES_PER_BSP_REFRESH = 8 };
+	static short cursors[MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO];
+	struct scenario const *scenario;
+	short bsp_index;
+	short count;
 
-	if (!host_resend.refresh || count <= 0)
+	if (!host_resend.refresh)
 		return;
-	for (step = 0; step < count && sent < SURFACES_PER_REFRESH; step++)
+	scenario = global_scenario_get();
+	count = (short)MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
+
+	for (bsp_index = 0; bsp_index < count; bsp_index++)
 	{
-		short index = (short)((cursor + step) % count);
+		struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp_index);
+		short surface_count, sent, step;
 
-		if (!breakable_surface_extant(index))
+		if (!structure)
+			continue;
+		surface_count = (short)MIN(structure->breakable_surfaces.count, MAXIMUM_BREAKABLE_SURFACES_PER_MAP);
+		if (surface_count <= 0)
+			continue;
+		for (step = 0, sent = 0; step < surface_count && sent < SURFACES_PER_BSP_REFRESH; step++)
 		{
-			struct structure_breakable_surface *surface = TAG_BLOCK_GET_ELEMENT(&structure_bsp->breakable_surfaces,
-				index, struct structure_breakable_surface);
+			short index = (short)((cursors[bsp_index] + step) % surface_count);
 
-			network_coop_note_surface_broken(index, &surface->centroid);
-			sent++;
+			if (!breakable_surface_extant_in_bsp(bsp_index, index))
+			{
+				struct structure_breakable_surface const *surface = TAG_BLOCK_GET_ELEMENT(
+					&structure->breakable_surfaces, index, struct structure_breakable_surface);
+
+				network_coop_note_surface_broken(bsp_index, index, &surface->centroid);
+				sent++;
+			}
 		}
+		cursors[bsp_index] = (short)((cursors[bsp_index] + step) % surface_count);
 	}
-	cursor = (short)((cursor + step) % count);
 }
 
 void network_coop_note_object_effect(

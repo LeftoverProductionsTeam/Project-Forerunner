@@ -69,6 +69,7 @@ static void breakable_surface_effect(
 	long seed_surface_index);
 
 static boolean breakable_surface_indices_valid(
+	short structure_bsp_index,
 	short breakable_surface_index);
 
 /* ---------- globals */
@@ -96,7 +97,7 @@ struct breakable_surface_datum *breakable_surface_get(
 	match_assert("c:\\halo\\SOURCE\\physics\\breakable_surfaces.c", 63, breakable_surface_index>=0 && breakable_surface_index<MAXIMUM_BREAKABLE_SURFACES_PER_MAP);
 
 	/* port: (breakable_surface_scratch) */
-	if (!breakable_surface_indices_valid(breakable_surface_index))
+	if (!breakable_surface_indices_valid(global_structure_bsp_index, breakable_surface_index))
 	{
 		breakable_surface_scratch.vitality = 1.0f;
 		return &breakable_surface_scratch;
@@ -173,7 +174,7 @@ byte *breakable_surface_flags_get(
 	match_assert("c:\\halo\\SOURCE\\physics\\breakable_surfaces.c", 139, global_structure_bsp_index>=0 && global_structure_bsp_index<MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
 
 	/* port: (breakable_surface_scratch: all there) */
-	if (!breakable_surface_indices_valid(0))
+	if (!breakable_surface_indices_valid(global_structure_bsp_index, 0))
 	{
 		csmemset(breakable_surface_flags_scratch, NONE, sizeof(breakable_surface_flags_scratch));
 		return breakable_surface_flags_scratch;
@@ -185,6 +186,13 @@ byte *breakable_surface_flags_get(
 boolean breakable_surface_extant(
 	short breakable_surface_index)
 {
+	return breakable_surface_extant_in_bsp(global_structure_bsp_index, breakable_surface_index);
+}
+
+boolean breakable_surface_extant_in_bsp(
+	short structure_bsp_index,
+	short breakable_surface_index)
+{
 	boolean result;
 
 	match_assert("c:\\halo\\SOURCE\\physics\\breakable_surfaces.c", 147, breakable_surface_index==NONE || (breakable_surface_index>=0 && breakable_surface_index<MAXIMUM_BREAKABLE_SURFACES_PER_MAP));
@@ -192,8 +200,8 @@ boolean breakable_surface_extant(
 	/* port: a breakable surface index (from the map) past the flags is
 	never broken */
 	result = breakable_surface_index==NONE ||
-		!breakable_surface_indices_valid(breakable_surface_index) ||
-		BIT_VECTOR_TEST_FLAG((long *)breakable_surface_flags_get(), breakable_surface_index);
+		!breakable_surface_indices_valid(structure_bsp_index, breakable_surface_index) ||
+		BIT_VECTOR_TEST_FLAG((long *)globals->breakable_surface_flags[structure_bsp_index], breakable_surface_index);
 	return result;
 }
 
@@ -209,7 +217,7 @@ void breakable_surface_damage(
 		/* port: and a breakable surface that fits the globals, of a material
 		type (from the map) that is one (it indexes the damage's modifiers) */
 		if (breakable_surface_index != NONE &&
-			breakable_surface_indices_valid(breakable_surface_index) &&
+			breakable_surface_indices_valid(global_structure_bsp_index, breakable_surface_index) &&
 			tag_index_is_group(damage_data->definition_index, DAMAGE_EFFECT_DEFINITION_TAG) &&
 			damage_data->material_type >= 0 &&
 			damage_data->material_type < NUMBER_OF_MATERIAL_TYPES)
@@ -241,7 +249,7 @@ void breakable_surface_damage(
 
 							breakable_surface_effect(breakable_surface_index, damage_data, seed_surface_index);
 							/* port: and on network co-op's clients */
-							network_coop_note_surface_broken(breakable_surface_index, &damage_data->epicenter);
+							network_coop_note_surface_broken(global_structure_bsp_index, breakable_surface_index, &damage_data->epicenter);
 						}
 					}
 				}
@@ -294,7 +302,7 @@ void breakable_surface_damage_area_of_effect(
 					BIT_VECTOR_SET_FLAG((long *)breakable_surface_flags_get(), breakable_surface_index, FALSE);
 					breakable_surface_effect(breakable_surface_index, damage_data, breakable_surface->collision_surface_index);
 					/* port: and on network co-op's clients */
-					network_coop_note_surface_broken(breakable_surface_index, &damage_data->epicenter);
+					network_coop_note_surface_broken(global_structure_bsp_index, breakable_surface_index, &damage_data->epicenter);
 				}
 			}
 		}
@@ -304,30 +312,29 @@ void breakable_surface_damage_area_of_effect(
 }
 
 void breakable_surface_port_break(
+	short structure_bsp_index,
 	short breakable_surface_index,
 	real_point3d const *epicenter)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
-	struct structure_breakable_surface *breakable_surface;
+	struct structure_bsp const *structure_bsp = scenario_structure_bsp_try_and_get(structure_bsp_index);
+	struct structure_breakable_surface const *breakable_surface;
 	struct damage_data damage;
 
-	/* port: (nor one past the globals: breakable_surface_indices_valid) */
-	if (breakable_surface_index < 0 || breakable_surface_index >= structure_bsp->breakable_surfaces.count ||
-		!breakable_surface_indices_valid(breakable_surface_index) ||
-		!breakable_surface_extant(breakable_surface_index))
-	{
+	if (!structure_bsp || !VALID_INDEX(breakable_surface_index, structure_bsp->breakable_surfaces.count) ||
+		!breakable_surface_indices_valid(structure_bsp_index, breakable_surface_index) ||
+		!breakable_surface_extant_in_bsp(structure_bsp_index, breakable_surface_index))
 		return;
-	}
+
+	globals->breakable_surfaces[structure_bsp_index][breakable_surface_index].vitality = 0.0f;
+	BIT_VECTOR_SET_FLAG((long *)globals->breakable_surface_flags[structure_bsp_index], breakable_surface_index, FALSE);
+	if (structure_bsp_index != global_structure_bsp_index)
+		return;
+
 	breakable_surface = TAG_BLOCK_GET_ELEMENT(&structure_bsp->breakable_surfaces, breakable_surface_index,
 		struct structure_breakable_surface);
-	/* (the shards fly away from the epicenter, all the effect reads) */
 	csmemset(&damage, 0, sizeof(damage));
 	damage.epicenter = *epicenter;
-	/* (and where it is, which the break's sound plays in: zeros were leaf
-	and cluster 0) */
 	scenario_location_from_point(&damage.location, epicenter);
-	breakable_surface_get(breakable_surface_index)->vitality = 0.0f;
-	BIT_VECTOR_SET_FLAG((long *)breakable_surface_flags_get(), breakable_surface_index, FALSE);
 	breakable_surface_effect(breakable_surface_index, &damage, breakable_surface->collision_surface_index);
 }
 
@@ -336,21 +343,22 @@ void breakable_surface_port_break(
 /* port: whether a structure bsp index (the scenario's, from the map) and a
 breakable surface index fit the globals (NONE, no bsp, is not reported) */
 static boolean breakable_surface_indices_valid(
+	short structure_bsp_index,
 	short breakable_surface_index)
 {
-	if (global_structure_bsp_index >= 0 &&
-		global_structure_bsp_index < MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO &&
+	if (structure_bsp_index >= 0 &&
+		structure_bsp_index < MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO &&
 		breakable_surface_index >= 0 &&
 		breakable_surface_index < MAXIMUM_BREAKABLE_SURFACES_PER_MAP)
 	{
 		return TRUE;
 	}
 
-	if (global_structure_bsp_index != NONE && !warned_about_breakable_surfaces)
+	if (structure_bsp_index != NONE && !warned_about_breakable_surfaces)
 	{
 		error(_error_silent, "breakable surface #%d of structure bsp #%d is past the engine's %d of %d bsps",
 			breakable_surface_index,
-			global_structure_bsp_index,
+			structure_bsp_index,
 			MAXIMUM_BREAKABLE_SURFACES_PER_MAP,
 			MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
 		warned_about_breakable_surfaces = TRUE;

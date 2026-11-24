@@ -56,7 +56,7 @@ struct bsp3d {int placeholder;};
 struct structure_leaf {long cluster_index;};
 struct location {long leaf_index; short cluster_index,bonus;};
 struct structure_bsp {
-    struct tag_block leaves,collision_bsp,clusters,surfaces;
+    struct tag_block leaves,collision_bsp,clusters,surfaces,breakable_surfaces;
     struct {long size;} cluster_data,sound_cluster_data;
 };
 struct data_iterator {long datum_index;int slot;};
@@ -485,10 +485,28 @@ static void network_actors_handle_states(void const *entries, short count)
 static struct {long object_index,time,interval;} objects_client_unsteered_path[MAXIMUM_TRACKED_OBJECTS];
 static struct {long time,vehicle_index;} objects_client_own_vehicles[MAXIMUM_LOCAL_PLAYERS][OWN_VEHICLE_POSITION_TICKS];
 static short host_player_structure_bsps[2]={NONE,NONE};
-static struct {boolean scene_refresh;} host_resend;
+static struct {boolean scene_refresh,refresh;} host_resend;
 #define NUMBEROF(array) (sizeof(array) / sizeof(array[0]))
 #define VALID_INDEX(index, count) (index>=0 && index<count)
 #include "bsp_world_state.inc"
+
+enum {_coop_event_surface_broken};
+struct damage_data {real_point3d epicenter; struct location location;};
+static short surface_events, surface_effects;
+static boolean warned_about_breakable_surfaces;
+static void scenario_location_from_point(struct location *location, real_point3d const *point)
+{
+    (void)point;
+    *location = (struct location){0,0,NONE};
+}
+static void breakable_surface_effect(short index, struct damage_data *damage, long collision_surface)
+{
+    CHECK(index==0&&damage->epicenter.x==20.f&&collision_surface==8,"effect used a foreign BSP");
+    surface_effects++;
+}
+#define csmemset memset
+#define BIT_VECTOR_SET_FLAG(bits,index,value) SET_FLAG((bits)[(index)/32],(index)%32,value)
+#include "surface_breaks.inc"
 
 enum {
     _distributed_message_object_states,
@@ -767,6 +785,7 @@ int main(int argc,char **argv)
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
         boolean crossing=!strcmp(name,"mcc-prepare-crossing");
+        boolean fractures=!strcmp(name,"mcc-prepare-fractures");
         struct mcc_cache_bsp regions[3];
         uint32_t const offsets[]={0x4000,0x1000,0x2000};
 
@@ -861,6 +880,44 @@ int main(int argc,char **argv)
                     CHECK(mcc_loaded_cache.bsp_addresses[destination]==(uint32_t)(uintptr_t)mcc_regions[destination].header&&
                           mcc_loaded_cache.bsp_addresses[destination]!=regions[destination].address,
                           "an overlapping BSP did not use the free slot");
+                if (fractures)
+                {
+                    struct structure_breakable_surface panes[2] = {
+                        {.centroid={10.f,0,0},.collision_surface_index=7},
+                        {.centroid={20.f,0,0},.collision_surface_index=8}
+                    };
+                    scenario.type=_scenario_type_multiplayer;
+                    mcc_regions[old].structure.breakable_surfaces=(struct tag_block){1,&panes[old]};
+                    mcc_regions[destination].structure.breakable_surfaces=(struct tag_block){1,&panes[destination]};
+                    CHECK(scenario_structure_bsp_try_and_get(old)==&mcc_regions[old].structure&&
+                          scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure&&
+                          !scenario_structure_bsp_try_and_get(2),"resident lookup changed the active tag binding");
+
+                    memset(surface_state.breakable_surface_flags,0xff,sizeof(surface_state.breakable_surface_flags));
+                    breakable_surface_port_break(old,0,&panes[old].centroid);
+                    CHECK(!breakable_surface_extant_in_bsp(old,0)&&breakable_surface_extant_in_bsp(destination,0)&&
+                          !surface_effects,"a retained BSP break changed the live surface or played an effect");
+                    breakable_surface_port_break(destination,0,&panes[destination].centroid);
+                    breakable_surface_port_break(destination,0,&panes[destination].centroid);
+                    breakable_surface_port_break(old,1,&panes[old].centroid);
+                    CHECK(surface_effects==1&&!breakable_surface_extant_in_bsp(destination,0)&&
+                          breakable_surface_extant_in_bsp(old,1),"surface validation or duplicate suppression failed");
+                    host_resend.refresh=TRUE;
+                    host_send_broken_surfaces();
+                    CHECK(surface_events==2&&sent_surfaces[0].frame==old&&sent_surfaces[1].frame==destination&&
+                          sent_surfaces[0].reals[0]==10.f&&sent_surfaces[1].reals[0]==20.f,
+                          "late join refresh lost a BSP frame or used the wrong geometry");
+                    host_send_broken_surfaces();
+                    CHECK(surface_events==4,"a dropped fracture update could not be resent");
+                    scenario.type=0;
+                    host_send_broken_surfaces();
+                    CHECK(surface_events==5&&sent_surfaces[4].frame==destination,
+                          "legacy scenario sent off-BSP fracture state");
+                    scenario.type=_scenario_type_multiplayer;
+                    CHECK(scenario_switch_structure_bsp(2)&&!scenario_structure_bsp_try_and_get(old),
+                          "an evicted region still exposed geometry");
+                    return 0;
+                }
                 if (evict)
                 {
                     CHECK(scenario_switch_structure_bsp(2),"third region did not load");
