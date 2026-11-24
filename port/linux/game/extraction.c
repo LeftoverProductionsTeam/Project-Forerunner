@@ -1868,6 +1868,24 @@ void extraction_transport_seat_exit_started(struct unit_datum const *passenger)
 		device_group_set_actual_value(group, 0.f);
 }
 
+void extraction_transport_recording_started(long unit_index)
+{
+	short faction;
+	if (!extraction.bound || !extraction.admitted || network_game_distributed_client()) return;
+	for (faction = 0; faction < NUMBEROF(extraction.dropship_names); faction++)
+	{
+		short landing_group = extraction.dropship_landing_groups[faction];
+		short boarding_group = extraction.dropship_boarding_groups[faction];
+		if (landing_group == NONE || extraction.dropship_names[faction] == NONE ||
+			object_index_from_name_index(extraction.dropship_names[faction]) != unit_index) continue;
+		/* HaloScript can read these outputs again before the next tick. */
+		if (device_group_get_value(landing_group) != 0.f)
+			device_group_set_actual_value(landing_group, 0.f);
+		if (boarding_group != NONE && device_group_get_value(boarding_group) != 0.f)
+			device_group_set_actual_value(boarding_group, 0.f);
+	}
+}
+
 static boolean extraction_at_return(struct extraction_run const *run, long unit_index)
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);

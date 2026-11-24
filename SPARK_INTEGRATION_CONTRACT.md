@@ -63,6 +63,11 @@ geometry remain Spark authoring data.
 Native recorded flight uses Bungie's playback, unit controls and collision.
 Managed aircraft with a landing output now wait for playback cleanup before
 publishing landed or crew-ready, accepting boarding or exit, and banking.
+Starting native playback clears both outputs immediately on the host, so
+HaloScript can wait on the next touchdown even when it starts the clip and
+checks the device groups in the same tick. The Windows x64 build passed 96
+focused checks and a native Extraction hub startup. The exact executable
+and fixture hashes are retained in the same comparison record.
 A final `recording_time` of zero alone can precede that cleanup. Spark should
 use `recording_play_and_hover` for an authored clip ending with real ground
 contact and wait for the faction's landed output. Release hover with

@@ -1546,6 +1546,16 @@ int main(int argc,char **argv)
    units[faction].object.parent_object_index=transport;units[faction].unit.parent_seat_index=0;advance(1);
    CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release aircraft insertion at its dedicated pad");
    CHECK(device_groups[11].actual_value==1.f,"ready aircraft did not publish landing");
+   extraction_transport_recording_started(dropship_handles[!faction]);
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"other aircraft invalidated this crew");
+   client=TRUE;extraction_transport_recording_started(transport);client=FALSE;
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"client invalidated host readiness");
+   recorded_aircraft=transport;extraction_transport_recording_started(transport);
+   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"script could read stale readiness immediately after starting playback");
+   advance(1);
+   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"grounded aircraft rearmed during playback");
+   recorded_aircraft=NONE;advance(1);
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"aircraft did not rearm after native cleanup");
    ship->object.flags&=~FLAG(_object_on_ground_bit);advance(1);
    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"aircraft output pair stayed ready after liftoff");
    ship->object.flags|=FLAG(_object_on_ground_bit);advance(1);

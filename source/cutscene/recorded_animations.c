@@ -106,6 +106,7 @@ symbols in this file:
 #include "units/unit_control_data.h"
 #include "units/units.h"
 #include "units/vehicles.h"
+#include "extraction.h" /* port: invalidate readiness when a managed aircraft takes a recording */
 #include "mcc_recordings.h" /* port: port/linux/game/mcc_recording_control.c */
 
 /* ---------- constants */
@@ -771,6 +772,7 @@ static boolean recorded_animation_play_internal(
 					unit_set_controllable(unit_index, FALSE);
 					unit_set_possessed(unit_index, TRUE);
 					object_set_automatic_deactivation(unit_index, FALSE);
+					extraction_transport_recording_started(unit_index);
 					result = TRUE;
 				}
 				else

@@ -20,7 +20,7 @@ static struct { struct tag_block recorded_animations; } scenario;
 static struct animation_thread slot;
 static struct animation_thread_debug debug_slot;
 static boolean allocated, controllable, possessed, active, deactivation;
-static short destroyed, hovered;
+static short destroyed, hovered, started;
 static byte stream[8];
 struct data_iterator { long datum_index; short next; };
 static struct { boolean valid; } thread_table = { TRUE }, *animation_threads = &thread_table;
@@ -51,6 +51,11 @@ static void object_set_automatic_deactivation(long index,boolean value) {(void)i
 static void unit_control(long index,struct unit_control_data *control) {(void)index;(void)control;}
 static void hs_object_destroy(long index) {(void)index;destroyed++;}
 static void vehicle_hover(long index,boolean value) {(void)index;if(value)hovered++;}
+static void extraction_transport_recording_started(long index)
+{
+ CHECK(index==1&&allocated&&!controllable&&possessed&&active,"launch signaled before native control");
+ started++;
+}
 static byte *tag_data_get_pointer(struct tag_data const *data,long offset,long size) {(void)size;return data->address+offset;}
 static boolean recorded_animation_playable(struct recorded_animation_definition const *r) {(void)r;return TRUE;}
 static struct recorded_animation_definition const *animation_thread_get_animation(struct animation_thread *t) {(void)t;return &recording;}
@@ -74,6 +79,7 @@ int main(int argc,char **argv)
  CHECK(recorded_animation_play_internal(1,0,old_flags),"first flight refused");
  CHECK(!controllable&&possessed&&active&&!deactivation,"native recording did not take control");
  CHECK(!recorded_animation_play_internal(1,0,0),"active flight replaced without kill/finish");
+ CHECK(started==1,"successful launch was missed or refused playback changed readiness");
  if(!strcmp(argv[1],"hover-handoff")) {
   CHECK(recorded_animation_has_thread(1) && !recorded_animation_has_thread(2),"recording did not identify its own aircraft");
   recorded_animations_update();
@@ -87,6 +93,7 @@ int main(int argc,char **argv)
  if(!strcmp(argv[1],"finished")) recorded_animations_update();
  else recorded_animation_kill(1);
  CHECK(recorded_animation_play_internal(1,0,0),"next flight refused during cleanup window");
+ CHECK(started==2,"chained launch did not invalidate readiness");
  CHECK(!(slot.flags&(FLAG(_recording_thread_killed_bit)|FLAG(_recording_thread_delete_unit_on_complete_bit)|FLAG(_recording_thread_hover_vehicle_on_complete_bit))),"new flight inherited old kill/delete/hover flags");
  recorded_animations_update();recorded_animations_update();
  CHECK(!allocated&&!possessed&&!active&&deactivation,"completed flight retained native control");
