@@ -2649,7 +2649,17 @@ The vehicle-ready Timberland–Sidewinder cache was also used to check
 a shared Warthog in Team Slayer. Native team change refused the host as
 the last player on its team. The stock seat check admitted the guest only.
 Both clients agreed on the guest's occupied position and exited zero.
-A two-teammate crossing remains open.
+
+A later private three-client Team Slayer trial used that same road cache
+and Windows x64 `6f3129053c03d645d8b79b9efe4ac1dda5c65ca07aabff02441d62659b51074e`.
+Two separate clients on team 1 occupied Warthog `e2710002` in driver seat 0
+and passenger seat 1. The inherited seat diagnostic staged both riders at
+the Sidewinder entrance (68.099, 36.049, -20.689). Normal throttle and
+mouse steering then drove to Timberland (38.525, 36.455, -20.807) at
+tick 630 and reversed to Sidewinder (72.761, 35.278, -20.725) at tick 1050.
+All three clients, including the opposing player, observed the same Warthog
+handle and both seats at both crossings. All exited zero and the pinned cache
+held its hash. Physical boarding and a shared guest-driven crossing remain open.
 
 ### Five-region Rat Race connector and cross-runtime traversal
 
@@ -2710,6 +2720,21 @@ maximum peer position difference 0.075 across five matched ticks per player.
 This verifies reverse hosting and movement in Timberland. The round trip
 verifies the Longest infantry route on one resident BSP. Vehicle traversal,
 regional AI and objectives, and simultaneous play across native BSPs remain open.
+
+### Eight-region Rat Race–Chill Out round trip
+
+Spark's CE609 cache SHA-256
+`d2f2b2e6c0da30120d323d86efb459182d783d547b3084f2386456a0fb12bac3`
+ran on Forerunner Windows x64
+`6f3129053c03d645d8b79b9efe4ac1dda5c65ca07aabff02441d62659b51074e`
+with Chupathingy guest `c16096a8`, using private OpenCE 44. One debug
+placement staged the host in the approach. Normal input walked from
+(-72.714, 168.469, -14.731) to Chill Out (-111.225, 235.179, -14.731)
+at tick 1170 and back to Rat Race (-71.215, 165.872, -14.731) at tick 2310.
+The guest moved independently by 6.75 units in Timberland. The peers
+matched 36 position samples each way with maximum deltas of 0.1165 and
+0.1223 world units. Both exited zero and the tested map and executables
+retained their hashes. This proves infantry traversal on one resident BSP.
 
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
