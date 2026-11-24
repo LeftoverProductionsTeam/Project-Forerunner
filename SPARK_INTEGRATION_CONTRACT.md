@@ -2109,29 +2109,40 @@ observed zero rounds for the host's stowed secondary. Both processes
 exited normally and staged assets were disposed. Windows x64 executable
 SHA-256 `3f9c74bd55f89fe76b8adc2af2aced5b2df829551746b14762446cb50623c1a5`.
 This verifies one host walking through the stock passage with a connected
-guest. Warthog traversal, independent regions and Timberland–Sidewinder
-remain open.
+guest. Stock vehicle traversal is covered below. Independent regions and
+Timberland–Sidewinder remain open.
 
 Stock A30 vehicle staging used the same executable and unmodified map
 `4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5`.
 Both native peers kept the same Warthog `e62a00ed` and distinct driver
 and passenger seats after setup at (-338.003, 20.501, 37.0) in BSP 1.
-The alignment check withheld throttle: the seated driver's view stayed
-at -142 degrees after the scripted forward-facing setup. Stock motion
-across the light bridge and MegaWorld vehicle acceptance remain open.
+The alignment check withheld throttle because the seated driver's aim
+stayed at -142 degrees after the scripted forward-facing setup.
 
 HaloScript object_set_facing now uses the native player-input frame for seated
 local players. Third-person seats retain world heading. First-person seats
 invert the same vehicle-up rotation that native input applies. Windows x64
 executable SHA-256 `73a9af5f05626bd4a2848face3cdff134b450b40c6b8dcb36e3ea1f33c903644` on the same stock A30 map
 put the driver camera behind the 0-degree approach. Ordinary throttle moved
-both seated players from (-338.008, 20.503, 37.001) toward the bridge and both
-peers showed the driver at 0 degrees. The Warthog turned into the approach,
-drifted south to about (-331.37, 15.60, 35.35), and stayed in BSP 1. Vehicle
-crossing remains open. Aligning the Warthog during setup kept the intended
+both seated players from (-338.008, 20.503, 37.001) along the upper approach
+and both peers showed the driver at 0 degrees. The Warthog turned south to
+about (-331.37, 15.60, 35.35) and stayed in BSP 1. Aligning the Warthog
+during setup kept the intended
 heading and reached (-325.559, 15.319, 35.353), still outside the authored
 BSP 1 to 0 volume whose minimum y is 18.442. Both peers kept their seats,
 exited cleanly, and the unmodified map and executable hashes held.
+
+The stock named light bridge is at (-189.350, -5.000, 30.162), well east
+of the seam. Cache readback identified a flat lower route near y=14. With the
+same pinned A30 cache and Windows x64 executable above, two Forerunner peers
+on OpenCE protocol used scripted staging at (-338.005, 14.002, 35.354).
+Normal throttle and mouse steering then drove through both authored switch
+volumes, with no further position changes by script. Host BSP 1→0→1 was
+observed at ticks 1026 and 2007, and client at 1029 and 2010. Both kept
+Warthog e62a00ed with driver seat 0 and passenger seat 1. Both players retained
+weapon/ammo readings 47f:180 and 731:76. The host stopped at
+(-341.400, 18.489, 35.537). Both processes exited zero, the pinned hashes
+held, and staging was removed. Timberland–Sidewinder remains open.
 
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
