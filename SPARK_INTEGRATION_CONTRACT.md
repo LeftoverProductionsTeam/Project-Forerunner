@@ -49,8 +49,19 @@ After clean exit and fresh launch the idle, checksum-valid bank was
 byte-identical. E at the hub moved both weapon entries from stash to
 reservation (generation 4 to 6), and the technology was physically held
 again. The item-ID check compared a tuple with a list and did not run the
-ID comparison. Linux mission completion, route reliability, and two human
-players remain open. Receipt: `build/native-black-echo-571f-banked-restart.json`.
+ID comparison. Receipt: `build/native-black-echo-571f-banked-restart.json`.
+
+The same exact export also reached solo combat, technology pickup, defense,
+recall, physical evacuation and a checksum-valid two-item bank on WSL2 x64
+using software OpenGL. Loaded boarding was at tick 10620. The Pelican passed
+near the authored approach at tick 13470 and subsequently drifted to y -79
+before the bank. The restart harness lost its PID, and its recovery copied
+the bank and profile payload without native save-directory metadata. The
+second process deployed a fresh profile and left the recovered bank
+byte-identical. Linux reissue and item-ID continuity remain open. The
+next run needs the intact private save root across both processes.
+Receipt: `build/native-linux64-black-echo-571f-banked-profile-recovery.json`.
+Reliable pad touchdown and two-authenticated-human acceptance remain open.
 
 The compiled shared `extraction_return` covers x 36 to 76, y -119 to -81,
 and z -1 to 7. The last aircraft center (-80.978 on Y) was just beyond its
