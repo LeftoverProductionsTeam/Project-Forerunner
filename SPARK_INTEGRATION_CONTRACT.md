@@ -1977,9 +1977,14 @@ FRNG v1, generation 2, deployed. The player walked to the field device,
 activated at tick 2910, and waited until extraction was ready at tick 3210.
 Walking back into the authored return volume banked one weapon and two
 frag grenades. The stash checksum matched, generation 4 was idle, and the
-authored squad completion woke once. The process exited zero at the test
-time limit while the player walked back toward Deploy. Same-ID redeployment
-was not observed in this run. Originals held and disposable staging was removed.
+authored squad completion woke once. The first run's time limit expired
+while the player walked back toward Deploy. A repeat with a longer limit
+kept the same map and binary hashes. It activated at tick 2940, recorded
+the checked bank at tick 3870, displayed the debrief, and used Deploy at
+tick 5280. At tick 5370 the checked generation-6 record was deployed with
+one reserved weapon, whose ID exactly matched the generation-4 bank. The
+process exited zero at tick 5925. Originals held and disposable staging
+was removed. This verifies the solo on-foot fixture loop.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
 not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version
