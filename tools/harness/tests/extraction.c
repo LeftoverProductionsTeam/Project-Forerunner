@@ -1461,7 +1461,8 @@ int main(int argc,char **argv)
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
    strcpy(authored_groups[11].name,"extraction_pelican_landed");
   }
-  if(!strcmp(case_name,"transport-callback-recording")||!strcmp(case_name,"transport-callback-aborted-recording")) {
+  if(!strcmp(case_name,"transport-callback-recording")||!strcmp(case_name,"transport-callback-aborted-recording")||
+     !strncmp(case_name,"transport-admission-recorded-",29)) {
    scenario.device_groups.count=11;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
   }
@@ -1809,6 +1810,29 @@ int main(int argc,char **argv)
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"ready field crew could acquire a seat at the destination");
     dropships[0].object.position.x=20;run(0)->gear.pending=TRUE;
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"pending gear admitted evacuation boarding");
+   } else if(!strcmp(case_name,"transport-admission-recorded-entry")||
+             !strcmp(case_name,"transport-admission-recorded-exit")) {
+    boolean entry=!strcmp(case_name,"transport-admission-recorded-entry");
+    short crew_group=extraction.dropship_boarding_groups[0];
+    CHECK(crew_group!=NONE&&extraction.dropship_landing_groups[0]==NONE,"fixture needs only crew readiness");
+    dropships[0].object.position.x=0;touch(0,0);
+    CHECK(unit_can_enter_seat(unit_handles[0],craft,1,NULL),"boarding-only map refused initial passenger");
+    recorded_aircraft=craft;
+    if(entry) {
+     CHECK(!unit_can_enter_seat(unit_handles[0],craft,1,NULL),"active recording offered a new passenger seat");
+     extraction.dropship_boarding_groups[0]=NONE;
+     CHECK(unit_can_enter_seat(unit_handles[0],craft,1,NULL),"unmanaged script path lost its native seat");
+     extraction.dropship_boarding_groups[0]=crew_group;
+     recorded_aircraft=NONE;
+     CHECK(unit_can_enter_seat(unit_handles[0],craft,1,NULL),"finished playback did not reopen boarding");
+    } else {
+     units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=1;
+     CHECK(!extraction_transport_can_disembark(&units[0]),"active recording permitted voluntary exit");
+     dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);
+     CHECK(extraction_transport_can_disembark(&units[0]),"damaged craft could not release its rider");
+     dropships[0].object.damage_flags=0;recorded_aircraft=NONE;
+     CHECK(extraction_transport_can_disembark(&units[0]),"finished playback did not reopen the exit");
+    }
    } else if(!strcmp(case_name,"transport-admission-pilot")) {
     transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
     dropships[0].object.position.x=0;touch(0,0);

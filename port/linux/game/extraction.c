@@ -1825,7 +1825,10 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 		extraction_unit_pending_death(unit) || extraction_medical_incapacitated(unit_index) ||
 		extraction_faction(unit->object.owner_team_index) != faction ||
 		extraction_faction((short)player->team_index) != faction) return FALSE;
-	if (extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(vehicle_index)) return FALSE;
+	/* Crew-only maps still use their authored touchdown rules. Native
+	 * playback must release the aircraft before accepting new passengers. */
+	if ((extraction.dropship_landing_groups[faction] != NONE || extraction.dropship_boarding_groups[faction] != NONE) &&
+		!extraction_transport_arrival_ready(faction, vehicle_index)) return FALSE;
 	if (extraction.dropship_boarding_groups[faction] == NONE) return TRUE;
 	if (!extraction_transport_seat_allowed(vehicle, seat_index, TRUE)) return FALSE;
 
@@ -1850,7 +1853,8 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 	if (passenger->unit.player_index == NONE || ship == NONE ||
 		!extraction_requested() || !extraction.bound || !extraction.admitted) return TRUE;
 	for (faction = 0; faction < 2; faction++)
-		if (extraction.dropship_names[faction] != NONE && extraction.dropship_landing_groups[faction] != NONE &&
+		if (extraction.dropship_names[faction] != NONE &&
+			(extraction.dropship_landing_groups[faction] != NONE || extraction.dropship_boarding_groups[faction] != NONE) &&
 			object_index_from_name_index(extraction.dropship_names[faction]) == ship)
 		{
 			struct unit_datum *vehicle = (struct unit_datum *)
@@ -1858,7 +1862,7 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 			/* A damaged or destroyed craft must still release its passengers. */
 			return !vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 				extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.f) ||
-				extraction_transport_landed(ship);
+				extraction_transport_arrival_ready(faction, ship);
 		}
 	return TRUE;
 }

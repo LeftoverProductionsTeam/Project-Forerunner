@@ -86,6 +86,25 @@ use `recording_play_and_hover` for an authored clip ending with real ground
 contact and wait for the faction's landed output. Release hover with
 `vehicle_hover` before the next clip and preserve the native seat, cinematic,
 pad and settlement gates. An airborne hover still cannot bank.
+Crew-only transports now also wait for the native playback thread to
+finish before voluntary boarding or exit. The existing authored seat
+locks still control touchdown rules after playback. Landing-output
+routes still require native touchdown, and damaged craft can release
+passengers. The two crew-only regressions reproduced both gaps before the
+fix. All 94 focused transport checks passed. Windows x64 SHA-256
+`10f2792bb24bf7480d5d2451548f5c4ffe2295af716fdd1dc6266f7116b87002` compiled.
+
+On that Windows build, the pinned Spirit fixture
+`bc2b80b52d519e166c318bd1d8c24a585c1b94a7965222a3fb10524ddc2b5f25`
+admitted a fresh Covenant profile. Near the landed hull, the native
+readback identified unlocked seat 5 and its entrance at
+(50.405, -106.966, 1.098). Normal movement toward that marker and E
+boarded the Spirit at tick 5010. The player stayed seated as the aircraft
+began insertion and reached (52.516, -111.847, 2.824) at tick 5070.
+The process exited zero, input hashes held, and staging was removed.
+This verifies ordinary boarding on the existing AI-scripted fixture.
+Live authored recorded flight and Linux settlement remain open.
+
 On transports using an authored crew-ready group, successful native seat
 entry clears the group immediately. Readiness and a new evacuation receipt
 wait for the entry animation to finish. Maps without the crew-ready group
