@@ -2856,6 +2856,16 @@ BSP cluster count was rejected by the runtime and the lobby kept Carousel.
 This checks native admission scope. Independent active BSPs, region AI and
 objective persistence remain open.
 
+MCC13 BSP validation clears the previous BSP's claims in bulk and keeps
+the base tag claims, including a shared boundary byte. The native Windows
+x64 build `4e036f6165a33b972f3ddfb9e53005e749fc2928dfbd08a2975afab23baa9643`
+loaded the same nine-region MCC13 map on two private peers. Both loaded
+3,332 tags and 7,840,752 tag bytes and synchronized movement within 0.15
+units. Both exited zero. The median bitmap reset in 12 paired samples
+decreased from 32.144 ms to 0.102 ms for a 64 MiB arena. This measures
+bitmap reset time only. The 134 focused tests include repeated BSP loads
+and preservation of an unaligned base-tag boundary.
+
 During native BSP switches, the engine relinks world objects before
 evaluating activation with the destination's player visibility. The
 existing activation pass runs once even when both regions have the same

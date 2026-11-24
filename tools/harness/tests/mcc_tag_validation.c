@@ -436,6 +436,10 @@ int main(int argc, char **argv)
     CHECK(argc == 2);
     memset(&runtime, 0, sizeof(runtime));
     runtime.capacity = 65536; runtime.used = 4096; runtime.source.size = 1024;
+    if (!strcmp(argv[1], "bsp")) {
+        runtime.used += 3;
+        runtime.capacity += 3;
+    }
     if (!strncmp(argv[1], "syntax_", 7)) runtime.capacity = runtime.used = 1048576;
     if (!strncmp(argv[1], "names_", 6)) runtime.used = runtime.capacity = 2097152;
     if (!strncmp(argv[1], "palette_", 8)) runtime.used = runtime.capacity = 2097152;
@@ -494,6 +498,8 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "unknown_group")) { instance->group = 'nope'; expected = 0; }
     if (!strcmp(argv[1], "bsp")) {
         header->count = 2; instance[1] = instance[0]; instance[1].group = 'sbsp'; instance[1].handle++;
+        root->other_data.address = runtime.tags + runtime.used - 6;
+        root->other_data.size = 6;
     }
     if (!strncmp(argv[1], "alias", 5)) {
         header->count=2;instance[1]=instance[0];instance[1].handle++;
@@ -866,11 +872,31 @@ int main(int argc, char **argv)
         CHECK(tag_validate_corrections() == 0 && callback_failures == 0);
     }
     if (!strcmp(argv[1], "bsp")) {
-        struct test_bsp *bsp = (struct test_bsp *)(runtime.tags + 8192);
+        struct test_bsp *bsp = (struct test_bsp *)(runtime.tags + 4100);
         struct test_root *broot = (struct test_root *)((byte *)bsp + 64);
+        struct test_bsp *second_bsp = (struct test_bsp *)(runtime.tags + 0xfe00);
+        struct test_root *second_root = (struct test_root *)((byte *)second_bsp + 64);
+        byte *last_byte = runtime.tags + runtime.capacity - 1;
         bsp->root = broot; bsp->signature = 'sbsp'; broot->file.file_offset = 100;
+        second_bsp->root = second_root; second_bsp->signature = 'sbsp';
+        second_root->other_data.address = last_byte;
+        second_root->other_data.size = 1;
+
         CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
         CHECK(callback_failures == 0);
+        CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
+        CHECK(mcc_validation_any_claimed(runtime.tags + runtime.used - 1, 1));
+        CHECK(!mcc_validation_any_claimed(runtime.tags + runtime.used, 1));
+
+        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, second_bsp, 515));
+        CHECK(!mcc_validation_any_claimed(bsp, sizeof(*bsp)));
+        CHECK(!mcc_validation_any_claimed(broot, sizeof(*broot)));
+        CHECK(mcc_validation_any_claimed(runtime.tags + runtime.used - 1, 1));
+        CHECK(mcc_validation_any_claimed(last_byte, 1));
+
+        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(!mcc_validation_any_claimed(second_bsp, sizeof(*second_bsp)));
+        CHECK(!mcc_validation_any_claimed(last_byte, 1));
         broot->children.count = 1; broot->children.address = root;
         CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
     }

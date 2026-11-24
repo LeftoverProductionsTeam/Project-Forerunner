@@ -985,7 +985,7 @@ int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, lo
     struct mcc_validation_bsp_header *header = address;
     struct mcc_validation_instance *instance;
     struct tag_schema_group const *schema = mcc_group('sbsp');
-    unsigned long first, bit;
+    unsigned long first, first_claim_byte;
     if (mcc_validation.runtime != runtime || !mcc_validation.claims || ((uintptr_t)address & 3) ||
         size < (long)sizeof(*header) ||
         !mcc_range(runtime->tags, runtime->capacity, address, (unsigned long)size)) return 0;
@@ -994,7 +994,13 @@ int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, lo
     instance = mcc_instance(handle);
     if (!instance || instance->group != 'sbsp' || !schema || !schema->definition) return 0;
     mcc_allocations_dispose();
-    for (bit = runtime->used; bit < runtime->capacity; ++bit) mcc_validation.claims[bit >> 3] &= (byte)~(1U << (bit & 7));
+    /* Keep the base tags' claims, including bits in a shared boundary byte. */
+    first_claim_byte = runtime->used >> 3;
+    if (runtime->used & 7) {
+        mcc_validation.claims[first_claim_byte] &= (byte)((1U << (runtime->used & 7)) - 1U);
+        ++first_claim_byte;
+    }
+    memset(mcc_validation.claims + first_claim_byte, 0, mcc_validation.claim_bytes - first_claim_byte);
     memset(&context, 0, sizeof(context)); context.region = address; context.length = size; context.handle = handle;
     if (header->signature != 'sbsp' || !mcc_claim(header, sizeof(*header)) ||
         !mcc_range(address, size, xbox_pointer(header->root), schema->definition->size) || !mcc_claim(xbox_pointer(header->root), schema->definition->size)) {
