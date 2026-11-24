@@ -2966,16 +2966,29 @@ separate cache builder and the newer CE Tool's BSP generation improvements.
 The stock D40 cache above links BSP 0 at [0x814fa000, 0x819a6000) and
 BSP 1 at [0x8121b800, 0x819a6000). Both cannot occupy those linked
 addresses at once. The native runtime first needs disjoint or validated
-relocated BSP ranges. The inherited MCC loader in
-`port/linux/game/mcc_geometry.c` releases all BSP buffers together and
-`mcc_tag_validate.c` clears BSP claims over the tag-arena tail. Both need
-region-owned lifetimes before a second BSP can remain loaded. The native
-collision trees accept explicit BSP pointers. Higher-level location,
+relocated BSP ranges. The MCC geometry adapter now owns buffers by BSP
+handle. Two disjoint linked ranges can hold geometry at the same time.
+An overlapping request is refused before copying into the tag arena, and
+a failed conversion releases only the candidate's buffers. The existing
+global switch supplies the exact handle when it unloads a BSP.
+`mcc_tag_validate.c` still clears BSP claims over the tag-arena tail.
+Validation needs region-owned lifetimes before the game can retain both
+BSPs. The native collision trees accept explicit BSP pointers. Higher-level location,
 collision, AI, visibility and network snapshots still use the currently
 selected BSP. Independent occupancy requires region ownership through
 those callers and per-peer replication. The legacy global switch path
 remains available. The present 16-BSP scenario ceiling also requires
 explicit budgeting if authoring maps one region per BSP.
+
+The geometry verifier covers two disjoint native cache references,
+overlap refusal, partial buffer failure, and unload/reload without
+touching another BSP or shared model buffers. The focused Windows suite
+passed 49 checks. The optional read-only test also converted the exact
+twelve-region MCC13 above. Two native Windows peers on executable
+`26f8d6c01c716862c7110f074b165dbade425a80a856be865073324178cb9dad`
+loaded 3,517 tags and 8,019,232 tag bytes each from that same cache.
+They synchronized native movement within 0.15 units and exited zero.
+This native smoke exercised a single active BSP.
 
 The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal

@@ -2613,7 +2613,7 @@ void scenario_structure_bsp_unload(
 	/* port: an MCC map's bsp (mcc_cache.c) */
 	if (mcc_cache_tags_loaded())
 	{
-		mcc_cache_bsp_unload();
+		mcc_cache_bsp_unload(reference->structure_bsp.index);
 		cache_get_tag_instance(reference->structure_bsp.index)->base_address = XBOX_NULL;
 		cache_file_globals.structure_bsp_header = NULL;
 		return;

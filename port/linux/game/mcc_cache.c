@@ -586,13 +586,13 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
         bsp->size, xbox_pointer(bsp->address), structure)) return FALSE;
     *header = xbox_pointer(bsp->address);
     if (!mcc_bsp_validate(&mcc_loaded_cache, (long)bsp->tag_handle, *header, (long)bsp->size)) {
-        mcc_geometry_bsp_unload(&mcc_loaded_cache);
+        mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
         return FALSE;
     }
     return TRUE;
 }
 
-void mcc_cache_bsp_unload(void) { mcc_geometry_bsp_unload(&mcc_loaded_cache); }
+void mcc_cache_bsp_unload(long handle) { mcc_geometry_bsp_unload(&mcc_loaded_cache, (uint32_t)handle); }
 
 short mcc_cache_part_palette(void const *buffer, byte const **nodes)
 {

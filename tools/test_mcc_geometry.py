@@ -57,6 +57,42 @@ def geometry_map():
     return data
 
 
+def two_bsp_geometry_map(overlap):
+    data = geometry_map()
+    data.extend(bytes(0x2600 - len(data)))
+    base, tags = 0x50000000, 0xC00
+    bsp_size = 0x400
+    first_bsp = base + 0x4000000 - 0x2000
+    bsp_handles = (0xE1750001, 0xE1770003)
+
+    struct.pack_into("<I", data, 8, len(data))
+    struct.pack_into("<I", data, tags + 12, 4)
+    struct.pack_into("<8I", data, tags + 40 + 3 * 32,
+                     0x73627370, 0xFFFFFFFF, 0xFFFFFFFF, bsp_handles[1], base + 0xBC, 0, 0, 0)
+    data[tags + 0xA8:tags + 0xC1] = bytes(0x19)
+    for index, (offset, name) in enumerate(((0xA8, b"scnr"), (0xB0, b"bsp0"), (0xB6, b"mod"), (0xBC, b"bsp1"))):
+        data[tags + offset:tags + offset + len(name) + 1] = name + b"\0"
+        struct.pack_into("<I", data, tags + 40 + index * 32 + 16, base + offset)
+    struct.pack_into("<3I", data, tags + 0x200 + 0x5A4, 2, base + 0x7B0, 0)
+
+    for index, (file_offset, vertex_offset) in enumerate(((0x1800, 0x2200), (0x1C00, 0x2400))):
+        address = first_bsp + index * (bsp_size // 2 if overlap else bsp_size)
+        structure, lightmap, material = 0x18, 0x2A0, 0x2C0
+        struct.pack_into("<6I", data, file_offset,
+                         address + structure, 76, vertex_offset, 0, 0, 0x73627370)
+        struct.pack_into("<3I", data, file_offset + structure + 0x104, 1, address + lightmap, 0)
+        struct.pack_into("<3I", data, file_offset + lightmap + 0x14, 1, address + material, 0)
+        struct.pack_into("<II", data, file_offset + material + 0xB4, 1, 0)
+        struct.pack_into("<II", data, file_offset + material + 0xC8, 1, 56)
+        struct.pack_into("<14f", data, vertex_offset,
+                         float(index), 0., 0., 0., 0., 1., 0., 1., 0., 1., 0., 0., 0., 0.)
+        struct.pack_into("<5f", data, vertex_offset + 56, 0., 0., 1., 0., 0.)
+        struct.pack_into("<8I", data, tags + 0x7B0 + 32 * index,
+                         file_offset, bsp_size, address, 0, 0x73627370,
+                         base + (0xBC if index else 0xB0), 0, bsp_handles[index])
+    return data
+
+
 @pytest.fixture(scope="session")
 def geometry_tool(tmp_path_factory):
     compiler = shutil.which("clang")
@@ -142,6 +178,16 @@ def test_model_conversion_and_dispose(geometry_tool, tmp_path):
     code, fields = run(geometry_tool, path)
     assert code == 0
     assert fields["created_buffers"] == "2"
+
+
+@pytest.mark.parametrize("case", ["disjoint", "overlap", "partial-bsp-failure"])
+def test_bsp_geometry_has_independent_lifetime(geometry_tool, tmp_path, case):
+    path = tmp_path / "regions.map"
+    path.write_bytes(two_bsp_geometry_map(overlap=case == "overlap"))
+    code, fields = run(geometry_tool, path, case)
+    assert code == 0
+    assert fields["bsp_lifetime"] == case
+    assert fields["created_buffers"] == ("7" if case == "partial-bsp-failure" else "6")
 
 
 @pytest.mark.parametrize("failure_at", [0, 1])

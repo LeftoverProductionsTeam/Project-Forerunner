@@ -56,6 +56,8 @@ struct mcc_render_part {
     struct vertex_buffer vertices;
 };
 
+#define MCC_GEOMETRY_NO_BSP UINT32_MAX
+
 struct mcc_geometry_buffer {
     struct mcc_geometry_buffer *next;
     void *descriptor;
@@ -63,7 +65,8 @@ struct mcc_geometry_buffer {
     uint32_t bytes;
     void *allocation;
     uint32_t allocation_bytes;
-    int is_index, is_bsp;
+    int is_index;
+    uint32_t bsp_handle;
     unsigned char palette[22];
     unsigned char palette_count;
 };
@@ -76,6 +79,7 @@ struct mcc_converted_model {
 struct mcc_geometry_state {
     struct mcc_geometry_buffer *buffers;
     struct mcc_converted_model *models;
+    uint32_t resident_bsps;
 };
 
 typedef char mcc_render_part_size_check[sizeof(struct mcc_render_part)==0x68 ? 1 : -1];
@@ -114,30 +118,30 @@ static void mg_allocation_free(void *allocation,int bsp) {
 keeps its indices where the rasterizer reads them, by a 32-bit address) */
 
 static struct mcc_geometry_buffer *mg_record(struct mcc_runtime *r,void *descriptor,
-    void *payload,uint32_t bytes,void *allocation,uint32_t allocation_bytes,int index,int bsp) {
+    void *payload,uint32_t bytes,void *allocation,uint32_t allocation_bytes,int index,uint32_t bsp_handle) {
     struct mcc_geometry_state *state=r->geometry;
     struct mcc_geometry_buffer *b=malloc(sizeof(*b));
     if (!b) return NULL;
     memset(b,0,sizeof(*b));
     b->descriptor=descriptor; b->payload=payload; b->bytes=bytes;
     b->allocation=allocation; b->allocation_bytes=allocation_bytes;
-    b->is_index=index; b->is_bsp=bsp;
+    b->is_index=index; b->bsp_handle=bsp_handle;
     b->next=state->buffers; state->buffers=b;
     return b;
 }
 
 static struct mcc_geometry_buffer *mg_vertices(struct mcc_runtime *r,
     struct vertex_buffer *descriptor,short type,uint32_t count,void *payload,uint32_t bytes,
-    void *allocation,uint32_t allocation_bytes,int bsp) {
-    struct mcc_geometry_buffer *b=mg_record(r,descriptor,payload,bytes,allocation,allocation_bytes,0,bsp);
-    if (!b) { mg_allocation_free(allocation,bsp); return NULL; }
+    void *allocation,uint32_t allocation_bytes,uint32_t bsp_handle) {
+    struct mcc_geometry_buffer *b=mg_record(r,descriptor,payload,bytes,allocation,allocation_bytes,0,bsp_handle);
+    if (!b) { mg_allocation_free(allocation,bsp_handle!=MCC_GEOMETRY_NO_BSP); return NULL; }
     if (!rasterizer_vertex_buffer_new(descriptor,type,(long)count,payload,(long)bytes)) return NULL;
     return b;
 }
 
 static int mg_indices(struct mcc_runtime *r,struct triangle_buffer *descriptor,
     uint32_t triangles,void *payload,uint32_t bytes) {
-    if (!mg_record(r,descriptor,payload,bytes,payload,bytes,1,0)) { free(payload); return 0; }
+    if (!mg_record(r,descriptor,payload,bytes,payload,bytes,1,MCC_GEOMETRY_NO_BSP)) { free(payload); return 0; }
     return rasterizer_triangle_buffer_new(descriptor,_triangle_buffer_type_precompiled_strip,
         (long)triangles,payload);
 }
@@ -382,7 +386,7 @@ static int mg_part(struct mcc_runtime *r,struct model const *model,unsigned char
         (long)count,compressed,(long)vertex_bytes,vertices,(long)raw_bytes);
     free(vertices); vertices=NULL;
     record=mg_vertices(r,&part->vertices,_rasterizer_vertex_type_model_compressed,count,
-        compressed,vertex_bytes,compressed,vertex_bytes,0);
+        compressed,vertex_bytes,compressed,vertex_bytes,MCC_GEOMETRY_NO_BSP);
     compressed=NULL;
     if (!record) goto fail;
     if (many) { memcpy(record->palette,palette,palette_count); record->palette_count=palette_count; }
@@ -414,7 +418,7 @@ int mcc_geometry_part_valid(struct mcc_runtime *r,void const *address) {
         (uint32_t)part->indices.count>MCC_MODEL_MAXIMUM_STRIP_TRIANGLES) return 0;
     count=(uint32_t)part->vertices.count; triangles=(uint32_t)part->indices.count;
     for (b=state->buffers;b;b=b->next) {
-        if (b->is_bsp) continue;
+        if (b->bsp_handle!=MCC_GEOMETRY_NO_BSP) continue;
         if (!b->is_index && b->descriptor==&part->vertices) vertices=b;
         if (b->is_index && b->descriptor==&part->indices) indices=b;
     }
@@ -536,9 +540,9 @@ static int mg_bsp_material(struct mcc_runtime *r,struct mcc_cache_bsp const *b,
     /* CPU BSP queries expect the lightmap vertices immediately after the
      * environment vertices, so both streams have one lifetime/allocation. */
     if (!mg_vertices(r,&m->vertices,_rasterizer_vertex_type_environment_compressed,count,
-        compressed,count*32,compressed,compressed_bytes,1)) return 0;
+        compressed,count*32,compressed,compressed_bytes,b->tag_handle)) return 0;
     if (lit && !mg_vertices(r,&m->lightmap_vertices,_rasterizer_vertex_type_environment_lightmap_compressed,
-        lit,compressed+count*32,lit*8,NULL,0,1)) return 0;
+        lit,compressed+count*32,lit*8,NULL,0,b->tag_handle)) return 0;
     m->compressed_vertex_data.size=(long)compressed_bytes;
     m->compressed_vertex_data.address=xbox_address(compressed);
     return 1;
@@ -560,17 +564,29 @@ int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
     struct structure_bsp *structure;
     struct structure_lightmap *lightmaps;
     struct mg_material_run *runs=NULL;
-    uint32_t i,run_count=0;
+    struct mcc_geometry_state *state=r ? r->geometry : NULL;
+    uint32_t i,bsp_index,run_count=0;
     long l;
-    if (!r || !r->geometry || !result) return 0;
+    if (!state || !result || handle==MCC_GEOMETRY_NO_BSP || r->report.bsp_count>MCC_CACHE_MAX_BSPS)
+        return 0;
     *result=NULL;
-    mcc_geometry_bsp_unload(r);
-    for (i=0;i<r->report.bsp_count;i++) {
-        struct mcc_cache_bsp const *candidate=&r->report.bsps[i];
+    for (bsp_index=0;bsp_index<r->report.bsp_count;bsp_index++) {
+        struct mcc_cache_bsp const *candidate=&r->report.bsps[bsp_index];
         if (candidate->tag_handle==handle && candidate->file_offset==offset && candidate->size==size &&
             candidate->address==MCC_ADDRESS(address)) { b=candidate; break; }
     }
-    if (!b || !mcc_runtime_read(r,offset,size,address)) return mg_error("BSP request differs from validated reference");
+    if (!b) return mg_error("BSP request differs from validated reference");
+    /* Legacy caches can link several BSPs to the same tag addresses.
+     * Reject before writing into any resident BSP, including its descriptors. */
+    for (i=0;i<r->report.bsp_count;i++) {
+        struct mcc_cache_bsp const *resident=&r->report.bsps[i];
+        if ((state->resident_bsps & (1u<<i)) &&
+            (resident->tag_handle==handle ||
+                ((uint64_t)b->address < (uint64_t)resident->address+resident->size &&
+                    (uint64_t)resident->address < (uint64_t)b->address+b->size)))
+            return mg_error("BSP overlaps a resident region");
+    }
+    if (!mcc_runtime_read(r,offset,size,address)) return mg_error("BSP could not be read");
     structure=mg_bsp_pointer(address,size,b->structure_address,sizeof(*structure));
     if (!structure || structure->lightmaps.count<0 || (uint32_t)structure->lightmaps.count>size/0x20)
         return mg_error("invalid BSP lightmaps");
@@ -601,31 +617,36 @@ int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
     if (runs) free(runs);
     /* The MCC file stream descriptors are not Xbox vertex-buffer tables. */
     memset((unsigned char *)address+4,0,16);
+    state->resident_bsps|=1u<<bsp_index;
     *result=structure;
     return 1;
 fail:
     if (runs) free(runs);
-    mcc_geometry_bsp_unload(r);
+    mcc_geometry_bsp_unload(r,handle);
     return mg_error("BSP material conversion failed");
 }
 
 static void mg_release(struct mcc_geometry_buffer *b) {
     if (b->is_index) rasterizer_triangle_buffer_delete((struct triangle_buffer *)b->descriptor);
     else rasterizer_vertex_buffer_delete((struct vertex_buffer *)b->descriptor);
-    mg_allocation_free(b->allocation,b->is_bsp);
+    mg_allocation_free(b->allocation,b->bsp_handle!=MCC_GEOMETRY_NO_BSP);
     free(b);
 }
 
-void mcc_geometry_bsp_unload(struct mcc_runtime *r) {
+void mcc_geometry_bsp_unload(struct mcc_runtime *r,uint32_t handle) {
     struct mcc_geometry_state *state=r ? r->geometry : NULL;
     struct mcc_geometry_buffer **link;
-    if (!state) return;
+    uint32_t i;
+    if (!state || handle==MCC_GEOMETRY_NO_BSP) return;
     link=&state->buffers;
     while (*link) {
         struct mcc_geometry_buffer *b=*link;
-        if (b->is_bsp) { *link=b->next; mg_release(b); }
+        if (b->bsp_handle==handle) { *link=b->next; mg_release(b); }
         else link=&b->next;
     }
+    for (i=0;i<r->report.bsp_count && i<MCC_CACHE_MAX_BSPS;i++)
+        if (r->report.bsps[i].tag_handle==handle)
+            state->resident_bsps&=~(1u<<i);
 }
 
 void mcc_geometry_dispose(struct mcc_runtime *r) {

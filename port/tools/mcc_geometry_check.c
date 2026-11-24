@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#undef strcmp
 #include <string.h>
 
 /* The game maps allocations and memory copies through cseries. Keep those
@@ -102,16 +103,58 @@ void *mcc_runtime_allocate(struct mcc_runtime *r,uint32_t bytes) {
 
 int legacy_model_limits_check(void);
 
+static int check_bsp_lifetime(struct mcc_runtime *r,char const *test) {
+    struct mcc_cache_bsp const *a=&r->report.bsps[0], *b=&r->report.bsps[1];
+    struct vertex_buffer *old_buffer;
+    void *old_hardware, *old_payload, *new_hardware, *first, *second;
+    int baseline=active_buffers, expected=!strcmp(test,"disjoint");
+    int loaded;
+
+    if (r->report.bsp_count!=2 ||
+        !mcc_geometry_bsp_load(r,a->tag_handle,a->file_offset,a->size,(void *)(uintptr_t)a->address,&first) ||
+        !first || active_buffers!=baseline+2) return 0;
+    old_buffer=model_buffers[model_buffer_count-2];
+    old_hardware=old_buffer->hardware_format;
+    old_payload=old_buffer->base_address;
+    if (mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset+4,b->size,(void *)(uintptr_t)b->address,&second))
+        return 0;
+    if (!strcmp(test,"partial-bsp-failure")) fail_at=created_buffers+1;
+    loaded=mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset,b->size,(void *)(uintptr_t)b->address,&second);
+    if (loaded!=expected || (!!second)!=expected || old_buffer->hardware_format!=old_hardware ||
+        mcc_geometry_buffer_data(r,old_hardware,0,NULL)!=old_payload ||
+        active_buffers!=baseline+(expected ? 4 : 2)) return 0;
+    if (expected) new_hardware=model_buffers[model_buffer_count-2]->hardware_format;
+    mcc_geometry_bsp_unload(r,a->tag_handle);
+    if (mcc_geometry_buffer_data(r,old_hardware,0,NULL) ||
+        active_buffers!=baseline+(expected ? 2 : 0)) return 0;
+    if (expected) {
+        if (!mcc_geometry_buffer_data(r,new_hardware,0,NULL)) return 0;
+    } else {
+        /* A linked overlap can load normally once its previous owner leaves.
+         * A failed conversion can retry after releasing only its own buffers. */
+        fail_at=-1;
+        if (!mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset,b->size,(void *)(uintptr_t)b->address,&second) ||
+            !second || active_buffers!=baseline+2) return 0;
+    }
+    mcc_geometry_bsp_unload(r,b->tag_handle);
+    if (active_buffers!=baseline) return 0;
+    printf("bsp_lifetime=%s\n",test);
+    return 1;
+}
+
 int main(int argc,char **argv) {
     struct mcc_runtime r;
     FILE *file;
     long length;
     uint32_t i;
     int success, palette_parts=0, palette_sum=0, shader_sum=0;
+    char const *bsp_lifetime_test=NULL;
     long maximum_triangles=0;
     if (!legacy_model_limits_check()) return 13;
     if (argc<2 || argc>4) return 2;
-    if (argc>=3) fail_at=atoi(argv[2]);
+    if (argc==3 && (!strcmp(argv[2],"disjoint") || !strcmp(argv[2],"overlap") ||
+        !strcmp(argv[2],"partial-bsp-failure"))) bsp_lifetime_test=argv[2];
+    else if (argc>=3) fail_at=atoi(argv[2]);
     if (argc==4) allocation_fail_at=atoi(argv[3]);
     memset(&r,0,sizeof(r));
     file=fopen(argv[1],"rb"); if (!file) return 2;
@@ -183,13 +226,14 @@ int main(int argc,char **argv) {
         if (n) palette_parts++;
         for (j=0;j<n;j++) palette_sum+=nodes[j];
     }
-    for (i=0;success && i<r.report.bsp_count;i++) {
+    if (success && bsp_lifetime_test) success=check_bsp_lifetime(&r,bsp_lifetime_test);
+    for (i=0;success && !bsp_lifetime_test && i<r.report.bsp_count;i++) {
         void *structure;
         struct mcc_cache_bsp *b=&r.report.bsps[i];
         success=mcc_geometry_bsp_load(&r,b->tag_handle,b->file_offset,b->size,
             (void *)(uintptr_t)b->address,&structure);
         if (success && !structure) return 7;
-        mcc_geometry_bsp_unload(&r);
+        mcc_geometry_bsp_unload(&r,b->tag_handle);
     }
     mcc_geometry_dispose(&r);
     printf("converted=%d\ncreated_buffers=%d\nactive_buffers=%d\npalette_parts=%d\npalette_sum=%d\n",
