@@ -1285,6 +1285,24 @@ void main_switch_structure_bsp(
 	return;
 }
 
+void main_sync_structure_bsp(short structure_bsp_index)
+{
+	if (structure_bsp_index == global_structure_bsp_index)
+	{
+		/* Two accepted host snapshots can arrive before the deferred load.
+		 * The newest one may return to the BSP we still have loaded. */
+		if (main_globals.switch_to_structure_bsp_index != NONE)
+		{
+			main_globals.switch_to_structure_bsp_index = NONE;
+			hud_load(FALSE);
+		}
+	}
+	else if (structure_bsp_index != main_globals.switch_to_structure_bsp_index)
+	{
+		main_switch_structure_bsp(structure_bsp_index);
+	}
+}
+
 void main_goto_main_menu(
 	void)
 {

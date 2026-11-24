@@ -242,8 +242,8 @@ long main_saving_map(void);
 long main_saving_map(void) { return 0; }
 long main_skip_cinematic(void);
 long main_skip_cinematic(void) { return 0; }
-long main_switch_structure_bsp(void);
-long main_switch_structure_bsp(void) { return 0; }
+void main_sync_structure_bsp(short index);
+void main_sync_structure_bsp(short index) { (void)index; }
 long matrix4x3_rotation_from_axis_and_angle(void);
 long matrix4x3_rotation_from_axis_and_angle(void) { return 0; }
 long mcc_cache_tags_loaded(void);

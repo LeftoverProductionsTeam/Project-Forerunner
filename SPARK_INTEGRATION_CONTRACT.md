@@ -1956,7 +1956,15 @@ objects and cluster activation. Twenty-five focused checks passed. A private
 Windows x64 stock B40 run switched 0 to 1 to 0 through the native console at
 ticks 0, 15 and 30 and exited cleanly. Executable SHA-256 `7f24bdd8e46d1650fb5dc239deab147267a1494b87bf82ba0641d25a83bdfca6`.
 Control map SHA-256 `0a7b26d6d828e7b773d36d9d5c798b9bf4b143332301a0c0e7a3d685782eab48`.
-Physical connected-region traversal remains unverified.
+
+A newer accepted host snapshot now cancels an obsolete queued client switch
+when the called-for BSP is already loaded. The message format and checkpoint
+ordering are unchanged. Thirty-five focused checks passed. Two Windows x64
+loopback processes using OpenCE protocol followed the same B40 console round
+trip at ticks 0, 15 and 30 and exited cleanly. Executable SHA-256 `8b7f4b0432d0f706d9fd7ae6410a5ce78e1835a120053f68995763fdfb9edd85`.
+The map hash is the B40 control above. The test switched during the opening
+cinematic and logged a flying diagnostic. Physical connected-region traversal
+remains unverified.
 
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the

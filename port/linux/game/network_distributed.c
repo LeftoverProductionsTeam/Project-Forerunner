@@ -5439,10 +5439,9 @@ static void distributed_handle_structure_bsp(
 {
 	short index = structure_bsp->structure_bsp_index;
 
-	if (network_coop_active() && index >= 0 && index < global_scenario_get()->structure_bsp_references.count &&
-		index != global_structure_bsp_index_get())
+	if (network_coop_active() && index >= 0 && index < global_scenario_get()->structure_bsp_references.count)
 	{
-		main_switch_structure_bsp(index);
+		main_sync_structure_bsp(index);
 	}
 }
 

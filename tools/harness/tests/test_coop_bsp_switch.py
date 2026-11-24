@@ -29,11 +29,14 @@ def generated(fault=None):
             'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
+        ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
+            ('main_switch_structure_bsp', 'main_sync_structure_bsp')) + '\n' +
+            function(read('port/linux/game/network_distributed.c'), 'distributed_handle_structure_bsp')),
     )
 
 
 @pytest.mark.parametrize('case', [
-    'reference-refused', 'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
+    'host-superseded', 'reference-refused', 'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'no-pending', 'negative-pending', 'past-end-pending',
     'activation-cluster', 'activation-object', 'crowded-stranded', 'crowded-solid',

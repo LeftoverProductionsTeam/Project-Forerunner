@@ -94,6 +94,10 @@ static void error(int level,char const *fmt,...){(void)level;(void)fmt;}
     sizes = sorted(set(re.findall(r"\b(\w+_entry_size)\(", dispatch)))
     prefix += "\n".join(f"#define {name}(...) 1" for name in sizes) + "\n"
     code = prefix + kinds + structure(header, "distributed_message_header")
+    code += "typedef struct {real x, y, z;} real_point3d;\n"
+    code += structure(header, "distributed_vector")
+    for name in ("distributed_forge_pose", "distributed_forge_edit"):
+        code += structure(source, name)
     code += r'''
 static long distributed_sender_times[MAXIMUM_SENDERS];
 static long distributed_received_times[MAXIMUM_SENDERS][NUMBER_OF_DISTRIBUTED_MESSAGES];
@@ -340,6 +344,7 @@ def test_snapshot_completion_retires_predictions_but_keeps_receive_history(tmp_p
 static long distributed_last_sent_time;
 static struct {boolean valid;long dead_since;} distributed_deaths[2];
 static int distributed_seat_disagreements[2];
+static int distributed_forge_guests[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static struct {boolean valid;long taken_air_unit_index,taken_air_vehicle;} distributed_accepted[2];
 static struct {boolean valid;long taken_host_time;} distributed_predictions[2];
 static struct {long unit_index;} distributed_host_speeds[2];

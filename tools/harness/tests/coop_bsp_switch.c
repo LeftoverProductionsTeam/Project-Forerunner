@@ -155,6 +155,13 @@ static void structure_culling_load_settings(void) {culling++;}
 static void structure_culling_structure_bsp_loaded(void) {culling++;}
 #include "loader.inc"
 
+static struct {short switch_to_structure_bsp_index;} main_globals={NONE};
+struct distributed_structure_bsp {short structure_bsp_index,pad;};
+static boolean loading_hud;
+static void hud_load(boolean value) {loading_hud=value;}
+#define console_warning(...) ((void)0)
+#include "bsp_receive.inc"
+
 static void setup(short old,short destination)
 {
     scenario.bsp_switch_trigger_volumes=(struct tag_block){1,switches};
@@ -195,6 +202,23 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if(!strcmp(name,"host-superseded"))
+    {
+        struct distributed_structure_bsp message={destination,0};
+        distributed_handle_structure_bsp(&message);
+        CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"host BSP transition did not queue");
+        message.structure_bsp_index=2;
+        distributed_handle_structure_bsp(&message);
+        CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"invalid update changed the pending switch");
+        message.structure_bsp_index=old;
+        distributed_handle_structure_bsp(&message);
+        CHECK(main_globals.switch_to_structure_bsp_index==NONE&&!loading_hud,"client retained superseded BSP switch");
+        CHECK(!disconnects&&!ejections&&!teleports&&global_structure_bsp_index==old,"client disturbed the active world");
+        message.structure_bsp_index=destination;
+        distributed_handle_structure_bsp(&message);
+        CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"later valid switch did not queue");
+        return 0;
+    }
     if(!strncmp(name,"rescue-",7))
     {
         solid=!strcmp(name,"rescue-solid");
