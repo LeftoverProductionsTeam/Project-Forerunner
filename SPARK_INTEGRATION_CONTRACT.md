@@ -2904,6 +2904,41 @@ This verifies native projectile damage between authored regions sharing
 one resident BSP. Projectile/actor persistence across separately active
 BSPs and authored regional AI remain open.
 
+### Twelve-region Hang 'Em High tunnel
+
+Spark `7f6d360` added the Hang 'Em High infantry route to the connected BSP.
+The pinned native caches are CE609
+`da222bf1524ec69cc53eae8bd6fe50f63e1ffd830966efd3655eaace6c298388`
+and MCC13 `040b5da5de0a0e0bb7e03285933eaf807940e3c83c1fa1b76955d2982202d691`.
+The connection links (-178.228, 377.958, -23.882) to
+(-201.227, 463.793, -23.882). Authored width is 2.0 and clearance is 1.6.
+Both formats share one resident BSP.
+
+On private OpenCE 44, Windows x64 Forerunner
+`512878b3aeab5d3088ae6718758dcf3ddd5e7c32beab8bc5bc244c9ed977e93a`
+and Chupathingy `c16096a8` verified CE609 outbound to
+(-201.942, 466.455, -23.882), with the guest independently moving 6.750 units
+in Timberland. A separate reverse run on Forerunner
+`09c9f353582a4269dabc612e280ed4d7d4a05b7fdc8deb611518c7543e0cf0f1`
+and the same Chupathingy build reached (-176.614, 376.822, -24.073).
+The reverse match reached 44 exact ticks with at most 0.0444 unit difference.
+
+Two Forerunner peers on the latter executable walked the MCC13 route
+both ways in one session. The host reached (-201.960, 466.524, -23.882)
+and returned to (-176.838, 377.279, -24.121). Host–guest position difference
+was at most 0.1279 outbound over 42 samples and 0.0488 returning over 45
+samples. The other player moved independently in Timberland. Both native
+processes exited zero and disposable copies retained their pinned hashes.
+These runs verify infantry travel on the Hang 'Em High connector.
+Independently resident BSPs, regional AI/objectives and later regions remain open.
+
+The BSP reconnect path now preserves alternate markerless arrivals to the
+same destination. It checks the actual vehicle root or infantry body and
+keeps **marked** or differently routed players on the existing gather path.
+The same check keeps AI passengers aboard equivalent routes. Both new
+infantry and vehicle cases reproduced displacement before the fix. All 54
+focused BSP checks passed afterward.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.
@@ -2941,7 +2976,10 @@ player, and a marked classic gather. Windows x64 build
 ran private two-peer A30 on the unchanged stock cache above. A native Marine
 occupied the Warthog gunner seat in BSP 1. A separate attempt put both
 players in driver/passenger seats, but vehicle staging stopped before the
-switch volume. Live synchronized AI passenger traversal remains open.
+switch volume. A later disposable A30 copy put both players and a Marine
+in the same Warthog, outside the approach. A corrected marker setup did
+not keep the crew seated through staging. Live synchronized AI passenger
+traversal remains open.
 
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.

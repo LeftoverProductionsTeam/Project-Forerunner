@@ -39,7 +39,8 @@ def generated(fault=None):
         ('players.inc', '\n'.join(function(players, name) for name in (
             'player_teleport_with_policy', 'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
-            'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger', 'player_bsp_crossing_root',
+            'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger',
+            'player_bsp_continuous_route_contains', 'player_bsp_crossing_root',
             'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('scripted_bsp.inc', function(read('source/hs/hs.c'), 'scenario_switch_structure_bsp_evaluate')),
@@ -67,6 +68,8 @@ def generated(fault=None):
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',
+    'connected-parallel-vehicles', 'connected-parallel-foot', 'connected-parallel-marked',
+    'connected-parallel-other-destination', 'connected-parallel-other-source',
     'no-pending', 'negative-pending', 'past-end-pending', 'crossing-root-trigger',
     'activation-cluster', 'activation-object', 'activation-destination', 'crowded-stranded', 'crowded-solid',
     'crowded-inside', 'crowded-operation', 'crowded-enemy', 'rescue-crowded', 'rescue-solid',

@@ -86,7 +86,7 @@ static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
 static int reject_reference[4],reject_load[2],reject_verify[2],loads[2],unloads[2];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
-static boolean crowded,solid,ignore_players,operations,opposed,connected,dedicated_vote_routes;
+static boolean crowded,solid,ignore_players,operations,opposed,connected,dedicated_vote_routes,parallel_routes;
 static int stacked_calls,beside_retries;
 static long ticks;
 static struct {
@@ -125,6 +125,8 @@ static boolean scenario_trigger_volume_test_object(short trigger,long unit)
 {
     if (dedicated_vote_routes)
         return trigger == 2 ? unit == units[3] : unit == units[0];
+    if (parallel_routes)
+        return trigger == 1 ? unit == units[3] || unit == units[1] : unit == units[2] || unit == units[0];
     return unit==units[0] || (connected &&
         (unit==units[3] || unit==objects[0].object.parent_object_index ||
             (unit==units[1] && objects[1].object.parent_object_index==NONE)));
@@ -495,6 +497,15 @@ int main(int argc,char **argv)
         switches[0].cutscene_flag_index = NONE;
         players_globals->pending_teleport_starting_location_index = NONE;
         CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "an unqueued route carried AI");
+
+        players_globals->pending_teleport_starting_location_index = 0;
+        parallel_routes = TRUE;
+        scenario.bsp_switch_trigger_volumes.count = 2;
+        switches[0].trigger_volume_index = 1;
+        switches[1]=(struct scenario_bsp_switch_trigger_volume){0,old,destination,NONE};
+        CHECK(players_coop_vehicle_passenger_crossing_bsp(units[1]), "AI missed the player's alternate route to the same BSP");
+        switches[1].destination_structure_bsp_index = 2;
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "an unrelated route carried AI");
         return 0;
     }
     if (!strcmp(name, "majority-overlapping-routes"))
@@ -799,6 +810,20 @@ int main(int argc,char **argv)
     if(connected)
     {
         switches[0].cutscene_flag_index=NONE;
+        if (!strncmp(name,"connected-parallel-",19))
+        {
+            parallel_routes = TRUE;
+            scenario.bsp_switch_trigger_volumes.count = 2;
+            switches[1]=(struct scenario_bsp_switch_trigger_volume){1,old,destination,NONE};
+            if (!strcmp(name,"connected-parallel-foot"))
+                objects[1].object.parent_object_index=NONE;
+            else if (!strcmp(name,"connected-parallel-marked"))
+                switches[1].cutscene_flag_index=0;
+            else if (!strcmp(name,"connected-parallel-other-destination"))
+                switches[1].destination_structure_bsp_index=2;
+            else if (!strcmp(name,"connected-parallel-other-source"))
+                switches[1].source_structure_bsp_index=2;
+        }
         if(!strcmp(name,"connected-foot"))
             objects[0].object.parent_object_index=objects[1].object.parent_object_index=NONE;
         if(!strcmp(name,"connected-stranded"))
@@ -939,7 +964,8 @@ int main(int argc,char **argv)
                     CHECK(!memcmp(&before[1], &objects[1], sizeof(objects[1])),
                           "the arrived guest was unseated or moved");
                 }
-                else if(!strcmp(name,"connected-stranded")||!strcmp(name,"connected-unrelated"))
+                else if(!strcmp(name,"connected-stranded")||!strcmp(name,"connected-unrelated")||
+                        !strcmp(name,"connected-parallel-marked")||!strncmp(name,"connected-parallel-other-",25))
                     CHECK(teleports==1&&ejections==1&&objects[1].object.parent_object_index==NONE,
                           "player without a safe crossing bypassed native recovery");
                 else

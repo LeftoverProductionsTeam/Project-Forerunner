@@ -3691,6 +3691,28 @@ static boolean player_in_bsp_switch_volume(
 		volume->cutscene_flag_index == NONE && network_coop_active() ? root_index : unit_index);
 }
 
+/* Parallel markerless routes can lead to the same loaded BSP. */
+static boolean player_bsp_continuous_route_contains(
+	struct scenario_bsp_switch_trigger_volume const *selected,
+	long root_index)
+{
+	struct tag_block *volumes = &global_scenario_get()->bsp_switch_trigger_volumes;
+	short index;
+
+	for (index = 0; index < MIN(volumes->count, SHORT_MAX); index++)
+	{
+		struct scenario_bsp_switch_trigger_volume const *route =
+			TAG_BLOCK_GET_ELEMENT(volumes, index, struct scenario_bsp_switch_trigger_volume);
+
+		if (route->cutscene_flag_index == NONE &&
+			route->source_structure_bsp_index == selected->source_structure_bsp_index &&
+			route->destination_structure_bsp_index == selected->destination_structure_bsp_index &&
+			scenario_trigger_volume_test_object(route->trigger_volume_index, root_index))
+			return TRUE;
+	}
+	return FALSE;
+}
+
 /* A seated AI can cross with the player in the same vehicle. Only a
  * continuous, player-triggered transition preserves the vehicle this way. */
 boolean players_coop_vehicle_passenger_crossing_bsp(
@@ -3718,7 +3740,7 @@ boolean players_coop_vehicle_passenger_crossing_bsp(
 		return FALSE;
 	vehicle_index = unit->object.parent_object_index;
 	if (!object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle) ||
-		!scenario_trigger_volume_test_object(volume->trigger_volume_index, object_get_ultimate_parent(vehicle_index)))
+		!player_bsp_continuous_route_contains(volume, object_get_ultimate_parent(vehicle_index)))
 		return FALSE;
 
 	data_iterator_new(&iterator, player_data);
@@ -4024,12 +4046,14 @@ void players_cancel_bsp_switch_gather(
 }
 
 /* The native reconnect has already classified the root in the destination. */
-static long player_bsp_crossing_root(long unit_index)
+static long player_bsp_crossing_root(
+	long unit_index,
+	struct scenario_bsp_switch_trigger_volume const *selected)
 {
 	long root = object_get_ultimate_parent(unit_index);
 
 	if (!players_coop_unit_in_structure(unit_index) ||
-		!is_player_in_trigger(players_globals->pending_teleport_starting_location_index, root))
+		!player_bsp_continuous_route_contains(selected, root))
 		return NONE;
 	return root;
 }
@@ -4129,7 +4153,7 @@ void players_reconnect_to_structure_bsp(
 				if (player_unit_index != NONE &&
 					players_globals->pending_teleport_starting_location_index != NONE)
 				{
-					long crossed_root = continuous_crossing ? player_bsp_crossing_root(player_unit_index) : NONE;
+					long crossed_root = continuous_crossing ? player_bsp_crossing_root(player_unit_index, bsp_switch) : NONE;
 
 					if (continuous_crossing && crossed_root == NONE)
 						continue;
@@ -4142,7 +4166,7 @@ void players_reconnect_to_structure_bsp(
 						found_player = TRUE;
 						break;
 					}
-					if (is_player_in_trigger(
+					if (crossed_root != NONE || is_player_in_trigger(
 						players_globals->pending_teleport_starting_location_index,
 						player_unit_index))
 					{
@@ -4222,7 +4246,7 @@ void players_reconnect_to_structure_bsp(
 					/* A crossing without a gather marker can leave arrived
 					 * units and their vehicles in the destination geometry. Use
 					 * the root so all riders of a crossing vehicle stay aboard. */
-					if (!continuous_crossing || player_bsp_crossing_root(player->unit_index) == NONE)
+					if (!continuous_crossing || player_bsp_crossing_root(player->unit_index, bsp_switch) == NONE)
 					{
 						player_teleport_on_bsp_switch(
 							iterator.datum_index,
