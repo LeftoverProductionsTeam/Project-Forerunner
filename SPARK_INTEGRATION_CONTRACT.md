@@ -1559,8 +1559,26 @@ The loadout probe SHA-256 was
 with executable SHA-256
 `6946f41bc97a86bff42079a9d4a9068ea5f3276105bf648d99f06a4ee4aca3dc`.
 The unchanged authoring handoff still needs the standard carrier graph and
-five repaired streams. The original spawner pickup, unattended waves,
-full survival round and Chupathingy acceptance remain open.
+five repaired streams. The original spawner pickup, full survival round
+and Chupathingy acceptance remain open.
+
+On the original audio-prefix diagnostic cache, without loadout changes or
+player fire, the three Alpha carriers released living actors at their
+authored 60-second interval (tick 1801). Both native peers matched the
+three salted actor IDs on foot through tick 1899 on the same executable.
+The standard 40-second weapon collection refreshed at tick 1200 but
+reproduced the missing-graph carrier refusal.
+
+A separate capacity comparison reused the valid Alpha weapon in the
+standard collection, leaving its nine placements and timer intact. On
+the identical disposable cache SHA-256
+`0b214f0c101061f1d6ae2e90fcd63af28741a5c384494473e03f11c35bf5e057`,
+the prior build dropped mounted requests and both peers saw 19 living
+actors. The existing native queue now retains overflow in saved unit
+flags. Both peers saw 25 living actors and the guest saw all 15 riders
+released through native rollover. Both processes exited normally. The
+fixed Windows x64 executable SHA-256 was
+`baee970f04530fce9e02f22141a5361efe8ffdd790038d0efb7a4dede9096d4f`.
 
 Smallest intended end-to-end gate, still unimplemented/unverified:
 

@@ -1288,10 +1288,10 @@ void ai_create_mounted_weapons_for_unit(
 		}
 		else
 		{
-			error(
-				_error_silent,
-				"WARNING: cannot create mounted weapons for %s, exceeded MAXIMUM_NUMBER_OF_MOUNTED_WEAPON_UNITS",
-				tag_name_strip_path(tag_get_name(unit_get(unit_index)->definition_index)));
+			/* Units retain overflow requests in the existing saved state. */
+			struct unit_datum *unit = unit_get(unit_index);
+			SET_FLAG(unit->unit.flags, _unit_pending_mounted_actors_bit, TRUE);
+			ai_globals->mounted_weapon_units_overflow = TRUE;
 		}
 	}
 
@@ -3048,6 +3048,50 @@ void ai_handle_spatial_effect(
 
 /* ---------- private code */
 
+static void ai_place_mounted_weapons_for_unit(
+	long unit_index)
+{
+	struct unit_datum *unit = unit_get(unit_index);
+	struct unit_definition *definition = unit_definition_get(unit->definition_index);
+	short seat_index;
+
+	for (seat_index = 0; seat_index < definition->unit.seats.count; seat_index++)
+	{
+		struct unit_seat *seat = TAG_BLOCK_GET_ELEMENT(
+			&definition->unit.seats,
+			seat_index,
+			struct unit_seat);
+
+		if (seat->built_in_actor_reference.index != NONE)
+		{
+			struct actor_starting_location starting_location;
+			long actor_index;
+
+			csmemset(&starting_location, 0, sizeof(starting_location));
+			starting_location.command_list_index = NONE;
+			object_get_origin(unit_index, &starting_location.position);
+
+			actor_index = actor_place(
+				seat->built_in_actor_reference.index,
+				NONE,
+				NONE,
+				&starting_location,
+				FALSE,
+				FALSE);
+
+			if (actor_index != NONE)
+			{
+				struct actor_datum *actor = actor_get(actor_index);
+
+				unit_enter_seat(
+					actor->meta.unit_index,
+					unit_index,
+					seat_index);
+			}
+		}
+	}
+}
+
 static void ai_place_pending_mounted_weapons(
 	void)
 {
@@ -3057,49 +3101,24 @@ static void ai_place_pending_mounted_weapons(
 		unit_number < ai_globals->mounted_weapon_unit_count;
 		unit_number++)
 	{
-		long unit_index = ai_globals->mounted_weapon_unit_indices[unit_number];
-		struct unit_datum *unit = unit_get(unit_index);
-		struct unit_definition *definition = unit_definition_get(unit->definition_index);
-		short seat_index;
+		ai_place_mounted_weapons_for_unit(ai_globals->mounted_weapon_unit_indices[unit_number]);
+	}
+	ai_globals->mounted_weapon_unit_count = 0;
 
-		for (seat_index = 0; seat_index < definition->unit.seats.count; seat_index++)
+	if (ai_globals->mounted_weapon_units_overflow)
+	{
+		struct object_iterator iterator;
+		struct unit_datum *unit;
+
+		ai_globals->mounted_weapon_units_overflow = FALSE;
+		object_iterator_new(&iterator, _object_mask_unit, 0);
+		while ((unit = (struct unit_datum *)object_iterator_next(&iterator)))
 		{
-			struct unit_seat *seat = TAG_BLOCK_GET_ELEMENT(
-				&definition->unit.seats,
-				seat_index,
-				struct unit_seat);
-
-			if (seat->built_in_actor_reference.index != NONE)
+			if (TEST_FLAG(unit->unit.flags, _unit_pending_mounted_actors_bit))
 			{
-				struct actor_starting_location starting_location;
-				long actor_index;
-
-				csmemset(&starting_location, 0, sizeof(starting_location));
-				starting_location.command_list_index = NONE;
-				object_get_origin(unit_index, &starting_location.position);
-
-				actor_index = actor_place(
-					seat->built_in_actor_reference.index,
-					NONE,
-					NONE,
-					&starting_location,
-					FALSE,
-					FALSE);
-
-				if (actor_index != NONE)
-				{
-					struct actor_datum *actor = actor_get(actor_index);
-
-					unit_enter_seat(
-						actor->meta.unit_index,
-						unit_index,
-						seat_index);
-				}
+				SET_FLAG(unit->unit.flags, _unit_pending_mounted_actors_bit, FALSE);
+				ai_place_mounted_weapons_for_unit(iterator.index);
 			}
 		}
 	}
-
-	ai_globals->mounted_weapon_unit_count = 0;
-
-	return;
 }

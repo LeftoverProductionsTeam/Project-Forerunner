@@ -68,7 +68,8 @@ struct ai_globals
 	short enterable_vehicle_count;
 	struct ai_vehicle_enterable enterable_vehicles[32];
 	short mounted_weapon_unit_count;
-	byte reserved8BA[0x2];
+	boolean mounted_weapon_units_overflow;
+	byte reserved8BB;
 	long mounted_weapon_unit_indices[8];
 };
 

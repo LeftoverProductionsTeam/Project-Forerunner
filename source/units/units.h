@@ -97,6 +97,7 @@ enum
 	_unit_possessed_by_recording_bit,
 	_unit_desired_integrated_light_on_bit,
 	_unit_desired_integrated_light_off_bit,
+	_unit_pending_mounted_actors_bit,
 	NUMBER_OF_UNIT_DATUM_FLAGS
 };
 
