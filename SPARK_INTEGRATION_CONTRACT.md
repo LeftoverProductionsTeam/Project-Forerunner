@@ -2416,6 +2416,17 @@ crossed normally at host tick 426 and guest tick 429. The guest remained on
 the floor. Both exited zero, pinned hashes held and staging was removed.
 The forced load failure was covered by the harness.
 
+The host also checks queued infantry and vehicle prediction ticks against
+each player's first input from the current BSP. A late source-region
+prediction can no longer pass on the strength of a newer acknowledgment.
+The packet layouts are unchanged. All 60 focused queue, BSP and checkpoint
+checks passed. Native loopback on the same stock D40 cache with Windows x64
+SHA-256 `c95f79a3fe88bde0fae08d3b1c08b60b7f2f1f9c5106fc9cb6ffa61c3ed6e70b`
+switched both peers to BSP 0 at tick 450. The guest then walked from
+(-26.942, 21.399, 0) to (-29.192, 21.417, 0), which both peers reported at
+tick 570. Both exited zero, hashes held and staging was removed. The
+late-sample rejection was exercised in the harness.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

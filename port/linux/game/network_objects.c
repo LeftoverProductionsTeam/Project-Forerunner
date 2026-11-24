@@ -47,6 +47,7 @@ same datum index (identifier and all), so that any message can name one:
 #include "game/cheats.h"
 #include "game/game_engine.h"
 #include "game/players.h"
+#include "game/player_queues_new.h"
 #include "networking/network_game_globals.h"
 #include "objects/objects.h"
 #include "vehicle_riding.h"
@@ -458,6 +459,7 @@ static struct
 {
 	boolean valid;
 	long machine_index;
+	long time;
 	struct distributed_object_state state;
 	long accepted_vehicle_index;
 	word accepted_time;
@@ -2147,6 +2149,7 @@ static void distributed_host_send_inventories(
 each, taken at the next tick */
 void network_objects_handle_vehicle_prediction(
 	long machine_index,
+	long time,
 	void const *entries,
 	short count)
 {
@@ -2172,6 +2175,7 @@ void network_objects_handle_vehicle_prediction(
 		}
 		objects_host_vehicle_predictions[player_index].valid = TRUE;
 		objects_host_vehicle_predictions[player_index].machine_index = machine_index;
+		objects_host_vehicle_predictions[player_index].time = time;
 		objects_host_vehicle_predictions[player_index].state = *state;
 	}
 }
@@ -2292,9 +2296,8 @@ void network_objects_apply_vehicle_predictions(
 		{
 			continue;
 		}
-		/* (not from a co-op client still loading the host's BSP: the
-		vehicle falls there with no ground under it) */
-		if (!network_coop_player_has_structure_bsp(driver->unit.player_index))
+		if (!update_server_prediction_matches_structure_bsp(driver->unit.player_index,
+			objects_host_vehicle_predictions[player_index].time))
 			continue;
 		dx = state->position.x - vehicle->object.position.x;
 		dy = state->position.y - vehicle->object.position.y;

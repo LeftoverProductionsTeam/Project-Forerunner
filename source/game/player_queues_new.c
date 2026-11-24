@@ -275,6 +275,7 @@ static struct
 	boolean valid;
 	long tick;
 	long received_time;
+	long structure_bsp_tick;
 } update_server_distributed_inputs[MAXIMUM_NUMBER_OF_PLAYERS];
 
 /* ... a client: each local player's last tick, its action, and the buttons
@@ -1204,6 +1205,17 @@ static boolean distributed_add_new_ticks(
 	return TRUE;
 }
 
+boolean update_server_prediction_matches_structure_bsp(long player_index, long prediction_tick)
+{
+	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+
+	if (!network_coop_active()) return TRUE;
+	return network_coop_player_has_structure_bsp(player_index) &&
+		(!VALID_INDEX(slot, NUMBEROF(update_server_distributed_inputs)) ||
+		!update_server_distributed_inputs[slot].valid ||
+		prediction_tick >= update_server_distributed_inputs[slot].structure_bsp_tick);
+}
+
 void update_server_handle_distributed_input(
 	long player_index,
 	long tick,
@@ -1231,6 +1243,8 @@ void update_server_handle_distributed_input(
 			tick <= update_server_distributed_inputs[absolute_index].tick) return;
 		if (network_coop_note_player_structure_bsp((short)absolute_index, structure_bsp_index))
 		{
+			/* Physics samples from before this input still describe the previous BSP. */
+			update_server_distributed_inputs[absolute_index].structure_bsp_tick = tick;
 			count = 1;
 			update_server_pending_control_flags[absolute_index] = 0;
 		}

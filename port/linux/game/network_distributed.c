@@ -4082,12 +4082,12 @@ static void distributed_apply_predictions(
 			distributed_host_speeds[player_index].unit_index = NONE;
 		if (distributed_predictions[player_index].valid)
 		{
-			/* (of the unit it has now: not one of a life before; and not
-			from a co-op client still loading the host's BSP, whose player
-			falls there with no floor under it) */
+			/* Match the living unit and the client's acknowledged BSP
+			interval before applying a queued prediction. */
 			boolean eligible = unit_index != NONE && unit_index == state->unit_index &&
 				unit_get(unit_index)->unit.player_index != NONE &&
-				network_coop_player_has_structure_bsp(unit_get(unit_index)->unit.player_index);
+				update_server_prediction_matches_structure_bsp(unit_get(unit_index)->unit.player_index,
+					distributed_predictions[player_index].time);
 
 			distributed_predictions[player_index].valid = FALSE;
 			distributed_predictions[player_index].taken_host_time = NONE;
@@ -8235,7 +8235,7 @@ static void distributed_handle_message(
 		network_damage_handle_fire_origins(machine_index, entries, header.count);
 		break;
 	case _distributed_message_vehicle_prediction:
-		network_objects_handle_vehicle_prediction(machine_index, entries, header.count);
+		network_objects_handle_vehicle_prediction(machine_index, header.game_time, entries, header.count);
 		break;
 	case _distributed_message_player_inputs:
 		distributed_handle_inputs(machine_index, (struct distributed_player_input const *)entries, header.count);

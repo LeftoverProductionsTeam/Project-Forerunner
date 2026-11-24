@@ -72,6 +72,8 @@ enum
 	DISTRIBUTED_INPUT_HISTORY = 4,
 };
 
+/* (the host) a physics sample from the client's acknowledged BSP interval */
+boolean update_server_prediction_matches_structure_bsp(long player_index, long prediction_tick);
 /* (the host) a client machine's player's action at the client's tick */
 void update_server_handle_distributed_input(
 	long player_index,

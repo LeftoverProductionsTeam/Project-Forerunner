@@ -14,8 +14,8 @@ def generated(fault=None):
         'network_coop_note_player_structure_bsp','network_coop_player_has_structure_bsp'))
     inputs+='\n'+'\n'.join(function(source,n) for n in (
         'update_queue_make_room','update_server_add_player','update_client_add_player',
-        'distributed_add_new_ticks','update_server_handle_distributed_input','update_server_next_update',
-        'update_client_distributed_input'))
+        'distributed_add_new_ticks','update_server_prediction_matches_structure_bsp',
+        'update_server_handle_distributed_input','update_server_next_update','update_client_distributed_input'))
     return (('under_test.inc',code),('inputs.inc',inputs))
 
 @pytest.mark.parametrize('case',['empty','sparse','slot-zero','eight','full','dedicated','client-only','uninitialized','early','bsp-input','bsp-slot-reuse','relay-slot-reuse'])

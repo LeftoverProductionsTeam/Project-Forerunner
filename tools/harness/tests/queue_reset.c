@@ -59,7 +59,7 @@ static long game_time_get(void) { return now; }
 enum {_game_connection_network_server=2,MAXIMUM_TRACKED_PLAYERS=128,MAXIMUM_NUMBER_OF_PLAYERS=128,
       DISTRIBUTED_INPUT_SILENCE_TICKS=10,MAXIMUM_LOCAL_PLAYERS=4};
 static short host_player_structure_bsps[MAXIMUM_TRACKED_PLAYERS];
-static struct {boolean valid;long tick,received_time;} update_server_distributed_inputs[MAXIMUM_NUMBER_OF_PLAYERS];
+static struct {boolean valid;long tick,received_time,structure_bsp_tick;} update_server_distributed_inputs[MAXIMUM_NUMBER_OF_PLAYERS];
 static unsigned long update_server_pending_control_flags[MAXIMUM_NUMBER_OF_PLAYERS];
 static struct {boolean valid; long update_number; struct player_action action;
  unsigned long pending_control_flags;} update_client_relayed_actions[MAXIMUM_NUMBER_OF_PLAYERS];
@@ -115,6 +115,10 @@ static void check_bsp_inputs(void)
  CHECK(!network_coop_player_has_structure_bsp(player)&&!update_server_pending_control_flags[0],
        "still-loading player's input affected destination");
  update_server_handle_distributed_input(player,13,1,&released,latest_buttons,4);
+ CHECK(!update_server_prediction_matches_structure_bsp(player,12),
+       "delayed movement from the source BSP passed after the destination acknowledgment");
+ CHECK(update_server_prediction_matches_structure_bsp(player,13),
+       "current destination movement was refused");
  update_server_handle_distributed_input(player,12,0,&held,held_buttons,4);
  update_server_next_update();
  action=&update_server_globals.updates[2].update.actions[0];
@@ -125,6 +129,13 @@ static void check_bsp_inputs(void)
  action=&update_server_globals.updates[3].update.actions[0];
  CHECK(action->control_flags==4&&action->throttle.i==1&&action->primary_trigger==1,
        "new input failed to resume in destination");
+ CHECK(update_server_prediction_matches_structure_bsp(player,13),
+       "ordinary destination input advanced the transition tick");
+ bsp=0;
+ update_server_handle_distributed_input(player,17,0,&released,latest_buttons,4);
+ CHECK(!update_server_prediction_matches_structure_bsp(player,16)&&
+       update_server_prediction_matches_structure_bsp(player,17),
+       "return crossing did not replace the transition tick");
  free(queues->data);
  free(queues);
 }
