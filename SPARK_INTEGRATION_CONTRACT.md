@@ -1966,6 +1966,15 @@ The map hash is the B40 control above. The test switched during the opening
 cinematic and logged a flying diagnostic. Physical connected-region traversal
 remains unverified.
 
+For a continuous co-op crossing, Spark can leave the native switch's
+cutscene flag unset and place its trigger in the shared collision overlap.
+Already-arrived infantry and vehicle roots must be inside that trigger and
+classified in the destination BSP. Forerunner keeps their positions, seats
+and gear. A vehicle root also provides the gather anchor when its occupied
+seat straddles the seam. Explicit gather markers and stranded recovery keep
+their existing behavior. Windows x64 compiled and 41 focused checks passed.
+Physical testing still requires the connected native map.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

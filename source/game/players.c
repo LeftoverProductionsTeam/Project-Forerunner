@@ -3823,8 +3823,8 @@ static void player_teleport_on_bsp_switch(
 		position);
 	if (biped)
 	{
-		/* port: in network co-op a loading zone brings the whole team to
-		whoever crossed it, the host (players_coop_bsp_switch_allowed).
+		/* port: in network co-op gather players still needing placement
+		beside the crossing party (players_reconnect_to_structure_bsp).
 		Only one BSP is ever loaded, so anyone left elsewhere would stand
 		outside it, or on a trigger that switches it straight back
 		(players_update_after_game waits for players_coop_bsp_switch_ready
@@ -3899,6 +3899,17 @@ void players_cancel_bsp_switch_gather(
 	players_globals->pending_teleport_starting_location_index = NONE;
 }
 
+/* The native reconnect has already classified the root in the destination. */
+static long player_bsp_crossing_root(long unit_index)
+{
+	long root = object_get_ultimate_parent(unit_index);
+
+	if (!players_coop_unit_in_structure(unit_index) ||
+		!is_player_in_trigger(players_globals->pending_teleport_starting_location_index, root))
+		return NONE;
+	return root;
+}
+
 void players_reconnect_to_structure_bsp(
 	void)
 {
@@ -3914,6 +3925,7 @@ void players_reconnect_to_structure_bsp(
 	short cutscene_flag_index;
 	long player_unit_index;
 	short pass;
+	boolean continuous_crossing;
 
 	/* port: a refused BSP load can reconnect the restored source BSP. Do
 	not carry out the destination's pending gather (or eject its passengers)
@@ -3951,6 +3963,7 @@ void players_reconnect_to_structure_bsp(
 		found_player = FALSE;
 		teleport_position_valid = FALSE;
 		cutscene_flag_index = bsp_switch->cutscene_flag_index;
+		continuous_crossing = cutscene_flag_index == NONE && network_coop_active();
 		if (cutscene_flag_index != NONE)
 		{
 			real adjustment = 0.f;
@@ -3989,6 +4002,17 @@ void players_reconnect_to_structure_bsp(
 				if (player_unit_index != NONE &&
 					players_globals->pending_teleport_starting_location_index != NONE)
 				{
+					long crossed_root = continuous_crossing ? player_bsp_crossing_root(player_unit_index) : NONE;
+
+					if (crossed_root != NONE && crossed_root != player_unit_index)
+					{
+						/* A seat can be beyond the seam while its vehicle
+						 * already has valid destination collision and location. */
+						source_unit_index = player_unit_index;
+						teleport_position = object_get(crossed_root)->object.position;
+						found_player = TRUE;
+						break;
+					}
 					if (is_player_in_trigger(
 						players_globals->pending_teleport_starting_location_index,
 						player_unit_index))
@@ -4062,10 +4086,16 @@ void players_reconnect_to_structure_bsp(
 				if (player->unit_index != NONE &&
 					player->unit_index != source_unit_index)
 				{
-					player_teleport_on_bsp_switch(
-						iterator.datum_index,
-						source_unit_index,
-						&teleport_position);
+					/* A crossing without a gather marker can leave arrived
+					 * units and their vehicles in the destination geometry. Use
+					 * the root so all riders of a crossing vehicle stay aboard. */
+					if (!continuous_crossing || player_bsp_crossing_root(player->unit_index) == NONE)
+					{
+						player_teleport_on_bsp_switch(
+							iterator.datum_index,
+							source_unit_index,
+							&teleport_position);
+					}
 					player->cluster_index = NONE;
 				}
 			}

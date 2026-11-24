@@ -27,7 +27,8 @@ def generated(fault=None):
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
             'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
-            'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather')) + '\n' + reconnect + '\n' + rescue),
+            'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
+            'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp')) + '\n' +
@@ -38,6 +39,8 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', [
     'host-superseded', 'reference-refused', 'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
+    'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
+    'connected-stranded', 'connected-unrelated',
     'no-pending', 'negative-pending', 'past-end-pending',
     'activation-cluster', 'activation-object', 'crowded-stranded', 'crowded-solid',
     'crowded-inside', 'crowded-operation', 'crowded-enemy', 'rescue-crowded', 'rescue-solid',

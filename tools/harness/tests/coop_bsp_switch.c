@@ -58,7 +58,7 @@ static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
 static int reject_reference[2],reject_load[2],reject_verify[2],loads[2],unloads[2];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
-static boolean crowded,solid,ignore_players,operations,opposed;
+static boolean crowded,solid,ignore_players,operations,opposed,connected;
 static int stacked_calls,beside_retries;
 static long ticks;
 static struct {long stranded_since[2];} players_coop_state;
@@ -85,13 +85,24 @@ static struct structure_bsp *global_structure_bsp_get(void) {return global_struc
 static void data_iterator_new(struct data_iterator *it,void *data) {it->slot=-1;it->datum_index=NONE;}
 static struct player_datum *data_iterator_next(struct data_iterator *it)
 {it->slot++;if(it->slot==2)return NULL;it->datum_index=players[it->slot];return &people[it->slot];}
-static boolean scenario_trigger_volume_test_object(short trigger,long unit) {return slot(unit)==0;}
+static boolean scenario_trigger_volume_test_object(short trigger,long unit)
+{
+    return unit==units[0] || (connected &&
+        (unit==units[3] || unit==objects[0].object.parent_object_index ||
+            (unit==units[1] && objects[1].object.parent_object_index==NONE)));
+}
+static long object_get_ultimate_parent(long unit)
+{
+    while(objects[slot(unit)].object.parent_object_index!=NONE)
+        unit=objects[slot(unit)].object.parent_object_index;
+    return unit;
+}
 static short players_coop_bsp_switch_trigger(long unit) {return slot(unit)==0?0:NONE;}
 static long scenario_leaf_index_from_point(real_point3d const *p) {return p->x<200?0:NONE;}
 static long game_time_get(void) {return ticks;}
 static boolean player_input_enabled(void) {return TRUE;}
 static boolean players_coop_unit_in_structure(long unit)
-{return scenario_leaf_index_from_point(&objects[slot(unit)].object.position)!=NONE;}
+{return scenario_leaf_index_from_point(&objects[slot(object_get_ultimate_parent(unit))].object.position)!=NONE;}
 static boolean players_coop_unit_grounded(long unit) {return players_coop_unit_in_structure(unit);}
 static boolean players_coop_unit_stranded(long unit) {return !players_coop_unit_in_structure(unit);}
 static long players_coop_unit_where(long player,boolean (*eligible)(long))
@@ -199,7 +210,7 @@ static void setup(short old,short destination)
 int main(int argc,char **argv)
 {
     char const *name=argc>1?argv[1]:"";
-    short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")?1:0,destination=1-old;
+    short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
     if(!strcmp(name,"host-superseded"))
@@ -254,6 +265,25 @@ int main(int argc,char **argv)
     if(!strcmp(name,"split-refused")||!strcmp(name,"split-forward"))
     {coop=FALSE;players_globals->local_player_count=2;people[1].local_player_index=1;}
     if(!strcmp(name,"same-vehicle"))objects[1].object.parent_object_index=units[2];
+    connected=!strncmp(name,"connected-",10);
+    if(connected)
+    {
+        switches[0].cutscene_flag_index=NONE;
+        if(!strcmp(name,"connected-foot"))
+            objects[0].object.parent_object_index=objects[1].object.parent_object_index=NONE;
+        if(!strcmp(name,"connected-stranded"))
+            objects[3].object.position.x=objects[3].object.bounding_sphere_center.x=250.f;
+        if(!strcmp(name,"connected-offset-seats"))
+        {
+            objects[0].object.position.x=objects[0].object.bounding_sphere_center.x=250.f;
+            objects[1].object.position.x=objects[1].object.bounding_sphere_center.x=250.f;
+        }
+        if(!strcmp(name,"connected-unrelated"))
+        {
+            objects[1].object.parent_object_index=units[2];
+            objects[0].object.parent_object_index=units[3];
+        }
+    }
     crowded=!strncmp(name,"crowded-",8);
     if(crowded)
     {
@@ -325,6 +355,15 @@ int main(int argc,char **argv)
             }
             else if(!strcmp(name,"same-vehicle"))
                 CHECK(!teleports&&!ejections&&objects[1].object.parent_object_index==units[2],"shared passengers separated");
+            else if(connected)
+            {
+                if(!strcmp(name,"connected-stranded")||!strcmp(name,"connected-unrelated"))
+                    CHECK(teleports==1&&ejections==1&&objects[1].object.parent_object_index==NONE,
+                          "player without a safe crossing bypassed native recovery");
+                else
+                    CHECK(!teleports&&!ejections&&!memcmp(before,objects,sizeof(before)),
+                          "arrived crews or infantry were displaced during a continuous crossing");
+            }
             else
                 CHECK(teleports==1&&ejections==1&&objects[1].object.position.x==100&&
                       objects[1].object.parent_object_index==NONE,"successful classic gather changed");
