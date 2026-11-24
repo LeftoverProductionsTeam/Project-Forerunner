@@ -1654,6 +1654,26 @@ held and disposable staging was removed. This verifies scoped mixed-runtime
 MCC play. Standalone CE609, matching individual zombie exits, Evolved
 egress and a complete survival round remain open.
 
+On the exact full-audio cache `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`,
+both native peers observed 33 matching live Standard releases through tick
+2670. Both also saw nine Evolved riders in four carrier slots and no observed
+Evolved exit. With the host nearby, Evolved carrier `e3460072` settled at
+(40.28, -78.54, 0.05) with native up.z 1.000 and zero angular speed.
+The stock rollover rule correctly kept the upright riders aboard. The next
+Spark handoff needs a native automatic Evolved placement or launch that causes
+a physical rollover and grounded contact. Validate the wrapper's initial pose
+and motion against that result. Preserve the original carrier definitions and
+full audio. Full Evolved egress and a completed survival round remain open.
+
+MCC hosting now honors a valid OpenCE announcement pin with a known MCC
+layout. A direct two-peer launch of the same Zombie cache at pin 43 matched
+both player positions through tick 420 and both processes exited zero.
+Windows x64 SHA-256
+`87606ab108d796632914925d6e22d25f2c7ffbe4aeca0fef3df3f31732270d51`.
+The run used the normal pin setting. This is scoped native admission evidence.
+The exact full-audio cache is held privately under `build/zombie-mcc-baseline`
+for the next targeted test.
+
 A finer two-peer capture sampled nine living riders in the valid carriers.
 Six stayed in their native seats on the host but never attached on the
 guest. Forerunner now publishes AI seat transitions and keeps idle seated

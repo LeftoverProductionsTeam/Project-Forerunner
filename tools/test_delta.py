@@ -1130,6 +1130,8 @@ def test_mcc_version(keys, checker, tmp_path):
     own = define(DELTA.read_text(encoding="utf-8"), "DELTA_LEGACY_NEWEST")
     assert own >= 42
     assert f"mcc {own}\n" in run_checker(checker, tmp_path, "mcc")
+    assert "mcc 43\n" in run_checker(checker, tmp_path, "mcc", announce="43")
+    assert f"mcc {own}\n" in run_checker(checker, tmp_path, "mcc", announce="42")
     row = dict(floor(), hosting=[hosted()])
     table = write_signed(keys, tmp_path / "t20", document(serial=20, row=row))
     assert f"mcc {own}\n" in run_checker(checker, tmp_path, "offer", table, "mcc")

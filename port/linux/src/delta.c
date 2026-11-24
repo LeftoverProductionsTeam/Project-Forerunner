@@ -1657,16 +1657,19 @@ int delta_legacy_host_game_at(int version)
 
 int delta_legacy_mcc_version(void)
 {
-	int newest, number, index;
+	int newest, number, index, pin_has_layout;
 
 	pthread_once(&delta_once, delta_load);
 	pthread_mutex_lock(&delta_lock);
 	/* (the newest layout this build has: its own rules, or a table's facts) */
 	newest = DELTA_LEGACY_NEWEST;
+	pin_has_layout = delta.pin <= newest;
 	for (index = 0; index < delta.layout_count; index++)
 	{
 		if (delta.layouts[index].version > newest)
 			newest = delta.layouts[index].version;
+		if (delta.layouts[index].version == delta.pin)
+			pin_has_layout = 1;
 	}
 	/* (the table's newest proven for hosting counts past the build's own
 	rules alone: its own newest it hosts MCC at without a row) */
@@ -1675,6 +1678,12 @@ int delta_legacy_mcc_version(void)
 		number = newest;
 	if (number > delta.maximum)
 		number = delta.maximum;
+	/* An explicit MCC-capable host pin keeps the lobby and the selected map
+	 * on the same wire. Unsupported pins keep the usual MCC selection. */
+	if (pin_has_layout && delta.pin >= DELTA_LEGACY_MCC_RELEASED && delta.pin >= delta.minimum &&
+		delta.pin >= HALO_PORT_HOST_NETWORK_VERSION_MINIMUM && delta.pin <= delta.hosting_newest &&
+		delta.pin <= number)
+		number = delta.pin;
 	/* (42 was in no release of OpenCE's: a table that caps the numbers at
 	42 leaves no MCC games, rather than a game nobody can join) */
 	if (number < DELTA_LEGACY_MCC_RELEASED || number < delta.minimum)
