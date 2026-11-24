@@ -23,7 +23,7 @@ static boolean allocated, controllable, possessed, active, deactivation;
 static short destroyed, hovered;
 static byte stream[8];
 struct data_iterator { long datum_index; short next; };
-static void *animation_threads;
+static struct { boolean valid; } thread_table = { TRUE }, *animation_threads = &thread_table;
 #define TAG_BLOCK_GET_ELEMENT(block,index,type) (((type *)(block)->address)+(index))
 #define animation_threads_debug_get(index) (&debug_slot)
 #define global_scenario_get() (&scenario)
@@ -34,7 +34,7 @@ static void *animation_threads;
 #undef match_assert
 #define match_assert(file,line,test) CHECK(test,"native assertion")
 #define match_vassert(file,line,test,message) CHECK(test,"native stream assertion")
-#define error(...) ((void)0)
+static void error(int level, char const *message, ...) {(void)level;(void)message;}
 static void data_iterator_new(struct data_iterator *i,void *data) {(void)data;i->next=0;}
 static void *data_iterator_next(struct data_iterator *i) {i->datum_index=0;return !i->next++&&allocated?&slot:NULL;}
 static long datum_new(void *data) {(void)data;memset(&slot,0,sizeof(slot));allocated=TRUE;return 0;}
@@ -70,10 +70,20 @@ int main(int argc,char **argv)
  controllable=strcmp(argv[1],"uncontrolled")!=0;
  scenario.recorded_animations.count=1;scenario.recorded_animations.address=&recording;
  recording.version=1;recording.length_in_ticks=1;recording.event_stream.size=sizeof(stream);recording.event_stream.address=stream;
- old_flags=!strcmp(argv[1],"hover")?FLAG(_recording_thread_hover_vehicle_on_complete_bit):FLAG(_recording_thread_delete_unit_on_complete_bit);
+ old_flags=(!strcmp(argv[1],"hover")||!strcmp(argv[1],"hover-handoff"))?FLAG(_recording_thread_hover_vehicle_on_complete_bit):FLAG(_recording_thread_delete_unit_on_complete_bit);
  CHECK(recorded_animation_play_internal(1,0,old_flags),"first flight refused");
  CHECK(!controllable&&possessed&&active&&!deactivation,"native recording did not take control");
  CHECK(!recorded_animation_play_internal(1,0,0),"active flight replaced without kill/finish");
+ if(!strcmp(argv[1],"hover-handoff")) {
+  CHECK(recorded_animation_has_thread(1) && !recorded_animation_has_thread(2),"recording did not identify its own aircraft");
+  recorded_animations_update();
+  CHECK(!recorded_animation_controlling_unit(1) && recorded_animation_has_thread(1) && !hovered,
+    "recording released before its native hover handoff");
+  recorded_animations_update();
+  CHECK(!recorded_animation_has_thread(1) && hovered==1 && controllable && !possessed && !active,
+    "native hover handoff did not release the aircraft");
+  return 0;
+ }
  if(!strcmp(argv[1],"finished")) recorded_animations_update();
  else recorded_animation_kill(1);
  CHECK(recorded_animation_play_internal(1,0,0),"next flight refused during cleanup window");

@@ -597,6 +597,12 @@ static struct animation_thread *get_controlling_thread(
 	return thread;
 }
 
+boolean recorded_animation_has_thread(long unit_index)
+{
+	return animation_threads && animation_threads->valid &&
+		get_controlling_thread(unit_index, NULL) != NULL;
+}
+
 void recorded_animation_kill(
 	long unit_index)
 {

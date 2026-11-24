@@ -31,6 +31,9 @@ void recorded_animations_clear_debug_storage(
 
 boolean recorded_animation_controlling_unit(
 	long unit_index);
+/* Includes a finished thread until its native hover/delete cleanup has run. */
+boolean recorded_animation_has_thread(
+	long unit_index);
 void recorded_animation_kill(
 	long unit_index);
 long recorded_animation_get_time_left(

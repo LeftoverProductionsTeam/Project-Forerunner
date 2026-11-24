@@ -102,6 +102,7 @@ struct unit_seat {unsigned long flags; char label[32],marker_name[32];};
 static struct unit_seat transport_seats[2];
 static struct unit_definition dropship_tag={{{2,transport_seats}}},character_tag;
 static boolean native_cinematic;
+static long recorded_aircraft=NONE;
 static struct unit_definition *unit_definition_get(long index) { if(index==4||index==5)return &character_tag;CHECK(index==300,"native vehicle definition");return &dropship_tag; }
 static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
@@ -216,6 +217,7 @@ static struct unit_datum *unit_get(long h) { void *p=object_try_and_get_and_veri
 static struct weapon_datum *weapon_try_and_get(long h) { return object_try_and_get_and_verify_type(h,_object_mask_weapon); }
 static struct weapon_datum *weapon_get(long h) { struct weapon_datum *p=weapon_try_and_get(h); CHECK(p,"invalid weapon"); return p; }
 static boolean cinematic_in_progress(void) { return native_cinematic; }
+static boolean recorded_animation_has_thread(long vehicle_index) { return vehicle_index==recorded_aircraft; }
 static boolean unit_controllable(long h) { return !(unit_get(h)->object.damage_flags & 1); }
 static boolean unit_is_busy(long h) { return FALSE; }
 static void object_deplete_shield(long h) { unit_get(h)->object.shield_vitality=0.f; }
@@ -1532,6 +1534,14 @@ int main(int argc,char **argv)
    ship->object.position.x=7.f;ship->object.first_child_object_index=NONE;
    CHECK(!unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"undeployed player boarded at the aircraft pad");
    touch(0,faction);
+   recorded_aircraft=transport;advance(1);
+   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value &&
+    !unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"active recording allowed boarding at touchdown");
+   units[faction].object.parent_object_index=transport;units[faction].unit.parent_seat_index=0;advance(1);
+   CHECK(!device_groups[10].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+    "active recording released an occupied crew");
+   units[faction].object.parent_object_index=NONE;
+   recorded_aircraft=NONE;
    CHECK(unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"deployed player could not board at its dedicated pad");
    units[faction].object.parent_object_index=transport;units[faction].unit.parent_seat_index=0;advance(1);
    CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release aircraft insertion at its dedicated pad");
@@ -1551,6 +1561,10 @@ int main(int argc,char **argv)
    CHECK(!extraction_transport_brake_at_pad(transport),"aircraft braked outside its dedicated pad");
    ship->object.position.x=7.f;
    CHECK(extraction_transport_brake_at_pad(transport),"occupied aircraft could not brake at its dedicated pad");
+   recorded_aircraft=transport;advance(1);
+   CHECK(!extraction_transport_brake_at_pad(transport) && !device_groups[11].actual_value &&
+    run(faction)->phase==_extraction_ready && !transport_wakes[faction],"landing bypassed the recorded return handoff");
+   recorded_aircraft=NONE;
    units[faction].object.parent_object_index=NONE;
    CHECK(!extraction_transport_brake_at_pad(transport),"disembarked passenger kept the brake active");
    units[faction].object.parent_object_index=transport;

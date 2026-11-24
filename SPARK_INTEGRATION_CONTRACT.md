@@ -60,6 +60,23 @@ Reproduce the landing with the isolated native transport map before another
 whole-mission run. Native flight/braking belongs here; the route and pad
 geometry remain Spark authoring data.
 
+Native recorded flight uses Bungie's playback, unit controls and collision.
+Managed aircraft with a landing output now wait for playback cleanup before
+publishing landed or crew-ready, accepting boarding or exit, and banking.
+A final `recording_time` of zero alone can precede that cleanup. Spark should
+use `recording_play_and_hover` for an authored clip ending with real ground
+contact and wait for the faction's landed output. Release hover with
+`vehicle_hover` before the next clip and preserve the native seat, cinematic,
+pad and settlement gates. An airborne hover still cannot bank.
+
+Windows x64 compiled. 96 focused recording and transport checks passed,
+including the final-frame/hover transition and both faction return pads.
+The exact Windows executable, stock b30 and isolated be_native fixture
+hashes are in `build/black-echo-transport-baseline/comparison.json`. Both
+short runs exited cleanly, and the fixture exposed a native landed aircraft.
+The combined recorded Extraction flight remains to be tested with authored
+clips on the Black Echo map. No full mission was replayed for this change.
+
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.

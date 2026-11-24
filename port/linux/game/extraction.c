@@ -16,6 +16,7 @@
 #include "networking/network_game_globals.h"
 #include "game/game_allegiance.h"
 #include "cutscene/cinematics.h"
+#include "cutscene/recorded_animations.h"
 #include "game_modes.h"
 #include "interface/hud_messaging.h"
 #include "sound/game_sound.h"
@@ -1785,6 +1786,13 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 	return index;
 }
 
+static boolean extraction_transport_landed(long vehicle_index)
+{
+	/* The last recorded input can have landed while hover or cleanup is
+	 * still pending. Keep readiness, boarding, exit and banking in sync. */
+	return !recorded_animation_has_thread(vehicle_index) && vehicle_is_landed(vehicle_index);
+}
+
 boolean extraction_transport_can_board(long unit_index, long vehicle_index, short seat_index)
 {
 	struct unit_datum *unit, *vehicle;
@@ -1808,7 +1816,7 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 		extraction_unit_pending_death(unit) || extraction_medical_incapacitated(unit_index) ||
 		extraction_faction(unit->object.owner_team_index) != faction ||
 		extraction_faction((short)player->team_index) != faction) return FALSE;
-	if (extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(vehicle_index)) return FALSE;
+	if (extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(vehicle_index)) return FALSE;
 	if (extraction.dropship_boarding_groups[faction] == NONE) return TRUE;
 	if (!extraction_transport_seat_allowed(vehicle, seat_index, TRUE)) return FALSE;
 
@@ -1841,7 +1849,7 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 			/* A damaged or destroyed craft must still release its passengers. */
 			return !vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 				extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.f) ||
-				vehicle_is_landed(ship);
+				extraction_transport_landed(ship);
 		}
 	return TRUE;
 }
@@ -1870,7 +1878,7 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (faction != NONE && extraction.dropship_landing_groups[faction] != NONE &&
-			!vehicle_is_landed(run->dropship)) return FALSE;
+			!extraction_transport_landed(run->dropship)) return FALSE;
 		return extraction_in_hub_volume(extraction_transport_return_zone(faction), run->dropship);
 	}
 	return extraction_at_hub(unit_index);
@@ -1880,7 +1888,7 @@ boolean extraction_transport_brake_at_pad(long vehicle_index)
 {
 	short faction, index;
 
-	if (!extraction_owns_map() || extraction.suspended)
+	if (!extraction_owns_map() || extraction.suspended || recorded_animation_has_thread(vehicle_index))
 		return FALSE;
 	for (faction = 0; faction < NUMBEROF(extraction.dropship_return_zones); faction++)
 	{
@@ -1921,7 +1929,7 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (extraction_medical_incapacitated(run->unit) ||
 			!extraction_transport_at_field(faction, dropship) ||
-			(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(dropship))) return FALSE;
+			(extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(dropship))) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
 		extraction.dropship_evacuating[faction] = dropship;
@@ -2018,7 +2026,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		short faction = extraction_faction(unit->object.owner_team_index);
 		long ship = extraction_player_dropship(unit);
 		if (ship != NONE && extraction_transport_at_field(faction, ship) &&
-			(extraction.dropship_landing_groups[faction] == NONE || vehicle_is_landed(ship)))
+			(extraction.dropship_landing_groups[faction] == NONE || extraction_transport_landed(ship)))
 			run->field_reached = TRUE;
 	}
 	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&
@@ -2199,7 +2207,7 @@ static void extraction_transport_readiness(void)
 			long ship = extraction.suspended ? NONE : object_index_from_name_index(extraction.dropship_names[faction]);
 			/* Both outputs refer to the same native craft and landing sample.
 			 * Older maps may declare only the crew output. */
-			real landed = landing_group != NONE && ship != NONE && vehicle_is_landed(ship) ? 1.f : 0.f;
+			real landed = landing_group != NONE && ship != NONE && extraction_transport_landed(ship) ? 1.f : 0.f;
 			real ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || landed > 0.f) &&
 				extraction_transport_crew_ready(faction, ship) ? 1.f : 0.f;
 			if (landing_group != NONE && device_group_get_value(landing_group) != landed)
@@ -2231,7 +2239,7 @@ static void extraction_transport_completions(void)
 		if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 			extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.0f) ||
 			!extraction_in_hub_volume(extraction_transport_return_zone(faction), ship) || cinematic_in_progress() ||
-			(extraction.dropship_landing_groups[faction] != NONE && !vehicle_is_landed(ship))) continue;
+			(extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(ship))) continue;
 		/* The durable bank belongs to the arrival even if its owner leaves.
 		 * Other squads and craft do not delay release. A connected boarded
 		 * crewmate still settling keeps this aircraft at the hub. */
