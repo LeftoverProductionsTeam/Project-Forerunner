@@ -1088,6 +1088,13 @@ boolean scenario_switch_structure_bsp(
 			&global_scenario->structure_bsp_references,
 			structure_bsp_index,
 			struct scenario_structure_bsp_reference);
+		/* A bad reference cannot change regions. Avoid disconnecting live
+		 * AI, effects, objects and passengers in the active BSP. */
+		if (global_structure_bsp_index != NONE && !scenario_structure_bsp_reference_is_valid(reference))
+		{
+			players_cancel_bsp_switch_gather();
+			return FALSE;
+		}
 		had_old_structure_bsp = FALSE;
 
 		match_assert("c:\\halo\\SOURCE\\scenario\\scenario.c", 0x2B7, global_scenario);

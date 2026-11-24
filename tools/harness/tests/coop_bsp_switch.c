@@ -56,7 +56,7 @@ static struct bsp3d *global_bsp3d;
 static struct structure_leaf leaves[2];
 static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
-static int reject_load[2],reject_verify[2],loads[2],unloads[2];
+static int reject_reference[2],reject_load[2],reject_verify[2],loads[2],unloads[2];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
 static boolean crowded,solid,ignore_players,operations,opposed;
 static int stacked_calls,beside_retries;
@@ -142,8 +142,10 @@ static void object_type_disconnect_from_structure_bsp(long index) {}
 #pragma clang diagnostic pop
 static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;objects_disconnect_from_structure_bsp();}
 static void scenario_call_reconnect_to_structure_bsp_procs(void) {reconnects++;players_reconnect_to_structure_bsp();}
+static boolean scenario_structure_bsp_reference_is_valid(struct scenario_structure_bsp_reference const *ref)
+{return !reject_reference[ref->structure_bsp.index];}
 static boolean scenario_structure_bsp_load(struct scenario_structure_bsp_reference *ref)
-{loads[ref->structure_bsp.index]++;return !reject_load[ref->structure_bsp.index];}
+{loads[ref->structure_bsp.index]++;return !reject_reference[ref->structure_bsp.index] && !reject_load[ref->structure_bsp.index];}
 static void scenario_structure_bsp_unload(struct scenario_structure_bsp_reference *ref) {unloads[ref->structure_bsp.index]++;}
 static struct structure_bsp *structure_bsp_definition_get(long index) {return &structures[index];}
 static boolean structure_bsp_port_verify(struct structure_bsp *bsp) {return !reject_verify[bsp-structures];}
@@ -239,6 +241,25 @@ int main(int argc,char **argv)
         objects[1].object.bounding_sphere_center=objects[1].object.position;
     }
     memcpy(before,objects,sizeof(before));
+    if(!strcmp(name,"reference-refused"))
+    {
+        reject_reference[destination]=TRUE;
+        object_globals->pvs_activation_type=_pvs_activation_cluster;
+        object_globals->pvs_activation.cluster_index=2;
+        CHECK(!scenario_switch_structure_bsp(destination),"invalid BSP reference was accepted");
+        CHECK(!clock_stops&&!clock_starts&&collision_log&&!disconnects&&!reconnects&&
+              !loads[old]&&!unloads[old]&&!loads[destination]&&!culling&&!menu,
+              "invalid reference tore down simulation state before loading");
+        CHECK(global_structure_bsp_index==old&&scenario_globals->structure_bsp_index==old&&
+              global_structure_bsp==&structures[old]&&global_collision_bsp==&collisions[old],
+              "invalid reference displaced the active BSP");
+        CHECK(people[0].cluster_index==8&&people[1].cluster_index==9&&
+              object_globals->pvs_activation_type==_pvs_activation_cluster&&
+              object_globals->pvs_activation.cluster_index==2&&!memcmp(before,objects,sizeof(before)),
+              "invalid reference changed cluster activation, vehicles or equipment");
+        CHECK(players_globals->pending_teleport_starting_location_index==NONE,"refused switch left a pending gather");
+        return 0;
+    }
     if(!strcmp(name,"no-pending")||!strcmp(name,"negative-pending")||!strcmp(name,"past-end-pending"))
     {
         players_globals->pending_teleport_starting_location_index=!strcmp(name,"negative-pending")?-2:

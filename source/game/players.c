@@ -3893,6 +3893,12 @@ static void player_teleport_on_bsp_switch(
 	return;
 }
 
+void players_cancel_bsp_switch_gather(
+	void)
+{
+	players_globals->pending_teleport_starting_location_index = NONE;
+}
+
 void players_reconnect_to_structure_bsp(
 	void)
 {

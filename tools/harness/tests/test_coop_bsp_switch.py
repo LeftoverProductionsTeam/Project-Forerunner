@@ -27,13 +27,13 @@ def generated(fault=None):
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
             'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
-            'player_teleport_on_bsp_switch')) + '\n' + reconnect + '\n' + rescue),
+            'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
     )
 
 
 @pytest.mark.parametrize('case', [
-    'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
+    'reference-refused', 'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'no-pending', 'negative-pending', 'past-end-pending',
     'activation-cluster', 'activation-object', 'crowded-stranded', 'crowded-solid',

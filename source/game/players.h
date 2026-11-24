@@ -421,6 +421,8 @@ void players_respawn_at_checkpoint(
 /* port: same native creation/equipment, at authored starts without relocation. */
 void players_respawn_at_start(
 	void);
+void players_cancel_bsp_switch_gather(
+	void);
 void players_reconnect_to_structure_bsp(
 	void);
 

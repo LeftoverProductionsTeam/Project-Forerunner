@@ -1950,6 +1950,14 @@ cross-region authority/replication, persistent world state and portal-aware
 render/audio contexts remain engine requirements. Keep all limits and original
 installations intact; no stock Xbox support or seamless BSP switching is claimed.
 
+The loader now refuses an invalid destination reference before disconnecting
+the current region. It clears the pending gather while preserving the live BSP,
+objects and cluster activation. Twenty-five focused checks passed. A private
+Windows x64 stock B40 run switched 0 to 1 to 0 through the native console at
+ticks 0, 15 and 30 and exited cleanly. Executable SHA-256 `7f24bdd8e46d1650fb5dc239deab147267a1494b87bf82ba0641d25a83bdfca6`.
+Control map SHA-256 `0a7b26d6d828e7b773d36d9d5c798b9bf4b143332301a0c0e7a3d685782eab48`.
+Physical connected-region traversal remains unverified.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

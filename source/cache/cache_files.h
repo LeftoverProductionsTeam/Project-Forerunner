@@ -137,6 +137,9 @@ void scenario_tags_unload(
 	void);
 long scenario_tags_load(
 	char const *scenario_name);
+/* Checks the reference without detaching the current BSP or reading new geometry. */
+boolean scenario_structure_bsp_reference_is_valid(
+	struct scenario_structure_bsp_reference const *reference);
 boolean scenario_structure_bsp_load(
 	struct scenario_structure_bsp_reference *reference);
 void tag_files_close(

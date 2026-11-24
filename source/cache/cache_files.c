@@ -323,7 +323,7 @@ static boolean cache_file_tag_header_verify(
 	long tag_data_size,
 	char const *scenario_name);
 static boolean cache_file_structure_bsp_reference_verify(
-	struct scenario_structure_bsp_reference *reference);
+	struct scenario_structure_bsp_reference const *reference);
 
 /* ---------- globals */
 
@@ -562,7 +562,7 @@ its bytes lie in the map and fit the tag cache after the tag data, where
 they are read to (rounded up to whole sectors, as the read is), and it
 names a structure bsp tag */
 static boolean cache_file_structure_bsp_reference_verify(
-	struct scenario_structure_bsp_reference *reference)
+	struct scenario_structure_bsp_reference const *reference)
 {
 	byte *tag_cache_base_address = physical_memory_get_tag_cache_base_address();
 	long tag_data_size = cache_file_globals.header.tag_data_size;
@@ -2402,6 +2402,30 @@ long scenario_tags_load(
 	return result;
 }
 
+boolean scenario_structure_bsp_reference_is_valid(
+	struct scenario_structure_bsp_reference const *reference)
+{
+	if (mcc_cache_tags_loaded())
+		return cache_file_structure_bsp_tag_valid(reference);
+#ifdef HALO_CUSTOM_EDITION
+	/* Only read CE references whose location was checked before tag conversion. */
+	if (cache_file_is_ce)
+	{
+		extern boolean ce_map_bsp_reference_checked(void const *reference);
+
+		if (ce_map_bsp_reference_checked(reference))
+			return TRUE;
+		error(_error_silent, "Custom Edition map: structure BSP %08lx is not where it was checked; it is not loaded",
+			(unsigned long)reference->structure_bsp.index);
+		return FALSE;
+	}
+#endif
+	/* The BSP read must stay within the checked file and tag-cache ranges. */
+	return cache_file_globals.header.tag_data_size >= 0 &&
+		cache_file_globals.header.tag_data_size <= TAG_CACHE_SIZE &&
+		cache_file_structure_bsp_reference_verify(reference);
+}
+
 boolean scenario_structure_bsp_load(
 	struct scenario_structure_bsp_reference *reference)
 {
@@ -2410,50 +2434,19 @@ boolean scenario_structure_bsp_load(
 	/* port: the bsp's header, once read and checked */
 	struct cache_file_structure_bsp_header *structure_bsp_header;
 
+	if (!scenario_structure_bsp_reference_is_valid(reference))
+		return FALSE;
+
 	/* port: an MCC map's bsp is read and converted by mcc_cache.c */
 	if (mcc_cache_tags_loaded())
 	{
 		void *mcc_header, *mcc_structure;
-		if (!cache_file_structure_bsp_tag_valid(reference) ||
-			!mcc_cache_bsp_load(reference, &mcc_header, &mcc_structure))
+		if (!mcc_cache_bsp_load(reference, &mcc_header, &mcc_structure))
 			return FALSE;
 		cache_file_globals.structure_bsp_header = mcc_header;
 		cache_get_tag_instance(reference->structure_bsp.index)->base_address = xbox_address(mcc_structure);
 		return TRUE;
 	}
-
-	/* port: the tag data's size was checked as the map loaded
-	(cache_file_header_verify); the bsp's reference is the map's, and is
-	checked before anything is read where it says */
-	if (
-#ifdef HALO_CUSTOM_EDITION
-		/* (a Custom Edition map's bsps are in its own tag cache, checked
-		against its file before it was opened: ce_map_checks.c) */
-		!cache_file_is_ce &&
-#endif
-		(cache_file_globals.header.tag_data_size < 0 ||
-		cache_file_globals.header.tag_data_size > TAG_CACHE_SIZE ||
-		!cache_file_structure_bsp_reference_verify(reference)))
-	{
-		return FALSE;
-	}
-#ifdef HALO_CUSTOM_EDITION
-	/* port: and a Custom Edition map's only as it was checked: the
-	conversions of its tags as they loaded wrote in place, and one whose
-	block lay over the reference could have moved the BSP's read to bytes,
-	or memory, that nothing checked */
-	if (cache_file_is_ce)
-	{
-		extern boolean ce_map_bsp_reference_checked(void const *reference);
-
-		if (!ce_map_bsp_reference_checked(reference))
-		{
-			error(_error_silent, "Custom Edition map: structure BSP %08lx is not where it was checked; it is not loaded",
-				(unsigned long)reference->structure_bsp.index);
-			return FALSE;
-		}
-	}
-#endif
 
 	tag_cache_base_address = physical_memory_get_tag_cache_base_address();
 #ifdef HALO_CUSTOM_EDITION
