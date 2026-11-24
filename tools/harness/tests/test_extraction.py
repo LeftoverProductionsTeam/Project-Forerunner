@@ -279,6 +279,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-boarded-pending', 'transport-boarded-ship', 'transport-boarded-identity', 'transport-boarded-duplicate',
     'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
     'transport-boarded-owner-state', 'transport-boarded-native-exit', 'transport-boarded-recording',
+    'transport-boarded-forced-exit',
     'transport-boarded-squad-field', 'transport-boarded-squad-hub',
     'transport-boarded-squad-wait', 'transport-boarded-squad-mixed',
     'transport-boarded-squad-stale',
@@ -286,6 +287,12 @@ def test_native_squad_negative_control(before, after, case):
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)
     assert status == 0, output
+
+
+def test_native_forced_exit_clears_crew_before_detach():
+    exit_seat = function(read('source/units/units.c'), 'unit_exit_seat_end')
+    notify = exit_seat.index('extraction_transport_seat_transition_started(unit);')
+    assert notify < exit_seat.index('object_detach(unit_index);')
 
 
 def test_failed_native_consume_suspends_same_tick_crew_settlement():

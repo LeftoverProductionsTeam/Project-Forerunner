@@ -2054,6 +2054,17 @@ int main(int argc,char **argv)
   if(!strncmp(case_name,"transport-boarded",17)) {
    boolean other=!strcmp(case_name,"transport-boarded-other")||!strcmp(case_name,"transport-boarded-identity");
    CHECK(device_groups[10].actual_value==1.f,"single requested evacuation was not ready");
+   if(!strcmp(case_name,"transport-boarded-forced-exit")) {
+    client=TRUE;
+    extraction_transport_seat_transition_started(&units[0]);
+    client=FALSE;
+    CHECK(device_groups[10].actual_value==1.f,"a client invalidated the host's crew signal");
+    units[0].object.owner_team_index=_game_team_covenant;
+    dropships[0].object.damage_flags|=FLAG(_object_dead_bit);
+    extraction_transport_seat_transition_started(&units[0]);
+    CHECK(!device_groups[10].actual_value,"a forced exit left the ship's previous crew visible to HaloScript");
+    extraction_reset();return 0;
+   }
    if(!strcmp(case_name,"transport-boarded-recording")) {
     short leg;
     CHECK(extraction.dropship_landing_groups[0]==NONE,"fixture requires a boarding-only map");

@@ -3410,6 +3410,7 @@ void unit_exit_seat_end(
 			unit->unit.gunner_object_index = NONE;
 		}
 
+		extraction_transport_seat_transition_started(unit);
 		object_detach(unit_index);
 		position.x = relative_position.i + unit->object.position.x;
 		position.y = relative_position.j + unit->object.position.y;

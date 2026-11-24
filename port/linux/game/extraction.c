@@ -1913,16 +1913,19 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 
 void extraction_transport_seat_transition_started(struct unit_datum const *passenger)
 {
-	short faction, group;
-	if (passenger->unit.player_index == NONE || !extraction.bound || !extraction.admitted ||
-		network_game_distributed_client()) return;
-	faction = extraction_faction(passenger->object.owner_team_index);
-	if (faction == NONE) return;
-	group = extraction.dropship_boarding_groups[faction];
-	/* Seat attachment can change before HaloScript reads readiness again.
-	 * Clear it until Extraction checks the completed crew on its next update. */
-	if (group != NONE && extraction_player_dropship(passenger) != NONE && device_group_get_value(group) != 0.f)
-		device_group_set_actual_value(group, 0.f);
+	long ship = passenger->object.parent_object_index;
+	short faction;
+	if (!extraction.bound || !extraction.admitted || network_game_distributed_client() ||
+		passenger->unit.player_index == NONE || ship == NONE || passenger->unit.parent_seat_index == NONE) return;
+	/* Invalidate the attached craft even if its rider or hull lost eligibility
+	 * before a forced exit. HaloScript can read the group again this tick. */
+	for (faction = 0; faction < NUMBEROF(extraction.dropship_names); faction++)
+	{
+		short group = extraction.dropship_boarding_groups[faction];
+		short name = extraction.dropship_names[faction];
+		if (group != NONE && name != NONE && object_index_from_name_index(name) == ship &&
+			device_group_get_value(group) != 0.f) device_group_set_actual_value(group, 0.f);
+	}
 }
 
 void extraction_transport_recording_started(long unit_index)
