@@ -1475,11 +1475,12 @@ int main(int argc,char **argv)
     strcpy(authored_groups[0].name,authored_groups[10].name);authored_groups[10].name[0]=0;
    }
   }
-  if(!strcmp(case_name,"transport-spirit-return")) {
-   scenario.trigger_volumes.count=5;strcpy(volumes[4].name,"spirit_return");
+  if(!strcmp(case_name,"transport-spirit-return")||!strcmp(case_name,"transport-pelican-return")) {
+   boolean spirit=!strcmp(case_name,"transport-spirit-return");
+   scenario.trigger_volumes.count=5;strcpy(volumes[4].name,spirit?"spirit_return":"pelican_return");
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
-   strcpy(authored_groups[10].name,"extraction_spirit_boarded");
-   strcpy(authored_groups[11].name,"extraction_spirit_landed");
+   strcpy(authored_groups[10].name,spirit?"extraction_spirit_boarded":"extraction_pelican_boarded");
+   strcpy(authored_groups[11].name,spirit?"extraction_spirit_landed":"extraction_pelican_landed");
   }
   if(!strcmp(case_name,"transport-binding"))names[3].runtime_object_type=0;
   if(!strcmp(case_name,"transport-duplicate"))strcpy(names[4].name,"extraction_pelican");
@@ -1514,44 +1515,45 @@ int main(int argc,char **argv)
    CHECK(unit_try_and_exit_seat(unit_handles[0]),"legacy authored exit was refused");
    return 0;
   }
-  if(!strcmp(case_name,"transport-spirit-return")) {
-   long spirit=dropship_handles[1];
-   struct unit_datum *ship=&dropships[1];
-   strcpy(transport_scripts[0].name,"forerunner_spirit_complete");
+  if(!strcmp(case_name,"transport-spirit-return")||!strcmp(case_name,"transport-pelican-return")) {
+   short faction=!strcmp(case_name,"transport-spirit-return")?1:0;
+   long transport=dropship_handles[faction];
+   struct unit_datum *ship=&dropships[faction];
+   strcpy(transport_scripts[0].name,faction?"forerunner_spirit_complete":"forerunner_pelican_complete");
    transport_scripts[0].script_type=_hs_script_dormant;transport_scripts[0].return_type=_hs_type_void;
    scenario.hs_scripts.count=1;scenario.hs_scripts.address=transport_scripts;
-   players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
-   CHECK(extraction_owns_map(),"authored Spirit return rejected the shared hub");
+   players[faction].team_index=units[faction].object.owner_team_index=faction?_game_team_covenant:_game_team_human;
+   CHECK(extraction_owns_map(),"authored aircraft return rejected the shared hub");
    ship->object.position.x=7.f;ship->object.first_child_object_index=NONE;
-   CHECK(!unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"undeployed player boarded at the Spirit pad");
-   touch(0,1);
-   CHECK(unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"deployed Covenant player could not board at spirit_return");
-   units[1].object.parent_object_index=spirit;units[1].unit.parent_seat_index=0;advance(1);
-   CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release Spirit insertion at spirit_return");
-   CHECK(device_groups[11].actual_value==1.f,"ready Spirit did not publish landing");
+   CHECK(!unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"undeployed player boarded at the aircraft pad");
+   touch(0,faction);
+   CHECK(unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"deployed player could not board at its dedicated pad");
+   units[faction].object.parent_object_index=transport;units[faction].unit.parent_seat_index=0;advance(1);
+   CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release aircraft insertion at its dedicated pad");
+   CHECK(device_groups[11].actual_value==1.f,"ready aircraft did not publish landing");
    ship->object.flags&=~FLAG(_object_on_ground_bit);advance(1);
-   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"Spirit output pair stayed ready after liftoff");
+   CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"aircraft output pair stayed ready after liftoff");
    ship->object.flags|=FLAG(_object_on_ground_bit);advance(1);
-   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"Spirit output pair did not rearm on touchdown");
-   units[1].object.parent_object_index=NONE;
-   units[1].object.position.x=ship->object.position.x=20.f;
-   pickup(1,2);touch(1,1);advance(300);
-   CHECK(unit_can_enter_seat(unit_handles[1],spirit,0,NULL),"Spirit field pickup stopped working");
-   units[1].object.parent_object_index=spirit;advance(1);
-   CHECK(run(1)->dropship==spirit,"Spirit field boarding did not attach to the operation");
+   CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==1.f,"aircraft output pair did not rearm on touchdown");
+   units[faction].object.parent_object_index=NONE;
+   units[faction].object.position.x=ship->object.position.x=20.f;
+   pickup(faction,2);touch(1,faction);advance(300);
+   CHECK(unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"aircraft field pickup stopped working");
+   units[faction].object.parent_object_index=transport;advance(1);
+   CHECK(run(faction)->dropship==transport,"aircraft field boarding did not attach to the operation");
    ship->object.position.x=0.f;advance(1);
-   CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[1],"Spirit banked at the shared hub outside spirit_return");
+   CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked at the shared hub outside its dedicated pad");
    ship->object.position.x=7.f;ship->object.up.k=.94f;advance(1);
-   CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[1],"Spirit banked before native landing");
+   CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked before native landing");
    ship->object.up.k=1.f;native_cinematic=TRUE;advance(1);
-   CHECK(run(1)->phase==_extraction_ready&&!transport_wakes[1],"Spirit banked during the cinematic");
+   CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked during the cinematic");
    native_cinematic=FALSE;advance(1);
-   CHECK(run(1)->phase==_extraction_returned&&transport_wakes[1]==1&&run(1)->gear.record.count==1,
-    "Spirit arrival did not bank recovered gear and release its passengers");
-   units[1].object.parent_object_index=NONE;units[1].object.position.x=7.f;
-   touch(0,1);CHECK(run(1)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
-   units[1].object.position.x=0.f;touch(0,1);
-   CHECK(run(1)->phase==_extraction_deployed,"shared hub stopped admitting redeployment");
+   CHECK(run(faction)->phase==_extraction_returned&&transport_wakes[faction]==1&&run(faction)->gear.record.count==1,
+    "aircraft arrival did not bank recovered gear and release its passengers");
+   units[faction].object.parent_object_index=NONE;units[faction].object.position.x=7.f;
+   touch(0,faction);CHECK(run(faction)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
+   units[faction].object.position.x=0.f;touch(0,faction);
+   CHECK(run(faction)->phase==_extraction_deployed,"shared hub stopped admitting redeployment");
    extraction_reset();return 0;
   }
   if(!strcmp(case_name,"transport-landed-alias")) {

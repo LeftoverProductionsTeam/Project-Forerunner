@@ -112,7 +112,8 @@ static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
-	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone, spirit_return_zone;
+	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
+	short dropship_return_zones[2];
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
@@ -492,10 +493,11 @@ void extraction_reset(void)
 	memset(&extraction, 0, sizeof(extraction));
 	for (index = 0; index < NUMBEROF(extraction.squads); index++)
 		extraction.squads[index].name = extraction.squads[index].ready_group = NONE;
-	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = extraction.spirit_return_zone = NONE;
+	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = extraction.zone = extraction.return_zone = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
 	extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
+	extraction.dropship_return_zones[0] = extraction.dropship_return_zones[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
@@ -652,8 +654,9 @@ static short extraction_zone_for_faction(short faction)
 
 static short extraction_transport_return_zone(short faction)
 {
-	return faction == 1 && extraction.spirit_return_zone != NONE
-		? extraction.spirit_return_zone : extraction.return_zone;
+	return VALID_INDEX(faction, NUMBEROF(extraction.dropship_return_zones)) &&
+		extraction.dropship_return_zones[faction] != NONE
+		? extraction.dropship_return_zones[faction] : extraction.return_zone;
 }
 
 static boolean extraction_in_hub_volume(short return_zone, long object)
@@ -699,6 +702,7 @@ static void extraction_bind(void)
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
 	extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
+	extraction.dropship_return_zones[0] = extraction.dropship_return_zones[1] = NONE;
 	extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 	extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 	extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
@@ -708,7 +712,7 @@ static void extraction_bind(void)
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
-	extraction.zone = extraction.return_zone = extraction.spirit_return_zone = NONE;
+	extraction.zone = extraction.return_zone = NONE;
 	if (!extraction.survival && config_boolean("network.firefight_encounter"))
 	{
 		extraction_notice("Extraction unavailable: disable the built-in Firefight director. Authored native AI scripts can keep running.");
@@ -840,11 +844,19 @@ static void extraction_bind(void)
 			&global_scenario->trigger_volumes, index, struct scenario_trigger_volume);
 
 		for (faction = 0; faction < 2; faction++)
+		{
 			if (!strcmp(volume->name, faction ? "extraction_spirit_zone" : "extraction_pelican_zone"))
 			{
 				if (extraction.dropship_zones[faction] != NONE) unique = FALSE;
 				extraction.dropship_zones[faction] = index;
 			}
+			else if (extraction.dropship_names[faction] != NONE &&
+				!strcmp(volume->name, faction ? "spirit_return" : "pelican_return"))
+			{
+				if (extraction.dropship_return_zones[faction] != NONE) unique = FALSE;
+				extraction.dropship_return_zones[faction] = index;
+			}
+		}
 
 		if (!strcmp(volume->name, "extraction_zone"))
 		{
@@ -857,11 +869,6 @@ static void extraction_bind(void)
 			if (extraction.return_zone != NONE)
 				unique = FALSE;
 			extraction.return_zone = index;
-		}
-		else if (extraction.dropship_names[1] != NONE && !strcmp(volume->name, "spirit_return"))
-		{
-			if (extraction.spirit_return_zone != NONE) unique = FALSE;
-			extraction.spirit_return_zone = index;
 		}
 	}
 	deploy = extraction.deploy_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.deploy_name)) : NULL;
@@ -1028,9 +1035,10 @@ finished:
 			extraction.dropship_boarding_groups[0] = extraction.dropship_boarding_groups[1] = NONE;
 			extraction.dropship_call_groups[0] = extraction.dropship_call_groups[1] = NONE;
 			extraction.dropship_landing_groups[0] = extraction.dropship_landing_groups[1] = NONE;
-			extraction.zone = extraction.return_zone = extraction.spirit_return_zone = NONE;
+			extraction.zone = extraction.return_zone = NONE;
 			extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
 			extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
+			extraction.dropship_return_zones[0] = extraction.dropship_return_zones[1] = NONE;
 		}
 		if (extraction.admitted && !extraction.suspended)
 			extraction_notice(extraction.evacuation ?

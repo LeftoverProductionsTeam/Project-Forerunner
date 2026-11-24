@@ -52,6 +52,16 @@ again. The item-ID check compared a tuple with a list and did not run the
 ID comparison. Linux mission completion, route reliability, and two human
 players remain open. Receipt: `build/native-black-echo-571f-banked-restart.json`.
 
+The compiled shared `extraction_return` covers x 36 to 76, y -119 to -81,
+and z -1 to 7. The last aircraft center (-80.978 on Y) was just beyond its
+north edge before banking. Keep that volume for player services. In the next
+export, add a dedicated `pelican_return` around the clear touchdown surface
+near the occupied target (55, -102.915, 1.8), sized to the settled aircraft
+center. Point both Pelican hub arrival scripts at that pad, use the existing
+native landing output, and measure the approach through touchdown. The
+optional runtime binding raises the banking requirement only on maps that
+author that pad. The flight path and deceleration still need native proof.
+
 The preceding aligned UNSC route export is
 `releases/black-echo-elite-unsc-hub-aligned-20261120/be_native.map`.
 Windows x64 independently matched SHA-256
@@ -2520,16 +2530,15 @@ for the named Spirit. Each control must be inside its own zone. Hub starts must
 be outside every field zone. Omit the shared pair when every named transport
 has a complete route. Keep it as the fallback for any transport with no override.
 The host uses the matching zone for calls, countdowns and boarding receipts.
-For a named Spirit, an optional unique native `spirit_return` volume supplies
-the aircraft's insertion and return pad. Author the Spirit script against
-this same native marker and keep the pad outside the field zones. The
-runtime checks that pad together with the existing native landing gate
-for boarding, crew departure, settlement and the Spirit completion callbacks. `extraction_return` remains
-the player deployment hub and the fallback when the Spirit pad is absent.
-The Pelican also uses `extraction_return`. Existing faction, seat, cinematic
-and ownership checks still apply. Windows64 and 85 focused transport checks
-passed. The new regression first reproduced deployed players being refused
-a native seat when the Spirit was inside its own pad alone.
+For named aircraft, optional unique native volumes `pelican_return` and
+`spirit_return` supply the corresponding insertion and settlement pads.
+Author each aircraft's script against the same pad and keep it outside the
+field zones. The runtime checks the pad together with the existing native
+landing gate for boarding, crew departure, settlement and completion callbacks.
+`extraction_return` remains the player deployment hub and the fallback for
+aircraft without a dedicated pad. Dedicated pad fixtures cover both factions,
+landing, cinematics and the unchanged foot deployment boundary. The Pelican
+override awaits a native compiled map that authors it.
 
 Two authenticated Windows clients loaded the compiled fixture and agreed on
 both placements. The existing harness verifies independent calls, cancellation
