@@ -24,7 +24,7 @@ struct unit_datum
 	long definition_index;
 	struct {real_point3d position;real body_vitality,shield_vitality;unsigned long damage_flags,flags;long parent_object_index;real_vector3d forward,translational_velocity;} object;
 	struct {long player_index,actor_index,driver_object_index;short parent_seat_index,current_weapon_index;long weapon_object_indices[4];
-		unsigned long control_flags;real_vector3d throttle;real seat_power[2];} unit;
+		unsigned long flags,control_flags;real_vector3d throttle;real seat_power[2];} unit;
 	struct {real speed,slide,turn;} vehicle;
 };
 struct obey_individual_complex_control {
@@ -217,6 +217,17 @@ int main(int argc,char **argv)
 		ship->object.flags = FLAG(_object_at_rest_bit) | FLAG(_object_on_ground_bit);
 		CHECK(!vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
 			"seating an already suspended pilot woke an already settled plane");
+		ship->unit.flags |= FLAG(_unit_possessed_by_recording_bit);
+		ship->unit.seat_power[0] = .5f;
+		CHECK(vehicle_plane_pilot_power(ship_index, ship) == .5f,
+			"a suspended pilot cut native seat power during recorded playback");
+		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
+			"a suspended pilot kept the recorded plane asleep");
+		ship->unit.flags &= ~FLAG(_unit_possessed_by_recording_bit);
+		CHECK(vehicle_plane_pilot_power(ship_index, ship) == 0.f &&
+			!vehicle_controls_wake_physics(ship_index, ship, &plane_tag),
+			"recorded playback did not return parked authority to the suspended pilot");
+		ship->unit.seat_power[0] = 1.f;
 		native_actor.input.vehicle_index = ship_index;
 		native_actor.input.vehicle_driver_type = _actor_vehicle_driver_directional_flying;
 		native_actor.meta.frozen = FALSE;

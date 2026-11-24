@@ -54,6 +54,7 @@ def generated(control=None):
                                    'actor_move_plane_approach_scale', 'actor_path_at_destination',
                                    'actor_move_plane_pilot_suspended', 'actor_move_plane_is_parked',
                                    'actor_move_plane_parked_facing'))
+    code += '\n' + enum_with(read('source/units/units.h'), '_unit_possessed_by_recording_bit')
     vehicles = read('source/units/vehicles.c')
     code += '\n' + '\n'.join(function(vehicles, name) for name in
                             ('vehicle_plane_ai_pilot', 'vehicle_plane_pilot_power', 'vehicle_controls_wake_physics'))

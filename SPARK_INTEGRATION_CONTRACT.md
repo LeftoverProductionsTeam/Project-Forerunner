@@ -73,6 +73,11 @@ use `recording_play_and_hover` for an authored clip ending with real ground
 contact and wait for the faction's landed output. Release hover with
 `vehicle_hover` before the next clip and preserve the native seat, cinematic,
 pad and settlement gates. An airborne hover still cannot bank.
+When playback possesses a plane, native seat power and wake inputs take
+priority over an attached suspended AI pilot's parking logic. Suspension
+governs parking again when playback releases the plane. Windows x64 passed
+39 focused checks and a bounded stock B30 passenger-flight control. Black
+Echo's authored routes still need native acceptance.
 
 Windows x64 compiled. 96 focused recording and transport checks passed,
 including the final-frame/hover transition and both faction return pads.

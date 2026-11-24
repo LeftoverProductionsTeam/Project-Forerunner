@@ -1528,10 +1528,12 @@ static struct actor_datum const *vehicle_plane_ai_pilot(long vehicle_index, stru
 
 static real vehicle_plane_pilot_power(long vehicle_index, struct vehicle_datum const *vehicle)
 {
-	/* A suspended AI still occupies the driver seat. Let the unpowered hull
-	 * settle under native gravity instead of steering toward stale inputs. */
-	return actor_move_plane_pilot_suspended(vehicle_plane_ai_pilot(vehicle_index, vehicle), vehicle_index) ?
-		0.f : vehicle->unit.seat_power[0];
+	/* The suspended pilot owns parking only when native playback is not
+	 * driving the hull. Both paths use the original powered-seat ramp. */
+	if (!TEST_FLAG(vehicle->unit.flags, _unit_possessed_by_recording_bit) &&
+		actor_move_plane_pilot_suspended(vehicle_plane_ai_pilot(vehicle_index, vehicle), vehicle_index))
+		return 0.f;
+	return vehicle->unit.seat_power[0];
 }
 
 /* Retard the occupied ground roll through the native force integration. */
@@ -2522,6 +2524,7 @@ static boolean vehicle_controls_wake_physics(
 	struct vehicle_definition const *definition)
 {
 	if (definition->vehicle_type == _vehicle_type_human_plane &&
+		!TEST_FLAG(vehicle->unit.flags, _unit_possessed_by_recording_bit) &&
 		TEST_FLAG(vehicle->object.flags, _object_at_rest_bit) &&
 		vehicle->vehicle.speed == 0.f && vehicle->vehicle.slide == 0.f &&
 		vehicle->unit.throttle.i == 0.f && vehicle->unit.throttle.j == 0.f &&
