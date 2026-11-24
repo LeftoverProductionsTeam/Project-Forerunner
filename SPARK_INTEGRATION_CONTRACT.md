@@ -105,6 +105,16 @@ The process exited zero, input hashes held, and staging was removed.
 This verifies ordinary boarding on the existing AI-scripted fixture.
 Live authored recorded flight and Linux settlement remain open.
 
+Insertion completion and new evacuation boarding receipts also wait for
+native recording cleanup on crew-only transports. Older routes retain their
+authored landing rules. The focused test reproduced a false field arrival
+during a fly-through, then verified that arrival and boarding resume after
+playback. All 77 native transport settlement cases passed. Windows x64
+`08adb364b18a77e38f7bf024e9a88de1ef86376100fec2ddffa07f8777768f68`
+admitted unchanged `fn_transq`
+`23a8f945f5b0d056d7b693cc82651a66b40a8111c28b39abc82d9773ebcfa746`
+and ran to tick 450 in a private hub smoke. Arrival timing is harness-verified.
+
 On transports using an authored crew-ready group, successful native seat
 entry clears the group immediately. Readiness and a new evacuation receipt
 wait for the entry animation to finish. Maps without the crew-ready group

@@ -2083,7 +2083,7 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (extraction_medical_incapacitated(run->unit) ||
 			!extraction_transport_at_field(faction, dropship) ||
-			(extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(dropship)) ||
+			!extraction_transport_arrival_ready(faction, dropship) ||
 			(extraction.dropship_boarding_groups[faction] != NONE &&
 				unit->unit.animation.state == _unit_state_entering_seat)) return FALSE;
 		run->dropship = dropship;
@@ -2182,7 +2182,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		short faction = extraction_faction(unit->object.owner_team_index);
 		long ship = extraction_player_dropship(unit);
 		if (ship != NONE && extraction_transport_at_field(faction, ship) &&
-			(extraction.dropship_landing_groups[faction] == NONE || extraction_transport_landed(ship)))
+			extraction_transport_arrival_ready(faction, ship))
 			run->field_reached = TRUE;
 	}
 	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&

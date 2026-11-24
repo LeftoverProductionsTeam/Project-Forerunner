@@ -1922,10 +1922,23 @@ int main(int argc,char **argv)
     } else {
      units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=1;
      CHECK(!extraction_transport_can_disembark(&units[0]),"active recording permitted voluntary exit");
+     dropships[0].object.position.x=20;advance(1);
+     CHECK(!run(0)->field_reached,"recorded fly-through counted as a completed insertion");
+
      dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);
      CHECK(extraction_transport_can_disembark(&units[0]),"damaged craft could not release its rider");
-     dropships[0].object.damage_flags=0;recorded_aircraft=NONE;
-     CHECK(extraction_transport_can_disembark(&units[0]),"finished playback did not reopen the exit");
+     dropships[0].object.damage_flags=0;recorded_aircraft=NONE;advance(1);
+     CHECK(run(0)->field_reached&&extraction_transport_can_disembark(&units[0]),
+       "finished recording did not complete insertion and reopen the exit");
+
+     units[0].object.parent_object_index=NONE;units[0].object.position.x=20;
+     touch(1,0);advance(300);
+     CHECK(run(0)->phase==_extraction_ready,"fixture did not activate an evacuation");
+     units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=1;
+     recorded_aircraft=craft;advance(1);
+     CHECK(run(0)->dropship==NONE,"recorded fly-through accepted an evacuation boarding receipt");
+     recorded_aircraft=NONE;advance(1);
+     CHECK(run(0)->dropship==craft,"finished recording did not accept valid field boarding");
     }
    } else if(!strcmp(case_name,"transport-admission-pilot")) {
     transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
