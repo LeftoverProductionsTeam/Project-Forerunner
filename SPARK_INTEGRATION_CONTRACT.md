@@ -1665,6 +1665,18 @@ a physical rollover and grounded contact. Validate the wrapper's initial pose
 and motion against that result. Preserve the original carrier definitions and
 full audio. Full Evolved egress and a completed survival round remain open.
 
+Original Demo tag readback confirms a native `human_jeep` Evolved carrier.
+Its `W-driver`, `W-passenger` and `W-gunner` seats contain the built-in
+Evolved, standard and Alpha variants, respectively. The original weapon
+directly references that vehicle, and the Alpha carrier shares its physics
+tag and animations. The Demo's malformed unused syntax-table capacity was
+normalized on a disposable copy for extraction. Independent readback found
+zero scripts, globals, source files, encounters and AI command lists.
+OpenCE `fa752834f` and the Fractum snapshot `872f338ca` both use
+`vehicle_scripting_unload` through native seat exit. Both also check
+ground contact for automatic rollover ejection. Preserve the existing
+native paths when authoring an automatic Evolved release.
+
 MCC hosting now honors a valid OpenCE announcement pin with a known MCC
 layout. A direct two-peer launch of the same Zombie cache at pin 43 matched
 both player positions through tick 420 and both processes exited zero.
@@ -2627,6 +2639,24 @@ a shared Warthog in Team Slayer. Native team change refused the host as
 the last player on its team. The stock seat check admitted the guest only.
 Both clients agreed on the guest's occupied position and exited zero.
 A two-teammate crossing remains open.
+
+### Five-region Rat Race connector and cross-runtime traversal
+
+Spark's reviewed CE609 cache SHA-256
+`b88e52011c8cd513b5f5f9741a0fa49f67e8bf8c9b6940ebd3c26adb278d4bfe`
+was hosted by Forerunner Windows x64 SHA-256
+`87606ab108d796632914925d6e22d25f2c7ffbe4aeca0fef3df3f31732270d51`.
+The Chupathingy guest used SHA-256
+`c16096a841422b2597a3c5f26d8b16be7dd6a2914f678c7ea4b36e31ec3a3050`.
+On private OpenCE 44, one debug placement staged the host at the approach.
+Normal mouse and keyboard input took the host through the tunnel from
+(-17.568, 65.034, -17.752) to Rat Race (-62.831, 143.432, -17.752)
+and back to Timberland (-16.071, 62.437, -17.752) in the same session.
+The peers matched 42 samples in each direction. Maximum differences were
+.1245 outbound and .0458 returning. Both exited zero and the exact map
+and executables held their hashes. This verifies infantry traversal on a
+single resident BSP with the legacy guest. Vehicle clearance, AI and
+further regions remain open.
 
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
