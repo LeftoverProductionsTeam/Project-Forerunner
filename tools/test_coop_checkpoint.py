@@ -74,7 +74,8 @@ static boolean players_coop_unit_grounded(long h) {return grounded[h&65535];}
 static boolean players_coop_unit_spawnable(long h) {return spawnable[h&65535];}
 static real distance_squared3d(real_point3d const *a,real_point3d const *b) {real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;return x*x+y*y+z*z;}
 static long player_spawnable_beside(struct player_datum const *p) {return p->unit_index!=NONE&&spawnable[p->unit_index&65535]?p->unit_index:NONE;}
-static boolean player_teleport(long player,long anchor,real_point3d const *p) {
+static boolean player_teleport_with_policy(long player,long anchor,real_point3d const *p,boolean coop_spawn) {
+ assert(coop_spawn);
  int slot=(int)(player&65535);teleports++;teleported_to[slot]=anchor;
  if(anchor==blocked_target)return FALSE;object_get(players[slot].unit_index)->object.bounding_sphere_center=*p;return TRUE;
 }
@@ -348,6 +349,46 @@ int main(void){
 ''')
 
 
+def test_spawn_support_distinguishes_players_from_terrain(tmp_path):
+    source = (ROOT / "source/units/bipeds.c").read_text()
+    run_c(tmp_path, r'''
+#include <assert.h>
+#include <stddef.h>
+#define NONE -1
+#define TRUE 1
+#define FALSE 0
+#define FLAG(bit) (1u<<(bit))
+typedef int boolean;
+typedef float real;
+typedef struct {real x,y,z;} real_point3d;
+typedef struct {real x,y,z;} real_vector3d;
+enum {_collision_test_front_facing_surfaces_bit,_collision_test_structure_bit,_collision_test_objects_bit};
+enum {_collision_result_structure,_collision_result_object};
+#define _collision_test_objects_all_types_flags 8u
+struct biped_datum {struct {long player_index;} unit;};
+struct collision_result {int type;long object_index;};
+static struct biped_datum biped={{2}};
+static int support;
+static struct biped_datum *biped_try_and_get(long object) {return object==2?&biped:NULL;}
+static boolean collision_test_vector(unsigned flags,real_point3d const *p,real_vector3d const *v,
+    long ignore,struct collision_result *hit) {
+    assert(ignore==9 && p->z>4.f && v->z<0.f && (flags&FLAG(_collision_test_structure_bit)));
+    hit->type=support==1?_collision_result_structure:_collision_result_object;
+    hit->object_index=support;
+    return support!=0;
+}
+''' + function(source, "biped_spawn_over_player") + r'''
+int main(void) {
+    real_point3d point={1,2,4};
+    for(support=0;support<=3;support++)
+        assert(biped_spawn_over_player(9,&point,.2f)==(support==2));
+    support=2;biped.unit.player_index=NONE;
+    assert(!biped_spawn_over_player(9,&point,.2f));
+    return 0;
+}
+''')
+
+
 def test_recovery_retires_history_without_losing_object_ownership(tmp_path):
     source = (ROOT / "port/linux/game/network_objects.c").read_text()
     definitions = "\n".join(define_value(source, name) for name in (
@@ -367,6 +408,7 @@ def test_recovery_retires_history_without_losing_object_ownership(tmp_path):
 #define OWN_VEHICLE_POSITION_TICKS 4
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 2
 static long objects_host_told[3]={10,11,12},objects_client_has[3]={10,11,12};
+static short objects_host_told_team[3]={1,1,1};
 static int objects_client_checkpoint_pending[3];
 static long objects_host_told_count=3,objects_host_resting_cursor=2;
 static int objects_host_state_moving[3]={1,1,1};
@@ -407,6 +449,7 @@ int main(void){
   assert(!objects_host_inventories[i].checksum && !objects_host_inventories[i].weapons_checksum);
   assert(objects_host_inventories[i].carried_time==NONE && objects_host_inventories[i].ammunition_time==NONE);
   assert(!objects_host_state_moving[i] && objects_host_rest_times[i]==NONE && objects_host_last_objects[i]==NONE);
+  assert(objects_host_told_team[i]==1);
   assert(!objects_host_vehicle_predictions[i].valid && objects_host_vehicle_predictions[i].accepted_vehicle_index==NONE);
   assert(objects_host_vehicle_predictions[i].ground_vehicle_index==NONE && objects_host_vehicle_predictions[i].rest_vehicle_index==NONE);
   assert(objects_client_dead[i].object_index==NONE && objects_client_unsteered_path[i].object_index==NONE);
@@ -423,7 +466,7 @@ int main(void){
   for(j=0;j<4;j++)assert(objects_client_own_vehicles[i][j].time==NONE && objects_client_own_vehicles[i][j].vehicle_index==NONE);
  }
  network_objects_new_game();assert(mcc_resets==2 && !objects_host_told_count && !objects_client_local_allocation);
- for(i=0;i<3;i++)assert(objects_host_told[i]==NONE && objects_client_has[i]==NONE);
+ for(i=0;i<3;i++)assert(objects_host_told[i]==NONE && objects_client_has[i]==NONE && objects_host_told_team[i]==NONE);
  for(i=0;i<2;i++)assert(objects_host_machines[i].time==NONE);
  return 0;
 }

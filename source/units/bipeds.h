@@ -163,6 +163,7 @@ boolean biped_fix_position(
 	boolean fix_below_new_position,
 	boolean dont_teleport,
 	boolean use_radius_as_multiplier);
+boolean biped_fix_coop_spawn_position(long biped_index, long anchor, real_point3d const *position);
 /* port: the next biped_fix_position calls skip other players, so a co-op
 script can stand someone on a spot a teammate already occupies. Cleared by
 the caller before it returns. */

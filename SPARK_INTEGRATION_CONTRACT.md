@@ -120,6 +120,14 @@ loopback OpenCE sessions, both boarded, rode and disembarked. The exact
 tested map and executable are pinned in the transport comparison record.
 Extraction uses its authored hub start policy.
 
+Six independent loopback processes verified the stock B30 opening. The two
+named players rode and disembarked, then the four additional players spawned.
+The normal co-op teammate placement uses the native collision search and
+rejects a placement supported by a player body. All six settled at separate
+ground-level positions and responded to local input. Sixty focused checks
+passed. The comparison record retains the hashes and two host movement
+refusals seen during the run. Authenticated mission acceptance remains open.
+
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.

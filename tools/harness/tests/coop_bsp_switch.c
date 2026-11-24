@@ -112,8 +112,9 @@ static void biped_get_physics_pill(long unit,real_point3d *p,real *height,real *
 {*p=objects[slot(unit)].object.position;*height=1;*width=.2f;}
 static boolean collision_test_point(unsigned long mask,real_point3d const *p,long ignore) {return FALSE;}
 static void unit_exit_seat_end(long unit) {ejections++;objects[slot(unit)].object.parent_object_index=NONE;}
-static boolean player_teleport_internal(long player,long source,real_point3d const *p)
+static boolean player_teleport_internal(long player,long source,real_point3d const *p,boolean coop_spawn)
 {
+    CHECK(!coop_spawn,"scripted BSP gather acquired the spawn-only policy");
     teleports++;
     if(ignore_players)stacked_calls++;
     if(solid||(crowded&&!ignore_players))return FALSE;

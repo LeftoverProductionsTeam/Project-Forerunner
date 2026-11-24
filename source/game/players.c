@@ -2108,10 +2108,17 @@ static boolean player_handle_action(
 }
 
 /* Matching status is tracked in the Players object log. */
+static boolean player_fix_teleport_position(long unit, long anchor, real_point3d const *position, boolean coop_spawn)
+{
+	return coop_spawn ? biped_fix_coop_spawn_position(unit, anchor, position) :
+		biped_fix_position(unit, anchor, position, NULL, 2.f, FALSE, FALSE, TRUE);
+}
+
 static boolean player_teleport_internal(
 	long player_index,
 	long source_unit_index,
-	real_point3d const *position)
+	real_point3d const *position,
+	boolean coop_spawn)
 {
 	struct player_datum *player = player_get(player_index);
 	long player_unit_index = player->unit_index;
@@ -2185,15 +2192,7 @@ static boolean player_teleport_internal(
 				&adjustment_matrix,
 				&adjustment_weights[adjustment_index],
 				&anchor_point);
-			result = biped_fix_position(
-				player_unit_index,
-				source_unit_index,
-				&anchor_point,
-				NULL,
-				2.f,
-				FALSE,
-				FALSE,
-				TRUE);
+			result = player_fix_teleport_position(player_unit_index, source_unit_index, &anchor_point, coop_spawn);
 
 			if (!result)
 			{
@@ -2212,30 +2211,14 @@ static boolean player_teleport_internal(
 						&random_offset,
 						collision_radius,
 						&new_position);
-					result = biped_fix_position(
-						player_unit_index,
-						source_unit_index,
-						&new_position,
-						NULL,
-						2.f,
-						FALSE,
-						FALSE,
-						TRUE);
+					result = player_fix_teleport_position(player_unit_index, source_unit_index, &new_position, coop_spawn);
 				}
 			}
 		}
 	}
 	else
 	{
-		result = biped_fix_position(
-			player_unit_index,
-			source_unit_index,
-			(real_point3d *)position,
-			NULL,
-			2.f,
-			FALSE,
-			FALSE,
-			TRUE);
+		result = player_fix_teleport_position(player_unit_index, source_unit_index, position, coop_spawn);
 	}
 
 	player->cluster_index = NONE;
@@ -2337,10 +2320,11 @@ static boolean player_teleport_internal(
 	return result;
 }
 
-boolean player_teleport(
+static boolean player_teleport_with_policy(
 	long player_index,
 	long source_unit_index,
-	real_point3d const *position)
+	real_point3d const *position,
+	boolean coop_spawn)
 {
 	struct player_datum *player;
 	struct biped_datum *biped;
@@ -2355,10 +2339,15 @@ boolean player_teleport(
 	{
 		if (biped->object.parent_object_index != NONE)
 			unit_exit_seat_end(unit_index);
-		result = player_teleport_internal(player_index, source_unit_index, position);
+		result = player_teleport_internal(player_index, source_unit_index, position, coop_spawn);
 	}
 
 	return result;
+}
+
+boolean player_teleport(long player_index, long source_unit_index, real_point3d const *position)
+{
+	return player_teleport_with_policy(player_index, source_unit_index, position, FALSE);
 }
 
 /* Chupathingy ed8b42bb70 and OpenH1 b3694d50. A crowded co-op placement
@@ -2528,7 +2517,8 @@ void debug_player_teleport(
 		player_teleport_internal(
 			player_index_from_unit_index(unit_index),
 			target_unit_index,
-			&target_unit->object.bounding_sphere_center);
+			&target_unit->object.bounding_sphere_center,
+			FALSE);
 	}
 
 	return;
@@ -3520,7 +3510,8 @@ static boolean player_place_beside_teammate(
 	while ((other = data_iterator_next(&iterator)) != NULL)
 	{
 		if (players_coop_teammate(player_index, iterator.datum_index) && player_spawnable_beside(other) != NONE &&
-			player_teleport(player_index, other->unit_index, &object_get(other->unit_index)->object.bounding_sphere_center))
+			player_teleport_with_policy(player_index, other->unit_index,
+				&object_get(other->unit_index)->object.bounding_sphere_center, TRUE))
 		{
 			return TRUE;
 		}
@@ -3550,7 +3541,7 @@ static boolean players_coop_respawn_beside(
 	if (!anchor || !players_coop_teammate(player_index, anchor->unit.player_index) ||
 		player_get(anchor->unit.player_index)->unit_index != anchor_unit_index) return FALSE;
 	anchor_position = object_get(anchor_unit_index)->object.bounding_sphere_center;
-	if (player_teleport(player_index, anchor_unit_index, &anchor_position))
+	if (player_teleport_with_policy(player_index, anchor_unit_index, &anchor_position, TRUE))
 		return TRUE;
 	if (!players_coop_use_majority(player_index))
 		return player_place_beside_teammate(player_index);
@@ -3566,8 +3557,8 @@ static boolean players_coop_respawn_beside(
 		}
 		if (distance_squared3d(&anchor_position,
 				&object_get(other->unit_index)->object.bounding_sphere_center) <= radius_squared &&
-			player_teleport(player_index, other->unit_index,
-				&object_get(other->unit_index)->object.bounding_sphere_center))
+			player_teleport_with_policy(player_index, other->unit_index,
+				&object_get(other->unit_index)->object.bounding_sphere_center, TRUE))
 		{
 			return TRUE;
 		}
@@ -3923,7 +3914,8 @@ static void player_teleport_on_bsp_switch(
 				teleport_succeeded = player_teleport_internal(
 					player_index,
 					source_unit_index,
-					position);
+					position,
+					FALSE);
 				/* port: a big co-op team runs out of room around the
 				crosser, so the rest go beside whoever is already in */
 				if (!teleport_succeeded && network_coop_active())

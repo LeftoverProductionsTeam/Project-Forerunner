@@ -1061,7 +1061,24 @@ void biped_get_autoaim_pill(
 	return;
 }
 
-boolean biped_fix_position(
+static boolean biped_spawn_over_player(long biped_index, real_point3d const *position, real radius)
+{
+	struct collision_result collision;
+	struct biped_datum const *support;
+	real_point3d feet = *position;
+	real_vector3d down = { 0.f, 0.f, -(2.f * radius + 0.2f) };
+
+	feet.z += 0.2f;
+	if (!collision_test_vector(FLAG(_collision_test_front_facing_surfaces_bit) |
+		FLAG(_collision_test_structure_bit) | FLAG(_collision_test_objects_bit) |
+		_collision_test_objects_all_types_flags, &feet, &down, biped_index, &collision) ||
+		collision.type != _collision_result_object)
+		return FALSE;
+	support = biped_try_and_get(collision.object_index);
+	return support && support->unit.player_index != NONE;
+}
+
+static boolean biped_fix_position_internal(
 	long biped_index,
 	long line_of_sight_object_index,
 	real_point3d const *new_position,
@@ -1069,7 +1086,8 @@ boolean biped_fix_position(
 	real maximum_radius_fudge_factor,
 	boolean fix_below_new_position,
 	boolean dont_teleport,
-	boolean use_radius_as_multiplier)
+	boolean use_radius_as_multiplier,
+	boolean avoid_player_support)
 {
 	boolean fixed = FALSE;
 
@@ -1122,8 +1140,8 @@ boolean biped_fix_position(
 			/* port: (where it fits among the other players, as it moves:
 			_biped_physics_in_pass_through_players_bit). A scripted co-op
 			teleport can also stand on a teammate for this one call. */
-			if (biped_fix_ignores_players ||
-				(biped->unit.player_index != NONE && !network_coop_player_collisions()))
+			if (!avoid_player_support && (biped_fix_ignores_players ||
+				(biped->unit.player_index != NONE && !network_coop_player_collisions())))
 				collision_flags |= FLAG(_collision_test_skip_player_bipeds_bit);
 		}
 
@@ -1268,6 +1286,9 @@ boolean biped_fix_position(
 						fixed_position.z -= definition->biped.collision_radius;
 					}
 
+					if (avoid_player_support && biped_spawn_over_player(biped_index, &fixed_position, pill_width))
+						continue;
+
 					if (biped_index != NONE && !dont_teleport)
 					{
 						biped->object.position = fixed_position;
@@ -1291,6 +1312,26 @@ boolean biped_fix_position(
 	--global_current_collision_user_depth;
 
 	return fixed;
+}
+
+boolean biped_fix_position(
+	long biped_index,
+	long line_of_sight_object_index,
+	real_point3d const *new_position,
+	real_point3d *final_position,
+	real maximum_radius_fudge_factor,
+	boolean fix_below_new_position,
+	boolean dont_teleport,
+	boolean use_radius_as_multiplier)
+{
+	return biped_fix_position_internal(biped_index, line_of_sight_object_index, new_position, final_position,
+		maximum_radius_fudge_factor, fix_below_new_position, dont_teleport, use_radius_as_multiplier, FALSE);
+}
+
+boolean biped_fix_coop_spawn_position(long biped_index, long anchor, real_point3d const *position)
+{
+	/* Give a full squad more lateral room while checking all player bodies. */
+	return biped_fix_position_internal(biped_index, anchor, position, NULL, 4.f, FALSE, FALSE, TRUE, TRUE);
 }
 
 void biped_exit_seat_end(
