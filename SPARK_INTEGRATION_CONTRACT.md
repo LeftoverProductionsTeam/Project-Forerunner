@@ -2135,9 +2135,10 @@ not full Black Echo or scoped presentation acceptance. Spark next: require this
 feature through existing discovery and emit these declarations/groups through
 its existing mission HSC path for independent squad objectives.
 
-On maps with a managed aircraft crew signal, one authorized call starts
-the ten-second activation for eligible deployed squadmates on foot in the
-same faction landing zone and current operation. Each countdown cancels
+On maps with a managed aircraft crew signal, an authorized call or recall
+starts the ten-second activation for eligible deployed squadmates on foot in
+the same faction landing zone and current operation. The ready caller keeps
+their completed countdown. Each countdown cancels
 independently on leaving the zone. Each player still needs a valid native
 passenger seat and a durable bank in their own stash. Other operations and
 unmanaged maps retain their individual calls.
@@ -3165,8 +3166,8 @@ camera handlers, one startup pilot setup and a continuous trip coordinator. It
 keeps boarding closed at return until the previous passengers have disembarked;
 the next insertion follows actual gear/seat readiness rather than a stale shared
 deployment-control position. An already-cleared player on foot at the LZ may
-reuse the powered native call control to recall a transport without another gear
-transaction/countdown. Use an on-button call control for an idempotent script
+reuse the powered native call control to recall a transport after the host
+checks its current gear owner. Use an on-button call control for an idempotent script
 signal; ordinary native switch behavior is preserved.
 Source: `extraction.c::{extraction_transport_completions,extraction_wake_completion}`.
 Windows64 compilation, six connected crew cases/two defect controls and native

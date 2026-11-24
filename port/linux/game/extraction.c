@@ -1616,14 +1616,19 @@ static void extraction_discard_choice(struct extraction_run *run, long unit_inde
 	extraction_tell(run, text);
 }
 
-static boolean extraction_begin_activation(struct extraction_run *run, struct player_datum const *player)
+static boolean extraction_call_owner_current(struct extraction_run const *run, struct player_datum const *player)
 {
 	byte owner[GEAR_ID_BYTES];
 
-	if (run->phase != _extraction_deployed || player->quit_out_of_game || player->unit_index != run->unit ||
-		player->local_player_index != run->local_player || !run->gear.opened || run->gear.pending ||
-		run->gear.record.phase != _gear_deployed || extraction_resolve_owner(player, run->player, owner) ||
-		memcmp(owner, run->owner, GEAR_ID_BYTES)) return FALSE;
+	return !player->quit_out_of_game && player->unit_index == run->unit &&
+		player->local_player_index == run->local_player && run->gear.opened && !run->gear.pending &&
+		run->gear.record.phase == _gear_deployed && !extraction_resolve_owner(player, run->player, owner) &&
+		!memcmp(owner, run->owner, GEAR_ID_BYTES);
+}
+
+static boolean extraction_begin_activation(struct extraction_run *run, struct player_datum const *player)
+{
+	if (run->phase != _extraction_deployed || !extraction_call_owner_current(run, player)) return FALSE;
 
 	run->field_reached = TRUE;
 	run->phase = _extraction_activating;
@@ -1865,7 +1870,9 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			extraction_tell(run, "TRANSPORT UNAVAILABLE | This operation has no dropship for your faction. Gear remains at risk.");
 			return TRUE;
 		}
+		if (!extraction_call_owner_current(run, player)) return TRUE;
 		run->dropship = NONE;
+		extraction_begin_squad_activation(run, faction, zone);
 		extraction_tell(run, "TRANSPORT RECALLED | Wait for your assigned dropship, then board at the landing zone. Gear remains at risk.");
 		return FALSE;
 	}

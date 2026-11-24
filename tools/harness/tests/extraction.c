@@ -1967,18 +1967,30 @@ int main(int argc,char **argv)
    if(!strncmp(case_name,"transport-boarded-squad-call",28)) {
     boolean other_squad=!strcmp(case_name,"transport-boarded-squad-call-isolated");
     boolean leaves=!strcmp(case_name,"transport-boarded-squad-call-leaves");
+    boolean recall=!strcmp(case_name,"transport-boarded-squad-call-recall");
     long guest_loot;
     touch(5,0);touch(other_squad?6:5,1);
     touch(0,0);touch(0,1);
     CHECK(run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,"both squad operations must deploy");
     loot=pickup(0,1);guest_loot=pickup(1,2);
-    units[0].object.position.x=units[1].object.position.x=dropships[0].object.position.x=20.f;
+    units[0].object.position.x=dropships[0].object.position.x=20.f;
+    units[1].object.position.x=recall?0.f:20.f;
     touch(1,0);
     CHECK(run(0)->phase==_extraction_activating&&control_updates[1]==1,"one native call did not start");
-    CHECK(run(1)->phase==(other_squad?_extraction_deployed:_extraction_activating),"call missed its own squadmate or reached another operation");
+    CHECK(run(1)->phase==(other_squad||recall?_extraction_deployed:_extraction_activating),"call missed its own squadmate or reached another operation");
     if(leaves)units[1].object.position.x=0.f;
     advance(300);
     CHECK(run(0)->phase==_extraction_ready,"caller did not complete the countdown");
+    if(recall) {
+     unsigned long generation=run(0)->gear.record.generation;
+     CHECK(run(1)->phase==_extraction_deployed,"squadmate outside the zone joined the first call");
+     units[1].object.position.x=20.f;
+     control_tag.control.type=1;device_group_set_actual_value(1,0.f);touch(1,0);
+     CHECK(device_groups[1].actual_value==1.f&&run(0)->phase==_extraction_ready&&
+      run(0)->gear.record.generation==generation&&!run(0)->activation_ticks,"recall restarted or changed caller's run");
+     CHECK(run(1)->phase==_extraction_activating&&run(1)->activation_ticks==300,"recall missed nearby late squadmate");
+     advance(300);
+    }
     CHECK(run(1)->phase==(other_squad||leaves?_extraction_deployed:_extraction_ready),"teammate's zone countdown was not independent");
     if(other_squad||leaves) {
      CHECK(run(1)->gear.record.phase==_gear_deployed&&weapon_try_and_get(guest_loot),"excluded squadmate lost native gear");
@@ -2059,6 +2071,10 @@ int main(int argc,char **argv)
     CHECK(!device_groups[1].actual_value,"pending death recalled the aircraft");units[0].object.damage_flags=0;
     units[0].object.position.x=0;touch(1,0);CHECK(!device_groups[1].actual_value,"hub walk recalled the aircraft");units[0].object.position.x=20;
     device_groups[4].actual_value=0;touch(1,0);CHECK(!device_groups[1].actual_value,"unpowered control recalled the aircraft");device_groups[4].actual_value=1;
+    profile=FALSE;touch(1,0);
+    CHECK(!device_groups[1].actual_value&&run(0)->gear.record.generation==generation&&weapon_try_and_get(loot),
+     "unverified owner recalled the aircraft or altered gear");
+    profile=TRUE;
    }
    touch(1,0);
    CHECK(device_groups[1].actual_value==1.f&&run(0)->phase==_extraction_ready&&!run(0)->activation_ticks,
