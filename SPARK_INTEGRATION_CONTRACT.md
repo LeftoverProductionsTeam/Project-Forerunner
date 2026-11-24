@@ -2549,6 +2549,31 @@ The Warthog tests used opposing Slayer teams and only the driver rode.
 Teammate passengers, AI and objectives across regions, and the complete
 19-region world remain open.
 
+### Three-region Blood Gulch connector
+
+Spark's reviewed CE609 extension at `099a63e` adds Blood Gulch while
+preserving the Timberland–Sidewinder routes. The exact cache SHA-256 was
+`4733768fb91989cc5db1edb96dfc49091946da0198de3e51c92fa2617b33a286`.
+Windows x64 executable SHA-256
+`6929b8d3ffb7bf80f713b6094bcdf25989bdb9fe8f50aa4d5fca210579af2226`.
+
+The debug camera placement command now selects the same first local player
+as the camera loader. In the previous native attempt the host was slot 1
+and the guest was slot 0, so placement changed neither player's position.
+With the fix, one local placement staged the host at each approach while
+the guest retained the original spawn. Ordinary keyboard movement then
+took the host from (167.292, 27.139, -17.975) to
+(278.507, 27.142, -18.543), and in a separate session from
+(278.229, 27.141, -18.172) to (164.587, 27.140, -18.369). Both peers
+matched 50 outbound and 51 return samples with maximum position deltas
+of .0290 and .0381 world units. The guest stayed at its spawn while the
+host traversed. Both clients exited zero in both sessions. The protected
+handoff, staged caches and executable kept their hashes.
+
+This establishes two-way infantry traversal of the new connector on one
+resident BSP. Vehicle traversal, AI, objectives and the four-region
+candidate remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

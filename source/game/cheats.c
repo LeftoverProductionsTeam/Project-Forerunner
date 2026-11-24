@@ -2076,35 +2076,30 @@ void cheats_initialize_for_new_map(
 void cheat_teleport_to_camera(
 	void)
 {
-	long player_index = cheat_player_index();
+	short local_player_index = local_player_get_next(NONE);
+	long player_index;
+	struct player_datum const *player;
+	struct observer_result const *result;
+	long object_index;
 
-	if (player_index!=NONE)
+	if (local_player_index == NONE) return;
+	player_index = local_player_get_player_index(local_player_index);
+	if (player_index == NONE) return;
+	player = player_get(player_index);
+	if (player->unit_index == NONE) return;
+
+	result = observer_get_camera(local_player_index);
+	match_assert("c:\\halo\\SOURCE\\game\\cheats.c", 256, result);
+	if (result->location.cluster_index == NONE)
 	{
-		struct player_datum *player = player_get(player_index);
-
-		if (player->local_player_index!=NONE)
-		{
-			struct observer_result const *result = observer_get_camera(player->local_player_index);
-
-			match_assert("c:\\halo\\SOURCE\\game\\cheats.c", 256, result);
-
-			if (result->location.cluster_index!=NONE)
-			{
-				long object_index = unit_get(player->unit_index)->object.parent_object_index;
-
-				if (object_index==NONE)
-					object_index = player->unit_index;
-
-				object_set_position(object_index, &result->position, NULL, NULL);
-			}
-			else
-			{
-				terminal_printf(global_real_argb_orange, "Camera is outside BSP... cannot initiate teleportation...");
-			}
-		}
+		terminal_printf(global_real_argb_orange, "Camera is outside BSP... cannot initiate teleportation...");
+		return;
 	}
 
-	return;
+	object_index = unit_get(player->unit_index)->object.parent_object_index;
+	if (object_index == NONE)
+		object_index = player->unit_index;
+	object_set_position(object_index, &result->position, NULL, NULL);
 }
 
 void cheat_active_camouflage(
