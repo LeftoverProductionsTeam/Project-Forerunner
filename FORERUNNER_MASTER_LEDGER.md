@@ -10,11 +10,13 @@ Windows x64 recorded native ground/rest/landed at tick 5640, up.k 0.993.
 The exact route, bounds and receipt are in the Spark contract. A follow-up
 solo run on the aligned hash passed Marine rescue, facility combat, native
 technology pickup, defense, the field terminal, recalled landing and seat 4
-boarding. The longer repeat completed loaded evacuation and banked the
-rifle and technology in the verified native record. Circling extended the
-flight to roughly 224 seconds before banking. The first post-bank exit
-input left the player seated. Verify physical exit after the aircraft
-settles again, then same-session redeployment with the exact recovered gear.
+boarding. The longer runs completed loaded evacuation and banked the
+rifle and technology in the verified native record. After the post-bank
+settle, the player disembarked at tick 18330 and redeployed at the hub
+terminal. Both recovered item IDs moved into the new reservation and the
+technology returned to the player. The slow loaded approach, exact post-bank
+restart and two-human trial remain open. The compiled map wakes its authored
+mission only at startup, so Spark still needs an authored operation reset.
 Separate engine fix: starting a native passenger exit
 clears crew readiness immediately and readiness stays low through the exit
 animation. The regression reproduced before the fix and all 88 focused

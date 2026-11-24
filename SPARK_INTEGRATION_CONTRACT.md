@@ -64,11 +64,27 @@ outcome, generation 4, the assault rifle and the technology, and zero
 reserved or escrow items. The first E after banking did not disembark the
 player. By tick 17250 the aircraft reported native ground, rest and landed
 at (53.026, -100.860, 1.226), with zero motion and up.k 0.950. At shutdown
-the player was still seated. The next run must wait for the post-bank
-landing before trying exit, then verify terminal redeployment and exact
-item identities on the next reservation. The long loaded approach still
-needs improvement, and authenticated human multiplayer remains open.
+the player was still seated.
 Compact receipt: `build/native-black-echo-40d2-mission-settlement.json`.
+
+The subsequent uninterrupted solo run verified the rest of the native gear
+loop on `40d2ce85`. The same parked pose repeated with native ground, rest
+and landed at ticks 18240 and 18270. Normal Use detached the passenger by
+18330. He walked to the hub terminal and used it at 19770. The verified stash
+changed from idle generation 4 with two banked items to deployed generation 6
+with those exact two IDs reserved and no duplicated stash items. Player unit
+11 held the reissued technology at tick 19800. The engine and map were
+unchanged and the private staging was removed.
+Receipt: `build/native-black-echo-40d2-mission-redeploy.json`.
+
+A second authored mission still needs authoring work and native verification.
+Independent Invader readback found one wake of dormant `gs_mission`, in
+startup `gs_mission_bootstrap`. The continuous Pelican settlement callback
+sets only `gs_pelican_settled`. A repeatable Spark mission must rearm its
+objective and encounter state after a new deployment, using the existing
+native control signals or per-squad operation hooks. Leave banking and
+equipment ownership with Forerunner. Loaded approach time, an exact
+post-bank process restart, and two authenticated human runs remain open.
 
 Spark's isolated run at `4249988` on the preceding UNSC cache `7026f5fa`
 verified technology pickup, rifle selection, defense and field-terminal
@@ -97,6 +113,22 @@ check access around the parked Spirit and reuse its UNSC grounded-pickup
 placement workflow on the Covenant route if another approach remains
 obstructed. Keep the exact technology tag and its artifact-volume trigger.
 The scoped native receipt is `build/native-black-echo-88a1-covenant-route.json`.
+
+Spark's separate Covenant grounded-pickup export
+`releases/black-echo-elite-covenant-grounded-pickup-20261120/be_native.map`
+was verified on Windows x64 at SHA-256
+`a051468999467f5c5e95e73b1215b6006da748a4cea7d684e6570487063e0fc0`.
+One offline player selected the native Elite, deployed, rode the Spirit,
+disembarked at the field, and reached the rescue rally. The player killed
+the facility defender, obtained swap action 6 after a crouched approach at
+(54.236, -94.629, 0.009), and acquired the exact technology on Elite unit 9
+by tick 10080. Defense cleared and normal E started the field countdown.
+The recalled Spirit landed at (93.938, -132.030, 2.104), up.k 0.991, at
+tick 14340. From (89.440, -129.704, 0.769) the player received no evacuation
+seat offer. Native seat 8's entrance was (89.785, -130.439, 0.482), about
+1.05 units away by native readback. The approach needs to close that gap
+before concluding a seat or animation defect. Loaded Spirit return and
+banking remain open. Receipt: `build/native-black-echo-a051-native-spirit-route.json`.
 
 Forerunner independently ran the earlier UNSC export with one offline player. Normal
 deployment, Pelican seat 4 boarding, field landing and voluntary dismount
