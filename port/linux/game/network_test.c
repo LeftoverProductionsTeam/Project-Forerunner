@@ -919,10 +919,9 @@ static void network_test_shoot(
 		if (weapon->weapon.triggers.count > 0)
 		{
 			trigger = TAG_BLOCK_GET_ELEMENT(&weapon->weapon.triggers, 0, struct weapon_trigger_definition);
-			if (trigger->projectile.index != NONE)
+			struct projectile_definition *projectile = projectile_definition_try_get(trigger->projectile.index);
+			if (projectile)
 			{
-				struct projectile_definition *projectile = projectile_definition_get(trigger->projectile.index);
-
 				damage_index = projectile->projectile.impact_damage.index;
 				/* (how far it flies: its range, or at its speed for as long as
 				its timer runs; none for no bound, network_damage.c) */

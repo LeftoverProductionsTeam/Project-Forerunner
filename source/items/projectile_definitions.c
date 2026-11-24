@@ -10,6 +10,7 @@ symbols in this file:
 
 #include "cseries.h"
 #include "projectile_definitions.h"
+#include "cache/cache_files.h"
 
 #include "effects/effect_definitions.h"
 
@@ -62,6 +63,14 @@ struct projectile_material_response_definition default_projectile_material_respo
 	0.0f,
 };
 
-/* ---------- public code */
+/* ---------- public code ---------- */
+
+struct projectile_definition *projectile_definition_try_get(long index)
+{
+	/* A weapon trigger can also launch a native object such as a vehicle. */
+	if (index == NONE || tag_get_group_tag(index) != PROJECTILE_DEFINITION_TAG)
+		return NULL;
+	return projectile_definition_get(index);
+}
 
 /* ---------- private code */

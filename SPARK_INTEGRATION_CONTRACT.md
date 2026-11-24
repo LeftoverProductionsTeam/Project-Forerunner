@@ -1448,6 +1448,17 @@ the exact cache and pinned it with the x86 executable under
 HUD, script and geometry conversion after preserving the custom title in
 score-hint slot 100. Audio conversion then refused double_kill (codec 3,
 tag 1158, first range/permutation), before spawn. CE609 remains a separate gate.
+The 31,651-byte permutation is identical in the original Demo and MCC cache
+(SHA-256 04c3946a26f8b2cef14b27f683d1f574faa2a755c7e427d8d70f432e027d8769).
+The final Ogg page at byte 31,420 has a bad CRC. A disposable diagnostic
+ending at the last verified page decoded 302,656 stereo frames at 44.1 kHz.
+Spark owns any reviewed partial-audio recovery and new cache; retain the
+original stream. The native decoder still checks every page checksum.
+
+The MCC spawner still references its original zombie container.vehicle.
+The native weapon path now uses projectile metadata, targeting and tracer
+logic only for projectiles. It continues to use object_new for the carrier.
+Automatic actor ejection and cooperative play still require a loadable map.
 Forerunner restores the learned host threshold in native grounded rollover
 ejection. Original weapon-driven carrier release still needs gameplay proof.
 

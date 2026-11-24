@@ -31,6 +31,7 @@ real weapon_definition_get_damage_potential(long weapon_definition_index, real *
 {
 	struct weapon_definition *weapon = weapon_definition_get(weapon_definition_index);
 	struct weapon_trigger_definition *trigger = TAG_BLOCK_GET_ELEMENT(&weapon->weapon.triggers, 0, struct weapon_trigger_definition);
+	struct projectile_definition *projectile = projectile_definition_try_get(trigger->projectile.index);
 	real damage_potential = 0.0f;
 
 	if (rate_of_fire)
@@ -38,10 +39,8 @@ real weapon_definition_get_damage_potential(long weapon_definition_index, real *
 		*rate_of_fire = trigger->final_rate_of_fire;
 	}
 
-	if (trigger->projectile.index != NONE)
+	if (projectile)
 	{
-		struct projectile_definition *projectile = projectile_definition_get(trigger->projectile.index);
-
 		if (projectile->projectile.impact_damage.index != NONE)
 		{
 			struct damage_effect_definition *damage = damage_effect_definition_get(projectile->projectile.impact_damage.index);

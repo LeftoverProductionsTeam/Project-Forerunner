@@ -613,9 +613,9 @@ static void weapon_precache_projectile_trails(
 			struct weapon_trigger_definition *trigger = TAG_BLOCK_GET_ELEMENT(
 				&definition->weapon.triggers, trigger_index, struct weapon_trigger_definition);
 
-			if (trigger->projectile.index != NONE)
+			struct projectile_definition *projectile = projectile_definition_try_get(trigger->projectile.index);
+			if (projectile)
 			{
-				struct projectile_definition *projectile = projectile_definition_get(trigger->projectile.index);
 				short attachment_index;
 
 				for (attachment_index = 0; attachment_index < projectile->object.attachments.count; attachment_index++)
@@ -742,10 +742,11 @@ boolean weapon_aim(
 
 	if (trigger_index>=0 && trigger_index<weapon_definition->weapon.triggers.count)
 	{
-		struct weapon_trigger *trigger = weapon_trigger_get(weapon, trigger_index);
 		struct weapon_trigger_definition *trigger_definition = TAG_BLOCK_GET_ELEMENT(&weapon_definition->weapon.triggers, trigger_index, struct weapon_trigger_definition);
-
-		projectile_aim(projectile_definition_get(trigger_definition->projectile.index), origin, target_point, NULL, NULL, NULL, NULL, lob, result_aim_vector, NULL, result_ticks, result_distance, result_linear);
+		struct projectile_definition *projectile = projectile_definition_try_get(trigger_definition->projectile.index);
+		if (!projectile)
+			return FALSE;
+		projectile_aim(projectile, origin, target_point, NULL, NULL, NULL, NULL, lob, result_aim_vector, NULL, result_ticks, result_distance, result_linear);
 		match_assert_valid_real_normal3d("c:\\halo\\SOURCE\\items\\weapons.c", 1301, result_aim_vector);
 
 		result = TRUE;
@@ -1520,7 +1521,9 @@ real weapon_estimate_time_to_target(
 	{
 		struct weapon_trigger_definition *trigger_definition = TAG_BLOCK_GET_ELEMENT(&weapon_definition->weapon.triggers, trigger_index, struct weapon_trigger_definition);
 
-		result = projectile_estimate_time_to_target(projectile_definition_get(trigger_definition->projectile.index), distance);
+		struct projectile_definition *projectile = projectile_definition_try_get(trigger_definition->projectile.index);
+		if (projectile)
+			result = projectile_estimate_time_to_target(projectile, distance);
 	}
 
 	return result;
@@ -2679,6 +2682,10 @@ static void trigger_create_projectiles(
 			long projectile_owner_object_index= weapon_get_projectile_owner_object_index(weapon_index);
 			real_vector3d first_projectile_forward;
 			short projectile_index;
+#ifdef HALO_CUSTOM_EDITION
+			struct projectile_definition *flight_definition = cache_file_tags_are_ce() ?
+				projectile_definition_try_get(projectile_definition_index) : NULL;
+#endif
 
 			for (projectile_index= 0; projectile_index<projectile_count; projectile_index++)
 			{
@@ -2733,8 +2740,7 @@ static void trigger_create_projectiles(
 				never reads the flag. A Custom Edition map plays as Halo PC's, so
 				a bomb dropped from a moving aircraft keeps the aircraft's speed
 				(Coldsnap's nuke, Hugeass's) */
-				if (cache_file_tags_are_ce() &&
-					projectile_definition_combines_parent_velocity(projectile_definition_get(projectile_definition_index)))
+				if (flight_definition && projectile_definition_combines_parent_velocity(flight_definition))
 				{
 					long parent_index = object_get_ultimate_parent(
 						owner_object_index != NONE ? owner_object_index : weapon_index);
@@ -2760,13 +2766,12 @@ static void trigger_create_projectiles(
 						/* port: MCC already checks cover before attachments emit their first point. */
 						if (!mcc_ray) object_force_inside_bsp(projectile_object_index, &camera_position);
 					}
-					if (target_object_index!=NONE)
+					if (object_get_type(projectile_object_index) == _object_type_projectile)
 					{
-						projectile_set_target_object_index(projectile_object_index, target_object_index);
-					}
-					if (!tracer)
-					{
-						projectile_kill_tracer(projectile_object_index);
+						if (target_object_index!=NONE)
+							projectile_set_target_object_index(projectile_object_index, target_object_index);
+						if (!tracer)
+							projectile_kill_tracer(projectile_object_index);
 					}
 				}
 			}

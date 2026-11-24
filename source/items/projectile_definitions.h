@@ -110,7 +110,9 @@ struct projectile_definition
 	struct _projectile_definition projectile;
 };
 
-/* ---------- prototypes/EXAMPLE.C */
+/* ---------- prototypes ---------- */
+
+struct projectile_definition *projectile_definition_try_get(long index);
 
 /* ---------- globals */
 

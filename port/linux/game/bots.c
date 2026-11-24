@@ -570,12 +570,9 @@ static real bots_projectile_speed_compute(long definition_index)
 		struct weapon_trigger_definition *trigger =
 			TAG_BLOCK_GET_ELEMENT(&definition->weapon.triggers, 0, struct weapon_trigger_definition);
 
-		if (trigger->projectile.index != NONE)
-		{
-			struct projectile_definition *projectile = projectile_definition_get(trigger->projectile.index);
-
+		struct projectile_definition *projectile = projectile_definition_try_get(trigger->projectile.index);
+		if (projectile)
 			return 0.5f * (projectile->projectile.initial_velocity + projectile->projectile.final_velocity);
-		}
 	}
 	return 0.0f;
 }

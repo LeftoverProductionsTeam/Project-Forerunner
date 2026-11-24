@@ -222,3 +222,41 @@ int main(void) {
 ''')
     exe = compile_tool(tmp_path, [source])
     subprocess.run([str(exe)], check=True)
+
+
+def test_weapon_damage_reads_only_projectile_tags(tmp_path):
+    projectiles = (ROOT / "source/items/projectile_definitions.c").read_text()
+    weapons = (ROOT / "source/items/weapon_definitions.c").read_text()
+    source = tmp_path / "weapon_damage.c"
+    source.write_text(r'''
+#include <assert.h>
+#include <stddef.h>
+typedef float real;
+#define NONE (-1L)
+#define PROJECTILE_DEFINITION_TAG 1
+struct reference { long index; };
+struct weapon_trigger_definition { struct reference projectile; real final_rate_of_fire; };
+struct weapon_definition { struct { struct weapon_trigger_definition triggers; } weapon; };
+struct projectile_definition { struct { struct reference impact_damage, attached_detonation_damage; } projectile; };
+struct damage_effect_definition { struct { real damage_lower_bound, damage_upper_bound; } damage; };
+static struct weapon_definition weapon = {{ {{10}, 3.f} }};
+static struct projectile_definition projectile = {{{30}, {NONE}}};
+static struct damage_effect_definition damage = {{2.f, 8.f}};
+#define TAG_BLOCK_GET_ELEMENT(block, index, type) (block)
+static struct weapon_definition *weapon_definition_get(long index) { assert(index==1); return &weapon; }
+static struct projectile_definition *projectile_definition_get(long index) { assert(index==10); return &projectile; }
+static struct damage_effect_definition *damage_effect_definition_get(long index) { assert(index==30); return &damage; }
+static unsigned long tag_get_group_tag(long index) { assert(index==10 || index==20); return index==10 ? 1 : 2; }
+''' + function(projectiles, "projectile_definition_try_get") + "\n" +
+        function(weapons, "weapon_definition_get_damage_potential") + r'''
+int main(void) {
+    real rate = 0.f;
+    assert(weapon_definition_get_damage_potential(1, &rate)==5.f && rate==3.f);
+    weapon.weapon.triggers.projectile.index=20; /* a native carrier vehicle */
+    assert(weapon_definition_get_damage_potential(1, &rate)==0.f && rate==3.f);
+    weapon.weapon.triggers.projectile.index=NONE;
+    assert(weapon_definition_get_damage_potential(1, NULL)==0.f);
+    return 0;
+}
+''')
+    subprocess.run([str(compile_tool(tmp_path, [source]))], check=True)
