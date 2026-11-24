@@ -1615,6 +1615,26 @@ audio-prefix copy verifies native carrier delivery and synchronization
 only. Standalone CE, a complete survival round, and mixed Forerunner and
 Chupathingy play remain open.
 
+Spark `8005860` restored the original five Vorbis payloads at full length.
+The audited recipe reproduced the exact MCC13 export
+`126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
+Two current Forerunner Windows x64 processes used an unchanged copy on
+OpenCE version 43. Executable SHA-256
+`e82a58dbddb0f65ae603961c81090e01ab46052e55f614eb29b9298905723b9c`.
+Both converted all 852 permutations to 39,912,660 ADPCM bytes and spawned.
+The peers agreed on 18 standard, 6 Alpha, and 4 Evolved carrier objects,
+including nine Evolved riders in the same native seats. Both saw at least
+nine standard riders leave their carriers alive and the same three Alpha
+zombies alive on foot at tick 1806. The guest walked, fired two rounds and
+took damage. Both peers agreed on the player positions through tick 2280,
+exited zero, and retained the original hashes. Disposable staging was
+removed.
+
+This verifies engine audio conversion and native network gameplay on the
+full-length export. The run used muted output. Evolved egress, completion
+of a survival round, both absent external cues, standalone CE609, and
+Chupathingy interoperability remain open.
+
 A finer two-peer capture sampled nine living riders in the valid carriers.
 Six stayed in their native seats on the host but never attached on the
 guest. Forerunner now publishes AI seat transitions and keeps idle seated
