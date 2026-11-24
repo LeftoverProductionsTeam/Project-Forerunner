@@ -1227,6 +1227,7 @@ The response has these fields:
 | `network` | Compiled advertised version 45 and native layout 44; preserve the accepted 44/45 bridge |
 | `operations` | Currently only `runtime.discover` |
 | `native_features` | Optional native desktop CE feature identifiers. These include `extraction.squad_objectives.v1` and `character.biped_hands.v1`. Older or unsupported builds omit features they lack. |
+| `map_targets` | Optional native build-target list: `cache_version`, `tag_space_bytes`, `invader_engine`, `default` and, for expanded MCC13, `required_feature`. Older runtimes may omit the field. |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
 | `startup_map` | Optional desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Windows64 fresh-profile/native-hub startup passes on the exact binary above; other targets remain unverified. Older and non-desktop/server builds may omit it. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
@@ -2735,6 +2736,75 @@ The guest moved independently by 6.75 units in Timberland. The peers
 matched 36 position samples each way with maximum deltas of 0.1165 and
 0.1223 world units. Both exited zero and the tested map and executables
 retained their hashes. This proves infantry traversal on one resident BSP.
+
+### Nine-region MegaWorld cache targets
+
+Spark's nine-region CE609 export uses 16.92 of 23 MiB for tag and BSP data.
+Keep CE609 as the default. The optional Forerunner target uses the existing
+MCC13 format and 64 MiB tag window. Build the same authored scenario with
+Invader's `-g gbx-custom` for the legacy target or `-g mcc-cea -T 64M`
+for the expanded target. Keep each target's native resource banks and
+package identity. Report actual tag data, largest resident BSP, remaining tag
+headroom and raw resource bytes separately. [Invader compiler options](https://github.com/SnowyMouse/invader/blob/696830ff80af227e84e7237c2ef26eb2301ed110/src/build/build.cpp#L1574)
+
+Spark can match the cache header version to each selected runtime's
+`map_targets`. For expanded builds require the advertised
+`maps.mcc13_tag_space_64m.v1` feature, or specific verified support recorded
+for an upstream runtime without Spark discovery. Treat unknown runtimes as
+unverified. Forerunner opens the result through its existing MCC catalog and
+package path, including existing multiplayer package checks. The private
+`game.start_map` entry remains CE609-only. Spark already exports both targets and reports their compiled budgets.
+Its existing compatibility display still needs to consume the selected
+Forerunner executable's discovery metadata.
+
+OpenCE retains its linked CE609 arena and refuses maps requiring OpenSauce
+memory upgrades. OpenSauce declares those upgrades in its Yelo header.
+Chimera's CE map caching and Large Address Aware check retain the CE tag base.
+Forerunner reuses the inherited Chupathingy MCC loader with its independent
+window at `0x50000000` for this cache, clear of the legacy CE window and
+conversion scratch. [OpenCE loader](https://github.com/wxm0394/OpenCE/blob/main/docs/custom_edition_caches.md) · [OpenSauce header](https://github.com/HaloMods/OpenSauce/blob/40c7715a82a3b438d5e04f4f5e5a9edeb59e2618/OpenSauce/shared/Include/YeloLib/Halo1/cache/cache_files_structures_yelo.hpp#L59-L71) · [Chimera loader](https://github.com/SnowyMouse/chimera/blob/e0b13af4d02a6b8b36191e585e7885cd6a2ef878/src/chimera/map_loading/map_loading.cpp#L203-L228) · [Chupathingy loader](https://github.com/ChupathingyCE/chupathingyce/blob/fa752834f2528e6b9021812d1dcf4a7aa08ad00f/port/linux/game/mcc_cache.c)
+
+Invader's nine-region MCC13 build used 11.58 MiB of tag and BSP data.
+A disposable pressure fixture retained the same geometry and added valid
+native Unicode tag data. Its SHA-256 was
+`078bc6c779f9dfcb8ac415f4e32e879689c3c2032ab2288992465e85e3f1b86d`.
+Invader and independent readback verified CRC `784bc2cf`, 24.05 MiB of tag
+data, 4.99 MiB of resident BSP data, and 29.04 MiB combined. Both Forerunner
+Windows x64 peers, executable SHA-256
+`4a4474d5a5361f2f5f12e38984eaa97d0369e6ada451340f238c4e5fad50a23d`,
+matched the cache identity on private OpenCE 43 and loaded 25,647,424 runtime
+tag bytes. Both independently moved 4.124 world units. Four matched samples
+per player differed by at most 0.075 units, and both processes exited zero.
+
+The first native load exposed insufficient space in the inherited MCC
+checkpoint tail for 256 script stacks at 4 KiB. MCC now retains 4 KiB when
+it fits and falls back to 3,456 bytes each when it needs room. The session
+retains 256 threads, the existing checkpoint slots, and the same native
+bounds checks. CE state and on-wire layout are unchanged. A focused test
+covered capture, restore, overflow rejection and cleanup. Native proof is
+Windows x64 on one resident BSP. Independent active BSPs, regional AI,
+vehicles and objectives require separate gameplay acceptance.
+
+### Nine-region CE609 and guest-driven traversal
+
+The original nine-region cache `548e3c1c99b2032e7fbd72204b900139cee829d94bbe1e9978e0f343240a4c1c`
+ran on the same Windows x64 Forerunner binary above with Chupathingy guest
+`c16096a841422b2597a3c5f26d8b16be7dd6a2914f678c7ea4b36e31ec3a3050`
+at private OpenCE 44. After one debug placement at the Beaver Creek approach,
+normal input took the host to Prisoner at (569.760, -34.512, -18.326) and
+back to Beaver Creek at (487.542, -34.512, -18.206). The guest moved 6.75
+units independently in Timberland. Outbound and return position differences
+were at most 0.044 and 0.032 units across 36 and 37 samples. Both peers
+exited zero and the pinned cache was unchanged.
+
+On the preserved Timberland–Sidewinder road CE609 cache
+`ce043863cd80e26ce0b95f5449a33d80c6e796909f90ce1ae668bae817a993c2`
+with Forerunner Windows x64 `6f312905`, a guest driver and host passenger
+physically boarded the same Warthog using E in a private three-process
+session. The guest drove from the authored Sidewinder approach (x=68.100)
+to Timberland (x=37.218) and back to x=68.628 in Sidewinder. Seat and vehicle
+identity persisted, and the passenger and observer agreed within 0.082 world
+units. The run ended before the harness's farther x=70 destination.
 
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.

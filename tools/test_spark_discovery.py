@@ -54,6 +54,18 @@ def test_native_discovery_without_game_data(runtime):
     assert reply["network"] == {"advertised_version": 45, "native_layout_version": 44}
     assert reply["operations"] == ["runtime.discover"]
     assert reply["build"]["commit"] not in ("", "unknown")
+    if reply["build"]["architecture"] == "x64" and "startup_map" in reply:
+        targets = {target["cache_version"]: target for target in reply["map_targets"]}
+        assert targets[609] == {
+            "cache_version": 609, "tag_space_bytes": 23 * 1024 * 1024,
+            "invader_engine": "gbx-custom", "default": True,
+        }
+        feature = "maps.mcc13_tag_space_64m.v1"
+        assert feature in reply["native_features"]
+        assert targets[13] == {
+            "cache_version": 13, "tag_space_bytes": 64 * 1024 * 1024,
+            "invader_engine": "mcc-cea", "required_feature": feature, "default": False,
+        }
     assert {"OpenCE", "ChupathingyCE", "FractumSeraph/OpenCE"} <= set(reply["upstream_projects"])
 
 

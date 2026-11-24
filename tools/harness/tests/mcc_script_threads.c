@@ -94,7 +94,7 @@ int main(int argc,char **argv)
         CHECK(!mcc_checkpoint_script_storage(image,0,capacity,0xFFFFFFFFu));return 0;
     }
     if (!strcmp(argv[1],"scriptless")) {
-        used=capacity-1024*1024;
+        used=capacity-800*1024;
         CHECK(!mcc_script_threads_prepare(0));
         CHECK(mcc_script_threads_prepare(1));
         CHECK(!mcc_script_threads_prepare(1));
@@ -111,6 +111,26 @@ int main(int argc,char **argv)
         CHECK(!mcc_script_threads_validate(saved,image,used,capacity));
         mcc_script_threads_dispose();
         CHECK(hs_thread_data==native && native->valid && !mcc_threads.native);
+        return 0;
+    }
+    if (!strcmp(argv[1],"compact")) {
+        used=capacity-1107604; /* Observed free bytes on native Windows x64. */
+        CHECK(!mcc_checkpoint_script_storage(image,used,capacity,MCC_SCRIPT_THREAD_STORAGE));
+        CHECK(mcc_script_threads_prepare(0));
+        CHECK(mcc_threads.bytes<MCC_SCRIPT_THREAD_STORAGE);
+        storage=mcc_threads.storage;offset=(unsigned long)(storage-image);
+        CHECK(storage>=image+used && storage+mcc_threads.bytes<=image+capacity);
+        loaded=1;mcc_hs_threads_activate();
+        t=populate(hs_thread_data,1025);
+        CHECK(mcc_hs_stack_end(t)==t->stack_data+MCC_SCRIPT_STACK_BYTES_COMPACT);
+        CHECK(mcc_script_threads_capture());
+        memcpy(saved,image,sizeof(image));
+        CHECK(mcc_script_threads_validate(saved,image,used,capacity));
+        CHECK(mcc_script_threads_restore(image,used,capacity));
+        ((unsigned long *)(saved+offset))[2]=MCC_SCRIPT_THREAD_STORAGE;
+        CHECK(!mcc_script_threads_validate(saved,image,used,capacity));
+        mcc_script_threads_dispose();
+        CHECK(storage[0]==0xA5 && hs_thread_data==native);
         return 0;
     }
     CHECK(mcc_script_threads_prepare(0));CHECK(!mcc_script_threads_prepare(0));

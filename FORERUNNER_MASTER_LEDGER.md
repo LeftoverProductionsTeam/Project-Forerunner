@@ -1,9 +1,25 @@
 # Forerunner engineering checkpoint
 
-Updated: 23 November 2026. The persistent engineering goal remains active.
+Updated: 24 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
-Current priority: complete Black Echo with two authenticated players.
+Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
+
+1. MegaWorld. Continue from Spark's accepted nine-region baseline. Keep CE609
+   at 23 MiB and reuse the native MCC13 loader for the optional 64 MiB export.
+   Native Windows x64 private multiplayer passed with 24.46 MiB of loaded
+   tag data. Continue independent regional occupancy, persistent AI, vehicles,
+   objectives, synchronized world state and broader guest-driven traversal.
+2. Original Zombie Apocalypse. Verify the original carrier behavior, native
+   unloading, restored audio, projectile wrappers and a full mixed-runtime
+   survival round.
+3. Black Echo. Verify Spark's native recorded aircraft with persistent,
+   repeatable multiplayer Extraction.
+4. After the flagships, reuse Chupathingy's Forge menu and native placement
+   controls. Requested defaults are F4 for Monitor flight and F5 for the
+   spawn and editing menu.
+
+Previous Black Echo checkpoint.
 Spark's aligned UNSC export `40d2ce85` passed solo physical Pelican boarding,
 field landing, voluntary disembarkation and the empty return to the hub.
 Windows x64 recorded native ground/rest/landed at tick 5640, up.k 0.993.

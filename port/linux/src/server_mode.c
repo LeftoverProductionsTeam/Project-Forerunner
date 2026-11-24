@@ -29,6 +29,8 @@ without a display to wait for, and its exits.
 #include "server_json.h"
 #include "build_identity.h"
 #include "delta.h"
+#include "halo_port_features.h"
+#include "../game/mcc_cache_format.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -220,6 +222,9 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "extraction.pelican_return_pad.v1");
 	server_json_string(&json, NULL, "character.biped_hands.v1");
 	server_json_string(&json, NULL, "forge.hmv_base_placements.v1");
+#if HALO_MCC && defined(HALO_64BIT)
+	server_json_string(&json, NULL, "maps.mcc13_tag_space_64m.v1");
+#endif
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 	server_json_string(&json, NULL, "forge.hmv_local_devices.v1");
 	server_json_string(&json, NULL, "forge.hmv_local_physics.v1");
@@ -232,6 +237,25 @@ static void print_spark_capabilities(void)
 #endif
 	server_json_array_end(&json);
 #endif
+	/* Additive discovery metadata. CE609 remains the default compiler target. */
+	server_json_array_begin(&json, "map_targets");
+	server_json_object_begin(&json, NULL);
+	server_json_integer(&json, "cache_version", 609);
+	server_json_integer(&json, "tag_space_bytes", PLATFORM_CE_TAG_CACHE_SIZE);
+	server_json_string(&json, "invader_engine", "gbx-custom");
+	server_json_boolean(&json, "default", TRUE);
+	server_json_object_end(&json);
+#if HALO_MCC && defined(HALO_64BIT)
+	server_json_object_begin(&json, NULL);
+	server_json_integer(&json, "cache_version", MCC_CACHE_VERSION);
+	server_json_integer(&json, "tag_space_bytes", MCC_CACHE_TAG_CAPACITY);
+	server_json_string(&json, "invader_engine", "mcc-cea");
+	server_json_string(&json, "required_feature", "maps.mcc13_tag_space_64m.v1");
+	server_json_boolean(&json, "default", FALSE);
+	server_json_object_end(&json);
+#endif
+	server_json_array_end(&json);
+
 	/* Optional local startup metadata, not a gameplay or editing operation. */
 	server_json_object_begin(&json, "startup_map");
 	server_json_string(&json, "setting", "game.start_map");

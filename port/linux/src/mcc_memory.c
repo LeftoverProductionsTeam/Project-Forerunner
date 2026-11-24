@@ -1,6 +1,5 @@
-/* (port, this fork: the 64-bit builds compile MCC's code, but play no MCC
-map, mcc_cache.c's MCC_CACHE_64BIT_REFUSED: its tag addresses are a 32-bit
-build's pointers, which this build's Xbox addresses are not) */
+/* MCC cache addresses are native pointers on 32-bit builds and values in
+ * the existing Xbox address space on 64-bit builds. */
 #if defined(HALO_64BIT) && defined(__clang__)
 #pragma clang diagnostic ignored "-Wint-conversion"
 #pragma clang diagnostic ignored "-Wint-to-pointer-cast"
@@ -15,10 +14,17 @@ build's pointers, which this build's Xbox addresses are not) */
 #endif
 #if !defined(HALO_MCC) || HALO_MCC /* Halo MCC maps (halo_port_features.h, above): a console builds this to nothing */
 #include "platform.h"
+#include "../game/mcc_cache_format.h"
 #include <sys/mman.h>
 #include <stdint.h>
 #include <errno.h>
 #include <string.h>
+
+#define MCC_MIN_TAG_WINDOW 0x42000000u
+#define MCC_MAX_TAG_WINDOW 0x70000000u
+_Static_assert(PLATFORM_CE_TAG_CACHE_BASE + PLATFORM_CE_TAG_CACHE_SIZE +
+    PLATFORM_CE_CONVERSION_ROOM_SIZE <= MCC_MIN_TAG_WINDOW,
+    "the MCC tag arena overlaps the Custom Edition tag arena or its conversion scratch");
 
 #ifdef HALO_64BIT
 /* port: a 64-bit build has the Xbox address space reserved already
@@ -31,8 +37,8 @@ void *mcc_memory_reserve(uint32_t address, uint32_t size)
 {
     void *wanted = xbox_pointer(address);
 
-    if ((address & 0xFFFFu) || size != 0x04000000u ||
-        address < 0x42000000u || address > 0x70000000u) {
+    if ((address & 0xFFFFu) || size != MCC_CACHE_TAG_CAPACITY ||
+        address < MCC_MIN_TAG_WINDOW || address > MCC_MAX_TAG_WINDOW) {
         errno = EINVAL;
         return NULL;
     }
@@ -94,11 +100,11 @@ static int mcc_window_startup_error;
 static void *mcc_window_hold(uint32_t address)
 {
     void *wanted = (void *)(uintptr_t)address;
-    void *allocation = mmap(wanted, 0x04000000u, PROT_NONE,
+    void *allocation = mmap(wanted, MCC_CACHE_TAG_CAPACITY, PROT_NONE,
         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED_NOREPLACE, -1, 0);
     if (allocation == wanted) return allocation;
     if (allocation != MAP_FAILED) {
-        munmap(allocation, 0x04000000u);
+        munmap(allocation, MCC_CACHE_TAG_CAPACITY);
         errno = EINVAL;
     }
     return NULL;
@@ -128,7 +134,7 @@ void mcc_memory_log_startup(void)
 __attribute__((destructor))
 static void mcc_window_dispose(void)
 {
-    if (mcc_window) munmap(mcc_window, 0x04000000u);
+    if (mcc_window) munmap(mcc_window, MCC_CACHE_TAG_CAPACITY);
 }
 #endif
 
@@ -136,7 +142,7 @@ void *mcc_memory_reserve(uint32_t address, uint32_t size)
 {
 #if defined(HALO_BROWSER)
     void *wanted = (void *)(uintptr_t)address;
-    if ((address & 0xFFFFu) || size != 0x04000000u ||
+    if ((address & 0xFFFFu) || size != MCC_CACHE_TAG_CAPACITY ||
         address < PLATFORM_MCC_WINDOWS_BASE || address > PLATFORM_MCC_WINDOWS_END - size) {
         errno = EINVAL;
         return NULL;
@@ -171,8 +177,8 @@ void *mcc_memory_reserve(uint32_t address, uint32_t size)
     /* Keep clear of the Xbox arena, Custom Edition window and low addresses.
      * MCC Tool's current base is 0x50000000; other non-overlapping linked
      * addresses are accepted only if the OS confirms the window is free. */
-    if ((address & 0xFFFFu) || size != 0x04000000u ||
-        address < 0x42000000u || address > 0x70000000u) {
+    if ((address & 0xFFFFu) || size != MCC_CACHE_TAG_CAPACITY ||
+        address < MCC_MIN_TAG_WINDOW || address > MCC_MAX_TAG_WINDOW) {
         errno = EINVAL;
         return NULL;
     }
@@ -225,7 +231,7 @@ void mcc_memory_release(void *allocation, uint32_t size)
     (void)allocation;
     (void)size;
 #elif defined(HALO_WINDOWS)
-    if (allocation && allocation == mcc_window && size == 0x04000000u && mcc_window_active) {
+    if (allocation && allocation == mcc_window && size == MCC_CACHE_TAG_CAPACITY && mcc_window_active) {
         if (mmap(allocation, size, PROT_NONE,
             MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED, -1, 0) == allocation)
             mcc_window_active = 0;
