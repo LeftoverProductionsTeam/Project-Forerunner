@@ -1126,7 +1126,8 @@ boolean scenario_switch_structure_bsp(
 
 			had_old_structure_bsp = TRUE;
 			old_structure_bsp_index = global_structure_bsp_index;
-			scenario_structure_bsp_unload(active);
+			if (preparation != _scenario_bsp_prepare_ready || !scenario_structure_bsp_retain(active))
+				scenario_structure_bsp_unload(active);
 			scenario_globals->structure_bsp_index = NONE;
 			global_structure_bsp_index = NONE;
 		}

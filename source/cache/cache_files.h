@@ -160,6 +160,8 @@ enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
 void scenario_structure_bsp_activate_prepared(
 	struct scenario_structure_bsp_reference const *reference,
 	struct scenario_bsp_prepared const *prepared);
+boolean scenario_structure_bsp_retain(
+	struct scenario_structure_bsp_reference const *reference);
 boolean scenario_structure_bsp_load(
 	struct scenario_structure_bsp_reference *reference);
 void tag_files_close(

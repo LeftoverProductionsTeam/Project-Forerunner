@@ -80,12 +80,12 @@ static struct scenario_bsp_switch_trigger_volume switches[3];
 static struct scenario_cutscene_flag flags[1];
 static struct scenario_structure_bsp_reference references[4];
 static struct structure_bsp structures[2],*global_structure_bsp;
-static struct collision_bsp collisions[2],*global_collision_bsp;
+static struct collision_bsp collisions[3],*global_collision_bsp;
 static struct bsp3d *global_bsp3d;
 static struct structure_leaf leaves[2];
 static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
-static int reject_reference[4],reject_load[2],reject_verify[2],loads[2],unloads[2];
+static int reject_reference[4],reject_load[3],reject_verify[3],loads[3],unloads[3];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
 static boolean crowded,solid,ignore_players,operations,opposed,connected,dedicated_vote_routes,parallel_routes;
 static int stacked_calls,beside_retries;
@@ -280,12 +280,19 @@ static int test_destination_activation(void)
 static boolean mcc_loaded;
 struct mcc_cache_bsp;
 static struct mcc_runtime {struct {uint32_t bsp_count;struct mcc_cache_bsp const *bsps;} report;} mcc_loaded_cache;
+static struct mcc_cache_bsp const *mcc_retained_bsp;
+static struct {
+    byte header[24];
+    struct structure_bsp structure;
+} mcc_regions[3];
+static boolean mcc_prepare_fixture,mcc_region_live[3];
 static struct structure_bsp mcc_file_structure;
 static boolean mcc_file_read_failed;
 static int mcc_file_reads;
 static int mcc_runtime_read(struct mcc_runtime *runtime,uint32_t offset,uint32_t size,void *out)
 {
-    CHECK(runtime==&mcc_loaded_cache&&offset==0x1018&&size==sizeof(mcc_file_structure),"unexpected BSP header read");
+    CHECK(runtime==&mcc_loaded_cache&&size==sizeof(mcc_file_structure)&&
+          (offset==0x1018||(mcc_prepare_fixture&&(offset==0x2018||offset==0x4018))),"unexpected BSP header read");
     mcc_file_reads++;
     if (mcc_file_read_failed) return FALSE;
     memcpy(out,&mcc_file_structure,size);
@@ -295,29 +302,48 @@ static boolean structure_bsp_port_verify(struct structure_bsp const *bsp);
 static boolean mcc_cache_tags_loaded(void) {return mcc_loaded;}
 #define TAG_CACHE_SIZE 1
 static struct {struct {long tag_data_size;} header;void *structure_bsp_header;} cache_file_globals;
-static struct {void *base_address;} test_tag_instances[2];
-static int mcc_prepared_loads,mcc_prepared_releases;
+static struct {void *base_address;} test_tag_instances[3];
+static int mcc_prepared_loads,mcc_prepared_releases,mcc_prepared_validations;
 #define cache_get_tag_instance(index) (&test_tag_instances[index])
-static boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *ref, void **header, void **structure)
+static int mcc_geometry_bsp_load(struct mcc_runtime *runtime, uint32_t handle, uint32_t offset,
+                                 uint32_t size, void *address, void **structure)
 {
-    short index=(short)ref->structure_bsp.index;
+    short active=global_structure_bsp_index;
 
-    CHECK(global_structure_bsp_index==1-index && !disconnects && !unloads[1-index],
-          "preparing a destination detached the active BSP");
-    CHECK(cache_file_globals.structure_bsp_header==&references[1-index] &&
-          test_tag_instances[1-index].base_address==&structures[1-index] &&
-          !test_tag_instances[index].base_address,"preparing a destination changed the live cache header");
+    CHECK(runtime==&mcc_loaded_cache&&handle<3&&size==sizeof(mcc_regions[handle])&&
+          address==mcc_regions[handle].header&&offset==references[handle].file_offset,
+          "loaded a different cache window");
+    CHECK(active!=NONE&&active!=handle&&cache_file_globals.structure_bsp_header==mcc_regions[active].header&&
+          test_tag_instances[active].base_address==&mcc_regions[active].structure,
+          "preparation detached the active BSP");
+    CHECK(!test_tag_instances[handle].base_address&&
+          mcc_region_live[0]+mcc_region_live[1]+mcc_region_live[2]==1,
+          "conversion exceeded two resident regions or published the target early");
     mcc_prepared_loads++;
-    if (reject_load[index]) return FALSE;
-    *header=&references[index];
-    *structure=&structures[index];
+    if (reject_load[handle]) return FALSE;
+    mcc_region_live[handle]=TRUE;
+    *structure=&mcc_regions[handle].structure;
     return TRUE;
 }
-static void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *ref)
+static void mcc_geometry_bsp_unload(struct mcc_runtime *runtime, uint32_t handle)
 {
-    CHECK(global_structure_bsp_index!=ref->structure_bsp.index &&
-          cache_file_globals.structure_bsp_header!=ref,"refused preparation released the active BSP");
+    CHECK(runtime==&mcc_loaded_cache&&handle<3&&mcc_region_live[handle],"released missing geometry");
+    mcc_region_live[handle]=FALSE;
     mcc_prepared_releases++;
+}
+static int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size)
+{
+    CHECK(runtime==&mcc_loaded_cache&&handle>=0&&handle<3&&mcc_region_live[handle]&&
+          address==mcc_regions[handle].header&&size==sizeof(mcc_regions[handle]),
+          "validated a different cache window");
+    mcc_prepared_validations++;
+    return TRUE;
+}
+static void mcc_bsp_release_claims(struct mcc_runtime *runtime, void const *address, unsigned long size)
+{
+    CHECK(runtime==&mcc_loaded_cache&&size==sizeof(mcc_regions[0])&&
+          (address==mcc_regions[0].header||address==mcc_regions[1].header||address==mcc_regions[2].header),
+          "released claims outside the cache window");
 }
 static boolean cache_file_structure_bsp_tag_valid(struct scenario_structure_bsp_reference const *ref)
 {return !reject_reference[ref->structure_bsp.index];}
@@ -332,17 +358,20 @@ static void scenario_structure_bsp_unload(struct scenario_structure_bsp_referenc
     unloads[index]++;
     if (mcc_loaded)
     {
-        test_tag_instances[index].base_address=NULL;
-        cache_file_globals.structure_bsp_header=NULL;
+        mcc_cache_bsp_unload(ref);
+        cache_files_unbind_mcc_bsp(ref);
     }
 }
-static struct structure_bsp *structure_bsp_definition_get(long index) {return &structures[index];}
+static struct structure_bsp *structure_bsp_definition_get(long index)
+{return mcc_prepare_fixture ? &mcc_regions[index].structure : &structures[index];}
 #define BIT_VECTOR_SIZE_IN_BYTES(count) (4u * (((count) + 31u) / 32u))
 #include "bsp_limits.inc"
 static boolean structure_bsp_port_verify(struct structure_bsp const *bsp)
 {
     if (bsp==&structures[0]) return !reject_verify[0];
     if (bsp==&structures[1]) return !reject_verify[1];
+    for (short i=0;i<3;i++)
+        if (bsp==&mcc_regions[i].structure) return !reject_verify[i];
     return native_bsp_limits(bsp);
 }
 static void main_goto_main_menu(void) {menu++;}
@@ -524,55 +553,87 @@ int main(int argc,char **argv)
         boolean overlap=!strcmp(name,"mcc-prepare-overlap");
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
-        struct mcc_cache_bsp pair[2]={
-            {.file_offset=0x4000,.size=0x800,.address=0x50001000,.tag_handle=0,.structure_address=0x50001018},
-            {.file_offset=0x1000,.size=0x800,.address=0x50001800,.tag_handle=1,.structure_address=0x50001818}
-        };
+        boolean evict=!strcmp(name,"mcc-prepare-evict");
+        struct mcc_cache_bsp regions[3];
+        uint32_t const offsets[]={0x4000,0x1000,0x2000};
 
-        if (overlap)
+        mcc_loaded=mcc_prepare_fixture=TRUE;
+        mcc_loaded_cache.report.bsp_count=scenario.structure_bsp_references.count=3;
+        mcc_loaded_cache.report.bsps=regions;
+        for (short i=0;i<3;i++)
         {
-            pair[1].address-=0x400;
-            pair[1].structure_address-=0x400;
-        }
-        mcc_loaded=TRUE;
-        mcc_loaded_cache.report.bsp_count=2;
-        mcc_loaded_cache.report.bsps=pair;
-        for (short i=0;i<2;i++)
-        {
-            references[i].base_address=pair[i].address;
-            references[i].file_offset=pair[i].file_offset;
-            references[i].file_size=pair[i].size;
+            mcc_regions[i].structure=structures[i<2?i:0];
+            regions[i]=(struct mcc_cache_bsp){
+                .file_offset=offsets[i],.size=sizeof(mcc_regions[i]),.tag_handle=i,
+                .address=(uint32_t)(uintptr_t)mcc_regions[i].header,
+                .structure_address=(uint32_t)(uintptr_t)&mcc_regions[i].structure
+            };
+            if (overlap&&i==1)
+            {
+                regions[i].address=regions[0].address+4;
+                regions[i].structure_address=regions[0].structure_address+4;
+            }
+            references[i].structure_bsp.index=i;
+            references[i].base_address=regions[i].address;
+            references[i].file_offset=regions[i].file_offset;
+            references[i].file_size=regions[i].size;
         }
         mcc_file_structure.collision_bsp.count=1;
         mcc_file_structure.leaves.count=1;
         mcc_file_structure.clusters.count=1;
         mcc_file_structure.cluster_data.size=4;
-        cache_file_globals.structure_bsp_header=&references[old];
-        test_tag_instances[old].base_address=&structures[old];
+        mcc_region_live[old]=TRUE;
+        global_structure_bsp=&mcc_regions[old].structure;
+        cache_file_globals.structure_bsp_header=mcc_regions[old].header;
+        test_tag_instances[old].base_address=global_structure_bsp;
         reject_load[destination]=refused;
         reject_verify[destination]=limits;
 
         CHECK(scenario_switch_structure_bsp(destination)==(!limits&&!refused),"wrong outcome for staged BSP");
         CHECK(clock_stops==1&&clock_starts==1&&collision_log&&!menu,"staging did not restore the clock");
-        CHECK(mcc_prepared_loads==!overlap&&mcc_prepared_releases==limits,"unexpected preparation lifetime");
+        CHECK(mcc_prepared_loads==!overlap&&mcc_prepared_releases==(limits||overlap),
+              "unexpected preparation lifetime");
         if (refused || limits)
         {
             CHECK(!disconnects&&!reconnects&&!unloads[old]&&!loads[destination]&&!ejections&&!teleports&&
-                  global_structure_bsp_index==old&&global_structure_bsp==&structures[old]&&
-                  cache_file_globals.structure_bsp_header==&references[old]&&
-                  test_tag_instances[old].base_address==&structures[old]&&
+                  global_structure_bsp_index==old&&global_structure_bsp==&mcc_regions[old].structure&&
+                  cache_file_globals.structure_bsp_header==mcc_regions[old].header&&
+                  test_tag_instances[old].base_address==global_structure_bsp&&
+                  mcc_region_live[old]&&!mcc_region_live[destination]&&!mcc_retained_bsp&&
                   players_globals->pending_teleport_starting_location_index==NONE,
                   "refused staging mutated the active BSP or its players");
         }
         else
         {
-            CHECK(disconnects==1&&reconnects==1&&unloads[old]==1&&loads[destination]==overlap&&
+            CHECK(disconnects==1&&reconnects==1&&unloads[old]==overlap&&loads[destination]==overlap&&
                   global_structure_bsp_index==destination&&global_collision_bsp==&collisions[destination],
-                  "activation repeated the staged load or bypassed the normal reconnect");
+                  "activation bypassed native reconnect or used the wrong load path");
             if (!overlap)
-                CHECK(cache_file_globals.structure_bsp_header==&references[destination]&&
-                      test_tag_instances[destination].base_address==&structures[destination],
-                      "activation did not publish the prepared target");
+            {
+                CHECK(cache_file_globals.structure_bsp_header==mcc_regions[destination].header&&
+                      test_tag_instances[destination].base_address==&mcc_regions[destination].structure&&
+                      !test_tag_instances[old].base_address&&mcc_retained_bsp==&regions[old]&&
+                      mcc_region_live[old]&&mcc_region_live[destination],
+                      "the inactive BSP lost its geometry or remained published");
+                if (evict)
+                {
+                    CHECK(scenario_switch_structure_bsp(2),"third region did not load");
+                    CHECK(!mcc_region_live[old]&&mcc_region_live[destination]&&mcc_region_live[2]&&
+                          mcc_prepared_loads==2&&mcc_prepared_releases==1&&mcc_retained_bsp==&regions[destination],
+                          "third region failed to evict only the inactive neighbor");
+                }
+                else
+                {
+                    CHECK(scenario_switch_structure_bsp(old),"cached return did not activate");
+                    CHECK(mcc_prepared_loads==1&&mcc_prepared_validations==1&&mcc_prepared_releases==0&&
+                          mcc_retained_bsp==&regions[destination]&&test_tag_instances[old].base_address==
+                          &mcc_regions[old].structure&&!test_tag_instances[destination].base_address,
+                          "the cached return reloaded geometry or published both tags");
+                    scenario_structure_bsp_unload(&references[old]);
+                    CHECK(!mcc_region_live[old]&&!mcc_region_live[destination]&&!mcc_retained_bsp&&
+                          mcc_prepared_releases==2,"cold unload leaked retained geometry");
+                }
+            }
         }
         return 0;
     }

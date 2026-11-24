@@ -27,6 +27,7 @@ boolean mcc_cache_bsp_can_prepare(struct scenario_structure_bsp_reference const 
     struct scenario_structure_bsp_reference const *destination);
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     void **header, void **structure);
+boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference);
 void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *reference);
 short mcc_cache_part_palette(void const *buffer, byte const **nodes);
 boolean mcc_cache_bitmap_valid(struct bitmap_data *bitmap);
@@ -40,6 +41,7 @@ the shared code calls do nothing, their arguments unevaluated */
 #define mcc_cache_bsp_reference_checked(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_cache_bsp_can_prepare(active, destination) ((void)sizeof(active), (void)sizeof(destination), (boolean)0)
 #define mcc_cache_bsp_load(a0, a1, a2) ((void)sizeof(a0), (void)sizeof(a1), (void)sizeof(a2), (boolean)0)
+#define mcc_cache_bsp_retain(reference) ((void)sizeof(reference), (boolean)0)
 #define mcc_cache_bsp_unload(reference) ((void)0)
 #define mcc_cache_checksum(a0) ((void)sizeof(a0), (unsigned long)0)
 #define mcc_cache_precache_ready(a0) ((void)sizeof(a0), (boolean)0)

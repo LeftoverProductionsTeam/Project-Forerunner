@@ -2633,6 +2633,24 @@ boolean scenario_structure_bsp_load(
 	return TRUE;
 }
 
+static void cache_files_unbind_mcc_bsp(
+	struct scenario_structure_bsp_reference const *reference)
+{
+	cache_get_tag_instance(reference->structure_bsp.index)->base_address = XBOX_NULL;
+	cache_file_globals.structure_bsp_header = NULL;
+}
+
+boolean scenario_structure_bsp_retain(
+	struct scenario_structure_bsp_reference const *reference)
+{
+	if (!mcc_cache_bsp_retain(reference))
+		return FALSE;
+
+	/* Preserve the geometry but keep only the selected BSP in the tag table. */
+	cache_files_unbind_mcc_bsp(reference);
+	return TRUE;
+}
+
 void scenario_structure_bsp_unload(
 	struct scenario_structure_bsp_reference *reference)
 {
@@ -2642,8 +2660,7 @@ void scenario_structure_bsp_unload(
 	if (mcc_cache_tags_loaded())
 	{
 		mcc_cache_bsp_unload(reference);
-		cache_get_tag_instance(reference->structure_bsp.index)->base_address = XBOX_NULL;
-		cache_file_globals.structure_bsp_header = NULL;
+		cache_files_unbind_mcc_bsp(reference);
 		return;
 	}
 

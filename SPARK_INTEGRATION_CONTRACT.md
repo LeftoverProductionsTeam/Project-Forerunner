@@ -2969,9 +2969,9 @@ addresses at once. The native runtime first needs disjoint or validated
 relocated BSP ranges. The MCC geometry adapter now owns buffers by BSP
 handle. Two disjoint linked ranges can hold geometry at the same time.
 An overlapping request is refused before copying into the tag arena, and
-a failed conversion releases only the candidate's buffers. The global
-switch unloads the exact cache reference. The validator now retains the
-claims of other live BSPs and clears only the released or rejected range.
+a failed conversion releases only the candidate's buffers. Cold switches release the exact active cache reference and any retained
+neighbor. The validator retains claims of other live BSPs and clears only
+the released or rejected range.
 Geometry checks are restricted to the BSP handle being walked. Model
 allocations retain their shared owner. The native collision trees accept
 explicit BSP pointers. Higher-level location,
@@ -3006,9 +3006,12 @@ native MCC D40 switch acceptance.
 The native scenario switch now prepares and validates a disjoint MCC13
 destination before disconnecting the active BSP. Refusal restores the
 clock and cancels the pending gather while the active scene and cache
-header remain intact. After successful preparation, the ordinary switch
-unloads the previous BSP and publishes the checked destination once.
-Overlapping linked windows still use the normal unload-and-load path.
+header remain intact. After successful preparation, the switch publishes
+the destination and retains the former BSP's validated geometry with its tag
+binding cleared. Returning to it reuses geometry and validation claims.
+Preparing a third disjoint BSP evicts the inactive neighbor first. Cold
+switches, checkpoint reloads and map teardown release both. Overlapping
+linked windows still use the normal unload-and-load path.
 
 The Windows x64 executable
 `de6da5376ecb3ae01935c4d7c5cf5eb83053434f8d4890baa75166d89278990a`
@@ -3020,10 +3023,25 @@ smokes verified synchronized movement on MCC13 within 0.049 units and
 on CE609 with Chupathingy within 0.075 units. All peers exited zero.
 The disjoint preparation path was exercised by the focused harness.
 
-Spark reports that H1A Tool compiled the two Chiron corridor structure
-tags. The compiled scenario, lightmaps and native cache handoff remain
-pending for the physical cross-region test. Independent simultaneous
-simulation is still open.
+Windows x64 executable
+`788d90d2836451a1fecf913a09f3157cb6a06031863cd11797cd29ee58ca55a4`
+passed 60 focused switch checks, including cached return, third-region
+eviction, cold cleanup and refusal while the active scene remains bound.
+Two isolated native peers switched stock Xbox D40 in order 1, 0, 1.
+Two peers also loaded and moved on the exact twelve-region MCC13 cache
+`040b5da5de0a0e0bb7e03285933eaf807940e3c83c1fa1b76955d2982202d691`,
+with observed position differences up to 0.075 units. All peers exited zero.
+Disjoint neighbor reuse is covered by the harness. Each native session
+still simulated one selected BSP at a time.
+
+Spark revision `9d89bfc` compiled both Chiron corridor BSPs with native
+two-way switch volumes in CE609 and MCC13. The probe used overlapping BSP
+windows and its outputs were disposable. The next runtime handoff needs
+the lit, playable caches for physical traversal. Native neighbor residency
+needs an MCC13 export whose two linked BSP ranges are disjoint and within
+the declared tag window. Both ranges must start above the static tag data.
+CE609 can retain its original linked-window layout. Independent simultaneous
+simulation remains open.
 
 The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal

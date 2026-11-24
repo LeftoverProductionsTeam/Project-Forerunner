@@ -66,6 +66,7 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime);
 short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer, byte const **nodes);
 
 static struct mcc_runtime mcc_loaded_cache;
+static struct mcc_cache_bsp const *mcc_retained_bsp;
 static FILE *mcc_stream;
 static boolean mcc_loaded;
 
@@ -365,6 +366,7 @@ boolean mcc_cache_contains(void const *address, long bytes)
 
 void mcc_cache_tags_unload(void)
 {
+    mcc_retained_bsp = NULL;
     mcc_validation_cancel();
     mcc_cache_validation_clear();
     mcc_cache_precache_clear();
@@ -589,11 +591,35 @@ boolean mcc_cache_bsp_can_prepare(struct scenario_structure_bsp_reference const 
             (uint64_t)to->address + to->size <= from->address);
 }
 
+static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)
+{
+    mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
+    mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(bsp->address), bsp->size);
+}
+
+static void mcc_cache_drop_retained_bsp(void)
+{
+    if (mcc_retained_bsp) {
+        mcc_cache_bsp_release(mcc_retained_bsp);
+        mcc_retained_bsp = NULL;
+    }
+}
+
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     void **header, void **structure)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    if (!bsp || !mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
+    if (!bsp) return FALSE;
+    if (bsp == mcc_retained_bsp) {
+        *header = xbox_pointer(bsp->address);
+        *structure = xbox_pointer(bsp->structure_address);
+        mcc_retained_bsp = NULL;
+        return TRUE;
+    }
+
+    /* Allow at most the active BSP and one neighbor during conversion. */
+    mcc_cache_drop_retained_bsp();
+    if (!mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
         bsp->size, xbox_pointer(bsp->address), structure)) return FALSE;
     *header = xbox_pointer(bsp->address);
     if (!mcc_bsp_validate(&mcc_loaded_cache, (long)bsp->tag_handle, *header, (long)bsp->size)) {
@@ -603,12 +629,21 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     return TRUE;
 }
 
+boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    if (!bsp || mcc_retained_bsp) return FALSE;
+    mcc_retained_bsp = bsp;
+    return TRUE;
+}
+
 void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *reference)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    if (!bsp) return;
-    mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
-    mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(bsp->address), bsp->size);
+
+    /* A cold switch or a checkpoint reload drops both cached regions. */
+    if (bsp && bsp != mcc_retained_bsp) mcc_cache_bsp_release(bsp);
+    mcc_cache_drop_retained_bsp();
 }
 
 short mcc_cache_part_palette(void const *buffer, byte const **nodes)
