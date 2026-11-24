@@ -42,7 +42,7 @@ def thread_tool(tmp_path_factory):
     return build("mcc_script_threads", generated)
 
 
-@pytest.mark.parametrize("case", ["lifecycle", "capacity", "roundtrip", "migration", "checksum",
+@pytest.mark.parametrize("case", ["lifecycle", "capacity", "scriptless", "roundtrip", "migration", "checksum",
     "stride", "count", "pointer", "stack", "cycle", "overlap", "result", "size", "root", "other_thread", "bounds",
     "unactivated", "missing", "flags", "type", "sleep", "unused_slot"])
 def test_thread_storage(thread_tool, case):

@@ -4417,22 +4417,17 @@ void game_engine_rasterize_message(
 	rectangle2d bounds;
 	real_argb_color color;
 	long font_index;
-	long terminal_font_index;
 
 	if (local_player_count())
 		font_index = hud_globals->messaging.multi_player_font.index;
 	else
 		font_index = hud_globals->messaging.single_player_font.index;
+	if (font_index == NONE)
+		font_index = interface_get_tag_index(_interface_font_terminal);
+	if (font_index == NONE)
+		return;
 
 	bounds = render.camera.window_bounds;
-
-	terminal_font_index = interface_get_tag_index(_interface_font_terminal);
-	draw_string_set_draw_mode(
-		terminal_font_index,
-		NONE,
-		0,
-		0,
-		global_real_argb_white);
 
 	color.alpha = alpha;
 	color.red = 0.45882353f;

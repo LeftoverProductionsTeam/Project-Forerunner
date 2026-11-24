@@ -357,6 +357,7 @@ static void render_model_parts(
 							&model->shaders,
 							part->shader_index,
 							struct model_shader_reference);
+						if (shader_reference->shader.index == NONE) continue;
 						shader = shader_definition_get(shader_reference->shader.index);
 
 						if (shader_type_is_valid_for_model(shader->base.type) &&
@@ -583,6 +584,7 @@ static void model_geometry_fix_transparent_part_links(
 			return;
 		}
 		reference = TAG_BLOCK_GET_ELEMENT(&model->shaders, parts[i].shader_index, struct model_shader_reference);
+		if (reference->shader.index == NONE) return;
 		shader = shader_definition_get(reference->shader.index);
 		if (shader_type_is_transparent(shader->base.type))
 		{

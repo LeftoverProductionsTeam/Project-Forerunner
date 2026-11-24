@@ -41,16 +41,34 @@ static unsigned long mcc_threads_checksum(byte const *bytes, unsigned long count
     return (uint32_t)crc32(0, bytes, (uInt)count);
 }
 
-int mcc_script_threads_prepare(void)
+int mcc_script_threads_prepare(int scriptless)
 {
     unsigned long used,capacity;
     void *image=game_state_port_cpu_region(&used,&capacity);
-    byte *storage=mcc_checkpoint_script_storage((void *)image,used,capacity,MCC_SCRIPT_THREAD_STORAGE);
-    if (mcc_threads.storage || !storage || !hs_thread_data ||
-        hs_thread_data->size!=sizeof(struct hs_thread_datum) ||
-        hs_thread_data->maximum_count!=MCC_SCRIPT_THREAD_COUNT) return 0;
+    byte *storage=mcc_checkpoint_script_storage(image,used,capacity,MCC_SCRIPT_THREAD_STORAGE);
+    if (mcc_threads.native) return 0;
+    if (!hs_thread_data || hs_thread_data->size!=sizeof(struct hs_thread_datum) ||
+        hs_thread_data->maximum_count!=MCC_SCRIPT_THREAD_COUNT) {
+        error(_error_silent,"mcc scripts: unexpected native thread array");
+        return 0;
+    }
+    if (!storage) {
+        /* Maps without authored scripts or globals can use the native console
+         * threads. Preserve the larger stacks and checkpoint layout whenever
+         * the expanded array fits, and require it for authored scripts. */
+        if (scriptless) {
+            mcc_threads.native=hs_thread_data;
+            return 1;
+        }
+        error(_error_silent,"mcc scripts: cannot fit %lu bytes in CPU image tail (used %lu, capacity %lu)",
+            (unsigned long)MCC_SCRIPT_THREAD_STORAGE,used,capacity);
+        return 0;
+    }
     mcc_threads.original=malloc(MCC_SCRIPT_THREAD_STORAGE);
-    if (!mcc_threads.original) return 0;
+    if (!mcc_threads.original) {
+        error(_error_silent,"mcc scripts: could not retain the original CPU image tail");
+        return 0;
+    }
     memcpy(mcc_threads.original,storage,MCC_SCRIPT_THREAD_STORAGE);
     memset(storage,0,MCC_SCRIPT_THREAD_STORAGE);
     mcc_threads.storage=storage;
@@ -62,8 +80,9 @@ int mcc_script_threads_prepare(void)
 
 static void mcc_hs_threads_activate(void)
 {
-    if (mcc_cache_tags_loaded() && mcc_threads.array) {
-        mcc_campaign_reset_model_lighting();
+    if (!mcc_cache_tags_loaded()) return;
+    mcc_campaign_reset_model_lighting();
+    if (mcc_threads.array) {
         data_make_invalid(mcc_threads.native);
         hs_thread_data=mcc_threads.array;
     }
@@ -144,10 +163,25 @@ static void mcc_threads_stamp(byte *storage)
 
 int mcc_script_threads_capture(void)
 {
-    if (!mcc_threads.array || hs_thread_data!=mcc_threads.array ||
+    if (!mcc_threads.array)
+        return mcc_threads.native && hs_thread_data==mcc_threads.native &&
+            mcc_threads_array_valid(mcc_threads.native,mcc_threads.native,sizeof(struct hs_thread_datum));
+    if (hs_thread_data!=mcc_threads.array ||
         !mcc_threads_array_valid(mcc_threads.array,mcc_threads.array,MCC_SCRIPT_THREAD_BYTES)) return 0;
     mcc_threads_stamp(mcc_threads.storage);
     return 1;
+}
+
+static int mcc_native_threads_validate(void const *image, void const *current, unsigned long used)
+{
+    uintptr_t offset;
+    struct data_array const *incoming;
+    if (!mcc_threads.native || !image || !current) return 0;
+    offset=(uintptr_t)mcc_threads.native-(uintptr_t)current;
+    if (offset>used || sizeof(struct data_array)+MCC_SCRIPT_THREAD_COUNT*sizeof(struct hs_thread_datum)>used-offset)
+        return 0;
+    incoming=(void const *)((byte const *)image+offset);
+    return mcc_threads_array_valid(incoming,mcc_threads.native,sizeof(struct hs_thread_datum));
 }
 
 int mcc_script_threads_validate(void const *image, void const *current,
@@ -156,8 +190,8 @@ int mcc_script_threads_validate(void const *image, void const *current,
     byte *storage=mcc_checkpoint_script_storage((void *)image,used,capacity,MCC_SCRIPT_THREAD_STORAGE);
     unsigned long const *header=(unsigned long const *)storage;
     struct data_array *array;
-    uintptr_t native_offset;
-    if (!storage || !mcc_threads.array ||
+    if (!mcc_threads.array) return mcc_native_threads_validate(image,current,used);
+    if (!storage ||
         mcc_checkpoint_script_storage((void *)current,used,capacity,MCC_SCRIPT_THREAD_STORAGE)!=mcc_threads.storage) return 0;
     array=(struct data_array *)(storage+16);
     if (header[0]==0x5453434Du)
@@ -166,13 +200,7 @@ int mcc_script_threads_validate(void const *image, void const *current,
             mcc_threads_array_valid(array,mcc_threads.array,MCC_SCRIPT_THREAD_BYTES);
     /* Old checkpoints used only the native inline stacks. Validate them first,
      * then copy their live frames and relocate only intra-thread pointers. */
-    native_offset=(uintptr_t)mcc_threads.native-(uintptr_t)current;
-    if (native_offset>used || sizeof(struct data_array)+MCC_SCRIPT_THREAD_COUNT*sizeof(struct hs_thread_datum)>used-native_offset) return 0;
-    {
-        struct data_array const *native=(void const *)((byte const *)image+native_offset);
-        if (!mcc_threads_array_valid(native,mcc_threads.native,sizeof(struct hs_thread_datum))) return 0;
-        return 1;
-    }
+    return mcc_native_threads_validate(image,current,used);
 }
 
 int mcc_script_threads_restore(void *image, unsigned long used, unsigned long capacity)
@@ -182,6 +210,7 @@ int mcc_script_threads_restore(void *image, unsigned long used, unsigned long ca
     struct data_array const *native=mcc_threads.native;
     short i;
     if (!mcc_script_threads_validate(image,image,used,capacity)) return 0;
+    if (!mcc_threads.array) return 1;
     array=(void *)(storage+16);
     if (*(unsigned long *)storage==0x5453434Du) return 1;
     {

@@ -555,6 +555,70 @@ static struct tag_schema_definition const collision_model_schema =
 
 /* physics */
 
+extern real matrix3x3_determinant(real_matrix3x3 const *matrix);
+extern real_matrix3x3 *matrix3x3_inverse(real_matrix3x3 const *matrix,
+	real determinant, real_matrix3x3 *result);
+
+static boolean physics_matrix_is_finite(real_matrix3x3 const *matrix)
+{
+	short row, column;
+	for (row = 0; row < 3; row++)
+		for (column = 0; column < 3; column++)
+			if (!valid_real(matrix->n[row][column])) return FALSE;
+	return TRUE;
+}
+
+/* The native tools sometimes serialize a non-finite inverse for a singular
+ * authored tensor. Use the same tag's point masses about its center of mass.
+ * Do this once after the blocks have been range-checked, before physics runs. */
+static boolean physics_inverse_inertia_check(struct tag_validation *validation, void *base)
+{
+	struct physics_definition const *physics = base;
+	real_matrix3x3 *inverse, inertia, rebuilt;
+	real determinant;
+	short index, row, column;
+
+	if (physics->inertial_matrix.count < 2) return TRUE;
+	inverse = TAG_BLOCK_GET_ELEMENT(&physics->inertial_matrix, 1, real_matrix3x3);
+	if (physics_matrix_is_finite(inverse)) return TRUE;
+
+	csmemset(&inertia, 0, sizeof(inertia));
+	for (index = 0; index < physics->mass_points.count; index++)
+	{
+		struct mass_point_definition const *point =
+			TAG_BLOCK_GET_ELEMENT(&physics->mass_points, index, struct mass_point_definition);
+		real distance_squared = 0.f;
+		real relative[3];
+
+		if (point->mass == 0.f) continue;
+		if (!valid_real(point->mass) || point->mass < 0.f) goto invalid;
+		for (row = 0; row < 3; row++)
+		{
+			relative[row] = point->position.n[row] - physics->center_of_mass.n[row];
+			if (!valid_real(relative[row])) goto invalid;
+			distance_squared += relative[row] * relative[row];
+		}
+		for (row = 0; row < 3; row++)
+			for (column = 0; column < 3; column++)
+				inertia.n[row][column] += point->mass *
+					((row == column ? distance_squared : 0.f) - relative[row] * relative[column]);
+	}
+
+	if (!physics_matrix_is_finite(&inertia)) goto invalid;
+	determinant = matrix3x3_determinant(&inertia);
+	if (!valid_real(determinant) || determinant <= 0.f || realcmp(determinant, 0.f)) goto invalid;
+	matrix3x3_inverse(&inertia, determinant, &rebuilt);
+	if (!physics_matrix_is_finite(&rebuilt)) goto invalid;
+
+	*inverse = rebuilt;
+	tag_validate_correct(validation, "non-finite inverse inertia rebuilt from the tag's mass points");
+	return TRUE;
+
+invalid:
+	tag_validate_refuse(validation, "non-finite inverse inertia and no usable inertia from the tag's mass points");
+	return FALSE;
+}
+
 static struct tag_schema_definition const inertial_matrix_schema =
 	TAG_SCHEMA_DEFINITION(inertial_matrix, real_matrix3x3, empty_fields);
 static struct tag_schema_definition const powered_mass_point_schema =
@@ -577,6 +641,7 @@ static struct tag_schema_field const physics_fields[] =
 	TAG_SCHEMA_BLOCK(struct physics_definition, powered_mass_points, powered_mass_point_schema,
 		MAXIMUM_POWERED_MASS_POINTS_PER_PHYSICS),
 	TAG_SCHEMA_BLOCK(struct physics_definition, mass_points, mass_point_schema, MAXIMUM_MASS_POINTS_PER_PHYSICS),
+	TAG_SCHEMA_CHECK(physics_inverse_inertia_check),
 	TAG_SCHEMA_END
 };
 

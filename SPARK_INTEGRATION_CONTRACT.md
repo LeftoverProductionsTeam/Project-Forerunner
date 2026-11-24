@@ -1488,12 +1488,47 @@ It admitted the same cache on loopback and reached the same audio rejection.
 Stock MCC controls rejected unmatched sound banks. Successful MCC spawning
 and cross-platform acceptance remain open.
 
-The 31,651-byte permutation is identical in the original Demo and MCC cache
-(SHA-256 04c3946a26f8b2cef14b27f683d1f574faa2a755c7e427d8d70f432e027d8769).
-The final Ogg page at byte 31,420 has a bad CRC. A disposable diagnostic
-ending at the last verified page decoded 302,656 stereo frames at 44.1 kHz.
-Spark owns any reviewed partial-audio recovery and new cache; retain the
-original stream. The native decoder still checks every page checksum.
+The 31,651-byte `double_kill` permutation is identical in the Demo and MCC
+cache (SHA-256 `04c3946a26f8b2cef14b27f683d1f574faa2a755c7e427d8d70f432e027d8769`).
+The production decoder accepted 847 of the 852 local Vorbis permutations.
+Recomputing only the final page CRC did not recover `double_kill`. The following
+are the longest complete prefixes accepted by the same decoder when closed at
+their last verified page. Each failure is range 0, permutation 0 under
+`sound\dialog\multiplayer1`.
+
+| Cue | Tag index | First failing CRC page at byte | Accepted prefix bytes |
+| --- | ---: | ---: | ---: |
+| `double_kill` | 1158 | 31420 | 31420 |
+| `30_seconds_to_win` | 1528 | 271644 | 267259 |
+| `blue_team_30_to_win` | 1532 | 16639 | 16639 |
+| `slayer` | 1545 | 24995 | 12214 |
+| `capture_the_flag` | 1546 | 24995 | 12214 |
+
+Spark owns audio review and re-export. Retain every original stream. These
+prefixes are diagnostic evidence and require listening and source comparison
+before any recovery is accepted. The runtime still checks every page CRC.
+
+A disposable prefix-only MCC copy, SHA-256
+`43142d4383d692efe7a689ac88591447385c105bc84c7bc286bce37aaea982d5`,
+converted all 852 Vorbis permutations and exposed two independent engine
+faults. A map without authored HaloScript can now use native console threads
+when MCC's expanded stack array cannot fit after the reserved checkpoint
+regions. Scripted maps still require the expanded array. The three carrier
+variants share `fzero\zombie\zombiephysics`, whose compiled inverse inertia
+was entirely NaN. The native tag validator now reconstructs a finite inverse
+from that tag's authored mass points and center of mass, leaving valid matrices
+and source files untouched. The diagnostic map spawned one native player and
+sustained 16 actors through tick 315 after both repairs.
+
+In Windows x64 loopback the same diagnostic copy then spawned two players
+on separate native processes. The guest walked about 3.6 world units, and
+both peers reported the same final player positions and 16 living actors
+through tick 780. Both exited cleanly after repairing optional HUD-font
+and model-shader references and keeping mounted actor placement host-owned.
+The exact executable SHA-256 is `5b59a9ec2e1c292d2322c9b49bd5750d5806a40c470c59eed12993ce90d8929c`.
+One zombie container creation refusal still appeared on both peers. The
+run did not observe a rider leaving its seat or establish combat and round
+completion. The unmodified export still requires Spark's audio correction.
 
 The MCC spawner still references its original zombie container.vehicle.
 The native weapon path now uses projectile metadata, targeting and tracer

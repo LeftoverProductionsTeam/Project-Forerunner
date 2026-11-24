@@ -2745,7 +2745,10 @@ boolean unit_new(
 
 			if (seat->built_in_actor_reference.index!=NONE)
 			{
-				ai_create_mounted_weapons_for_unit(unit_index);
+				/* Replicas receive the host's riders. Only its AI update
+				 * drains the native mounted actor placement queue. */
+				if (!network_game_distributed_client())
+					ai_create_mounted_weapons_for_unit(unit_index);
 				break;
 			}
 		}

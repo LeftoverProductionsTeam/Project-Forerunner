@@ -394,7 +394,8 @@ struct cache_file_tag_header *mcc_cache_tags_load(char const *name, void *header
     struct mcc_cache_identity identity;
     unsigned char *raw = NULL;
     enum mcc_cache_status status;
-    uint32_t package_checksum, tag_index_address;
+    uint32_t package_checksum, tag_index_address, scenario_address;
+    struct scenario const *scenario;
     char memory_problem[192],resource_paths[2][128];
     char const *problem = "the map could not be opened";
     mcc_cache_tags_unload();
@@ -485,8 +486,12 @@ struct cache_file_tag_header *mcc_cache_tags_load(char const *name, void *header
     }
     /* The cache header checksum feeds native save validation as well as the lobby. */
     memcpy((unsigned char *)header + 0x64, &package_checksum, 4);
-    problem = "Not enough memory to prepare its scripts. Close other applications and try again.";
-    if (!mcc_script_threads_prepare()) goto failed;
+    memcpy(&scenario_address, runtime->tag_index + (runtime->report.scenario_handle & 0xFFFFu) * 32 + 20,
+        sizeof(scenario_address));
+    scenario = mcc_runtime_pointer(runtime, scenario_address, sizeof(*scenario));
+    if (!scenario) goto failed;
+    problem = "Its HaloScript threads could not be prepared. See debug.txt for the reason.";
+    if (!mcc_script_threads_prepare(!scenario->hs_scripts.count && !scenario->hs_globals.count)) goto failed;
     mcc_loaded = TRUE;
     mcc_loading_stage(MCC_LOADING_SCENARIO);
     mcc_bitmaps_prepare_gpu(runtime);

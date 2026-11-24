@@ -91,7 +91,7 @@ def console_state_tool(tmp_path_factory, request):
     casts += "\n" + "\n".join(function(read("port/linux/game/mcc_scripts.c"), name)
         for name in ("mcc_script_ai_cast", "mcc_script_can_cast"))
     casts += "\n" + "\n".join(function(runtime, name)
-        for name in ("hs_object_type_can_cast", "hs_can_cast"))
+        for name in ("hs_object_type_can_cast", "hs_ce_unit_vehicle_cast", "hs_can_cast"))
     fault = getattr(request, "param", None)
     if fault == "reuse-live-source":
         console = mutated(console, "if (!marked[slot])", "if (TRUE)")

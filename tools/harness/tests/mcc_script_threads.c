@@ -49,6 +49,8 @@ static unsigned long crc32(unsigned long crc, void const *data, uInt length)
     }
     return ~value & 0xFFFFFFFFUL;
 }
+#define _error_silent 0
+#define error(...) ((void)0)
 #include "under_test.inc"
 
 /* A real stack shape: root result, a large parent and an odd-aligned leaf.
@@ -86,12 +88,32 @@ int main(int argc,char **argv)
         t->flags=0;
     }
     if (!strcmp(argv[1],"capacity")) {
-        used=capacity;CHECK(!mcc_script_threads_prepare());
+        used=capacity;CHECK(!mcc_script_threads_prepare(0));
         CHECK(!mcc_threads.original && hs_thread_data==native);
         CHECK(!mcc_checkpoint_script_storage(image,0,8,1));
         CHECK(!mcc_checkpoint_script_storage(image,0,capacity,0xFFFFFFFFu));return 0;
     }
-    CHECK(mcc_script_threads_prepare());CHECK(!mcc_script_threads_prepare());
+    if (!strcmp(argv[1],"scriptless")) {
+        used=capacity-1024*1024;
+        CHECK(!mcc_script_threads_prepare(0));
+        CHECK(mcc_script_threads_prepare(1));
+        CHECK(!mcc_script_threads_prepare(1));
+        loaded=1;
+        mcc_hs_threads_activate();
+        CHECK(hs_thread_data==native && !mcc_threads.storage && lighting_resets==1);
+        CHECK(mcc_script_threads_capture());
+        memcpy(saved,image,sizeof(image));
+        CHECK(mcc_script_threads_validate(saved,image,used,capacity));
+        CHECK(mcc_script_threads_restore(image,used,capacity));
+        incoming=(void *)(saved+1024);
+        copy=(void *)(incoming+1);
+        copy->stack=(void *)0;
+        CHECK(!mcc_script_threads_validate(saved,image,used,capacity));
+        mcc_script_threads_dispose();
+        CHECK(hs_thread_data==native && native->valid && !mcc_threads.native);
+        return 0;
+    }
+    CHECK(mcc_script_threads_prepare(0));CHECK(!mcc_script_threads_prepare(0));
     storage=mcc_threads.storage;offset=(unsigned long)(storage-image);
     CHECK(storage>=image+used && storage+MCC_SCRIPT_THREAD_STORAGE<=image+capacity);
     if (!strcmp(argv[1],"unactivated")) {
