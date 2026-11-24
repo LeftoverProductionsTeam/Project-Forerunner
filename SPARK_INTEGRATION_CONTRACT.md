@@ -2504,9 +2504,18 @@ Both peers matched the driver, vehicle and seat at the crossing samples
 and agreed on the final occupied position at tick 2910. Both processes
 exited normally and all input hashes held.
 
-The tested Slayer players were on opposing teams and only the driver
-rode. Teammate passengers, cave and ridge gameplay, AI and objectives
-across regions, and the complete 19-region world remain open.
+A second two-peer session on the same executable and cache verified both
+side routes at the same time. The listen host walked the ridge from
+Timberland to Sidewinder and back, reaching the raised plateau near
+z -19.108 in both directions. The guest walked from Sidewinder through the
+cave to Timberland and back, following both interior corners near y 47.449
+at z -21.075. Both peers recorded all 15 ridge and 11 cave waypoints. The
+worst position deltas were .094 and .076 world units, respectively. Both
+processes exited normally, inputs held their hashes, and staging was removed.
+
+The Warthog tests used opposing Slayer teams and only the driver rode.
+Teammate passengers, AI and objectives across regions, and the complete
+19-region world remain open.
 
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
