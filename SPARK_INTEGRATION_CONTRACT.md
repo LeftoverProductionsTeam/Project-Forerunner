@@ -39,8 +39,22 @@ up.k 0.993 and zero motion. Its observed center (52.546, -100.546, 0.989)
 is inside the authored return volume and outside both field volumes.
 The run exited cleanly and the staged and protected hashes matched.
 Receipt: `build/native-black-echo-40d2-aligned-flight.json`.
-Next prove the landed recall, loaded evacuation, settlement and redeployment
-on the same cache. The test ended before rescue, combat or the field call.
+A follow-up Windows x64 mission on the same hash used a temporary profile
+and native input. The Spartan reached the rescue rally with the Marine
+alive, killed the facility guard, and collected the technology. The standing
+pickup pass ended with the item unowned. From (54.276, -94.644, 0.005),
+level aim and crouch gave swap action 6 for object 14 at tick 6120. E moved
+the technology to player unit 11 by tick 6210. Invader independently found
+byte-identical technology tags in `7026f5fa` and `40d2ce85`. Rifle fire cleared
+defense. Native E at (70.628, -128.413, 0.747) activated the field terminal and
+the countdown completed. The recalled Pelican landed at tick 10410 with
+up.k 0.957. The Spartan physically boarded seat 4 and departed by tick 10860.
+At the 135-second observation limit, the loaded Pelican was still rolling
+near the hub at (50.341, -104.634, 1.815), with ground 1, rest/landed 0,
+up.k 0.969 and motion 0.0444. No recovery was credited. Gear banking, hub
+disembarkation, redeployment and human multiplayer still need verification.
+Next observe the loaded hub rollout through a stop and settlement on this
+exact export. Compact receipt: `build/native-black-echo-40d2-mission-pickup.json`.
 
 Spark's isolated run at `4249988` on the preceding UNSC cache `7026f5fa`
 verified technology pickup, rifle selection, defense and field-terminal
