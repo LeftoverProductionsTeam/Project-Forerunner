@@ -880,6 +880,12 @@ long find_netgame_flag(
 	short type,
 	short team_index);
 
+long game_engine_find_teleporter(
+	union real_point3d const *position,
+	real radius,
+	short type,
+	short channel);
+
 boolean game_engine_should_end_game(
 	void);
 

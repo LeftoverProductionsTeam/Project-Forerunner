@@ -5162,6 +5162,8 @@ static void game_engine_update_teleporter(
 		return;
 
 	unit = unit_get(player->unit_index);
+	if (!VALID_INDEX(player->teleporter_index, scenario->netgame_flags.count))
+		player->teleporter_index = NONE;
 	if (player->teleporter_index != NONE)
 	{
 		struct scenario_netgame_flag *previous_flag = TAG_BLOCK_GET_ELEMENT(
@@ -5173,15 +5175,8 @@ static void game_engine_update_teleporter(
 			player->teleporter_index = NONE;
 	}
 
-	source_flag_index = NONE;
-	find_netgame_flags(
-		&unit->object.position,
-		0.5f,
-		0.0f,
-		_netgame_flag_teleporter_source,
-		NONE,
-		1,
-		&source_flag_index);
+	source_flag_index = game_engine_find_teleporter(
+		&unit->object.position, 0.5f, _netgame_flag_teleporter_source, NONE);
 	if (source_flag_index == NONE ||
 		source_flag_index == player->teleporter_index)
 	{
@@ -5192,15 +5187,8 @@ static void game_engine_update_teleporter(
 		&scenario->netgame_flags,
 		source_flag_index,
 		struct scenario_netgame_flag);
-	destination_flag_index = NONE;
-	find_netgame_flags(
-		NULL,
-		0.0f,
-		0.0f,
-		_netgame_flag_teleporter_target,
-		source_flag->team_index,
-		1,
-		&destination_flag_index);
+	destination_flag_index = game_engine_find_teleporter(
+		NULL, 0.0f, _netgame_flag_teleporter_target, source_flag->team_index);
 	if (destination_flag_index != NONE)
 	{
 		destination_flag = TAG_BLOCK_GET_ELEMENT(
@@ -5328,12 +5316,8 @@ static void game_engine_update_teleporter(
 			if (player->local_player_index != NONE)
 				player_control_set_facing(player->local_player_index, &forward);
 
-			player->teleporter_index = find_netgame_flag(
-				&unit->object.position,
-				1.0f,
-				0.0f,
-				_netgame_flag_teleporter_source,
-				NONE);
+			player->teleporter_index = game_engine_find_teleporter(
+				&unit->object.position, 1.0f, _netgame_flag_teleporter_source, NONE);
 		}
 		return;
 	}
@@ -6329,14 +6313,15 @@ wchar_t *get_place_name(
 	return L"";
 }
 
-long find_netgame_flags(
+static long find_netgame_flags_in_structure(
 	real_point3d const *position,
 	real radius,
 	real height,
 	short type,
 	short team_index,
 	long maximum_count,
-	long *flag_indices)
+	long *flag_indices,
+	struct structure_bsp const *structure)
 {
 	real radius_squared = radius * radius;
 	long found_count = 0;
@@ -6346,7 +6331,7 @@ long find_netgame_flags(
 
 	scenario = global_scenario_get();
 
-	for (flag_index = 0; flag_index < scenario->netgame_flags.count; flag_index++)
+	for (flag_index = 0; flag_index < scenario->netgame_flags.count && found_count < maximum_count; flag_index++)
 	{
 		struct scenario_netgame_flag *flag = TAG_BLOCK_GET_ELEMENT(
 			&scenario->netgame_flags,
@@ -6374,11 +6359,50 @@ long find_netgame_flags(
 			}
 		}
 
-		if (found_count < maximum_count)
-			flag_indices[found_count++] = flag_index;
+		if (structure && !scenario_structure_bsp_contains_point(structure, &flag->position))
+			continue;
+
+		flag_indices[found_count++] = flag_index;
 	}
 
 	return found_count;
+}
+
+long find_netgame_flags(
+	real_point3d const *position,
+	real radius,
+	real height,
+	short type,
+	short team_index,
+	long maximum_count,
+	long *flag_indices)
+{
+	return find_netgame_flags_in_structure(
+		position, radius, height, type, team_index, maximum_count, flag_indices, NULL);
+}
+
+long game_engine_find_teleporter(
+	real_point3d const *position,
+	real radius,
+	short type,
+	short channel)
+{
+	struct scenario const *scenario = global_scenario_get();
+	struct structure_bsp const *structure = NULL;
+	long flag_index = NONE;
+
+	/* Expanded MCC scenarios can keep the same native teleporter channel in
+	 * each BSP. Normal scenarios keep their original global pairing. */
+	if (mcc_cache_tags_loaded() &&
+		scenario->structure_bsp_references.count > 1 &&
+		scenario->netgame_flags.count > MAXIMUM_SCENARIO_NETGAME_FLAGS_PER_SCENARIO)
+	{
+		if (global_structure_bsp_index_get() == NONE)
+			return NONE;
+		structure = global_structure_bsp_get();
+	}
+	find_netgame_flags_in_structure(position, radius, 0.0f, type, channel, 1, &flag_index, structure);
+	return flag_index;
 }
 
 long find_netgame_flag(

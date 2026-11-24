@@ -4260,7 +4260,7 @@ static void distributed_handle_unit_state(
 		(game_engine_update_teleporter) */
 		if (distance_squared3d(&before, &object_get(unit_index)->object.position) > 1.0f)
 		{
-			player->teleporter_index = find_netgame_flag(&object_get(unit_index)->object.position, 1.0f, 0.0f,
+			player->teleporter_index = game_engine_find_teleporter(&object_get(unit_index)->object.position, 1.0f,
 				_netgame_flag_teleporter_source, NONE);
 		}
 	}

@@ -3073,6 +3073,31 @@ The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal
 is verified separately above. Both currently exercise one resident BSP.
 
+#### Regional native teleporter flags
+
+Spark's reviewed base and Chiron source have 284 native netgame flags.
+Forerunner now admits up to 4,096 rows in MCC13's existing
+`scenario.netgame_flags` block. Larger blocks are rejected. CE609 keeps the
+classic 200-row limit. On expanded MCC13 maps with multiple BSPs, native
+teleporter endpoints must lie inside their BSP's collision leaves and outside
+other BSPs for unambiguous pairing. Duplicate channels may be used in separate
+BSPs. The engine and incoming multiplayer corrections use the same active-BSP
+lookup. Include the full paired rows in the MCC13 handoff. The classic export
+still needs a reviewed subset. Regional CTF, hill, race and other objectives
+retain their current gameplay rules.
+
+Windows x64 `e40fdbf5da349e3b4d1a7b2482942d1f6ee8a7ef14ce47ffa2798b498a24370b`
+passed 200 focused checks. A disposable single-BSP copy of Spark's twelve-region
+MCC13 cache had 284 flags and Invader-checked CRC `900619c6`. Both private
+native peers reported slot 0 at (68.049, 34.124, -21.075) on tick 90, then
+(55.250, 35.424, -21.075) on tick 120 after using rows 282 and 283 (zero-based).
+Both processes exited normally. The runtime trace captured the player after
+they continued moving, past the smoke wrapper's target-radius assertion.
+The fixture SHA-256 was
+`5d928df40009586bf56a89ab34e3f8ac78d7b4fb911ce45cc32385225dd9b5a8`.
+Regional pairing was verified by the existing BSP harness. Spark's lit
+Chiron probe is awaiting a retained playable handoff for live two-BSP tests.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.

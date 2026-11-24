@@ -205,6 +205,7 @@ def test_hud_conversion_preserves_validation(hud_validation_tool, case):
                                      "prefix_smaller", "prefix_expand", "prefix_tail_overlap", "empty_weapon", "empty_weapon_nonzero",
                                      "animation_data", "animation_data_outside",
                                      "file_range", "handle", "unknown_group", "bsp",
+                                     "netgame_flags_284", "netgame_flags_4096", "netgame_flags_4097",
                                      "legacy_isolation", "callbacks", "misaligned", "stream_hole",
                                      "collection", "collection_outside", "device", "device_outside",
                                      "trimmed_structure", "graph_large", "graph_cycle", "graph_node_cycle",

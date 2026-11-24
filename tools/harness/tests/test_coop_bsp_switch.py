@@ -46,6 +46,10 @@ def generated(fault=None):
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_structure_support'))),
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
+        ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
+             '_netgame_flag_teleporter_source') + '\n' +
+         '\n'.join(function(read('source/game/game_engine.c'), name)
+            for name in ('find_netgame_flags_in_structure', 'find_netgame_flags', 'game_engine_find_teleporter'))),
         ('players.inc', '\n'.join(function(players, name) for name in (
             'player_teleport_with_policy', 'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
@@ -78,7 +82,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'regional-teleporters', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

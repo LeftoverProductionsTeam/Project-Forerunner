@@ -28,6 +28,7 @@ struct test_root {
     struct tag_block object_names;
     struct tag_block scenery_palette;
     short palette_entry_index;
+    struct tag_block netgame_flags;
 };
 struct test_bsp { void *root; long vcount; void *vertices; long icount; void *indices; unsigned long signature; };
 struct test_device { short kind; unsigned short flags; struct tag_data identifier, profile; };
@@ -86,7 +87,9 @@ static struct tag_schema_field const child_fields[] = {
 static struct tag_schema_definition const child_schema = TAG_SCHEMA_DEFINITION(child, struct test_child, child_fields);
 static struct tag_schema_field const name_fields[] = {TAG_SCHEMA_END};
 static struct tag_schema_definition const name_schema = {"object_name",36,name_fields};
+static struct tag_schema_definition const netgame_flag_schema = {"netgame_flag",148,name_fields};
 static struct tag_schema_field const root_fields[] = {
+    TAG_SCHEMA_BLOCK(struct test_root, netgame_flags, netgame_flag_schema, 200),
     TAG_SCHEMA_BLOCK(struct test_root, children, child_schema, 4),
     TAG_SCHEMA_BLOCK_INDEX(struct test_root, index, TAG_SCHEMA_ROOT, offsetof(struct test_root, children), 0),
     TAG_SCHEMA_ENUM(struct test_root, enumeration, 4, 0),
@@ -447,6 +450,7 @@ int main(int argc, char **argv)
     if (!strncmp(argv[1], "syntax_", 7)) runtime.capacity = runtime.used = 1048576;
     if (!strncmp(argv[1], "names_", 6)) runtime.used = runtime.capacity = 2097152;
     if (!strncmp(argv[1], "palette_", 8)) runtime.used = runtime.capacity = 2097152;
+    if (!strncmp(argv[1], "netgame_flags_", 14)) runtime.used = runtime.capacity = 1048576;
     runtime.tags = malloc(runtime.capacity); CHECK(runtime.tags != NULL);
     memset(runtime.tags, 0, runtime.capacity);
     header = (struct test_header *)runtime.tags;
@@ -788,6 +792,22 @@ int main(int argc, char **argv)
         if (!strcmp(argv[1], "palette_overlap")) {
             root->scenery_palette.address = child; expected = 0;
         }
+    }
+    if (!strncmp(argv[1], "netgame_flags_", 14)) {
+        long count = atoi(argv[1] + 14);
+        byte *flags = runtime.tags + 0x1000;
+        root->netgame_flags.count = count;
+        root->netgame_flags.address = flags;
+        flags[(count-1) * netgame_flag_schema.size] = 0x71;
+
+        CHECK(mcc_tags_validate(&runtime) == (count <= MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM));
+        CHECK(root->netgame_flags.count == count);
+        CHECK(flags[(count-1) * netgame_flag_schema.size] == 0x71);
+        if (count <= MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM) {
+            CHECK(tag_validate_tags(header,runtime.used,runtime.source.size,"legacy netgame flags"));
+            CHECK(root->netgame_flags.count == MIN(count,200));
+        }
+        mcc_validation_dispose(&runtime); free(runtime.tags); return 0;
     }
     CHECK(mcc_tags_validate(&runtime) == expected);
     if (!strcmp(argv[1],"graph_model_complete")) {

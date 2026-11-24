@@ -4,6 +4,7 @@
 #include "harness.h"
 #include <limits.h>
 #include <stdint.h>
+#include <math.h>
 
 #undef match_assert
 #define match_assert(f,l,c) CHECK(c,"engine assertion")
@@ -42,7 +43,9 @@ struct scenario_structure_bsp_reference {
     uint32_t base_address;
     long file_offset,file_size;
 };
-struct scenario {struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references;};
+struct scenario {struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags;};
+struct scenario_netgame_flag {real_point3d position; short type,team_index;};
+enum {MAXIMUM_SCENARIO_NETGAME_FLAGS_PER_SCENARIO=200};
 struct collision_surface {long plane_designator;};
 struct collision_bsp {struct tag_block surfaces;};
 struct bsp3d {int placeholder;};
@@ -191,8 +194,14 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
 static long prepared_crossing_leaf;
+static boolean test_regional_teleporters;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
+    if (test_regional_teleporters)
+    {
+        CHECK(node==0&&tree==(struct bsp3d const *)&collisions[global_structure_bsp_index],"incorrect flag collision tree");
+        return (point->x < 200)==(global_structure_bsp_index==0) ? 0 : NONE;
+    }
     CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_structure_bsp_index==0&&
           global_collision_bsp==&collisions[0]&&!disconnects,"destination test replaced active collision");
     return point->x < 200 ? prepared_crossing_leaf : NONE;
@@ -399,6 +408,12 @@ static struct {short switch_to_structure_bsp_index;} main_globals={NONE};
 static short distributed_host_structure_bsp_index = NONE;
 static long distributed_host_structure_bsp_start = NONE;
 static short global_structure_bsp_index_get(void) {return global_structure_bsp_index;}
+static real distance_squared3d(real_point3d const *a, real_point3d const *b)
+{
+    real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;
+    return x*x+y*y+z*z;
+}
+#include "netgame_flags.inc"
 struct distributed_structure_bsp {short structure_bsp_index,pad;};
 static boolean loading_hud;
 static void hud_load(boolean value) {loading_hud=value;}
@@ -565,6 +580,40 @@ int main(int argc,char **argv)
     short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "regional-teleporters"))
+    {
+        struct scenario_netgame_flag markers[284]={0};
+        short const channel=8;
+        real_point3d border={199.8f,0,0};
+        long first,second;
+
+        scenario.netgame_flags=(struct tag_block){NUMBEROF(markers),markers};
+        markers[0]=(struct scenario_netgame_flag){{201,0,0},_netgame_flag_teleporter_target,channel};
+        markers[1]=(struct scenario_netgame_flag){{200.1f,0,0},_netgame_flag_teleporter_source,channel};
+        markers[282]=(struct scenario_netgame_flag){{50,0,0},_netgame_flag_teleporter_target,channel};
+        markers[283]=(struct scenario_netgame_flag){{199.6f,0,0},_netgame_flag_teleporter_source,channel};
+        test_regional_teleporters=mcc_loaded=TRUE;
+        structures[0].clusters.count=structures[1].clusters.count=4;
+
+        CHECK(game_engine_find_teleporter(&border,.5f,_netgame_flag_teleporter_source,NONE)==283,
+              "the source in the next BSP suppressed the local source");
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==282,
+              "the destination in the next BSP shadowed the local channel");
+        global_structure_bsp_index=1;
+        global_structure_bsp=&structures[1];
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==0,
+              "the second BSP did not use its own channel");
+        global_structure_bsp_index=NONE;
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==NONE,
+              "selected a regional teleporter without an active BSP");
+
+        first=find_netgame_flags(NULL,0,0,_netgame_flag_teleporter_target,channel,1,&second);
+        CHECK(first==1&&second==0,"changed the legacy global flag query");
+        mcc_loaded=FALSE;
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==0,
+              "changed the legacy global teleporter contract");
+        return 0;
+    }
     if (!strncmp(name, "mcc-prepare-",12))
     {
         boolean overlap=!strcmp(name,"mcc-prepare-overlap");

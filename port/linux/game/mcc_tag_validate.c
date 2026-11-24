@@ -729,6 +729,14 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                             break;
                         }
                     }
+                    if (schema->name && !strcmp(schema->name, "scenario") &&
+                        !strcmp(field->name, "netgame_flags")) {
+                        maximum = MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM;
+                        if (block->count > maximum) {
+                            mcc_problem(context, 1, "netgame flags exceed MCC's 4096-entry capacity");
+                            break;
+                        }
+                    }
                     if (!element || element->size <= 0 || block->count < 0 ||
                         (unsigned long)block->count > context->length / (unsigned long)element->size) {
                         mcc_problem(context, 1, "invalid block count"); break;
