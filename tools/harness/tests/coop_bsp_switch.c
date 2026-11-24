@@ -184,6 +184,21 @@ struct distributed_structure_bsp {short structure_bsp_index,pad;};
 static boolean loading_hud;
 static void hud_load(boolean value) {loading_hud=value;}
 #define console_warning(...) ((void)0)
+typedef unsigned short word;
+struct distributed_unit_state {byte player_index;};
+static int unit_snapshots_applied;
+static word distributed_unit_state_read(byte const *data,byte const *end,struct distributed_unit_state *state)
+{
+    if(data==end)
+        return 0;
+    state->player_index=*data;
+    return 1;
+}
+static void distributed_handle_unit_state(long host_time,struct distributed_unit_state const *state)
+{
+    CHECK(host_time>0&&state->player_index==0,"invalid snapshot passed to unit handler");
+    unit_snapshots_applied++;
+}
 #include "bsp_receive.inc"
 
 static void setup(short old,short destination)
@@ -260,6 +275,25 @@ int main(int argc,char **argv)
         message.structure_bsp_index=destination;
         distributed_handle_structure_bsp(&message);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"later valid switch did not queue");
+        return 0;
+    }
+    if(!strcmp(name,"host-snapshot-before-load"))
+    {
+        struct distributed_structure_bsp message={destination,0};
+        byte state[]={0};
+        distributed_handle_structure_bsp(&message);
+        distributed_handle_unit_states(1,state,state+sizeof(state),1);
+        CHECK(unit_snapshots_applied==0,"applied destination snapshot to the old BSP");
+        message.structure_bsp_index=old;
+        distributed_handle_structure_bsp(&message);
+        distributed_handle_unit_states(2,state,state+sizeof(state),1);
+        CHECK(unit_snapshots_applied==1,"snapshot did not resume after the host canceled the switch");
+        message.structure_bsp_index=destination;
+        distributed_handle_structure_bsp(&message);
+        main_switch_to_structure_bsp_private();
+        CHECK(global_structure_bsp_index==destination,"client did not load the destination BSP");
+        distributed_handle_unit_states(3,state,state+sizeof(state),1);
+        CHECK(unit_snapshots_applied==2,"snapshot did not resume after loading the destination BSP");
         return 0;
     }
     if(!strncmp(name,"rescue-",7))

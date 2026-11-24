@@ -110,6 +110,7 @@ void main_load_core_name_at_startup(
 
 void main_switch_structure_bsp(
 	short structure_bsp_index);
+boolean main_structure_bsp_switch_pending(void);
 /* Follow the host's accepted snapshot, including cancellation of a queued load. */
 void main_sync_structure_bsp(short structure_bsp_index);
 

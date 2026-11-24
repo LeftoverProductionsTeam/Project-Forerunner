@@ -1285,6 +1285,11 @@ void main_switch_structure_bsp(
 	return;
 }
 
+boolean main_structure_bsp_switch_pending(void)
+{
+	return main_globals.switch_to_structure_bsp_index != NONE;
+}
+
 void main_sync_structure_bsp(short structure_bsp_index)
 {
 	if (structure_bsp_index == global_structure_bsp_index)

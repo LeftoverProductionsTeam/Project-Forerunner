@@ -4273,6 +4273,11 @@ static void distributed_handle_unit_states(
 {
 	short index;
 
+	/* A host switch and its player positions can arrive in the same network
+	 * pass. Use the next periodic snapshot after the main loop loads the BSP. */
+	if (main_structure_bsp_switch_pending() && network_coop_active())
+		return;
+
 	for (index = 0; index < count; index++)
 	{
 		struct distributed_unit_state state;

@@ -2361,6 +2361,17 @@ actions for that slot. Repeat registration of the current owner preserves
 its active state. Both slot-reuse regressions failed before the fix and the
 focused queue and BSP harness passed 49 checks afterward.
 
+Co-op clients now skip periodic player snapshots while a host BSP change
+waits for the existing main-loop load. The regression reproduced application
+of destination state in the old BSP. The 36-case BSP harness then passed,
+including snapshot resumption after load and after host cancellation. On the
+same stock D40 cache, Windows x64 executable SHA-256
+`9d77a862dc8aa0026cb45da0de23358422a7862fd805e68a8b49d00af265597d`
+loaded BSP 1 before the late guest spawned. Ordinary movement took the host
+across the next seam. Both peers switched to BSP 0 at reported game tick 741,
+and the guest stayed on the floor near (-26.942, 21.399, 0). Both exited zero.
+Map and executable hashes held and disposable staging was removed.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.
