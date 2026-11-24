@@ -1513,7 +1513,9 @@ void pc_menu_start_map_update(unsigned char main_menu_loaded)
 		platform_log("menus: startup map refused while another session/startup owns the game");
 		return;
 	}
-	if (!main_menu_loaded || !main_menu_is_active() || !ui_widgets_active())
+	/* The startup profile scan can still read tags from the menu map. */
+	if (!main_menu_loaded || !main_menu_is_active() || !ui_widgets_active() ||
+		filesystem_check_thread_is_active())
 		return;
 	if (!requested_map[0])
 	{

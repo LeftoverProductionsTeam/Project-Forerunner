@@ -24,7 +24,18 @@ remains unverified.
 
 ## Current Black Echo candidates
 
-The newest local UNSC route export is
+The current UNSC split-return export is
+`releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
+`571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.
+Spark reported offline loaded Pelican return and gear banking on this export.
+Forerunner independently matched the hash and verified a fresh profile launch,
+3,680 tags, native Extraction hub admission and solo player spawn on Ubuntu
+WSL2 x64 with software OpenGL. Cache unload now waits for the startup profile
+scan, which was responsible for both the cache and lightmap draw assertions.
+Receipt: `build/native-linux64-black-echo-profile-gate.json`. The Linux mission
+loop and two-authenticated-human acceptance remain open.
+
+The preceding aligned UNSC route export is
 `releases/black-echo-elite-unsc-hub-aligned-20261120/be_native.map`.
 Windows x64 independently matched SHA-256
 `40d2ce850682d1e3ed871e28481eadc0513251fe37e8b95987126cf1809299da`,
