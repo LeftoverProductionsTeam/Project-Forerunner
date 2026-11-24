@@ -1150,7 +1150,10 @@ boolean scenario_switch_structure_bsp(
 				main_start_time();
 				return FALSE;
 			}
-			error(_error_immediate, "failed to load structure bsp #%d", structure_bsp_index);
+			/* An immediate error exits before the previous BSP can be restored.
+			 * Keep the startup error policy when no region was loaded. */
+			error(had_old_structure_bsp ? _error_silent : _error_immediate,
+				"failed to load structure bsp #%d", structure_bsp_index);
 			global_structure_bsp = NULL;
 			global_collision_bsp = NULL;
 			global_bsp3d = NULL;

@@ -2659,6 +2659,25 @@ and executables held their hashes. This verifies infantry traversal on a
 single resident BSP with the legacy guest. Vehicle clearance, AI and
 further regions remain open.
 
+### Six-region Wizard traversal with a guest in Timberland
+
+Spark revision `68392cd` adds Wizard to the same resident BSP. Exact CE609
+map SHA-256 `ee2c7b1fc264cdba0f55233ff0b77dffd5455dfdbd079034e3caa489cd982995`.
+Forerunner Windows x64 SHA-256
+`cb1063473de096a952c83f32fa946efb08d0e70ab2678af8ece0d91e957d6f4b`
+hosted private OpenCE 44 with Chupathingy Windows x64 SHA-256
+`c16096a841422b2597a3c5f26d8b16be7dd6a2914f678c7ea4b36e31ec3a3050`.
+One debug placement staged the host at the approach. Normal input walked
+from (-39.828, -58.680, -12.437) to Wizard (-82.796, -133.306, -12.437)
+at tick 1290 and back to Timberland (-38.073, -56.251, -12.672) at tick 2550.
+The guest independently moved 6.75 units in Timberland and stayed there
+through the host's crossing. The peers matched 40 position samples in each
+direction. Maximum differences were .0278 outbound and .0386 returning.
+Both runtimes exited zero, the map and binaries retained their hashes, and
+the disposable staging was removed. The run covers native infantry and
+simultaneous player locations on one resident BSP. Wizard vehicle routes, AI,
+objectives and independent play across multiple active BSPs remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.
@@ -2706,6 +2725,12 @@ switched both peers to BSP 0 at tick 450. The guest then walked from
 (-26.942, 21.399, 0) to (-29.192, 21.417, 0), which both peers reported at
 tick 570. Both exited zero, hashes held and staging was removed. The
 late-sample rejection was exercised in the harness.
+
+A later regression exposed the native fatal error before BSP rollback. Failed
+destination loads now reach the existing source reload or return to the menu
+if neither BSP is usable. Initial load policy is unchanged. Three refusal
+cases failed with a fatal-aware harness before the fix. All 38 focused cases
+passed afterward and Windows x64 linked. Forced failure is harness-verified.
 
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the

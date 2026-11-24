@@ -10,7 +10,14 @@
 #define match_vassert(f,l,c,m) CHECK(c,"%s",m)
 #define _error_silent 0
 #define _error_immediate 1
-#define error(...) ((void)0)
+/* errors.c exits on immediate errors before the caller can recover. */
+#define error(priority, ...) do { \
+    if ((priority) == _error_immediate) { \
+        fprintf(stderr, __VA_ARGS__); \
+        fputc('\n', stderr); \
+        exit(1); \
+    } \
+} while (0)
 #define MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO 16
 enum {_game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
