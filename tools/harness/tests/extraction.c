@@ -1970,6 +1970,25 @@ int main(int argc,char **argv)
   if(!strncmp(case_name,"transport-boarded",17)) {
    boolean other=!strcmp(case_name,"transport-boarded-other")||!strcmp(case_name,"transport-boarded-identity");
    CHECK(device_groups[10].actual_value==1.f,"single requested evacuation was not ready");
+   if(!strcmp(case_name,"transport-boarded-recording")) {
+    short leg;
+    CHECK(extraction.dropship_landing_groups[0]==NONE,"fixture requires a boarding-only map");
+    for(leg=0;leg<2;leg++) {
+     recorded_aircraft=craft;
+     extraction_transport_recording_started(dropship_handles[1]);
+     CHECK(device_groups[10].actual_value==1.f,"another ship revoked this crew's readiness");
+     client=TRUE;extraction_transport_recording_started(craft);client=FALSE;
+     CHECK(device_groups[10].actual_value==1.f,"a client revoked host crew readiness");
+     extraction_transport_recording_started(craft);
+     CHECK(!device_groups[10].actual_value,"boarding-only map kept stale readiness when playback started");
+     advance(1);
+     CHECK(!device_groups[10].actual_value&&run(0)->dropship==craft,
+      "active flight republished readiness or lost its native boarding record");
+     recorded_aircraft=NONE;advance(1);
+     CHECK(device_groups[10].actual_value==1.f,"cleanup did not rearm the remaining crew");
+    }
+    extraction_reset();return 0;
+   }
    if(!strncmp(case_name,"transport-boarded-squad-",23)) {
     boolean same=!strcmp(case_name,"transport-boarded-squad-wait");
     boolean hub=!strcmp(case_name,"transport-boarded-squad-hub");

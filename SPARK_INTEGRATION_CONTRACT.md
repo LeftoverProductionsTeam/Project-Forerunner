@@ -68,6 +68,13 @@ HaloScript can wait on the next touchdown even when it starts the clip and
 checks the device groups in the same tick. The Windows x64 build passed 96
 focused checks and a native Extraction hub startup. The exact executable
 and fixture hashes are retained in the same comparison record.
+Boarding-only maps now also clear the crew output as playback starts and
+keep it clear through native thread cleanup. Their authored landing rules
+still govern boarding and exit. The focused two-leg regression reproduced
+the stale group and then passed with the other 96 transport and recording
+checks. Windows x64 SHA-256 `406051a5a8263d7ca6feb8f738bf2bf6f161ebc3028ac2c5c934a31e7ae4a1bf`
+compiled. The combined recorded flight and crew-only route still needs a
+live authored cache.
 A final `recording_time` of zero alone can precede that cleanup. Spark should
 use `recording_play_and_hover` for an authored clip ending with real ground
 contact and wait for the faction's landed output. Release hover with

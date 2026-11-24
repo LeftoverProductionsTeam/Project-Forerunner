@@ -1876,10 +1876,10 @@ void extraction_transport_recording_started(long unit_index)
 	{
 		short landing_group = extraction.dropship_landing_groups[faction];
 		short boarding_group = extraction.dropship_boarding_groups[faction];
-		if (landing_group == NONE || extraction.dropship_names[faction] == NONE ||
+		if ((landing_group == NONE && boarding_group == NONE) || extraction.dropship_names[faction] == NONE ||
 			object_index_from_name_index(extraction.dropship_names[faction]) != unit_index) continue;
 		/* HaloScript can read these outputs again before the next tick. */
-		if (device_group_get_value(landing_group) != 0.f)
+		if (landing_group != NONE && device_group_get_value(landing_group) != 0.f)
 			device_group_set_actual_value(landing_group, 0.f);
 		if (boarding_group != NONE && device_group_get_value(boarding_group) != 0.f)
 			device_group_set_actual_value(boarding_group, 0.f);
@@ -2125,7 +2125,10 @@ static boolean extraction_transport_crew_ready(short faction, long ship)
 	short index, passengers = 0;
 	unsigned long crew_squads = 0;
 	boolean at_hub, at_lz, legacy_crew = FALSE;
-	if (cinematic_in_progress() || !object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
+	/* Boarding-only maps retain their authored landing rules. During recorded
+	 * flight the playback thread owns departure readiness until cleanup. */
+	if (cinematic_in_progress() || recorded_animation_has_thread(ship) ||
+		!object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
 	at_hub = extraction_in_hub_volume(extraction_transport_return_zone(faction), ship);
 	at_lz = extraction_transport_at_field(faction, ship);
 	if (at_hub == at_lz) return FALSE;
