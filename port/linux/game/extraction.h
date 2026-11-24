@@ -48,6 +48,8 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 /* Native voluntary player exits from transports with authored landing signals. */
 struct unit_datum;
 boolean extraction_transport_can_disembark(struct unit_datum const *passenger);
+/* Revoke the host's crew-ready signal as soon as a native seat exit starts. */
+void extraction_transport_seat_exit_started(struct unit_datum const *passenger);
 /* The existing Firefight director delays lobby return only while a living
  * winner's shared gear recovery is pending. No extra wave/lives director. */
 boolean extraction_survival_settlement_pending(void);

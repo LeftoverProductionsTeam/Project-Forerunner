@@ -24,14 +24,21 @@ remains unverified.
 
 ## Current Black Echo candidates
 
-Spark's current UNSC handoff is
-`releases/black-echo-elite-unsc-grounded-pickup-20261120/be_native.map`,
-SHA-256 `7026f5facce487a79d9dc580fe724937ee1388d2c0ee4410a4b02f0fbb19ce73`.
-Forerunner independently checked that file's hash. Spark `16949e1` reports
-defeating the facility defender, collecting the moved native technology
-and starting defense in a private Forerunner run on that exact cache.
-Rifle selection, defense completion and evacuation remain unverified in
-that handoff.
+The newest local UNSC route export is
+`releases/black-echo-elite-unsc-hub-aligned-20261120/be_native.map`.
+Windows x64 independently matched SHA-256
+`40d2ce850682d1e3ed871e28481eadc0513251fe37e8b95987126cf1809299da`,
+loaded all 3,680 tags and admitted the native Extraction bindings. Spark's
+readback adds airborne waypoints (45.9, -100.95, 6.6) and (49.8, -101.77, 4.75)
+and an aligned final approach. Next prove stable native touchdown before
+evacuation and settlement. The smoke verified startup only.
+
+Spark's isolated run at `4249988` on the preceding UNSC cache `7026f5fa`
+verified technology pickup, rifle selection, defense and field-terminal
+activation. The empty Pelican circled the hub. Radius-only diagnostic
+`3564bca8` stopped the circling but settled at (51.842, -101.543, 1.216)
+with up.k 0.938–0.939, below the unchanged native 0.95 gate. Preserve the
+authored near-pad, east-southeast approach and native contact checks.
 
 The separate CE609 faction exports before the UNSC pickup correction were
 derived from the preserved Elite start layout. The UNSC export at

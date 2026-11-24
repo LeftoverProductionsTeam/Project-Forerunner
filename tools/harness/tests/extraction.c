@@ -408,6 +408,7 @@ static boolean distributed_tag_of_group(long tag,unsigned long group){return gro
 static boolean network_coop_private_sound(long machine,long sound){CHECK(machine==1&&sound==91,"wrong private radio");if(radio_queue_full)return FALSE;private_radio_remote++;return TRUE;}
 static void scripted_sound_new_private(long sound,boolean play){CHECK(sound==91,"wrong native radio definition");private_radio_calls++;private_radio_played+=play;}
 #include "notice_hud.inc"
+#include "native_unit_state.inc"
 #include "extraction.inc"
 static struct object_datum *object_get(long index) {struct object_datum *o=object_try_and_get_and_verify_type(index,_object_mask_unit|_object_mask_weapon|_object_mask_control);CHECK(o,"invalid object");return o;}
 static struct unit_datum *unit_try_and_get(long index) {return object_try_and_get_and_verify_type(index,_object_mask_unit);}
@@ -453,7 +454,6 @@ static boolean unit_set_or_test_seat_and_weapon_label(long u,char const *seat,ch
  if(weapon){CHECK(!strcmp(weapon,"unarmed")&&!change,"exit mutated a supported unarmed binding");exit_pose_queries++;return exit_unarmed_supported;}
  CHECK(change,"exit fallback was not applied");exit_pose_fallbacks++;exit_ground_pose=exit_stand_supported;return exit_stand_supported;
 }
-#include "native_unit_state.inc"
 static boolean unit_animation_busy(struct unit_animation_data const *animation){return animation->state==_unit_state_exiting_seat;}
 static void unit_exit_seat_end(long u){unit_get(u)->object.parent_object_index=NONE;}
 static void unit_open(long u){}
@@ -1943,7 +1943,22 @@ int main(int argc,char **argv)
    advance(300);CHECK(device_groups[10].actual_value==(other?1.f:0.f),"unboarded requesting crew counted as seated");
    units[1].object.parent_object_index=dropship_handles[other?1:0];units[1].unit.parent_seat_index=1;advance(1);
    CHECK(device_groups[10].actual_value==1.f&&device_groups[11].actual_value==(other?1.f:0.f),"native crew boarding did not publish independent readiness");
-   if(!strcmp(case_name,"transport-boarded-ship")) {
+   if(!strcmp(case_name,"transport-boarded-native-exit")) {
+    native_animation_graph.unit_seats=(struct tag_block){1,&native_animation_seat};
+    native_animation_seat.animations=(struct tag_block){9,native_animation_indices};
+    native_animation_indices[8].animation_index=1;
+    units[0].definition_index=4;
+    CHECK(unit_try_and_exit_seat(unit_handles[0]),"native exit animation failed to start");
+    CHECK(units[0].object.parent_object_index==craft&&units[0].unit.animation.state==_unit_state_exiting_seat,
+     "fixture did not leave the exiting passenger attached");
+    CHECK(!device_groups[10].actual_value,"departure remained ready after the native exit started");
+    advance(1);
+    CHECK(!device_groups[10].actual_value,"still-attached exiting passenger republished departure readiness");
+    units[0].object.parent_object_index=NONE;units[0].unit.animation.state=_unit_state_idle;advance(1);
+    CHECK(!device_groups[10].actual_value,"missing passenger authorized departure after disembarking");
+    units[0].object.parent_object_index=craft;advance(1);
+    CHECK(device_groups[10].actual_value==1.f,"physical reboarding did not restore departure readiness");
+   } else if(!strcmp(case_name,"transport-boarded-ship")) {
     dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);advance(1);
     CHECK(!device_groups[10].actual_value&&run(0)->dropship==NONE,"dying aircraft retained crew readiness or passenger receipt");
    } else if(!strcmp(case_name,"transport-boarded-pending")) {

@@ -1838,6 +1838,20 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 	return TRUE;
 }
 
+void extraction_transport_seat_exit_started(struct unit_datum const *passenger)
+{
+	short faction, group;
+	if (passenger->unit.player_index == NONE || !extraction.bound || !extraction.admitted ||
+		network_game_distributed_client()) return;
+	faction = extraction_faction(passenger->object.owner_team_index);
+	if (faction == NONE) return;
+	group = extraction.dropship_boarding_groups[faction];
+	/* Native exit animations leave the passenger attached until their final
+	 * frame. HaloScript can read the signal before the next Extraction update. */
+	if (group != NONE && extraction_player_dropship(passenger) != NONE && device_group_get_value(group) != 0.f)
+		device_group_set_actual_value(group, 0.f);
+}
+
 static boolean extraction_at_return(struct extraction_run const *run, long unit_index)
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
@@ -2071,6 +2085,7 @@ static boolean extraction_transport_crew_ready(short faction, long ship)
 			run->unit != player->unit_index || unit->unit.player_index != run->player ||
 			!run->gear.opened || run->gear.pending || run->gear.record.phase != _gear_deployed ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
+			unit->unit.animation.state == _unit_state_exiting_seat ||
 			extraction_medical_incapacitated(player->unit_index)) return FALSE;
 		if (run->squad == NONE) legacy_crew = TRUE;
 		else

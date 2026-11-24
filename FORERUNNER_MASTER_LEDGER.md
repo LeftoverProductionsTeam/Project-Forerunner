@@ -1,9 +1,19 @@
 # Forerunner engineering checkpoint
 
-Updated: 20 November 2026. The persistent engineering goal remains active.
+Updated: 23 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
 Current priority: complete Black Echo with two authenticated players.
+Windows x64 loaded Spark's aligned UNSC export `40d2ce85`, admitted the native
+Extraction bindings and exited cleanly. The authored two-point approach needs
+a flight test. The parent `7026f5fa` passed the UNSC defense and field call in
+Spark's isolated native run. It did not land on return. See the contract for
+the exact handoff. Separate engine fix: starting a native passenger exit
+clears crew readiness immediately and readiness stays low through the exit
+animation. The regression reproduced before the fix and all 88 focused
+transport checks passed afterward. Flight with an exiting passenger, complete
+settlement and authenticated human acceptance remain open.
+
 Spark's Elite and four-start cache `04d9ccd1` passed offline hub terminal
 use, Elite deployment, and physical Spirit boarding, flight, landing and
 disembarkation with full health and shields. The authored Covenant rescue
