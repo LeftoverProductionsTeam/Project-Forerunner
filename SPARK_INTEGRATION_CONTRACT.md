@@ -1569,6 +1569,15 @@ three salted actor IDs on foot through tick 1899 on the same executable.
 The standard 40-second weapon collection refreshed at tick 1200 but
 reproduced the missing-graph carrier refusal.
 
+A separate native combat run kept the same audio-prefix map and used the
+fixed x64 executable below. The released Alpha `e35d00e1` advanced from
+(73.07, -152.06) into melee range and injured the guest. Guest fire and
+melee made the Alpha feign death at tick 699, recover at 750, then die
+from a separate hit by tick 948. Both peers observed the same actor,
+recovery and persistent corpse through tick 1218. Both exited normally.
+This verifies the combat exchange using scripted player input in two
+native processes. It leaves survival victory, restart and human play open.
+
 A separate capacity comparison reused the valid Alpha weapon in the
 standard collection, leaving its nine placements and timer intact. On
 the identical disposable cache SHA-256
