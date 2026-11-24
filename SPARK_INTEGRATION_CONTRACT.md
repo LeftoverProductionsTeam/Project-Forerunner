@@ -1440,6 +1440,13 @@ archive volume was unavailable in the inspected checkout. A read-only
 handoff of those caches would let Forerunner run the original carrier
 comparison and attempt Timberland–Sidewinder on foot and in a Warthog.
 
+Spark 19633a6 compiled the recovered tags with the official MCC H1A Tool.
+Cache SHA-256: 4b8c1dea007ef8ed7dd3915309db571cdfa20b820b84c64a17eb5e38f4ff84f0.
+Readback preserved the Pistol melee flash and damage. The disposable cache
+was removed; supply it for MCC runtime testing and keep CE609 a separate gate.
+Forerunner restores the learned host threshold in native grounded rollover
+ejection. Original weapon-driven carrier release still needs gameplay proof.
+
 Smallest intended end-to-end gate, still unimplemented/unverified:
 
 1. Spark imports the exact Zombie source/resources and produces a separately

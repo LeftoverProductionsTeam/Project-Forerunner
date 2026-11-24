@@ -4305,6 +4305,23 @@ static boolean biped_check_discard(
 	return FALSE;
 }
 
+static boolean biped_vehicle_should_eject_rider(
+	long vehicle_index,
+	struct unit_datum const *vehicle)
+{
+	real ejection_up;
+
+	if (!rider_ejection || !TEST_FLAG(vehicle->object.flags, _object_on_ground_bit))
+		return FALSE;
+
+	/* A learned host rule takes precedence. Otherwise keep the native
+	 * side-roll rule for current games and the upside-down rule for older hosts. */
+	ejection_up = network_distributed_rider_ejection_up();
+	if (ejection_up == 0.f && network_distributed_rules_at_least(HALO_PORT_RIDING_NETWORK_VERSION))
+		return vehicle_is_flipped(vehicle_index);
+	return vehicle->object.up.k < ejection_up;
+}
+
 boolean biped_update(
 	long biped_index)
 {
@@ -4335,15 +4352,7 @@ boolean biped_update(
 			if (TEST_FLAG(biped->unit.control_flags, _unit_control_action_bit))
 				unit_try_and_exit_seat(biped_index);
 
-			/* port: a vehicle on its side throws its riders too, as the retail
-			game does (vehicle_is_flipped: up.k below 0.2). This build threw
-			them only once the vehicle was upside down (up.k below 0). */
-			/* (port, this fork: a client of a host before 43 as its host does,
-			network_distributed_rules_at_least) */
-			if (rider_ejection &&
-				(network_distributed_rules_at_least(HALO_PORT_RIDING_NETWORK_VERSION) ?
-					vehicle_is_flipped(biped->object.parent_object_index) : vehicle->object.up.k < 0.f) &&
-				TEST_FLAG(vehicle->object.flags, _object_on_ground_bit))
+			if (biped_vehicle_should_eject_rider(biped->object.parent_object_index, vehicle))
 			{
 				/* port: existing AI command diagnostics identify actual flight exits. */
 				if (ai_debug.print_command_lists)

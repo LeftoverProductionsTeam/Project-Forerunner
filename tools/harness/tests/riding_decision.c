@@ -13,6 +13,15 @@ int config_boolean(char const *name)
 	return -1;
 }
 int halo_server_mode(void) { return fake_server; }
+enum { _object_on_ground_bit = 0, HALO_PORT_RIDING_NETWORK_VERSION = 43 };
+struct unit_datum { struct { unsigned flags; struct { float k; } up; } object; };
+static boolean rider_ejection = TRUE;
+static float learned_ejection_up;
+static unsigned long host_rules_version = 45;
+static struct unit_datum carrier;
+static real network_distributed_rider_ejection_up(void) { return learned_ejection_up; }
+static boolean network_distributed_rules_at_least(unsigned long version) { return host_rules_version >= version; }
+static boolean vehicle_is_flipped(long index) { return index == 1 && carrier.object.up.k < .2f; }
 #include "under_test.inc"
 struct row { int multiplayer, gametype_rule, host_option, entry_rule, dedicated, override, expected; };
 /* written out row by row from the rule's prose: multiplayer takes the gametype's rule, or the host's option where a
@@ -308,6 +317,30 @@ int main(int argc, char **argv)
 		network_game_port_vehicle_riding_entry(server_entry_riding_rule(&entry));
 		network_game_port_vehicle_riding_start(&game);
 		CHECK(rides(&game), "entry 4, a10:coop with no rule, base 1: took entry 3's rule");
+	}
+	else CASE("rollover-host-rule") {
+		carrier.object.flags = FLAG(_object_on_ground_bit);
+		carrier.object.up.k = .15f;
+		CHECK(biped_vehicle_should_eject_rider(1, &carrier), "native side-roll rule was lost");
+		host_rules_version = 42;
+		CHECK(!biped_vehicle_should_eject_rider(1, &carrier), "older host threw a rider above zero");
+		carrier.object.up.k = -.01f;
+		CHECK(biped_vehicle_should_eject_rider(1, &carrier), "older host did not throw an inverted rider");
+		host_rules_version = 46;
+		learned_ejection_up = .1f;
+		carrier.object.up.k = .15f;
+		CHECK(!biped_vehicle_should_eject_rider(1, &carrier), "learned lower host threshold was ignored");
+		learned_ejection_up = .4f;
+		carrier.object.up.k = .3f;
+		CHECK(biped_vehicle_should_eject_rider(1, &carrier), "learned higher host threshold was ignored");
+		carrier.object.up.k = .4f;
+		CHECK(!biped_vehicle_should_eject_rider(1, &carrier), "threshold equality released a rider");
+		carrier.object.up.k = .3f;
+		carrier.object.flags = 0;
+		CHECK(!biped_vehicle_should_eject_rider(1, &carrier), "airborne carrier threw a rider");
+		carrier.object.flags = FLAG(_object_on_ground_bit);
+		rider_ejection = FALSE;
+		CHECK(!biped_vehicle_should_eject_rider(1, &carrier), "map disabled ejection but the carrier threw a rider");
 	}
 	else return 2;
 	return 0;

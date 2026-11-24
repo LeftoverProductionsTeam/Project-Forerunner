@@ -8,7 +8,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run, structure
 
-CONTROLS = {'coop-reads-rule': ('? entry_rule != FALSE : host_option;', '? entry_rule != FALSE : gametype_rule;', 'decide-grid'),
+CONTROLS = {'rollover-ignores-host': ('ejection_up = network_distributed_rider_ejection_up();',
+                                       'ejection_up = 0.f;', 'rollover-host-rule'),
+            'coop-reads-rule': ('? entry_rule != FALSE : host_option;', '? entry_rule != FALSE : gametype_rule;', 'decide-grid'),
             'override-without-dedicated': ('dedicated && override_gametype', 'override_gametype', 'decide-grid'),
             'multiplayer-reads-option': (': gametype_rule;', ': host_option;', 'decide-grid'),
             'entry-rule-ignored': ('entry_rule != NONE ? entry_rule != FALSE : host_option', 'host_option', 'decide-grid'),
@@ -38,7 +40,8 @@ def generated(fault=None):
     code = chr(10).join((function(read('port/linux/game/vehicle_riding.c'), 'vehicle_riding_decide'),
                       function(read('port/linux/game/server_director.c'), 'server_entry_riding_rule'), entry_rule,
                       function(coop, 'network_game_port_vehicle_riding_entry'),
-                      function(coop, 'network_game_port_vehicle_riding_start')))
+                      function(coop, 'network_game_port_vehicle_riding_start'),
+                      function(read('source/units/bipeds.c'), 'biped_vehicle_should_eject_rider')))
     engine = read('source/game/game_engine.h')
     rotation = read('port/linux/src/server_rotation.h')
     enums = chr(10).join((enum_with(engine, '_game_variant_draw_object_in_motion_sensor_bit = 0'), enum_with(engine, 'game_engine_none = 0'),
@@ -57,7 +60,8 @@ def generated(fault=None):
 
 CASES = ['decide-grid', 'bit-six', 'start-coop-uses-host-option', 'start-mp-uses-gametype', 'start-overwrites-stale-bit',
          'start-dedicated-override', 'start-listen-host-ignores-override', 'start-keeps-other-flags', 'start-stock-flags-silent',
-         'start-coop-entry-rule', 'start-entry-rule-multiplayer-ignored', 'entry-rule-read', 'entry-rule-not-inherited']
+         'start-coop-entry-rule', 'start-entry-rule-multiplayer-ignored', 'entry-rule-read', 'entry-rule-not-inherited',
+         'rollover-host-rule']
 
 
 @pytest.mark.parametrize('case', CASES)
