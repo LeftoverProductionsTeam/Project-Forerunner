@@ -81,7 +81,13 @@ On the same pinned be_native map, both builds accepted boarding and landed
 at the field. The handoff build also accepted a normal E-key disembark and
 landed back at the hub empty at tick 3120 (52.437, -110.089, 1.832). The
 readback in `build/native-isolated-empty-return-handoff.json` covers the
-existing AI route. Authored recorded clips and authenticated play remain open.
+existing AI route. The same map and handoff exe also passed physical recall,
+occupied evacuation, solo banking and disembarkation. The private gear record
+read back two unique stashed weapons with a valid checksum. The sampled hub
+pose after banking had ground contact but did not capture the settlement tick.
+Receipt: `build/native-isolated-occupied-return-handoff.json`.
+Spark 25a2cdc can assign recorded legs for both factions. Black Echo still
+needs embedded Pelican and Spirit recordings and authenticated acceptance.
 
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
