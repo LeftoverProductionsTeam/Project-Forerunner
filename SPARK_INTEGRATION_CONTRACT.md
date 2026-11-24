@@ -1748,6 +1748,24 @@ held and staging was removed. The next standalone export needs a
 finite stored inverse inertia alongside the title, audio and standard
 carrier animation repairs. Full mixed-runtime survival remains open.
 
+In the reverse hosting direction on that same diagnostic, Forerunner
+Windows x64 SHA-256 `6f02d8a8fab2687b24a83da8ca79e06c516a54a0938701137a55c4afaeb3b5a5`
+hosted with the pinned Chupathingy guest. The host observed three newly
+released living Alphas on foot at tick 1806. Both processes agreed on the
+guest's position through tick 2190 and exited zero. The legacy guest has no
+per-actor trace and logged tag-group and invalid-index assertions
+(`cache_files.c` 298 and 522), so mixed-runtime combat is still unaccepted.
+
+The exact legacy executable and map also reproduced the tag-group assertion
+while hosting alone, then reported invalid block access at `tag_groups.c`
+3089/3090 and exited with Windows status `0xC0000005` before its first
+sampled tick. The tag-group failure occurs without a Forerunner peer.
+Separately, standard carrier tag 1251 references five-node model
+`weapons\gravity rifle\gravity rifle` (node checksum `5029bde0`) with no
+animation graph. This cache contains no five-node animation graph. The
+authored C45-style same-hierarchy binding is still required. Original hashes
+held and all staging was removed.
+
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
 cleared only its named Pelican's collision-model reference and updated the
