@@ -23,6 +23,7 @@
 #include <limits.h>
 #define SHORT_MAX SHRT_MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define VALID_INDEX(index, count) (index>=0 && index<count)
 enum {_game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
       _collision_test_structure_bit, _collision_test_objects_scenery_bit};
@@ -46,6 +47,7 @@ struct collision_surface {long plane_designator;};
 struct collision_bsp {struct tag_block surfaces;};
 struct bsp3d {int placeholder;};
 struct structure_leaf {long cluster_index;};
+struct location {long leaf_index; short cluster_index,bonus;};
 struct structure_bsp {
     struct tag_block leaves,collision_bsp,clusters,surfaces;
     struct {long size;} cluster_data,sound_cluster_data;
@@ -188,6 +190,14 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 /* The unchanged classic reconnect loop uses assignment as its condition. */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
+static long prepared_crossing_leaf;
+static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
+{
+    CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_structure_bsp_index==0&&
+          global_collision_bsp==&collisions[0]&&!disconnects,"destination test replaced active collision");
+    return point->x < 200 ? prepared_crossing_leaf : NONE;
+}
+#include "region_location.inc"
 #include "players.inc"
 #pragma clang diagnostic pop
 
@@ -554,6 +564,7 @@ int main(int argc,char **argv)
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
+        boolean crossing=!strcmp(name,"mcc-prepare-crossing");
         struct mcc_cache_bsp regions[3];
         uint32_t const offsets[]={0x4000,0x1000,0x2000};
 
@@ -588,6 +599,32 @@ int main(int argc,char **argv)
         test_tag_instances[old].base_address=global_structure_bsp;
         reject_load[destination]=refused;
         reject_verify[destination]=limits;
+        if (crossing)
+        {
+            parallel_routes=TRUE;
+            switches[0].cutscene_flag_index=NONE;
+            mcc_regions[1].structure.clusters.count=4;
+            objects[0].object.position.x=260;
+            objects[2].object.bounding_sphere_center.x=250;
+            objects[2].object.position.x=190;
+            prepared_crossing_leaf=1;
+
+            CHECK(!scenario_switch_structure_bsp(destination),"crossed to an invalid destination leaf");
+            CHECK(global_structure_bsp_index==old&&global_collision_bsp==&collisions[old]&&
+                  cache_file_globals.structure_bsp_header==mcc_regions[old].header&&!disconnects&&!reconnects&&
+                  clock_stops==1&&clock_starts==1&&collision_log&&mcc_retained_bsp==&regions[destination]&&
+                  players_globals->pending_teleport_starting_location_index==NONE,
+                  "refused seam dropped the active scene or its prepared neighbor");
+
+            prepared_crossing_leaf=0;
+            players_globals->pending_teleport_starting_location_index=0;
+            CHECK(scenario_switch_structure_bsp(destination),"a valid vehicle root failed to cross");
+            CHECK(disconnects==1&&reconnects==1&&objects[0].object.parent_object_index==units[2]&&
+                  global_collision_bsp==&collisions[destination]&&mcc_retained_bsp==&regions[old]&&
+                  mcc_prepared_loads==1&&mcc_prepared_validations==1&&mcc_prepared_releases==0,
+                  "crossing reloaded its prepared BSP or removed the passenger");
+            return 0;
+        }
 
         CHECK(scenario_switch_structure_bsp(destination)==(!limits&&!refused),"wrong outcome for staged BSP");
         CHECK(clock_stops==1&&clock_starts==1&&collision_log&&!menu,"staging did not restore the clock");

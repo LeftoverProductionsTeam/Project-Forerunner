@@ -3034,6 +3034,17 @@ with observed position differences up to 0.075 units. All peers exited zero.
 Disjoint neighbor reuse is covered by the harness. Each native session
 still simulated one selected BSP at a time.
 
+On a prepared markerless co-op crossing, the host now tests crossing
+players and vehicle roots against the destination's native leaf and cluster
+data before disconnecting the source. An invalid destination keeps the source
+active and the validated neighbor cached for retry. Windows x64 executable
+`104debd5eaaaced06af656c837957d5e7a3668d10eeb52ec4b4b44df3316e95c`
+compiled and passed 61 focused switch checks. Two native stock D40 peers
+agreed on scripted BSP 1, 0 and 1 and exited zero. The physical approach
+smoke stalled at the same host coordinates on this build and on the
+comparison with the previous scenario and player objects. That run
+did not exercise a live prepared MCC13 seam.
+
 Spark revision `9d89bfc` compiled both Chiron corridor BSPs with native
 two-way switch volumes in CE609 and MCC13. The probe used overlapping BSP
 windows and its outputs were disposable. The next runtime handoff needs

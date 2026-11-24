@@ -823,14 +823,16 @@ short scenario_get_structure_reference_index_from_tag_index(
 	return result;
 }
 
-void scenario_location_from_point(
+static void scenario_location_in_bsp_tree(
 	struct location *location,
+	struct structure_bsp const *structure,
+	struct bsp3d const *tree,
 	const real_point3d *point)
 {
 	long cluster_index;
 
 	location->leaf_index = bsp3d_test_point(
-		global_bsp3d_get(),
+		tree,
 		0,
 		point);
 
@@ -838,7 +840,7 @@ void scenario_location_from_point(
 	{
 		cluster_index = location->leaf_index;
 	}
-	else if ((location->leaf_index & LONG_MAX) >= global_structure_bsp_get()->leaves.count)
+	else if ((location->leaf_index & LONG_MAX) >= structure->leaves.count)
 	{
 		/* port: a leaf the map doesn't have is outside the world */
 		location->leaf_index = NONE;
@@ -847,14 +849,14 @@ void scenario_location_from_point(
 	else
 	{
 		cluster_index = TAG_BLOCK_GET_ELEMENT(
-			&global_structure_bsp_get()->leaves,
+			&structure->leaves,
 			location->leaf_index & LONG_MAX,
 			struct structure_leaf)->cluster_index;
 
 		/* port: and so is one in a cluster it doesn't have (every lookup
 		by the location's cluster goes on from here) */
 		if (cluster_index != NONE &&
-			!VALID_INDEX(cluster_index, global_structure_bsp_get()->clusters.count))
+			!VALID_INDEX(cluster_index, structure->clusters.count))
 		{
 			location->leaf_index = NONE;
 			cluster_index = NONE;
@@ -867,6 +869,27 @@ void scenario_location_from_point(
 	location->bonus = NONE;
 
 	return;
+}
+
+void scenario_location_from_point(
+	struct location *location,
+	const real_point3d *point)
+{
+	scenario_location_in_bsp_tree(location, global_structure_bsp_get(), global_bsp3d_get(), point);
+}
+
+boolean scenario_structure_bsp_contains_point(
+	struct structure_bsp const *structure,
+	const real_point3d *point)
+{
+	struct location location;
+	struct collision_bsp const *collision;
+
+	if (structure->collision_bsp.count <= 0)
+		return FALSE;
+	collision = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
+	scenario_location_in_bsp_tree(&location, structure, (struct bsp3d const *)collision, point);
+	return location.cluster_index != NONE;
 }
 
 void scenario_location_from_line(
@@ -1115,6 +1138,15 @@ boolean scenario_switch_structure_bsp(
 				struct scenario_structure_bsp_reference);
 
 			preparation = scenario_structure_bsp_prepare(active, reference, &prepared);
+			if (preparation == _scenario_bsp_prepare_ready &&
+				!players_coop_can_activate_structure_bsp(structure_bsp_index, prepared.structure))
+			{
+				/* Keep validated geometry while players approach the seam.
+				 * The candidate has never been bound to the native tag table. */
+				if (!mcc_cache_bsp_retain(reference))
+					mcc_cache_bsp_unload(reference);
+				preparation = _scenario_bsp_prepare_failed;
+			}
 			if (preparation == _scenario_bsp_prepare_failed)
 			{
 				players_cancel_bsp_switch_gather();

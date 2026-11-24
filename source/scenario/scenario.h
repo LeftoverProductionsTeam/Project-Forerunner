@@ -129,6 +129,7 @@ void scenario_debug_to_file(FILE *stream);
 short global_structure_bsp_index_get(void);
 boolean scenario_load(const char *name);
 void scenario_location_from_point(struct location *location, const real_point3d *point);
+boolean scenario_structure_bsp_contains_point(struct structure_bsp const *structure, const real_point3d *point);
 void scenario_location_from_line(struct location *location, const struct location *start_location, const real_point3d *start_point, const real_point3d *end_point);
 boolean scenario_ensure_point_within_world(real_point3d *point);
 short scenario_get_fog_region_index(const struct location *location, const real_point3d *position);

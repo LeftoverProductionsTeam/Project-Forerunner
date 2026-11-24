@@ -3713,28 +3713,72 @@ static boolean player_bsp_continuous_route_contains(
 	return FALSE;
 }
 
+static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_continuous_bsp_switch(
+	void)
+{
+	short pending_index = players_globals->pending_teleport_starting_location_index;
+	struct scenario *scenario;
+	struct scenario_bsp_switch_trigger_volume const *volume;
+
+	if (!network_coop_active() || game_connection() != _game_connection_network_server || pending_index < 0)
+		return NULL;
+	scenario = global_scenario_get();
+	if (pending_index >= scenario->bsp_switch_trigger_volumes.count)
+		return NULL;
+	volume = TAG_BLOCK_GET_ELEMENT(&scenario->bsp_switch_trigger_volumes, pending_index, struct scenario_bsp_switch_trigger_volume);
+	if (volume->source_structure_bsp_index != global_structure_bsp_index || volume->cutscene_flag_index != NONE)
+		return NULL;
+	return volume;
+}
+
+/* Test actual crossing roots against the prepared destination before native
+ * reconnect changes the scene. Off-route players retain the legacy gather. */
+boolean players_coop_can_activate_structure_bsp(
+	short destination,
+	struct structure_bsp const *structure)
+{
+	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch();
+	struct data_iterator iterator;
+	struct player_datum *player;
+	boolean crossing = FALSE;
+
+	if (!volume || volume->destination_structure_bsp_index != destination)
+		return TRUE;
+
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum const *unit = unit_try_and_get(player->unit_index);
+		long root_index;
+		struct object_datum const *root;
+
+		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			continue;
+		root_index = object_get_ultimate_parent(player->unit_index);
+		if (!player_bsp_continuous_route_contains(volume, root_index))
+			continue;
+		root = object_get(root_index);
+		if (!scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
+			!scenario_structure_bsp_contains_point(structure, &root->object.position))
+			return FALSE;
+		crossing = TRUE;
+	}
+	return crossing;
+}
+
 /* A seated AI can cross with the player in the same vehicle. Only a
  * continuous, player-triggered transition preserves the vehicle this way. */
 boolean players_coop_vehicle_passenger_crossing_bsp(
 	long unit_index)
 {
-	short pending_index = players_globals->pending_teleport_starting_location_index;
-	struct scenario *scenario;
-	struct scenario_bsp_switch_trigger_volume const *volume;
+	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch();
 	struct unit_datum const *unit;
 	long vehicle_index;
 	struct data_iterator iterator;
 	struct player_datum *player;
 
-	if (!network_coop_active() || game_connection() != _game_connection_network_server || pending_index < 0)
+	if (!volume)
 		return FALSE;
-	scenario = global_scenario_get();
-	if (pending_index >= scenario->bsp_switch_trigger_volumes.count)
-		return FALSE;
-	volume = TAG_BLOCK_GET_ELEMENT(&scenario->bsp_switch_trigger_volumes, pending_index, struct scenario_bsp_switch_trigger_volume);
-	if (volume->source_structure_bsp_index != global_structure_bsp_index || volume->cutscene_flag_index != NONE)
-		return FALSE;
-
 	unit = unit_try_and_get(unit_index);
 	if (!unit || unit->unit.parent_seat_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 		return FALSE;
