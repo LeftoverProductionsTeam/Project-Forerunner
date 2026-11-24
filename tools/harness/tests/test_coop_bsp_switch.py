@@ -33,10 +33,11 @@ def generated(fault=None):
         ('players.inc', '\n'.join(function(players, name) for name in (
             'player_teleport_with_policy', 'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
-            'player_in_bsp_switch_volume', 'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
+            'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger', 'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('scripted_bsp.inc', function(read('source/hs/hs.c'), 'scenario_switch_structure_bsp_evaluate')),
         ('queue_bsp_switch.inc', function(players, 'player_queue_structure_bsp_switch')),
+        ('majority_bsp_vote.inc', function(players, 'players_coop_bsp_switch_majority')),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp', 'main_switch_to_structure_bsp_private')) +
             '\n' + '\n'.join(function(read('port/linux/game/network_distributed.c'), name) for name in
@@ -47,7 +48,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', [
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
-    'scripted-selection', 'overlapping-coop-routes',
+    'scripted-selection', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated',

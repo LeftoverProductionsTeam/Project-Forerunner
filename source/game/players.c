@@ -3688,10 +3688,11 @@ static boolean player_in_bsp_switch_volume(
 		volume->cutscene_flag_index == NONE && network_coop_active() ? root_index : unit_index);
 }
 
-/* port: the trigger that switches away from the loaded structure BSP the
-unit stands in, or NONE */
+/* The trigger the unit stands in, optionally restricted to one destination.
+ * A player standing in overlapping routes can support either destination. */
 static short players_coop_bsp_switch_trigger(
-	long unit_index)
+	long unit_index,
+	short destination)
 {
 	struct scenario *scenario = global_scenario_get();
 	long root_index = object_get_ultimate_parent(unit_index);
@@ -3704,6 +3705,7 @@ static short players_coop_bsp_switch_trigger(
 			&scenario->bsp_switch_trigger_volumes, index, struct scenario_bsp_switch_trigger_volume);
 
 		if (volume->source_structure_bsp_index == global_structure_bsp_index &&
+			(destination == NONE || volume->destination_structure_bsp_index == destination) &&
 			player_in_bsp_switch_volume(volume, unit_index, root_index))
 		{
 			return index;
@@ -3733,18 +3735,14 @@ static boolean players_coop_bsp_switch_majority(
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
-		short trigger;
-
 		if (player->unit_index == NONE || !network_coop_player_has_structure_bsp(iterator.datum_index) ||
 			network_coop_player_away(iterator.datum_index))
 		{
 			continue;
 		}
 		total++;
-		trigger = players_coop_bsp_switch_trigger(player->unit_index);
-		if (trigger != NONE && TAG_BLOCK_GET_ELEMENT(&scenario->bsp_switch_trigger_volumes, trigger,
-			struct scenario_bsp_switch_trigger_volume)->destination_structure_bsp_index ==
-				target->destination_structure_bsp_index && in < NETWORK_GAME_MAXIMUM_PLAYER_COUNT)
+		if (in < NETWORK_GAME_MAXIMUM_PLAYER_COUNT &&
+			players_coop_bsp_switch_trigger(player->unit_index, target->destination_structure_bsp_index) != NONE)
 		{
 			crossing[in++] = iterator.datum_index;
 		}
@@ -3849,7 +3847,7 @@ static void players_coop_show_host_wait(
 		long unit_index = player_index != NONE ? player_get(player_index)->unit_index : NONE;
 		long *time = &players_coop_state.host_wait_message_times[local_player_index];
 
-		if (unit_index == NONE || players_coop_bsp_switch_trigger(unit_index) == NONE)
+		if (unit_index == NONE || players_coop_bsp_switch_trigger(unit_index, NONE) == NONE)
 		{
 			*time = 0;
 			continue;
@@ -4130,7 +4128,7 @@ void players_reconnect_to_structure_bsp(
 					anchor_index = object_get_ultimate_parent(anchor_index);
 				anchor = object_try_and_get(anchor_index);
 				if (anchor && scenario_leaf_index_from_point(&anchor->object.bounding_sphere_center) != NONE &&
-					players_coop_bsp_switch_trigger(player->unit_index) == NONE)
+					players_coop_bsp_switch_trigger(player->unit_index, NONE) == NONE)
 				{
 					source_unit_index = player->unit_index;
 					teleport_position = anchor->object.position;
@@ -5706,7 +5704,7 @@ void players_update_after_game(
 			while the cooldown runs is told when it opens */
 			if (network_coop_active() && network_coop_bsp_switch_majority() && !players_coop_bsp_switch_ready() &&
 				game_time_get() - players_coop_state.bsp_switch_time >= COOP_BSP_SWITCH_SETTLE_TICKS &&
-				players_coop_bsp_switch_trigger(player->unit_index) != NONE)
+				players_coop_bsp_switch_trigger(player->unit_index, NONE) != NONE)
 			{
 				long left = network_coop_bsp_switch_cooldown_ticks() - (game_time_get() - players_coop_state.bsp_switch_time);
 

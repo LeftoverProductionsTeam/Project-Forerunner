@@ -19,6 +19,10 @@
     } \
 } while (0)
 #define MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO 16
+#define NETWORK_GAME_MAXIMUM_PLAYER_COUNT 16
+#include <limits.h>
+#define SHORT_MAX SHRT_MAX
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 enum {_game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
       _collision_test_structure_bit, _collision_test_objects_scenery_bit};
@@ -64,7 +68,7 @@ static struct object_datum objects[4];
 static long units[4]={0x10000,0x20001,0x30002,0x40003};
 static long players[2]={0x50000,0x60001};
 static void *player_data;
-static struct scenario_bsp_switch_trigger_volume switches[2];
+static struct scenario_bsp_switch_trigger_volume switches[3];
 static struct scenario_cutscene_flag flags[1];
 static struct scenario_structure_bsp_reference references[4];
 static struct structure_bsp structures[2],*global_structure_bsp;
@@ -75,7 +79,7 @@ static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
 static int reject_reference[4],reject_load[2],reject_verify[2],loads[2],unloads[2];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
-static boolean crowded,solid,ignore_players,operations,opposed,connected;
+static boolean crowded,solid,ignore_players,operations,opposed,connected,dedicated_vote_routes;
 static int stacked_calls,beside_retries;
 static long ticks;
 static struct {long stranded_since[2],bsp_switch_time;} players_coop_state;
@@ -104,6 +108,8 @@ static struct player_datum *data_iterator_next(struct data_iterator *it)
 {it->slot++;if(it->slot==2)return NULL;it->datum_index=players[it->slot];return &people[it->slot];}
 static boolean scenario_trigger_volume_test_object(short trigger,long unit)
 {
+    if (dedicated_vote_routes)
+        return trigger == 2 ? unit == units[3] : unit == units[0];
     return unit==units[0] || (connected &&
         (unit==units[3] || unit==objects[0].object.parent_object_index ||
             (unit==units[1] && objects[1].object.parent_object_index==NONE)));
@@ -114,7 +120,6 @@ static long object_get_ultimate_parent(long unit)
         unit=objects[slot(unit)].object.parent_object_index;
     return unit;
 }
-static short players_coop_bsp_switch_trigger(long unit) {return slot(unit)==0?0:NONE;}
 static long scenario_leaf_index_from_point(real_point3d const *p) {return p->x<200?0:NONE;}
 static long game_time_get(void) {return ticks;}
 static boolean player_input_enabled(void) {return TRUE;}
@@ -232,6 +237,28 @@ static boolean players_coop_bsp_switch_allowed(long unit, short trigger)
 }
 #include "queue_bsp_switch.inc"
 
+static long vote_excluded_player = NONE, vote_crossers, voted_players[2];
+static short vote_destination;
+static int vote_announced, vote_waiting;
+static long vote_waiting_player;
+static boolean network_coop_player_has_structure_bsp(long player) {return TRUE;}
+static boolean network_coop_player_away(long player) {return player == vote_excluded_player;}
+static void network_coop_tell_bsp_switch_waiting(long player, long more, long in, long total)
+{
+    CHECK(more == 1 && in == 1 && total == 2, "invalid waiting count");
+    vote_waiting_player = player;
+    vote_waiting++;
+}
+static void network_coop_note_bsp_switch(short from, short to, long const *crossers, long count)
+{
+    CHECK(from == global_structure_bsp_index && count > 0 && count <= 2, "invalid route announcement");
+    vote_announced++;
+    vote_destination = to;
+    vote_crossers = count;
+    memcpy(voted_players, crossers, (size_t)count * sizeof(long));
+}
+#include "majority_bsp_vote.inc"
+
 static void setup(short old,short destination)
 {
     scenario.bsp_switch_trigger_volumes=(struct tag_block){1,switches};
@@ -272,6 +299,27 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "majority-overlapping-routes"))
+    {
+        dedicated_vote_routes = TRUE;
+        scenario.bsp_switch_trigger_volumes.count = 3;
+        switches[0]=(struct scenario_bsp_switch_trigger_volume){0,old,2,0};
+        switches[1]=(struct scenario_bsp_switch_trigger_volume){1,old,destination,0};
+        switches[2]=(struct scenario_bsp_switch_trigger_volume){2,old,destination,NONE};
+        CHECK(!players_coop_bsp_switch_majority(0) && !vote_announced &&
+              vote_waiting == 1 && vote_waiting_player == players[0],
+              "an unrelated route received another destination's votes");
+        CHECK(players_coop_bsp_switch_majority(1) && vote_announced == 1,
+              "overlap hid a player's vote for the destination their teammate chose");
+        CHECK(vote_destination == destination && vote_crossers == 2 &&
+              voted_players[0] == players[0] && voted_players[1] == players[1],
+              "expected one vote per player including the occupied vehicle root");
+        vote_excluded_player = players[1];
+        CHECK(players_coop_bsp_switch_majority(1) && vote_crossers == 1 &&
+              voted_players[0] == players[0],
+              "away teammate was counted in the destination's voting population");
+        return 0;
+    }
     if (!strcmp(name, "overlapping-coop-routes"))
     {
         scenario.bsp_switch_trigger_volumes.count = 2;

@@ -2788,6 +2788,15 @@ one approach placement the host walked from x=-24.378 to -27.377. Both peers
 reported BSP 0 at tick 366 and exited zero. The stock crossing exercises
 the normal native path. Overlapping exits were exercised in the harness.
 
+Dedicated co-op majorities now count any occupied route to the proposed BSP.
+An overlapping exit to another BSP no longer hides that player's vote. The
+existing vehicle-root, away-player and loaded-BSP checks still apply. The BSP
+harness reproduced the missing vote and passed all 41 checks after the fix.
+Windows x64 `58a684cbf62780cd2b81531da5637060693aa7d599facd476c8b08fcf753e855`
+also started a private dedicated D40 campaign. One native client reached
+tick 90 in BSP 8, and both processes exited zero. A live dedicated majority
+crossing remains open. The inherited majorities are from `cf9fad600`.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.
