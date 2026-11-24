@@ -1,6 +1,3 @@
-/* (port, this fork: the 64-bit builds compile MCC's code, but play no MCC
-map, mcc_cache.c's MCC_CACHE_64BIT_REFUSED: its tag addresses are a 32-bit
-build's pointers, which this build's Xbox addresses are not) */
 #if defined(HALO_64BIT) && defined(__clang__)
 #pragma clang diagnostic ignored "-Wint-conversion"
 #pragma clang diagnostic ignored "-Wint-to-pointer-cast"
@@ -211,18 +208,8 @@ static FILE *mcc_open(char const *name, struct mcc_cache_source *source,
 #include "mcc_validation.inl"
 #include "mcc_host_memory.h"
 
-/* port (this fork): a 64-bit build plays no MCC map (its tags' addresses
-are pointers of a 32-bit build's): none is available, required or loaded,
-and the player is told why */
-#ifdef HALO_64BIT
-#define MCC_CACHE_64BIT_REFUSED 1
-#else
-#define MCC_CACHE_64BIT_REFUSED 0
-#endif
-
 boolean mcc_cache_available(char const *name)
 {
-    if (MCC_CACHE_64BIT_REFUSED) return FALSE;
     struct mcc_cache_identity identity;
     struct mcc_cache_source source;
     FILE *stream = mcc_open(mcc_identity_local_name(name), &source, &identity);
@@ -322,11 +309,6 @@ boolean mcc_cache_require(char const *name, unsigned long checksum)
     char message[512];
     wchar_t text[512];
     size_t i;
-    if (MCC_CACHE_64BIT_REFUSED)
-    {
-        error(_error_silent, "mcc: %s: this 64-bit build plays no MCC map yet (use the 32-bit build)", name);
-        return FALSE;
-    }
     if (mcc_cache_present(name, checksum, message, sizeof(message))) return TRUE;
     mcc_cache_require_log(name, message);
     for (i = 0; message[i] && i < NUMBEROF(text) - 1; ++i) text[i] = (unsigned char)message[i];
@@ -412,10 +394,9 @@ struct cache_file_tag_header *mcc_cache_tags_load(char const *name, void *header
     struct mcc_cache_identity identity;
     unsigned char *raw = NULL;
     enum mcc_cache_status status;
-    uint32_t package_checksum;
+    uint32_t package_checksum, tag_index_address;
     char memory_problem[192],resource_paths[2][128];
     char const *problem = "the map could not be opened";
-    if (MCC_CACHE_64BIT_REFUSED) return NULL;
     mcc_cache_tags_unload();
     /* port: in a network game, only one whose layout carries MCC's messages
      * (43's: mcc_network_messages.h) */
@@ -491,7 +472,8 @@ struct cache_file_tag_header *mcc_cache_tags_load(char const *name, void *header
     /* The runtime tag table is stock-shaped. The independent wire reader's
      * report retains model offsets; no other loader sees an MCC header. */
     memset(runtime->tags + 16, 0, 20);
-    memcpy(runtime->tags, &runtime->tag_index, 4);
+    tag_index_address = MCC_ADDRESS(runtime->tag_index);
+    memcpy(runtime->tags, &tag_index_address, sizeof(tag_index_address));
     memcpy(runtime->tags + 12, &runtime->report.tag_count, 4);
     memcpy(runtime->tags + 32, "sgat", 4);
     problem = "Its converted map data failed validation. Check for an updated map; debug.txt has the failing check.";

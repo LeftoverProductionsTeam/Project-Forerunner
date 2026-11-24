@@ -1448,6 +1448,14 @@ the exact cache and pinned it with the x86 executable under
 HUD, script and geometry conversion after preserving the custom title in
 score-hint slot 100. Audio conversion then refused double_kill (codec 3,
 tag 1158, first range/permutation), before spawn. CE609 remains a separate gate.
+Forerunner reconnected Milenko's inherited 64-bit MCC loader (upstream
+`9e19b2f744`) and its map catalog. The pinned Windows x64 executable
+`halo-x64-mcc.exe` has SHA-256
+`0039b82749430fb1978330729d9ed54f3383b2489c91b2d8602fa0546861e058`.
+It admitted the same cache on loopback and reached the same audio rejection.
+Stock MCC controls rejected unmatched sound banks. Successful MCC spawning
+and cross-platform acceptance remain open.
+
 The 31,651-byte permutation is identical in the original Demo and MCC cache
 (SHA-256 04c3946a26f8b2cef14b27f683d1f574faa2a755c7e427d8d70f432e027d8769).
 The final Ogg page at byte 31,420 has a bad CRC. A disposable diagnostic
