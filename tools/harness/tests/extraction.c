@@ -747,6 +747,34 @@ int main(int argc,char **argv)
    }
    return 0;
   }
+  if(!strcmp(case_name,"squad-reconnect-settlement-order")) {
+   byte recovered[GEAR_ID_BYTES];
+
+   delta_session=TRUE;
+   touch(5,1);touch(0,1);a=pickup(1,2);
+   units[1].object.position.x=20;touch(1,1);advance(300);
+   publish_failure=TRUE;units[1].object.position.x=0;advance(1);
+   CHECK(run(1)->phase==_extraction_settling&&!weapon_try_and_get(a)&&!squad_wakes[0],
+         "reconnect fixture did not reach durable escape escrow");
+
+   publish_failure=FALSE;
+   player_handles[1]+=0x10000;units[1].unit.player_index=player_handles[1];
+   unit_handles[1]+=0x10000;players[1].unit_index=unit_handles[1];
+   touch(0,1);
+   CHECK(run(1)->phase==_extraction_hub&&run(1)->gear.record.phase==_gear_idle&&
+         run(1)->gear.record.count==1&&extraction.squads[0].operation==1&&!squad_wakes[0],
+         "reconnect started a new operation before reporting the prior escape");
+   memcpy(recovered,run(1)->gear.record.items[0].id,sizeof(recovered));
+
+   advance(1);
+   CHECK(squad_wakes[0]==1&&!squad_aborts[0],"reconnect lost its settled operation callback");
+   touch(0,1);
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->squad_operation==2&&
+         run(1)->gear.record.reserved_count==1&&
+         !memcmp(recovered,run(1)->gear.record.reserved[0].id,sizeof(recovered)),
+         "reconnect could not redeploy the exact banked item after the callback");
+   extraction_reset();return 0;
+  }
   if(!strncmp(case_name,"squad-reconnect",15)) {
    delta_session=TRUE;
    touch(5,1);

@@ -1944,6 +1944,17 @@ escape escrow that could not finish writing before a disconnect suppresses
 the abort. Existing bank, transport and map-wide callbacks retain their
 own gates. This path is compiled and harness-verified; native scripted
 acceptance remains open.
+A reconnect's Deploy interaction can close the previous player slot and
+finish escape escrow before the next host update. Starting another squad
+operation in that interaction used to erase the prior outcome before its
+authored callback. Deployment now waits for the host to report the closed
+operation. The regression first reproduced the missing callback, then
+verified a single completion followed by redeployment of the same banked
+item ID. All 124 focused squad, objective and transport checks passed.
+Windows x64 SHA-256 `928ad339b7a2775bb69edd64346cb3fa6773eb33f3d192cc2774d8c933aa8421`
+admitted the squad fixture `25d28447a49aa4ddf849729f1890b1ccaad78bb4b9c55be30c2bbc4ba1a45196`
+in private co-op startup and ran to tick 390. The ordering fault was
+exercised in the harness. Originals held and staging was removed.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
 not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version

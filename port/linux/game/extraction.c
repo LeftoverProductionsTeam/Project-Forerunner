@@ -1352,12 +1352,20 @@ static void extraction_squad_choose(struct extraction_run *run, struct player_da
 
 static boolean extraction_squad_deployment_ready(struct extraction_run *run)
 {
-	short squad;
-	if (VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) && extraction.squads[run->squad].name != NONE)
+	short squad = run->squad;
+	if (VALID_INDEX(squad, NUMBEROF(extraction.squads)) && extraction.squads[squad].name != NONE)
 	{
-		if (run->squad_operation == extraction.squads[run->squad].operation && extraction_squad_busy(run->squad, run))
+		boolean busy = extraction_squad_busy(squad, run);
+
+		if (busy && run->squad_operation == extraction.squads[squad].operation)
 		{
 			extraction_tell(run, "SQUAD IN FIELD | Wait for your current operation to finish before redeploying."); return FALSE;
+		}
+		/* A reconnect can finish the previous slot's escrow during this
+		 * use action, before the host update reports that operation. */
+		if (!busy && extraction.squads[squad].operation && !extraction.squads[squad].notified)
+		{
+			extraction_tell(run, "SQUAD REPORT PENDING | Retry deployment after the current operation settles."); return FALSE;
 		}
 		return TRUE;
 	}
