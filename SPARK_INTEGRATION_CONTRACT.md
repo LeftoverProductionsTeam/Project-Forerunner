@@ -1729,9 +1729,24 @@ host `c16096a8` and Forerunner Windows x64
 Both peers agreed on the guest's position through tick 2640 and exited
 zero. Forerunner's guest trace through tick 2643 contained no living
 on-foot Alpha with definition `e6fd0589` in the 60-second release window.
-The host had no per-actor trace in this build. Host spawn and mixed
-actor delivery remain separate checks. Protected hashes held and all
-staging was removed.
+The host had no per-actor trace in this build. Protected hashes held
+and staging was removed.
+
+The Alpha carrier (tag 1414) references `fzero\zombie\zombiephysics` tag
+1007. Rebuilding just the nine non-finite inverse inertia floats at file
+offset 86351418 from the tag's original mass points and center of mass
+produced diagnostic SHA-256
+`1d08e177faeee32ba8fece2e571a0aacee70f4be71c38f9a2b46452c824e9a89`.
+This was the sole authored change from the one-byte title control.
+
+The same Chupathingy host and Forerunner guest then observed matching
+initial carrier indices 208, 209 and 210, and matching refresh indices
+196, 197 and 200 at tick 1950. Forerunner observed three living Alphas on
+foot on join and three more at tick 1821 (e37800ca, e37900cb, e37a00cf),
+still living at tick 2646. Both processes exited zero. Protected hashes
+held and staging was removed. The next standalone export needs a
+finite stored inverse inertia alongside the title, audio and standard
+carrier animation repairs. Full mixed-runtime survival remains open.
 
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
