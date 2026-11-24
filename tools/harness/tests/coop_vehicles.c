@@ -36,7 +36,7 @@ struct test_object {
  struct {long parent_object_index,first_child_object_index,next_object_index,owner_object_index,owner_player_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
  real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
  float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];} object;
- struct {unsigned long flags; long driver_object_index,player_index;} unit;
+ struct {unsigned long flags; long driver_object_index,gunner_object_index,player_index;} unit;
  struct {byte airborne_ticks;} vehicle;
  struct {unsigned long flags;} item;
 };
@@ -141,7 +141,8 @@ static long make(int slot,int definition) {
  v->object.first_child_object_index=NONE;v->object.next_object_index=NONE;v->object.owner_object_index=NONE;
  v->object.owner_player_index=NONE;v->object.name_index=NONE;
  v->object.flags=FLAG(_object_connected_to_map_bit);v->object.forward.i=1;v->object.up.k=1;
- v->unit.driver_object_index=NONE;v->unit.player_index=NONE;v->object.bounding_sphere_radius=.7f;return identifiers[slot];
+ v->unit.driver_object_index=v->unit.gunner_object_index=NONE;v->unit.player_index=NONE;
+ v->object.bounding_sphere_radius=.7f;return identifiers[slot];
 }
 static long object_new(struct object_placement_data const *p) {
  long index;
@@ -242,7 +243,7 @@ struct squad_definition {short default_state,initial_state;};
 struct encounter_definition {struct tag_block squads;};
 static struct squad_definition rider_squads[2];
 static struct encounter_definition rider_encounters[4];
-static struct {struct tag_block ai_encounters;} rider_scenario;
+static struct scenario {struct tag_block ai_encounters,structure_bsp_references;short type;} rider_scenario;
 static long rider_attempts,rider_successes,rider_statuses,rider_variants[4];
 static short rider_offsets[4];
 #define global_scenario_get() (&rider_scenario)
@@ -415,6 +416,93 @@ static boolean distributed_transform_valid(real_point3d const *p,real_vector3d c
 static void unsteered_blend_facing(real_vector3d const *f0,real_vector3d const *u0,real_vector3d const *f1,
  real_vector3d const *u1,real t,real_vector3d *f,real_vector3d *u) {*f=*f1;*u=*u1;}
 #include "path.inc"
+
+#define TICKS_PER_SECOND 30
+enum {_scenario_type_multiplayer=1, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO=16};
+struct structure_bsp {short index;};
+static struct structure_bsp respawn_bsp[2]={{0},{1}};
+static struct {short vehicle_respawn_time;} respawn_options={1};
+static boolean respawn_mcc;
+static short game_engine_vehicle_home_count=NONE;
+static boolean mcc_cache_tags_loaded(void) {return respawn_mcc;}
+static short global_structure_bsp_index_get(void) {return global_structure_bsp_index;}
+static struct structure_bsp *global_structure_bsp_get(void)
+{return &respawn_bsp[global_structure_bsp_index];}
+static boolean scenario_structure_bsp_contains_placement(struct structure_bsp const *bsp,real_point3d const *point)
+{
+ CHECK(bsp->index==global_structure_bsp_index,"used the wrong BSP to bind the home");
+ return point->x<=20;
+}
+#define game_variant_options_get() (&respawn_options)
+static void object_get_orientation(long object,real_vector3d *forward,real_vector3d *up)
+{*forward=get(object)->object.forward;*up=get(object)->object.up;}
+static long object_index_from_name_index(short name)
+{
+ for (int slot=0;slot<1024;slot++)
+  if (identifiers[slot]&&objects[slot].object.name_index==name) return identifiers[slot];
+ return NONE;
+}
+static void object_claim_scenario_name(long object,short name)
+{
+ if (get(object)&&name!=NONE&&object_index_from_name_index(name)==NONE)
+  get(object)->object.name_index=name;
+}
+#include "home_respawn.inc"
+
+static void regional_respawn(void)
+{
+ long vehicle=path_vehicle=make(1,0);
+ long rider=make(2,0);
+ long replacement;
+
+ get(vehicle)->object.position.x=10;
+ get(vehicle)->object.name_index=7;
+ get(rider)->object.type=_object_type_biped;
+ rider_scenario.type=_scenario_type_multiplayer;
+ rider_scenario.structure_bsp_references.count=2;
+ respawn_mcc=TRUE;
+ connection=1;
+ game_engine_update_vehicle_respawn();
+ CHECK(game_engine_vehicle_home_count==NONE,"client initialized authoritative vehicle homes");
+ connection=2;
+ game_engine_update_vehicle_respawn();
+ CHECK(game_engine_vehicle_home_count==1&&game_engine_vehicle_homes[0].structure_bsp_index==0,
+       "did not bind the original home");
+ get(vehicle)->object.position.x=30;
+ now=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(game_engine_vehicle_homes[0].idle_since==now,"did not arm the native respawn timer");
+
+ global_structure_bsp_index=1;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(vehicle)&&!new_count&&game_engine_vehicle_homes[0].idle_since==TICKS_PER_SECOND,
+       "respawned into an inactive or overlapping home");
+
+ global_structure_bsp_index=0;
+ get(vehicle)->object.first_child_object_index=rider;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(vehicle)&&!new_count&&game_engine_vehicle_homes[0].idle_since==NONE,
+       "replaced a vehicle with a passenger");
+ get(vehicle)->object.first_child_object_index=NONE;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+
+ allocation_failed=TRUE;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(vehicle)&&!new_count&&object_index_from_name_index(7)==vehicle,
+       "allocation failure discarded the old vehicle or its script name");
+
+ allocation_failed=FALSE;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ replacement=game_engine_vehicle_homes[0].object_index;
+ CHECK(!get(vehicle)&&new_count==1&&get(replacement)&&get(replacement)->object.position.x==10&&
+       object_index_from_name_index(7)==replacement,"did not respawn at the home with its original name");
+}
+
 #define MAXIMUM_REGIONS_PER_OBJECT 16
 struct distributed_message_header {int unused;};
 #define _distributed_message_coop_object_looks 1
@@ -491,6 +579,7 @@ static void unsteered_path(char const *name) {
 }
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
+ if(!strcmp(argv[1],"regional-respawn")) {regional_respawn();return 0;}
  if(!strncmp(argv[1],"clone-",6)) {
   long source=reset(),copy;char const *name=argv[1]+6;boolean refused=FALSE;
   struct test_object *v=get(source);

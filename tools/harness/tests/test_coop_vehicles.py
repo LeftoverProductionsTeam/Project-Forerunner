@@ -30,11 +30,24 @@ def generated(fault=None):
     looks += '\n' + structure(coop, 'distributed_coop_object_look')
     looks += f'\n#define MAXIMUM_OBJECT_LOOKS_PER_MESSAGE {constant(coop, "MAXIMUM_OBJECT_LOOKS_PER_MESSAGE")}\n'
     looks += structure(coop, 'distributed_coop_object_looks_message') + '\n' + function(coop, 'host_send_object_looks')
+    engine = read('source/game/game_engine.c')
+    end = engine.index('} game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];')
+    home_table = engine[engine.rindex('static struct', 0, end):end + len(
+        '} game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];')]
+    vehicle_respawn = '\n'.join([
+        enum_with(engine, 'MAXIMUM_VEHICLE_HOMES ='), home_table,
+        re.search(r'^#define VEHICLE_HOME_AWAY_SQUARED .+$', engine, re.M).group(0),
+        *(function(engine, name) for name in (
+            'game_engine_vehicle_empty', 'game_engine_vehicle_home_on_pad',
+            'game_engine_vehicle_home_follow', 'game_engine_vehicle_home_current',
+            'game_engine_update_vehicle_respawn')),
+    ])
     cheats = read('source/game/cheats.c')
     forge_state = cheats[cheats.index('static long forge_selection'):cheats.index('void cheats_forge_reset')]
     return (('unit_flags.inc', enum_with(read('source/units/units.h'), '_unit_not_enterable_by_player_bit')),
             ('under_test.inc', source),
             ('path.inc', path),
+            ('home_respawn.inc', vehicle_respawn),
             ('looks.inc', looks),
             ('clone.inc', forge_state +
                 '\n'.join(function(read('source/physics/physics.c'), name) for name in (
@@ -68,6 +81,11 @@ def test_cinematic_path_negative_control():
                   for name, text in generated())
     status, output = run(build('coop_vehicles', files), 'path-cinematic')
     assert status == CHECK_FAILED, output
+
+
+def test_mcc_regional_vehicle_respawn():
+    status, output = run(build('coop_vehicles', generated()), 'regional-respawn')
+    assert status == 0, output
 
 
 def test_initial_scripted_appearance():

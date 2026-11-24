@@ -3142,6 +3142,30 @@ The BSPs in this fixture use the same geometry. First activation in a
 distinct region, shared-seam ownership, and carried-item restock are
 covered by the focused harness. A live Chiron crossing remains open.
 
+#### Regional native vehicle homes
+
+On hosted multi-BSP MCC13 multiplayer maps, each vehicle home binds to the
+first BSP containing its pad. An armed timer stays recorded while that
+BSP is parked. The host checks the vehicle's condition again before
+respawning it after returning to the home. An occupied vehicle follows the
+existing passenger rules, and a failed replacement allocation leaves the
+old vehicle and its scenario name intact.
+
+The Windows x64 vehicle harness passed all 97 checks, including an occupied
+vehicle and allocation failure after returning to a home. On executable
+`0ce46b08787d6d4909745fd28c039f3d058ea3e8eff9c35a6e7968e8809cc670`, a
+private Windows dedicated server and native guest used a two-second vehicle
+timer. The guest saw the Warthog move from its active pad at tick 60 and
+its replacement (slot 545) appear at tick 120. The replacement retained
+its scenario name and moved again before the host activated BSP 1 around
+tick 150. Slot 545 stayed away through tick 270 with no replacement at its
+parked home. A typed scenario object-name row was required for the scripted
+moves. The disposable fixture uses identical geometry in both BSPs and has
+SHA-256 `d4a1608374db71be93acda9106b7f9a58ed52e0dc804c655612402fd96a88c8f`,
+CRC `ff631a4e`. The guest exited normally and the harness stopped the
+dedicated process after sampling. Physical traversal and live return to a
+parked home on the authored Chiron corridor remain unverified.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.
