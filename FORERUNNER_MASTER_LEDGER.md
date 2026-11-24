@@ -4,11 +4,13 @@ Updated: 23 November 2026. The persistent engineering goal remains active.
 This is an incomplete engine integration, not a release or gameplay acceptance claim.
 
 Current priority: complete Black Echo with two authenticated players.
-Windows x64 loaded Spark's aligned UNSC export `40d2ce85`, admitted the native
-Extraction bindings and exited cleanly. The authored two-point approach needs
-a flight test. The parent `7026f5fa` passed the UNSC defense and field call in
-Spark's isolated native run. It did not land on return. See the contract for
-the exact handoff. Separate engine fix: starting a native passenger exit
+Spark's aligned UNSC export `40d2ce85` passed solo physical Pelican boarding,
+field landing, voluntary disembarkation and the empty return to the hub.
+Windows x64 recorded native ground/rest/landed at tick 5640, up.k 0.993.
+The exact route, bounds and receipt are in the Spark contract. The parent
+`7026f5fa` separately passed UNSC defense and field call in Spark's isolated
+run. Loaded evacuation and settlement on the aligned export remain open.
+Separate engine fix: starting a native passenger exit
 clears crew readiness immediately and readiness stays low through the exit
 animation. The regression reproduced before the fix and all 88 focused
 transport checks passed afterward. Flight with an exiting passenger, complete

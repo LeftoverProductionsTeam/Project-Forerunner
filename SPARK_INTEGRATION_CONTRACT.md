@@ -30,8 +30,17 @@ Windows x64 independently matched SHA-256
 `40d2ce850682d1e3ed871e28481eadc0513251fe37e8b95987126cf1809299da`,
 loaded all 3,680 tags and admitted the native Extraction bindings. Spark's
 readback adds airborne waypoints (45.9, -100.95, 6.6) and (49.8, -101.77, 4.75)
-and an aligned final approach. Next prove stable native touchdown before
-evacuation and settlement. The smoke verified startup only.
+and an aligned final approach. A separate Windows x64 run on that exact cache
+used a temporary saved profile and normal keyboard/mouse input. The Spartan
+deployed at tick 660, occupied Pelican seat 1 by 1320, reached native field
+landing at 3030 and exited on foot at 3090. The empty Pelican reached native
+ground, rest and landed at tick 5640, origin (52.399, -100.737, 1.546),
+up.k 0.993 and zero motion. Its observed center (52.546, -100.546, 0.989)
+is inside the authored return volume and outside both field volumes.
+The run exited cleanly and the staged and protected hashes matched.
+Receipt: `build/native-black-echo-40d2-aligned-flight.json`.
+Next prove the landed recall, loaded evacuation, settlement and redeployment
+on the same cache. The test ended before rescue, combat or the field call.
 
 Spark's isolated run at `4249988` on the preceding UNSC cache `7026f5fa`
 verified technology pickup, rifle selection, defense and field-terminal
