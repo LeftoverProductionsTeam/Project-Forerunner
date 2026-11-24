@@ -43,7 +43,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

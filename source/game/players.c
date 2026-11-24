@@ -5680,7 +5680,8 @@ void players_update_after_game(
 						player_in_bsp_switch_volume(
 							bsp_switch_trigger_volume, player->unit_index, root_object_index) &&
 						(!network_coop_active() ||
-							players_coop_bsp_switch_allowed(player->unit_index, bsp_switch_trigger_volume_index)))
+							players_coop_bsp_switch_allowed(player->unit_index, bsp_switch_trigger_volume_index)) &&
+						main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index))
 					{
 						if (players_globals->local_player_triggered_switch !=
 							_local_player_triggered_switch_none &&
@@ -5704,8 +5705,6 @@ void players_update_after_game(
 							player->local_player_index;
 						players_globals->pending_teleport_starting_location_index =
 							bsp_switch_trigger_volume_index;
-						main_switch_structure_bsp(
-							bsp_switch_trigger_volume->destination_structure_bsp_index);
 						players_coop_state.bsp_switch_time = game_time_get();
 					}
 				}

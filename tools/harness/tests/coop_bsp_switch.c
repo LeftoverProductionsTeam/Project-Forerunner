@@ -54,14 +54,14 @@ static long players[2]={0x50000,0x60001};
 static void *player_data;
 static struct scenario_bsp_switch_trigger_volume switches[1];
 static struct scenario_cutscene_flag flags[1];
-static struct scenario_structure_bsp_reference references[2];
+static struct scenario_structure_bsp_reference references[4];
 static struct structure_bsp structures[2],*global_structure_bsp;
 static struct collision_bsp collisions[2],*global_collision_bsp;
 static struct bsp3d *global_bsp3d;
 static struct structure_leaf leaves[2];
 static short global_structure_bsp_index;
 static int coop=TRUE,connection=_game_connection_network_server;
-static int reject_reference[2],reject_load[2],reject_verify[2],loads[2],unloads[2];
+static int reject_reference[4],reject_load[2],reject_verify[2],loads[2],unloads[2];
 static int teleports,ejections,reconnects,disconnects,menu,clock_stops,clock_starts,collision_log=TRUE,culling;
 static boolean crowded,solid,ignore_players,operations,opposed,connected;
 static int stacked_calls,beside_retries;
@@ -277,6 +277,23 @@ int main(int argc,char **argv)
         message.structure_bsp_index=destination;
         distributed_handle_structure_bsp(&message);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"later valid switch did not queue");
+        return 0;
+    }
+    if(!strcmp(name,"host-refused-neighbor"))
+    {
+        scenario.structure_bsp_references.count=4;
+        references[2].structure_bsp.index=2;
+        reject_reference[2]=TRUE;
+        main_sync_structure_bsp(destination);
+        main_sync_structure_bsp(2);
+        CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,
+              "refused neighbor displaced the pending valid route");
+        main_switch_to_structure_bsp_private();
+        CHECK(global_structure_bsp_index==destination&&!loading_hud,"valid route did not finish");
+        main_sync_structure_bsp(2);
+        CHECK(main_globals.switch_to_structure_bsp_index==NONE&&!loading_hud,
+              "refused neighbor opened a loading screen");
+        CHECK(disconnects==1&&global_structure_bsp_index==destination,"refused neighbor disturbed the active BSP");
         return 0;
     }
     if(!strcmp(name,"host-snapshot-before-load"))

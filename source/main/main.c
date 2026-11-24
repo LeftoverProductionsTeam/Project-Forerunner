@@ -1266,23 +1266,32 @@ void main_load_core_name_at_startup(
 	return;
 }
 
-void main_switch_structure_bsp(
+boolean main_switch_structure_bsp(
 	short structure_bsp_index)
 {
 	struct scenario *scenario = global_scenario_get();
-	if (structure_bsp_index < 0 || structure_bsp_index >= scenario->structure_bsp_references.count)
+	struct scenario_structure_bsp_reference const *reference;
+
+	if (structure_bsp_index < 0 || structure_bsp_index >= scenario->structure_bsp_references.count ||
+		structure_bsp_index >= MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO)
 	{
 		console_warning("tried to switch to invalid structure-bsp %d", structure_bsp_index);
-		return;
+		return FALSE;
 	}
 	if (structure_bsp_index == global_structure_bsp_index)
 	{
 		console_warning("tried to switch to current structure-bsp %d", structure_bsp_index);
-		return;
+		return FALSE;
 	}
+
+	reference = TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
+		structure_bsp_index, struct scenario_structure_bsp_reference);
+	if (!scenario_structure_bsp_reference_is_valid(reference))
+		return FALSE;
+
 	main_globals.switch_to_structure_bsp_index = structure_bsp_index;
 	hud_load(TRUE);
-	return;
+	return TRUE;
 }
 
 void main_sync_structure_bsp(short structure_bsp_index)
