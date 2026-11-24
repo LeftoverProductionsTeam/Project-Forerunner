@@ -194,6 +194,17 @@ static boolean loading_hud;
 static void hud_load(boolean value) {loading_hud=value;}
 #define console_warning(...) ((void)0)
 typedef unsigned short word;
+static short scripted_multiplayer_bsp = NONE;
+static boolean scripted_multiplayer_bsp_reported;
+static boolean hs_menu_script_running;
+static struct hs_arguments_word {word value;} bsp_argument;
+static boolean game_engine_running(void) {return TRUE;}
+static void const *hs_macro_function_evaluate(short function_index, long thread_index, boolean initialize)
+{
+    return &bsp_argument;
+}
+static void hs_return(long thread_index, long value) {CHECK(!value, "invalid switch_bsp result");}
+#include "scripted_bsp.inc"
 struct distributed_unit_state {byte player_index;};
 static int unit_snapshots_applied;
 static word distributed_unit_state_read(byte const *data,byte const *end,struct distributed_unit_state *state)
@@ -250,6 +261,37 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "scripted-selection"))
+    {
+        reject_load[destination] = TRUE;
+        bsp_argument.value = destination;
+        scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
+        CHECK(global_structure_bsp_index == old && scripted_multiplayer_bsp == NONE,
+              "refused first choice locked the multiplayer BSP selector");
+
+        bsp_argument.value = old;
+        scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
+        CHECK(scripted_multiplayer_bsp == old && loads[destination] == 1,
+              "explicit selection of the resident BSP should lock without reloading");
+
+        bsp_argument.value = destination;
+        hs_menu_script_running = TRUE;
+        scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
+        CHECK(global_structure_bsp_index == old && scripted_multiplayer_bsp == old,
+              "refused menu choice replaced the active BSP selection");
+
+        reject_load[destination] = FALSE;
+        scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
+        CHECK(global_structure_bsp_index == destination && scripted_multiplayer_bsp == destination,
+              "valid menu choice did not update the selected BSP");
+
+        hs_menu_script_running = FALSE;
+        bsp_argument.value = old;
+        scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
+        CHECK(global_structure_bsp_index == destination && scripted_multiplayer_bsp_reported,
+              "background script could supersede the menu choice");
+        return 0;
+    }
     if (!strcmp(name, "crossing-root-trigger"))
     {
         switches[0].cutscene_flag_index = NONE;

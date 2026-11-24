@@ -16274,8 +16274,13 @@ static void scenario_switch_structure_bsp_evaluate(
 		else if (scripted_multiplayer_bsp == NONE ||
 			scripted_multiplayer_bsp == structure_bsp_index || hs_menu_script_running)
 		{
-			scripted_multiplayer_bsp = structure_bsp_index;
-			scenario_switch_structure_bsp(structure_bsp_index);
+			/* A refused load leaves the previous region active. Keep its
+			 * selection so a valid choice can still be made. */
+			if (structure_bsp_index == global_structure_bsp_index_get() ||
+				scenario_switch_structure_bsp(structure_bsp_index))
+			{
+				scripted_multiplayer_bsp = structure_bsp_index;
+			}
 		}
 		else if (!scripted_multiplayer_bsp_reported)
 		{

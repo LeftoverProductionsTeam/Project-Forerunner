@@ -2730,7 +2730,19 @@ A later regression exposed the native fatal error before BSP rollback. Failed
 destination loads now reach the existing source reload or return to the menu
 if neither BSP is usable. Initial load policy is unchanged. Three refusal
 cases failed with a fatal-aware harness before the fix. All 38 focused cases
-passed afterward and Windows x64 linked. Forced failure is harness-verified.
+passed afterward and Windows x64 linked.
+
+The current Windows x64 engine (`6c935c9c6a7f11171f48f4a41e1ed3b1c6c2f0352b61b65545edb03227255db3`)
+also exercised the refusal in a private native D40 co-op session. A disposable
+copy with only the decoded BSP 1 header signature cleared rejected the request,
+restored the opening cinematic BSP 8, advanced through tick 90, then loaded
+valid BSP 0 on request. The engine exited zero. Stock D40 retained its hash.
+
+The multiplayer HaloScript selector now records a requested BSP only after a
+successful load or an explicit selection of the resident BSP. A failed menu
+choice leaves the previously selected region available. The existing BSP
+harness reproduced the first-selection failure and then passed all 39 checks.
+The Windows x64 build linked. Competitive recovery is covered by the harness.
 
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
