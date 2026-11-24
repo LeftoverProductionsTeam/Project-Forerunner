@@ -30,7 +30,7 @@ enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _obj
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
  _object_die_act_of_god_bit=1,
  _object_die_act_of_god_silent_bit=2, _object_die_act_of_god_no_statistics_bit=3,
- _unit_control_crouch_modifier_bit=0, _unit_control_integrated_light_bit=4, _unit_control_action_bit=6,
+ _unit_control_crouch_modifier_bit=0, _unit_control_jump_bit=1, _unit_control_integrated_light_bit=4, _unit_control_action_bit=6,
  _unit_control_weapon_reload_bit=10, _unit_control_weapon_primary_trigger_bit=11,
  _unit_control_weapon_secondary_trigger_bit=12, _unit_control_throw_grenade_bit=13,
  _unit_control_use_equipment_bit=7, _unit_control_swap_weapons_bit=14, _unit_control_user_animation1_bit=2,
@@ -52,7 +52,8 @@ struct unit_datum { long definition_index; struct object_fields object;
  struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4], driver_object_index; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags,flags;
   struct unit_animation_data animation;
-  real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth; } unit;
+  real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth;
+  real_vector3d throttle; } unit;
  struct { unsigned long flags; unsigned char on_ground_ticks; } vehicle; };
 struct weapon_datum { long definition_index; struct object_fields object;
  struct { unsigned long flags; } item;
@@ -410,6 +411,9 @@ static void scripted_sound_new_private(long sound,boolean play){CHECK(sound==91,
 #include "notice_hud.inc"
 #include "native_unit_state.inc"
 #include "extraction.inc"
+#define vehicle_datum unit_datum
+#include "vehicle_brake.inc"
+#undef vehicle_datum
 static struct object_datum *object_get(long index) {struct object_datum *o=object_try_and_get_and_verify_type(index,_object_mask_unit|_object_mask_weapon|_object_mask_control);CHECK(o,"invalid object");return o;}
 static struct unit_datum *unit_try_and_get(long index) {return object_try_and_get_and_verify_type(index,_object_mask_unit);}
 static void error(short priority,char const *text,...) {CHECK(FALSE,"native starting equipment failed");}
@@ -1524,6 +1528,7 @@ int main(int argc,char **argv)
    scenario.hs_scripts.count=1;scenario.hs_scripts.address=transport_scripts;
    players[faction].team_index=units[faction].object.owner_team_index=faction?_game_team_covenant:_game_team_human;
    CHECK(extraction_owns_map(),"authored aircraft return rejected the shared hub");
+   CHECK(!extraction_transport_brake_at_pad(transport),"empty aircraft acquired evacuation braking");
    ship->object.position.x=7.f;ship->object.first_child_object_index=NONE;
    CHECK(!unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"undeployed player boarded at the aircraft pad");
    touch(0,faction);
@@ -1543,13 +1548,31 @@ int main(int argc,char **argv)
    CHECK(run(faction)->dropship==transport,"aircraft field boarding did not attach to the operation");
    ship->object.position.x=0.f;advance(1);
    CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked at the shared hub outside its dedicated pad");
-   ship->object.position.x=7.f;ship->object.up.k=.94f;advance(1);
+   CHECK(!extraction_transport_brake_at_pad(transport),"aircraft braked outside its dedicated pad");
+   ship->object.position.x=7.f;
+   CHECK(extraction_transport_brake_at_pad(transport),"occupied aircraft could not brake at its dedicated pad");
+   units[faction].object.parent_object_index=NONE;
+   CHECK(!extraction_transport_brake_at_pad(transport),"disembarked passenger kept the brake active");
+   units[faction].object.parent_object_index=transport;
+   ship->object.up.k=.94f;advance(1);
    CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked before native landing");
    ship->object.up.k=1.f;native_cinematic=TRUE;advance(1);
    CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked during the cinematic");
-   native_cinematic=FALSE;advance(1);
+   native_cinematic=FALSE;
+   ship->object.translational_velocity.i=.007f;advance(1);
+   CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"rolling in the pad bypassed native landing");
+   ship->unit.control_flags=FLAG(_unit_control_crouch_modifier_bit);
+   for(a=0;a<3;a++) {
+    real_vector3d force={0.f,0.f,1.f};
+    vehicle_apply_return_pad_brake(transport,ship,1000.f,&force);
+    CHECK(force.i<0.f && force.k==1.f,"brake failed to oppose the roll without altering lift");
+    ship->object.translational_velocity.i+=force.i/1000.f;
+    advance(1);
+    if(a<2)CHECK(run(faction)->phase==_extraction_ready,"braking bypassed native landing speed");
+   }
    CHECK(run(faction)->phase==_extraction_returned&&transport_wakes[faction]==1&&run(faction)->gear.record.count==1,
     "aircraft arrival did not bank recovered gear and release its passengers");
+   CHECK(!extraction_transport_brake_at_pad(transport),"settled evacuation left the brake active");
    units[faction].object.parent_object_index=NONE;units[faction].object.position.x=7.f;
    touch(0,faction);CHECK(run(faction)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
    units[faction].object.position.x=0.f;touch(0,faction);

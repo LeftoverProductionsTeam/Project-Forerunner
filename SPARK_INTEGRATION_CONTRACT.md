@@ -45,6 +45,21 @@ and the player held the technology. Both processes exited normally.
 Receipt: `build/native-black-echo-d113-pelican-pad.json`. Two authenticated
 humans, repeat mission reset, and Covenant loaded return remain open.
 
+Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
+It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
+unchanged Windows baseline, the occupied pad-brake variant and the prior
+successful executable hash. Only the hash and receipt remain for that older
+executable. Spark also reproduced a missed pad on the previously successful
+build and map. A broad braking experiment stalled before field recall and
+was removed. The replacement applies ground braking only to a powered AI
+aircraft during an occupied evacuation inside its dedicated return pad.
+The existing transport harness reproduced banking refusal at motion .0070
+and accepted settlement only after the production brake force crossed the
+native .0050 gate. Both faction-pad cases and 89 transport checks passed.
+Reproduce the landing with the isolated native transport map before another
+whole-mission run. Native flight/braking belongs here; the route and pad
+geometry remain Spark authoring data.
+
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.

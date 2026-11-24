@@ -45,6 +45,8 @@ boolean extraction_control_touched(long control_index, long unit_index);
 /* Host-only admission for opted-in named transports. Ordinary vehicles, NPC
  * pilots and authoritative client seat replay keep the native path. */
 boolean extraction_transport_can_board(long unit_index, long vehicle_index, short seat_index);
+/* True only for an occupied evacuation already inside a dedicated return pad. */
+boolean extraction_transport_brake_at_pad(long vehicle_index);
 /* Native voluntary player exits from transports with authored landing signals. */
 struct unit_datum;
 boolean extraction_transport_can_disembark(struct unit_datum const *passenger);

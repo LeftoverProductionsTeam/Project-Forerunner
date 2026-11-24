@@ -1876,6 +1876,32 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	return extraction_at_hub(unit_index);
 }
 
+boolean extraction_transport_brake_at_pad(long vehicle_index)
+{
+	short faction, index;
+
+	if (!extraction_owns_map() || extraction.suspended)
+		return FALSE;
+	for (faction = 0; faction < NUMBEROF(extraction.dropship_return_zones); faction++)
+	{
+		short zone = extraction.dropship_return_zones[faction];
+		if (zone == NONE || extraction.dropship_evacuating[faction] != vehicle_index ||
+			!extraction_in_hub_volume(zone, vehicle_index))
+			continue;
+		for (index = 0; index < NUMBEROF(extraction_runs); index++)
+		{
+			struct extraction_run const *run = &extraction_runs[index];
+			if (run->phase == _extraction_ready && run->dropship == vehicle_index)
+			{
+				struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(run->unit, _object_mask_biped);
+				if (unit && extraction_player_dropship(unit) == vehicle_index)
+					return TRUE;
+			}
+		}
+	}
+	return FALSE;
+}
+
 static boolean extraction_return_ready(struct extraction_run *run, struct unit_datum const *unit)
 {
 	long dropship;

@@ -147,6 +147,7 @@ symbols in this file:
 #include "cseries/profile.h"
 #include "ai/actors.h"
 #include "vehicles.h"
+#include "extraction.h"
 #include "math/real_math.h"
 #include "game/game_globals.h"
 #include "game/players.h"
@@ -1533,6 +1534,21 @@ static real vehicle_plane_pilot_power(long vehicle_index, struct vehicle_datum c
 		0.f : vehicle->unit.seat_power[0];
 }
 
+/* Retard the occupied ground roll through the native force integration. */
+static void vehicle_apply_return_pad_brake(long vehicle_index,
+	struct vehicle_datum const *vehicle, real mass, real_vector3d *force)
+{
+	if (!TEST_FLAG(vehicle->object.flags, _object_on_ground_bit) || vehicle->object.up.k < 0.95f ||
+		!TEST_FLAG(vehicle->unit.control_flags, _unit_control_crouch_modifier_bit) ||
+		TEST_FLAG(vehicle->unit.control_flags, _unit_control_jump_bit) ||
+		vehicle->unit.throttle.i != 0.f || vehicle->unit.throttle.j != 0.f ||
+		!extraction_transport_brake_at_pad(vehicle_index))
+		return;
+
+	force->i -= vehicle->object.translational_velocity.i * mass * 0.125f;
+	force->j -= vehicle->object.translational_velocity.j * mass * 0.125f;
+}
+
 static void update_human_plane_physics(
 	long vehicle_index,
 	struct powered_mass_point_datum *state,
@@ -1649,6 +1665,9 @@ static void update_human_plane_physics(
 			torque.j = (scaled.j-vehicle->object.angular_velocity.j)*scale;
 			torque.k = (scaled.k-vehicle->object.angular_velocity.k)*scale;
 		}
+
+		if (pilot_power > 0.f && vehicle_plane_ai_pilot(vehicle_index, vehicle))
+			vehicle_apply_return_pad_brake(vehicle_index, vehicle, physics->mass, &force);
 
 		scale_vector3d(&force, pilot_power, &force);
 		scale_vector3d(&torque, pilot_power, &torque);
