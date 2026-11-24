@@ -159,7 +159,8 @@ def test_native_squad_radio(case):
     'squad-capacity', 'squad-state', 'squad-identity', 'squad-faction', 'squad-leave', 'squad-join-active',
     'squad-duplicate', 'squad-alias', 'squad-missing',
     'squad-reconnect', 'squad-reconnect-active', 'squad-reconnect-full', 'squad-reconnect-faction',
-    'squad-reconnect-settlement-order',
+    'squad-reconnect-settlement-order', 'squad-reconnect-deferred-escrow',
+    'squad-reconnect-deferred-escrow-stale', 'squad-reconnect-deferred-escrow-reported',
     'squad-reconnect-owner', 'squad-reconnect-reset', 'squad-reconnect-leave',
 ])
 def test_native_squad_workflow(case):

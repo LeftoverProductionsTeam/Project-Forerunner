@@ -1955,6 +1955,17 @@ Windows x64 SHA-256 `928ad339b7a2775bb69edd64346cb3fa6773eb33f3d192cc2774d8c933a
 admitted the squad fixture `25d28447a49aa4ddf849729f1890b1ccaad78bb4b9c55be30c2bbc4ba1a45196`
 in private co-op startup and ran to tick 390. The ordering fault was
 exercised in the harness. Originals held and staging was removed.
+If the escrow still cannot finish at disconnect, the map remembers its
+exact run ID with the verified owner's existing squad choice. Reopening the
+stash can report that escape once if its receipt matches the current
+operation. An older receipt or already-reported escape cannot change the
+current result. The 127 focused checks include deferred recovery, stale
+operations and duplicate completion. Windows x64 SHA-256
+`b84fab8268b13adfdf7425d36a06cb49041426b1dfb5101bb20bba96a490fdcb`
+loaded the same squad fixture in a private native run. Normal input
+reached the Deploy device and the saved-profile requirement. Escrow
+recovery was exercised in the harness. Original hashes held and staging
+was removed.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
 not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version

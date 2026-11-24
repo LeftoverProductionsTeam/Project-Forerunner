@@ -105,6 +105,8 @@ struct extraction_run
 struct extraction_squad_choice
 {
 	byte owner[GEAR_ID_BYTES];
+	byte escrow_run[GEAR_ID_BYTES];
+	unsigned long escrow_operation;
 	short squad, faction;
 	boolean remembered;
 };
@@ -148,6 +150,7 @@ static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
 static boolean extraction_players_returned(void);
+static struct extraction_squad_choice *extraction_squad_choice(byte const owner[GEAR_ID_BYTES]);
 static char const *extraction_resolve_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES]);
 
 /* Match Halo's three native forced-death requests. Do not consume the flags,
@@ -455,6 +458,27 @@ static void extraction_remember_bank(struct extraction_run const *run)
 		extraction.dropship_banked[faction] = run->dropship;
 }
 
+static void extraction_reconcile_squad_escrow(struct gear_record const *record)
+{
+	struct extraction_squad_choice *choice = extraction_squad_choice(record->owner);
+	short squad;
+
+	if (!choice || !choice->escrow_operation) return;
+	squad = choice->squad;
+	/* Only the verified owner's exact receipt can complete this map's
+	 * still-current operation. A squad with a durable escape already
+	 * reports success once, regardless of other passengers' writes. */
+	if (record->phase == _gear_idle && record->outcome == _gear_escaped &&
+		!memcmp(record->settled_run, choice->escrow_run, GEAR_ID_BYTES) &&
+		VALID_INDEX(squad, NUMBEROF(extraction.squads)) &&
+		choice->escrow_operation == extraction.squads[squad].operation && !extraction.squads[squad].banked)
+	{
+		extraction.squads[squad].banked = TRUE;
+		extraction.squads[squad].notified = FALSE;
+	}
+	choice->escrow_operation = 0;
+}
+
 static void extraction_run_close(struct extraction_run *run)
 {
 	if (run->gear.opened)
@@ -474,8 +498,15 @@ static void extraction_run_close(struct extraction_run *run)
 		else if (run->phase == _extraction_settling && VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) &&
 			run->squad_operation && run->squad_operation == extraction.squads[run->squad].operation)
 		{
+			struct extraction_squad_choice *choice = extraction_squad_choice(run->gear.record.owner);
+
 			/* A disconnected escape escrow may still bank when reopened. */
 			extraction.squads[run->squad].unconfirmed_escape = TRUE;
+			if (choice && choice->squad == run->squad)
+			{
+				memcpy(choice->escrow_run, run->gear.run, GEAR_ID_BYTES);
+				choice->escrow_operation = run->squad_operation;
+			}
 		}
 		gear_close(&run->gear);
 	}
@@ -577,10 +608,14 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 	{
 		gear_lose(&run->gear); gear_close(&run->gear);
 	}
-	if (!run->gear.opened && !gear_open(&run->gear, owner))
+	if (!run->gear.opened)
 	{
-		extraction_block(run, "STASH UNAVAILABLE | Gear is locked, unreadable or awaiting recovery. Retry at the terminal.");
-		return FALSE;
+		if (!gear_open(&run->gear, owner))
+		{
+			extraction_block(run, "STASH UNAVAILABLE | Gear is locked, unreadable or awaiting recovery. Retry at the terminal.");
+			return FALSE;
+		}
+		extraction_reconcile_squad_escrow(&run->gear.record);
 	}
 	memcpy(run->owner, owner, GEAR_ID_BYTES);
 	run->gear.loadout_unit = (extraction.faction_bipeds[0] != NONE || extraction.faction_bipeds[1] != NONE) ? player->unit_index : NONE;
@@ -1261,6 +1296,7 @@ static void extraction_remember_squad(struct extraction_run const *run, short fa
 			extraction.next_squad_choice = (short)((index + 1) % NUMBEROF(extraction.squad_choices));
 		}
 		choice = &extraction.squad_choices[index];
+		memset(choice, 0, sizeof(*choice));
 	}
 	memcpy(choice->owner, run->owner, GEAR_ID_BYTES);
 	choice->squad = run->squad;

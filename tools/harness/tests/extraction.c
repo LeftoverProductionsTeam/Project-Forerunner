@@ -747,20 +747,48 @@ int main(int argc,char **argv)
    }
    return 0;
   }
-  if(!strcmp(case_name,"squad-reconnect-settlement-order")) {
+  if(!strcmp(case_name,"squad-reconnect-settlement-order")||
+     !strncmp(case_name,"squad-reconnect-deferred-escrow",31)) {
+   boolean deferred=strcmp(case_name,"squad-reconnect-settlement-order")!=0;
+   boolean stale=!strcmp(case_name,"squad-reconnect-deferred-escrow-stale");
+   boolean reported=!strcmp(case_name,"squad-reconnect-deferred-escrow-reported");
    byte recovered[GEAR_ID_BYTES];
 
    delta_session=TRUE;
+   if(reported) touch(5,0);
    touch(5,1);touch(0,1);a=pickup(1,2);
+   if(reported) { touch(0,0);pickup(0,1);escape(0); }
    units[1].object.position.x=20;touch(1,1);advance(300);
    publish_failure=TRUE;units[1].object.position.x=0;advance(1);
    CHECK(run(1)->phase==_extraction_settling&&!weapon_try_and_get(a)&&!squad_wakes[0],
          "reconnect fixture did not reach durable escape escrow");
+   if(deferred) {
+    players[1].quit_out_of_game=TRUE;advance(1);
+    CHECK(!run(1)->gear.opened&&squad_wakes[0]==reported&&!squad_aborts[0],
+          "failed escrow close changed the verified squad outcome");
+    players[1].quit_out_of_game=FALSE;
+   }
 
    publish_failure=FALSE;
    player_handles[1]+=0x10000;units[1].unit.player_index=player_handles[1];
    unit_handles[1]+=0x10000;players[1].unit_index=unit_handles[1];
+   if(stale) {
+    touch(5,0);touch(0,0);
+    CHECK(run(0)->squad_operation==2,"fixture did not start a newer operation");
+    touch(2,1);
+    CHECK(run(1)->gear.record.count==1&&!extraction.squads[0].banked,
+          "older escrow receipt completed the current operation");
+    units[0].object.damage_flags=FLAG(_object_dead_bit);advance(1);
+    CHECK(!squad_wakes[0]&&squad_aborts[0]==1,"old receipt hid the new operation's loss");
+    extraction_reset();return 0;
+   }
    touch(0,1);
+   if(reported) {
+    CHECK(run(1)->phase==_extraction_deployed&&run(1)->squad_operation==2&&
+          run(1)->gear.record.reserved_count==1,"reported squad blocked escrow recovery and redeployment");
+    advance(1);CHECK(squad_wakes[0]==1&&!squad_aborts[0],"reopened escrow repeated a reported completion");
+    extraction_reset();return 0;
+   }
    CHECK(run(1)->phase==_extraction_hub&&run(1)->gear.record.phase==_gear_idle&&
          run(1)->gear.record.count==1&&extraction.squads[0].operation==1&&!squad_wakes[0],
          "reconnect started a new operation before reporting the prior escape");
