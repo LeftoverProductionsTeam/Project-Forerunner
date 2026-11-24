@@ -2894,6 +2894,34 @@ This verifies native projectile damage between authored regions sharing
 one resident BSP. Projectile/actor persistence across separately active
 BSPs and authored regional AI remain open.
 
+### Eleven-region Damnation route and regional object state
+
+Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.
+Exact cache SHA-256 `9531f157ddb0ff429e738a5b6f77835f3d18348194908556ecec9f0716101b53`.
+Its single BSP uses 21.15 of 23.00 MiB of native tag memory and contains
+54,188 collision triangles. On Windows x64 Forerunner `83a626f4` and
+Chupathingy `c16096a8` (private OpenCE 44), one placement staged the host
+before the Prisoner entrance. Normal input reached Damnation at
+(659.370, -26.734, -18.206) and returned to Prisoner at
+(579.410, -26.732, -18.206) in the same session. The guest moved 6.675 world
+units independently on the main road. Maximum peer position differences
+were 0.121 outbound and 0.113 returning over 35 and 34 samples, with guest
+interpolation bounded to 31 ticks where exact ticks were unavailable.
+Both processes exited zero and staging was removed.
+
+The host now announces its BSP before streaming periodic world positions.
+The client waits for the announced BSP before applying object, vehicle and
+device snapshots, discards interpolation history from the previous BSP
+and stops recording vehicle predictions while loading. On acknowledgement,
+the host resends changed scene transforms and device positions that may
+have settled during the load. The focused tests cover delayed packets and
+duplicate acknowledgements. Native Windows x64
+`46eb09e3b47b52e94d01414fe7ff3bea720c051f52b5351b05be812391c48dee`
+ran the stock D40 foot crossing in both directions with two private OpenCE 44
+peers. Both agreed on BSP 0 by tick 366 and BSP 1 by tick 432 and exited zero.
+The native run verifies round-trip co-op on a real BSP switch. Live moved
+devices across a boundary and independently resident BSPs remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

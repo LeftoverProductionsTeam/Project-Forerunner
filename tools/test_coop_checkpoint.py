@@ -393,6 +393,9 @@ def test_recovery_retires_history_without_losing_object_ownership(tmp_path):
     source = (ROOT / "port/linux/game/network_objects.c").read_text()
     definitions = "\n".join(define_value(source, name) for name in (
         "HOST_OBJECTS_RESEND_TICKS", "CLIENT_READY_INTERVAL_TICKS", "CLIENT_RETRY_TICKS"))
+    recovery = "\n".join(function(source, name) for name in (
+        "objects_client_reset_own_vehicle_history", "network_objects_client_bsp_changed",
+        "network_objects_reverted", "network_objects_new_game"))
     run_c(tmp_path, r'''
 #include <assert.h>
 #include <string.h>
@@ -433,7 +436,7 @@ static struct {long definition_index;} objects_client_picked_up_weapons[2];
 static struct {long time,vehicle_index;} objects_client_own_vehicles[2][4];
 static int mcc_resets;
 static void mcc_network_new_game(void){mcc_resets++;}
-''' + definitions + "\n" + function(source, "network_objects_reverted") + function(source, "network_objects_new_game") + r'''
+''' + definitions + "\n" + recovery + r'''
 int main(void){
  int i,j;
  memset(objects_host_vehicle_predictions,1,sizeof(objects_host_vehicle_predictions));

@@ -357,6 +357,39 @@ static void network_actors_handle_states(void const *entries, short count)
 }
 #include "bsp_actor_controls.inc"
 
+#define MAXIMUM_TRACKED_OBJECTS 4
+#define MAXIMUM_LOCAL_PLAYERS 2
+#define OWN_VEHICLE_POSITION_TICKS 3
+static struct {long object_index,time,interval;} objects_client_unsteered_path[MAXIMUM_TRACKED_OBJECTS];
+static struct {long time,vehicle_index;} objects_client_own_vehicles[MAXIMUM_LOCAL_PLAYERS][OWN_VEHICLE_POSITION_TICKS];
+static short host_player_structure_bsps[2]={NONE,NONE};
+static struct {boolean scene_refresh;} host_resend;
+#define NUMBEROF(array) (sizeof(array) / sizeof(array[0]))
+#define VALID_INDEX(index, count) (index>=0 && index<count)
+#include "bsp_world_state.inc"
+
+enum {
+    _distributed_message_object_states,
+    _distributed_message_coop_object_transforms,
+    _distributed_message_coop_device_states
+};
+static unsigned received_scene_types;
+static void network_objects_handle_states(void const *entries,short count,long host_time)
+{
+    CHECK(entries&&count==1&&host_time>=90,"invalid object state");
+    received_scene_types|=1;
+}
+static void network_coop_handle_object_transforms(void const *entries,short count)
+{
+    CHECK(entries&&count==1,"invalid scene transform");
+    received_scene_types|=2;
+}
+static void network_coop_handle_device_states(void const *entries,short count)
+{
+    CHECK(entries&&count==1,"invalid device state");
+    received_scene_types|=4;
+}
+
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
 
@@ -651,6 +684,45 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"host-object-snapshot-boundary"))
+    {
+        struct distributed_structure_bsp message={destination,0};
+        byte entry=0;
+
+        objects_client_unsteered_path[0].object_index=units[2];
+        objects_client_unsteered_path[0].time=87;
+        objects_client_own_vehicles[0][1].vehicle_index=units[2];
+        objects_client_own_vehicles[0][1].time=87;
+        distributed_handle_structure_bsp(90,&message);
+        CHECK(objects_client_unsteered_path[0].object_index==NONE&&
+              objects_client_unsteered_path[0].time==NONE&&
+              objects_client_own_vehicles[0][1].vehicle_index==NONE&&
+              objects_client_own_vehicles[0][1].time==NONE,
+              "reused the old region's vehicle interpolation");
+        distributed_handle_bsp_world_snapshot(_distributed_message_object_states,90,&entry,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_coop_object_transforms,90,&entry,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_coop_device_states,90,&entry,1);
+        CHECK(!received_scene_types,"applied geometry before the destination loaded");
+
+        main_switch_to_structure_bsp_private();
+        CHECK(network_coop_note_player_structure_bsp(0,old)&&!host_resend.scene_refresh,
+              "resends started before the client had the current BSP");
+        CHECK(network_coop_note_player_structure_bsp(0,destination)&&host_resend.scene_refresh,
+              "the loaded guest missed the scene refresh");
+        host_resend.scene_refresh=FALSE;
+        CHECK(!network_coop_note_player_structure_bsp(0,destination)&&!host_resend.scene_refresh,
+              "duplicate acknowledgement caused another refresh");
+
+        distributed_handle_bsp_world_snapshot(_distributed_message_object_states,89,&entry,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_coop_object_transforms,89,&entry,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_coop_device_states,89,&entry,1);
+        CHECK(!received_scene_types,"applied a late object from the source BSP");
+        distributed_handle_bsp_world_snapshot(_distributed_message_object_states,90,&entry,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_coop_object_transforms,90,&entry,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_coop_device_states,90,&entry,1);
+        CHECK(received_scene_types==7,"destination objects and devices did not resume");
         return 0;
     }
     if(!strncmp(name,"rescue-",7))

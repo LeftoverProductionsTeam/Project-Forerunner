@@ -553,7 +553,7 @@ static int snapshot_inventory_case(long unit,boolean many) {
             CHECK(i==0&&!distributed_message_epoch_valid(NONE,header,snapshot_sizes[i]),"ordered host barrier first");
             objects_client_new_object_count=MAXIMUM_CLIENT_NEW_OBJECTS;
             for(ticks=0;ticks<3;ticks++){
-                now++;network_objects_client_tick();
+                now++;network_objects_client_tick(TRUE);
                 CHECK(objects_client_own_inventories[0].unit_index==NONE&&!prediction_ticks&&objects_client_check_all,
                     "old bound replica does not seed predictions; deferred own-object cleanup remains requested");
             }
@@ -579,7 +579,7 @@ static int snapshot_inventory_case(long unit,boolean many) {
     CHECK(received==expected&&batches==(expected+limit-1)/limit,"every live inventory exactly once, including partial final batch");
     CHECK(object_get(unit)->unit.grenade_counts[0]==0&&object_get(unit)->unit.weapon_object_indices[0]==NONE&&
         object_get(weapon)->object.parent_object_index==NONE,"empty snapshot clears future grenades and detaches future weapon");
-    network_objects_client_tick();
+    network_objects_client_tick(TRUE);
     CHECK(prediction_ticks==6&&objects_client_own_inventories[0].unit_index==unit,"ordinary prediction history resumes after ordered marker");
     snapshot_count=0;client=0;network_objects_client_asked(1,FALSE);
     CHECK(snapshot_count==2&&((struct distributed_message_header *)snapshot_packets[1].bytes)->type==_distributed_message_objects_synchronized,

@@ -536,7 +536,7 @@ void network_objects_discard_client_effects(void);
 void network_objects_host_tick(void);
 word network_objects_damage_animation_entry_size(void);
 void network_objects_handle_damage_animations(void const *entries, short count);
-void network_objects_client_tick(void);
+void network_objects_client_tick(boolean bsp_ready);
 /* (the host) a client has loaded the game and asks for the host's objects:
 again, having failed to make one of them */
 void network_objects_client_asked(long machine_index, boolean again);
@@ -549,6 +549,7 @@ boolean network_objects_client_synchronized(void);
 void network_objects_checkpoint_reset(boolean synchronized_again);
 /* (host_time: the message's, the host's tick its states are of) */
 void network_objects_handle_states(void const *entries, short count, long host_time);
+void network_objects_client_bsp_changed(void);
 void network_objects_handle_inventories(void const *entries, short count);
 /* (a client) its own player picked up the weapon, to ready once its unit has it */
 void network_objects_client_picked_up_weapon(short local_player_index, long unit_index, long definition_index);

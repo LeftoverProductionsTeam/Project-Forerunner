@@ -4266,19 +4266,45 @@ static void distributed_handle_unit_state(
 	}
 }
 
+static boolean distributed_bsp_world_ready(void)
+{
+	return distributed_host_structure_bsp_index == NONE ||
+		distributed_host_structure_bsp_index == global_structure_bsp_index_get();
+}
+
 /* Periodic positions and seats belong to the host's announced BSP. The
  * per-message stale check cannot compare actor/player packets with BSP packets. */
 static boolean distributed_can_apply_bsp_snapshot(long host_time)
 {
-	return distributed_host_structure_bsp_index == NONE ||
-		(distributed_host_structure_bsp_index == global_structure_bsp_index_get() &&
-			(distributed_host_structure_bsp_start == NONE || host_time >= distributed_host_structure_bsp_start));
+	return distributed_bsp_world_ready() &&
+		(distributed_host_structure_bsp_start == NONE || host_time >= distributed_host_structure_bsp_start);
 }
 
 static void distributed_handle_actor_states(long host_time, void const *entries, short count)
 {
 	if (distributed_can_apply_bsp_snapshot(host_time))
 		network_actors_handle_states(entries, count);
+}
+
+/* These periodic snapshots change collision-linked objects. Reliable object
+ * lifetimes, inventory ownership and logical device groups are separate. */
+static void distributed_handle_bsp_world_snapshot(byte type, long host_time, void const *entries, short count)
+{
+	if (!distributed_can_apply_bsp_snapshot(host_time))
+		return;
+
+	switch (type)
+	{
+	case _distributed_message_object_states:
+		network_objects_handle_states(entries, count, host_time);
+		break;
+	case _distributed_message_coop_object_transforms:
+		network_coop_handle_object_transforms(entries, count);
+		break;
+	case _distributed_message_coop_device_states:
+		network_coop_handle_device_states(entries, count);
+		break;
+	}
 }
 
 /* (a client) the host's word on every player's unit */
@@ -5465,7 +5491,10 @@ static void distributed_handle_structure_bsp(
 	if (distributed_host_structure_bsp_index != index)
 	{
 		if (distributed_host_structure_bsp_index != NONE || index != global_structure_bsp_index_get())
+		{
 			network_actors_client_bsp_changed();
+			network_objects_client_bsp_changed();
+		}
 		distributed_host_structure_bsp_index = index;
 		distributed_host_structure_bsp_start = host_time;
 	}
@@ -5886,6 +5915,12 @@ void network_distributed_tick(
 		profile_scope(distributed_tick_apply_predictions_section, distributed_apply_predictions(FALSE);)
 		profile_scope(distributed_tick_apply_vehicle_predictions_section, network_objects_apply_vehicle_predictions();)
 		profile_scope(distributed_tick_apply_predictions_section, distributed_apply_predictions(TRUE);)
+		/* Announce the BSP before any new-region position stream. */
+		if (network_coop_active() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
+			game_time_get() % STRUCTURE_BSP_INTERVAL_TICKS == 0))
+		{
+			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp();)
+		}
 		profile_scope(distributed_tick_objects_host_tick_section, network_objects_host_tick();)
 		profile_scope(distributed_tick_plan_players_section, distributed_host_plan_players();)
 		profile_scope(distributed_tick_damage_host_tick_section, network_damage_host_tick();)
@@ -5897,13 +5932,6 @@ void network_distributed_tick(
 			profile_scope(distributed_tick_send_pings_section, distributed_send_pings();)
 		if (game_time_get() % PING_REFRESH_TICKS == 0 && latency_meter_enabled())
 			distributed_refresh_pings();
-		/* (before the players, so clients load a new BSP before they hear
-		where the host moved everyone into it) */
-		if (network_coop_active() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
-			game_time_get() % STRUCTURE_BSP_INTERVAL_TICKS == 0))
-		{
-			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp();)
-		}
 		profile_scope(distributed_tick_send_players_section, distributed_host_send_players();)
 		profile_scope(distributed_tick_actors_host_tick_section, network_actors_host_tick();)
 		profile_scope(distributed_tick_coop_host_tick_section, network_coop_host_tick();)
@@ -5922,7 +5950,7 @@ void network_distributed_tick(
 			distributed_refresh_pings();
 		profile_scope(distributed_tick_send_inputs_section, distributed_client_send_inputs();)
 		profile_scope(distributed_tick_send_predictions_section, distributed_client_send_predictions();)
-		profile_scope(distributed_tick_objects_client_tick_section, network_objects_client_tick();)
+		profile_scope(distributed_tick_objects_client_tick_section, network_objects_client_tick(distributed_bsp_world_ready());)
 		profile_scope(distributed_tick_damage_client_tick_section, network_damage_client_tick();)
 		profile_scope(distributed_tick_coop_client_tick_section, network_coop_client_tick();)
 	}
@@ -7999,7 +8027,9 @@ static void distributed_handle_message(
 		network_coop_handle_object_names(entries);
 		break;
 	case _distributed_message_coop_object_transforms:
-		network_coop_handle_object_transforms(entries, header.count);
+	case _distributed_message_coop_device_states:
+	case _distributed_message_object_states:
+		distributed_handle_bsp_world_snapshot(header.type, header.game_time, entries, header.count);
 		break;
 	case _distributed_message_actor_damage:
 		network_actors_handle_damage(entries, header.count);
@@ -8012,9 +8042,6 @@ static void distributed_handle_message(
 		break;
 	case _distributed_message_coop_screen_effect:
 		network_coop_handle_screen_effect(entries, header.count);
-		break;
-	case _distributed_message_coop_device_states:
-		network_coop_handle_device_states(entries, header.count);
 		break;
 	/* OpenCE's chat (chat.c): a client's line over its machine's stream
 	alone, the host's over the host's connection's stream alone (a datagram
@@ -8084,9 +8111,6 @@ static void distributed_handle_message(
 		break;
 	case _distributed_message_object_changes:
 		network_objects_handle_changes(entries, header.count);
-		break;
-	case _distributed_message_object_states:
-		network_objects_handle_states(entries, header.count, header.game_time);
 		break;
 	case _distributed_message_game_state:
 		game_engine_read_network_state((byte const *)entries, size - sizeof(header));

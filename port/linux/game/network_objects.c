@@ -4968,7 +4968,7 @@ static void distributed_client_apply_retried_inventories(
 }
 
 void network_objects_client_tick(
-	void)
+	boolean bsp_ready)
 {
 	/* (loaded: the host's objects, please; flagged when one of them failed
 	since it last asked) */
@@ -5019,8 +5019,11 @@ void network_objects_client_tick(
 	distributed_client_ready_picked_up_weapons();
 	distributed_client_note_own_inventories();
 	mcc_network_client_tick();
-	distributed_client_send_vehicles();
-	distributed_client_carry_unsteered_vehicles();
+	if (bsp_ready)
+	{
+		distributed_client_send_vehicles();
+		distributed_client_carry_unsteered_vehicles();
+	}
 #ifdef HALO_GAME_BROWSER
 	/* (names whose objects came since, or were held then) */
 	delta_client_apply_names();
@@ -5035,6 +5038,35 @@ void network_objects_client_tick(
 }
 
 /* ---------- the game */
+
+static void objects_client_reset_own_vehicle_history(void)
+{
+	short local_player_index, index;
+
+	for (local_player_index = 0; local_player_index < MAXIMUM_LOCAL_PLAYERS; local_player_index++)
+	{
+		for (index = 0; index < OWN_VEHICLE_POSITION_TICKS; index++)
+		{
+			objects_client_own_vehicles[local_player_index][index].time = NONE;
+			objects_client_own_vehicles[local_player_index][index].vehicle_index = NONE;
+		}
+	}
+}
+
+/* Interpolation endpoints and prediction samples belong to the old BSP.
+ * Retain object identities, seats and equipment ownership. */
+void network_objects_client_bsp_changed(void)
+{
+	long absolute_index;
+
+	for (absolute_index = 0; absolute_index < MAXIMUM_TRACKED_OBJECTS; absolute_index++)
+	{
+		objects_client_unsteered_path[absolute_index].object_index = NONE;
+		objects_client_unsteered_path[absolute_index].time = NONE;
+		objects_client_unsteered_path[absolute_index].interval = 0;
+	}
+	objects_client_reset_own_vehicle_history();
+}
 
 /* A checkpoint starts new prediction, inventory and animation histories even
 when it restores the same object handles. Keep ownership and the host's last
@@ -5059,10 +5091,8 @@ void network_objects_reverted(
 		objects_host_inventories[absolute_index].ammunition_time = NONE;
 		objects_client_dead[absolute_index].object_index = NONE;
 		objects_client_checkpoint_pending[absolute_index] = TRUE;
-		objects_client_unsteered_path[absolute_index].object_index = NONE;
-		objects_client_unsteered_path[absolute_index].time = NONE;
-		objects_client_unsteered_path[absolute_index].interval = 0;
 	}
+	network_objects_client_bsp_changed();
 	objects_host_resting_cursor = 0;
 	objects_host_viewers.count = 0;
 	csmemset(objects_host_vehicle_predictions, 0, sizeof(objects_host_vehicle_predictions));
@@ -5087,11 +5117,6 @@ void network_objects_reverted(
 	{
 		objects_client_own_inventories[local_player_index].unit_index = NONE;
 		objects_client_picked_up_weapons[local_player_index].definition_index = NONE;
-		for (index = 0; index < OWN_VEHICLE_POSITION_TICKS; index++)
-		{
-			objects_client_own_vehicles[local_player_index][index].time = NONE;
-			objects_client_own_vehicles[local_player_index][index].vehicle_index = NONE;
-		}
 	}
 }
 
@@ -5116,7 +5141,6 @@ void network_objects_checkpoint_reset(
 	struct object_iterator iterator;
 	struct data_iterator effects;
 	short local_player_index;
-	short index;
 
 	object_iterator_new(&iterator, _object_mask_projectile, 0);
 	while (object_iterator_next(&iterator))
@@ -5142,12 +5166,8 @@ void network_objects_checkpoint_reset(
 	{
 		objects_client_own_inventories[local_player_index].unit_index = NONE;
 		objects_client_picked_up_weapons[local_player_index].definition_index = NONE;
-		for (index = 0; index < OWN_VEHICLE_POSITION_TICKS; index++)
-		{
-			objects_client_own_vehicles[local_player_index][index].time = NONE;
-			objects_client_own_vehicles[local_player_index][index].vehicle_index = NONE;
-		}
 	}
+	objects_client_reset_own_vehicle_history();
 }
 
 #ifdef HALO_BIG_ENDIAN

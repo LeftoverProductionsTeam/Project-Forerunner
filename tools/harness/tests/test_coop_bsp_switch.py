@@ -48,14 +48,18 @@ def generated(fault=None):
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp', 'main_switch_to_structure_bsp_private')) +
             '\n' + '\n'.join(function(read('port/linux/game/network_distributed.c'), name) for name in
-                            ('distributed_can_apply_bsp_snapshot', 'distributed_handle_actor_states',
+                            ('distributed_bsp_world_ready', 'distributed_can_apply_bsp_snapshot',
+                             'distributed_handle_actor_states', 'distributed_handle_bsp_world_snapshot',
                              'distributed_handle_structure_bsp', 'distributed_handle_unit_states'))),
         ('bsp_actor_controls.inc', function(read('port/linux/game/network_actors.c'), 'network_actors_client_bsp_changed')),
+        ('bsp_world_state.inc', '\n'.join(function(read('port/linux/game/network_objects.c'), name) for name in
+            ('objects_client_reset_own_vehicle_history', 'network_objects_client_bsp_changed')) + '\n' +
+         function(read('port/linux/game/network_coop.c'), 'network_coop_note_player_structure_bsp')),
     )
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'scripted-selection', 'overlapping-coop-routes', 'majority-overlapping-routes',

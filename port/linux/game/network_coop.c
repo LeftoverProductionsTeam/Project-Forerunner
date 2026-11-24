@@ -569,6 +569,7 @@ static struct
 	short machine_count;
 	boolean joined;
 	boolean refresh;
+	boolean scene_refresh;
 } host_resend;
 
 /* Checkpoints restore player_data, but not the live machines' player
@@ -1122,7 +1123,7 @@ static void host_send_device_states(
 		}
 		changed = host_sent_devices[absolute_index].position != device->device.position ||
 			host_sent_devices[absolute_index].power != device->device.power;
-		if (!changed && !(host_resend.refresh && host_sent_devices[absolute_index].moved))
+		if (!changed && !((host_resend.refresh || host_resend.scene_refresh) && host_sent_devices[absolute_index].moved))
 			continue;
 		host_sent_devices[absolute_index].moved = TRUE;
 		host_sent_devices[absolute_index].position = device->device.position;
@@ -1186,7 +1187,7 @@ static void host_send_object_transforms(
 		}
 		moving = distance_squared3d(&host_sent_transforms[absolute_index].position, &object->object.position) >= 0.0001f ||
 			dot_product3d(&host_sent_transforms[absolute_index].forward, &object->object.forward) <= 0.9999f;
-		if (!moving && !(host_resend.refresh && host_sent_transforms[absolute_index].moved))
+		if (!moving && !((host_resend.refresh || host_resend.scene_refresh) && host_sent_transforms[absolute_index].moved))
 			continue;
 		host_sent_transforms[absolute_index].moved = TRUE;
 		host_sent_transforms[absolute_index].position = object->object.position;
@@ -3699,6 +3700,7 @@ void network_coop_host_tick(
 		host_send_object_names();
 	host_send_object_transforms();
 	host_send_device_states();
+	host_resend.scene_refresh = FALSE;
 	host_send_object_looks();
 	host_send_screen_effect();
 	host_send_attachments();
@@ -3764,6 +3766,10 @@ boolean network_coop_note_player_structure_bsp(
 	if (!VALID_INDEX(player_index, NUMBEROF(host_player_structure_bsps)) ||
 		host_player_structure_bsps[player_index] == structure_bsp_index) return FALSE;
 	host_player_structure_bsps[player_index] = structure_bsp_index;
+	/* The first input acknowledging the loaded BSP can now receive changes
+	 * that finished while this player was loading. */
+	if (structure_bsp_index != NONE && structure_bsp_index == global_structure_bsp_index_get())
+		host_resend.scene_refresh = TRUE;
 	return TRUE;
 }
 
