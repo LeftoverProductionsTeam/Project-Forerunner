@@ -4454,7 +4454,6 @@ static void distributed_handle_inputs(
 		/* (a spectator's buttons pick whom it watches: not counted) */
 		if (network_coop_active() && player->unit_index != NONE)
 			distributed_note_input_actions(input->player_index, &action);
-		network_coop_note_player_structure_bsp(input->player_index, input->structure_bsp_index);
 		/* (whether the player declined friendly fire: any value but 0; kept
 		for the player, and given to co-op's friendly fire rule) */
 		distributed_coop_declined[input->player_index] = input->coop_no_friendly_fire != 0;
@@ -4462,7 +4461,7 @@ static void distributed_handle_inputs(
 			!input->coop_no_friendly_fire);
 		distributed_note_input_activity(input->player_index, &action);
 		update_server_handle_distributed_input(DATUM_INDEX_NEW(input->player_index, player->identifier), input->tick,
-			&action, input->control_flags, DISTRIBUTED_INPUT_HISTORY);
+			input->structure_bsp_index, &action, input->control_flags, DISTRIBUTED_INPUT_HISTORY);
 		/* (for the tests' reports: the newest, as the input taken is, or one
 		a second or more older, the client's clock set back; the subtraction
 		kept from overflowing, as the tick is the client's word) */

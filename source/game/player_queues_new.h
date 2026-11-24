@@ -76,6 +76,7 @@ enum
 void update_server_handle_distributed_input(
 	long player_index,
 	long tick,
+	short structure_bsp_index,
 	struct player_action const *action,
 	unsigned short const *control_flags,
 	short count);

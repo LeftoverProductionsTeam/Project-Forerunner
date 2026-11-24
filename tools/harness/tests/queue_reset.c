@@ -5,7 +5,13 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define csmemset memset
 #define MAXIMUM_CLIENT_UPDATES 8
-struct player_action { byte bytes[32]; };
+struct player_action {
+ unsigned long control_flags;
+ struct {real yaw,pitch;} desired_facing;
+ struct {real i,j;} throttle;
+ real primary_trigger;
+ short desired_weapon_index,desired_grenade_index,desired_zoom_level;
+};
 struct update { long update_number; struct { short action_count; struct player_action actions[4]; } update; };
 struct update_server_queue_datum { short identifier, pad; long next_update_number; struct player_action current_action; };
 struct data_iterator { struct data_array *data; long slot, datum_index; };
@@ -45,6 +51,81 @@ static void *checked_datum_get(struct data_array *array,long index)
 static void update_queues_distributed_reset(void) { distributed_resets++; }
 static long game_time_get(void) { return now; }
 #include "under_test.inc"
+
+#define csmemcpy memcpy
+#define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
+#define VALID_INDEX(i,n) ((i)>=0&&(unsigned long)(i)<(n))
+#define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
+enum {_game_connection_network_server=2,MAXIMUM_TRACKED_PLAYERS=128,MAXIMUM_NUMBER_OF_PLAYERS=128,
+      DISTRIBUTED_INPUT_SILENCE_TICKS=10,MAXIMUM_LOCAL_PLAYERS=4};
+static short host_player_structure_bsps[MAXIMUM_TRACKED_PLAYERS];
+static struct {boolean valid;long tick,received_time;} update_server_distributed_inputs[MAXIMUM_NUMBER_OF_PLAYERS];
+static unsigned long update_server_pending_control_flags[MAXIMUM_NUMBER_OF_PLAYERS];
+static struct {boolean valid;long tick;short structure_bsp_index;struct player_action action;
+ unsigned short control_flags[4];} update_client_local_inputs[MAXIMUM_LOCAL_PLAYERS];
+static short bsp;
+static struct player_datum {short local_player_index;} remote={NONE};
+static struct player_datum *player_try_and_get(long player_index) {(void)player_index;return &remote;}
+static boolean network_coop_active(void) {return TRUE;}
+static short global_structure_bsp_index_get(void) {return bsp;}
+static short game_connection(void) {return _game_connection_network_server;}
+static boolean game_time_initialized(void) {return TRUE;}
+static void update_server_take_local_actions(void) {}
+static struct update *update_server_get_update(long number) {return &update_server_globals.updates[number];}
+static void update_client_handle_server_update(void *update,long number) {(void)update;(void)number;}
+static boolean distributed_action_valid(struct player_action const *action) {(void)action;return TRUE;}
+static void *datum_try_and_get(struct data_array *data,long index) {return datum_get(data,index);}
+#include "inputs.inc"
+
+static void check_bsp_inputs(void)
+{
+ const long player=DATUM_INDEX_NEW(0,1);
+ const struct player_action held={.control_flags=4,.throttle={1,0},.primary_trigger=1,.desired_weapon_index=1};
+ const struct player_action released={.desired_weapon_index=NONE,.desired_grenade_index=NONE,.desired_zoom_level=NONE};
+ const unsigned short held_buttons[]={4,4,4,4}, latest_buttons[]={0,4,4,4};
+ struct data_array *queues=game_state_data_new("server",1,sizeof(struct update_server_queue_datum));
+ struct player_action *action, sent;
+ unsigned short sent_buttons[4];
+ long sent_tick;
+
+ update_client_local_inputs[0].valid=TRUE;
+ update_client_local_inputs[0].structure_bsp_index=0;
+ bsp=0;
+ CHECK(update_client_distributed_input(0,&sent_tick,&sent,sent_buttons),"captured input was never sent");
+ bsp=1;
+ CHECK(!update_client_distributed_input(0,&sent_tick,&sent,sent_buttons),"client relabeled the old input with a new region");
+ update_server_globals.queues=queues;
+ update_server_globals.initialized=TRUE;
+ datum_new_at_index(queues,player);
+
+ bsp=0;
+ update_server_handle_distributed_input(player,10,0,&held,held_buttons,4);
+ update_server_next_update();
+ CHECK(update_server_globals.updates[0].update.actions[0].primary_trigger==1,"same-region input lost");
+
+ bsp=1;
+ update_server_next_update();
+ action=&update_server_globals.updates[1].update.actions[0];
+ CHECK(!action->control_flags&&!action->throttle.i&&!action->primary_trigger&&action->desired_weapon_index==NONE,
+       "previous region's held input reached destination");
+
+ update_server_handle_distributed_input(player,11,0,&held,held_buttons,4);
+ CHECK(!network_coop_player_has_structure_bsp(player)&&!update_server_pending_control_flags[0],
+       "still-loading player's input affected destination");
+ update_server_handle_distributed_input(player,13,1,&released,latest_buttons,4);
+ update_server_handle_distributed_input(player,12,0,&held,held_buttons,4);
+ update_server_next_update();
+ action=&update_server_globals.updates[2].update.actions[0];
+ CHECK(network_coop_player_has_structure_bsp(player)&&!action->control_flags&&!action->primary_trigger,
+       "old region input history or out-of-order report overrode new region");
+ update_server_handle_distributed_input(player,14,1,&held,held_buttons,4);
+ update_server_next_update();
+ action=&update_server_globals.updates[3].update.actions[0];
+ CHECK(action->control_flags==4&&action->throttle.i==1&&action->primary_trigger==1,
+       "new input failed to resume in destination");
+ free(queues->data);
+ free(queues);
+}
 
 static void check_reset(int first,int last,boolean server,boolean client,long time)
 {
@@ -87,6 +168,7 @@ int main(int argc,char **argv)
  else CASE("client-only")check_reset(1,7,FALSE,TRUE,1200);
  else CASE("uninitialized")check_reset(1,7,FALSE,FALSE,1200);
  else CASE("early") {check_reset(1,7,TRUE,TRUE,0);check_reset(1,7,TRUE,TRUE,3);}
+ else CASE("bsp-input")check_bsp_inputs();
  else return 2;
  return 0;
 }

@@ -106,7 +106,7 @@ the host takes none of its players' movement, which falls there with no
 floor, and lets them trigger no BSP switch (players.c). */
 boolean network_coop_player_has_structure_bsp(long player_index);
 /* network_distributed.c: the structure BSP a client's input says it has */
-void network_coop_note_player_structure_bsp(short player_index, short structure_bsp_index);
+boolean network_coop_note_player_structure_bsp(short player_index, short structure_bsp_index);
 /* units.c: a vehicle left the vehicle carrying it (a Pelican's Warthog drop) */
 void network_coop_vehicle_dropped(long vehicle_index, long carrier_index);
 

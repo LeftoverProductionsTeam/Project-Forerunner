@@ -9,9 +9,15 @@ def generated(fault=None):
     source=read('source/game/player_queues_new.c')
     code='\n'.join(function(source,n) for n in ['update_client_start','update_server_start','update_queues_reset_and_fill_with_lies'])
     if fault:code=mutated(code,*fault)
-    return (('under_test.inc',code),)
+    coop=read('port/linux/game/network_coop.c')
+    inputs='\n'.join(function(coop,n) for n in (
+        'network_coop_note_player_structure_bsp','network_coop_player_has_structure_bsp'))
+    inputs+='\n'+'\n'.join(function(source,n) for n in (
+        'distributed_add_new_ticks','update_server_handle_distributed_input','update_server_next_update',
+        'update_client_distributed_input'))
+    return (('under_test.inc',code),('inputs.inc',inputs))
 
-@pytest.mark.parametrize('case',['empty','sparse','slot-zero','eight','full','dedicated','client-only','uninitialized','early'])
+@pytest.mark.parametrize('case',['empty','sparse','slot-zero','eight','full','dedicated','client-only','uninitialized','early','bsp-input'])
 def test_reset(case):
     status,output=run(build('queue_reset',generated()),case)
     assert status==0,output

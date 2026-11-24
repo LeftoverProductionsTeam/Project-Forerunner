@@ -116,6 +116,8 @@ symbols in this file:
 #include "main/main.h"
 #include "memory/data.h"
 #include "networking/network_game_globals.h"
+#include "network_coop.h" /* port: gate remote actions to the active campaign BSP */
+#include "scenario/scenario.h"
 #include "units/units.h"
 
 /* ---------- constants */
@@ -281,6 +283,7 @@ static struct
 {
 	boolean valid;
 	long tick;
+	short structure_bsp_index;
 	struct player_action action;
 	unsigned short control_flags[DISTRIBUTED_INPUT_HISTORY];
 } update_client_local_inputs[MAXIMUM_LOCAL_PLAYERS];
@@ -456,10 +459,11 @@ void update_server_next_update(
 		buttons and trigger let go, where it faces: its last input held
 		would walk it off a ledge, or empty its weapon. (A datagram or two
 		lost is not that: the last input is held a third of a second.) */
-		if (update_server_distributed_inputs[queue_index].valid &&
+		boolean other_bsp = !network_coop_player_has_structure_bsp(DATUM_INDEX_NEW(queue_index, queue->identifier));
+		if (other_bsp || (update_server_distributed_inputs[queue_index].valid &&
 			game_time_initialized() &&
 			game_time_get() - update_server_distributed_inputs[queue_index].received_time >
-				DISTRIBUTED_INPUT_SILENCE_TICKS)
+				DISTRIBUTED_INPUT_SILENCE_TICKS))
 		{
 			struct player_action *action = &update->update.actions[queue_index];
 
@@ -467,6 +471,12 @@ void update_server_next_update(
 			action->throttle.j = 0.f;
 			action->primary_trigger = 0.f;
 			action->control_flags = 0;
+			if (other_bsp)
+			{
+				action->desired_weapon_index = NONE;
+				action->desired_grenade_index = NONE;
+				action->desired_zoom_level = NONE;
+			}
 		}
 		update->update.action_count += 1;
 	}
@@ -732,12 +742,19 @@ static boolean update_client_dequeue_distributed(
 			if (local_player_index < MAXIMUM_LOCAL_PLAYERS)
 			{
 				/* (for the host: network_distributed.c) */
+				short structure_bsp_index = global_structure_bsp_index_get();
+				if (update_client_local_inputs[local_player_index].valid &&
+					update_client_local_inputs[local_player_index].structure_bsp_index == structure_bsp_index)
+					csmemmove(&update_client_local_inputs[local_player_index].control_flags[1],
+						&update_client_local_inputs[local_player_index].control_flags[0],
+						(DISTRIBUTED_INPUT_HISTORY - 1) * sizeof(unsigned short));
+				else
+					csmemset(update_client_local_inputs[local_player_index].control_flags, 0,
+						sizeof(update_client_local_inputs[local_player_index].control_flags));
 				update_client_local_inputs[local_player_index].valid = TRUE;
+				update_client_local_inputs[local_player_index].structure_bsp_index = structure_bsp_index;
 				update_client_local_inputs[local_player_index].tick = game_time_get();
 				update_client_local_inputs[local_player_index].action = action;
-				csmemmove(&update_client_local_inputs[local_player_index].control_flags[1],
-					&update_client_local_inputs[local_player_index].control_flags[0],
-					(DISTRIBUTED_INPUT_HISTORY - 1) * sizeof(unsigned short));
 				update_client_local_inputs[local_player_index].control_flags[0] = (unsigned short)action.control_flags;
 			}
 		}
@@ -1173,6 +1190,7 @@ static boolean distributed_add_new_ticks(
 void update_server_handle_distributed_input(
 	long player_index,
 	long tick,
+	short structure_bsp_index,
 	struct player_action const *action,
 	unsigned short const *control_flags,
 	short count)
@@ -1188,6 +1206,25 @@ void update_server_handle_distributed_input(
 	queue = (struct update_server_queue_datum *)datum_try_and_get(update_server_globals.queues, player_index);
 	if (!queue)
 		return;
+	/* Only a newer action can advance the client's region. A fresh BSP
+	 * cannot replay the history of interaction buttons from the old geometry. */
+	if (network_coop_active())
+	{
+		if (update_server_distributed_inputs[absolute_index].valid &&
+			tick <= update_server_distributed_inputs[absolute_index].tick) return;
+		if (network_coop_note_player_structure_bsp((short)absolute_index, structure_bsp_index))
+		{
+			count = 1;
+			update_server_pending_control_flags[absolute_index] = 0;
+		}
+		if (!network_coop_player_has_structure_bsp(player_index))
+		{
+			update_server_distributed_inputs[absolute_index].valid = TRUE;
+			update_server_distributed_inputs[absolute_index].tick = tick;
+			update_server_pending_control_flags[absolute_index] = 0;
+			return;
+		}
+	}
 	if (!distributed_add_new_ticks(&update_server_distributed_inputs[absolute_index].valid,
 		&update_server_distributed_inputs[absolute_index].tick, tick, control_flags, count,
 		&update_server_pending_control_flags[absolute_index]))
@@ -1242,7 +1279,8 @@ boolean update_client_distributed_input(
 	unsigned short *control_flags)
 {
 	if (local_player_index < 0 || local_player_index >= MAXIMUM_LOCAL_PLAYERS ||
-		!update_client_local_inputs[local_player_index].valid)
+		!update_client_local_inputs[local_player_index].valid ||
+		update_client_local_inputs[local_player_index].structure_bsp_index != global_structure_bsp_index_get())
 	{
 		return FALSE;
 	}

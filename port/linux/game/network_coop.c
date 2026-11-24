@@ -3754,12 +3754,14 @@ word network_coop_device_group_entry_size(
 	return sizeof(struct distributed_coop_device_group);
 }
 
-void network_coop_note_player_structure_bsp(
+boolean network_coop_note_player_structure_bsp(
 	short player_index,
 	short structure_bsp_index)
 {
-	if (player_index >= 0 && player_index < MAXIMUM_TRACKED_PLAYERS)
-		host_player_structure_bsps[player_index] = structure_bsp_index;
+	if (!VALID_INDEX(player_index, NUMBEROF(host_player_structure_bsps)) ||
+		host_player_structure_bsps[player_index] == structure_bsp_index) return FALSE;
+	host_player_structure_bsps[player_index] = structure_bsp_index;
+	return TRUE;
 }
 
 boolean network_coop_player_has_structure_bsp(
