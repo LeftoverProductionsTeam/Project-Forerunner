@@ -1348,6 +1348,7 @@ said last; 0 for none (no Delta host, or one without mcc_maps) */
 unsigned delta_peer_game_host_number(void);
 /* (the client's) whether its host speaks Delta and agreed to mcc_maps */
 int delta_peer_game_host_agreed_mcc_maps(void);
+int delta_peer_game_host_agreed_regional_bsp(void);
 int delta_peer_game_host_agreed_forge_edits(void);
 int delta_peer_game_host_agreed_forge_placements(void);
 int delta_peer_game_host_agreed_forge_guest_physics(void);

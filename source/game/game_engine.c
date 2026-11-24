@@ -11003,6 +11003,12 @@ boolean game_engine_should_spawn_player(
 			should_spawn = FALSE;
 		}
 #endif
+		/* Wait for the newcomer to confirm the host's noninitial region. */
+		else if (network_regional_bsp_active() && global_structure_bsp_index_get() > 0 &&
+			!network_coop_player_has_structure_bsp(player_index))
+		{
+			should_spawn = FALSE;
+		}
 		/* port: a late joiner waits for the next game, where the host's rule
 		says so (late_join.c; off by default) */
 		else if (late_join_holds(player_index))

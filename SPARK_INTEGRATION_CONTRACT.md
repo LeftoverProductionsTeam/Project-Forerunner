@@ -3155,8 +3155,22 @@ stayed in BSP 0 with one player outside the seam. Automated keyboard
 movement brought that player into it. Both peers reported BSP 1 at tick
 165 and agreed on the new and stationary positions. The OpenCE-protocol
 control with both players inside the seam stayed in BSP 0. Both runs
-exited normally. Live Chiron, late join and independent simulation of
-occupied BSPs remain open.
+exited normally.
+
+For a regional late join, the host sends its BSP reliably before the initial
+object snapshot. A client with negotiated support waits for that announcement
+and the local BSP load before applying spatial snapshots or predicting
+movement. The host waits for the existing input acknowledgment before
+spawning the newcomer in a noninitial BSP. No packet layout changed.
+Windows x64 executable
+`6494a6e3c9713ec472a38087b4340fbfe587e279950f364c14d577ae62080863`
+passed 86 focused BSP and queue checks. On disposable fixture
+`9f126a7619ef699e28b2e8f3c98d3cdd1d94881b06b63bb64792d9cbe8a3ad59`,
+a third private Delta peer loaded BSP 1 at tick 496 and all peers agreed on
+its spawn at tick 540. After it left, a replacement reused slot 2 in BSP 1
+and its normal aim input reached the host at tick 1080. The two original
+players stayed in the match. All processes exited normally. Live Chiron
+and independent simulation of occupied BSPs remain open.
 
 #### Region-bound encounters
 

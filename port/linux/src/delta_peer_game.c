@@ -1460,6 +1460,13 @@ int delta_peer_game_host_agreed_mcc_maps(void)
 		(delta_game.peer.agreed & ((delta_u32)1 << _delta_capability_mcc_maps)) != 0;
 }
 
+int delta_peer_game_host_agreed_regional_bsp(void)
+{
+	return delta_game.ready && delta_game.role == _role_client &&
+		delta_game.peer.client_state == _delta_peer_client_delta &&
+		(delta_game.peer.agreed & ((delta_u32)1 << _delta_capability_regional_bsp)) != 0;
+}
+
 int delta_peer_game_host_agreed_forge_edits(void)
 {
 	return delta_game.ready && delta_game.role == _role_client &&

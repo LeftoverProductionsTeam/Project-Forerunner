@@ -121,7 +121,8 @@ static struct object_datum *unit_try_and_get(long unit)
 static struct object_datum *biped_try_and_get(long unit) {return object_try_and_get(unit);}
 static struct object_datum *biped_get(long unit) {return &objects[slot(unit)];}
 static struct object_datum *object_get(long unit) {return &objects[slot(unit)];}
-static boolean regional_match, regional_room_ready;
+static boolean regional_match, regional_room_ready, regional_host_agreed;
+static boolean delta_peer_game_host_agreed_regional_bsp(void) {return regional_host_agreed;}
 static boolean network_coop_active(void) {return coop;}
 static boolean network_regional_bsp_active(void) {return regional_match;}
 static boolean network_synchronizes_structure_bsp(void) {return coop||regional_match;}
@@ -1303,6 +1304,32 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"regional-late-join"))
+    {
+        struct distributed_structure_bsp message={destination,0};
+        byte state=0;
+        coop=FALSE;
+        regional_match=TRUE;
+        CHECK(distributed_bsp_world_ready(),"a legacy host would block joining BSP 0");
+        regional_host_agreed=TRUE;
+
+        distributed_handle_unit_states(89,&state,&state+1,1);
+        distributed_handle_actor_states(89,&state,1);
+        distributed_handle_bsp_world_snapshot(_distributed_message_object_states,89,&state,1);
+        CHECK(!unit_snapshots_applied&&!actor_snapshots_applied&&!received_scene_types&&
+              !distributed_bsp_world_ready(),"processed snapshots before the first announced BSP");
+
+        distributed_handle_structure_bsp(90,&message);
+        CHECK(!distributed_bsp_world_ready(),"expected geometry was marked ready before load");
+        main_switch_to_structure_bsp_private();
+        CHECK(distributed_bsp_world_ready()&&global_structure_bsp_index==destination,
+              "the announced region did not become ready");
+        distributed_handle_unit_states(89,&state,&state+1,1);
+        CHECK(!unit_snapshots_applied,"loaded region accepted pre-announcement sample");
+        distributed_handle_unit_states(90,&state,&state+1,1);
+        CHECK(unit_snapshots_applied==1,"post-load samples did not resume");
         return 0;
     }
     if(!strcmp(name,"host-object-snapshot-boundary"))

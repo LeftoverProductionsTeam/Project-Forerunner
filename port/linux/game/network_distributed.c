@@ -4268,8 +4268,9 @@ static void distributed_handle_unit_state(
 
 static boolean distributed_bsp_world_ready(void)
 {
-	return distributed_host_structure_bsp_index == NONE ||
-		distributed_host_structure_bsp_index == global_structure_bsp_index_get();
+	if (distributed_host_structure_bsp_index == NONE)
+		return !network_regional_bsp_active() || !delta_peer_game_host_agreed_regional_bsp();
+	return distributed_host_structure_bsp_index == global_structure_bsp_index_get();
 }
 
 /* Periodic positions and seats belong to the host's announced BSP. The
@@ -5466,7 +5467,7 @@ struct distributed_structure_bsp_message
 };
 
 static void distributed_send_structure_bsp(
-	void)
+	long machine_index)
 {
 	struct distributed_structure_bsp_message message;
 	short index = global_structure_bsp_index_get();
@@ -5474,6 +5475,12 @@ static void distributed_send_structure_bsp(
 
 	message.structure_bsp.structure_bsp_index = index;
 	message.structure_bsp.pad = 0;
+	if (machine_index != NONE)
+	{
+		distributed_send_to_machine_reliably(machine_index, &message, _distributed_message_structure_bsp,
+			1, (word)sizeof(message));
+		return;
+	}
 	distributed_send(&message, _distributed_message_structure_bsp, 1, (word)sizeof(message),
 		switched ? _distributed_to_clients_reliably : _distributed_to_clients);
 	distributed_sent_structure_bsp_index = index;
@@ -5920,7 +5927,7 @@ void network_distributed_tick(
 		if (network_synchronizes_structure_bsp() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
 			game_time_get() % STRUCTURE_BSP_INTERVAL_TICKS == 0))
 		{
-			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp();)
+			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp(NONE);)
 		}
 		profile_scope(distributed_tick_objects_host_tick_section, network_objects_host_tick();)
 		profile_scope(distributed_tick_plan_players_section, distributed_host_plan_players();)
@@ -5946,12 +5953,16 @@ void network_distributed_tick(
 	}
 	else if (connection == _game_connection_network_client)
 	{
-		profile_scope(distributed_tick_note_own_positions_section, distributed_note_own_positions();)
+		boolean bsp_ready = distributed_bsp_world_ready();
+
+		if (bsp_ready)
+			profile_scope(distributed_tick_note_own_positions_section, distributed_note_own_positions();)
 		if (game_time_get() % PING_REFRESH_TICKS == 0 && latency_meter_enabled())
 			distributed_refresh_pings();
 		profile_scope(distributed_tick_send_inputs_section, distributed_client_send_inputs();)
-		profile_scope(distributed_tick_send_predictions_section, distributed_client_send_predictions();)
-		profile_scope(distributed_tick_objects_client_tick_section, network_objects_client_tick(distributed_bsp_world_ready());)
+		if (bsp_ready)
+			profile_scope(distributed_tick_send_predictions_section, distributed_client_send_predictions();)
+		profile_scope(distributed_tick_objects_client_tick_section, network_objects_client_tick(bsp_ready);)
 		profile_scope(distributed_tick_damage_client_tick_section, network_damage_client_tick();)
 		profile_scope(distributed_tick_coop_client_tick_section, network_coop_client_tick();)
 	}
@@ -8254,6 +8265,10 @@ static void distributed_handle_message(
 		if (machine_index >= 0 && machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
 			distributed_machine_ready[machine_index] = TRUE;
 		distributed_send_boundary(machine_index);
+		/* A late peer starts with BSP 0. Send the current region before
+		 * the object snapshot, even if the host last switched long ago. */
+		if (network_regional_bsp_active())
+			distributed_send_structure_bsp(machine_index);
 		/* (its count 1: the client asks again, having failed to make one of
 		the host's objects) */
 		network_objects_client_asked(machine_index, header.count != 0);
