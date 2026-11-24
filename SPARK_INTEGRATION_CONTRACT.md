@@ -185,8 +185,12 @@ on the same Linux build used for the split-export bank
 With copied CE resource banks and a fresh native profile, normal input
 selected Covenant at the live control and pressed E at Deploy. The
 Covenant player started the run and held plasma pistol tag 243 at the hub.
-This scoped run stopped at hub deployment. Physical Spirit evacuation,
-banking and restart reissue on Linux remain open.
+A later native run repeated the same deployment and, using held movement,
+reached (48.534, -109.564, 0.666) at tick 3930 beside the landed Spirit.
+The last boarding offer was still action 0 when the probe timed out.
+The checksum-valid record remained in deployed phase with an empty stash.
+Physical Spirit evacuation, banking and restart reissue on Linux remain
+open.
 
 Reliable pad touchdown and two-authenticated-human acceptance remain open.
 
@@ -1666,6 +1670,29 @@ dropped. Its projectile reference names the Evolved carrier vehicle.
 This explains the spent pickup and preserves the authored automatic
 carrier behavior. A fresh held shot is covered separately above. Both
 processes exited zero, protected hashes held and staging was removed.
+
+ChupathingyCE 0.9.1a, source `2e5eac00`, Windows x64 SHA-256
+`c16096a841422b2597a3c5f26d8b16be7dd6a2914f678c7ea4b36e31ec3a3050`,
+listed and hosted the same audio-prefix diagnostic at OpenCE version 44.
+It stopped at MCC tag conversion. Native readback found `ui\multiplayer_game_text`
+tag 1597, slot 100, contained a custom 40-byte UTF-16 title with trailing
+space padding and no terminator. The inherited score-hint parser at that
+revision rejects the payload. Replacing its last padding byte at file
+offset 89032460 with zero in a disposable copy yielded SHA-256
+`1c25fc9c419c98095d8934bdece351cdbce195f6402b633ca358e2042ec02d38`.
+The same Chupathingy executable converted all 2164 tags and spawned a
+player through tick 570. Both processes exited zero. The next export
+should include a terminated title alongside the audio and animation
+repairs. Original hashes held and all staging was removed.
+
+On that exact title control, the same Chupathingy host and Forerunner
+Windows x64 executable `9298630f9265f3dfb0bc6aaaf5c39946c64a2483876468af470acc8320f936fe`
+joined a private OpenCE session. The Forerunner guest spawned at tick 360
+and used ordinary movement. Both peers reported the same guest position
+(99.015, -157.204, -0.287) at tick 1530, approximately 2.59 units from the
+guest's first observed position. Both exited zero. This verifies mixed
+runtime admission and movement for the diagnostic copy. Original map
+release and full cross-runtime survival acceptance remain open.
 
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
