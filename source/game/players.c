@@ -273,6 +273,7 @@ symbols in this file:
 #include "render/render_debug.h"
 #include "players.h"
 #include "stubbs_horde.h" /* port: port/linux/game/stubbs_horde.c */
+#include "stubbs_mode.h"
 #include "player_queues_new.h"
 #include "objects/objects.h"
 #include "saved games/game_state.h"
@@ -1409,8 +1410,9 @@ void player_apply_profile_color(
 	}
 }
 
-static void player_spawn(
-	long player_index)
+static void player_spawn_at_location(
+	long player_index,
+	struct player_starting_location const *starting_location)
 {
 	struct player_datum *player;
 	struct game_globals *game_globals;
@@ -1419,7 +1421,6 @@ static void player_spawn(
 	struct scenario *scenario;
 	struct game_globals_player_information *player_information;
 	struct game_globals_multiplayer_information *multiplayer_information;
-	struct player_starting_location const *starting_location;
 	struct player_starting_location spawn_location;
 	struct object_placement_data placement_data;
 	real_rgb_color change_color;
@@ -1482,13 +1483,15 @@ static void player_spawn(
 				struct encounter_definition);
 		}
 
-		starting_location_index =
-			(short)find_best_starting_location_index(player_index);
-		/* port: a network co-op respawn starts behind its teammate
-		(players_coop_spawn_location) */
-		starting_location = players_coop_spawn_location(&spawn_location);
-		if (!starting_location && starting_location_index != NONE)
-			starting_location = player_get_starting_location(starting_location_index);
+		if (!starting_location)
+		{
+			starting_location_index = (short)find_best_starting_location_index(player_index);
+			/* port: a network co-op respawn starts behind its teammate
+			(players_coop_spawn_location) */
+			starting_location = players_coop_spawn_location(&spawn_location);
+			if (!starting_location && starting_location_index != NONE)
+				starting_location = player_get_starting_location(starting_location_index);
+		}
 		if (starting_location)
 		{
 			game_globals = scenario_get_game_globals();
@@ -1606,6 +1609,11 @@ static void player_spawn(
 	coop_enemies_firefight_player_spawned(player_index);
 
 	return;
+}
+
+static void player_spawn(long player_index)
+{
+	player_spawn_at_location(player_index, NULL);
 }
 
 /* port: A co-op unit's native allegiance is authoritative. Descriptions can arrive
@@ -2696,6 +2704,55 @@ static boolean players_coop_may_spawn(
 	}
 
 	return TRUE;
+}
+
+/* Stock campaign openings can issue seat and camera commands for two
+players on their first tick. Give the second player a clear native start
+while the rest use the ordinary co-op spawn wait. */
+static boolean players_coop_spawn_opening_partner(long player_index)
+{
+	struct scenario *scenario = global_scenario_get();
+	struct data_iterator iterator;
+	struct player_datum *player;
+	long first_unit = NONE, index;
+	real_point3d first_position;
+
+	if (!network_coop_active() || game_time_get() != 0 || cinematic_in_progress() ||
+		extraction_owns_map() || stubbs_mode_active() || main_get_solo_level_from_name(main_get_map_name()) == NONE)
+		return FALSE;
+
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		if (player->quit_out_of_game || player->unit_index == NONE)
+			continue;
+		if (first_unit != NONE)
+			return FALSE;
+		first_unit = player->unit_index;
+	}
+	if (first_unit == NONE)
+		return FALSE;
+
+	object_get_origin(first_unit, &first_position);
+	for (index = 0; index < scenario->players.count; index++)
+	{
+		struct player_starting_location const *start =
+			TAG_BLOCK_GET_ELEMENT(&scenario->players, index, struct player_starting_location);
+
+		if ((start->structure_bsp_reference_index != NONE &&
+			 start->structure_bsp_reference_index != global_structure_bsp_index) ||
+			distance_squared3d(&start->position, &first_position) < 1.0f ||
+			scenario_leaf_index_from_point(&start->position) == NONE ||
+			collision_test_point(FLAG(_collision_test_front_facing_surfaces_bit) |
+				FLAG(_collision_test_structure_bit) | FLAG(_collision_test_objects_scenery_bit),
+				&start->position, NONE) ||
+			game_engine_get_starting_location_rating(player_index, start) <= 0.f)
+			continue;
+
+		player_spawn_at_location(player_index, start);
+		return player_get(player_index)->unit_index != NONE;
+	}
+	return FALSE;
 }
 
 /* TRUE if this player hasn't spawned on the level yet and is being held
@@ -5313,7 +5370,8 @@ void players_update_before_game(
 							if (!extraction_owns_map())
 								player_place_beside_teammate(iterator.datum_index);
 						}
-						else if (players_coop_use_majority(iterator.datum_index) && !cinematic_in_progress() &&
+						else if (!players_coop_spawn_opening_partner(iterator.datum_index) &&
+							players_coop_use_majority(iterator.datum_index) && !cinematic_in_progress() &&
 							players_checkpoint.valid)
 						{
 							players_respawn_network_coop(TRUE);

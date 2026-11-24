@@ -47,9 +47,9 @@ static long main_loss_last_tick,main_respawn_last_tick;
 static long tick;
 static int paused,cinematic,reverts,attempts,spawns,teleports,player_count=2;
 static int projectiles,enemies,airborne,vehicle_moving,spawn_failed,teleport_failed,multiplayer;
-static int owned_hub,spawn_room;
+static int owned_hub,spawn_room,opening_network,opening_solid,opening_stock,opening_stubbs;
 static struct {int respawn_failure,respawn_failed;} players_state,*players_globals=&players_state;
-struct player_datum {long unit_index,team_index;};
+struct player_datum {long unit_index,team_index;boolean quit_out_of_game;};
 static struct player_datum players[4];
 struct object_datum {struct {real_point3d bounding_sphere_center;} object;};
 static struct object_datum objects[4];
@@ -62,7 +62,7 @@ static int player_data;
 /* (the network co-op paths, off: this is a local game) */
 enum {_game_connection_local,_game_connection_network_client,_game_connection_network_server};
 static short game_connection(void) {return _game_connection_local;}
-static boolean network_coop_active(void) {return FALSE;}
+static boolean network_coop_active(void) {return opening_network;}
 static int spectator_mode;
 static boolean coop_spectating(void) {return spectator_mode;}
 static boolean players_respawn_network_coop(boolean starting) {(void)starting;return FALSE;}
@@ -105,6 +105,27 @@ static int game_time_get_paused(void) {return paused;}
 static int cinematic_in_progress(void) {return cinematic;}
 static boolean extraction_owns_map(void) {return owned_hub;}
 static boolean players_coop_room_to_spawn(void) {return spawn_room;}
+struct player_starting_location {real_point3d position;short structure_bsp_reference_index;};
+static struct player_starting_location starts[2];
+struct scenario {struct {long count;} players;};
+static struct scenario opening_scenario={{2}};
+static short global_structure_bsp_index;
+#define TAG_BLOCK_GET_ELEMENT(block,index,type) (&starts[index])
+enum {_collision_test_front_facing_surfaces_bit,_collision_test_structure_bit,_collision_test_objects_scenery_bit};
+static struct scenario *global_scenario_get(void) {return &opening_scenario;}
+static boolean stubbs_mode_active(void) {return opening_stubbs;}
+static char const *main_get_map_name(void) {return "campaign";}
+static short main_get_solo_level_from_name(char const *name) {(void)name;return opening_stock?0:NONE;}
+static long scenario_leaf_index_from_point(real_point3d const *p) {return p->x<200.f?0:NONE;}
+static boolean collision_test_point(unsigned flags,real_point3d const *p,long ignore)
+{(void)flags;(void)p;(void)ignore;return opening_solid;}
+static real game_engine_get_starting_location_rating(long player,struct player_starting_location const *p)
+{(void)player;(void)p;return 1.f;}
+static void object_get_origin(long unit,real_point3d *out) {*out=object_get(unit)->object.bounding_sphere_center;}
+static real distance_squared3d(real_point3d const *a,real_point3d const *b)
+{return (a->x-b->x)*(a->x-b->x);}
+static void player_spawn_at_location(long player,struct player_starting_location const *p)
+{assert(p==&starts[1]);player_spawn(player);}
 static int game_engine_running(void) {return multiplayer;}
 static void game_state_revert(void) {reverts++;}
 static real_vector3d zero_vector,*global_zero_vector3d=&zero_vector;
@@ -125,6 +146,7 @@ static void reset(int count) {
     spectator_mode=0;
     projectiles=enemies=airborne=vehicle_moving=spawn_failed=teleport_failed=multiplayer=0;
     owned_hub=0;spawn_room=1;
+    opening_network=opening_solid=opening_stock=opening_stubbs=0;
     player_count=count;
     for(i=0;i<count;i++) {players[i].unit_index=i?NONE:100;players[i].team_index=0;objects[i].object.bounding_sphere_center.x=100+i;}
 }
@@ -238,8 +260,26 @@ static void authored_hub_spawns(void) {
     owned_hub=0;spawn_room=1;tick=COOP_LEVEL_START_TICKS;
     assert(!players_coop_extras_held());
 }
+static void opening_partner_spawns(void) {
+    reset(3);opening_network=opening_stock=1;
+    starts[0]=(struct player_starting_location){{100,0,0},0};
+    starts[1]=(struct player_starting_location){{101.5f,0,0},0};
+    tick=1;assert(!players_coop_spawn_opening_partner(1));
+    tick=0;owned_hub=1;assert(!players_coop_spawn_opening_partner(1));owned_hub=0;
+    opening_stock=0;assert(!players_coop_spawn_opening_partner(1));opening_stock=1;
+    opening_stubbs=1;assert(!players_coop_spawn_opening_partner(1));opening_stubbs=0;
+    cinematic=1;assert(!players_coop_spawn_opening_partner(1));cinematic=0;
+    opening_solid=1;assert(!players_coop_spawn_opening_partner(1));opening_solid=0;
+    starts[1].structure_bsp_reference_index=1;assert(!players_coop_spawn_opening_partner(1));
+    starts[1].structure_bsp_reference_index=0;
+    starts[1].position.x=100.5f;assert(!players_coop_spawn_opening_partner(1));
+    starts[1].position.x=101.5f;
+    assert(!spawns&&players[1].unit_index==NONE);
+    assert(players_coop_spawn_opening_partner(1)&&players[1].unit_index==101);
+    assert(!players_coop_spawn_opening_partner(2)&&spawns==1);
+}
 int main(void) {
-    rates();clock_and_lifecycle();coop_blocked();cameras();authored_hub_spawns();
+    rates();clock_and_lifecycle();coop_blocked();cameras();authored_hub_spawns();opening_partner_spawns();
     puts("PASS: fixed-tick delays, render-only/catch-up frames, pause/cinematics, clock reset,");
     puts("      2-4 player co-op, blocked retry/overflow, dead-camera fallback and authored hub spawn policy");
     return 0;
@@ -264,7 +304,8 @@ def main():
     unit = PRELUDE
     unit += '\n#define TICKS_PER_SECOND 30\n'
     unit += re.search(r'^#define COOP_LEVEL_START_TICKS[^\n]*', players_source, re.M).group(0) + '\n'
-    unit += function(players_source, 'players_coop_extras_held')
+    unit += function(players_source, 'players_coop_extras_held') + '\n'
+    unit += function(players_source, 'players_coop_spawn_opening_partner') + '\n'
     for name in ('camera_control', 'dead_camera_command'):
         unit += structure(camera_source, name)
     unit += structure(camera_header, 'dead_camera')

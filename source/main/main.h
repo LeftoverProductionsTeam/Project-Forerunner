@@ -143,6 +143,7 @@ boolean main_campaign_in_progress(
 /* The current host's decoded game-over field, received before map teardown. */
 void main_coop_campaign_complete(long campaign_completion);
 
+short main_get_solo_level_from_name(char const *name);
 char const *main_get_solo_level_name(
 	short level);
 

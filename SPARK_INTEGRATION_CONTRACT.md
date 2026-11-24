@@ -112,6 +112,14 @@ fresh process read the bank byte-for-byte and redeployed the same plasma
 pistol item ID through the hub controls. Both processes exited cleanly.
 Solo AI-route evidence: `build/native-isolated-spirit-redeploy-handoff.json`.
 
+Stock Halo campaign co-op can spawn its second opening player before the
+first script tick when a separate authored start is clear in the active BSP.
+The existing wait still governs extra players, late joins and blocked starts.
+The stock B30 script assigned two separate Pelicans. On two Windows x64
+loopback OpenCE sessions, both boarded, rode and disembarked. The exact
+tested map and executable are pinned in the transport comparison record.
+Extraction uses its authored hub start policy.
+
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.
