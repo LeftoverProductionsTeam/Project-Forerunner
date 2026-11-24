@@ -1596,7 +1596,8 @@ void ai_disconnect_from_structure_bsp(
 			while (actor)
 			{
 				char actor_description[AI_BSP_TRANSITION_DESCRIPTION_SIZE];
-				boolean disconnect = FALSE;
+				boolean disconnect = !actor->meta.swarm &&
+					players_coop_vehicle_passenger_crossing_bsp(actor->meta.unit_index);
 
 				ai_debug_describe_actor(
 					iterator.index,
@@ -1605,8 +1606,8 @@ void ai_disconnect_from_structure_bsp(
 					actor_description,
 					sizeof(actor_description));
 
-				if (actor->target.target_prop_index == NONE ||
-					actor->target.target_type < _actor_target_uninspected_orphan)
+				if (!disconnect && (actor->target.target_prop_index == NONE ||
+					actor->target.target_type < _actor_target_uninspected_orphan))
 				{
 					if (!game_team_is_enemy(actor->meta.team_index, _game_team_player))
 					{
@@ -1628,7 +1629,7 @@ void ai_disconnect_from_structure_bsp(
 						}
 					}
 				}
-				else
+				else if (!disconnect)
 				{
 					struct prop_datum *target_prop = prop_get(actor->target.target_prop_index);
 

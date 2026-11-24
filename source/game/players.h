@@ -414,6 +414,8 @@ boolean players_coop_bring_to_host(
 loaded. A player left there switches the level on the next tick. */
 boolean player_position_switches_bsp(
 	real_point3d const *position);
+boolean players_coop_vehicle_passenger_crossing_bsp(
+	long unit_index);
 void players_note_checkpoint(
 	void);
 void players_respawn_at_checkpoint(

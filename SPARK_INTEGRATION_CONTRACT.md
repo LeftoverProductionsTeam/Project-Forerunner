@@ -2932,6 +2932,17 @@ peers. Both agreed on BSP 0 by tick 366 and BSP 1 by tick 432 and exited zero.
 The native run verifies round-trip co-op on a real BSP switch. Live moved
 devices across a boundary and independently resident BSPs remain open.
 
+Continuous co-op BSP transitions now include native AI in the same vehicle
+as a living player when the vehicle enters the selected switch volume.
+The host uses the existing encounter detach/reconnect path. All 49 focused
+BSP checks passed, including an unrelated vehicle, an unseated or dead
+player, and a marked classic gather. Windows x64 build
+`512878b3aeab5d3088ae6718758dcf3ddd5e7c32beab8bc5bc244c9ed977e93a`
+ran private two-peer A30 on the unchanged stock cache above. A native Marine
+occupied the Warthog gunner seat in BSP 1. A separate attempt put both
+players in driver/passenger seats, but vehicle staging stopped before the
+switch volume. Live synchronized AI passenger traversal remains open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

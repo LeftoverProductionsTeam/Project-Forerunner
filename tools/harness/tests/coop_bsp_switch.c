@@ -51,9 +51,12 @@ struct structure_bsp {
 };
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index;};
-struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags;} object;
-                     long weapon;short ammunition;struct {long player_index;} unit;};
+struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;} object;
+                     long weapon;short ammunition;struct {long player_index;short parent_seat_index;} unit;};
 #define biped_datum object_datum
+#define unit_datum object_datum
+#define _object_mask_vehicle 2
+enum {_object_dead_bit=0};
 
 static struct scenario scenario;
 static struct scenario *global_scenario=&scenario;
@@ -101,6 +104,9 @@ static int slot(long unit)
 static struct player_datum *player_get(long player)
 {for(int i=0;i<2;i++)if(players[i]==player)return &people[i];CHECK(FALSE,"invalid full player handle");return NULL;}
 static struct object_datum *object_try_and_get(long unit) {return unit==NONE?NULL:&objects[slot(unit)];}
+static void *object_try_and_get_and_verify_type(long object_index, unsigned long types);
+static struct object_datum *unit_try_and_get(long unit)
+{return unit==units[0]||unit==units[1]?object_try_and_get(unit):NULL;}
 static struct object_datum *biped_try_and_get(long unit) {return object_try_and_get(unit);}
 static struct object_datum *biped_get(long unit) {return &objects[slot(unit)];}
 static struct object_datum *object_get(long unit) {return &objects[slot(unit)];}
@@ -342,6 +348,8 @@ static int actor_controls_released, actor_snapshots_applied;
 #define _object_mask_unit 1
 static void *object_try_and_get_and_verify_type(long object_index, unsigned long types)
 {
+    if (types==_object_mask_vehicle)
+        return object_index==units[2]||object_index==units[3]?object_try_and_get(object_index):NULL;
     CHECK(types==_object_mask_unit,"unexpected actor release type");
     return object_try_and_get(object_index);
 }
@@ -445,6 +453,7 @@ static void setup(short old,short destination)
         objects[i].weapon=0x70007+i;
         objects[i].ammunition=30+i;
         objects[i].unit.player_index=i<2?players[i]:NONE;
+        objects[i].unit.parent_seat_index=NONE;
     }
     objects[0].object.parent_object_index=units[2];
     objects[1].object.parent_object_index=units[3];
@@ -462,6 +471,32 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "connected-ai-passenger"))
+    {
+        connected = TRUE;
+        switches[0].cutscene_flag_index = NONE;
+        people[1].unit_index = NONE;
+        objects[0].unit.parent_seat_index = 0;
+        objects[1].unit.parent_seat_index = 1;
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "AI in a different vehicle joined the crossing");
+        objects[1].object.parent_object_index = units[2];
+        CHECK(players_coop_vehicle_passenger_crossing_bsp(units[1]), "seated AI missed the player's crossing");
+        connected = FALSE;
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "the vehicle was outside the crossing trigger");
+        connected = TRUE;
+        objects[0].unit.parent_seat_index = NONE;
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "unseated player was counted as a rider");
+        objects[0].unit.parent_seat_index = 0;
+        objects[0].object.damage_flags = FLAG(_object_dead_bit);
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "dead player was counted as a rider");
+        objects[0].object.damage_flags = 0;
+        switches[0].cutscene_flag_index = 0;
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "classic scripted gather changed AI behavior");
+        switches[0].cutscene_flag_index = NONE;
+        players_globals->pending_teleport_starting_location_index = NONE;
+        CHECK(!players_coop_vehicle_passenger_crossing_bsp(units[1]), "an unqueued route carried AI");
+        return 0;
+    }
     if (!strcmp(name, "majority-overlapping-routes"))
     {
         dedicated_vote_routes = TRUE;

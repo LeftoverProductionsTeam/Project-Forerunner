@@ -3691,6 +3691,47 @@ static boolean player_in_bsp_switch_volume(
 		volume->cutscene_flag_index == NONE && network_coop_active() ? root_index : unit_index);
 }
 
+/* A seated AI can cross with the player in the same vehicle. Only a
+ * continuous, player-triggered transition preserves the vehicle this way. */
+boolean players_coop_vehicle_passenger_crossing_bsp(
+	long unit_index)
+{
+	short pending_index = players_globals->pending_teleport_starting_location_index;
+	struct scenario *scenario;
+	struct scenario_bsp_switch_trigger_volume const *volume;
+	struct unit_datum const *unit;
+	long vehicle_index;
+	struct data_iterator iterator;
+	struct player_datum *player;
+
+	if (!network_coop_active() || game_connection() != _game_connection_network_server || pending_index < 0)
+		return FALSE;
+	scenario = global_scenario_get();
+	if (pending_index >= scenario->bsp_switch_trigger_volumes.count)
+		return FALSE;
+	volume = TAG_BLOCK_GET_ELEMENT(&scenario->bsp_switch_trigger_volumes, pending_index, struct scenario_bsp_switch_trigger_volume);
+	if (volume->source_structure_bsp_index != global_structure_bsp_index || volume->cutscene_flag_index != NONE)
+		return FALSE;
+
+	unit = unit_try_and_get(unit_index);
+	if (!unit || unit->unit.parent_seat_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return FALSE;
+	vehicle_index = unit->object.parent_object_index;
+	if (!object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle) ||
+		!scenario_trigger_volume_test_object(volume->trigger_volume_index, object_get_ultimate_parent(vehicle_index)))
+		return FALSE;
+
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum const *rider = unit_try_and_get(player->unit_index);
+		if (rider && rider->object.parent_object_index == vehicle_index &&
+			rider->unit.parent_seat_index != NONE && !TEST_FLAG(rider->object.damage_flags, _object_dead_bit))
+			return TRUE;
+	}
+	return FALSE;
+}
+
 /* The trigger the unit stands in, optionally restricted to one destination.
  * A player standing in overlapping routes can support either destination. */
 static short players_coop_bsp_switch_trigger(
