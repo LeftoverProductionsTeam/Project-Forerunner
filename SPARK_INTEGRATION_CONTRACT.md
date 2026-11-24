@@ -2420,6 +2420,20 @@ weapon/ammo readings 47f:180 and 731:76. The host stopped at
 (-341.400, 18.489, 35.537). Both processes exited zero, the pinned hashes
 held, and staging was removed. Timberland–Sidewinder remains open.
 
+On the same stock A30 cache, Windows x64 SHA-256
+`b84fab8268b13adfdf7425d36a06cb49041426b1dfb5101bb20bba96a490fdcb`
+verified guest driving on OpenCE protocol. Two local network
+processes staged the Warthog at (-338.000, 14.000, 35.309). Once the staging
+flag was restored, ordinary guest throttle and mouse steering drove across
+the native BSP 1 to 0 switch with the listen host riding as passenger.
+At tick 930 both peers reported BSP 0, Warthog `e62a00ed`, guest seat 0
+and host seat 1. Their positions were within .014 world units. Both
+retained those seats and agreed at (-315.860, 22.225, 35.843) at tick 1200.
+The car traveled farther north after crossing. It did not reach the test's
+eastward stopping target. Both processes exited zero, the pinned inputs
+held, and disposable staging was removed. Guest-driven return and the
+authored Timberland–Sidewinder route remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.
