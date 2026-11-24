@@ -5686,6 +5686,7 @@ void network_distributed_reverted(void)
 	for (index = 0; index < count; index++)
 		distributed_checkpoint_to_machine(machines[index]);
 	network_objects_host_reverted();
+	network_actors_host_reverted();
 }
 
 /* a new map loading (game.c), before any of the new game's messages can

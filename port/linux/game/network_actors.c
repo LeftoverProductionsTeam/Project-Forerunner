@@ -730,6 +730,20 @@ void network_actors_note_seat_transition(long unit_index)
 	actor->seat_transition_sends = IMPULSE_REPEAT_TICKS;
 }
 
+/* A restored seat comes from the checkpoint and never calls unit_enter_seat. */
+void network_actors_host_reverted(void)
+{
+	struct object_iterator iterator;
+	struct unit_datum *unit;
+
+	object_iterator_new(&iterator, _object_mask_unit, 0);
+	while ((unit = (struct unit_datum *)object_iterator_next(&iterator)))
+	{
+		if (unit->object.parent_object_index != NONE && unit->unit.parent_seat_index != NONE)
+			network_actors_note_seat_transition(iterator.index);
+	}
+}
+
 /* host: an impulse or action for an AI unit, sent in the next few entries */
 static void note_action(
 	long unit_index,

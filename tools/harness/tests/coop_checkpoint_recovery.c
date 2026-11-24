@@ -439,7 +439,7 @@ struct game_globals_grenade {struct {long index;} item;};
 static struct game_globals_grenade drop_grenades[4]={{{100}},{{101}},{{102}},{{103}}};
 static struct game_globals {struct {struct game_globals_grenade *elements;} grenades;} drop_globals={ {drop_grenades} };
 static int extra_grenades,grenade_drop_attempts,extra_grenade_counts[4];
-#define POINTER_BITS(p) ((unsigned long)(p))
+static int cheats_forge_network_physics(long index) {(void)index;return 0;}
 static struct game_globals *scenario_get_game_globals(void) {return &drop_globals;}
 static boolean mcc_grenades_active(void) {return extra_grenades;}
 static short mcc_grenades_type_count(void) {return extra_grenades?4:2;}

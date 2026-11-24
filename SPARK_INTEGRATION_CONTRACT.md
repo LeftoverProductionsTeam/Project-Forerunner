@@ -1541,6 +1541,13 @@ the same diagnostic cache. The Windows x64 executable SHA-256 is
 `cff418e234acf3f37256862f332c967f419c126d6a315256b5647776a05d4d75`. Both processes exited normally.
 No living rider release, combat or round completion was observed.
 
+The co-op checkpoint path also restores tracking for already-seated AI.
+In stock B30, two local native peers matched all nine passenger, vehicle and
+seat tuples after a tick-62 save, AI erasure and a tick-212 revert. The B30
+map SHA-256 was `a6e2ae628f96b666922d6429541068c3e117e8aa5031d00d187b3c853630be0f`
+and the Windows x64 executable SHA-256 was
+`6946f41bc97a86bff42079a9d4a9068ea5f3276105bf648d99f06a4ee4aca3dc`.
+
 The MCC spawner still references its original zombie container.vehicle.
 The native weapon path now uses projectile metadata, targeting and tracer
 logic only for projectiles. It continues to use object_new for the carrier.

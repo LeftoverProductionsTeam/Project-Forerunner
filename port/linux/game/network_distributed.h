@@ -477,6 +477,7 @@ word network_chat_config_entry_size(void);
 /* ---------- prototypes/NETWORK_ACTORS.C */
 
 void network_actors_new_game(void);
+void network_actors_host_reverted(void);
 /* Opt-in native test readback of actual tracked units and remembered corpses. */
 void network_actors_log_units(void);
 /* (the host, after each tick) the units its actors drove this tick, to
