@@ -238,6 +238,8 @@ static const struct object_memory_release_function object_memory_release_procs[3
 static long *object_name_list = NULL;
 static struct memory_pool *object_memory_pool = NULL;
 static struct object_globals *object_globals = NULL;
+/* Cluster indices in the previous BSP's mask have no meaning in the next. */
+static boolean object_bsp_activation_pending;
 /* port: (by the object's absolute index) */
 static struct object_function_inputs object_function_inputs[MAXIMUM_OBJECTS_PER_MAP];
 
@@ -1134,6 +1136,7 @@ void objects_initialize_for_new_map(
 	cluster_partition_make_valid(&noncollideable_object_cluster_partition);
 	memset(object_globals->last_active_cluster_bits, 0, sizeof(object_globals->last_active_cluster_bits));
 	memset(object_globals->active_cluster_bits, 0, sizeof(object_globals->active_cluster_bits));
+	object_bsp_activation_pending = FALSE;
 	object_globals->pvs_activation_type = 0;
 	object_globals->object_marker_initialized = FALSE;
 	global_object_marker = 0;
@@ -2046,9 +2049,10 @@ void object_delete(
 	return;
 }
 
-void object_reconnect_to_map(
+static void object_reconnect_to_map_internal(
 	long object_index,
-	struct location const *location)
+	struct location const *location,
+	boolean update_activation)
 {
 	struct object_header_datum *header = object_header_get(object_index);
 	struct object_datum *object = header->datum;
@@ -2108,7 +2112,7 @@ void object_reconnect_to_map(
 			object->object.bounding_sphere_radius,
 			&object->object.location);
 
-		if (TEST_FLAG(header->flags, _object_header_automatically_deactivate_bit))
+		if (update_activation && TEST_FLAG(header->flags, _object_header_automatically_deactivate_bit))
 		{
 			if (header->cluster_index==NONE || !BIT_VECTOR_TEST_FLAG(players_get_combined_pvs(), header->cluster_index))
 			{
@@ -2128,6 +2132,13 @@ void object_reconnect_to_map(
 	SET_FLAG(header->flags, _object_header_connected_to_map_bit, TRUE);
 	
 	return;
+}
+
+void object_reconnect_to_map(
+	long object_index,
+	struct location const *location)
+{
+	object_reconnect_to_map_internal(object_index, location, TRUE);
 }
 
 real_matrix4x3 *object_get_node_matrix(
@@ -2475,6 +2486,7 @@ void objects_reconnect_to_structure_bsp(
 
 	struct object_iterator iterator;
 
+	object_bsp_activation_pending = TRUE;
 	object_iterator_new(&iterator, _object_mask_all, 0);
 	
 	while(object = (struct object_datum *)object_iterator_next(&iterator))
@@ -2521,7 +2533,9 @@ void objects_reconnect_to_structure_bsp(
 					scenario_location_from_point(&scenario_location, &object->object.position);
 				}
 			}
-			object_reconnect_to_map(iterator.index, &scenario_location);
+			/* The players move and rebuild their PVS after all roots are linked.
+			 * A projectile must not be discarded using the old BSP's mask. */
+			object_reconnect_to_map_internal(iterator.index, &scenario_location, FALSE);
 		}
 	}
 	
@@ -4758,79 +4772,69 @@ void objects_garbage_collection(
 }
 
 
+static void objects_update_cluster_activation(void)
+{
+	unsigned long *last_active_cluster_bits = object_globals->last_active_cluster_bits;
+	unsigned long *active_cluster_bits = object_globals->active_cluster_bits;
+	short cluster_count = global_structure_bsp_get()->clusters.count;
+	boolean refresh = object_bsp_activation_pending;
+	boolean changed;
+	short i;
+	struct object_header_datum *object_header;
+
+	object_bsp_activation_pending = FALSE;
+	if (refresh)
+		memset(last_active_cluster_bits, 0, sizeof(object_globals->last_active_cluster_bits));
+	else
+		memcpy(last_active_cluster_bits, active_cluster_bits, BIT_VECTOR_SIZE_IN_BYTES(cluster_count));
+	memcpy(active_cluster_bits, players_get_combined_pvs(), BIT_VECTOR_SIZE_IN_BYTES(cluster_count));
+	changed = csmemcmp(last_active_cluster_bits, active_cluster_bits, BIT_VECTOR_SIZE_IN_BYTES(cluster_count)) != 0;
+	if (!refresh && !changed)
+		return;
+
+	object_header = (struct object_header_datum *)xbox_pointer(object_header_data->data);
+	for (i = 0; i < object_header_data->count; ++i, ++object_header)
+	{
+		boolean active, child, in_pvs;
+		if (!object_header->identifier ||
+			!TEST_FLAG(object_header->flags, _object_header_automatically_deactivate_bit) ||
+			!TEST_FLAG(object_header->flags, _object_header_connected_to_map_bit))
+			continue;
+
+		active = TEST_FLAG(object_header->flags, _object_header_active_bit);
+		child = TEST_FLAG(object_header->flags, _object_header_child_bit);
+		/* Switches reconnect roots. Their attached children follow their owners. */
+		if (refresh && child)
+			continue;
+		in_pvs = object_header->cluster_index >= 0 && object_header->cluster_index < cluster_count &&
+			BIT_VECTOR_TEST_FLAG(active_cluster_bits, object_header->cluster_index);
+		if (in_pvs && !active && !child)
+			object_activate(i);
+		else if (!in_pvs && (active || refresh))
+		{
+			if (TEST_FLAG(object_header->datum->object.flags, _object_deleted_when_deactivated_bit))
+				object_delete_initial_recursive(i, FALSE);
+			else if (active)
+				object_deactivate(i);
+		}
+	}
+
+	if (changed)
+		structure_decals_update(last_active_cluster_bits, active_cluster_bits, cluster_count);
+}
+
 void objects_update(
 	void)
 {
 	static struct profile_section section = {"objects_update", NONE, TRUE};
-
-	unsigned long *last_active_cluster_bits;
-	unsigned long *active_cluster_bits;
-	short cluster_count;
-	short i;
 	struct object_header_datum *object_header;
-
+	short i;
 	boolean dont_update_object = ((game_time_get()&1)!=0) && game_players_are_double_speed();
 
 	profile_enter(section);
-
 	object_globals->active_garbage_object_count = 0;
-	
-	last_active_cluster_bits = object_globals->last_active_cluster_bits;
-	active_cluster_bits = object_globals->active_cluster_bits;
-	cluster_count = global_structure_bsp_get()->clusters.count;
-
-	memcpy(last_active_cluster_bits, active_cluster_bits, BIT_VECTOR_SIZE_IN_BYTES(cluster_count));
-	memcpy(active_cluster_bits, players_get_combined_pvs(), BIT_VECTOR_SIZE_IN_BYTES(cluster_count));
-
 	HALO_PERF_BEGIN(_halo_perf_objects_activation);
-	if (csmemcmp(last_active_cluster_bits, active_cluster_bits, BIT_VECTOR_SIZE_IN_BYTES(cluster_count)))
-	{
-		object_header = (struct object_header_datum *)xbox_pointer(object_header_data->data);
-		for (i = 0; i<object_header_data->count; ++object_header)
-		{
-			if (object_header->identifier &&
-				TEST_FLAG(object_header->flags, _object_header_automatically_deactivate_bit) &&
-				TEST_FLAG(object_header->flags, _object_header_connected_to_map_bit))
-			{
-				if (TEST_FLAG(object_header->flags, _object_header_active_bit))
-				{
-					/* port: a carried weapon put back in the world, or an
-					object whose position is outside the map, can be active
-					with no cluster (a machine joining a game in progress
-					halted here); it is in no active cluster, rather than
-					reading the bits before the first */
-					if (object_header->cluster_index<0 ||
-						object_header->cluster_index>=cluster_count ||
-						!BIT_VECTOR_TEST_FLAG(active_cluster_bits, object_header->cluster_index))
-					{
-						if (TEST_FLAG(object_header->datum->object.flags, _object_deleted_when_deactivated_bit))
-						{
-							object_delete_initial_recursive(i, FALSE);
-						}
-						else
-						{
-							object_deactivate(i);
-						}
-					}
-				}
-				else if (
-					!TEST_FLAG(object_header->flags, _object_header_child_bit) &&
-					object_header->cluster_index != NONE &&
-					BIT_VECTOR_TEST_FLAG(active_cluster_bits, object_header->cluster_index)
-				)
-				{
-					object_activate(i);
-				}
-			}
-
-			++i;
-		}
-
-		structure_decals_update(
-			last_active_cluster_bits,
-			active_cluster_bits,
-			cluster_count);
-	}
+	objects_update_cluster_activation();
 	HALO_PERF_END(_halo_perf_objects_activation);
 
 	/* port: the vehicles' touches of riders are kept for this tick's riders

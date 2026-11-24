@@ -2856,6 +2856,19 @@ BSP cluster count was rejected by the runtime and the lobby kept Carousel.
 This checks native admission scope. Independent active BSPs, region AI and
 objective persistence remain open.
 
+During native BSP switches, the engine relinks world objects before
+evaluating activation with the destination's player visibility. The
+existing activation pass runs once even when both regions have the same
+numeric visibility mask. Focused checks verified that a visible projectile
+survives, an off-screen disposable object is removed, and an attached
+child stays attached. The native D40 smoke used stock cache
+`7c6dccc9f928f4a44db992c4d6f5fa6191e9cfd331bb0d0b631540f0fc9bc796`
+and Windows x64 `e7aa4d212e8be16fc9824d3e6b8d62fc8b6152c047067abc1bda7ec6fdd1b397`.
+After staging, normal input crossed BSP 1 to 0. Both OpenCE 44 peers
+reported BSP 0 by tick 366 and exited zero. This verifies the native
+transition. Projectile survival during live replicated play remains
+unverified.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

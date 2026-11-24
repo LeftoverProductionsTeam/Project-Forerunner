@@ -4012,7 +4012,10 @@ void players_reconnect_to_structure_bsp(
 
 	/* port: a refused BSP load can reconnect the restored source BSP. Do
 	not carry out the destination's pending gather (or eject its passengers)
-	unless that destination actually loaded. Still invalidate clusters below. */
+	unless that destination actually loaded. */
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+		player->cluster_index = NONE;
 	if (players_globals->pending_teleport_starting_location_index != NONE)
 	{
 		scenario = global_scenario_get();
@@ -4192,9 +4195,10 @@ void players_reconnect_to_structure_bsp(
 		players_globals->pending_teleport_starting_location_index = NONE;
 	}
 
-	data_iterator_new(&iterator, player_data);
-	while (player = data_iterator_next(&iterator))
-		player->cluster_index = NONE;
+	/* A gather can move more than one player and emit effects along the way.
+	 * Rebuild both masks from the final destinations for the next game tick. */
+	players_compute_combined_pvs(players_globals->combined_pvs_local, TRUE);
+	players_compute_combined_pvs(players_globals->combined_pvs, FALSE);
 
 	return;
 }

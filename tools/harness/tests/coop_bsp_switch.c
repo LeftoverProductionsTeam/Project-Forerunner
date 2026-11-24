@@ -64,6 +64,7 @@ static struct {
     short pending_teleport_starting_location_index,local_player_count;
     short local_player_triggered_switch,bsp_check_recursive_switch_ticks;
     boolean respawn_failed;
+    unsigned long combined_pvs[1], combined_pvs_local[1];
 } player_state;
 static __typeof__(player_state) *players_globals=&player_state;
 static struct player_datum people[2];
@@ -157,6 +158,14 @@ static boolean player_place_beside_teammate(long player)
     beside_retries++;
     return FALSE;
 }
+static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
+{
+    CHECK(pvs==(local ? players_globals->combined_pvs_local : players_globals->combined_pvs),
+        "wrong destination visibility buffer");
+    CHECK(people[0].cluster_index==NONE&&people[1].cluster_index==NONE,
+        "existing player clusters used to build destination visibility");
+    pvs[0]=2;
+}
 /* The unchanged classic reconnect loop uses assignment as its condition. */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
@@ -169,7 +178,11 @@ static void collision_log_enable(boolean value) {collision_log=value;}
 enum {_pvs_activation_normal, _pvs_activation_object, _pvs_activation_cluster};
 enum {_object_connected_to_map_bit};
 #define _object_mask_all (~0UL)
-static struct {short pvs_activation_type;union {short cluster_index;long object_index;} pvs_activation;} object_state;
+static struct {
+    short pvs_activation_type;
+    union {short cluster_index;long object_index;} pvs_activation;
+    unsigned long last_active_cluster_bits[1],active_cluster_bits[1];
+} object_state;
 static __typeof__(object_state) *object_globals=&object_state;
 struct object_iterator {short slot;long index;};
 static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->slot=0;}
@@ -184,6 +197,66 @@ static void object_type_disconnect_from_structure_bsp(long index) {}
 #pragma clang diagnostic pop
 static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;objects_disconnect_from_structure_bsp();}
 static void scenario_call_reconnect_to_structure_bsp_procs(void) {reconnects++;players_reconnect_to_structure_bsp();}
+static boolean object_bsp_activation_pending;
+enum {_object_header_automatically_deactivate_bit, _object_header_connected_to_map_bit,
+      _object_header_active_bit, _object_header_child_bit};
+enum {_object_deleted_when_deactivated_bit=1};
+struct object_header_datum {
+    short identifier,cluster_index;
+    unsigned long flags;
+    struct object_datum *datum;
+};
+static struct object_header_datum activation_headers[4];
+static struct {void *data;short count;} activation_table={activation_headers,4}, *object_header_data=&activation_table;
+static unsigned activations,deactivations,deletions,decals;
+#define csmemcmp memcmp
+#define BIT_VECTOR_SIZE_IN_BYTES(count) (sizeof(unsigned long))
+#define BIT_VECTOR_TEST_FLAG(bits,index) TEST_FLAG((bits)[0],index)
+static unsigned long const *players_get_combined_pvs(void) {return players_globals->combined_pvs;}
+static void object_activate(long index) {activations|=FLAG(index);}
+static void object_deactivate(long index) {deactivations|=FLAG(index);}
+static void object_delete_initial_recursive(long index,boolean siblings) {deletions|=FLAG(index);}
+static void structure_decals_update(unsigned long *old,unsigned long *current,short clusters)
+{
+    CHECK(*old==0&&*current==2&&clusters==2,"old region visibility used for new decals");
+    decals++;
+}
+#include "bsp_activation.inc"
+static int test_destination_activation(void)
+{
+    unsigned long flags=FLAG(_object_header_automatically_deactivate_bit) |
+        FLAG(_object_header_connected_to_map_bit);
+    short i;
+    global_structure_bsp=&structures[0];
+    structures[0].clusters.count=2;
+    object_globals->active_cluster_bits[0]=2;
+    players_globals->combined_pvs[0]=2; /* Same bit as the previous BSP. */
+    for(i=0;i<4;i++) {
+        activation_headers[i].identifier=1;
+        activation_headers[i].datum=&objects[i];
+        activation_headers[i].flags=flags;
+    }
+    activation_headers[0].cluster_index=1;
+    objects[0].object.flags=FLAG(_object_deleted_when_deactivated_bit);
+    activation_headers[1].cluster_index=0;
+    objects[1].object.flags=FLAG(_object_deleted_when_deactivated_bit);
+    activation_headers[2].cluster_index=1;
+    activation_headers[2].flags|=FLAG(_object_header_active_bit);
+    objects[2].object.flags=FLAG(_object_deleted_when_deactivated_bit);
+    activation_headers[3].cluster_index=NONE;
+    activation_headers[3].flags|=FLAG(_object_header_active_bit)|FLAG(_object_header_child_bit);
+    object_bsp_activation_pending=TRUE;
+    objects_update_cluster_activation();
+    CHECK(activations==1&&deletions==2&&!deactivations,
+        "destination visibility discarded a visible object or an attached child");
+    CHECK(decals==1&&!object_bsp_activation_pending,"destination visibility did not finish");
+    objects_update_cluster_activation();
+    CHECK(decals==1&&activations==1&&deletions==2&&!deactivations,
+        "steady-state activation did not retain its previous fast path");
+    return 0;
+}
+#undef BIT_VECTOR_SIZE_IN_BYTES
+
 static boolean mcc_loaded;
 struct mcc_cache_bsp;
 static struct mcc_runtime {struct {uint32_t bsp_count;struct mcc_cache_bsp const *bsps;} report;} mcc_loaded_cache;
@@ -585,6 +658,9 @@ int main(int argc,char **argv)
         objects[1].object.position.x=!strcmp(name,"crowded-inside")?50.f:250.f;
         objects[1].object.bounding_sphere_center=objects[1].object.position;
     }
+    if(!strcmp(name,"activation-destination"))
+        return test_destination_activation();
+
     memcpy(before,objects,sizeof(before));
     if(!strcmp(name,"reference-refused")||!strncmp(name,"mcc-",4))
     {
