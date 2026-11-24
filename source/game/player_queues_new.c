@@ -401,6 +401,16 @@ void update_server_add_player(
 		0xEB,
 		queue_index!=NONE);
 
+	/* port: a new owner must acknowledge its loaded BSP and send fresh
+	 * controls even if it reused the previous player's queue slot. */
+	if (queue_index != NONE)
+	{
+		short slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(queue_index);
+		update_server_pending_control_flags[slot] = 0;
+		csmemset(&update_server_distributed_inputs[slot], 0, sizeof(update_server_distributed_inputs[slot]));
+		network_coop_note_player_structure_bsp(slot, NONE);
+	}
+
 	return;
 }
 
@@ -606,6 +616,13 @@ void update_client_add_player(
 		"c:\\halo\\SOURCE\\game\\player_queues_new.c",
 		0x182,
 		queue_index!=NONE);
+
+	/* port: a new player must not replay the old occupant's relayed input. */
+	if (queue_index != NONE)
+	{
+		short slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(queue_index);
+		csmemset(&update_client_relayed_actions[slot], 0, sizeof(update_client_relayed_actions[slot]));
+	}
 
 	return;
 }

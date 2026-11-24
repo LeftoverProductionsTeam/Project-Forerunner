@@ -61,6 +61,8 @@ enum {_game_connection_network_server=2,MAXIMUM_TRACKED_PLAYERS=128,MAXIMUM_NUMB
 static short host_player_structure_bsps[MAXIMUM_TRACKED_PLAYERS];
 static struct {boolean valid;long tick,received_time;} update_server_distributed_inputs[MAXIMUM_NUMBER_OF_PLAYERS];
 static unsigned long update_server_pending_control_flags[MAXIMUM_NUMBER_OF_PLAYERS];
+static struct {boolean valid; long update_number; struct player_action action;
+ unsigned long pending_control_flags;} update_client_relayed_actions[MAXIMUM_NUMBER_OF_PLAYERS];
 static struct {boolean valid;long tick;short structure_bsp_index;struct player_action action;
  unsigned short control_flags[4];} update_client_local_inputs[MAXIMUM_LOCAL_PLAYERS];
 static short bsp;
@@ -127,6 +129,49 @@ static void check_bsp_inputs(void)
  free(queues);
 }
 
+static void check_reused_queue(boolean server)
+{
+ const long previous=DATUM_INDEX_NEW(0,1), fresh=DATUM_INDEX_NEW(0,2);
+ const struct player_action action={.primary_trigger=1};
+ const unsigned short buttons[]={0,4};
+ struct data_array *queues=game_state_data_new("old queue",1,sizeof(struct update_server_queue_datum));
+
+ bsp=1;
+ if(server)
+ {
+  update_server_globals.queues=queues;
+  update_server_globals.initialized=TRUE;
+  update_server_add_player(previous);
+  update_server_handle_distributed_input(previous,100,bsp,&action,buttons,1);
+  update_server_pending_control_flags[0]=4;
+  update_server_add_player(previous);
+  CHECK(network_coop_player_has_structure_bsp(previous)&&update_server_distributed_inputs[0].valid&&
+   update_server_pending_control_flags[0]==4,"duplicate add cleared the active player's input");
+  update_server_add_player(fresh);
+  CHECK(!network_coop_player_has_structure_bsp(fresh),"new player inherited a departed player's BSP readiness");
+  CHECK(!update_server_distributed_inputs[0].valid&&!update_server_pending_control_flags[0],
+   "new player inherited old timestamps or pending buttons");
+  update_server_handle_distributed_input(fresh,2,bsp,&action,buttons,2);
+  CHECK(network_coop_player_has_structure_bsp(fresh)&&update_server_distributed_inputs[0].tick==2&&
+   !update_server_pending_control_flags[0],"first region acknowledgement was rejected or consumed stale button history");
+ }
+ else
+ {
+  update_client_globals.queues=queues;
+  update_client_add_player(previous);
+  update_client_relayed_actions[0].valid=TRUE;
+  update_client_relayed_actions[0].pending_control_flags=4;
+  update_client_add_player(previous);
+  CHECK(update_client_relayed_actions[0].valid&&update_client_relayed_actions[0].pending_control_flags==4,
+   "duplicate add cleared the active relay");
+  update_client_add_player(fresh);
+  CHECK(!update_client_relayed_actions[0].valid&&!update_client_relayed_actions[0].pending_control_flags,
+   "client predicted a new player from the previous owner's action");
+ }
+ free(queues->data);
+ free(queues);
+}
+
 static void check_reset(int first,int last,boolean server,boolean client,long time)
 {
  int i; struct data_array *queues;
@@ -169,6 +214,8 @@ int main(int argc,char **argv)
  else CASE("uninitialized")check_reset(1,7,FALSE,FALSE,1200);
  else CASE("early") {check_reset(1,7,TRUE,TRUE,0);check_reset(1,7,TRUE,TRUE,3);}
  else CASE("bsp-input")check_bsp_inputs();
+ else CASE("bsp-slot-reuse")check_reused_queue(TRUE);
+ else CASE("relay-slot-reuse")check_reused_queue(FALSE);
  else return 2;
  return 0;
 }

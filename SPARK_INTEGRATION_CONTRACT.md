@@ -2203,6 +2203,23 @@ weapon/ammo readings 47f:180 and 731:76. The host stopped at
 (-341.400, 18.489, 35.537). Both processes exited zero, the pinned hashes
 held, and staging was removed. Timberland–Sidewinder remains open.
 
+Stock D40 late-join playback used the unchanged cache above and Windows x64
+executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
+After the host walked through BSP 1→0→1, the first guest occupied slot 1.
+A replacement guest reused slot 1 with a different biped after the first
+guest disconnected. The replacement loaded BSP 1 at tick 1366 before its
+first observed spawn at tick 1380. Normal guest input moved the biped from
+(-24.501, 21.410, 0) to (-24.240, 21.019, 0), matching the host.
+The host then walked across the seam into BSP 0 at tick 1536 and the guest
+loaded it at tick 1539. Setup used scripts once to stage the host. The
+crossings and guest movement used ordinary input in private loopback.
+
+On a player queue slot change, the host clears the prior owner's pending
+controls, input history and BSP acknowledgment. The client clears relayed
+actions for that slot. Repeat registration of the current owner preserves
+its active state. Both slot-reuse regressions failed before the fix and the
+focused queue and BSP harness passed 49 checks afterward.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.
