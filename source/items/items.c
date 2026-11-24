@@ -308,7 +308,8 @@ static struct collision_surface const *item_rested_surface(
 	struct collision_bsp const *bsp = global_collision_bsp_get();
 	long surface_index = item_rested_surface_index(item);
 
-	if (!bsp || surface_index < 0 || surface_index >= bsp->surfaces.count)
+	if (!bsp || item->item.bsp_index != global_structure_bsp_index_get() ||
+		surface_index < 0 || surface_index >= bsp->surfaces.count)
 		return NULL;
 	return TAG_BLOCK_GET_ELEMENT(&bsp->surfaces, surface_index, struct collision_surface);
 }
@@ -580,6 +581,25 @@ static void item_align_to_normal_and_point(
 	return;
 }
 
+/* A loose pickup inside the new BSP needs to settle on its own geometry.
+ * Pickups outside the loaded BSP retain their support for a later return. */
+static void item_recheck_structure_support(
+	struct item_datum *item,
+	struct item_definition const *definition)
+{
+	if (item->item.bsp_index == global_structure_bsp_index_get() ||
+		!TEST_FLAG(item->item.flags, _item_on_structure_bit) ||
+		TEST_FLAG(item->object.flags, _object_outside_of_map_bit) ||
+		TEST_FLAG(item->item.flags, _item_does_not_accelerate_bit) ||
+		TEST_FLAG(definition->item.flags, _item_definition_antigravity_bit))
+		return;
+
+	SET_FLAG(item->item.flags, _item_on_structure_bit, FALSE);
+	SET_FLAG(item->object.flags, _object_at_rest_bit, FALSE);
+	item->item.rested_surface_index = NONE;
+	item->item.bsp_index = NONE;
+}
+
 boolean item_update(
 	long item_index)
 {
@@ -600,6 +620,7 @@ boolean item_update(
 	if (TEST_FLAG(item->object.flags, _object_connected_to_map_bit) &&
 		item->object.parent_object_index == NONE)
 	{
+		item_recheck_structure_support(item, definition);
 		if (TEST_FLAG(
 				definition->item.flags,
 				_item_definition_always_maintains_z_up_bit) &&

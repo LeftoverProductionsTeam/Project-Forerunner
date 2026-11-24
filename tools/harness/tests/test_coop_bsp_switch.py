@@ -34,6 +34,8 @@ def generated(fault=None):
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
         ('objects.inc', objects),
+        ('item_structure_support.inc', '\n'.join(function(read('source/items/items.c'), name)
+            for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_structure_support'))),
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
@@ -71,7 +73,8 @@ def generated(fault=None):
     'connected-parallel-vehicles', 'connected-parallel-foot', 'connected-parallel-marked',
     'connected-parallel-other-destination', 'connected-parallel-other-source',
     'no-pending', 'negative-pending', 'past-end-pending', 'crossing-root-trigger',
-    'activation-cluster', 'activation-object', 'activation-destination', 'crowded-stranded', 'crowded-solid',
+    'activation-cluster', 'activation-object', 'activation-destination', 'item-rested-surface-bsp',
+    'crowded-stranded', 'crowded-solid',
     'crowded-inside', 'crowded-operation', 'crowded-enemy', 'rescue-crowded', 'rescue-solid',
 ])
 def test_bsp_reconnect(case):

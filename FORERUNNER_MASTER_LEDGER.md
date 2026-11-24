@@ -9,8 +9,11 @@ Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
    tunnel passed two-way native pedestrian traversal in CE609 and MCC13. Keep CE609
    at 23 MiB and reuse the native MCC13 loader for the optional 64 MiB export.
    Native Windows x64 private multiplayer passed with 24.46 MiB of loaded
-   tag data. Continue independent regional occupancy, persistent AI, vehicles,
-   objectives, synchronized world state and broader guest-driven traversal.
+   tag data. Prioritize simultaneous native BSP residency and independent
+   squad occupancy, with persistent AI, vehicles, pickups and objectives.
+   Start with two independently occupied BSPs. Keep native CE609 and MCC13
+   validation separate. Use authored multiple-BSP scenarios when a single
+   BSP reaches compiler limits.
 2. Original Zombie Apocalypse. Verify the original carrier behavior, native
    unloading, restored audio, projectile wrappers and a full mixed-runtime
    survival round.

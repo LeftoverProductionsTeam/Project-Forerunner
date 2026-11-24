@@ -2939,6 +2939,48 @@ The same check keeps AI passengers aboard equivalent routes. Both new
 infantry and vehicle cases reproduced displacement before the fix. All 54
 focused BSP checks passed afterward.
 
+A resting pickup's support surface now belongs to its original BSP.
+The native item update wakes mobile pickups that reconnect inside a
+different BSP and leaves off-region and immobile pickups in place. All
+55 BSP checks passed, including a test that previously read another
+BSP's plane. A private two-peer stock D40 smoke at executable SHA-256
+`4bd6e157368068a88e7e2b556363bfa933ba9c7fb5b613f96d6fc0e6700a13e7`
+placed an unowned assault rifle at (-22.23, 22.22, 0.01) in BSP 1.
+Both peers loaded BSP 0 at tick 195 and returned to BSP 1. They saw the
+same unowned, resting rifle in slot 5 at (-22.15, 22.32, 0.01) and exited
+zero. This used scripted BSP selection to exercise the native unload
+and reload, since the manual input fixture did not reach the switch.
+Live seated AI traversal remains open.
+
+### Independent BSP residency
+
+Use a native two-BSP scenario for the first separate-region handoff. Keep
+each BSP's clusters, portals, collision, lighting, weather and sound data.
+Use matching world coordinates at the road or foot seam and paired native
+markerless switch volumes. Verify the two CE609 and MCC13 builds independently.
+H1A Tool can import and compile native content, and Invader documents its
+separate cache builder and the newer CE Tool's BSP generation improvements.
+[H1A mod tools](https://learn.microsoft.com/en-us/halo-master-chief-collection/general/overview-tools)
+[Invader](https://github.com/SnowyMouse/invader/blob/master/README.md#the-hek-says-my-bitmap-tag-is-too-large-when-opening)
+
+The stock D40 cache above links BSP 0 at [0x814fa000, 0x819a6000) and
+BSP 1 at [0x8121b800, 0x819a6000). Both cannot occupy those linked
+addresses at once. The native runtime first needs disjoint or validated
+relocated BSP ranges. The inherited MCC loader in
+`port/linux/game/mcc_geometry.c` releases all BSP buffers together and
+`mcc_tag_validate.c` clears BSP claims over the tag-arena tail. Both need
+region-owned lifetimes before a second BSP can remain loaded. The native
+collision trees accept explicit BSP pointers. Higher-level location,
+collision, AI, visibility and network snapshots still use the currently
+selected BSP. Independent occupancy requires region ownership through
+those callers and per-peer replication. The legacy global switch path
+remains available. The present 16-BSP scenario ceiling also requires
+explicit budgeting if authoring maps one region per BSP.
+
+The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
+native Forerunner peers, while the twelve-region CE609 and MCC13 traversal
+is verified separately above. Both currently exercise one resident BSP.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.

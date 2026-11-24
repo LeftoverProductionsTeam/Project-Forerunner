@@ -28,7 +28,7 @@ enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisibl
       _collision_test_structure_bit, _collision_test_objects_scenery_bit};
 
 struct tag_block {long count;void *elements;};
-static void *element(struct tag_block *block,long index,size_t size)
+static void *element(struct tag_block const *block,long index,size_t size)
 {
     CHECK(index>=0&&index<block->count,"invalid tag access %ld/%ld",index,block->count);
     return (byte *)block->elements+index*size;
@@ -42,7 +42,8 @@ struct scenario_structure_bsp_reference {
     long file_offset,file_size;
 };
 struct scenario {struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references;};
-struct collision_bsp {int placeholder;};
+struct collision_surface {long plane_designator;};
+struct collision_bsp {struct tag_block surfaces;};
 struct bsp3d {int placeholder;};
 struct structure_leaf {long cluster_index;};
 struct structure_bsp {
@@ -118,6 +119,16 @@ static void biped_fix_ignore_players(boolean ignore) {ignore_players=ignore;}
 static int game_connection(void) {return connection;}
 static struct scenario *global_scenario_get(void) {return &scenario;}
 static struct structure_bsp *global_structure_bsp_get(void) {return global_structure_bsp;}
+static short global_structure_bsp_index_get(void);
+static struct collision_bsp *global_collision_bsp_get(void) {return global_collision_bsp;}
+struct item_datum {
+    struct {unsigned long flags;} object;
+    struct {unsigned long flags;short rested_surface_index,bsp_index;} item;
+};
+struct item_definition {struct {unsigned long flags;} item;};
+enum {_item_on_structure_bit, _item_does_not_accelerate_bit};
+enum {_object_at_rest_bit, _object_outside_of_map_bit};
+enum {_item_definition_antigravity_bit};
 static void data_iterator_new(struct data_iterator *it,void *data) {it->slot=-1;it->datum_index=NONE;}
 static struct player_datum *data_iterator_next(struct data_iterator *it)
 {it->slot++;if(it->slot==2)return NULL;it->datum_index=players[it->slot];return &people[it->slot];}
@@ -199,6 +210,7 @@ static struct object_datum *object_iterator_next(struct object_iterator *it)
 static void object_disconnect_from_map(long index) {objects[slot(index)].object.flags=0;}
 static void object_type_disconnect_from_structure_bsp(long index) {}
 #define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
+#include "item_structure_support.inc"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
 #include "objects.inc"
@@ -473,6 +485,40 @@ int main(int argc,char **argv)
     short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "item-rested-surface-bsp"))
+    {
+        struct collision_surface old_floor={4},new_floor={9};
+        struct item_datum item={0};
+        struct item_definition definition={0};
+        collisions[old].surfaces=(struct tag_block){1,&old_floor};
+        collisions[destination].surfaces=(struct tag_block){1,&new_floor};
+        item.item.bsp_index=old;
+        item.item.flags=FLAG(_item_on_structure_bit);
+        item.object.flags=FLAG(_object_at_rest_bit);
+        item_recheck_structure_support(&item,&definition);
+        CHECK(item_rested_surface(&item)==&old_floor&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
+              "a rested weapon lost its own support plane");
+        CHECK(scenario_switch_structure_bsp(destination),"destination test BSP failed to load");
+        CHECK(!item_rested_surface(&item),"an impact could snap the weapon to another BSP's ground plane");
+        item.object.flags|=FLAG(_object_outside_of_map_bit);
+        item_recheck_structure_support(&item,&definition);
+        CHECK(item.item.bsp_index==old&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
+              "a pickup outside the loaded BSP lost its previous support");
+        item.object.flags&=~FLAG(_object_outside_of_map_bit);
+        definition.item.flags=FLAG(_item_definition_antigravity_bit);
+        item_recheck_structure_support(&item,&definition);
+        CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"an antigravity pickup started falling");
+        definition.item.flags=0;
+        item.item.flags|=FLAG(_item_does_not_accelerate_bit);
+        item_recheck_structure_support(&item,&definition);
+        CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"an immobile pickup started falling");
+        item.item.flags&=~FLAG(_item_does_not_accelerate_bit);
+        item_recheck_structure_support(&item,&definition);
+        CHECK(item.item.bsp_index==NONE&&item.item.rested_surface_index==NONE&&
+              !TEST_FLAG(item.item.flags,_item_on_structure_bit)&&!TEST_FLAG(item.object.flags,_object_at_rest_bit),
+              "a mobile pickup inside the new BSP could not settle again");
+        return 0;
+    }
     if (!strcmp(name, "connected-ai-passenger"))
     {
         connected = TRUE;
