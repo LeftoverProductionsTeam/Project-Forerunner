@@ -1442,8 +1442,12 @@ comparison and attempt Timberland–Sidewinder on foot and in a Warthog.
 
 Spark 19633a6 compiled the recovered tags with the official MCC H1A Tool.
 Cache SHA-256: 4b8c1dea007ef8ed7dd3915309db571cdfa20b820b84c64a17eb5e38f4ff84f0.
-Readback preserved the Pistol melee flash and damage. The disposable cache
-was removed; supply it for MCC runtime testing and keep CE609 a separate gate.
+Readback preserved the Pistol melee flash and damage. Forerunner regenerated
+the exact cache and pinned it with the x86 executable under
+`build/zombie-mcc-baseline`. The native run admitted one player and passed
+HUD, script and geometry conversion after preserving the custom title in
+score-hint slot 100. Audio conversion then refused double_kill (codec 3,
+tag 1158, first range/permutation), before spawn. CE609 remains a separate gate.
 Forerunner restores the learned host threshold in native grounded rollover
 ejection. Original weapon-driven carrier release still needs gameplay proof.
 

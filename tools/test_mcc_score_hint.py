@@ -65,6 +65,10 @@ static void hint(wchar_t const *key)
 }
 int main(void)
 {
+	uint16_t const custom_title[] = {'Z', 'o', 'm', 'b', 'i', 'e', ' '};
+	uint16_t const damaged_hint[] = {'H', 'o', 'l', 'd', ' ', '%%', 's'};
+	printf("%%d:%%d\n", mcc_hud_score_text(custom_title, NUMBEROF(custom_title), NULL, 0),
+		mcc_hud_score_text(damaged_hint, NUMBEROF(damaged_hint), NULL, 0));
 	hint(NULL);
 	hint(L"[Tab]");
 	hint(L"[Caps Lock]");
@@ -95,5 +99,5 @@ def test_score_hint_names_one_key(tmp_path):
     binary = tmp_path / "hint"
     subprocess.run([cc, "-Wall", "-Werror", str(source), "-o", str(binary)], check=True)
     lines = subprocess.run([str(binary)], check=True, capture_output=True, text=True).stdout.splitlines()
-    assert lines == ["Hold BACK for score", 'Hold "Tab" for score', 'Hold "Caps Lock" for score',
+    assert lines == ["0:-1", "Hold BACK for score", 'Hold "Tab" for score', 'Hold "Caps Lock" for score',
                      'Hold "Tab" for score', 'Hold "Tab" for score', 'Hold "BACK for score']

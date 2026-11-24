@@ -46,11 +46,13 @@ static int mcc_hud_score_text(uint16_t const *source,uint32_t characters,
     static char const controller[]="BACK";
     if (!source || !characters) return -1;
     while (length<characters && source[length]) length++;
-    if (length==characters) return -1;
     for (i=0;i+1<length;i++) {
         if (source[i]=='%' && source[i+1]=='s') {placeholder=i;break;}
     }
+    /* Custom maps can reuse this slot for text with no score-key token.
+     * Leave that text to the bounded native Unicode string reader. */
     if (placeholder==UINT32_MAX) return 0;
+    if (length==characters) return -1;
     /* the part replaced: the %s, and a quote on each side of it */
     start=placeholder;end=placeholder+2;
     if (start>0 && end<length && mcc_hud_score_quote(source[start-1]) && mcc_hud_score_quote(source[end])) {
@@ -225,35 +227,35 @@ static int mcc_hud_convert(struct mcc_runtime *r,struct mcc_hud_plan const *plan
         if (entry[0]=='unhi') {
             static unsigned const elements[]={0x24,0x8C,0xF4,0x17C,0x1E4,0x26C,0x2D4};
             p=mcc_runtime_pointer(r,entry[5],0x56C);
-            if (!p) return 0;
+            if (!p) goto failed;
             memcpy(p+2,&marker,2);
-            for (n=0;n<NUMBEROF(elements);n++) if (!mcc_hud_bitmap_element(r,p+elements[n],marker)) return 0;
+            for (n=0;n<NUMBEROF(elements);n++) if (!mcc_hud_bitmap_element(r,p+elements[n],marker)) goto failed;
             mcc_hud_offset((void *)(p+0x35C)); /* radar blip anchor */
             ((struct hud_placement_definition *)(p+0x35C))->pad=marker;
             block=mcc_hud_block(r,p+0x3A4,0x84,&count);
-            if (!block) return 0;
-            for (n=0;n<count;n++) if (!mcc_hud_bitmap_element(r,block+n*0x84,marker)) return 0;
+            if (!block) goto failed;
+            for (n=0;n<count;n++) if (!mcc_hud_bitmap_element(r,block+n*0x84,marker)) goto failed;
             block=mcc_hud_block(r,p+0x3CC,0x144,&count);
-            if (!block) return 0;
+            if (!block) goto failed;
             for (n=0;n<count;n++) {
                 if (!mcc_hud_bitmap_element(r,block+n*0x144+0x14,marker) ||
-                    !mcc_hud_bitmap_element(r,block+n*0x144+0x7C,marker)) return 0;
+                    !mcc_hud_bitmap_element(r,block+n*0x144+0x7C,marker)) goto failed;
             }
         } else if (entry[0]=='wphi') {
             unsigned k;
             p=mcc_runtime_pointer(r,entry[5],0x17C);
-            if (!p) return 0;
+            if (!p) goto failed;
             memcpy(p+0x3E,&marker,2);
             for (k=0;k<2;k++) {
                 block=mcc_hud_block(r,p+0x60+k*12,0xB4,&count);
-                if (!block) return 0;
-                for (n=0;n<count;n++) if (!mcc_hud_bitmap_element(r,block+n*0xB4+0x24,marker)) return 0;
+                if (!block) goto failed;
+                for (n=0;n<count;n++) if (!mcc_hud_bitmap_element(r,block+n*0xB4+0x24,marker)) goto failed;
                 block=mcc_hud_block(r,p+0x84+k*12,0x68,&count);
-                if (!block) return 0;
-                for (n=0;n<count;n++) if (!mcc_hud_items(r,block+n*0x68+0x24,k ? 0x88 : 0x6C,k ? marker : 0)) return 0;
+                if (!block) goto failed;
+                for (n=0;n<count;n++) if (!mcc_hud_items(r,block+n*0x68+0x24,k ? 0x88 : 0x6C,k ? marker : 0)) goto failed;
             }
             block=mcc_hud_block(r,p+0x78,0xA0,&count);
-            if (!block) return 0;
+            if (!block) goto failed;
             for (n=0;n<count;n++) {
                 struct hud_placement_definition *placement=(void *)(block+n*0xA0+0x24);
                 mcc_hud_offset(placement);placement->pad=marker;
@@ -261,13 +263,13 @@ static int mcc_hud_convert(struct mcc_runtime *r,struct mcc_hud_plan const *plan
         } else if (entry[0]=='grhi') {
             p=mcc_runtime_pointer(r,entry[5],0x1F8);
             if (!p || !mcc_hud_bitmap_element(r,p+0x24,marker) || !mcc_hud_bitmap_element(r,p+0x8C,marker) ||
-                !mcc_hud_items(r,p+0x14C,0x88,marker)) return 0;
+                !mcc_hud_items(r,p+0x14C,0x88,marker)) goto failed;
             memcpy(p+2,&marker,2);
             mcc_hud_offset((void *)(p+0xF4));
             ((struct hud_placement_definition *)(p+0xF4))->pad=marker;
         } else if (entry[0]=='hudg') {
             struct hud_globals_definition *globals=mcc_runtime_pointer(r,entry[5],sizeof(*globals));
-            if (!globals || !mcc_hud_default(r,globals,&empty)) return 0;
+            if (!globals || !mcc_hud_default(r,globals,&empty)) goto failed;
             mcc_hud_offset(&globals->messaging.placement);
             mcc_hud_message_frame(&globals->messaging);
             globals->waypoint.top_offset*=0.5f;
@@ -282,20 +284,24 @@ static int mcc_hud_convert(struct mcc_runtime *r,struct mcc_hud_plan const *plan
             /* The number renderer owns bitmap scaling; these are screen
              * advances, not sprite texture coordinates. */
             p=mcc_runtime_pointer(r,entry[5],0x64);
-            if (!p) return 0;
+            if (!p) goto failed;
             ((signed char *)p)[0x11]/=2; /* screen_width */
             ((signed char *)p)[0x14]/=2; /* decimal_point_width */
         } else if (entry[0]=='bitm') {
             struct bitmap_group *bitmap=mcc_runtime_pointer(r,entry[5],sizeof(*bitmap));
-            if (!bitmap) return 0;
+            if (!bitmap) goto failed;
             /* Native number drawing already honors half-HUD-scale; MCC's
              * force-highres spelling has the same effect for these digits. */
             if (bitmap->flags&0x80) bitmap->flags|=0x10;
         } else if (entry[0]=='ustr') {
-            if (!mcc_hud_multiplayer_text(r,entry)) return 0;
+            if (!mcc_hud_multiplayer_text(r,entry)) goto failed;
         }
     }
     return 1;
+failed:
+    error(_error_silent, "mcc hud: conversion failed for tag #%lu (group %08lx)",
+        (unsigned long)i, (unsigned long)mcc_hud_word(r->tag_index+i*32));
+    return 0;
 }
 
 int mcc_hud_bitmaps_prepare(struct mcc_runtime *r)

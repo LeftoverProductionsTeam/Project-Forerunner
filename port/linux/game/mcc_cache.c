@@ -471,9 +471,11 @@ struct cache_file_tag_header *mcc_cache_tags_load(char const *name, void *header
     raw = NULL;
     problem = "Its saved-game identity could not be prepared. See debug.txt for details.";
     if (!mcc_scenario_identity(runtime, name)) goto failed;
-    problem = "Its map data could not be converted. Check for an updated map; debug.txt has the failing check.";
     mcc_loading_stage(MCC_LOADING_TAGS);
-    if (!mcc_hud_bitmaps_prepare(runtime) || !mcc_tags_prepare(runtime)) goto failed;
+    problem = "Its HUD could not be converted. See debug.txt for the failing check.";
+    if (!mcc_hud_bitmaps_prepare(runtime)) goto failed;
+    problem = "Its tags could not be converted. See debug.txt for the failing check.";
+    if (!mcc_tags_prepare(runtime)) goto failed;
     mcc_loading_stage(MCC_LOADING_SCRIPTS);
     problem = "Its scripts could not be prepared. Check for an updated map; debug.txt names the failing script check.";
     if (!mcc_scripts_prepare(runtime)) goto failed;
