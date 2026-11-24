@@ -27,13 +27,19 @@ remains unverified.
 The current UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.
-Spark reported offline loaded Pelican return and gear banking on this export.
+Spark verified two offline banks and byte-identical gear after restarting.
+Their Windows build `eefe6b83` then refused deployment at profile resolution.
 Forerunner independently matched the hash and verified a fresh profile launch,
 3,680 tags, native Extraction hub admission and solo player spawn on Ubuntu
 WSL2 x64 with software OpenGL. Cache unload now waits for the startup profile
 scan, which was responsible for both the cache and lightmap draw assertions.
-Receipt: `build/native-linux64-black-echo-profile-gate.json`. The Linux mission
-loop and two-authenticated-human acceptance remain open.
+With the startup wait, an ordinary E-key deployment passed before and after
+a clean process restart on fresh Windows x64 and WSL2 x64 builds. Each pair
+reopened the same native profile and FRNG gear record in its private save root.
+The test began with an empty stash. Reissuing banked equipment after restart,
+the Linux mission loop and two-authenticated-player acceptance remain open.
+Receipts: `build/native-windows64-black-echo-restart-profile.json` and
+`build/native-linux64-black-echo-restart-profile.json`.
 
 The preceding aligned UNSC route export is
 `releases/black-echo-elite-unsc-hub-aligned-20261120/be_native.map`.
