@@ -2124,9 +2124,12 @@ Windows x64 SHA-256 `8a75fda064117a81a61bb194ee72745fbefdf9a32bd2d32e11b20c97365
 The local Spirit smoke used a disposable CE609 fixture SHA-256
 `28edb09683dc5d6b31d575f051e9295b040b3a636b682206d6b7e26face631b6`, with the Covenant plasma starter’s
 unused reserve changed to 100. Native profile creation, map launch and
-Covenant selection passed. The scripted input never acquired the deploy
-interaction. Native battery reissue remains open. Protected map and bank
-hashes held and the disposable copies were removed.
+Covenant selection passed. Aiming at the deploy control's live bounds
+(center 49.624, -87.469, 0.714, radius .350) offered use at tick 791.
+Keyboard E started deployment and the player held plasma pistol 243:0
+at tick 840. This verifies a native starter grant. Banking and reissuing
+an older battery stash remain covered by the focused harness. The process
+exited zero, protected map and bank hashes held, and staging was removed.
 
 Stock A30 vehicle staging used the same executable and unmodified map
 `4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5`.
