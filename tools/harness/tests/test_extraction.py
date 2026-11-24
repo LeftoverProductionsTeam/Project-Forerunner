@@ -276,6 +276,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-callback-signature', 'transport-callback-replaced', 'transport-callback-stale-receipt',
     'transport-callback-continuous', 'transport-recall', 'transport-recall-state', 'transport-recall-missing',
     'transport-boarded-hub', 'transport-boarded-lz', 'transport-boarded-other',
+    'transport-boarded-returned-crew', 'transport-boarded-squad-revoked',
     'transport-boarded-pending', 'transport-boarded-ship', 'transport-boarded-identity', 'transport-boarded-duplicate',
     'transport-boarded-capacity', 'transport-boarded-missing', 'transport-boarded-alias',
     'transport-boarded-owner-state', 'transport-boarded-native-exit', 'transport-boarded-recording',

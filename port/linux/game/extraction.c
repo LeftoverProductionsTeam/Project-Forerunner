@@ -2256,10 +2256,12 @@ static boolean extraction_transport_crew_ready(short faction, long ship)
 		struct extraction_run const *run = &extraction_runs[index];
 		struct player_datum *player = player_try_and_get(run->player);
 		struct unit_datum *unit;
-		if (!player || player->quit_out_of_game ||
-			(at_lz ? run->phase != _extraction_ready && run->phase != _extraction_activating : run->phase != _extraction_deployed)) continue;
+		if (!player || player->quit_out_of_game) continue;
 		unit = (struct unit_datum *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_biped);
 		if (!unit || unit->object.parent_object_index != ship) continue;
+		/* A previous or newly ineligible passenger must physically disembark
+		 * before this hull can carry a new crew out of the pad. */
+		if (run->phase != (at_lz ? _extraction_ready : _extraction_deployed)) return FALSE;
 		/* Preserve the native seat-admission requirements until departure.
 		 * A still-attached rider with stale ownership cannot release a crew. */
 		if (extraction_player_dropship(unit) != ship || extraction_faction((short)player->team_index) != faction ||

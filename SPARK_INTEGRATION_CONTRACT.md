@@ -3239,6 +3239,15 @@ credit for field boarding, and seated hub banking. The landed and crew-ready
 outputs use the same native craft and landing sample. Crew-ready also requires
 the eligible passengers to be aboard. Maps without the optional landing
 group retain their existing crew-readiness contract.
+Managed crew readiness checks each still-attached player before authorizing
+departure. At the hub it waits for any banked passenger from the prior trip
+to disembark. At the field it waits for a seated passenger whose operation
+became ineligible to recover eligibility or disembark. Boarding and exit use
+the inherited seat state and native `vehicle_unload` path.
+Both premature-departure cases reproduced and passed after the fix, with
+142 focused checks in all. Windows x64 admitted `fn_sqops@ce` through tick
+330 in a native smoke. Live two-account Black Echo remains open.
+
 Spark must wait for both the correct pad volume and this landed output before
 opening doors or reporting arrival. A volume, hover command or elapsed timer
 does not establish a landing. Source: `source/units/vehicles.c::vehicle_is_landed`,

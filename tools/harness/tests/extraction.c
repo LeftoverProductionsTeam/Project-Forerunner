@@ -1997,6 +1997,24 @@ int main(int argc,char **argv)
      "shared request did not settle each player's own gear exactly once");
     extraction_reset();return 0;
    }
+   if(!strcmp(case_name,"transport-boarded-returned-crew")) {
+    touch(0,0);loot=pickup(0,1);
+    units[0].object.position.x=dropships[0].object.position.x=20.f;
+    touch(1,0);advance(300);
+    CHECK(extraction_transport_can_board(unit_handles[0],craft,0),"first crew could not board at the field");
+    units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
+    dropships[0].object.position.x=0.f;advance(1);
+    CHECK(run(0)->phase==_extraction_returned&&units[0].object.parent_object_index==craft&&
+     !weapon_try_and_get(loot)&&run(0)->gear.record.count==1,"first crew did not bank while still seated");
+    touch(0,1);
+    CHECK(extraction_transport_can_board(unit_handles[1],craft,1),"next equipment owner could not board at the hub");
+    units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
+    CHECK(!device_groups[10].actual_value,"hub departure admitted a still-seated passenger from the previous trip");
+    unit_exit_seat_end(unit_handles[0]);advance(1);
+    CHECK(device_groups[10].actual_value==1.f&&run(0)->gear.record.count==1,
+     "native exit did not release the new crew or altered the prior bank");
+    extraction_reset();return 0;
+   }
    if(!strcmp(case_name,"transport-boarded-hub")) {
     dropships[0].object.position.x=0;touch(0,0);touch(0,1);
     units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
@@ -2182,6 +2200,15 @@ int main(int argc,char **argv)
      if(!strcmp(case_name,"transport-boarded-squad-stale")) {
       run(1)->squad_operation++;advance(1);
       CHECK(!device_groups[10].actual_value,"stale operation authorized a shared transport departure");
+     }
+     if(!strcmp(case_name,"transport-boarded-squad-revoked")) {
+      extraction.squads[1].ready_group=8;device_groups[8].actual_value=0.f;advance(1);
+      CHECK(run(1)->phase==_extraction_deployed&&units[1].object.parent_object_index==craft,
+       "objective revocation did not leave an ineligible passenger physically attached");
+      CHECK(!device_groups[10].actual_value,"evacuation admitted a still-seated passenger with revoked objectives");
+      unit_exit_seat_end(unit_handles[1]);advance(1);
+      CHECK(device_groups[10].actual_value==1.f&&run(1)->gear.record.phase==_gear_deployed,
+       "unrelated squad could not proceed after the ineligible passenger disembarked");
      }
      if(!strcmp(case_name,"transport-boarded-squad-mixed")) {
       units[1].object.parent_object_index=NONE;advance(1);
