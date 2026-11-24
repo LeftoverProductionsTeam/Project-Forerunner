@@ -204,12 +204,22 @@ on the same Linux build used for the split-export bank
 With copied CE resource banks and a fresh native profile, normal input
 selected Covenant at the live control and pressed E at Deploy. The
 Covenant player started the run and held plasma pistol tag 243 at the hub.
-A later native run repeated the same deployment and, using held movement,
-reached (48.534, -109.564, 0.666) at tick 3930 beside the landed Spirit.
-The last boarding offer was still action 0 when the probe timed out.
-The checksum-valid record remained in deployed phase with an empty stash.
-Physical Spirit evacuation, banking and restart reissue on Linux remain
-open.
+Using its native entrance marker, a solo Covenant player boarded seat 5 at
+tick 3960, landed in the field at 4500 and disembarked at 4560. E at the
+field terminal called the Spirit at tick 5640. The player boarded again
+at tick 6420 and returned aboard the aircraft. The game banked the
+plasma pistol and two of each grenade, then E disembarked at the hub at
+tick 7110. The Spirit reported ground contact and native landing there.
+
+The first process exited zero. A second native process reopened the same
+intact private profile and byte-identical generation-4 bank, SHA-256
+`c6903bcd947293db7620b391ffc026fe642243d7c1a0a75d2d1db157018ecfd0`.
+Normal Covenant and Deploy controls advanced the record to deployed
+generation 6 with the exact same pistol ID `1fb32dcd30490a2f1319e2fc8e055a5d`
+in its single issued slot. Both processes exited zero. The map,
+executable and resource hashes held, and staging was removed.
+This verifies the solo AI-scripted Spirit loop on the pinned WSL2 build.
+The split-export bank and authenticated Black Echo mission remain open.
 
 Reliable pad touchdown and two-authenticated-human acceptance remain open.
 
@@ -1712,6 +1722,16 @@ and used ordinary movement. Both peers reported the same guest position
 guest's first observed position. Both exited zero. This verifies mixed
 runtime admission and movement for the diagnostic copy. Original map
 release and full cross-runtime survival acceptance remain open.
+
+A longer private run on the same one-byte title control used Chupathingy
+host `c16096a8` and Forerunner Windows x64
+`10f2792bb24bf7480d5d2451548f5c4ffe2295af716fdd1dc6266f7116b87002`.
+Both peers agreed on the guest's position through tick 2640 and exited
+zero. Forerunner's guest trace through tick 2643 contained no living
+on-foot Alpha with definition `e6fd0589` in the 60-second release window.
+The host had no per-actor trace in this build. Host spawn and mixed
+actor delivery remain separate checks. Protected hashes held and all
+staging was removed.
 
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
