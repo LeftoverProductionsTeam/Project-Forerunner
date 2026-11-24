@@ -200,6 +200,17 @@ seat offer. Native seat 8's entrance was (89.785, -130.439, 0.482), about
 before concluding a seat or animation defect. Loaded Spirit return and
 banking remain open. Receipt: `build/native-black-echo-a051-native-spirit-route.json`.
 
+On the Windows pad-discovery build, the same exact Covenant export confirmed
+Elite insertion, on-foot disembarkation, recovery of the technology on unit 9
+at tick 9660, and a usable field control after defense. The replay driver's
+chase left its expected route during combat, and its subsequent straight-line
+approach stalled at (53.882, -102.901, 0.005). No field use or evacuation seat
+was attempted in range during this run. The first check remains the physical
+approach to the recalled Spirit's seat 8 from the near side. The next replay
+should keep the approach to the earlier verified field route and explicitly
+track player death and respawn during pursuit.
+Receipt: `build/native-black-echo-a051-native-spirit-loaded.json`.
+
 Forerunner independently ran the earlier UNSC export with one offline player. Normal
 deployment, Pelican seat 4 boarding, field landing and voluntary dismount
 left the Spartan at full health and shields. The Marine and player reached
