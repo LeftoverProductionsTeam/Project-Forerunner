@@ -2120,6 +2120,19 @@ The alignment check withheld throttle: the seated driver's view stayed
 at -142 degrees after the scripted forward-facing setup. Stock motion
 across the light bridge and MegaWorld vehicle acceptance remain open.
 
+HaloScript object_set_facing now uses the native player-input frame for seated
+local players. Third-person seats retain world heading. First-person seats
+invert the same vehicle-up rotation that native input applies. Windows x64
+executable SHA-256 `73a9af5f05626bd4a2848face3cdff134b450b40c6b8dcb36e3ea1f33c903644` on the same stock A30 map
+put the driver camera behind the 0-degree approach. Ordinary throttle moved
+both seated players from (-338.008, 20.503, 37.001) toward the bridge and both
+peers showed the driver at 0 degrees. The Warthog turned into the approach,
+drifted south to about (-331.37, 15.60, 35.35), and stayed in BSP 1. Vehicle
+crossing remains open. Aligning the Warthog during setup kept the intended
+heading and reached (-325.559, 15.319, 35.353), still outside the authored
+BSP 1 to 0 volume whose minimum y is 18.442. Both peers kept their seats,
+exited cleanly, and the unmodified map and executable hashes held.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

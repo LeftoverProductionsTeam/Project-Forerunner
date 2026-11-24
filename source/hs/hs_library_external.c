@@ -1008,26 +1008,7 @@ static void hs_object_orient(
 		unit = unit_try_and_get(object_index);
 		if (unit)
 		{
-			long player_index;
-			real_vector3d unit_forward;
-
-			player_index = player_index_from_unit_index(object_index);
-			if (unit->object.parent_object_index != NONE)
-			{
-				real_matrix4x3 inverse_matrix;
-
-				matrix4x3_inverse(
-					object_get_node_matrix(
-						unit->object.parent_object_index,
-						unit->object.parent_node_index),
-					&inverse_matrix);
-				matrix4x3_transform_normal(
-					&inverse_matrix,
-					&forward,
-					&unit_forward);
-			}
-			else
-				unit_forward = forward;
+			long player_index = player_index_from_unit_index(object_index);
 
 			if (set_facing)
 			{
@@ -1042,10 +1023,8 @@ static void hs_object_orient(
 				if (set_position)
 					player_teleport(player_index, NONE, &flag->position);
 
-				if (set_facing && player->local_player_index != NONE)
-					player_control_set_facing(
-						player->local_player_index,
-						&unit_forward);
+				if (set_facing)
+					player_set_world_facing(player_index, &forward); /* port: use the native input frame */
 			}
 		}
 

@@ -459,6 +459,9 @@ void player_aiming_vector_from_facing(
 	long player_index,
 	real_vector3d *facing_direction,
 	real_euler_angles2d const *facing_angles);
+void player_set_world_facing( /* port: authored world heading to native input */
+	long player_index,
+	real_vector3d const *world_facing);
 
 void players_update_before_game(
 	void);

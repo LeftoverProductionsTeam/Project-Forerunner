@@ -5173,64 +5173,67 @@ void player_add_equipment(
 	return;
 }
 
+/* port: share the native input frame with scripted world-facing updates. */
+static boolean player_seat_aim_rotation(
+	struct player_datum const *player,
+	real_matrix4x3 *rotation)
+{
+	struct unit_datum *unit;
+	struct players_vehicle_datum *vehicle;
+	struct unit_definition *vehicle_definition;
+	struct unit_seat *seat;
+
+	if (player->unit_index == NONE)
+		return FALSE;
+	unit = unit_get(player->unit_index);
+	if (unit->object.parent_object_index == NONE)
+		return FALSE;
+	vehicle = (struct players_vehicle_datum *)object_try_and_get_and_verify_type(
+		unit->object.parent_object_index, _object_mask_vehicle);
+	if (!vehicle)
+		return FALSE;
+
+	vehicle_definition = vehicle_definition_get(vehicle->definition_index);
+	seat = TAG_BLOCK_GET_ELEMENT(
+		&vehicle_definition->unit.seats, unit->unit.parent_seat_index, struct unit_seat);
+	if (TEST_FLAG(seat->flags, _unit_seat_third_person_camera_bit))
+		return FALSE;
+
+	cross_product3d(&vehicle->object.up, global_right3d, &rotation->forward);
+	if (normalize3d(&rotation->forward) == 0.f)
+	{
+		cross_product3d(&vehicle->object.up, global_down3d, &rotation->forward);
+		normalize3d(&rotation->forward);
+	}
+	matrix4x3_rotation_from_vectors(rotation, &rotation->forward, &vehicle->object.up);
+	return TRUE;
+}
+
 void player_aiming_vector_from_facing(
 	long player_index,
 	real_vector3d *aiming_vector,
 	real_euler_angles2d const *facing)
 {
-	struct player_datum *player;
-	struct unit_datum *unit;
-	struct players_vehicle_datum *vehicle;
-	struct unit_definition *vehicle_definition;
-	struct unit_seat *seat;
 	real_matrix4x3 rotation;
 
-	player = player_get(player_index);
 	vector3d_from_euler_angles2d(aiming_vector, facing);
-	if (player->unit_index != NONE)
-	{
-		unit = unit_get(player->unit_index);
-		if (unit->object.parent_object_index != NONE)
-		{
-			vehicle = (struct players_vehicle_datum *)object_try_and_get_and_verify_type(
-				unit->object.parent_object_index,
-				_object_mask_vehicle);
-			if (vehicle)
-			{
-				vehicle_definition = vehicle_definition_get(
-					vehicle->definition_index);
-				seat = TAG_BLOCK_GET_ELEMENT(
-					&vehicle_definition->unit.seats,
-					unit->unit.parent_seat_index,
-					struct unit_seat);
-				if (!TEST_FLAG(seat->flags, _unit_seat_third_person_camera_bit))
-				{
-					cross_product3d(
-						&vehicle->object.up,
-						global_right3d,
-						&rotation.forward);
-					if (normalize3d(&rotation.forward) == 0.f)
-					{
-						cross_product3d(
-							&vehicle->object.up,
-							global_down3d,
-							&rotation.forward);
-						normalize3d(&rotation.forward);
-					}
-					matrix4x3_rotation_from_vectors(
-						&rotation,
-						&rotation.forward,
-						&vehicle->object.up);
-					matrix4x3_transform_normal(
-						&rotation,
-						aiming_vector,
-						aiming_vector);
-				}
-			}
-		}
-	}
+	if (player_seat_aim_rotation(player_get(player_index), &rotation))
+		matrix4x3_transform_normal(&rotation, aiming_vector, aiming_vector);
+}
 
-	return;
+void player_set_world_facing(
+	long player_index,
+	real_vector3d const *world_facing)
+{
+	struct player_datum *player = player_get(player_index);
+	real_vector3d control_facing = *world_facing;
+	real_matrix4x3 rotation;
+
+	if (player->local_player_index == NONE)
+		return;
+	if (player_seat_aim_rotation(player, &rotation))
+		matrix4x3_inverse_transform_normal(&rotation, world_facing, &control_facing);
+	player_control_set_facing(player->local_player_index, &control_facing);
 }
 
 /* port: the main menu's scene takes no input (game_time.c's
