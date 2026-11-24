@@ -24,7 +24,28 @@ remains unverified.
 
 ## Current Black Echo candidates
 
-The current UNSC split-return export is
+The current UNSC dedicated-pad export is
+`releases/black-echo-elite-unsc-pelican-pad-20261123/be_native.map`,
+SHA-256 `d113e9dbec1bae9554e7d4df3843ecc2bb6d40b4ee2c7cdf5f81831fc7b29b09`.
+Spark requires `extraction.pelican_return_pad.v1` in `native_features`. The
+reviewed Windows x64 test executable is `build/windows64/halo.exe`, SHA-256
+`9486e339ee2a06f5ef7a0cae14c4798e553fcc157e26ccb93750ee52694cd550`.
+It advertises the marker in contract v1 and passes 14 discovery checks.
+Its generated build ID reports base `f94fc443`; the hash identifies the
+build including the discovery change.
+
+Native solo Windows deployment, field insertion, combat, technology pickup,
+defense, recall and physical evacuation passed on that exact cache. Occupied
+boarding was confirmed at tick 11790. At tick 14730 the Pelican's center was
+inside the dedicated pad at (56.327, -105.464, 1.182), grounded at up.k .989
+and slowing. The native landing and settlement gate then banked the rifle
+and technology. After clean exit and restart in the same private save root,
+the record was byte-identical. E at the hub reissued the two exact item IDs
+and the player held the technology. Both processes exited normally.
+Receipt: `build/native-black-echo-d113-pelican-pad.json`. Two authenticated
+humans, repeat mission reset, and Covenant loaded return remain open.
+
+The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.
 Spark verified two offline banks and byte-identical gear after restarting.
@@ -2546,10 +2567,11 @@ For named aircraft, optional unique native volumes `pelican_return` and
 Author each aircraft's script against the same pad and keep it outside the
 field zones. The runtime checks the pad together with the existing native
 landing gate for boarding, crew departure, settlement and completion callbacks.
-`extraction_return` remains the player deployment hub and the fallback for
+Forerunner advertises `extraction.pelican_return_pad.v1` in desktop CE
+Spark discovery. `extraction_return` remains the player deployment hub and the fallback for
 aircraft without a dedicated pad. Dedicated pad fixtures cover both factions,
 landing, cinematics and the unchanged foot deployment boundary. The Pelican
-override awaits a native compiled map that authors it.
+override passed the exact private Windows solo run above.
 
 Two authenticated Windows clients loaded the compiled fixture and agreed on
 both placements. The existing harness verifies independent calls, cancellation

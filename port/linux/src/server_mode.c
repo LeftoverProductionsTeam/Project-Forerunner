@@ -216,6 +216,7 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "extraction.squad_notices.v1");
 	server_json_string(&json, NULL, "extraction.squad_radio.v1");
 	server_json_string(&json, NULL, "extraction.faction_landing_zones.v1");
+	server_json_string(&json, NULL, "extraction.pelican_return_pad.v1");
 	server_json_string(&json, NULL, "character.biped_hands.v1");
 	server_json_string(&json, NULL, "forge.hmv_base_placements.v1");
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
