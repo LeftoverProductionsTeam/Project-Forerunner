@@ -2481,6 +2481,33 @@ eastward stopping target. Both processes exited zero, the pinned inputs
 held, and disposable staging was removed. Guest-driven return and the
 authored Timberland–Sidewinder route remain open.
 
+### Authored Timberland–Sidewinder road traversal
+
+Spark's `fabf859` authoring recipe regenerated the three-route CE609 map and
+its native Warthog trial. Parent cache SHA-256
+`81e3c047987c5d5a5752ff63805a29e9734079a22502f1373496f15926d8c664`.
+The trial preserves its single resident BSP byte-for-byte and independently
+verified 68 native starts. Its separately pinned SHA-256 is
+`ce043863cd80e26ce0b95f5449a33d80c6e796909f90ce1ae668bae817a993c2`.
+The test input is retained privately at
+`build/native-megaworld-inputs/gsmegaroad.map`. Windows x64 executable SHA-256
+`e82a58dbddb0f65ae603961c81090e01ab46052e55f614eb29b9298905723b9c`.
+
+Two local OpenCE network peers launched from the authored trial starts. The
+guest walked the road from Timberland (37.472, 34.431, -21.293) to Sidewinder
+(73.280, 34.505, -21.075) and back (37.103, 34.394, -21.305). The listen
+host's matching samples were within .075 world units. In the vehicle trial
+the guest used the native seat interaction to enter Warthog `e26f0000` as
+driver. Normal throttle drove from (38.134, 33.599, -20.753) to
+(72.341, 33.993, -20.723) and reverse returned to (38.047, 34.507, -20.838).
+Both peers matched the driver, vehicle and seat at the crossing samples
+and agreed on the final occupied position at tick 2910. Both processes
+exited normally and all input hashes held.
+
+The tested Slayer players were on opposing teams and only the driver
+rode. Teammate passengers, cave and ridge gameplay, AI and objectives
+across regions, and the complete 19-region world remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.
