@@ -1461,6 +1461,10 @@ int main(int argc,char **argv)
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
    strcpy(authored_groups[11].name,"extraction_pelican_landed");
   }
+  if(!strcmp(case_name,"transport-callback-recording")||!strcmp(case_name,"transport-callback-aborted-recording")) {
+   scenario.device_groups.count=11;scenario.device_groups.address=authored_groups;
+   strcpy(authored_groups[10].name,"extraction_pelican_boarded");
+  }
   if(!strncmp(case_name,"transport-boarded",17)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
@@ -2076,7 +2080,9 @@ int main(int argc,char **argv)
   if(!strncmp(case_name,"transport-callback",18)) {
    boolean other=!strcmp(case_name,"transport-callback-other");
    boolean lost=!strcmp(case_name,"transport-callback-aborted-loss");
-   boolean aborted=lost||!strcmp(case_name,"transport-callback-aborted");
+   boolean aborted_recording=!strcmp(case_name,"transport-callback-aborted-recording");
+   boolean recording=aborted_recording||!strcmp(case_name,"transport-callback-recording");
+   boolean aborted=lost||aborted_recording||!strcmp(case_name,"transport-callback-aborted");
    boolean field=aborted||!strcmp(case_name,"transport-callback-field");
    boolean disconnect=!strcmp(case_name,"transport-callback-disconnect");
    boolean escrow_disconnect=!strcmp(case_name,"transport-callback-escrow-disconnect");
@@ -2107,7 +2113,13 @@ int main(int argc,char **argv)
     dropships[0].object.position.x=0;
     native_cinematic=TRUE;advance(1);
     CHECK(!transport_aborts[0],"aborted flight released during the departure cinematic");
-    native_cinematic=FALSE;advance(1);
+    native_cinematic=FALSE;
+    if(recording) {
+     recorded_aircraft=craft;advance(2);
+     CHECK(!transport_aborts[0]&&!transport_wakes[0],"aborted aircraft released while playback still owned it");
+     recorded_aircraft=NONE;
+    }
+    advance(1);
     if(lost) {
      CHECK(run(0)->phase==_extraction_losing&&!transport_aborts[0],"uncertain loss released the aircraft");
      fail_write=FALSE;advance(30);
@@ -2123,6 +2135,17 @@ int main(int argc,char **argv)
    native_cinematic=TRUE;advance(1);
    CHECK(!transport_wakes[0]&&!transport_wakes[1],"transport released during cinematic");
    native_cinematic=FALSE;
+   if(recording) {
+    long crewmate_loot=units[1].unit.weapon_object_indices[0];
+    CHECK(extraction.dropship_landing_groups[0]==NONE,"fixture requires a boarding-only map");
+    recorded_aircraft=craft;advance(2);
+    CHECK(run(0)->phase==_extraction_ready&&run(1)->phase==_extraction_ready&&
+     weapon_try_and_get(loot)&&weapon_try_and_get(crewmate_loot),
+     "return playback consumed passenger inventory at the hub");
+    CHECK(!transport_wakes[0]&&!transport_aborts[0]&&!completion_wakes,
+     "return playback released the transport or completed the mission");
+    recorded_aircraft=NONE;
+   }
    if(stale_receipt) {
     struct extraction_run old_arrival;
     extraction_update_run(run(0),&players[0],++tick);

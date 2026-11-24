@@ -1793,6 +1793,15 @@ static boolean extraction_transport_landed(long vehicle_index)
 	return !recorded_animation_has_thread(vehicle_index) && vehicle_is_landed(vehicle_index);
 }
 
+static boolean extraction_transport_arrival_ready(short faction, long vehicle_index)
+{
+	/* Older routes can time their own landing. Settlement and release still
+	 * wait until recorded playback relinquishes the aircraft. */
+	if (extraction.dropship_landing_groups[faction] != NONE)
+		return extraction_transport_landed(vehicle_index);
+	return !recorded_animation_has_thread(vehicle_index);
+}
+
 boolean extraction_transport_can_board(long unit_index, long vehicle_index, short seat_index)
 {
 	struct unit_datum *unit, *vehicle;
@@ -1895,8 +1904,7 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	if (run->dropship != NONE && extraction_player_dropship(unit) == run->dropship)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
-		if (faction != NONE && extraction.dropship_landing_groups[faction] != NONE &&
-			!extraction_transport_landed(run->dropship)) return FALSE;
+		if (faction != NONE && !extraction_transport_arrival_ready(faction, run->dropship)) return FALSE;
 		return extraction_in_hub_volume(extraction_transport_return_zone(faction), run->dropship);
 	}
 	return extraction_at_hub(unit_index);
@@ -2263,7 +2271,7 @@ static void extraction_transport_completions(void)
 		if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 			extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.0f) ||
 			!extraction_in_hub_volume(extraction_transport_return_zone(faction), ship) || cinematic_in_progress() ||
-			(extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(ship))) continue;
+			!extraction_transport_arrival_ready(faction, ship)) continue;
 		/* The durable bank belongs to the arrival even if its owner leaves.
 		 * Other squads and craft do not delay release. A connected boarded
 		 * crewmate still settling keeps this aircraft at the hub. */

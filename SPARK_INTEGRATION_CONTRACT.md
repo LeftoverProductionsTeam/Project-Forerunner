@@ -75,6 +75,12 @@ the stale group and then passed with the other 96 transport and recording
 checks. Windows x64 SHA-256 `406051a5a8263d7ca6feb8f738bf2bf6f161ebc3028ac2c5c934a31e7ae4a1bf`
 compiled. The combined recorded flight and crew-only route still needs a
 live authored cache.
+On return, the same native thread gate now protects passenger banking and
+the successful or aborted aircraft callback even if only a boarded output
+is configured. Existing route landing requirements still apply. Two
+regressions reproduced premature inventory consumption and abort release.
+Both passed after cleanup gating, with 99 focused checks in all. Windows
+x64 built as SHA-256 `f80831ef378cd54c6d72ebb3f35a3374783ea33ccf73a1bb50370acd433b15eb`.
 A final `recording_time` of zero alone can precede that cleanup. Spark should
 use `recording_play_and_hover` for an authored clip ending with real ground
 contact and wait for the faction's landed output. Release hover with
