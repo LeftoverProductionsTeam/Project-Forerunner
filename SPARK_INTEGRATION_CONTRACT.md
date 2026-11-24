@@ -1635,6 +1635,25 @@ full-length export. The run used muted output. Evolved egress, completion
 of a survival round, both absent external cues, standalone CE609, and
 Chupathingy interoperability remain open.
 
+Spark `8d3ac06` supplied typed projectile/effect spawner wrappers. The
+native compiler reproduced its MCC13 witness
+`2620136544a8118ffe6ac05c21ec453705c59e6de8bef1c6ecad131669612917`.
+Applying the previously audited five complete audio repairs, title
+termination and finite inverse inertia in a disposable copy gave SHA-256
+`19188689239f92441f8e2ba6e1a10ec98b6ff044c4254b8fbbbe66e3f8578186`
+with matching native CRC.
+
+Chupathingy `c16096a8` hosted on OpenCE version 44. Forerunner `e82a58db`
+joined the same cache. Both converted 852 audio permutations, spawned, and
+saw the same 18 standard, six Alpha and three Evolved carrier slots.
+The guest saw three new living Alpha bipeds on foot at tick 1821.
+The legacy host did not expose individual actor samples. Native guest
+movement synchronized to (97.460, -158.993, -0.287) on both processes, which
+exited zero without the earlier projectile-group assertion. Original hashes
+held and disposable staging was removed. This verifies scoped mixed-runtime
+MCC play. Standalone CE609, matching individual zombie exits, Evolved
+egress and a complete survival round remain open.
+
 A finer two-peer capture sampled nine living riders in the valid carriers.
 Six stayed in their native seats on the host but never attached on the
 guest. Forerunner now publishes AI seat transitions and keeps idle seated
