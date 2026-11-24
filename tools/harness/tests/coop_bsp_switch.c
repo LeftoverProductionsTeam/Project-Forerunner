@@ -121,7 +121,11 @@ static struct object_datum *unit_try_and_get(long unit)
 static struct object_datum *biped_try_and_get(long unit) {return object_try_and_get(unit);}
 static struct object_datum *biped_get(long unit) {return &objects[slot(unit)];}
 static struct object_datum *object_get(long unit) {return &objects[slot(unit)];}
+static boolean regional_match, regional_room_ready;
 static boolean network_coop_active(void) {return coop;}
+static boolean network_regional_bsp_active(void) {return regional_match;}
+static boolean network_synchronizes_structure_bsp(void) {return coop||regional_match;}
+static boolean network_regional_bsp_room_ready(void) {return regional_room_ready;}
 static boolean extraction_owns_map(void) {return operations;}
 static boolean players_coop_teammate(long player,long other)
 {return other!=NONE&&player!=other&&!opposed;}
@@ -793,7 +797,8 @@ int main(int argc,char **argv)
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
-        boolean crossing=!strcmp(name,"mcc-prepare-crossing");
+        boolean regional_crossing=!strcmp(name,"mcc-prepare-regional-crossing");
+        boolean crossing=!strcmp(name,"mcc-prepare-crossing")||regional_crossing;
         boolean fractures=!strcmp(name,"mcc-prepare-fractures");
         struct mcc_cache_bsp regions[3];
         uint32_t const offsets[]={0x4000,0x1000,0x2000};
@@ -879,6 +884,20 @@ int main(int argc,char **argv)
             objects[2].object.position.x=190;
             prepared_crossing_leaf=1;
 
+            if (regional_crossing)
+            {
+                coop=FALSE;
+                regional_match=TRUE;
+                prepared_crossing_leaf=0;
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                      "crossing accepted without negotiated peers");
+                regional_room_ready=TRUE;
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                      "crossing would leave a living player behind");
+                objects[1].object.parent_object_index=units[2];
+                prepared_crossing_leaf=1;
+            }
+
             CHECK(!scenario_switch_structure_bsp(destination),"crossed to an invalid destination leaf");
             CHECK(global_structure_bsp_index==old&&global_collision_bsp==&collisions[old]&&
                   cache_file_globals.structure_bsp_header==mcc_regions[old].header&&!disconnects&&!reconnects&&
@@ -893,6 +912,9 @@ int main(int argc,char **argv)
                   global_collision_bsp==&collisions[destination]&&mcc_retained_bsp==&regions[old]&&
                   mcc_prepared_loads==1&&mcc_prepared_validations==1&&mcc_prepared_releases==0,
                   "crossing reloaded its prepared BSP or removed the passenger");
+            if (regional_crossing)
+                CHECK(objects[1].object.parent_object_index==units[2]&&!teleports&&!ejections,
+                      "competitive crossing gathered or unboarded a player");
             return 0;
         }
 
@@ -1172,9 +1194,14 @@ int main(int argc,char **argv)
               "local crossing stopped using the native seat trigger");
         return 0;
     }
-    if(!strcmp(name,"host-superseded"))
+    if(!strcmp(name,"host-superseded")||!strcmp(name,"regional-host-superseded"))
     {
         struct distributed_structure_bsp message={destination,0};
+        if(!strcmp(name,"regional-host-superseded"))
+        {
+            coop=FALSE;
+            regional_match=TRUE;
+        }
         distributed_handle_structure_bsp(1, &message);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"host BSP transition did not queue");
         message.structure_bsp_index=2;

@@ -5485,7 +5485,8 @@ static void distributed_handle_structure_bsp(
 {
 	short index = structure_bsp->structure_bsp_index;
 
-	if (!network_coop_active() || index < 0 || index >= global_scenario_get()->structure_bsp_references.count)
+	if (!network_synchronizes_structure_bsp() ||
+		!VALID_INDEX(index, MIN(global_scenario_get()->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO)))
 		return;
 
 	if (distributed_host_structure_bsp_index != index)
@@ -5916,7 +5917,7 @@ void network_distributed_tick(
 		profile_scope(distributed_tick_apply_vehicle_predictions_section, network_objects_apply_vehicle_predictions();)
 		profile_scope(distributed_tick_apply_predictions_section, distributed_apply_predictions(TRUE);)
 		/* Announce the BSP before any new-region position stream. */
-		if (network_coop_active() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
+		if (network_synchronizes_structure_bsp() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
 			game_time_get() % STRUCTURE_BSP_INTERVAL_TICKS == 0))
 		{
 			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp();)

@@ -45,6 +45,9 @@ enum
 /* whether this is a network co-op game (not its lobby, whose menu scene also
 has no game engine) */
 boolean network_coop_active(void);
+boolean network_regional_bsp_active(void);
+boolean network_synchronizes_structure_bsp(void);
+boolean network_regional_bsp_room_ready(void);
 /* Host: retain the current session roster when loading a checkpoint. */
 void network_coop_restore_players(void);
 /* game_state.c: remember the team only after a checkpoint write succeeds. */

@@ -3129,10 +3129,34 @@ x64 discovery check reported 4,096 for MCC13 without writing files. Spark
 now records a complete Chiron pickup import in the retired collision
 probes CE609 `f87759f9` and MCC13 `bcea054d`. Readback found all 42 donor
 equipment placements, the all-powerups collection, and unique collision
-membership for the MCC13 endpoints. The next handoff is a retained lit
-playable map with that data. Competitive multiplayer still needs host-side
-BSP routing and acknowledgments. The existing authoritative switch messages
-are enabled for campaign co-op.
+membership for the MCC13 endpoints. Spark `94967e2` reports lit diagnostics
+CE609 `bb310615` and MCC13 `64e3feca`. The next handoff is one retained lit
+MCC13 candidate with those placements and all 127 reviewed regional starts.
+
+Native MCC13 multiplayer maps with multiple BSPs and authored switch rows
+now share the campaign BSP announcement and input acknowledgment. Existing
+packet layouts are unchanged. All machines must negotiate Delta
+`regional_bsp` before the host tries a physical crossing. Use markerless
+native switches and a collision overlap large enough for every living
+player and occupied vehicle root. The host checks that all roots are inside
+and uses the existing crossing preflight. It leaves players seated and
+does not gather them by teleport. Only the host can schedule the switch.
+Regional matches use the seam triggers for live transitions. Campaign and
+ordinary single-BSP multiplayer keep their original path. A room without
+the capability can play BSP 0. A peer without support cannot stay in a
+match already on another BSP.
+
+Windows x64 executable
+`58f0775de2da4ff8ee657ec7a2b323b77363f199132f7eae43db34f63b0e8f48`
+passed 71 BSP, 14 input and two Delta registry checks. Two private native
+Delta peers on the disposable two-BSP fixture
+`9341679f0fd4d6e248d5055c87512997a588c37f3bec7bacd85677b96bb519be`
+stayed in BSP 0 with one player outside the seam. Automated keyboard
+movement brought that player into it. Both peers reported BSP 1 at tick
+165 and agreed on the new and stationary positions. The OpenCE-protocol
+control with both players inside the seam stayed in BSP 0. Both runs
+exited normally. Live Chiron, late join and independent simulation of
+occupied BSPs remain open.
 
 #### Region-bound encounters
 

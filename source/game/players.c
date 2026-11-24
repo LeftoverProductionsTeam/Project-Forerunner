@@ -3714,7 +3714,7 @@ static boolean player_in_bsp_switch_volume(
 	long root_index)
 {
 	return scenario_trigger_volume_test_object(volume->trigger_volume_index,
-		volume->cutscene_flag_index == NONE && network_coop_active() ? root_index : unit_index);
+		volume->cutscene_flag_index == NONE && network_synchronizes_structure_bsp() ? root_index : unit_index);
 }
 
 /* Parallel markerless routes can lead to the same loaded BSP. */
@@ -3746,7 +3746,7 @@ static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_con
 	struct scenario *scenario;
 	struct scenario_bsp_switch_trigger_volume const *volume;
 
-	if (!network_coop_active() || game_connection() != _game_connection_network_server || pending_index < 0)
+	if (!network_synchronizes_structure_bsp() || game_connection() != _game_connection_network_server || pending_index < 0)
 		return NULL;
 	scenario = global_scenario_get();
 	if (pending_index >= scenario->bsp_switch_trigger_volumes.count)
@@ -3757,20 +3757,16 @@ static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_con
 	return volume;
 }
 
-/* Validate crossing roots against the destination before reconnect.
- * The source index also identifies the seam after a cold load. */
-boolean players_coop_can_activate_structure_bsp(
-	short source,
-	short destination,
+/* Competitive maps share one simulated BSP for now. Every living root
+ * must reach the overlap before the host can move the world. */
+static boolean players_continuous_bsp_crossing_valid(
+	struct scenario_bsp_switch_trigger_volume const *volume,
 	struct structure_bsp const *structure)
 {
-	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch(source);
+	boolean regional = network_regional_bsp_active();
 	struct data_iterator iterator;
 	struct player_datum *player;
 	boolean crossing = FALSE;
-
-	if (!volume || volume->destination_structure_bsp_index != destination)
-		return TRUE;
 
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
@@ -3783,14 +3779,31 @@ boolean players_coop_can_activate_structure_bsp(
 			continue;
 		root_index = object_get_ultimate_parent(player->unit_index);
 		if (!player_bsp_continuous_route_contains(volume, root_index))
+		{
+			if (regional)
+				return FALSE;
 			continue;
+		}
 		root = object_get(root_index);
-		if (!scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
+		if (structure && !scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
 			!scenario_structure_bsp_contains_point(structure, &root->object.position))
 			return FALSE;
 		crossing = TRUE;
 	}
 	return crossing;
+}
+
+/* The source identifies the seam even after loading the destination cold. */
+boolean players_coop_can_activate_structure_bsp(
+	short source,
+	short destination,
+	struct structure_bsp const *structure)
+{
+	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch(source);
+
+	return !volume || volume->destination_structure_bsp_index != destination ||
+		((!network_regional_bsp_active() || network_regional_bsp_room_ready()) &&
+			players_continuous_bsp_crossing_valid(volume, structure));
 }
 
 /* A seated AI can cross with the player in the same vehicle. Only a
@@ -3983,6 +3996,15 @@ static boolean players_coop_queue_bsp_switch(
 
 	if (!network_coop_player_has_structure_bsp(player_index))
 		return FALSE;
+	if (network_regional_bsp_active())
+	{
+		struct scenario const *scenario = global_scenario_get();
+		struct scenario_bsp_switch_trigger_volume const *volume = TAG_BLOCK_GET_ELEMENT(
+			&scenario->bsp_switch_trigger_volumes, bsp_switch_trigger_volume_index, struct scenario_bsp_switch_trigger_volume);
+
+		return volume->cutscene_flag_index == NONE && network_regional_bsp_room_ready() &&
+			players_continuous_bsp_crossing_valid(volume, NULL) && main_switch_structure_bsp(destination);
+	}
 	/* port: a dedicated server has no player of its own: its zones switch the
 	BSP only once most of the living players who are not away stand in zones
 	to the same BSP (server.coop_bsp_switch "majority"), so no one player
@@ -4171,6 +4193,10 @@ void players_reconnect_to_structure_bsp(
 				players_globals->pending_teleport_starting_location_index = NONE;
 		}
 	}
+
+	/* A physical multiplayer crossing has already checked every live root. */
+	if (network_regional_bsp_active())
+		players_cancel_bsp_switch_gather();
 
 	/* port: also on a network co-op host, whose other players are remote */
 	if (players_globals->pending_teleport_starting_location_index != NONE &&
@@ -5742,7 +5768,7 @@ static void player_queue_structure_bsp_switch(
 	struct scenario *scenario;
 	struct scenario_bsp_switch_trigger_volume *bsp_switch_trigger_volume;
 	short bsp_switch_trigger_volume_index;
-	boolean coop = network_coop_active();
+	boolean synchronized = network_synchronizes_structure_bsp();
 
 	scenario = global_scenario_get();
 	for (bsp_switch_trigger_volume_index = 0;
@@ -5757,7 +5783,7 @@ static void player_queue_structure_bsp_switch(
 			global_structure_bsp_index &&
 			player_in_bsp_switch_volume(
 				bsp_switch_trigger_volume, player->unit_index, root_object_index) &&
-			(coop ?
+			(synchronized ?
 				players_coop_queue_bsp_switch(player->unit_index, bsp_switch_trigger_volume_index,
 					bsp_switch_trigger_volume->destination_structure_bsp_index) :
 				main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index)))
@@ -5786,8 +5812,8 @@ static void player_queue_structure_bsp_switch(
 				bsp_switch_trigger_volume_index;
 			players_coop_state.bsp_switch_time = game_time_get();
 
-			/* The first accepted co-op route owns this deferred load and its gather. */
-			if (coop)
+			/* The first accepted route owns the deferred host load. */
+			if (synchronized)
 				break;
 		}
 	}
@@ -5882,7 +5908,7 @@ void players_update_after_game(
 			(network_distributed.c), and the host not again until everyone
 			has the new one */
 			if (!TEST_FLAG(root_object->object.flags, _object_outside_of_map_bit) &&
-				!(network_coop_active() && (network_game_distributed_client() || !players_coop_bsp_switch_ready())))
+				!(network_synchronizes_structure_bsp() && (network_game_distributed_client() || !players_coop_bsp_switch_ready())))
 			{
 				player_queue_structure_bsp_switch(player, root_object_index);
 			}

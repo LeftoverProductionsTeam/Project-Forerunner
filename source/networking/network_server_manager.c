@@ -494,6 +494,7 @@ symbols in this file:
 #include "bots.h" /* port: port/linux/game/bots.c */
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "scenario/scenario.h"
 
 #include <time.h>
 #include "stubbs_mode.h" /* port: port/linux/game/stubbs_mode.c */
@@ -7284,6 +7285,7 @@ static void network_game_server_delta_refusals(
 	struct network_game_server *server)
 {
 	static unsigned long refused_addresses[MAXIMUM_NETWORK_MACHINE_COUNT];
+	boolean regional = network_regional_bsp_active() && global_structure_bsp_index_get() > 0;
 	long index;
 
 	for (index = 0; index < MAXIMUM_NETWORK_MACHINE_COUNT; index++)
@@ -7300,8 +7302,10 @@ static void network_game_server_delta_refusals(
 		boolean number_changed = joined_number && joined_number != (unsigned)delta_legacy_announce();
 		boolean forge_physics = cheats_forge_remote_physics_active() &&
 			delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_forge_physics);
+		boolean regional_bsp = regional &&
+			delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_regional_bsp);
 
-		if ((!bomb && !pack_map && !mcc_map && !number_changed && !forge_physics) ||
+		if ((!bomb && !pack_map && !mcc_map && !number_changed && !forge_physics && !regional_bsp) ||
 			!network_game_server_client_machine_is_joined_to_game(server, machine) ||
 			network_game_server_client_machine_is_local(server, machine) ||
 			machine->machine_index < 0 || machine->machine_index >= MAXIMUM_NETWORK_MACHINE_COUNT)
@@ -7309,7 +7313,7 @@ static void network_game_server_delta_refusals(
 			refused_addresses[index] = 0;
 			continue;
 		}
-		if (!forge_physics && number_changed && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) &&
+		if (!regional_bsp && !forge_physics && number_changed && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) &&
 			!delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_mcc_maps))
 		{
 			number_changed = FALSE;
@@ -7317,16 +7321,16 @@ static void network_game_server_delta_refusals(
 				continue;
 		}
 		/* (bomb_traits: a Grifball test build 2 or 3 says TRAITS as 18) */
-		if (!forge_physics && !number_changed && bomb && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_bomb) &&
+		if (!regional_bsp && !forge_physics && !number_changed && bomb && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_bomb) &&
 			!delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_bomb_traits))
 		{
 			continue;
 		}
-		if (!forge_physics && !number_changed && pack_map && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform))
+		if (!regional_bsp && !forge_physics && !number_changed && pack_map && !delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform))
 			continue;
 		/* (an MCC map: a machine without Delta, OpenCE's own, plays it by its own
 		MCC support; a Delta machine needs mcc_maps: docs/delta.md, bit 24) */
-		if (!forge_physics && !number_changed && mcc_map && (delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) ||
+		if (!regional_bsp && !forge_physics && !number_changed && mcc_map && (delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_platform) ||
 			!delta_peer_game_machine_lacks(machine->machine_index, _delta_capability_mcc_maps)))
 		{
 			continue;
@@ -7365,7 +7369,12 @@ static void network_game_server_delta_refusals(
 				}
 				names[length] = 0;
 			}
-			if (forge_physics)
+			if (regional_bsp)
+			{
+				snprintf(notice, sizeof(notice), "%s needs regional BSP support to join this match.",
+					names[0] ? names : "A player");
+			}
+			else if (forge_physics)
 			{
 				snprintf(notice, sizeof(notice), "%s needs Forge placement physics to play this layout.",
 					names[0] ? names : "A player");

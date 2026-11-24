@@ -79,7 +79,8 @@ def generated(fault=None):
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
             'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger',
             'player_bsp_continuous_route_contains', 'player_bsp_crossing_root',
-            'players_coop_pending_continuous_bsp_switch', 'players_coop_can_activate_structure_bsp',
+            'players_coop_pending_continuous_bsp_switch', 'players_continuous_bsp_crossing_valid',
+            'players_coop_can_activate_structure_bsp',
             'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
         ('region_location.inc', '\n'.join(function(read('source/scenario/scenario.c'), name) for name in
             ('scenario_location_in_bsp_tree', 'scenario_structure_bsp_contains_point',
@@ -103,11 +104,12 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'regional-host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing',
-    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
+    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing',
+    'mcc-prepare-regional-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

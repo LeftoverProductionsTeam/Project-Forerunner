@@ -2820,6 +2820,7 @@ symbols in this file:
 #include "render/render.h"
 #include "saved games/game_state.h"
 #include "saved games/saved_game_files.h"
+#include "network_coop.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "ai/ai_scenario_definitions.h"
@@ -16265,6 +16266,12 @@ static void scenario_switch_structure_bsp_evaluate(
 	if (arguments)
 	{
 		structure_bsp_index = (short)arguments->value;
+		if (network_regional_bsp_active())
+		{
+			/* A multiplayer regional route must pass the host's seam checks. */
+			hs_return(thread_index, 0);
+			return;
+		}
 		if (!game_engine_running() || global_structure_bsp_index_get() == NONE)
 		{
 			scripted_multiplayer_bsp = NONE;

@@ -14,9 +14,10 @@ Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
    Chiron's thirteenth-region compile established geometry and environmental
    readback. A retained playable export is pending. Regional MCC13 placements
    share a native format and BSP gate. Bound encounters use the native
-   park-and-resume lifecycle. Next prove Chiron crossings and advance host
-   collision and snapshots toward two independently occupied BSPs. Keep CE609
-   and MCC13 verification separate.
+   park-and-resume lifecycle. Two private Delta peers completed an authored
+   markerless BSP crossing on the native fixture. Next prove the retained
+   Chiron route and advance host collision and snapshots toward independently
+   occupied BSPs. Keep CE609 and MCC13 verification separate.
 2. Original Zombie Apocalypse. Verify the original carrier behavior, native
    unloading, restored audio, projectile wrappers and a full mixed-runtime
    survival round.

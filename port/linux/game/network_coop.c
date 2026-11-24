@@ -113,6 +113,7 @@ index and tag, since the map placed them at the same index everywhere.
 #include "physics/collision_usage.h"
 #include "rasterizer/rasterizer_cinematics.h"
 #include "saved games/game_state.h"
+#include "delta.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "sound/game_sound.h"
@@ -2524,6 +2525,28 @@ boolean network_coop_active(
 		global_scenario && global_scenario->type == _scenario_type_solo && !game_engine_running();
 }
 
+/* Share BSP transport without applying campaign rules to multiplayer. */
+boolean network_regional_bsp_active(void)
+{
+	short connection = game_connection();
+
+	return (connection == _game_connection_network_server || connection == _game_connection_network_client) &&
+		global_scenario && scenario_uses_regional_gameplay(global_scenario) &&
+		global_scenario->bsp_switch_trigger_volumes.count > 0;
+}
+
+boolean network_synchronizes_structure_bsp(void)
+{
+	return network_coop_active() || network_regional_bsp_active();
+}
+
+boolean network_regional_bsp_room_ready(void)
+{
+	extern int delta_peer_game_room_has(int capability);
+
+	return delta_peer_game_room_has(_delta_capability_regional_bsp);
+}
+
 boolean network_coop_player_collisions(
 	void)
 {
@@ -3791,7 +3814,7 @@ boolean network_coop_player_has_structure_bsp(
 {
 	struct player_datum *player;
 
-	if (!network_coop_active())
+	if (!network_synchronizes_structure_bsp())
 		return TRUE;
 	/* (no player, or none of the tracked: whose BSP is not known, which
 	does not keep their predictions out) */

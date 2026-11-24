@@ -28,7 +28,7 @@ enum
 /* the capabilities this build knows (the retired md_maps and console_slots
 bits never count) */
 #define KNOWN_CAPABILITIES \
-	((((delta_u32)1 << NUMBER_OF_DELTA_CAPABILITIES) - 1) & ~((delta_u32)1 << _delta_capability_md_maps) & \
+	(((delta_u32)0xffffffffu >> (32 - NUMBER_OF_DELTA_CAPABILITIES)) & ~((delta_u32)1 << _delta_capability_md_maps) & \
 		~((delta_u32)1 << _delta_capability_console_slots))
 #define CAPABILITY(bit) ((delta_u32)1 << (bit))
 /* TRAITS (22) needs both: bomb alone is a Grifball test build 2 or 3's,

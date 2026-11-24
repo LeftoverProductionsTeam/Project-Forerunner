@@ -211,6 +211,8 @@ enum delta_capability
 	_delta_capability_forge_guest_placements = 29,
 	/* A guest can request a physics change against its observed mode. */
 	_delta_capability_forge_guest_physics = 30,
+	/* Multi-BSP MCC matches follow host transitions during multiplayer. */
+	_delta_capability_regional_bsp = 31,
 
 	NUMBER_OF_DELTA_CAPABILITIES
 };

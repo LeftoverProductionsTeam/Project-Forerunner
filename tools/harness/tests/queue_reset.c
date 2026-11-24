@@ -68,7 +68,8 @@ static struct {boolean valid;long tick;short structure_bsp_index;struct player_a
 static short bsp;
 static struct player_datum {short local_player_index;} remote={NONE};
 static struct player_datum *player_try_and_get(long player_index) {(void)player_index;return &remote;}
-static boolean network_coop_active(void) {return TRUE;}
+static boolean network_synchronizes_structure_bsp(void) {return TRUE;}
+static struct {boolean scene_refresh;} host_resend;
 static short global_structure_bsp_index_get(void) {return bsp;}
 static short game_connection(void) {return _game_connection_network_server;}
 static boolean game_time_initialized(void) {return TRUE;}

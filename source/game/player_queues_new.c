@@ -1209,7 +1209,7 @@ boolean update_server_prediction_matches_structure_bsp(long player_index, long p
 {
 	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
 
-	if (!network_coop_active()) return TRUE;
+	if (!network_synchronizes_structure_bsp()) return TRUE;
 	return network_coop_player_has_structure_bsp(player_index) &&
 		(!VALID_INDEX(slot, NUMBEROF(update_server_distributed_inputs)) ||
 		!update_server_distributed_inputs[slot].valid ||
@@ -1237,7 +1237,7 @@ void update_server_handle_distributed_input(
 		return;
 	/* Only a newer action can advance the client's region. A fresh BSP
 	 * cannot replay the history of interaction buttons from the old geometry. */
-	if (network_coop_active())
+	if (network_synchronizes_structure_bsp())
 	{
 		if (update_server_distributed_inputs[absolute_index].valid &&
 			tick <= update_server_distributed_inputs[absolute_index].tick) return;

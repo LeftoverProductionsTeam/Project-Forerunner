@@ -694,6 +694,7 @@ int delta_peer_protocol(void)
 		/* (MCC maps and their messages: mcc_network_messages.h; a build
 		without MCC maps, as a Windows app package's, says it has none) */
 		local.capabilities |= (delta_u32)1 << _delta_capability_mcc_maps;
+		local.capabilities |= (delta_u32)1 << _delta_capability_regional_bsp;
 #endif
 #endif
 #ifdef HALO_GAME_BROWSER
