@@ -1607,6 +1607,17 @@ not sample the same second rollover transition, so its physical release
 still needs live confirmation. The standard carrier graph rejection
 persisted. Original hashes held and the staged copy was removed.
 
+The same executable also passed deterministic native seat exit in solo
+and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
+cleared only its named Pelican's collision-model reference and updated the
+header checksum. Its SHA-256 was
+`8585e7506543d6b373ac63e6b924eaee8654fa166ee8905dd36b94c588a362d2`.
+After scripted seat setup, normal E put the solo player on foot by tick
+180. The co-op guest launched at host tick 98. Both peers matched Pelican
+e2710002 seat 1 at tick 330 and the on-foot guest with the same kit at
+tick 390. The final guest positions agreed to the displayed precision.
+All processes exited zero, protected hashes held, and staging was removed.
+
 A separate capacity comparison reused the valid Alpha weapon in the
 standard collection, leaving its nine placements and timer intact. On
 the identical disposable cache SHA-256
