@@ -99,6 +99,7 @@ void scenario_tick_update(
 void scenario_unload(
 	void);
 struct scenario *global_scenario_get(void);
+boolean scenario_uses_regional_gameplay(struct scenario const *scenario);
 struct scenario *global_scenario_try_and_get(void);
 struct structure_bsp *global_structure_bsp_get(void);
 struct collision_bsp *global_collision_bsp_get(void);

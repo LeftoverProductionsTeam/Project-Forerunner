@@ -293,7 +293,6 @@ symbols in this file:
 #include "cseries/errors.h"
 #include "networking/network_messages.h"
 #endif
-#include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "mcc_seats.h" /* port: port/linux/game/mcc_seats.c */
 
 /* network_game_globals.c's */
@@ -1178,12 +1177,7 @@ struct player_starting_location *player_get_starting_location(
 boolean player_starting_location_in_active_bsp(
 	struct player_starting_location const *start)
 {
-	struct scenario const *scenario;
-
-	if (!mcc_cache_tags_loaded())
-		return TRUE;
-	scenario = global_scenario_get();
-	if (scenario->type != _scenario_type_multiplayer || scenario->structure_bsp_references.count <= 1)
+	if (!scenario_uses_regional_gameplay(global_scenario_get()))
 		return TRUE;
 	if (global_structure_bsp_index == NONE ||
 		(start->structure_bsp_reference_index != NONE &&

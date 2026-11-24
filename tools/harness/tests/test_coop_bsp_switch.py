@@ -50,6 +50,7 @@ def generated(fault=None):
         ('regional_equipment.inc', function(read('source/game/game_engine.c'), 'game_engine_update_item_spawn')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +
+         function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
          '\n'.join(function(read('source/game/game_engine.c'), name)
             for name in ('find_netgame_flags_in_structure', 'find_netgame_flags', 'game_engine_find_teleporter'))),
         ('players.inc', '\n'.join(function(players, name) for name in (

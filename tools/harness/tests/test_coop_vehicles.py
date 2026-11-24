@@ -47,7 +47,8 @@ def generated(fault=None):
     return (('unit_flags.inc', enum_with(read('source/units/units.h'), '_unit_not_enterable_by_player_bit')),
             ('under_test.inc', source),
             ('path.inc', path),
-            ('home_respawn.inc', vehicle_respawn),
+            ('home_respawn.inc', function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') +
+             '\n' + vehicle_respawn),
             ('looks.inc', looks),
             ('clone.inc', forge_state +
                 '\n'.join(function(read('source/physics/physics.c'), name) for name in (

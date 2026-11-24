@@ -406,6 +406,14 @@ struct scenario *global_scenario_get(
 	return global_scenario;
 }
 
+/* The native MCC multiplayer format supports placements in multiple BSPs. */
+boolean scenario_uses_regional_gameplay(
+	struct scenario const *scenario)
+{
+	return mcc_cache_tags_loaded() && scenario->type == _scenario_type_multiplayer &&
+		scenario->structure_bsp_references.count > 1;
+}
+
 struct structure_bsp *global_structure_bsp_get(
 	void)
 {

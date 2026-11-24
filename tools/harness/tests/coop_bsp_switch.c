@@ -50,7 +50,6 @@ struct scenario {
 struct player_starting_location {real_point3d position;short structure_bsp_reference_index;};
 enum {_scenario_type_multiplayer=1};
 struct scenario_netgame_flag {real_point3d position; short type,team_index;};
-enum {MAXIMUM_SCENARIO_NETGAME_FLAGS_PER_SCENARIO=200};
 struct collision_surface {long plane_designator;};
 struct collision_bsp {struct tag_block surfaces;};
 struct bsp3d {int placeholder;};
@@ -719,23 +718,24 @@ int main(int argc,char **argv)
     }
     if (!strcmp(name, "regional-teleporters"))
     {
-        struct scenario_netgame_flag markers[284]={0};
+        struct scenario_netgame_flag markers[5]={0};
         short const channel=8;
         real_point3d border={199.8f,0,0};
         long first,second;
 
+        scenario.type=_scenario_type_multiplayer;
         scenario.netgame_flags=(struct tag_block){NUMBEROF(markers),markers};
         markers[0]=(struct scenario_netgame_flag){{201,0,0},_netgame_flag_teleporter_target,channel};
         markers[1]=(struct scenario_netgame_flag){{200.1f,0,0},_netgame_flag_teleporter_source,channel};
         markers[2]=(struct scenario_netgame_flag){{50,0,-1},_netgame_flag_teleporter_target,channel};
-        markers[282]=(struct scenario_netgame_flag){{50,0,-.01f},_netgame_flag_teleporter_target,channel};
-        markers[283]=(struct scenario_netgame_flag){{199.6f,0,-.01f},_netgame_flag_teleporter_source,channel};
+        markers[3]=(struct scenario_netgame_flag){{50,0,-.01f},_netgame_flag_teleporter_target,channel};
+        markers[4]=(struct scenario_netgame_flag){{199.6f,0,-.01f},_netgame_flag_teleporter_source,channel};
         test_region_lookup=mcc_loaded=TRUE;
         structures[0].clusters.count=structures[1].clusters.count=4;
 
-        CHECK(game_engine_find_teleporter(&border,.5f,_netgame_flag_teleporter_source,NONE)==283,
+        CHECK(game_engine_find_teleporter(&border,.5f,_netgame_flag_teleporter_source,NONE)==4,
               "the source in the next BSP suppressed the local source");
-        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==282,
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==3,
               "the destination in the next BSP shadowed the local channel");
         global_structure_bsp_index=1;
         global_structure_bsp=&structures[1];
@@ -747,6 +747,14 @@ int main(int argc,char **argv)
 
         first=find_netgame_flags(NULL,0,0,_netgame_flag_teleporter_target,channel,1,&second);
         CHECK(first==1&&second==0,"changed the legacy global flag query");
+        scenario.structure_bsp_references.count=1;
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==0,
+              "restricted teleporters on a single-BSP MCC map");
+        scenario.structure_bsp_references.count=2;
+        scenario.type=0;
+        CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==0,
+              "restricted campaign teleporters");
+        scenario.type=_scenario_type_multiplayer;
         mcc_loaded=FALSE;
         CHECK(game_engine_find_teleporter(NULL,0,_netgame_flag_teleporter_target,channel)==0,
               "changed the legacy global teleporter contract");

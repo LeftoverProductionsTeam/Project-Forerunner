@@ -206,7 +206,10 @@ void encounter_attach_unit(
 void encounter_force_activate(
 	long encounter_index);
 void encounter_force_deactivate(
-	long encounter_index);
+	long encounter_index,
+	boolean preserve_timer);
+void encounters_reconnect_to_structure_bsp(
+	void);
 void encounter_squad_timer_expire(
 	long encounter_index,
 	short squad_index);

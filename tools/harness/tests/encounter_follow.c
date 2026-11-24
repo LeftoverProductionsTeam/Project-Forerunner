@@ -18,17 +18,18 @@
 #define _error_silent 0
 #define _object_mask_unit 1
 #define _object_dead_bit 0
+enum {_scenario_type_multiplayer=1};
 
 struct tag_block { long count; void *address; };
 #define TAG_BLOCK_GET_ELEMENT(b,i,t) (&((t *)(b)->address)[i])
 struct squad_definition { char name[32]; unsigned long flags; short platoon_index; unsigned long firing_position_groups[8]; };
 struct firing_position_definition { real_point3d position; short group_index; };
-struct encounter_definition { char name[32]; struct tag_block squads, platoons, firing_positions; };
-struct scenario { struct tag_block ai_encounters; };
+struct encounter_definition { char name[32]; struct tag_block squads, platoons, firing_positions; short runtime_structure_bsp_reference_index; };
+struct scenario { struct tag_block ai_encounters, structure_bsp_references; short type; };
 struct squad_datum { short current_count; boolean automatic_migration_target; };
 struct platoon_datum { boolean defending; };
-struct encounter_datum { short follow_target_type, squad_count, team_index; long follow_target_unit_index, follow_target_ai_index; real follow_target_distance; };
-struct actor_datum { struct {short squad_index;long unit_index;} meta; struct {struct {real_point3d body_position;} position;} input; };
+struct encounter_datum { short follow_target_type, squad_count, team_index; long follow_target_unit_index, follow_target_ai_index; real follow_target_distance; short remain_active_timer; long last_active_time; boolean active; };
+struct actor_datum { struct {short squad_index;long unit_index;boolean active;} meta; struct {struct {real_point3d body_position;} position;} input; };
 struct unit_datum { struct { unsigned long damage_flags; real_point3d position; short owner_team_index; } object; struct { long player_index; } unit; };
 struct player_datum { long unit_index; boolean quit_out_of_game; };
 struct data_iterator { long datum_index, next; };
@@ -73,12 +74,44 @@ static void actor_change_encounter(long actor,long index,short squad) { (void)in
 static void test_error(long severity,char const *format,...) { (void)severity;(void)format; }
 static void console_printf(boolean warning,char const *format,...) { (void)warning;(void)format; }
 #define error test_error
+static short global_structure_bsp_index;
+static boolean mcc_loaded;
+static boolean mcc_cache_tags_loaded(void) { return mcc_loaded; }
+static long game_time_get(void) { return 100; }
+static void encounter_clear_pursuit(long index) { (void)index; }
+static void actor_verify_activation(long index) { CHECK(VALID_INDEX(index,actor_count),"invalid actor"); }
+static void actor_set_active(long index,boolean active) { actors[index].meta.active=active; }
 #include "under_test.inc"
 
 int main(int argc,char **argv)
 {
  char const *case_name=argc>1?argv[1]:"";short i,expected=0;
  scenario.ai_encounters.count=1;scenario.ai_encounters.address=&definition;
+ if(!strcmp(case_name,"regional-reconnect"))
+ {
+  mcc_loaded=TRUE;
+  scenario.type=_scenario_type_multiplayer;
+  scenario.structure_bsp_references.count=2;
+  definition.runtime_structure_bsp_reference_index=0;
+  encounter.active=actors[0].meta.active=TRUE;
+  encounter.remain_active_timer=62;
+  encounter_force_deactivate(0,TRUE);
+  CHECK(!encounter.active&&!actors[0].meta.active&&encounter.remain_active_timer==62,
+        "parking reset the activation window or left an actor active");
+  global_structure_bsp_index=1;
+  encounters_reconnect_to_structure_bsp();
+  CHECK(!encounter.active&&!actors[0].meta.active&&encounter.remain_active_timer==62,
+        "woke the encounter in a foreign BSP");
+  global_structure_bsp_index=0;
+  encounters_reconnect_to_structure_bsp();
+  CHECK(encounter.active&&actors[0].meta.active&&encounter.remain_active_timer==62,
+        "the original actor did not resume with its remaining time");
+  encounter_force_deactivate(0,FALSE);
+  encounters_reconnect_to_structure_bsp();
+  CHECK(!encounter.active&&!actors[0].meta.active&&!encounter.remain_active_timer,
+        "woke an encounter with no activation time remaining");
+  return 0;
+ }
  definition.squads.count=3;definition.squads.address=squad_definitions;
  definition.firing_positions.count=2;definition.firing_positions.address=firing_positions;
  encounter.squad_count=3;encounter.follow_target_type=_follow_target_players;

@@ -5477,17 +5477,12 @@ static void game_engine_update_vehicle_respawn(
 
 	if (respawn_ticks <= 0 || network_game_distributed_client() || now % TICKS_PER_SECOND)
 		return;
-	if (mcc_cache_tags_loaded())
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
 	{
-		struct scenario const *scenario = global_scenario_get();
-
-		if (scenario->type == _scenario_type_multiplayer && scenario->structure_bsp_references.count > 1)
-		{
-			active_bsp = global_structure_bsp_index_get();
-			if (!VALID_INDEX(active_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
-				return;
-			structure = global_structure_bsp_get();
-		}
+		active_bsp = global_structure_bsp_index_get();
+		if (!VALID_INDEX(active_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+			return;
+		structure = global_structure_bsp_get();
 	}
 	/* (where the map put them: the vehicles there at the first look) */
 	if (game_engine_vehicle_home_count == NONE)
@@ -6440,11 +6435,8 @@ long game_engine_find_teleporter(
 	struct structure_bsp const *structure = NULL;
 	long flag_index = NONE;
 
-	/* Expanded MCC scenarios can keep the same native teleporter channel in
-	 * each BSP. Normal scenarios keep their original global pairing. */
-	if (mcc_cache_tags_loaded() &&
-		scenario->structure_bsp_references.count > 1 &&
-		scenario->netgame_flags.count > MAXIMUM_SCENARIO_NETGAME_FLAGS_PER_SCENARIO)
+	/* Regional scenarios can reuse a channel in each BSP. */
+	if (scenario_uses_regional_gameplay(scenario))
 	{
 		if (global_structure_bsp_index_get() == NONE)
 			return NONE;
@@ -10465,8 +10457,7 @@ static void game_engine_update_item_spawn(
 
 	now = game_time_get();
 	equipment_count = scenario->netgame_equipment.count;
-	if (mcc_cache_tags_loaded() && scenario->type == _scenario_type_multiplayer &&
-		scenario->structure_bsp_references.count > 1)
+	if (scenario_uses_regional_gameplay(scenario))
 	{
 		active_bsp = global_structure_bsp_index_get();
 		if (!VALID_INDEX(active_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))

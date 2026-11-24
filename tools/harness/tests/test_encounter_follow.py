@@ -25,14 +25,18 @@ def generated(fault=None):
          enum_with(definitions, 'NUMBER_OF_SQUAD_FLAGS') + '\n' +
          enum_with(definitions, 'MAXIMUM_NUMBER_OF_FIRING_POSITION_GROUPS') + '\n' +
          enum_with(source, '_follow_target_ai')),
-        ('under_test.inc', candidates + '\n' + follow),
+        ('under_test.inc', candidates + '\n' + follow + '\n' +
+         function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
+         '\n'.join(function(source, name) for name in
+                   ('encounter_activate', 'encounter_deactivate', 'encounter_force_deactivate',
+                    'encounters_reconnect_to_structure_bsp'))),
     )
 
 
 @pytest.mark.parametrize('case', ['nearest', 'reordered', 'sixth', 'tie', 'death-respawn',
                                  'quit-stale', 'empty', 'explicit', 'hysteresis', 'outside-squad',
                                  'opposing-nearer', 'only-opposition', 'ninth', 'incapacitated-nearer',
-                                 'legacy', 'legacy-dead', 'legacy-ninth'])
+                                 'legacy', 'legacy-dead', 'legacy-ninth', 'regional-reconnect'])
 def test_encounter_follow(case):
     status, output = run(build('encounter_follow', generated()), case)
     assert status == 0, output

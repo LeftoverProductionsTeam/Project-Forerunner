@@ -1227,7 +1227,7 @@ The response has these fields:
 | `network` | Compiled advertised version 45 and native layout 44; preserve the accepted 44/45 bridge |
 | `operations` | Currently only `runtime.discover` |
 | `native_features` | Optional native desktop CE feature identifiers. These include `extraction.squad_objectives.v1` and `character.biped_hands.v1`. Older or unsupported builds omit features they lack. |
-| `map_targets` | Optional native build-target list: `cache_version`, `tag_space_bytes`, `invader_engine`, `default` and, for expanded MCC13, `required_feature`. Older runtimes may omit the field. |
+| `map_targets` | Optional native build-target list with `cache_version`, `tag_space_bytes`, `invader_engine`, `default` and, for expanded MCC13, `required_feature`. The MCC13 target can report its optional `max_netgame_flags` from the native loader. |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
 | `startup_map` | Optional desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Windows64 fresh-profile/native-hub startup passes on the exact binary above; other targets remain unverified. Older and non-desktop/server builds may omit it. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
@@ -3078,13 +3078,25 @@ is verified separately above. Both currently exercise one resident BSP.
 Spark's reviewed base and Chiron source have 284 native netgame flags.
 Forerunner now admits up to 4,096 rows in MCC13's existing
 `scenario.netgame_flags` block. Larger blocks are rejected. CE609 keeps the
-classic 200-row limit. On expanded MCC13 maps with multiple BSPs, native
-teleporter endpoints must lie inside their BSP's collision leaves and outside
-other BSPs for unambiguous pairing. Duplicate channels may be used in separate
-BSPs. The engine and incoming multiplayer corrections use the same active-BSP
-lookup. Include the full paired rows in the MCC13 handoff. The classic export
-still needs a reviewed subset. Regional CTF, hill, race and other objectives
-retain their current gameplay rules.
+classic 200-row limit. Forerunner discovery reports MCC13's `max_netgame_flags`
+as 4,096 when that target is available. Spark can consume the optional value
+alongside the target's Invader schema. Where a runtime omits the field, retain
+its reviewed schema budget.
+
+`scenario_uses_regional_gameplay` scopes native teleporters, starts, pickup
+pads and vehicle homes to MCC13 multiplayer scenarios with multiple native BSP
+references, regardless of flag count. Teleporter endpoints need to belong to
+exactly one BSP. Reuse channels in separate BSPs with a unique target for each
+local channel. The host and incoming multiplayer corrections use the same
+lookup. CE609, campaign and single-BSP maps retain global teleporter pairing.
+
+The start (256), equipment (200) and BSP (16) ceilings are scenario-wide.
+CTF has two team slots, Race has 32 checkpoints, King has 64 hill IDs and
+Oddball supports 16 balls. These are game-mode limits separate from the
+flag block's capacity. Native desktop and constrained profiles have 8,192
+and 2,048 object slots respectively. Network object allocation shares datum
+indices across peers and uses the upper half for local effects. Per-BSP
+placement does not increase these budgets.
 
 Windows x64 `e40fdbf5da349e3b4d1a7b2482942d1f6ee8a7ef14ce47ffa2798b498a24370b`
 passed 200 focused checks. A disposable single-BSP copy of Spark's twelve-region
@@ -3095,8 +3107,28 @@ Both processes exited normally. The runtime trace captured the player after
 they continued moving, past the smoke wrapper's target-radius assertion.
 The fixture SHA-256 was
 `5d928df40009586bf56a89ab34e3f8ac78d7b4fb911ce45cc32385225dd9b5a8`.
-Regional pairing was verified by the existing BSP harness. Spark's lit
-Chiron probe is awaiting a retained playable handoff for live two-BSP tests.
+The revised gate passed the BSP harness with five flags, including reused
+regional channels, and kept global pairing in the CE, single-BSP MCC and
+campaign cases. The BSP and vehicle harnesses passed 162 checks. The Windows
+x64 discovery check reported 4,096 for MCC13 without writing files. Spark
+revision `65c8a18` identifies CE609 `bb51e066` and MCC13 `edab6309` as retired
+lit diagnostics. The playable Chiron handoff still needs the original 42
+equipment placements and the missing all-powerups collection with its
+dependencies, plus retained matching native maps for separate crossing checks.
+
+#### Region-bound encounters
+
+MCC13 multiplayer encounters with a valid compiled BSP assignment retain their
+actor attachments and remaining activation window during the native global BSP
+switch. The existing boarding path carries AI physically seated in a crossing
+vehicle. On return, the encounter resumes through native actor activation.
+Campaign and unbound encounters keep their native follow paths. The encounter
+harness passed 21 checks including the park-and-resume case. Stock Xbox D40
+completed BSP 1 → 0 → 1 with two private native peers on Windows x64 executable
+`801b16423799bc44775d1492263dddd9be71a22f106dfb60d54a876b9b74ca26`.
+That legacy smoke and the focused harness leave authored MCC13 AI combat and
+simultaneous squad occupancy open. Host collision, AI updates and replicated
+world snapshots still follow one active BSP.
 
 #### Regional native player starts
 

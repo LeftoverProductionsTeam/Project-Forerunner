@@ -1577,6 +1577,7 @@ void ai_disconnect_from_structure_bsp(
 	void)
 {
 	struct scenario *scenario = global_scenario_get();
+	boolean regional = scenario_uses_regional_gameplay(scenario);
 	short encounter_index;
 
 	for (encounter_index = 0;
@@ -1584,6 +1585,18 @@ void ai_disconnect_from_structure_bsp(
 		encounter_index++)
 	{
 		struct encounter_datum *encounter = encounter_get(encounter_index);
+		boolean regional_encounter = FALSE;
+
+		if (regional)
+		{
+			struct encounter_definition const *definition = TAG_BLOCK_GET_ELEMENT(
+				&scenario->ai_encounters, encounter_index, struct encounter_definition);
+			short home = definition->runtime_structure_bsp_reference_index;
+
+			regional_encounter = VALID_INDEX(home, scenario->structure_bsp_references.count);
+			if (regional_encounter && home != global_structure_bsp_index)
+				continue;
+		}
 
 		if (encounter->active && encounter->current_count > 0)
 		{
@@ -1606,7 +1619,8 @@ void ai_disconnect_from_structure_bsp(
 					actor_description,
 					sizeof(actor_description));
 
-				if (!disconnect && (actor->target.target_prop_index == NONE ||
+				/* Only actual vehicle passengers can leave a region-bound encounter. */
+				if (!regional_encounter && !disconnect && (actor->target.target_prop_index == NONE ||
 					actor->target.target_type < _actor_target_uninspected_orphan))
 				{
 					if (!game_team_is_enemy(actor->meta.team_index, _game_team_player))
@@ -1629,7 +1643,7 @@ void ai_disconnect_from_structure_bsp(
 						}
 					}
 				}
-				else if (!disconnect)
+				else if (!regional_encounter && !disconnect)
 				{
 					struct prop_datum *target_prop = prop_get(actor->target.target_prop_index);
 
@@ -1778,12 +1792,16 @@ void ai_disconnect_from_structure_bsp(
 					encounter_detach_actor(iterator.index, FALSE);
 					encounterless_attach_actor(iterator.index);
 				}
+				else if (regional_encounter)
+				{
+					actor_flush_structure_indices(iterator.index);
+				}
 
 				actor = encounter_actor_iterator_next(&iterator);
 			}
 		}
 
-		encounter_force_deactivate(encounter_index);
+		encounter_force_deactivate(encounter_index, regional_encounter);
 	}
 
 	{
@@ -1856,6 +1874,7 @@ void ai_reconnect_to_structure_bsp(
 		actor_index = next_actor_index;
 	}
 
+	encounters_reconnect_to_structure_bsp();
 	return;
 }
 

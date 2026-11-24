@@ -63,7 +63,7 @@ def test_native_discovery_without_game_data(runtime):
         feature = "maps.mcc13_tag_space_64m.v1"
         assert feature in reply["native_features"]
         assert targets[13] == {
-            "cache_version": 13, "tag_space_bytes": 64 * 1024 * 1024,
+            "cache_version": 13, "tag_space_bytes": 64 * 1024 * 1024, "max_netgame_flags": 4096,
             "invader_engine": "mcc-cea", "required_feature": feature, "default": False,
         }
     assert {"OpenCE", "ChupathingyCE", "FractumSeraph/OpenCE"} <= set(reply["upstream_projects"])
