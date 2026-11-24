@@ -2112,6 +2112,14 @@ This verifies one host walking through the stock passage with a connected
 guest. Warthog traversal, independent regions and Timberland–Sidewinder
 remain open.
 
+Stock A30 vehicle staging used the same executable and unmodified map
+`4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5`.
+Both native peers kept the same Warthog `e62a00ed` and distinct driver
+and passenger seats after setup at (-338.003, 20.501, 37.0) in BSP 1.
+The alignment check withheld throttle: the seated driver's view stayed
+at -142 degrees after the scripted forward-facing setup. Stock motion
+across the light bridge and MegaWorld vehicle acceptance remain open.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.
