@@ -1430,11 +1430,25 @@ static void extraction_set_player_team(struct player_datum *player, struct unit_
 	ai_update_team_status();
 }
 
+static boolean extraction_wake_mission_script(char const *name, boolean reusable)
+{
+	short index;
+	for (index = 0; index < MIN(global_scenario->hs_scripts.count, SHORT_MAX); index++)
+	{
+		struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&global_scenario->hs_scripts, index, struct hs_script);
+		if (!strcmp(script->name, name) && script->return_type == _hs_type_void &&
+			(script->script_type == _hs_script_dormant || (reusable && script->script_type == _hs_script_continuous)))
+			return hs_wake_by_name(name);
+	}
+	return FALSE;
+}
+
 static boolean extraction_deploy(struct extraction_run *run, struct player_datum *player, boolean bring_stash)
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
 	short weapons_to_reserve, faction = extraction_faction((short)player->team_index);
+	short starting_squad = NONE;
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	run->discard_deadline = 0;
 	if (!extraction_open_gear(run, player) || !extraction_restore_squad(run, player) ||
@@ -1493,6 +1507,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	{
 		if (!extraction_squad_busy(run->squad, run))
 		{
+			starting_squad = run->squad;
 			if (!++extraction.squads[run->squad].operation) ++extraction.squads[run->squad].operation;
 			extraction.squads[run->squad].notified = FALSE;
 			extraction.squads[run->squad].banked = FALSE;
@@ -1508,6 +1523,17 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->dropship = NONE;
 	run->field_reached = FALSE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
+	if (!extraction.survival && starting_squad != NONE)
+	{
+		char script[32];
+
+		/* The new roster and cleared objective gate are visible to the
+		 * authored setup. Later members keep this operation's state. */
+		snprintf(script, sizeof(script), "forerunner_squad_%02d_begin", starting_squad + 1);
+		if (extraction_wake_mission_script(script, TRUE))
+			platform_log("extraction: squad %d operation %lu began; authored setup woken",
+				starting_squad + 1, extraction.squads[starting_squad].operation);
+	}
 	extraction_tell(run, !extraction.survival && !run->gear.record.reserved_count && !run->gear.record.reserved_grenades[0] && !run->gear.record.reserved_grenades[1] ?
 		"DEPLOYED | Stored gear stays safe. Native starters/carried gear and field loot must escape to be recovered. No raid timer." : extraction.survival ?
 		"SURVIVAL DEPLOYED | Gear is at risk. Recover through an available evacuation point or finite victory." :
@@ -2166,19 +2192,6 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 }
 
-static boolean extraction_wake_completion(char const *name, boolean reusable)
-{
-	short index;
-	for (index = 0; index < MIN(global_scenario->hs_scripts.count, SHORT_MAX); index++)
-	{
-		struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&global_scenario->hs_scripts, index, struct hs_script);
-		if (!strcmp(script->name, name) && script->return_type == _hs_type_void &&
-			(script->script_type == _hs_script_dormant || (reusable && script->script_type == _hs_script_continuous)))
-			return hs_wake_by_name(name);
-	}
-	return FALSE;
-}
-
 static boolean extraction_transport_crew_ready(short faction, long ship)
 {
 	short index, passengers = 0;
@@ -2340,10 +2353,10 @@ static void extraction_transport_completions(void)
 		extraction.dropship_completed[faction] = ship;
 		if (ship == extraction.dropship_banked[faction])
 		{
-			if (extraction_wake_completion(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
+			if (extraction_wake_mission_script(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
 				platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
 		}
-		else if (extraction_wake_completion(faction ? "forerunner_spirit_aborted" : "forerunner_pelican_aborted", TRUE))
+		else if (extraction_wake_mission_script(faction ? "forerunner_spirit_aborted" : "forerunner_pelican_aborted", TRUE))
 			platform_log("extraction: %s evacuation aborted; authored transport release woken", faction ? "Spirit" : "Pelican");
 	}
 }
@@ -2435,7 +2448,7 @@ void extraction_update(void)
 			snprintf(script, sizeof(script), "forerunner_squad_%02d_%s", index + 1, banked ? "complete" : "aborted");
 			platform_log("extraction: squad %d operation %lu settled; authored %s %s", index + 1,
 				extraction.squads[index].operation, banked ? "completion" : "abort",
-				extraction_wake_completion(script, TRUE) ? "woken" : "absent or unsupported");
+				extraction_wake_mission_script(script, TRUE) ? "woken" : "absent or unsupported");
 			snprintf(text, sizeof(text), "SQUAD %02d READY | %s Redeploy at the hub.", index + 1,
 				banked ? "Survivors banked." : "Operation lost.");
 			extraction_squad_notice(index, text);
@@ -2446,7 +2459,7 @@ void extraction_update(void)
 	if (!extraction.survival && !extraction.completion_notified && extraction_players_returned())
 	{
 		extraction.completion_notified = TRUE;
-		if (extraction_wake_completion("forerunner_extraction_complete", FALSE))
+		if (extraction_wake_mission_script("forerunner_extraction_complete", FALSE))
 			platform_log("extraction: all survivors banked; authored completion woken");
 	}
 }

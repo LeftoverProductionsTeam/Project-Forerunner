@@ -2075,6 +2075,19 @@ returned survivors for callbacks; exclude unissued hub members, lost/old runs,
 stale bodies, pending death and changed/unverified owners. Allocation failure
 refuses partial lists. A restored world cannot query.
 
+Forerunner advertises `extraction.squad_begin.v1` for optional native
+`forerunner_squad_01_begin` and the matching two-digit script names for
+other supported squads.
+Use a continuous void script that starts asleep and sleeps again between
+operations for repeatable
+setup. The first confirmed deployment of each squad operation wakes that
+script after the operation roster is visible and its previous objective
+gate has cleared. Further deployments into the current operation keep its
+state. Spark supplies the reset body for that squad's actors, objectives,
+terminals and transport. The established ready group still belongs to
+objective completion. Map-authored reset and Black Echo acceptance
+remain open.
+
 Optional native `extraction_squad_01_ready` groups (and corresponding numbers)
 admit extraction only at exactly 1. Each requires its squad terminal; duplicate
 groups and aliases to other squad-ready groups, known hub inputs or transport

@@ -213,6 +213,7 @@ static void print_spark_capabilities(void)
 	/* Optional native gameplay contract, not a live RPC or platform acceptance. */
 	server_json_array_begin(&json, "native_features");
 	server_json_string(&json, NULL, "extraction.squad_objectives.v1");
+	server_json_string(&json, NULL, "extraction.squad_begin.v1");
 	server_json_string(&json, NULL, "extraction.squad_notices.v1");
 	server_json_string(&json, NULL, "extraction.squad_radio.v1");
 	server_json_string(&json, NULL, "extraction.faction_landing_zones.v1");

@@ -96,7 +96,7 @@ def test_reference_client_requires_native_squad_features(runtime):
     assert "extraction.squad_radio.v1" in reply["native_features"]
 
 
-@pytest.mark.parametrize("feature", ["character.biped_hands.v1", "extraction.pelican_return_pad.v1"])
+@pytest.mark.parametrize("feature", ["character.biped_hands.v1", "extraction.pelican_return_pad.v1", "extraction.squad_begin.v1"])
 def test_reference_client_discovers_native_feature(runtime, feature):
     from spark_runtime import discover
 

@@ -153,7 +153,7 @@ def test_native_squad_radio(case):
 
 
 @pytest.mark.parametrize('case', [
-    'squad-loop', 'squad-independent', 'squad-pending', 'squad-loss', 'squad-restore', 'squad-return-roam',
+    'squad-loop', 'squad-operation-begin', 'squad-independent', 'squad-pending', 'squad-loss', 'squad-restore', 'squad-return-roam',
     'squad-bank-disconnect', 'squad-bank-escrow-disconnect', 'squad-bank-unsettled-disconnect',
     'squad-bank-escrow-unconfirmed', 'squad-wipe-independent',
     'squad-capacity', 'squad-state', 'squad-identity', 'squad-faction', 'squad-leave', 'squad-join-active',

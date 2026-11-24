@@ -133,8 +133,8 @@ static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes},
 static struct hs_script completion_script;
 static struct hs_script transport_scripts[3];
 static short completion_wakes, transport_wakes[2], transport_aborts[2];
-static struct hs_script squad_scripts[5];
-static short squad_wakes[2], squad_aborts[2];
+static struct hs_script squad_scripts[6];
+static short squad_wakes[2], squad_aborts[2], squad_begins[2];
 static boolean hs_wake_by_name(char const *name)
 {
  if(!strcmp(name,"forerunner_pelican_complete"))transport_wakes[0]++;
@@ -145,6 +145,8 @@ static boolean hs_wake_by_name(char const *name)
  else if(!strcmp(name,"forerunner_squad_02_complete"))squad_wakes[1]++;
  else if(!strcmp(name,"forerunner_squad_01_aborted"))squad_aborts[0]++;
  else if(!strcmp(name,"forerunner_squad_02_aborted"))squad_aborts[1]++;
+ else if(!strcmp(name,"forerunner_squad_01_begin"))squad_begins[0]++;
+ else if(!strcmp(name,"forerunner_squad_02_begin"))squad_begins[1]++;
  else {CHECK(!strcmp(name,"forerunner_extraction_complete"),"wrong mission continuation");completion_wakes++;}
  return TRUE;
 }
@@ -699,6 +701,13 @@ int main(int argc,char **argv)
    squad_scripts[4].script_type=_hs_script_dormant;squad_scripts[4].return_type=_hs_type_void;
    scenario.hs_scripts.count++;
   }
+  if(!strcmp(case_name,"squad-operation-begin")) {
+   for(i=0;i<2;i++) {
+    snprintf(squad_scripts[4+i].name,32,"forerunner_squad_%02d_begin",i+1);
+    squad_scripts[4+i].return_type=_hs_type_void;squad_scripts[4+i].script_type=_hs_script_continuous;
+   }
+   scenario.hs_scripts.count=6;
+  }
   if(!strcmp(case_name,"squad-duplicate"))strcpy(names[10].name,names[9].name);
   if(!strcmp(case_name,"squad-alias"))control_handles[6]=control_handles[5];
   if(!strcmp(case_name,"squad-missing"))control_handles[6]=NONE;
@@ -876,6 +885,25 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"squad-faction")) {
    players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
    touch(5,1);CHECK(run(1)->squad==NONE,"opposing factions joined one squad");touch(6,1);CHECK(run(1)->squad==1,"opposing independent squad refused");return 0;
+  }
+  if(!strcmp(case_name,"squad-operation-begin")) {
+   touch(5,1);CHECK(run(1)->squad==0,"existing squad selection failed");
+   fail_write=TRUE;touch(0,0);
+   CHECK(run(0)->phase==_extraction_hub&&!squad_begins[0],"failed reservation started mission setup");
+   fail_write=FALSE;advance(120);
+   touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&squad_begins[0]==1&&!squad_begins[1],
+    "first confirmed deployment did not wake its own setup");
+   touch(0,1);advance(1);
+   CHECK(run(1)->phase==_extraction_deployed&&squad_begins[0]==1,"another member restarted the active squad");
+   escape(0);escape(1);
+   CHECK(squad_wakes[0]==1&&!squad_wakes[1],"setup interfered with independent settlement");
+   touch(6,1);touch(0,1);
+   CHECK(run(1)->phase==_extraction_deployed&&squad_begins[1]==1,"independent squad could not begin");
+   touch(0,0);
+   CHECK(run(0)->squad_operation==2&&squad_begins[0]==2&&squad_begins[1]==1,
+    "redeployment did not rearm only the returning squad");
+   return 0;
   }
   if (!strcmp(case_name, "squad-join-active")) {
    touch(0, 0);
