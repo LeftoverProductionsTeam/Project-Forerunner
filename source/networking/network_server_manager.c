@@ -5119,6 +5119,9 @@ boolean network_game_server_change_map_name(
 		}
 		return FALSE;
 	}
+	/* port: keep the existing lobby and its protocol while an MCC package
+	waits for local admission. Ask about dropping players only once it can load. */
+	if (mcc_ui_network_defer_map(server, map_name)) return TRUE;
 	/* port: a lobby moving to or from an MCC map that would drop players
 	asks the host first (network_game_server_mcc_confirm); the map stays
 	until it answers yes */
@@ -5131,10 +5134,6 @@ boolean network_game_server_change_map_name(
 		}
 		return TRUE;
 	}
-	/* port: an MCC map's game at the MCC number (network_game_server_mcc_version) */
-	network_game_server_mcc_version(map_name);
-	/* port: MCC package work waits for local admission; legacy selections remain immediate. */
-	if (mcc_ui_network_defer_map(server, map_name)) return TRUE;
 
 	for (client_machine_index = 0;
 		client_machine_index < MAXIMUM_NETWORK_MACHINE_COUNT;
@@ -5171,6 +5170,8 @@ boolean network_game_server_change_map_name(
 		game_engine_override_map_name(server->game.map.name);
 	}
 
+	/* port: switch the protocol as the admitted map becomes visible. */
+	network_game_server_mcc_version(server->game.map.name);
 	if (!network_game_server_send_game_data_pregame(server))
 	{
 		network_event(

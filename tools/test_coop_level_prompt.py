@@ -1,5 +1,5 @@
 """A campaign level picked for co-op in a lobby whose move to or from an MCC
-map asks the host first (network_server_manager.c's
+map asks the host after admission (network_server_manager.c's
 network_game_server_port_change_cooperative_level, #1124): nothing changes
 until the host says yes. A no leaves the lobby on its map and gametype, with
 its difficulty; a yes moves it and makes it co-op. Without a question (no
@@ -73,17 +73,17 @@ static boolean mcc_ui_network_hold_cooperative(struct network_game_server *serve
 @STATE@
 static boolean network_game_server_mcc_confirm(struct network_game_server *server, char const *map_name);
 static void network_game_server_port_cooperative_apply(struct network_game_server *server, short difficulty);
-/* (the map change as the game's: asks, and keeps the map until yes) */
+/* The map stays until admission and the host's answer. */
 static boolean network_game_server_change_map_name(struct network_game_server *server, char const *map_name)
 {
-	if (network_game_server_mcc_confirm(server, map_name))
-	{
-		main_set_multiplayer_map_name(server->game.map.name);
-		return TRUE;
-	}
 	if (check_waits)
 	{
 		waiting = server;
+		return TRUE;
+	}
+	if (network_game_server_mcc_confirm(server, map_name))
+	{
+		main_set_multiplayer_map_name(server->game.map.name);
 		return TRUE;
 	}
 	snprintf(server->game.map.name, sizeof(server->game.map.name), "%s", map_name);
@@ -156,13 +156,18 @@ int main(void)
 	CHECK(network_game_server_port_change_cooperative_level(&the_server, "mcc_maps\\123\\a10", 2));
 	CHECK(!strcmp(the_server.game.map.name, "bloodgulch") && held == 2);
 	CHECK(cooperative_difficulty == NONE && variants == 0);
-	/* (and after the host's yes, the same) */
+	/* Even a map that needs confirmation waits for admission first. */
 	reset();
 	would_drop = 1;
 	check_waits = 1;
 	CHECK(network_game_server_port_change_cooperative_level(&the_server, "mcc_maps\\123\\a10", 3));
+	CHECK(!asked && held == 3 && cooperative_difficulty == NONE && variants == 0);
+	check_waits = 0;
+	waiting = NULL;
+	CHECK(network_game_server_port_change_cooperative_level(&the_server, "mcc_maps\\123\\a10", held));
+	CHECK(asks == 1 && asked && !strcmp(the_server.game.map.name, "bloodgulch"));
 	asked(TRUE);
-	CHECK(held == 3 && cooperative_difficulty == NONE && variants == 0);
+	CHECK(!strcmp(the_server.game.map.name, "mcc_maps\\123\\a10") && cooperative_difficulty == 3 && variants == 1);
 	/* a bad difficulty or no server: refused */
 	reset();
 	CHECK(!network_game_server_port_change_cooperative_level(&the_server, "mcc_maps\\123\\a10", NUMBER_OF_GAME_DIFFICULTY_LEVELS));

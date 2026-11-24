@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, constant, function, mutated, read, run  # noqa: E402
 
 CASES = ['middle-skipped', 'last-missing-holds', 'none-installed', 'host-keeps-its-map', 'playlist-none-playable',
-         'playlist-playable']
+         'playlist-playable', 'mcc-map-admission-before-protocol']
 CONTROLS = {
     # the old behavior: the host sets a game on any map it is given
     'host-sets-missing-map': ('if (!cache_files_map_installed(map_name))\n\t{',
@@ -26,8 +26,8 @@ CONTROLS = {
     'list-wraps': ('for (entry = network_test.map_entry - 1; entry >= 0; entry--)',
                    'for (entry = 0; entry < 0; entry++)', 'last-missing-holds'),
     # the refusal not told to the caller
-    'refusal-hidden': ('\t\treturn FALSE;\n\t}\n\t/* port: a lobby moving to or from an MCC map',
-                       '\t\treturn TRUE;\n\t}\n\t/* port: a lobby moving to or from an MCC map', 'host-keeps-its-map'),
+    'refusal-hidden': ('\t\treturn FALSE;\n\t}\n\t/* port: keep the existing lobby and its protocol',
+                       '\t\treturn TRUE;\n\t}\n\t/* port: keep the existing lobby and its protocol', 'host-keeps-its-map'),
     # a dedicated server starting a playlist with nothing to play
     'playlist-started-anyway': ('\tdedicated.none_playable = TRUE;\n\treturn FALSE;\n}',
                                 '\tdedicated.none_playable = TRUE;\n\treturn TRUE;\n}', 'playlist-none-playable'),

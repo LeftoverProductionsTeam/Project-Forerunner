@@ -30,6 +30,8 @@ struct network_game_server
 /* the maps this machine has */
 static const char *installed[8];
 static int skips_logged, refusals_logged, sends;
+static int map_protocol_changes, map_confirmations;
+static boolean mcc_admission_pending, mcc_confirmation_pending;
 static unsigned long now_milliseconds = 1000;
 static char host_map[128];
 
@@ -83,12 +85,25 @@ static boolean map_playable_here(const char *map, char *reason, long size)
 	return FALSE;
 }
 
-/* (MCC maps' games at 43, the host's question before a lobby switch, and
-MCC package work waiting for local admission: not this test's,
-network_server_manager.c's own) */
-#define network_game_server_mcc_version(map_name) ((void)(map_name))
-#define network_game_server_mcc_confirm(server, map_name) ((void)(server), (void)(map_name), FALSE)
-#define mcc_ui_network_defer_map(server, map_name) ((void)(server), (void)(map_name), FALSE)
+/* Observe the existing admission and confirmation gates from map selection. */
+static void network_game_server_mcc_version(const char *map_name)
+{
+	(void)map_name;
+	map_protocol_changes++;
+}
+static boolean network_game_server_mcc_confirm(struct network_game_server *server, const char *map_name)
+{
+	(void)server;
+	(void)map_name;
+	map_confirmations++;
+	return mcc_confirmation_pending;
+}
+static boolean mcc_ui_network_defer_map(struct network_game_server *server, const char *map_name)
+{
+	(void)server;
+	(void)map_name;
+	return mcc_admission_pending;
+}
 
 #include "under_test.inc"
 
@@ -169,6 +184,32 @@ int main(int argc, char **argv)
 			"an installed map was told refused");
 		CHECK(!strcmp(server.game.map.name, "levels\\test\\hangemhigh\\hangemhigh"), "an installed map was refused");
 		CHECK(sends == 1, "the installed map wasn't sent");
+		return 0;
+	}
+	CASE("mcc-map-admission-before-protocol")
+	{
+		static struct network_game_server server;
+		const char *original = "levels\\test\\bloodgulch\\bloodgulch";
+		const char *next = "mcc_maps\\fixture\\arena";
+
+		installed[2] = next;
+		strcpy(server.game.map.name, original);
+		mcc_admission_pending = TRUE;
+		CHECK(network_game_server_change_map_name(&server, next), "the package check was not deferred");
+		CHECK(map_protocol_changes == 0, "the protocol changed while package admission was pending");
+		CHECK(map_confirmations == 0 && !sends && !strcmp(server.game.map.name, original),
+			"the pending map prompted, advertised or replaced the existing lobby");
+
+		mcc_admission_pending = FALSE;
+		mcc_confirmation_pending = TRUE;
+		CHECK(network_game_server_change_map_name(&server, next), "confirmation was not deferred");
+		CHECK(map_confirmations == 1 && !map_protocol_changes && !sends,
+			"the admitted map changed the protocol or settings before the host answered");
+
+		mcc_confirmation_pending = FALSE;
+		CHECK(network_game_server_change_map_name(&server, next), "confirmed MCC map was refused");
+		CHECK(map_protocol_changes == 1 && sends == 1 && !strcmp(server.game.map.name, next),
+			"the confirmed map did not replace the lobby and publish the protocol together");
 		return 0;
 	}
 	CASE("playlist-none-playable")

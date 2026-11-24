@@ -38,7 +38,20 @@ typedef int boolean;
 #define NONE (-1)
 enum { _network_game_server_state_pregame = 1, _network_game_server_state_ingame };
 struct network_game { struct { char name[64]; long version; } map; };
-struct network_game_server { int state; int sent_start_game_message; struct network_game game; };
+#define MAXIMUM_NETWORK_MACHINE_COUNT 1
+struct network_game_server_client_machine { short machine_index; };
+struct network_game_server {
+    int state, sent_start_game_message;
+    struct network_game game;
+    struct network_game_server_client_machine client_machines[MAXIMUM_NETWORK_MACHINE_COUNT];
+    struct { int active, paused; unsigned long timer; } countdown_state;
+};
+static int network_game_server_client_machine_is_joined_to_game(struct network_game_server *server,
+    struct network_game_server_client_machine *machine) { (void)server; (void)machine; return 0; }
+static int mcc_share_game_machine_active(short index) { (void)index; return 0; }
+static int map_share_machine_needs_map(short index) { (void)index; return 0; }
+static unsigned long countdown_timer_get_time_remaining(unsigned long *timer) { return *timer; }
+static void countdown_timer_set_time_remaining(unsigned long *timer, unsigned long value) { *timer = value; }
 static struct network_game_server the_server, *current;
 static struct network_game_server *global_network_game_server_get(void) { return current; }
 static void *global_network_game_client_get(void) { return NULL; }
