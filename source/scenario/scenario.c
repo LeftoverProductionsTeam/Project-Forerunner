@@ -427,7 +427,7 @@ struct structure_bsp const *scenario_structure_bsp_try_and_get(
 		return NULL;
 	if (structure_bsp_index == global_structure_bsp_index)
 		return global_structure_bsp;
-	if (!scenario_uses_regional_gameplay(scenario))
+	if (!mcc_cache_tags_loaded())
 		return NULL;
 
 	reference = TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
@@ -1184,7 +1184,7 @@ boolean scenario_switch_structure_bsp(
 
 			preparation = scenario_structure_bsp_prepare(active, reference, &prepared);
 			if (preparation == _scenario_bsp_prepare_ready &&
-				!players_coop_can_activate_structure_bsp(structure_bsp_index, prepared.structure))
+				!players_coop_can_activate_structure_bsp(global_structure_bsp_index, structure_bsp_index, prepared.structure))
 			{
 				/* Keep validated geometry while players approach the seam.
 				 * The candidate has never been bound to the native tag table. */
@@ -1221,12 +1221,24 @@ boolean scenario_switch_structure_bsp(
 		{
 			loaded = scenario_structure_bsp_load(reference);
 		}
-		if (loaded && preparation != _scenario_bsp_prepare_ready &&
-			!structure_bsp_port_verify(structure_bsp_definition_get(reference->structure_bsp.index)))
+		if (loaded && preparation != _scenario_bsp_prepare_ready)
 		{
-			error(_error_silent, "structure bsp #%d has more than the game can hold", structure_bsp_index);
-			scenario_structure_bsp_unload(reference);
-			loaded = FALSE;
+			struct structure_bsp const *structure = structure_bsp_definition_get(reference->structure_bsp.index);
+
+			if (!structure_bsp_port_verify(structure))
+			{
+				error(_error_silent, "structure bsp #%d has more than the game can hold", structure_bsp_index);
+				loaded = FALSE;
+			}
+			else if (had_old_structure_bsp && mcc_cache_tags_loaded() &&
+				!players_coop_can_activate_structure_bsp(old_structure_bsp_index, structure_bsp_index, structure))
+			{
+				/* Restore the source through the native load failure path. */
+				players_cancel_bsp_switch_gather();
+				loaded = FALSE;
+			}
+			if (!loaded)
+				scenario_structure_bsp_unload(reference);
 		}
 		/* port: a bsp refused (by its checks: cache_files.c) after the old
 		one was let go of leaves the game with none, where the old one's

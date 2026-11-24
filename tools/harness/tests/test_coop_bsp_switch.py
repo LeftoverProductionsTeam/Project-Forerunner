@@ -40,6 +40,7 @@ def generated(fault=None):
                     'mcc_cache_bsp_unload')) + '\n' +
          enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +
          structure(cache_header, 'scenario_bsp_prepared') + '\n' +
+         function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
          '\n'.join(function(cache, name) for name in ('scenario_structure_bsp_reference_is_valid',
              'scenario_structure_bsp_prepare', 'scenario_structure_bsp_activate_prepared',
              'cache_files_unbind_mcc_bsp', 'scenario_structure_bsp_retain'))),
@@ -71,7 +72,6 @@ def generated(fault=None):
         ('regional_equipment.inc', function(read('source/game/game_engine.c'), 'game_engine_update_item_spawn')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +
-         function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
          '\n'.join(function(read('source/game/game_engine.c'), name)
             for name in ('find_netgame_flags_in_structure', 'find_netgame_flags', 'game_engine_find_teleporter'))),
         ('players.inc', '\n'.join(function(players, name) for name in (
@@ -106,6 +106,7 @@ def generated(fault=None):
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
+    'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',

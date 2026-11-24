@@ -416,6 +416,7 @@ boolean player_position_switches_bsp(
 	real_point3d const *position);
 struct structure_bsp;
 boolean players_coop_can_activate_structure_bsp(
+	short source,
 	short destination,
 	struct structure_bsp const *structure);
 boolean players_coop_vehicle_passenger_crossing_bsp(

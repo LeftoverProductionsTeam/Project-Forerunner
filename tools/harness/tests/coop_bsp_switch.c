@@ -24,6 +24,7 @@
 #include <limits.h>
 #define SHORT_MAX SHRT_MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define VALID_INDEX(index, count) (index>=0 && index<count)
 enum {_game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
@@ -198,6 +199,7 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
 static long prepared_crossing_leaf;
+static boolean cold_crossing;
 static boolean test_region_lookup,test_region_overlap;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
@@ -207,8 +209,13 @@ static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d c
         boolean shared=test_region_overlap&&point->x>=199&&point->x<=201;
         return point->z >= 0 && (shared || (point->x < 200)==(global_structure_bsp_index==0)) ? 0 : NONE;
     }
-    CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_structure_bsp_index==0&&
-          global_collision_bsp==&collisions[0]&&!disconnects,"destination test replaced active collision");
+    CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_collision_bsp==&collisions[0],
+          "destination check used the wrong collision tree");
+    if (cold_crossing)
+        CHECK(global_structure_bsp_index==NONE&&disconnects==reconnects+1,
+              "cold validation happened after publishing the destination");
+    else
+        CHECK(global_structure_bsp_index==0&&!disconnects,"destination test replaced active collision");
     return point->x < 200 ? prepared_crossing_leaf : NONE;
 }
 #include "region_location.inc"
@@ -646,7 +653,8 @@ static void setup(short old,short destination)
 int main(int argc,char **argv)
 {
     char const *name=argc>1?argv[1]:"";
-    boolean relocated=!strcmp(name,"mcc-prepare-relocated");
+    boolean extra_below=!strcmp(name,"mcc-prepare-space-below");
+    boolean relocated=!strcmp(name,"mcc-prepare-relocated")||extra_below;
     short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
@@ -780,7 +788,8 @@ int main(int argc,char **argv)
     }
     if (!strncmp(name, "mcc-prepare-",12))
     {
-        boolean overlap=!strcmp(name,"mcc-prepare-overlap");
+        boolean extra_above=!strcmp(name,"mcc-prepare-space-above");
+        boolean overlap=!strcmp(name,"mcc-prepare-overlap")||!strcmp(name,"mcc-prepare-cold-crossing");
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
@@ -793,7 +802,8 @@ int main(int argc,char **argv)
         mcc_loaded_cache.report.bsp_count=scenario.structure_bsp_references.count=3;
         mcc_loaded_cache.report.bsps=regions;
         mcc_loaded_cache.report.tag_base=(uint32_t)(uintptr_t)mcc_regions[0].header;
-        mcc_loaded_cache.capacity=sizeof(mcc_regions);
+        cold_crossing=!strcmp(name,"mcc-prepare-cold-crossing");
+        mcc_loaded_cache.capacity=overlap?2*sizeof(mcc_regions[0]):sizeof(mcc_regions);
         for (short i=0;i<3;i++)
         {
             mcc_regions[i].structure=structures[i<2?i:0];
@@ -802,9 +812,14 @@ int main(int argc,char **argv)
                 .address=(uint32_t)(uintptr_t)mcc_regions[i].header,
                 .structure_address=(uint32_t)(uintptr_t)&mcc_regions[i].structure
             };
-            if ((overlap||relocated)&&i==destination)
+            if ((overlap||relocated||extra_above)&&i==destination)
             {
-                regions[i].address=(uint32_t)(uintptr_t)mcc_regions[old].header+4;
+                regions[i].address=(uint32_t)(uintptr_t)mcc_regions[old].header+(extra_above?0:4);
+                regions[i].structure_address=regions[i].address+24;
+            }
+            if (extra_below&&i==2)
+            {
+                regions[i].address=(uint32_t)(uintptr_t)mcc_regions[0].header;
                 regions[i].structure_address=regions[i].address+24;
             }
             references[i].structure_bsp.index=i;
@@ -823,6 +838,37 @@ int main(int argc,char **argv)
         test_tag_instances[old].base_address=global_structure_bsp;
         reject_load[destination]=refused;
         reject_verify[destination]=limits;
+        if (cold_crossing)
+        {
+            long passenger=objects[0].object.parent_object_index;
+            parallel_routes=TRUE;
+            switches[0].cutscene_flag_index=NONE;
+            mcc_regions[destination].structure.clusters.count=4;
+            objects[0].object.position.x=260;
+            objects[2].object.bounding_sphere_center.x=250;
+            objects[2].object.position.x=190;
+            prepared_crossing_leaf=1;
+
+            CHECK(!scenario_switch_structure_bsp(destination),"cold crossing accepted an invalid leaf");
+            CHECK(global_structure_bsp_index==old&&global_collision_bsp==&collisions[old]&&
+                  disconnects==1&&reconnects==1&&loads[destination]==1&&loads[old]==1&&
+                  unloads[destination]==1&&!teleports&&!ejections&&!menu&&
+                  objects[0].object.parent_object_index==passenger&&
+                  players_globals->pending_teleport_starting_location_index==NONE,
+                  "cold rollback failed to restore the source and passenger");
+
+            prepared_crossing_leaf=0;
+            players_globals->pending_teleport_starting_location_index=0;
+            /* The cache boundary stub needs the reloaded source's resident address. */
+            mcc_region_live[old]=TRUE;
+            mcc_loaded_cache.bsp_addresses[old]=regions[old].address;
+            CHECK(scenario_switch_structure_bsp(destination),"a valid cold crossing was refused");
+            CHECK(global_structure_bsp_index==destination&&global_collision_bsp==&collisions[destination]&&
+                  disconnects==2&&reconnects==2&&!mcc_prepared_loads&&
+                  objects[0].object.parent_object_index==passenger&&clock_starts==2&&collision_log,
+                  "cold retry did not preserve the occupied crossing root");
+            return 0;
+        }
         if (crossing)
         {
             parallel_routes=TRUE;
@@ -876,7 +922,7 @@ int main(int argc,char **argv)
                       !test_tag_instances[old].base_address&&mcc_retained_bsp==&regions[old]&&
                       mcc_region_live[old]&&mcc_region_live[destination],
                       "the inactive BSP lost its geometry or remained published");
-                if (relocated)
+                if (relocated||extra_above)
                     CHECK(mcc_loaded_cache.bsp_addresses[destination]==(uint32_t)(uintptr_t)mcc_regions[destination].header&&
                           mcc_loaded_cache.bsp_addresses[destination]!=regions[destination].address,
                           "an overlapping BSP did not use the free slot");
@@ -886,7 +932,6 @@ int main(int argc,char **argv)
                         {.centroid={10.f,0,0},.collision_surface_index=7},
                         {.centroid={20.f,0,0},.collision_surface_index=8}
                     };
-                    scenario.type=_scenario_type_multiplayer;
                     mcc_regions[old].structure.breakable_surfaces=(struct tag_block){1,&panes[old]};
                     mcc_regions[destination].structure.breakable_surfaces=(struct tag_block){1,&panes[destination]};
                     CHECK(scenario_structure_bsp_try_and_get(old)==&mcc_regions[old].structure&&
@@ -909,11 +954,11 @@ int main(int argc,char **argv)
                           "late join refresh lost a BSP frame or used the wrong geometry");
                     host_send_broken_surfaces();
                     CHECK(surface_events==4,"a dropped fracture update could not be resent");
-                    scenario.type=0;
+                    mcc_loaded=FALSE;
                     host_send_broken_surfaces();
                     CHECK(surface_events==5&&sent_surfaces[4].frame==destination,
-                          "legacy scenario sent off-BSP fracture state");
-                    scenario.type=_scenario_type_multiplayer;
+                          "legacy cache sent off-BSP fracture state");
+                    mcc_loaded=TRUE;
                     CHECK(scenario_switch_structure_bsp(2)&&!scenario_structure_bsp_try_and_get(old),
                           "an evicted region still exposed geometry");
                     return 0;

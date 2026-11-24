@@ -3053,6 +3053,21 @@ buffers and validation claims. The cache identity and references remain
 unchanged. When there is insufficient space or optional relocation fails,
 the original cold switch is available. CE609 keeps its existing loader.
 
+The MCC13 loader can now use free space on either side of the active and
+destination-linked windows. It still reserves the converted static tags
+and rejects overlap with live geometry. A cold markerless MCC13 co-op
+switch tests the crossing roots against the loaded destination before
+publishing it. If a root misses, native rollback reloads the source
+and cancels destination gathering. The occupied vehicle stays attached.
+Windows x64 compiled. The 69 BSP and four geometry checks covered both
+relocation directions, full arenas and cold rollback/retry. On executable
+`5374d94e06bf5b844e84280cb3ed54a2a7664c47c86f22afbe1b08bf884bb5ad`,
+two private peers joined the existing synthetic MCC13 two-BSP fixture
+`154074ed26aee9938095d59a65ee9e6657fd9a21a419295055e47a84fa9be43e`.
+The host loaded BSP 1 at tick 45. Both peers exited normally. That native
+test exercised the loader. Cold physical crossing is covered by the focused
+harness and still needs a playable authored route.
+
 Windows x64 executable
 `66691caaf73c98c54ccef1d530c73b2a86cb732da860106bd0f72b823cd44783`
 passed 244 focused switch, conversion and validation checks with one
@@ -3111,10 +3126,13 @@ The revised gate passed the BSP harness with five flags, including reused
 regional channels, and kept global pairing in the CE, single-BSP MCC and
 campaign cases. The BSP and vehicle harnesses passed 162 checks. The Windows
 x64 discovery check reported 4,096 for MCC13 without writing files. Spark
-revision `65c8a18` identifies CE609 `bb51e066` and MCC13 `edab6309` as retired
-lit diagnostics. The playable Chiron handoff still needs the original 42
-equipment placements and the missing all-powerups collection with its
-dependencies, plus retained matching native maps for separate crossing checks.
+now records a complete Chiron pickup import in the retired collision
+probes CE609 `f87759f9` and MCC13 `bcea054d`. Readback found all 42 donor
+equipment placements, the all-powerups collection, and unique collision
+membership for the MCC13 endpoints. The next handoff is a retained lit
+playable map with that data. Competitive multiplayer still needs host-side
+BSP routing and acknowledgments. The existing authoritative switch messages
+are enabled for campaign co-op.
 
 #### Region-bound encounters
 
@@ -3130,9 +3148,10 @@ That legacy smoke and the focused harness leave authored MCC13 AI combat and
 simultaneous squad occupancy open. Host physics, AI updates and general world
 snapshots still follow one active BSP.
 
-Forerunner can query the active and retained MCC13 multiplayer geometry by
-scenario BSP index without activating the neighbor. Co-op glass refresh
-uses that lookup and the native per-BSP fracture tables. The existing
+Forerunner can query the active and retained MCC13 geometry by scenario
+BSP index without activating the neighbor. Retained lookup is enabled for
+MCC13 campaign co-op, where glass refresh uses the native per-BSP fracture
+tables. The existing
 surface event carries the BSP index. A fracture in a retained region changes
 only its collision state and produces effects only in the active region.
 Refreshes continue to send both resident regions' fracture state to peers

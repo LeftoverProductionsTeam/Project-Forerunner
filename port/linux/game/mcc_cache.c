@@ -600,7 +600,9 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
 {
     struct mcc_cache_bsp const *from = mcc_cache_bsp_reference(active);
     struct mcc_cache_bsp const *to = mcc_cache_bsp_reference(destination);
-    uint32_t current, limit, start;
+    uint32_t current;
+    uint64_t lower, upper, start;
+    uint64_t tag_base = mcc_loaded_cache.report.tag_base;
     if (!from || !to || from == to || !(current = mcc_cache_bsp_resident_address(from)))
         return 0;
     if (to == mcc_retained_bsp)
@@ -609,13 +611,20 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
         (uint64_t)to->address + to->size <= current)
         return to->address;
 
-    /* Use space above the converted static tags and below all linked BSPs.
-     * A parked neighbor can be evicted before this slot is reused. */
-    limit = mcc_runtime_linked_bsp_limit(&mcc_loaded_cache);
-    if (to->size > limit) return 0;
-    start = (limit - to->size) & ~15u;
-    if (start < mcc_loaded_cache.used) return 0;
-    return mcc_loaded_cache.report.tag_base + start;
+    /* The active and destination-linked windows overlap. Try either side
+     * of their union. Unloaded linked windows hold no geometry, and the
+     * loader can evict the retained neighbor before conversion. */
+    lower = MIN((uint64_t)current, (uint64_t)to->address);
+    upper = MAX((uint64_t)current + from->size, (uint64_t)to->address + to->size);
+    if (to->size <= lower) {
+        start = (lower - to->size) & ~(uint64_t)15;
+        if (start >= tag_base + mcc_loaded_cache.used)
+            return (unsigned long)start;
+    }
+    start = (upper + 15) & ~(uint64_t)15;
+    if (start <= UINT32_MAX && start + to->size <= tag_base + mcc_loaded_cache.capacity)
+        return (unsigned long)start;
+    return 0;
 }
 
 static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)

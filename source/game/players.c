@@ -3740,7 +3740,7 @@ static boolean player_bsp_continuous_route_contains(
 }
 
 static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_continuous_bsp_switch(
-	void)
+	short source)
 {
 	short pending_index = players_globals->pending_teleport_starting_location_index;
 	struct scenario *scenario;
@@ -3752,18 +3752,19 @@ static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_con
 	if (pending_index >= scenario->bsp_switch_trigger_volumes.count)
 		return NULL;
 	volume = TAG_BLOCK_GET_ELEMENT(&scenario->bsp_switch_trigger_volumes, pending_index, struct scenario_bsp_switch_trigger_volume);
-	if (volume->source_structure_bsp_index != global_structure_bsp_index || volume->cutscene_flag_index != NONE)
+	if (volume->source_structure_bsp_index != source || volume->cutscene_flag_index != NONE)
 		return NULL;
 	return volume;
 }
 
-/* Test actual crossing roots against the prepared destination before native
- * reconnect changes the scene. Off-route players retain the legacy gather. */
+/* Validate crossing roots against the destination before reconnect.
+ * The source index also identifies the seam after a cold load. */
 boolean players_coop_can_activate_structure_bsp(
+	short source,
 	short destination,
 	struct structure_bsp const *structure)
 {
-	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch();
+	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch(source);
 	struct data_iterator iterator;
 	struct player_datum *player;
 	boolean crossing = FALSE;
@@ -3797,7 +3798,8 @@ boolean players_coop_can_activate_structure_bsp(
 boolean players_coop_vehicle_passenger_crossing_bsp(
 	long unit_index)
 {
-	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch();
+	struct scenario_bsp_switch_trigger_volume const *volume =
+		players_coop_pending_continuous_bsp_switch(global_structure_bsp_index);
 	struct unit_datum const *unit;
 	long vehicle_index;
 	struct data_iterator iterator;
