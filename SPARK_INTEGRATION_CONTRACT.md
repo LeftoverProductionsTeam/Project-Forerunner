@@ -1970,6 +1970,16 @@ save root held one profile and one gear record, and deployment waited
 for squad selection. The run reached tick 1095 and exited zero. Escrow
 recovery was exercised in the harness. Original hashes held and all
 staging was removed.
+The same pinned Windows executable and CE609 squad fixture verified physical
+solo deployment and recovery with a fresh native profile. Walking and Use
+selected squad 1 at device 9 and deployed at device 3. The live stash was
+FRNG v1, generation 2, deployed. The player walked to the field device,
+activated at tick 2910, and waited until extraction was ready at tick 3210.
+Walking back into the authored return volume banked one weapon and two
+frag grenades. The stash checksum matched, generation 4 was idle, and the
+authored squad completion woke once. The process exited zero at the test
+time limit while the player walked back toward Deploy. Same-ID redeployment
+was not observed in this run. Originals held and disposable staging was removed.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
 not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version
