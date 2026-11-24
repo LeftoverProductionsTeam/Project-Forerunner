@@ -1543,7 +1543,11 @@ int main(int argc,char **argv)
    units[faction].object.parent_object_index=NONE;
    recorded_aircraft=NONE;
    CHECK(unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"deployed player could not board at its dedicated pad");
-   units[faction].object.parent_object_index=transport;units[faction].unit.parent_seat_index=0;advance(1);
+   units[faction].object.parent_object_index=transport;units[faction].unit.parent_seat_index=0;
+   units[faction].unit.animation.state=_unit_state_entering_seat;advance(1);
+   CHECK(!device_groups[10].actual_value&&device_groups[11].actual_value==1.f,
+    "aircraft released insertion before its passenger finished entering the seat");
+   units[faction].unit.animation.state=_unit_state_idle;advance(1);
    CHECK(device_groups[10].actual_value==1.f,"physical passenger did not release aircraft insertion at its dedicated pad");
    CHECK(device_groups[11].actual_value==1.f,"ready aircraft did not publish landing");
    extraction_transport_recording_started(dropship_handles[!faction]);
@@ -1564,8 +1568,13 @@ int main(int argc,char **argv)
    units[faction].object.position.x=ship->object.position.x=20.f;
    pickup(faction,2);touch(1,faction);advance(300);
    CHECK(unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"aircraft field pickup stopped working");
-   units[faction].object.parent_object_index=transport;advance(1);
-   CHECK(run(faction)->dropship==transport,"aircraft field boarding did not attach to the operation");
+   units[faction].object.parent_object_index=transport;
+   units[faction].unit.animation.state=_unit_state_entering_seat;advance(1);
+   CHECK(run(faction)->dropship==NONE&&!device_groups[10].actual_value,
+    "aircraft acquired an evacuation receipt before its passenger finished boarding");
+   units[faction].unit.animation.state=_unit_state_idle;advance(1);
+   CHECK(run(faction)->dropship==transport&&device_groups[10].actual_value==1.f,
+    "aircraft field boarding did not attach to the operation");
    ship->object.position.x=0.f;advance(1);
    CHECK(run(faction)->phase==_extraction_ready&&!transport_wakes[faction],"aircraft banked at the shared hub outside its dedicated pad");
    CHECK(!extraction_transport_brake_at_pad(transport),"aircraft braked outside its dedicated pad");
@@ -1903,6 +1912,11 @@ int main(int argc,char **argv)
    units[0].object.parent_object_index=NONE;dropships[0].object.position.x=20;
   }
   units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;
+  if(!strcmp(case_name,"transport-loop")) {
+   units[0].unit.animation.state=_unit_state_entering_seat;advance(1);
+   CHECK(run(0)->dropship==craft,"legacy seat-triggered route lost its evacuation receipt");
+   units[0].unit.animation.state=_unit_state_idle;
+  }
   if(!strcmp(case_name,"transport-landed-loop"))
    CHECK(extraction_transport_can_board(unit_handles[0],craft,0),"landing-only map refused native boarding after touchdown");
   if(!strcmp(case_name,"transport-pilot-receipt"))transport_seats[0].flags=FLAG(_unit_seat_driver_bit);
@@ -1973,7 +1987,12 @@ int main(int argc,char **argv)
      CHECK(device_groups[10].actual_value==(same?0.f:1.f),"unboarded squad activation controlled another squad's departure");
      advance(300);
      CHECK(device_groups[10].actual_value==(same?0.f:1.f),"another ready field squad blocked the boarded crew");
-     units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
+     units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;
+     extraction_transport_seat_transition_started(&units[1]);
+     CHECK(!device_groups[10].actual_value,"late boarder left prior crew readiness visible to HaloScript");
+     units[1].unit.animation.state=_unit_state_entering_seat;advance(1);
+     CHECK(!device_groups[10].actual_value&&run(1)->dropship==NONE,"late boarder was counted before entering the seat");
+     units[1].unit.animation.state=_unit_state_idle;advance(1);
      CHECK(device_groups[10].actual_value==1.f,"actual joint boarding failed to admit both participating squads");
      if(!strcmp(case_name,"transport-boarded-squad-stale")) {
       run(1)->squad_operation++;advance(1);

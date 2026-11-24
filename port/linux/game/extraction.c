@@ -1854,7 +1854,7 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 	return TRUE;
 }
 
-void extraction_transport_seat_exit_started(struct unit_datum const *passenger)
+void extraction_transport_seat_transition_started(struct unit_datum const *passenger)
 {
 	short faction, group;
 	if (passenger->unit.player_index == NONE || !extraction.bound || !extraction.admitted ||
@@ -1862,8 +1862,8 @@ void extraction_transport_seat_exit_started(struct unit_datum const *passenger)
 	faction = extraction_faction(passenger->object.owner_team_index);
 	if (faction == NONE) return;
 	group = extraction.dropship_boarding_groups[faction];
-	/* Native exit animations leave the passenger attached until their final
-	 * frame. HaloScript can read the signal before the next Extraction update. */
+	/* Seat attachment can change before HaloScript reads readiness again.
+	 * Clear it until Extraction checks the completed crew on its next update. */
 	if (group != NONE && extraction_player_dropship(passenger) != NONE && device_group_get_value(group) != 0.f)
 		device_group_set_actual_value(group, 0.f);
 }
@@ -1947,7 +1947,9 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (extraction_medical_incapacitated(run->unit) ||
 			!extraction_transport_at_field(faction, dropship) ||
-			(extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(dropship))) return FALSE;
+			(extraction.dropship_landing_groups[faction] != NONE && !extraction_transport_landed(dropship)) ||
+			(extraction.dropship_boarding_groups[faction] != NONE &&
+				unit->unit.animation.state == _unit_state_entering_seat)) return FALSE;
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
 		extraction.dropship_evacuating[faction] = dropship;
@@ -2145,6 +2147,7 @@ static boolean extraction_transport_crew_ready(short faction, long ship)
 			run->unit != player->unit_index || unit->unit.player_index != run->player ||
 			!run->gear.opened || run->gear.pending || run->gear.record.phase != _gear_deployed ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
+			unit->unit.animation.state == _unit_state_entering_seat ||
 			unit->unit.animation.state == _unit_state_exiting_seat ||
 			extraction_medical_incapacitated(player->unit_index)) return FALSE;
 		if (run->squad == NONE) legacy_crew = TRUE;

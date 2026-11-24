@@ -73,6 +73,12 @@ use `recording_play_and_hover` for an authored clip ending with real ground
 contact and wait for the faction's landed output. Release hover with
 `vehicle_hover` before the next clip and preserve the native seat, cinematic,
 pad and settlement gates. An airborne hover still cannot bank.
+On transports using an authored crew-ready group, successful native seat
+entry clears the group immediately. Readiness and a new evacuation receipt
+wait for the entry animation to finish. Maps without the crew-ready group
+retain their existing evacuation receipt timing. Windows x64 compiled and
+89 focused checks passed. The isolated E-key Pelican insertion observation
+and exact hashes are in the existing transport comparison record.
 When playback possesses a plane, native seat power and wake inputs take
 priority over an attached suspended AI pilot's parking logic. Suspension
 governs parking again when playback releases the plane. Windows x64 passed

@@ -3327,6 +3327,7 @@ boolean unit_enter_seat(
 			}
 		}
 
+		extraction_transport_seat_transition_started(unit);
 		ai_handle_enter_vehicle(unit_index, target_unit_index);
 		unit_unzoom(unit_index);
 		result = TRUE;
@@ -5157,7 +5158,7 @@ boolean unit_try_and_exit_seat(
 						animation_index);
 					object_set_visibility(unit_index, TRUE);
 					unit->unit.animation.state = _unit_state_exiting_seat;
-					extraction_transport_seat_exit_started(unit);
+					extraction_transport_seat_transition_started(unit);
 					ai_handle_exit_vehicle(
 						unit_index,
 						unit->object.parent_object_index);
