@@ -178,6 +178,16 @@ second process deployed a fresh profile and left the recovered bank
 byte-identical. Linux reissue and item-ID continuity remain open. The
 next run needs the intact private save root across both processes.
 Receipt: `build/native-linux64-black-echo-571f-banked-profile-recovery.json`.
+A bounded WSL2 x64 check also admitted the isolated Spirit cache
+`bc2b80b52d519e166c318bd1d8c24a585c1b94a7965222a3fb10524ddc2b5f25`
+on the same Linux build used for the split-export bank
+(`0ea3bb127700dccb6d05c25d03c67d0c6ef4484f1f4b54e850a649fc69aef08c`).
+With copied CE resource banks and a fresh native profile, normal input
+selected Covenant at the live control and pressed E at Deploy. The
+Covenant player started the run and held plasma pistol tag 243 at the hub.
+This scoped run stopped at hub deployment. Physical Spirit evacuation,
+banking and restart reissue on Linux remain open.
+
 Reliable pad touchdown and two-authenticated-human acceptance remain open.
 
 The compiled shared `extraction_return` covers x 36 to 76, y -119 to -81,
@@ -1647,10 +1657,15 @@ The rebuilt executable above also verified the original Evolved pickup
 on the same audio-prefix map. The guest held E from tick 630, before
 the existing staging helper moved the guest into reach. Both peers
 observed authored object 127 held by the same guest body 224 at tick 720
-and again through tick 1590. No loadout grant was used. The follow-up
-fire input did not show a new carrier, so firing and rollover after
-ground pickup remain open. Both processes exited zero and pinned inputs
-held.
+and again through tick 1590. No loadout grant was used. A follow-up used
+the same executable and map. Both peers showed zero rounds in weapon
+tag 0x534 from the first held sample at tick 720, before the bound fire
+key was sent at tick 750. The recovered tag has one initial reserve round,
+a one-round magazine and a native trigger that toggles and sticks when
+dropped. Its projectile reference names the Evolved carrier vehicle.
+This explains the spent pickup and preserves the authored automatic
+carrier behavior. A fresh held shot is covered separately above. Both
+processes exited zero, protected hashes held and staging was removed.
 
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture
