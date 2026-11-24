@@ -1555,6 +1555,16 @@ int main(int argc,char **argv)
    strcpy(authored_groups[10].name,"extraction_pelican_boarded");
    strcpy(authored_groups[11].name,"extraction_spirit_boarded");
    device_groups[10].actual_value=device_groups[11].actual_value=1.f;
+   if(!strncmp(case_name,"transport-boarded-squad-call",28)) {
+    scenario.object_names.count=11;
+    for(a=5;a<9;a++)names[a].name[0]=0;
+    for(a=0;a<2;a++) {
+     snprintf(names[9+a].name,32,"extraction_squad_%02d",(int)a+1);
+     controls[5+a].object.name_index=9+a;
+     controls[5+a].device.position_group_index=6+a;
+     controls[5+a].device.power_group_index=3;
+    }
+   }
    if(!strcmp(case_name,"transport-boarded-duplicate"))strcpy(authored_groups[11].name,authored_groups[10].name);
    if(!strcmp(case_name,"transport-boarded-capacity"))device_group_table.maximum_count=10;
    if(!strcmp(case_name,"transport-boarded-missing"))scenario.object_names.count=3;
@@ -1954,6 +1964,39 @@ int main(int argc,char **argv)
   if(!strncmp(case_name,"transport-boarded",17)) {
    CHECK(!device_groups[10].actual_value&&!device_groups[11].actual_value,"authored stale boarding outputs survived binding");
    for(a=0;a<2;a++)players[a].team_index=units[a].object.owner_team_index=_game_team_player;
+   if(!strncmp(case_name,"transport-boarded-squad-call",28)) {
+    boolean other_squad=!strcmp(case_name,"transport-boarded-squad-call-isolated");
+    boolean leaves=!strcmp(case_name,"transport-boarded-squad-call-leaves");
+    long guest_loot;
+    touch(5,0);touch(other_squad?6:5,1);
+    touch(0,0);touch(0,1);
+    CHECK(run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,"both squad operations must deploy");
+    loot=pickup(0,1);guest_loot=pickup(1,2);
+    units[0].object.position.x=units[1].object.position.x=dropships[0].object.position.x=20.f;
+    touch(1,0);
+    CHECK(run(0)->phase==_extraction_activating&&control_updates[1]==1,"one native call did not start");
+    CHECK(run(1)->phase==(other_squad?_extraction_deployed:_extraction_activating),"call missed its own squadmate or reached another operation");
+    if(leaves)units[1].object.position.x=0.f;
+    advance(300);
+    CHECK(run(0)->phase==_extraction_ready,"caller did not complete the countdown");
+    CHECK(run(1)->phase==(other_squad||leaves?_extraction_deployed:_extraction_ready),"teammate's zone countdown was not independent");
+    if(other_squad||leaves) {
+     CHECK(run(1)->gear.record.phase==_gear_deployed&&weapon_try_and_get(guest_loot),"excluded squadmate lost native gear");
+     extraction_reset();return 0;
+    }
+    CHECK(extraction_transport_can_board(unit_handles[0],craft,0)&&extraction_transport_can_board(unit_handles[1],craft,1),
+     "single request did not make both teammates eligible to board");
+    units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);
+    CHECK(!device_groups[10].actual_value,"unboarded squadmate permitted departure");
+    units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
+    CHECK(device_groups[10].actual_value==1.f,"boarded crew could not depart");
+    dropships[0].object.position.x=0.f;advance(1);
+    CHECK(run(0)->phase==_extraction_returned&&run(1)->phase==_extraction_returned,
+     "both passengers did not physically return and bank");
+    CHECK(!weapon_try_and_get(loot)&&!weapon_try_and_get(guest_loot)&&run(0)->gear.record.count==1&&run(1)->gear.record.count==1,
+     "shared request did not settle each player's own gear exactly once");
+    extraction_reset();return 0;
+   }
    if(!strcmp(case_name,"transport-boarded-hub")) {
     dropships[0].object.position.x=0;touch(0,0);touch(0,1);
     units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=0;advance(1);

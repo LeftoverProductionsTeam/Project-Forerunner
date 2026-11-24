@@ -1616,6 +1616,51 @@ static void extraction_discard_choice(struct extraction_run *run, long unit_inde
 	extraction_tell(run, text);
 }
 
+static boolean extraction_begin_activation(struct extraction_run *run, struct player_datum const *player)
+{
+	byte owner[GEAR_ID_BYTES];
+
+	if (run->phase != _extraction_deployed || player->quit_out_of_game || player->unit_index != run->unit ||
+		player->local_player_index != run->local_player || !run->gear.opened || run->gear.pending ||
+		run->gear.record.phase != _gear_deployed || extraction_resolve_owner(player, run->player, owner) ||
+		memcmp(owner, run->owner, GEAR_ID_BYTES)) return FALSE;
+
+	run->field_reached = TRUE;
+	run->phase = _extraction_activating;
+	run->activation_ticks = 10 * TICKS_PER_SECOND;
+	extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
+	return TRUE;
+}
+
+static void extraction_begin_squad_activation(struct extraction_run const *caller, short faction, short zone)
+{
+	short index, squad = caller->squad;
+
+	if (extraction.survival || !VALID_INDEX(faction, NUMBEROF(extraction.dropship_names)) ||
+		extraction.dropship_names[faction] == NONE || extraction.dropship_boarding_groups[faction] == NONE ||
+		!VALID_INDEX(squad, NUMBEROF(extraction.squads)) || extraction.squads[squad].name == NONE ||
+		!caller->squad_operation || caller->squad_operation != extraction.squads[squad].operation) return;
+
+	for (index = 0; index < NUMBEROF(extraction_runs); index++)
+	{
+		struct extraction_run *member = &extraction_runs[index];
+		struct player_datum const *player;
+		struct unit_datum const *unit;
+
+		if (member->phase != _extraction_deployed || member->squad != squad ||
+			member->squad_operation != caller->squad_operation) continue;
+		player = player_try_and_get(member->player);
+		if (!player || extraction_faction((short)player->team_index) != faction) continue;
+		unit = (struct unit_datum const *)object_try_and_get_and_verify_type(member->unit, _object_mask_biped);
+		if (!unit || unit->unit.player_index != member->player || unit->object.parent_object_index != NONE ||
+			extraction_faction(unit->object.owner_team_index) != faction ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
+			extraction_medical_incapacitated(member->unit) ||
+			!scenario_trigger_volume_test_object(zone, member->unit)) continue;
+		extraction_begin_activation(member, player);
+	}
+}
+
 boolean extraction_control_touched(long control_index, long unit_index)
 {
 	struct object_datum *control;
@@ -1805,9 +1850,8 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	}
 	if (run->phase == _extraction_deployed && run->unit == unit_index)
 	{
-		run->field_reached = TRUE;
-		run->phase = _extraction_activating; run->activation_ticks = 10 * TICKS_PER_SECOND;
-		extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
+		if (!extraction_begin_activation(run, player)) return TRUE;
+		extraction_begin_squad_activation(run, faction, zone);
 		return FALSE;
 	}
 	if (run->phase == _extraction_ready && run->unit == unit_index &&

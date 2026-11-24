@@ -2103,6 +2103,18 @@ not full Black Echo or scoped presentation acceptance. Spark next: require this
 feature through existing discovery and emit these declarations/groups through
 its existing mission HSC path for independent squad objectives.
 
+On maps with a managed aircraft crew signal, one authorized call starts
+the ten-second activation for eligible deployed squadmates on foot in the
+same faction landing zone and current operation. Each countdown cancels
+independently on leaving the zone. Each player still needs a valid native
+passenger seat and a durable bank in their own stash. Other operations and
+unmanaged maps retain their individual calls.
+The focused harness covered one call through two separate banks, another
+squad in the same zone, and a squadmate leaving during the countdown.
+Windows x64 compiled and the existing `fn_sqops@ce` fixture admitted the
+managed hub through tick 330 in a private native smoke. Live two-account
+activation and flight on the final Spark mission remain open.
+
 17 November connected native reference:
 `tools/fixtures/extraction_transport_objectives_native.hsc` composes with the
 existing `extraction_transport_native.hsc` controller; its companion HMT contains

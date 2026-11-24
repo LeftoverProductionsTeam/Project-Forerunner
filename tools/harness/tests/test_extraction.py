@@ -282,7 +282,8 @@ def test_native_squad_negative_control(before, after, case):
     'transport-boarded-forced-exit',
     'transport-boarded-squad-field', 'transport-boarded-squad-hub',
     'transport-boarded-squad-wait', 'transport-boarded-squad-mixed',
-    'transport-boarded-squad-stale',
+    'transport-boarded-squad-stale', 'transport-boarded-squad-call',
+    'transport-boarded-squad-call-isolated', 'transport-boarded-squad-call-leaves',
 ])
 def test_native_transport_settlement(case):
     status, output = run(build('extraction', generated()), case)
