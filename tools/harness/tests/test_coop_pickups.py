@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, ROOT, build, mutated, read, run
+from harness import CHECK_FAILED, ROOT, build, function, mutated, read, run
 
-CASES = ['counts', 'eligibility', 'health-kits', 'floor-and-walls', 'occupied-and-full', 'checkpoint-and-bsp', 'copies']
+CASES = ['counts', 'eligibility', 'health-kits', 'floor-and-walls', 'occupied-and-full', 'checkpoint-and-bsp', 'copies', 'contended-swap', 'missing-swap']
 
 
 def generated(fault=None):
@@ -16,7 +16,8 @@ def generated(fault=None):
                     read('port/linux/game/coop_pickups.c'), flags=re.M)
     if fault:
         source = mutated(source, *fault)
-    return (('under_test.inc', source),)
+    swap = function(read('source/game/players.c'), 'player_handle_weapon_swap')
+    return (('under_test.inc', source), ('weapon_swap.inc', swap))
 
 
 @pytest.mark.parametrize('case', CASES)

@@ -1623,10 +1623,34 @@ Evolved spawner, object 128, stayed at (40.51, -78.99, 0.95).
 After camera-based staging with the camera settled, the guest observed the
 host's weapon-swap target 128 at ticks 333 and 336. The test issued E but
 neither peer observed an inventory transfer or a shot from that weapon.
-This leaves original pickup open at the transition from the brief native
+The follow-up placed the host at (40.419, -79.079, 0.999). The target
+appeared only at ticks 330 to 336, before camera control was restored at
+tick 344. Holding E from tick 387 while standing and then crouched never
+produced another target or a transfer.
+That probe stopped at the transition from the brief native
 swap prompt to actual ownership. The held-start Evolved firing result
 above remains valid. Both peers exited zero, hashes held, and staging
 was removed.
+
+The host now checks that a proposed weapon still exists on the ground
+before dropping the player's held weapon. Focused cases reproduced a
+second player losing its weapon after a shared pickup was claimed, and
+a player losing its weapon after the target was removed. Both now pass,
+with 15 focused pickup checks in all. In a private Windows x64 Blood
+Gulch Slayer session, ordinary E transferred the rocket launcher object
+77 to the same guest body 53 on both peers at ticks 540 and 541.
+Executable SHA-256 `9298630f9265f3dfb0bc6aaaf5c39946c64a2483876468af470acc8320f936fe`.
+Stock map SHA-256 `50fe52406f075d975e24100a65b26ff696458023dd3509878953052ab0ef858f`.
+Both processes exited zero, pinned hashes held, and staging was removed.
+
+The rebuilt executable above also verified the original Evolved pickup
+on the same audio-prefix map. The guest held E from tick 630, before
+the existing staging helper moved the guest into reach. Both peers
+observed authored object 127 held by the same guest body 224 at tick 720
+and again through tick 1590. No loadout grant was used. The follow-up
+fire input did not show a new carrier, so firing and rollover after
+ground pickup remain open. Both processes exited zero and pinned inputs
+held.
 
 The initial egress-fix executable also passed native seat exit in solo
 and loopback co-op. A disposable CE609 copy of the existing Spirit fixture

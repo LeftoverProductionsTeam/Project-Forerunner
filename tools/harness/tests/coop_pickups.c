@@ -108,6 +108,46 @@ static void *object_iterator_next(struct object_iterator *i){return ++i->index<u
 
 #include "under_test.inc"
 
+enum { _player_action_result_swap_for_weapon = 6, _player_action_result_add_weapon_to_inventory };
+enum { _network_pickup_weapon };
+struct player_datum { long unit_index, action_object_index; short local_player_index, action_result; };
+struct unit_datum { long held; };
+#define weapon_datum test_object
+static struct player_datum swap_players[2];
+static struct unit_datum swap_units[2];
+static struct player_datum *player_get(long index) { return &swap_players[index]; }
+static boolean players_decide_pickups(void) { return TRUE; }
+static struct test_object *weapon_try_and_get(long index)
+{
+ struct test_object *object = item_try_and_get(index);
+ return object && object->object.type == _object_type_weapon ? object : NULL;
+}
+static boolean unit_drop_current_weapon(long unit, boolean immediate)
+{
+ (void)immediate;
+ if (swap_units[unit].held == NONE) return FALSE;
+ swap_units[unit].held = NONE;
+ return TRUE;
+}
+static boolean unit_drop_selected_weapon(long unit) { return unit_drop_current_weapon(unit, TRUE); }
+static boolean unit_add_weapon_to_inventory(long unit, long index, boolean ready)
+{
+ struct test_object *weapon = weapon_try_and_get(index);
+ (void)ready;
+ if (!weapon || weapon->object.parent_object_index != NONE ||
+     !TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit))
+  return FALSE;
+ weapon->object.parent_object_index = unit;
+ weapon->object.flags &= ~FLAG(_object_connected_to_map_bit);
+ swap_units[unit].held = index;
+ return TRUE;
+}
+static void hud_picked_up_weapon(short local, long definition) { (void)local; (void)definition; }
+static void player_network_picked_up(struct player_datum *player, long index, int type, long definition, int count)
+{ (void)player; (void)index; (void)type; (void)definition; (void)count; }
+static void player_control_unzoom(long unit) { (void)unit; }
+#include "weapon_swap.inc"
+
 static void setup(short type)
 {
  memset(objects,0,sizeof(objects));memset(&game,0,sizeof(game));
@@ -123,7 +163,21 @@ int main(int argc,char **argv)
 {
  const char *case_name=argc>1?argv[1]:"";
  setup(_object_type_weapon);
- CASE("counts") {
+ CASE("contended-swap") {
+  swap_players[0] = (struct player_datum){0, 0, 0, _player_action_result_swap_for_weapon};
+  swap_players[1] = (struct player_datum){1, 0, NONE, _player_action_result_swap_for_weapon};
+  swap_units[0].held = 15;
+  swap_units[1].held = 16;
+  CHECK(player_handle_weapon_swap(0), "first player could not swap");
+  player_handle_weapon_swap(1);
+  CHECK(swap_units[0].held == 0 && objects[0].object.parent_object_index == 0, "pickup changed owners");
+  CHECK(swap_units[1].held == 16, "second player dropped its weapon after the pickup was claimed");
+ } else CASE("missing-swap") {
+  swap_players[0] = (struct player_datum){0, 2, 0, _player_action_result_swap_for_weapon};
+  swap_units[0].held = 15;
+  player_handle_weapon_swap(0);
+  CHECK(swap_units[0].held == 15, "a deleted target caused a drop");
+ } else CASE("counts") {
   for(int p=1;p<=128;p++)for(int pct=25;pct<=200;pct+=25){
    long sum=0;for(int n=1;n<=2000;n++){
     short extra=pickups_extra_count(n,p,pct,0);sum+=extra;

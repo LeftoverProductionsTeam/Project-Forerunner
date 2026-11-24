@@ -4245,15 +4245,23 @@ static boolean player_handle_weapon_swap(
 	long player_index)
 {
 	struct player_datum *player;
-	struct unit_datum *unit;
 	struct weapon_datum *weapon;
 	boolean result;
 
 	player = player_get(player_index);
-	unit = unit_get(player->unit_index);
 	result = FALSE;
-	if (!players_decide_pickups())
-		return result;
+	if (!players_decide_pickups() ||
+		(player->action_result != _player_action_result_swap_for_weapon &&
+		 player->action_result != _player_action_result_add_weapon_to_inventory))
+		return FALSE;
+
+	/* port: another player can claim the proposed weapon before this
+	 * control is processed. Keep the held weapon if the target left the world. */
+	weapon = weapon_try_and_get(player->action_object_index);
+	if (!weapon || weapon->object.parent_object_index != NONE ||
+		!TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit))
+		return FALSE;
+
 	switch (player->action_result)
 	{
 	case _player_action_result_swap_for_weapon:
