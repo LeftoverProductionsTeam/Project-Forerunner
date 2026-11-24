@@ -521,26 +521,39 @@ boolean mcc_cache_read(long tag, long offset, long bytes, void *out)
     return result ? TRUE : FALSE;
 }
 
+static struct mcc_cache_bsp const *mcc_cache_bsp_reference(
+    struct scenario_structure_bsp_reference const *reference)
+{
+    uint32_t i;
+    if (!mcc_loaded || !reference) return NULL;
+    for (i = 0; i < mcc_loaded_cache.report.bsp_count; ++i) {
+        struct mcc_cache_bsp const *bsp = &mcc_loaded_cache.report.bsps[i];
+        if (bsp->tag_handle != (uint32_t)reference->structure_bsp.index) continue;
+        if (bsp->address == reference->base_address &&
+            bsp->file_offset == (uint32_t)reference->file_offset && bsp->size == (uint32_t)reference->file_size)
+            return bsp;
+        break;
+    }
+    return NULL;
+}
+
+boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference const *reference)
+{
+    return mcc_cache_bsp_reference(reference) != NULL;
+}
+
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     void **header, void **structure)
 {
-    uint32_t i;
-    for (i = 0; mcc_loaded && i < mcc_loaded_cache.report.bsp_count; ++i) {
-        struct mcc_cache_bsp const *bsp = &mcc_loaded_cache.report.bsps[i];
-        if (bsp->tag_handle != (uint32_t)reference->structure_bsp.index) continue;
-        if (bsp->address != reference->base_address ||
-            bsp->file_offset != (uint32_t)reference->file_offset || bsp->size != (uint32_t)reference->file_size)
-            return FALSE;
-        if (!mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
-            bsp->size, xbox_pointer(reference->base_address), structure)) return FALSE;
-        *header = xbox_pointer(reference->base_address);
-        if (!mcc_bsp_validate(&mcc_loaded_cache, (long)bsp->tag_handle, *header, (long)bsp->size)) {
-            mcc_geometry_bsp_unload(&mcc_loaded_cache);
-            return FALSE;
-        }
-        return TRUE;
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    if (!bsp || !mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
+        bsp->size, xbox_pointer(bsp->address), structure)) return FALSE;
+    *header = xbox_pointer(bsp->address);
+    if (!mcc_bsp_validate(&mcc_loaded_cache, (long)bsp->tag_handle, *header, (long)bsp->size)) {
+        mcc_geometry_bsp_unload(&mcc_loaded_cache);
+        return FALSE;
     }
-    return FALSE;
+    return TRUE;
 }
 
 void mcc_cache_bsp_unload(void) { mcc_geometry_bsp_unload(&mcc_loaded_cache); }

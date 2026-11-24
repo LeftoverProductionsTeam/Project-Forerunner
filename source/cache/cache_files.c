@@ -2406,7 +2406,8 @@ boolean scenario_structure_bsp_reference_is_valid(
 	struct scenario_structure_bsp_reference const *reference)
 {
 	if (mcc_cache_tags_loaded())
-		return cache_file_structure_bsp_tag_valid(reference);
+		return cache_file_structure_bsp_tag_valid(reference) &&
+			mcc_cache_bsp_reference_checked(reference);
 #ifdef HALO_CUSTOM_EDITION
 	/* Only read CE references whose location was checked before tag conversion. */
 	if (cache_file_is_ce)

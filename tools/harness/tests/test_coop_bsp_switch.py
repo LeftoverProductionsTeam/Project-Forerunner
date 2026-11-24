@@ -22,7 +22,12 @@ def generated(fault=None):
         read('source/objects/objects.c'), 'objects_disconnect_from_structure_bsp')
     if fault == 'activation':
         objects = mutated(objects, '\t\tobject_pvs_clear();', '\t\t;')
+    mcc_cache = read('port/linux/game/mcc_cache.c')
     return (
+        ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
+         '\n'.join(function(mcc_cache, name) for name in
+                   ('mcc_cache_bsp_reference', 'mcc_cache_bsp_reference_checked')) + '\n' +
+         function(read('source/cache/cache_files.c'), 'scenario_structure_bsp_reference_is_valid')),
         ('objects.inc', objects),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
@@ -37,7 +42,8 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'reference-refused', 'load-refused', 'verify-refused', 'split-refused', 'reverse-refused',
+    'host-superseded', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-unrelated',

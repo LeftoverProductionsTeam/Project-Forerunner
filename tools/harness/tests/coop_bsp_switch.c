@@ -3,6 +3,7 @@
    this is not native map traversal or a multiplayer session. */
 #include "harness.h"
 #include <limits.h>
+#include <stdint.h>
 
 #undef match_assert
 #define match_assert(f,l,c) CHECK(c,"engine assertion")
@@ -24,7 +25,11 @@ static void *element(struct tag_block *block,long index,size_t size)
 #define TAG_BLOCK_GET_ELEMENT(b,i,t) ((t *)element(b,i,sizeof(t)))
 #include "switch_type.inc"
 struct scenario_cutscene_flag {real_point3d position;};
-struct scenario_structure_bsp_reference {struct {long index;} structure_bsp;};
+struct scenario_structure_bsp_reference {
+    struct {long index;} structure_bsp;
+    uint32_t base_address;
+    long file_offset,file_size;
+};
 struct scenario {struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references;};
 struct collision_bsp {int placeholder;};
 struct bsp3d {int placeholder;};
@@ -154,14 +159,21 @@ static void object_type_disconnect_from_structure_bsp(long index) {}
 #pragma clang diagnostic pop
 static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;objects_disconnect_from_structure_bsp();}
 static void scenario_call_reconnect_to_structure_bsp_procs(void) {reconnects++;players_reconnect_to_structure_bsp();}
-static boolean scenario_structure_bsp_reference_is_valid(struct scenario_structure_bsp_reference const *ref)
+static boolean mcc_loaded;
+struct mcc_cache_bsp;
+static struct {struct {uint32_t bsp_count;struct mcc_cache_bsp const *bsps;} report;} mcc_loaded_cache;
+static boolean mcc_cache_tags_loaded(void) {return mcc_loaded;}
+#define TAG_CACHE_SIZE 1
+static struct {struct {long tag_data_size;} header;} cache_file_globals;
+static boolean cache_file_structure_bsp_tag_valid(struct scenario_structure_bsp_reference const *ref)
 {return !reject_reference[ref->structure_bsp.index];}
+#define cache_file_structure_bsp_reference_verify cache_file_structure_bsp_tag_valid
+#include "mcc_bsp.inc"
 static boolean scenario_structure_bsp_load(struct scenario_structure_bsp_reference *ref)
 {loads[ref->structure_bsp.index]++;return !reject_reference[ref->structure_bsp.index] && !reject_load[ref->structure_bsp.index];}
 static void scenario_structure_bsp_unload(struct scenario_structure_bsp_reference *ref) {unloads[ref->structure_bsp.index]++;}
 static struct structure_bsp *structure_bsp_definition_get(long index) {return &structures[index];}
 static boolean structure_bsp_port_verify(struct structure_bsp *bsp) {return !reject_verify[bsp-structures];}
-static boolean mcc_cache_tags_loaded(void) {return FALSE;}
 static void main_goto_main_menu(void) {menu++;}
 static void structure_culling_load_settings(void) {culling++;}
 static void structure_culling_structure_bsp_loaded(void) {culling++;}
@@ -296,9 +308,29 @@ int main(int argc,char **argv)
         objects[1].object.bounding_sphere_center=objects[1].object.position;
     }
     memcpy(before,objects,sizeof(before));
-    if(!strcmp(name,"reference-refused"))
+    if(!strcmp(name,"reference-refused")||!strcmp(name,"mcc-reference-refused"))
     {
-        reject_reference[destination]=TRUE;
+        struct mcc_cache_bsp checked={.file_offset=4096,.size=1024,.address=0x40001000,.tag_handle=(uint32_t)destination};
+        if(!strcmp(name,"mcc-reference-refused"))
+        {
+            struct scenario_structure_bsp_reference *ref=&references[destination];
+            mcc_loaded=TRUE;
+            mcc_loaded_cache.report.bsp_count=1;
+            mcc_loaded_cache.report.bsps=&checked;
+            ref->file_offset=checked.file_offset;
+            ref->file_size=checked.size;
+            ref->base_address=checked.address;
+            CHECK(scenario_structure_bsp_reference_is_valid(ref),"matching MCC reference refused");
+            ref->base_address++;
+            CHECK(!mcc_cache_bsp_reference_checked(ref),"changed MCC address accepted");
+            ref->base_address--;
+            ref->file_size++;
+            CHECK(!mcc_cache_bsp_reference_checked(ref),"changed MCC size accepted");
+            ref->file_size--;
+            ref->file_offset++;
+        }
+        else
+            reject_reference[destination]=TRUE;
         object_globals->pvs_activation_type=_pvs_activation_cluster;
         object_globals->pvs_activation.cluster_index=2;
         CHECK(!scenario_switch_structure_bsp(destination),"invalid BSP reference was accepted");
