@@ -2093,6 +2093,25 @@ left both players at the opening coordinates. No physical crossing was run.
 The B40 hash is recorded above. The tested executable SHA-256 was
 `4fd0fa96437af30380c2a2f12e0487a7a947ac43e639533967969aaaf0d1db67`.
 
+An unmarked crossing now also rejects a stranded vehicle as a gather
+anchor when its passenger seat overlaps the destination. A focused
+regression first reproduced that bug, then passed along with 43 existing
+checks. Arrived riders keep their seats and gear while stranded players
+recover beside a valid destination root.
+
+On unchanged stock D40 (`7c6dccc9f928f4a44db992c4d6f5fa6191e9cfd331bb0d0b631540f0fc9bc796`),
+the native co-op skip vote admitted both players. Setup placed the host
+at authored flag `s2`. Physical input then walked x=-24.651 to -31.326
+and back to -24.726 at y≈21.4. BSP 1→0→1 switched on host ticks 204/372
+and guest ticks 207/378. Both peers retained the crossing player's body
+handle and weapon tags, and the host's ammo stayed unchanged. The guest
+observed zero rounds for the host's stowed secondary. Both processes
+exited normally and staged assets were disposed. Windows x64 executable
+SHA-256 `3f9c74bd55f89fe76b8adc2af2aced5b2df829551746b14762446cb50623c1a5`.
+This verifies one host walking through the stock passage with a connected
+guest. Warthog traversal, independent regions and Timberland–Sidewinder
+remain open.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

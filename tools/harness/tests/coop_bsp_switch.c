@@ -305,6 +305,8 @@ int main(int argc,char **argv)
             objects[0].object.parent_object_index=objects[1].object.parent_object_index=NONE;
         if(!strcmp(name,"connected-stranded"))
             objects[3].object.position.x=objects[3].object.bounding_sphere_center.x=250.f;
+        if (!strcmp(name, "connected-stranded-host"))
+            objects[2].object.position.x = objects[2].object.bounding_sphere_center.x = 250.f;
         if(!strcmp(name,"connected-offset-seats"))
         {
             objects[0].object.position.x=objects[0].object.bounding_sphere_center.x=250.f;
@@ -409,7 +411,17 @@ int main(int argc,char **argv)
                 CHECK(!teleports&&!ejections&&objects[1].object.parent_object_index==units[2],"shared passengers separated");
             else if(connected)
             {
-                if(!strcmp(name,"connected-stranded")||!strcmp(name,"connected-unrelated"))
+                if (!strcmp(name, "connected-stranded-host"))
+                {
+                    CHECK(ejections == 1 && teleports == 1 && objects[0].object.parent_object_index == NONE,
+                          "a stranded host seat displaced the safe remote gather anchor");
+                    CHECK(objects[0].object.position.x == before[3].object.position.x &&
+                          objects[0].weapon == before[0].weapon && objects[0].ammunition == before[0].ammunition,
+                          "stranded host did not recover beside the arrived vehicle with its gear");
+                    CHECK(!memcmp(&before[1], &objects[1], sizeof(objects[1])),
+                          "the arrived guest was unseated or moved");
+                }
+                else if(!strcmp(name,"connected-stranded")||!strcmp(name,"connected-unrelated"))
                     CHECK(teleports==1&&ejections==1&&objects[1].object.parent_object_index==NONE,
                           "player without a safe crossing bypassed native recovery");
                 else

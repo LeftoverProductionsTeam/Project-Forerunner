@@ -4065,6 +4065,8 @@ void players_reconnect_to_structure_bsp(
 				{
 					long crossed_root = continuous_crossing ? player_bsp_crossing_root(player_unit_index) : NONE;
 
+					if (continuous_crossing && crossed_root == NONE)
+						continue;
 					if (crossed_root != NONE && crossed_root != player_unit_index)
 					{
 						/* A seat can be beyond the seam while its vehicle
@@ -4121,13 +4123,17 @@ void players_reconnect_to_structure_bsp(
 			data_iterator_new(&iterator, player_data);
 			while ((player = data_iterator_next(&iterator)) != NULL && !found_player)
 			{
-				struct object_datum *unit = object_try_and_get(player->unit_index);
+				long anchor_index = player->unit_index;
+				struct object_datum *anchor;
 
-				if (unit && scenario_leaf_index_from_point(&unit->object.bounding_sphere_center) != NONE &&
+				if (continuous_crossing && anchor_index != NONE)
+					anchor_index = object_get_ultimate_parent(anchor_index);
+				anchor = object_try_and_get(anchor_index);
+				if (anchor && scenario_leaf_index_from_point(&anchor->object.bounding_sphere_center) != NONE &&
 					players_coop_bsp_switch_trigger(player->unit_index) == NONE)
 				{
 					source_unit_index = player->unit_index;
-					teleport_position = unit->object.position;
+					teleport_position = anchor->object.position;
 					found_player = TRUE;
 				}
 			}

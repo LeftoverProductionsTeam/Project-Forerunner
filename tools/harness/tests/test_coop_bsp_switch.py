@@ -46,7 +46,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
-    'connected-stranded', 'connected-unrelated',
+    'connected-stranded', 'connected-stranded-host', 'connected-unrelated',
     'no-pending', 'negative-pending', 'past-end-pending', 'crossing-root-trigger',
     'activation-cluster', 'activation-object', 'crowded-stranded', 'crowded-solid',
     'crowded-inside', 'crowded-operation', 'crowded-enemy', 'rescue-crowded', 'rescue-solid',
