@@ -1962,10 +1962,14 @@ operation. An older receipt or already-reported escape cannot change the
 current result. The 127 focused checks include deferred recovery, stale
 operations and duplicate completion. Windows x64 SHA-256
 `b84fab8268b13adfdf7425d36a06cb49041426b1dfb5101bb20bba96a490fdcb`
-loaded the same squad fixture in a private native run. Normal input
-reached the Deploy device and the saved-profile requirement. Escrow
-recovery was exercised in the harness. Original hashes held and staging
-was removed.
+loaded the same squad fixture in private native runs. Without a profile,
+the Deploy device reached the saved-profile requirement. A fresh run
+created a profile through the native menus, opened `fn_squads@ce` via
+`HALO_START_MAP`, and used the Deploy device at tick 120. The native
+save root held one profile and one gear record, and deployment waited
+for squad selection. The run reached tick 1095 and exited zero. Escrow
+recovery was exercised in the harness. Original hashes held and all
+staging was removed.
 The two-account native fixture proves separate selection, callbacks, banking and
 same-ID redeployment (`build/native-delta-squad-settlement/result.json`). It does
 not add alliances, scoped presentation or multiple aircraft per faction. Existing discovery version
