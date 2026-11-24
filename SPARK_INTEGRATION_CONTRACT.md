@@ -1548,12 +1548,19 @@ map SHA-256 was `a6e2ae628f96b666922d6429541068c3e117e8aa5031d00d187b3c853630be0
 and the Windows x64 executable SHA-256 was
 `6946f41bc97a86bff42079a9d4a9068ea5f3276105bf648d99f06a4ee4aca3dc`.
 
-The MCC spawner still references its original zombie container.vehicle.
-The native weapon path now uses projectile metadata, targeting and tracer
-logic only for projectiles. It continues to use object_new for the carrier.
-Automatic actor ejection and cooperative play still require a loadable map.
-Forerunner restores the learned host threshold in native grounded rollover
-ejection. Original weapon-driven carrier release still needs gameplay proof.
+A two-process native Windows test loaded the original Evolved spawner into
+Slayer's normal starting slot on a disposable copy of the audio diagnostic
+cache. Guest fire created carrier `e3600095`. Native grounded rollover
+released its three authored actors at host tick 71, and the guest observed
+the same three living handles on foot by tick 73. Both peers also saw the
+carrier, and both processes exited normally. The original cache was unchanged.
+The loadout probe SHA-256 was
+`f50dfbb76c6f99f73a89e8bc157a303beb68b2bf5936bb78cac2c3401da0b4d0`
+with executable SHA-256
+`6946f41bc97a86bff42079a9d4a9068ea5f3276105bf648d99f06a4ee4aca3dc`.
+The unchanged authoring handoff still needs the standard carrier graph and
+five repaired streams. The original spawner pickup, unattended waves,
+full survival round and Chupathingy acceptance remain open.
 
 Smallest intended end-to-end gate, still unimplemented/unverified:
 
