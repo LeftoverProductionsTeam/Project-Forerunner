@@ -36,15 +36,14 @@ def generated(fault=None):
             'player_in_bsp_switch_volume', 'player_bsp_crossing_root')) + '\n' + reconnect + '\n' + rescue),
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
-            ('main_switch_structure_bsp', 'main_structure_bsp_switch_pending', 'main_sync_structure_bsp',
-             'main_switch_to_structure_bsp_private')) +
+            ('main_switch_structure_bsp', 'main_sync_structure_bsp', 'main_switch_to_structure_bsp_private')) +
             '\n' + '\n'.join(function(read('port/linux/game/network_distributed.c'), name) for name in
                             ('distributed_handle_structure_bsp', 'distributed_handle_unit_states'))),
     )
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'host-snapshot-before-load', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

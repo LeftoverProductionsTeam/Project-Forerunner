@@ -895,6 +895,7 @@ static boolean distributed_handling_stream_message;
 message came (system_milliseconds) */
 static long distributed_host_time = NONE;
 static unsigned long distributed_host_time_received;
+static short distributed_host_structure_bsp_index = NONE;
 /* the host: each client's round trip, in ticks, and its jitter; the same
 in milliseconds (the latency meter's); and when the client was last heard
 from (system_milliseconds) */
@@ -4273,9 +4274,10 @@ static void distributed_handle_unit_states(
 {
 	short index;
 
-	/* A host switch and its player positions can arrive in the same network
-	 * pass. Use the next periodic snapshot after the main loop loads the BSP. */
-	if (main_structure_bsp_switch_pending() && network_coop_active())
+	/* The load is deferred and can fall back to the source BSP. Wait for
+	 * the host's BSP before applying its periodic player positions and seats. */
+	if (distributed_host_structure_bsp_index != NONE &&
+		distributed_host_structure_bsp_index != global_structure_bsp_index_get())
 		return;
 
 	for (index = 0; index < count; index++)
@@ -5445,6 +5447,7 @@ static void distributed_handle_structure_bsp(
 
 	if (network_coop_active() && index >= 0 && index < global_scenario_get()->structure_bsp_references.count)
 	{
+		distributed_host_structure_bsp_index = index;
 		main_sync_structure_bsp(index);
 	}
 }
@@ -5614,6 +5617,8 @@ static void distributed_reset_checkpoint_state(boolean reset_received_times)
 	distributed_game_state_time = NONE;
 	distributed_host_update_number = NONE;
 	distributed_sent_structure_bsp_index = NONE;
+	if (reset_received_times)
+		distributed_host_structure_bsp_index = NONE;
 	distributed_pickup_count = 0;
 	distributed_machines.valid = FALSE;
 	for (player_index = 0; player_index < MAXIMUM_TRACKED_PLAYERS; player_index++)
@@ -8308,6 +8313,8 @@ static void distributed_checkpoint_reset(
 	short type;
 	short player_index;
 
+	if (!keep_receive_times)
+		distributed_host_structure_bsp_index = NONE;
 	distributed_last_sent_time = NONE;
 	for (sender = 0; sender < MAXIMUM_SENDERS; sender++)
 	{

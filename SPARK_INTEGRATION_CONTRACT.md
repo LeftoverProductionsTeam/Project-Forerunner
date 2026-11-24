@@ -2372,6 +2372,15 @@ across the next seam. Both peers switched to BSP 0 at reported game tick 741,
 and the guest stayed on the floor near (-26.942, 21.399, 0). Both exited zero.
 Map and executable hashes held and disposable staging was removed.
 
+If a client load fails and rolls back to the source BSP, periodic player
+snapshots now stay gated until its loaded BSP matches the host again. The
+existing BSP and checkpoint harnesses passed all 46 checks, including failed
+load and retry. Native loopback on the same stock D40 cache with Windows x64
+SHA-256 `6f02d8a8fab2687b24a83da8ca79e06c516a54a0938701137a55c4afaeb3b5a5`
+crossed normally at host tick 426 and guest tick 429. The guest remained on
+the floor. Both exited zero, pinned hashes held and staging was removed.
+The forced load failure was covered by the harness.
+
 Development order remains two-region traversal, state preservation, bounded
 multi-region residency, all 19 regions, then timerless Extraction across the
 finished world. No gameplay acceptance exists for these new stages.

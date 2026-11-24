@@ -353,6 +353,7 @@ static int distributed_sends[2],distributed_host_states[2],distributed_host_acti
 static int distributed_sent_statistics[2],distributed_statistics_cursor,distributed_statistics_due;
 static long distributed_game_state_checksum,distributed_game_state_time,distributed_host_update_number;
 static long distributed_sent_structure_bsp_index,distributed_pickup_count;
+static short distributed_host_structure_bsp_index;
 static struct {boolean valid;} distributed_machines;
 static struct {long flags,unit_index,vehicle_index,seat_index;} distributed_sent_units[2];
 static long distributed_player_machines[2];
@@ -390,11 +391,13 @@ int main(void){
  received=distributed_received_times[HOST_SENDER][_distributed_message_inventories];
  sender=distributed_sender_times[HOST_SENDER];assert(received==100);
  provisional();
+ distributed_host_structure_bsp_index=1;
  send(NONE,_distributed_message_objects_synchronized,2,100,1,12);
  assert(!distributed_checkpoint_synchronized && provisional_inputs==3);
  send(NONE,_distributed_message_objects_synchronized,2,100,0,12);
  assert(distributed_checkpoint_synchronized && !provisional_inputs && !distributed_pickup_count);
  assert(distributed_last_sent_time==NONE && !distributed_machines.valid);
+ assert(distributed_host_structure_bsp_index==1);
  for(i=0;i<2;i++){
   assert(!distributed_predictions[i].valid && distributed_predictions[i].taken_host_time==NONE);
   assert(!distributed_host_states[i] && !distributed_accepted[i].valid && !distributed_sends[i]);
@@ -413,6 +416,7 @@ int main(void){
  assert(provisional_inputs==3 && distributed_own_positions[0][0].time==111);
  assert(distributed_batches[HOST_SENDER].size==17); /* Duplicate marker preserves current work. */
  distributed_reset_checkpoint_state(TRUE);
+ assert(distributed_host_structure_bsp_index==NONE);
  for(i=0;i<MAXIMUM_SENDERS;i++){
   assert(distributed_sender_times[i]==NONE);
   for(j=0;j<NUMBER_OF_DISTRIBUTED_MESSAGES;j++)assert(distributed_received_times[i][j]==NONE);

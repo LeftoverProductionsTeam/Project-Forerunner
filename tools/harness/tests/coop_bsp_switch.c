@@ -180,6 +180,8 @@ static void structure_culling_structure_bsp_loaded(void) {culling++;}
 #include "loader.inc"
 
 static struct {short switch_to_structure_bsp_index;} main_globals={NONE};
+static short distributed_host_structure_bsp_index = NONE;
+static short global_structure_bsp_index_get(void) {return global_structure_bsp_index;}
 struct distributed_structure_bsp {short structure_bsp_index,pad;};
 static boolean loading_hud;
 static void hud_load(boolean value) {loading_hud=value;}
@@ -294,6 +296,26 @@ int main(int argc,char **argv)
         CHECK(global_structure_bsp_index==destination,"client did not load the destination BSP");
         distributed_handle_unit_states(3,state,state+sizeof(state),1);
         CHECK(unit_snapshots_applied==2,"snapshot did not resume after loading the destination BSP");
+        return 0;
+    }
+    if(!strcmp(name,"host-snapshot-after-rollback"))
+    {
+        struct distributed_structure_bsp message = {destination, 0};
+        byte state[] = {0};
+        reject_load[destination] = TRUE;
+        distributed_handle_structure_bsp(&message);
+        main_switch_to_structure_bsp_private();
+        CHECK(global_structure_bsp_index == old && !loading_hud, "failed load did not restore the source BSP");
+
+        distributed_handle_unit_states(1, state, state + sizeof(state), 1);
+        CHECK(unit_snapshots_applied == 0, "rollback accepted a player snapshot from the destination BSP");
+
+        reject_load[destination] = FALSE;
+        distributed_handle_structure_bsp(&message);
+        main_switch_to_structure_bsp_private();
+        CHECK(global_structure_bsp_index == destination, "client did not retry the failed destination");
+        distributed_handle_unit_states(2, state, state + sizeof(state), 1);
+        CHECK(unit_snapshots_applied == 1, "snapshots did not resume after the destination loaded");
         return 0;
     }
     if(!strncmp(name,"rescue-",7))
