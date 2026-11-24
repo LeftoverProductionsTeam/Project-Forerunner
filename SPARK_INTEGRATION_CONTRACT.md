@@ -89,6 +89,13 @@ Receipt: `build/native-isolated-occupied-return-handoff.json`.
 Spark 25a2cdc can assign recorded legs for both factions. Black Echo still
 needs embedded Pelican and Spirit recordings and authenticated acceptance.
 
+The same exe also passed Covenant selection, insertion, terminal recall,
+physical Spirit evacuation, banking and normal hub exit on pinned be_spirit
+bc2b80b52d519e166c318bd1d8c24a585c1b94a7965222a3fb10524ddc2b5f25. A
+fresh process read the bank byte-for-byte and redeployed the same plasma
+pistol item ID through the hub controls. Both processes exited cleanly.
+Solo AI-route evidence: `build/native-isolated-spirit-redeploy-handoff.json`.
+
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.
