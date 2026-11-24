@@ -36,10 +36,21 @@ scan, which was responsible for both the cache and lightmap draw assertions.
 With the startup wait, an ordinary E-key deployment passed before and after
 a clean process restart on fresh Windows x64 and WSL2 x64 builds. Each pair
 reopened the same native profile and FRNG gear record in its private save root.
-The test began with an empty stash. Reissuing banked equipment after restart,
-the Linux mission loop and two-authenticated-player acceptance remain open.
-Receipts: `build/native-windows64-black-echo-restart-profile.json` and
+The initial restart checks began with an empty stash. Receipts:
+`build/native-windows64-black-echo-restart-profile.json` and
 `build/native-linux64-black-echo-restart-profile.json`.
+
+A separate Windows x64 solo run on the exact split export banked the rifle and
+technology after physical Pelican insertion, combat, collection, defense,
+recall and evacuation. The occupied return took roughly three minutes after
+boarding and had substantial drift. At tick 17490, the last recorded Pelican
+sample before the bank was (59.561, -81.212, 1.912), landed but still moving.
+After clean exit and fresh launch the idle, checksum-valid bank was
+byte-identical. E at the hub moved both weapon entries from stash to
+reservation (generation 4 to 6), and the technology was physically held
+again. The item-ID check compared a tuple with a list and did not run the
+ID comparison. Linux mission completion, route reliability, and two human
+players remain open. Receipt: `build/native-black-echo-571f-banked-restart.json`.
 
 The preceding aligned UNSC route export is
 `releases/black-echo-elite-unsc-hub-aligned-20261120/be_native.map`.
