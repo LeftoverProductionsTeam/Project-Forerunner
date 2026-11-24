@@ -2678,6 +2678,29 @@ the disposable staging was removed. The run covers native infantry and
 simultaneous player locations on one resident BSP. Wizard vehicle routes, AI,
 objectives and independent play across multiple active BSPs remain open.
 
+### Seven-region Wizard–Longest round trip and reverse hosting
+
+The exact Spark CE609 cache SHA-256
+`1d05ce00c146f6f7a7d7ba0cb0bbe714ba86eda792455ca9d04884f925f08705`
+ran on a Forerunner Windows x64 host SHA-256
+`374fdf0073a9ec65f43d2279c6606ade9bfd3e0929a923aefc4f3bb0dbee2c60`
+with Chupathingy guest `c16096a8` at private OpenCE 44. One debug placement
+staged the host inside the Wizard approach. Native keyboard and mouse
+input then took the host from (-98.565, -130.385, -12.437) to Longest
+(-171.694, -130.385, -12.437) at tick 1080 and back to Wizard
+(-95.857, -130.024, -12.437) at tick 2160. The guest moved 6.64 world
+units independently in Timberland. Across 33 outbound and 34 return
+samples the maximum peer position differences were 0.119 and 0.1231.
+Both runtimes exited zero, the map and binaries retained their hashes,
+and disposable data was removed.
+
+A separate private session reversed the host and guest using the same map
+and executables. Both players spawned and moved under native input, with
+maximum peer position difference 0.075 across five matched ticks per player.
+This verifies reverse hosting and movement in Timberland. The round trip
+verifies the Longest infantry route on one resident BSP. Vehicle traversal,
+regional AI and objectives, and simultaneous play across native BSPs remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.
