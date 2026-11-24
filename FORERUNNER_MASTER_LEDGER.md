@@ -10,8 +10,11 @@ Windows x64 recorded native ground/rest/landed at tick 5640, up.k 0.993.
 The exact route, bounds and receipt are in the Spark contract. A follow-up
 solo run on the aligned hash passed Marine rescue, facility combat, native
 technology pickup, defense, the field terminal, recalled landing and seat 4
-boarding. The loaded Pelican was still in hub rollout at the observation
-limit. Observe native rest, then verify banking, hub exit and redeployment.
+boarding. The longer repeat completed loaded evacuation and banked the
+rifle and technology in the verified native record. Circling extended the
+flight to roughly 224 seconds before banking. The first post-bank exit
+input left the player seated. Verify physical exit after the aircraft
+settles again, then same-session redeployment with the exact recovered gear.
 Separate engine fix: starting a native passenger exit
 clears crew readiness immediately and readiness stays low through the exit
 animation. The regression reproduced before the fix and all 88 focused

@@ -51,10 +51,24 @@ the countdown completed. The recalled Pelican landed at tick 10410 with
 up.k 0.957. The Spartan physically boarded seat 4 and departed by tick 10860.
 At the 135-second observation limit, the loaded Pelican was still rolling
 near the hub at (50.341, -104.634, 1.815), with ground 1, rest/landed 0,
-up.k 0.969 and motion 0.0444. No recovery was credited. Gear banking, hub
-disembarkation, redeployment and human multiplayer still need verification.
-Next observe the loaded hub rollout through a stop and settlement on this
-exact export. Compact receipt: `build/native-black-echo-40d2-mission-pickup.json`.
+up.k 0.969 and motion 0.0444. No recovery was credited in that run.
+Compact receipt: `build/native-black-echo-40d2-mission-pickup.json`.
+
+A longer solo Windows x64 run on the same cache and executable completed
+loaded return and native banking. The Spartan boarded at tick 10230. The
+pilot trace reached `hub_route` command 11, `go to (p6) and face (p3)`,
+and the aircraft circled the stop before settlement around tick 16950.
+The host reported stash 2/32 and two frag grenades. Independent readback of
+the actual checksum-verified gear file found version 1, idle phase, escaped
+outcome, generation 4, the assault rifle and the technology, and zero
+reserved or escrow items. The first E after banking did not disembark the
+player. By tick 17250 the aircraft reported native ground, rest and landed
+at (53.026, -100.860, 1.226), with zero motion and up.k 0.950. At shutdown
+the player was still seated. The next run must wait for the post-bank
+landing before trying exit, then verify terminal redeployment and exact
+item identities on the next reservation. The long loaded approach still
+needs improvement, and authenticated human multiplayer remains open.
+Compact receipt: `build/native-black-echo-40d2-mission-settlement.json`.
 
 Spark's isolated run at `4249988` on the preceding UNSC cache `7026f5fa`
 verified technology pickup, rifle selection, defense and field-terminal
