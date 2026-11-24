@@ -229,7 +229,7 @@ struct client_actor
 	boolean user_animation_interpolate;
 	byte user_animation_number;
 	byte played_user_animation_number;
-	boolean driven;
+	boolean driven, control_invalidated;
 };
 
 /* ---------- globals */
@@ -476,6 +476,7 @@ static boolean actor_state_apply(
 
 	/* the control, applied every tick until the next entry */
 	actor->received_time = now;
+	actor->control_invalidated = FALSE;
 	actor->control.animation_state = (char)state->animation_state;
 	actor->control.aiming_speed = (char)state->aiming_speed;
 	actor->control.control_flags = state->control_flags;
@@ -1003,6 +1004,25 @@ void network_actors_handle_states(
 		actor_state_apply(&states[index], now);
 }
 
+/* Drop held controls without changing object identity or replaying an
+ * already-played impulse when a persistent actor is seen again. */
+void network_actors_client_bsp_changed(void)
+{
+	short index;
+
+	for (index = 0; index < client_actor_count; index++)
+	{
+		struct client_actor *actor = &client_actors[index];
+		if (actor->driven && object_try_and_get_and_verify_type(actor->unit_index, _object_mask_unit))
+			unit_set_actively_controlled(actor->unit_index, FALSE);
+		actor->driven = FALSE;
+		actor->control_invalidated = TRUE;
+		actor->impulse = NONE;
+		actor->speech_sound = NONE;
+		actor->user_animation_graph = NONE;
+	}
+}
+
 /* Client: called at the point in the tick where the host runs the AI.
 Drives each AI unit with the last control the host sent. */
 void network_actors_drive(
@@ -1023,7 +1043,7 @@ void network_actors_drive(
 			continue;
 		}
 		/* vehicles follow the host's transform instead (network_objects.c) */
-		if (object_get(actor->unit_index)->object.type == _object_type_vehicle)
+		if (actor->control_invalidated || object_get(actor->unit_index)->object.type == _object_type_vehicle)
 			continue;
 		if (!actor->driven)
 		{

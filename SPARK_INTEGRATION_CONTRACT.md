@@ -2869,6 +2869,31 @@ reported BSP 0 by tick 366 and exited zero. This verifies the native
 transition. Projectile survival during live replicated play remains
 unverified.
 
+### Actor snapshots and cross-region combat
+
+After a co-op client receives the host's BSP announcement, periodic actor
+and player snapshots wait until that BSP is loaded. The receiver rejects
+movement packets older than the transition tick and releases held actor
+controls from the previous BSP. This uses the existing message timestamps
+and sequence handling, with no wire layout change. A repeated announcement
+leaves the transition tick intact. The focused BSP and actor suites passed
+79 checks.
+
+Native Windows x64 `83a626f4255539a8635b7af008ec94caad100a1b692b694370c1071e8df1da97`
+ran two private OpenCE 44 peers on stock D40. After staging, normal input
+crossed BSP 1 to 0. Both peers reported BSP 0 by tick 366 and exited zero.
+The native run verifies the transition. The delayed actor packet case was
+verified with the focused harness.
+
+On the same Forerunner build and the reviewed CE609 road map `ce043863`,
+normal mouse aim and trigger input fired from (64.000, 34.774, -21.075)
+on the Sidewinder approach to the Chupathingy `c16096a8` guest at
+(45.712, 34.774, -21.075) on the Timberland approach. Both peers reported
+the guest's shield at 0.67 and body at 1.00 at tick 90. Both exited zero.
+This verifies native projectile damage between authored regions sharing
+one resident BSP. Projectile/actor persistence across separately active
+BSPs and authored regional AI remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

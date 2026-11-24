@@ -485,6 +485,7 @@ each client */
 void network_actors_host_tick(void);
 /* (a client) the host's word on its actors' units */
 void network_actors_handle_states(void const *entries, short count);
+void network_actors_client_bsp_changed(void);
 word network_actors_entry_size(void);
 /* (a client, in its tick where the host runs its actors) each actor's unit
 given the control the host last sent for it */

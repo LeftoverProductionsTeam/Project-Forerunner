@@ -896,6 +896,7 @@ message came (system_milliseconds) */
 static long distributed_host_time = NONE;
 static unsigned long distributed_host_time_received;
 static short distributed_host_structure_bsp_index = NONE;
+static long distributed_host_structure_bsp_start = NONE;
 /* the host: each client's round trip, in ticks, and its jitter; the same
 in milliseconds (the latency meter's); and when the client was last heard
 from (system_milliseconds) */
@@ -4265,6 +4266,21 @@ static void distributed_handle_unit_state(
 	}
 }
 
+/* Periodic positions and seats belong to the host's announced BSP. The
+ * per-message stale check cannot compare actor/player packets with BSP packets. */
+static boolean distributed_can_apply_bsp_snapshot(long host_time)
+{
+	return distributed_host_structure_bsp_index == NONE ||
+		(distributed_host_structure_bsp_index == global_structure_bsp_index_get() &&
+			(distributed_host_structure_bsp_start == NONE || host_time >= distributed_host_structure_bsp_start));
+}
+
+static void distributed_handle_actor_states(long host_time, void const *entries, short count)
+{
+	if (distributed_can_apply_bsp_snapshot(host_time))
+		network_actors_handle_states(entries, count);
+}
+
 /* (a client) the host's word on every player's unit */
 static void distributed_handle_unit_states(
 	long host_time,
@@ -4274,10 +4290,7 @@ static void distributed_handle_unit_states(
 {
 	short index;
 
-	/* The load is deferred and can fall back to the source BSP. Wait for
-	 * the host's BSP before applying its periodic player positions and seats. */
-	if (distributed_host_structure_bsp_index != NONE &&
-		distributed_host_structure_bsp_index != global_structure_bsp_index_get())
+	if (!distributed_can_apply_bsp_snapshot(host_time))
 		return;
 
 	for (index = 0; index < count; index++)
@@ -5441,15 +5454,22 @@ static void distributed_send_structure_bsp(
 }
 
 static void distributed_handle_structure_bsp(
+	long host_time,
 	struct distributed_structure_bsp const *structure_bsp)
 {
 	short index = structure_bsp->structure_bsp_index;
 
-	if (network_coop_active() && index >= 0 && index < global_scenario_get()->structure_bsp_references.count)
+	if (!network_coop_active() || index < 0 || index >= global_scenario_get()->structure_bsp_references.count)
+		return;
+
+	if (distributed_host_structure_bsp_index != index)
 	{
+		if (distributed_host_structure_bsp_index != NONE || index != global_structure_bsp_index_get())
+			network_actors_client_bsp_changed();
 		distributed_host_structure_bsp_index = index;
-		main_sync_structure_bsp(index);
+		distributed_host_structure_bsp_start = host_time;
 	}
+	main_sync_structure_bsp(index);
 }
 
 /* the players' statistics that changed since they were last sent, and when
@@ -5618,7 +5638,10 @@ static void distributed_reset_checkpoint_state(boolean reset_received_times)
 	distributed_host_update_number = NONE;
 	distributed_sent_structure_bsp_index = NONE;
 	if (reset_received_times)
+	{
 		distributed_host_structure_bsp_index = NONE;
+		distributed_host_structure_bsp_start = NONE;
+	}
 	distributed_pickup_count = 0;
 	distributed_machines.valid = FALSE;
 	for (player_index = 0; player_index < MAXIMUM_TRACKED_PLAYERS; player_index++)
@@ -7938,10 +7961,10 @@ static void distributed_handle_message(
 			header.count);
 		break;
 	case _distributed_message_actor_states:
-		network_actors_handle_states(entries, header.count);
+		distributed_handle_actor_states(header.game_time, entries, header.count);
 		break;
 	case _distributed_message_structure_bsp:
-		distributed_handle_structure_bsp((struct distributed_structure_bsp const *)entries);
+		distributed_handle_structure_bsp(header.game_time, (struct distributed_structure_bsp const *)entries);
 		break;
 	case _distributed_message_coop_presentation:
 		network_coop_handle_presentation(entries, header.game_time);
@@ -8314,7 +8337,10 @@ static void distributed_checkpoint_reset(
 	short player_index;
 
 	if (!keep_receive_times)
+	{
 		distributed_host_structure_bsp_index = NONE;
+		distributed_host_structure_bsp_start = NONE;
+	}
 	distributed_last_sent_time = NONE;
 	for (sender = 0; sender < MAXIMUM_SENDERS; sender++)
 	{

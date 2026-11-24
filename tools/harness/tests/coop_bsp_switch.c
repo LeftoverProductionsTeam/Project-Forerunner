@@ -298,6 +298,7 @@ static void structure_culling_structure_bsp_loaded(void) {culling++;}
 
 static struct {short switch_to_structure_bsp_index;} main_globals={NONE};
 static short distributed_host_structure_bsp_index = NONE;
+static long distributed_host_structure_bsp_start = NONE;
 static short global_structure_bsp_index_get(void) {return global_structure_bsp_index;}
 struct distributed_structure_bsp {short structure_bsp_index,pad;};
 static boolean loading_hud;
@@ -329,6 +330,33 @@ static void distributed_handle_unit_state(long host_time,struct distributed_unit
     CHECK(host_time>0&&state->player_index==0,"invalid snapshot passed to unit handler");
     unit_snapshots_applied++;
 }
+struct client_actor {
+    long unit_index, speech_sound, user_animation_graph;
+    short impulse;
+    byte played_impulse_number;
+    boolean driven, control_invalidated;
+};
+static struct client_actor client_actors[1];
+static short client_actor_count;
+static int actor_controls_released, actor_snapshots_applied;
+#define _object_mask_unit 1
+static void *object_try_and_get_and_verify_type(long object_index, unsigned long types)
+{
+    CHECK(types==_object_mask_unit,"unexpected actor release type");
+    return object_try_and_get(object_index);
+}
+static void unit_set_actively_controlled(long object_index, boolean controlled)
+{
+    CHECK(object_index==units[0]&&!controlled,"region switch released the wrong actor");
+    actor_controls_released++;
+}
+static void network_actors_handle_states(void const *entries, short count)
+{
+    CHECK(entries&&count==1,"invalid actor snapshot");
+    actor_snapshots_applied++;
+}
+#include "bsp_actor_controls.inc"
+
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
 
@@ -522,17 +550,17 @@ int main(int argc,char **argv)
     if(!strcmp(name,"host-superseded"))
     {
         struct distributed_structure_bsp message={destination,0};
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(1, &message);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"host BSP transition did not queue");
         message.structure_bsp_index=2;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(2, &message);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"invalid update changed the pending switch");
         message.structure_bsp_index=old;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(3, &message);
         CHECK(main_globals.switch_to_structure_bsp_index==NONE&&!loading_hud,"client retained superseded BSP switch");
         CHECK(!disconnects&&!ejections&&!teleports&&global_structure_bsp_index==old,"client disturbed the active world");
         message.structure_bsp_index=destination;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(4, &message);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&loading_hud,"later valid switch did not queue");
         return 0;
     }
@@ -557,15 +585,15 @@ int main(int argc,char **argv)
     {
         struct distributed_structure_bsp message={destination,0};
         byte state[]={0};
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(1, &message);
         distributed_handle_unit_states(1,state,state+sizeof(state),1);
         CHECK(unit_snapshots_applied==0,"applied destination snapshot to the old BSP");
         message.structure_bsp_index=old;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(2, &message);
         distributed_handle_unit_states(2,state,state+sizeof(state),1);
         CHECK(unit_snapshots_applied==1,"snapshot did not resume after the host canceled the switch");
         message.structure_bsp_index=destination;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(3, &message);
         main_switch_to_structure_bsp_private();
         CHECK(global_structure_bsp_index==destination,"client did not load the destination BSP");
         distributed_handle_unit_states(3,state,state+sizeof(state),1);
@@ -577,7 +605,7 @@ int main(int argc,char **argv)
         struct distributed_structure_bsp message = {destination, 0};
         byte state[] = {0};
         reject_load[destination] = TRUE;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(1, &message);
         main_switch_to_structure_bsp_private();
         CHECK(global_structure_bsp_index == old && !loading_hud, "failed load did not restore the source BSP");
 
@@ -585,11 +613,44 @@ int main(int argc,char **argv)
         CHECK(unit_snapshots_applied == 0, "rollback accepted a player snapshot from the destination BSP");
 
         reject_load[destination] = FALSE;
-        distributed_handle_structure_bsp(&message);
+        distributed_handle_structure_bsp(2, &message);
         main_switch_to_structure_bsp_private();
         CHECK(global_structure_bsp_index == destination, "client did not retry the failed destination");
         distributed_handle_unit_states(2, state, state + sizeof(state), 1);
         CHECK(unit_snapshots_applied == 1, "snapshots did not resume after the destination loaded");
+        return 0;
+    }
+    if(!strcmp(name,"host-actor-snapshot-boundary"))
+    {
+        struct distributed_structure_bsp message={destination,0};
+        struct client_actor *actor=&client_actors[0];
+        byte entry=0;
+
+        client_actor_count=1;
+        *actor=(struct client_actor){
+            .unit_index=units[0], .driven=TRUE, .impulse=3, .speech_sound=4,
+            .user_animation_graph=5, .played_impulse_number=8
+        };
+        distributed_handle_actor_states(88,&entry,1);
+        CHECK(actor_snapshots_applied==1,"actor gate changed unswitched gameplay");
+        distributed_handle_structure_bsp(90,&message);
+        CHECK(actor_controls_released==1&&actor->control_invalidated&&!actor->driven&&
+            actor->impulse==NONE&&actor->speech_sound==NONE&&actor->user_animation_graph==NONE&&
+            actor->played_impulse_number==8,"old actor controls survived or lost deduplication");
+        distributed_handle_actor_states(90,&entry,1);
+        CHECK(actor_snapshots_applied==1,"actor applied before the destination loaded");
+        main_switch_to_structure_bsp_private();
+        CHECK(global_structure_bsp_index==destination,"client did not reach the destination");
+        distributed_handle_actor_states(89,&entry,1);
+        distributed_handle_unit_states(89,&entry,&entry+1,1);
+        CHECK(actor_snapshots_applied==1&&!unit_snapshots_applied,"source snapshots crossed the BSP boundary");
+        distributed_handle_actor_states(90,&entry,1);
+        CHECK(actor_snapshots_applied==2,"destination actors did not resume on the transition tick");
+        distributed_handle_structure_bsp(110,&message);
+        distributed_handle_actor_states(109,&entry,1);
+        distributed_handle_unit_states(109,&entry,&entry+1,1);
+        CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
+            actor_controls_released==1,"periodic BSP confirmation moved the boundary");
         return 0;
     }
     if(!strncmp(name,"rescue-",7))
