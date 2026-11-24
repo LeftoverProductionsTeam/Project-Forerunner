@@ -77,6 +77,12 @@ short runs exited cleanly, and the fixture exposed a native landed aircraft.
 The combined recorded Extraction flight remains to be tested with authored
 clips on the Black Echo map. No full mission was replayed for this change.
 
+On the same pinned be_native map, both builds accepted boarding and landed
+at the field. The handoff build also accepted a normal E-key disembark and
+landed back at the hub empty at tick 3120 (52.437, -110.089, 1.832). The
+readback in `build/native-isolated-empty-return-handoff.json` covers the
+existing AI route. Authored recorded clips and authenticated play remain open.
+
 The preceding UNSC split-return export is
 `releases/black-echo-elite-unsc-split-return-20261123/be_native.map`, SHA-256
 `571f9479c47c1105c5f4a1e7d10187b5b8996e613aa20ba6ec37084e1ae6dd0f`.
