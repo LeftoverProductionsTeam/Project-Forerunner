@@ -2969,11 +2969,12 @@ addresses at once. The native runtime first needs disjoint or validated
 relocated BSP ranges. The MCC geometry adapter now owns buffers by BSP
 handle. Two disjoint linked ranges can hold geometry at the same time.
 An overlapping request is refused before copying into the tag arena, and
-a failed conversion releases only the candidate's buffers. The existing
-global switch supplies the exact handle when it unloads a BSP.
-`mcc_tag_validate.c` still clears BSP claims over the tag-arena tail.
-Validation needs region-owned lifetimes before the game can retain both
-BSPs. The native collision trees accept explicit BSP pointers. Higher-level location,
+a failed conversion releases only the candidate's buffers. The global
+switch unloads the exact cache reference. The validator now retains the
+claims of other live BSPs and clears only the released or rejected range.
+Geometry checks are restricted to the BSP handle being walked. Model
+allocations retain their shared owner. The native collision trees accept
+explicit BSP pointers. Higher-level location,
 collision, AI, visibility and network snapshots still use the currently
 selected BSP. Independent occupancy requires region ownership through
 those callers and per-peer replication. The legacy global switch path
@@ -2989,6 +2990,18 @@ twelve-region MCC13 above. Two native Windows peers on executable
 loaded 3,517 tags and 8,019,232 tag bytes each from that same cache.
 They synchronized native movement within 0.15 units and exited zero.
 This native smoke exercised a single active BSP.
+
+The next Windows build, SHA-256
+`28857e676f93dd9aaf86aa2ebf4d17eb60a71fe4f1a72eeb6483d9daf5544fb8`,
+passed 184 focused schema and geometry checks with one POSIX-only skip.
+The tests cover adjacent BSPs sharing a bitmap byte, failed validation,
+release and reload, and foreign geometry rejection. Two Windows peers
+loaded the same twelve-region MCC13 revision and synchronized movement
+within 0.075 units. Stock MCC D40
+`51b4a64993e4f2a02a6c942af628270edb3abb42e69fc25c42d10efb710940e0`
+passed geometry readback, but the private lobby stayed on Carousel because
+the installed assets lacked a compatible `sounds.map`. That prevented
+native MCC D40 switch acceptance.
 
 The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal

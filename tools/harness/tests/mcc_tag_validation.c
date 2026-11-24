@@ -43,6 +43,7 @@ static int callback_calls, callback_failures;
 static void *valid_bitmap, *valid_model_part;
 static unsigned char external_vertices[32], external_indices[8];
 static int hardware;
+static uint32_t geometry_owner=MCC_GEOMETRY_NO_BSP;
 
 /* (port, this fork: its tag_validate.c is ChupathingyCE's, without OpenCE's
 tag_validate_root, _custom_edition and _file_contains: an MCC callback's
@@ -291,15 +292,18 @@ int mcc_bitmaps_group_valid(struct mcc_runtime *runtime, void *group)
 { (void)runtime; return group == valid_bitmap; }
 int mcc_geometry_part_valid(struct mcc_runtime *runtime, void const *part)
 { (void)runtime; return part == valid_model_part; }
-void *mcc_geometry_buffer_data(struct mcc_runtime *runtime, void const *buffer, int indices, unsigned long *bytes)
+void *mcc_geometry_buffer_data(struct mcc_runtime *runtime, void const *buffer, int indices,
+    unsigned long *bytes, uint32_t owner)
 {
     (void)runtime; *bytes = indices ? sizeof(external_indices) : sizeof(external_vertices);
-    return buffer == &hardware ? indices ? (void *)external_indices : external_vertices : NULL;
+    if (owner != geometry_owner || buffer != &hardware) return NULL;
+    return indices ? (void *)external_indices : external_vertices;
 }
-int mcc_geometry_contains(struct mcc_runtime *runtime, void const *address, unsigned long bytes)
+int mcc_geometry_contains(struct mcc_runtime *runtime, void const *address, unsigned long bytes, uint32_t owner)
 {
     uintptr_t a = (uintptr_t)address, v = (uintptr_t)external_vertices, i = (uintptr_t)external_indices;
     (void)runtime;
+    if (owner != geometry_owner) return 0;
     return (a >= v && a - v <= sizeof(external_vertices) && bytes <= sizeof(external_vertices) - (a - v)) ||
         (a >= i && a - i <= sizeof(external_indices) && bytes <= sizeof(external_indices) - (a - i));
 }
@@ -437,8 +441,8 @@ int main(int argc, char **argv)
     memset(&runtime, 0, sizeof(runtime));
     runtime.capacity = 65536; runtime.used = 4096; runtime.source.size = 1024;
     if (!strcmp(argv[1], "bsp")) {
-        runtime.used += 3;
-        runtime.capacity += 3;
+        runtime.used = 4099;
+        runtime.capacity = 4100 + 512 + 515;
     }
     if (!strncmp(argv[1], "syntax_", 7)) runtime.capacity = runtime.used = 1048576;
     if (!strncmp(argv[1], "names_", 6)) runtime.used = runtime.capacity = 2097152;
@@ -497,7 +501,8 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "handle")) { instance->handle++; expected = 0; }
     if (!strcmp(argv[1], "unknown_group")) { instance->group = 'nope'; expected = 0; }
     if (!strcmp(argv[1], "bsp")) {
-        header->count = 2; instance[1] = instance[0]; instance[1].group = 'sbsp'; instance[1].handle++;
+        header->count = 3; instance[1] = instance[0]; instance[1].group = 'sbsp'; instance[1].handle++;
+        instance[2] = instance[1]; instance[2].handle++;
         root->other_data.address = runtime.tags + runtime.used - 6;
         root->other_data.size = 6;
     }
@@ -874,31 +879,60 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "bsp")) {
         struct test_bsp *bsp = (struct test_bsp *)(runtime.tags + 4100);
         struct test_root *broot = (struct test_root *)((byte *)bsp + 64);
-        struct test_bsp *second_bsp = (struct test_bsp *)(runtime.tags + 0xfe00);
+        struct test_bsp *second_bsp = (struct test_bsp *)((byte *)bsp + 512);
         struct test_root *second_root = (struct test_root *)((byte *)second_bsp + 64);
+        byte *first_last_byte = (byte *)second_bsp - 1;
         byte *last_byte = runtime.tags + runtime.capacity - 1;
+        byte *base_last_byte = runtime.tags + runtime.used - 1;
         bsp->root = broot; bsp->signature = 'sbsp'; broot->file.file_offset = 100;
+        broot->other_data.address = first_last_byte; broot->other_data.size = 1;
         second_bsp->root = second_root; second_bsp->signature = 'sbsp';
-        second_root->other_data.address = last_byte;
-        second_root->other_data.size = 1;
+        geometry_owner = (uint32_t)instance[1].handle;
 
         CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
         CHECK(callback_failures == 0);
         CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
-        CHECK(mcc_validation_any_claimed(runtime.tags + runtime.used - 1, 1));
+        CHECK(mcc_validation_any_claimed(base_last_byte, 1));
         CHECK(!mcc_validation_any_claimed(runtime.tags + runtime.used, 1));
+        CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
 
-        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, second_bsp, 515));
-        CHECK(!mcc_validation_any_claimed(bsp, sizeof(*bsp)));
-        CHECK(!mcc_validation_any_claimed(broot, sizeof(*broot)));
-        CHECK(mcc_validation_any_claimed(runtime.tags + runtime.used - 1, 1));
+        second_root->other_data.address = external_vertices;
+        second_root->other_data.size = sizeof(external_vertices);
+        CHECK(!mcc_bsp_validate(&runtime, instance[2].handle, second_bsp, 515));
+        CHECK(!mcc_validation_any_claimed(second_bsp, 515));
+        CHECK(mcc_validation_any_claimed(first_last_byte, 1));
+
+        second_root->other_data.address = last_byte;
+        second_root->other_data.size = 1;
+        geometry_owner = (uint32_t)instance[2].handle;
+        CHECK(mcc_bsp_validate(&runtime, instance[2].handle, second_bsp, 515));
+        CHECK(callback_failures == 0);
+        CHECK(mcc_validation_any_claimed(broot, sizeof(*broot)));
+        CHECK(mcc_validation_any_claimed(first_last_byte, 1));
         CHECK(mcc_validation_any_claimed(last_byte, 1));
 
+        mcc_bsp_release_claims(&runtime, base_last_byte, 2);
+        CHECK(mcc_validation_any_claimed(base_last_byte, 1));
+        mcc_bsp_release_claims(&runtime, bsp, 512);
+        CHECK(!mcc_validation_any_claimed(bsp, 512));
+        CHECK(mcc_validation_any_claimed(base_last_byte, 1));
+        CHECK(mcc_validation_any_claimed(second_bsp, 1));
+        CHECK(mcc_validation_any_claimed(last_byte, 1));
+
+        broot->other_data.address = external_vertices;
+        broot->other_data.size = sizeof(external_vertices);
+        geometry_owner = (uint32_t)instance[1].handle;
         CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
-        CHECK(!mcc_validation_any_claimed(second_bsp, sizeof(*second_bsp)));
-        CHECK(!mcc_validation_any_claimed(last_byte, 1));
+        CHECK(callback_failures == 0);
+        mcc_bsp_release_claims(&runtime, second_bsp, 515);
+        CHECK(!mcc_validation_any_claimed(second_bsp, 515));
+        CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
+        mcc_bsp_release_claims(&runtime, bsp, 512);
         broot->children.count = 1; broot->children.address = root;
         CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(!mcc_validation_any_claimed(bsp, 512));
+        CHECK(mcc_validation_any_claimed(base_last_byte, 1));
     }
     mcc_validation_dispose(&runtime); free(runtime.tags);
     return 0;

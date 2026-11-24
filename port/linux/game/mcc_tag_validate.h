@@ -10,6 +10,7 @@ struct tag_validation;
 
 int mcc_tags_validate(struct mcc_runtime *runtime);
 int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size);
+void mcc_bsp_release_claims(struct mcc_runtime *runtime, void const *address, unsigned long size);
 void mcc_validation_dispose(struct mcc_runtime *runtime);
 
 /* Identity comparisons only: a legacy validator is never read as an MCC one. */

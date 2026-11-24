@@ -592,7 +592,13 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     return TRUE;
 }
 
-void mcc_cache_bsp_unload(long handle) { mcc_geometry_bsp_unload(&mcc_loaded_cache, (uint32_t)handle); }
+void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    if (!bsp) return;
+    mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
+    mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(bsp->address), bsp->size);
+}
 
 short mcc_cache_part_palette(void const *buffer, byte const **nodes)
 {

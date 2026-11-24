@@ -56,8 +56,6 @@ struct mcc_render_part {
     struct vertex_buffer vertices;
 };
 
-#define MCC_GEOMETRY_NO_BSP UINT32_MAX
-
 struct mcc_geometry_buffer {
     struct mcc_geometry_buffer *next;
     void *descriptor;
@@ -664,15 +662,18 @@ void mcc_geometry_dispose(struct mcc_runtime *r) {
 }
 
 void *mcc_geometry_buffer_data(struct mcc_runtime *r,void const *hardware,
-    int index_buffer,unsigned long *bytes) {
+    int index_buffer,unsigned long *bytes,uint32_t bsp_handle) {
     struct mcc_geometry_state *state=r ? r->geometry : NULL;
     struct mcc_geometry_buffer *b;
     if (bytes) *bytes=0;
     if (!state || !hardware) return NULL;
     for (b=state->buffers;b;b=b->next) {
-        void *current=xbox_pointer(b->is_index ? ((struct triangle_buffer *)b->descriptor)->hardware_format :
+        void *current;
+
+        if (b->bsp_handle!=bsp_handle || b->is_index!=index_buffer) continue;
+        current=xbox_pointer(b->is_index ? ((struct triangle_buffer *)b->descriptor)->hardware_format :
             ((struct vertex_buffer *)b->descriptor)->hardware_format);
-        if (b->is_index==index_buffer && current==hardware) {
+        if (current==hardware) {
             if (bytes) *bytes=b->bytes;
             return b->payload;
         }
@@ -680,14 +681,14 @@ void *mcc_geometry_buffer_data(struct mcc_runtime *r,void const *hardware,
     return NULL;
 }
 
-int mcc_geometry_contains(struct mcc_runtime *r,void const *address,unsigned long bytes) {
+int mcc_geometry_contains(struct mcc_runtime *r,void const *address,unsigned long bytes,uint32_t bsp_handle) {
     struct mcc_geometry_state *state=r ? r->geometry : NULL;
     struct mcc_geometry_buffer *b;
     uintptr_t wanted=(uintptr_t)address;
     if (!state) return 0;
     for (b=state->buffers;b;b=b->next) {
         uintptr_t start=(uintptr_t)b->allocation;
-        if (b->allocation && wanted>=start && wanted-start<=b->allocation_bytes &&
+        if (b->bsp_handle==bsp_handle && b->allocation && wanted>=start && wanted-start<=b->allocation_bytes &&
             bytes<=b->allocation_bytes-(wanted-start)) return 1;
     }
     return 0;

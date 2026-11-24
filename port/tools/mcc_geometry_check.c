@@ -121,14 +121,17 @@ static int check_bsp_lifetime(struct mcc_runtime *r,char const *test) {
     if (!strcmp(test,"partial-bsp-failure")) fail_at=created_buffers+1;
     loaded=mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset,b->size,(void *)(uintptr_t)b->address,&second);
     if (loaded!=expected || (!!second)!=expected || old_buffer->hardware_format!=old_hardware ||
-        mcc_geometry_buffer_data(r,old_hardware,0,NULL)!=old_payload ||
+        mcc_geometry_buffer_data(r,old_hardware,0,NULL,a->tag_handle)!=old_payload ||
+        !mcc_geometry_contains(r,old_payload,32,a->tag_handle) ||
+        mcc_geometry_buffer_data(r,old_hardware,0,NULL,b->tag_handle) ||
+        mcc_geometry_contains(r,old_payload,32,b->tag_handle) ||
         active_buffers!=baseline+(expected ? 4 : 2)) return 0;
     if (expected) new_hardware=model_buffers[model_buffer_count-2]->hardware_format;
     mcc_geometry_bsp_unload(r,a->tag_handle);
-    if (mcc_geometry_buffer_data(r,old_hardware,0,NULL) ||
+    if (mcc_geometry_buffer_data(r,old_hardware,0,NULL,a->tag_handle) ||
         active_buffers!=baseline+(expected ? 2 : 0)) return 0;
     if (expected) {
-        if (!mcc_geometry_buffer_data(r,new_hardware,0,NULL)) return 0;
+        if (!mcc_geometry_buffer_data(r,new_hardware,0,NULL,b->tag_handle)) return 0;
     } else {
         /* A linked overlap can load normally once its previous owner leaves.
          * A failed conversion can retry after releasing only its own buffers. */
@@ -188,12 +191,12 @@ int main(int argc,char **argv) {
         struct vertex_buffer saved_vertex;
         unsigned short *stream,original;
         byte clone[0x68];
-        void *payload=mcc_geometry_buffer_data(&r,b->hardware_format,0,&bytes);
+        void *payload=mcc_geometry_buffer_data(&r,b->hardware_format,0,&bytes,MCC_GEOMETRY_NO_BSP);
         /* Native model part: material at +4, vertex buffer at +0x54. */
         memcpy(&shader,(byte *)b-0x50,2);shader_sum+=shader;
         if (!payload || payload!=b->base_address || bytes!=(unsigned long)b->count*32 ||
-            !mcc_geometry_contains(&r,payload,bytes) ||
-            mcc_geometry_buffer_data(&r,b->hardware_format,1,NULL)) return 10;
+            !mcc_geometry_contains(&r,payload,bytes,MCC_GEOMETRY_NO_BSP) ||
+            mcc_geometry_buffer_data(&r,b->hardware_format,1,NULL,MCC_GEOMETRY_NO_BSP)) return 10;
         if (!mcc_geometry_part_valid(&r,part)) return 11;
         if (triangles->count>maximum_triangles) maximum_triangles=triangles->count;
         saved=*triangles; saved_vertex=*b;

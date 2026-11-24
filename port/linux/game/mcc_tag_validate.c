@@ -92,7 +92,6 @@ static struct {
     byte *claims;
     byte *aliases;
     struct mcc_allocation *allocations[1024];
-    unsigned long claim_bytes;
     long corrections;
     struct mcc_validation_context *active;
     /* port: the empty name as a reference holds it: in the tags, where a
@@ -205,6 +204,25 @@ static int mcc_zero_block(void const *address, unsigned long bytes)
     unsigned long i;
     for (i=0;i<bytes;i++) if (((byte const *)address)[i]) return 0;
     return 1;
+}
+
+static boolean mcc_claim_range_used(unsigned long first, unsigned long size)
+{
+    unsigned long end = first + size;
+
+    while (first < end && (first & 7)) {
+        if (mcc_validation.claims[first >> 3] & (1U << (first & 7))) return TRUE;
+        ++first;
+    }
+    if (first == end) return FALSE;
+    if (!mcc_zero_block(mcc_validation.claims + (first >> 3), (end - first) >> 3)) return TRUE;
+    return (end & 7) && (mcc_validation.claims[end >> 3] & ((1U << (end & 7)) - 1U));
+}
+
+static uint32_t mcc_validation_geometry_owner(struct mcc_validation_context const *context)
+{
+    if (!context || context->region == mcc_validation.runtime->tags) return MCC_GEOMETRY_NO_BSP;
+    return (uint32_t)context->handle;
 }
 
 static int mcc_interned_name(struct tag_schema_definition const *schema)
@@ -764,7 +782,8 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                             }
                             if (!mcc_claim_allocation(xbox_pointer(data->address), (unsigned long)data->size, NULL))
                                 mcc_problem(context, 1, "data overlaps another allocation");
-                        } else if (!mcc_geometry_contains(mcc_validation.runtime, xbox_pointer(data->address), data->size)) {
+                        } else if (!mcc_geometry_contains(mcc_validation.runtime, xbox_pointer(data->address),
+                            data->size, mcc_validation_geometry_owner(context))) {
                             mcc_problem(context, 1, "data leaves loaded bytes and owned geometry");
                         }
                     }
@@ -915,10 +934,9 @@ int mcc_tags_validate(struct mcc_runtime *runtime)
     if (mcc_validation.empty_name) mcc_validation.empty_name[0] = 0;
 #endif
     header = mcc_validation.header = (struct mcc_validation_header *)runtime->tags;
-    mcc_validation.claim_bytes = (runtime->capacity + 7) / 8;
-    mcc_validation.claims = malloc(mcc_validation.claim_bytes);
+    mcc_validation.claims = malloc((runtime->capacity + 7) / 8);
     if (!mcc_validation.claims) return 0;
-    memset(mcc_validation.claims, 0, mcc_validation.claim_bytes);
+    memset(mcc_validation.claims, 0, (runtime->capacity + 7) / 8);
     memset(&context, 0, sizeof(context)); context.region = runtime->tags; context.length = runtime->used;
     context.handle = NONE;
     if (header->signature != 'tags' || header->count <= 0 || header->count > 65535 ||
@@ -979,35 +997,51 @@ int mcc_tags_validate(struct mcc_runtime *runtime)
     return !context.rejected;
 }
 
+void mcc_bsp_release_claims(struct mcc_runtime *runtime, void const *address, unsigned long size)
+{
+    unsigned long first, end;
+
+    if (mcc_validation.runtime != runtime || !mcc_validation.claims ||
+        !mcc_range(runtime->tags, runtime->capacity, address, size)) return;
+    first = (unsigned long)((uintptr_t)address - (uintptr_t)runtime->tags);
+    if (first < runtime->used) return;
+    end = first + size;
+
+    /* Adjacent regions may share the first or last byte of the bitmap. */
+    while (first < end && (first & 7)) {
+        mcc_validation.claims[first >> 3] &= (byte)~(1U << (first & 7));
+        ++first;
+    }
+    if (first == end) return;
+    memset(mcc_validation.claims + (first >> 3), 0, (end - first) >> 3);
+    if (end & 7) mcc_validation.claims[end >> 3] &= (byte)~((1U << (end & 7)) - 1U);
+}
+
 int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size)
 {
     struct mcc_validation_context context;
     struct mcc_validation_bsp_header *header = address;
     struct mcc_validation_instance *instance;
     struct tag_schema_group const *schema = mcc_group('sbsp');
-    unsigned long first, first_claim_byte;
+    unsigned long first;
     if (mcc_validation.runtime != runtime || !mcc_validation.claims || ((uintptr_t)address & 3) ||
         size < (long)sizeof(*header) ||
         !mcc_range(runtime->tags, runtime->capacity, address, (unsigned long)size)) return 0;
     first = (unsigned long)((uintptr_t)address - (uintptr_t)runtime->tags);
-    if (first < runtime->used) return 0;
+    if (first < runtime->used || mcc_claim_range_used(first, (unsigned long)size)) return 0;
     instance = mcc_instance(handle);
     if (!instance || instance->group != 'sbsp' || !schema || !schema->definition) return 0;
     mcc_allocations_dispose();
-    /* Keep the base tags' claims, including bits in a shared boundary byte. */
-    first_claim_byte = runtime->used >> 3;
-    if (runtime->used & 7) {
-        mcc_validation.claims[first_claim_byte] &= (byte)((1U << (runtime->used & 7)) - 1U);
-        ++first_claim_byte;
-    }
-    memset(mcc_validation.claims + first_claim_byte, 0, mcc_validation.claim_bytes - first_claim_byte);
     memset(&context, 0, sizeof(context)); context.region = address; context.length = size; context.handle = handle;
     if (header->signature != 'sbsp' || !mcc_claim(header, sizeof(*header)) ||
         !mcc_range(address, size, xbox_pointer(header->root), schema->definition->size) || !mcc_claim(xbox_pointer(header->root), schema->definition->size)) {
-        mcc_problem(&context, 1, "invalid BSP header or root"); return 0;
+        mcc_problem(&context, 1, "invalid BSP header or root");
+    } else {
+        mcc_walk(&context, xbox_pointer(header->root), schema->definition, 0);
+        if (!context.rejected) mcc_walk(&context, xbox_pointer(header->root), schema->definition, 1);
     }
-    mcc_walk(&context, xbox_pointer(header->root), schema->definition, 0);
-    if (!context.rejected) mcc_walk(&context, xbox_pointer(header->root), schema->definition, 1);
+    mcc_allocations_dispose();
+    if (context.rejected) mcc_bsp_release_claims(runtime, address, (unsigned long)size);
     return !context.rejected;
 }
 
@@ -1048,7 +1082,8 @@ boolean mcc_validation_contains(struct tag_validation *validation, void const *a
 {
     struct mcc_validation_context *context = (struct mcc_validation_context *)validation;
     return mcc_range(context->region, context->length, address, size) ||
-        (context->geometry_access && mcc_geometry_contains(mcc_validation.runtime, address, size));
+        (context->geometry_access && mcc_geometry_contains(mcc_validation.runtime, address, size,
+            mcc_validation_geometry_owner(context)));
 }
 void *mcc_validation_tag_get(struct tag_validation *validation, long handle, unsigned long group)
 {
@@ -1063,19 +1098,19 @@ void *mcc_validation_buffer_data(struct tag_validation *validation, void const *
     /* The BSP header's second table contains lightmap vertex buffers; only
      * the model tag header's second table contains index buffers. */
     int index_buffer = context->region == mcc_validation.runtime->tags && indices;
-    void *data = mcc_geometry_buffer_data(mcc_validation.runtime, buffer, index_buffer, &bytes);
+    void *data = mcc_geometry_buffer_data(mcc_validation.runtime, buffer, index_buffer, &bytes,
+        mcc_validation_geometry_owner(context));
     if (data) context->geometry_access = TRUE;
     return data;
 }
 boolean mcc_validation_any_claimed(void const *address, unsigned long size)
 {
-    unsigned long first, bit;
+    unsigned long first;
     if (!mcc_validation.runtime) return TRUE;
-    if (mcc_geometry_contains(mcc_validation.runtime, address, size)) return FALSE;
+    if (mcc_geometry_contains(mcc_validation.runtime, address, size,
+        mcc_validation_geometry_owner(mcc_validation.active))) return FALSE;
     if (!mcc_range(mcc_validation.runtime->tags, mcc_validation.runtime->capacity, address, size)) return TRUE;
     first = (unsigned long)((uintptr_t)address - (uintptr_t)mcc_validation.runtime->tags);
-    for (bit = first; bit < first + size; ++bit)
-        if (mcc_validation.claims[bit >> 3] & (1U << (bit & 7))) return TRUE;
-    return FALSE;
+    return mcc_claim_range_used(first, size);
 }
 #endif /* HALO_MCC */

@@ -46,10 +46,12 @@ void mcc_geometry_dispose(struct mcc_runtime *runtime);
 int mcc_geometry_bsp_load(struct mcc_runtime *runtime, uint32_t handle,
     uint32_t offset, uint32_t size, void *address, void **structure);
 void mcc_geometry_bsp_unload(struct mcc_runtime *runtime, uint32_t handle);
-/* Exact MCC-owned hardware/payload identities, used by its tag validator. */
+/* Shared model allocations use the sentinel, while each BSP has its own handle. */
+#define MCC_GEOMETRY_NO_BSP UINT32_MAX
 void *mcc_geometry_buffer_data(struct mcc_runtime *runtime, void const *hardware,
-    int index_buffer, unsigned long *bytes);
-int mcc_geometry_contains(struct mcc_runtime *runtime, void const *address, unsigned long bytes);
+    int index_buffer, unsigned long *bytes, uint32_t bsp_handle);
+int mcc_geometry_contains(struct mcc_runtime *runtime, void const *address, unsigned long bytes,
+    uint32_t bsp_handle);
 short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *vertex_buffer,
     unsigned char const **nodes);
 
