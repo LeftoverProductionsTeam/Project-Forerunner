@@ -2237,6 +2237,56 @@ int main(int argc,char **argv)
   CHECK(!native_hud_notices,"return feedback overlapped the chat/debrief layout");
   extraction_reset();return 0;
  }
+ if(!strcmp(case_name,"battery-stash")) {
+  struct game_modes_inventory captured,loadout;
+  struct gear_record legacy;
+  struct weapon_datum *weapon;
+  short room[2]={4,4};
+  touch(0,0);
+  CHECK(run(0)->phase==_extraction_deployed,"initial deployment failed");
+  a=pickup(0,1);
+  weapon=weapon_get(a);
+  weapon->weapon.age=.375f;
+  weapon->weapon.magazines[0].rounds_loaded=0;
+  weapon->weapon.magazines[0].rounds_total=100;
+  weapon_tag.weapon.flags|=FLAG(_weapon_cannot_fire_at_maximum_age_bit);
+  memset(&magazine,0,sizeof(magazine));
+  CHECK(game_modes_inventory_capture(player_handles[0],&captured)&&captured.weapon_count==1,
+   "battery weapon capture failed");
+  CHECK(captured.weapons[0].age==.375f&&!captured.weapons[0].rounds_reserve[0],
+   "battery capture saved the unused native round count");
+  escape(0);
+  CHECK(run(0)->gear.record.count==1&&!weapon_try_and_get(a),"battery weapon was not banked once");
+  legacy=run(0)->gear.record;
+  legacy.items[0].equipment.rounds_reserve[0]=100;
+  magazine.rounds_loaded_maximum=20;
+  CHECK(!game_modes_inventory_weapon_compatible(&legacy.items[0].equipment),
+   "battery tag bypassed the reserve limit of a real magazine");
+  magazine.rounds_loaded_maximum=0;
+  CHECK(gear_commit(&run(0)->gear,&legacy),"could not seed a previously saved battery weapon");
+  extraction_reset();advance(1);touch(2,0);
+  CHECK(run(0)->gear.record.count==1&&run(0)->gear.record.items[0].equipment.rounds_reserve[0]==100,
+   "reopen rewrote or lost the saved weapon");
+  CHECK(gear_loadout(&run(0)->gear,&loadout,FALSE),"empty faction loadout could not initialize");
+  scenario.starting_profiles=(struct tag_block){2,faction_profiles};
+  faction_profiles[0].primary_weapon.weapon.index=1;
+  faction_profiles[0].primary_weapon.rounds_total=100;
+  faction_profiles[0].secondary_weapon.weapon.index=NONE;
+  CHECK(game_modes_inventory_starting_profile(0,2,room,&loadout)&&loadout.weapon_count==1&&
+   !loadout.weapons[0].rounds_reserve[0]&&loadout.weapons[0].age==0.f,
+   "native faction profile could not grant a fresh battery weapon");
+  scenario.starting_profiles.count=0;
+  touch(0,0);
+  CHECK(run(0)->phase==_extraction_deployed&&run(0)->gear.record.reserved_count==1,
+   "old battery weapon could not be reissued from the stash");
+  weapon=weapon_get(units[0].unit.weapon_object_indices[0]);
+  CHECK(weapon->weapon.age==.375f&&!weapon->weapon.magazines[0].rounds_loaded&&
+   !weapon->weapon.magazines[0].rounds_total,"battery reissue changed charge or restored unused rounds");
+  escape(0);
+  CHECK(run(0)->gear.record.count==1&&run(0)->gear.record.items[0].equipment.age==.375f&&
+   !run(0)->gear.record.items[0].equipment.rounds_reserve[0],"second extraction duplicated gear or lost battery charge");
+  extraction_reset();return 0;
+ }
  if(!strncmp(case_name,"stowed-",7)) {
   struct game_modes_inventory captured;short room[2];long stowed;
   pickup(0,1);stowed=pickup(0,2);weapon_get(stowed)->object.parent_object_index=NONE;

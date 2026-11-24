@@ -2112,6 +2112,22 @@ This verifies one host walking through the stock passage with a connected
 guest. Stock vehicle traversal is covered below. Independent regions and
 Timberland–Sidewinder remain open.
 
+D40's stowed tag 734 is the plasma rifle. Its native magazine has zero
+initial, maximum reserve and loaded capacity. The previous 100/0 display
+compared an unused counter. Shared gear now banks native battery charge and
+ignores the placeholder when reissuing older records or granting authored
+faction equipment. Real magazines still enforce their authored capacity.
+The focused Extraction harness reproduced the failure and then passed
+85 checks, including reopen, reissue and rebank with the original charge.
+
+Windows x64 SHA-256 `8a75fda064117a81a61bb194ee72745fbefdf9a32bd2d32e11b20c97365217a6` built successfully.
+The local Spirit smoke used a disposable CE609 fixture SHA-256
+`28edb09683dc5d6b31d575f051e9295b040b3a636b682206d6b7e26face631b6`, with the Covenant plasma starter’s
+unused reserve changed to 100. Native profile creation, map launch and
+Covenant selection passed. The scripted input never acquired the deploy
+interaction. Native battery reissue remains open. Protected map and bank
+hashes held and the disposable copies were removed.
+
 Stock A30 vehicle staging used the same executable and unmodified map
 `4875fa105e6c517589a796cfdcc7fcaa07e98df13d14e601bfc9eb1eab7e30b5`.
 Both native peers kept the same Warthog `e62a00ed` and distinct driver

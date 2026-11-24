@@ -54,6 +54,21 @@ of their own (menu_functions.c's OPENCE).
 typedef char inventory_weapon_capacity_matches_native[
 	GAME_MODES_INVENTORY_WEAPONS == MAXIMUM_WEAPONS_PER_UNIT ? 1 : -1];
 
+/* Native starting profiles can write round counts into the first slot of a
+ * battery weapon even when that slot has no ammunition capacity. Charge
+ * comes from weapon age. Leave any real magazines on hybrid weapons alone. */
+static boolean game_modes_inventory_battery_placeholder(struct weapon_definition const *definition, short magazine)
+{
+	struct weapon_magazine_definition const *capacity;
+
+	if (!TEST_FLAG(definition->weapon.flags, _weapon_cannot_fire_at_maximum_age_bit))
+		return FALSE;
+	if (magazine >= definition->weapon.magazines.count)
+		return TRUE;
+	capacity = TAG_BLOCK_GET_ELEMENT(&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
+	return !capacity->rounds_loaded_maximum && !capacity->rounds_total_initial && !capacity->rounds_total_maximum;
+}
+
 boolean game_modes_inventory_capture(long player_index, struct game_modes_inventory *inventory)
 {
 	struct player_datum *player;
@@ -96,6 +111,7 @@ boolean game_modes_inventory_capture(long player_index, struct game_modes_invent
 	{
 		long weapon_index = unit->unit.weapon_object_indices[slot];
 		struct weapon_datum *weapon;
+		struct weapon_definition const *definition;
 		struct game_modes_inventory_weapon *item;
 		char const *path;
 
@@ -128,8 +144,11 @@ boolean game_modes_inventory_capture(long player_index, struct game_modes_invent
 		strcpy(item->tag_path, path);
 		item->slot = slot;
 		item->age = weapon->weapon.age;
+		definition = weapon_definition_get(weapon->definition_index);
 		for (magazine = 0; magazine < NUMBEROF(item->rounds_loaded); magazine++)
 		{
+			if (game_modes_inventory_battery_placeholder(definition, magazine))
+				continue;
 			if (weapon->weapon.magazines[magazine].rounds_loaded < 0 ||
 				weapon->weapon.magazines[magazine].rounds_total < 0)
 				return FALSE;
@@ -179,6 +198,10 @@ boolean game_modes_inventory_weapon_compatible(struct game_modes_inventory_weapo
 	for (magazine = 0; magazine < NUMBEROF(item->rounds_loaded); magazine++)
 	{
 		if (item->rounds_loaded[magazine] < 0 || item->rounds_reserve[magazine] < 0) return FALSE;
+		/* Existing records may include the inert native count. Staging
+		 * leaves that slot at the weapon definition's default. */
+		if (game_modes_inventory_battery_placeholder(definition, magazine))
+			continue;
 		if (magazine < definition->weapon.magazines.count)
 		{
 			struct weapon_magazine_definition *capacity = TAG_BLOCK_GET_ELEMENT(&definition->weapon.magazines, magazine, struct weapon_magazine_definition);
@@ -243,8 +266,11 @@ boolean game_modes_inventory_starting_profile(short profile_index, short maximum
 			tag_loaded(WEAPON_DEFINITION_TAG, path) != weapons[index]->weapon.index) return FALSE;
 		csmemset(&item, 0, sizeof(item));
 		strcpy(item.tag_path, path);
-		item.rounds_loaded[0] = weapons[index]->rounds_loaded;
-		item.rounds_reserve[0] = weapons[index]->rounds_total;
+		if (!game_modes_inventory_battery_placeholder(weapon_definition_get(weapons[index]->weapon.index), 0))
+		{
+			item.rounds_loaded[0] = weapons[index]->rounds_loaded;
+			item.rounds_reserve[0] = weapons[index]->rounds_total;
+		}
 		if (!game_modes_inventory_weapon_compatible(&item)) return FALSE;
 		for (slot = 0; slot < next.weapon_count; slot++)
 			if (!strcmp(next.weapons[slot].tag_path, path)) break;
@@ -281,14 +307,18 @@ static boolean game_modes_inventory_stage(long unit_index, struct game_modes_inv
 	for (index = 0; index < inventory->weapon_count; index++)
 	{
 		struct weapon_datum *weapon;
+		struct weapon_definition const *definition;
 		object_placement_data_new(&placement, tag_loaded(WEAPON_DEFINITION_TAG, inventory->weapons[index].tag_path), NONE);
 		placement.position = unit_get(unit_index)->object.position;
 		created[index] = object_new(&placement);
 		if (created[index] == NONE || weapon_is_flag(created[index]) || !unit_can_use_weapon(unit_index, created[index])) goto failed;
 		weapon = weapon_get(created[index]);
 		weapon->weapon.age = inventory->weapons[index].age;
+		definition = weapon_definition_get(weapon->definition_index);
 		for (magazine = 0; magazine < NUMBEROF(weapon->weapon.magazines); magazine++)
 		{
+			if (game_modes_inventory_battery_placeholder(definition, magazine))
+				continue;
 			weapon->weapon.magazines[magazine].rounds_loaded = inventory->weapons[index].rounds_loaded[magazine];
 			weapon->weapon.magazines[magazine].rounds_total = inventory->weapons[index].rounds_reserve[magazine];
 		}

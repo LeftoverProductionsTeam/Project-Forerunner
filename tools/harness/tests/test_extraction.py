@@ -14,7 +14,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files = list(gear_generated())
     files.append(('reload_queue.inc', function(read('source/game/player_queues_new.c'), 'update_client_loadout_modifier_held')))
     inventory = read('port/linux/game/game_modes.c')
-    names = ('capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'stage', 'weapon_for_unit', 'apply', 'revoke', 'consume')
+    names = ('battery_placeholder', 'capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'stage', 'weapon_for_unit', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
     equipment += '\n' + function(inventory, 'game_modes_player_change_biped')
     if fault:
@@ -94,7 +94,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
 
 @pytest.mark.parametrize('case', ['loop', 'loadout-choice', 'loadout-secondary', 'loadout-secondary-pending', 'loadout-secondary-unavailable', 'loadout-secondary-release', 'stash-discard', 'discard-pending', 'discard-state', 'discard-identity',
                                  'notice-complete', 'notice-routing', 'notice-controller', 'notice-broadcast', 'notice-fallback',
-                                 'stowed-loop', 'stowed-owner', 'stowed-ground', 'stowed-unmarked', 'stowed-nonplayer', 'stowed-parent',
+                                 'battery-stash', 'stowed-loop', 'stowed-owner', 'stowed-ground', 'stowed-unmarked', 'stowed-nonplayer', 'stowed-parent',
                                  'biped-first', 'biped-second', 'biped-survival',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
