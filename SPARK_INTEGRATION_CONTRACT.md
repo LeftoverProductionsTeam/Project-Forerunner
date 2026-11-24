@@ -1591,6 +1591,22 @@ recovery and persistent corpse through tick 1218. Both exited normally.
 This verifies the combat exchange using scripted player input in two
 native processes. It leaves survival victory, restart and human play open.
 
+Joining the original diagnostic after the initial release exposed a client
+access violation near tick 3240 on Windows SHA-256
+`f80831ef378cd54c6d72ebb3f35a3374783ea33ccf73a1bb50370acd433b15eb`. Fault offset 0x1f315d resolved
+to the model pill probe in native biped placement. A carrier with no
+collision tag left that probe uninitialized. Egress now honors the existing
+constructor result and still checks world clearance and both sight lines.
+
+On the same pinned audio-prefix map, Windows SHA-256
+`98593413e8900251fca7e3fa77be6ff4d9db2cd79c7075fffe21d931a9e46edd` let the guest join
+after host tick 1854. The guest saw the three existing Alpha handles on
+foot at tick 2097 and matched twelve carrier seat assignments. The guest
+ran through tick 3492 and both processes exited zero. The follow-up did
+not sample the same second rollover transition, so its physical release
+still needs live confirmation. The standard carrier graph rejection
+persisted. Original hashes held and the staged copy was removed.
+
 A separate capacity comparison reused the valid Alpha weapon in the
 standard collection, leaving its nine placements and timer intact. On
 the identical disposable cache SHA-256

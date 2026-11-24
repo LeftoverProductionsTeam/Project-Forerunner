@@ -1108,6 +1108,7 @@ static boolean biped_fix_position_internal(
 		real pill_height;
 		real pill_width;
 		struct collision_model_instance line_of_sight_instance;
+		boolean have_line_of_sight_model;
 		short maximum_fudge_vector_count;
 
 		if (line_of_sight_object_index != NONE)
@@ -1170,12 +1171,10 @@ static boolean biped_fix_position_internal(
 
 		maximum_fudge_vector_count = NUMBEROF(fudge_vectors) -
 			(fix_below_new_position ? 0 : 9);
-		if (line_of_sight_object_index != NONE)
-		{
-			collision_model_instance_new(
-				&line_of_sight_instance,
-				line_of_sight_object_index);
-		}
+		/* port: a carrier without a collision tag has no model pill to test.
+		 * Keep the world pill and both sight lines for the exit placement. */
+		have_line_of_sight_model = line_of_sight_object_index != NONE &&
+			collision_model_instance_new(&line_of_sight_instance, line_of_sight_object_index);
 
 		{
 			real_vector3d left;
@@ -1251,12 +1250,12 @@ static boolean biped_fix_position_internal(
 						biped_index,
 						&pill_collision) &&
 					(line_of_sight_object_index == NONE ||
-						(!collision_model_test_pill(
+						((!have_line_of_sight_model || !collision_model_test_pill(
 							&line_of_sight_instance,
 							&fixed_position,
 							&pill_vector,
 							pill_width,
-							&model_pill_collision) &&
+							&model_pill_collision)) &&
 						(!collision_test_line(
 							collision_flags,
 							&fixed_position,
