@@ -3120,6 +3120,28 @@ The fixture CRC was `481a70fa` and its SHA-256 was
 This verifies the placement rules and a host switch on the overlapping
 layout. Chiron traversal and simultaneous regional occupancy remain open.
 
+#### Regional native equipment pads
+
+The host binds each multiplayer equipment row to the first active MCC13 BSP
+that contains its position. A pad in a shared seam keeps its first owner.
+The first visit stocks newly bound pads and later restocks use the map's
+native timer in that BSP. An unclaimed pickup near its pad keeps its object
+identity and avoids age-based cleanup while the BSP is parked. Carried and
+displaced items return to the normal ownership and cleanup paths. Single-BSP
+and legacy maps keep the original item scheduler.
+
+Windows x64 `99d7d2129607ecbef12ee0f648536cfe85559d01632f61f16ff1db7519fddd39`
+passed 65 focused BSP cases. On the disposable two-BSP MCC13 fixture
+`a7538d9603877e1cffdc5fcbda8670f4eb2ff9d839eae034d7c0998f0eb83072`, both
+native peers reported one unclaimed rifle (slot 552) from tick 30 through
+210 despite the one-second interval. The host activated BSP 1 at tick 135.
+The out-of-world control row never appeared in either peer's item trace.
+Both processes exited normally. Independent log readback verified the
+post-switch samples because the wrapper's fixed interval excluded tick 210.
+The BSPs in this fixture use the same geometry. First activation in a
+distinct region, shared-seam ownership, and carried-item restock are
+covered by the focused harness. A live Chiron crossing remains open.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.

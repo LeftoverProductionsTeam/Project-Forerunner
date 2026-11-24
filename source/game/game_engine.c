@@ -5363,6 +5363,10 @@ static struct
 } game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];
 static short game_engine_vehicle_home_count = NONE;
 
+/* Bind each equipment row to one home, including rows in a shared seam. */
+static unsigned long game_engine_equipment_regions_seen;
+static short game_engine_equipment_home_bsp[MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO];
+
 /* still on the pad the map put it on: further than this, and empty, it can
 come back */
 #define VEHICLE_HOME_AWAY_SQUARED 4.0f
@@ -8847,6 +8851,8 @@ void game_engine_initialize_for_new_map(
 		game_engine_globals.next_team_index = 0;
 		csmemset(game_engine_betrayal_penalty, 0, sizeof(game_engine_betrayal_penalty));
 		game_engine_vehicle_home_count = NONE;
+		game_engine_equipment_regions_seen = 0;
+		csmemset(game_engine_equipment_home_bsp, NONE, sizeof(game_engine_equipment_home_bsp));
 		timeout_for_endgame_sound = 0;
 		game_engine_network_state_read = FALSE;
 
@@ -10405,23 +10411,65 @@ static void game_engine_update_item_spawn(
 	void)
 {
 	struct scenario *scenario = global_scenario_get();
-	/* port: a long counter, for a map's long count */
-	long equipment_index;
+	struct structure_bsp const *structure = NULL;
+	boolean first_visit = FALSE;
+	short active_bsp = NONE;
+	long now, equipment_count, equipment_index;
 
 	/* a client of the distributed netcode has the host's items
 	(port/linux/game/network_distributed.c) */
 	if (network_game_distributed_client())
 		return;
 
-	for (equipment_index = 0;
-		equipment_index < scenario->netgame_equipment.count;
-		equipment_index++)
+	now = game_time_get();
+	equipment_count = scenario->netgame_equipment.count;
+	if (mcc_cache_tags_loaded() && scenario->type == _scenario_type_multiplayer &&
+		scenario->structure_bsp_references.count > 1)
+	{
+		active_bsp = global_structure_bsp_index_get();
+		if (!VALID_INDEX(active_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+			return;
+		structure = global_structure_bsp_get();
+		first_visit = !TEST_FLAG(game_engine_equipment_regions_seen, active_bsp);
+		SET_FLAG(game_engine_equipment_regions_seen, active_bsp, TRUE);
+		equipment_count = MIN(equipment_count, NUMBEROF(game_engine_equipment_home_bsp));
+	}
+
+	for (equipment_index = 0; equipment_index < equipment_count; equipment_index++)
 	{
 		struct scenario_netgame_equipment *equipment =
 			TAG_BLOCK_GET_ELEMENT(
 				&scenario->netgame_equipment,
 				equipment_index,
 				struct scenario_netgame_equipment);
+
+		if (structure)
+		{
+			short *home = &game_engine_equipment_home_bsp[equipment_index];
+
+			if (first_visit && *home == NONE &&
+				scenario_structure_bsp_contains_placement(structure, &equipment->position))
+			{
+				*home = active_bsp;
+				equipment->run_time_spawned_item_index = NONE;
+			}
+			if (*home != NONE)
+			{
+				struct item_datum *previous = item_try_and_get(equipment->run_time_spawned_item_index);
+
+				/* The native purge uses the ownership timer even for
+				 * unclaimed items. Keep pads stocked while their BSP is parked. */
+				if (previous && previous->object.parent_object_index == NONE &&
+					!TEST_FLAG(previous->item.flags, _item_attached_to_unit_bit) &&
+					distance_squared3d(&previous->object.position, &equipment->position) < 0.25f)
+				{
+					previous->item.last_owned_time = now;
+					continue;
+				}
+			}
+			if (*home != active_bsp)
+				continue;
+		}
 		if (match_game_type(
 			game_engine_get_type(),
 			NUMBEROF(equipment->game_type),
@@ -10448,11 +10496,10 @@ static void game_engine_update_item_spawn(
 				respawn_period = respawn_time * TICKS_PER_SECOND;
 			}
 
-			if (game_time_get() % respawn_period == 0)
+			if (first_visit || now % respawn_period == 0)
 			{
-				long definition_index =
-					random_item(equipment->item_collection.index);
 				struct object_placement_data placement_data;
+				long definition_index = random_item(equipment->item_collection.index);
 				long object_index;
 
 				/* port: the gametype's no weapons on the map */
@@ -10480,14 +10527,17 @@ static void game_engine_update_item_spawn(
 					struct item_datum *item = item_get(object_index);
 
 					object_set_garbage(object_index, FALSE);
+					if (structure)
+						equipment->run_time_spawned_item_index = object_index;
 					if (TEST_FLAG(
 						equipment->flags,
 						_equipment_created_at_rest_bit))
 					{
 						SET_FLAG(item->object.flags, _object_at_rest_bit, TRUE);
 					}
-					item->item.last_owned_time +=
-						respawn_period - 30 * TICKS_PER_SECOND;
+					if (!structure)
+						item->item.last_owned_time +=
+							respawn_period - 30 * TICKS_PER_SECOND;
 				}
 			}
 		}

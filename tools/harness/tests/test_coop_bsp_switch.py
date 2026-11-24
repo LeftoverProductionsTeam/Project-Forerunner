@@ -47,6 +47,7 @@ def generated(fault=None):
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('regional_start.inc', function(players, 'player_starting_location_in_active_bsp')),
+        ('regional_equipment.inc', function(read('source/game/game_engine.c'), 'game_engine_update_item_spawn')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +
          '\n'.join(function(read('source/game/game_engine.c'), name)
@@ -84,7 +85,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'regional-teleporters', 'regional-starts', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

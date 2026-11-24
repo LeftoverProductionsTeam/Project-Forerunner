@@ -44,7 +44,7 @@ struct scenario_structure_bsp_reference {
     long file_offset,file_size;
 };
 struct scenario {
-    struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags;
+    struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags,netgame_equipment;
     short type;
 };
 struct player_starting_location {real_point3d position;short structure_bsp_reference_index;};
@@ -132,8 +132,8 @@ static struct structure_bsp *global_structure_bsp_get(void) {return global_struc
 static short global_structure_bsp_index_get(void);
 static struct collision_bsp *global_collision_bsp_get(void) {return global_collision_bsp;}
 struct item_datum {
-    struct {unsigned long flags;} object;
-    struct {unsigned long flags;short rested_surface_index,bsp_index;} item;
+    struct {unsigned long flags;real_point3d position;long parent_object_index;} object;
+    struct {unsigned long flags;short rested_surface_index,bsp_index;long last_owned_time;} item;
 };
 struct item_definition {struct {unsigned long flags;} item;};
 enum {_item_on_structure_bit, _item_does_not_accelerate_bit};
@@ -199,13 +199,14 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
 static long prepared_crossing_leaf;
-static boolean test_region_lookup;
+static boolean test_region_lookup,test_region_overlap;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
     if (test_region_lookup)
     {
         CHECK(node==0&&tree==(struct bsp3d const *)&collisions[global_structure_bsp_index],"incorrect flag collision tree");
-        return point->z >= 0 && (point->x < 200)==(global_structure_bsp_index==0) ? 0 : NONE;
+        boolean shared=test_region_overlap&&point->x>=199&&point->x<=201;
+        return point->z >= 0 && (shared || (point->x < 200)==(global_structure_bsp_index==0)) ? 0 : NONE;
     }
     CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_structure_bsp_index==0&&
           global_collision_bsp==&collisions[0]&&!disconnects,"destination test replaced active collision");
@@ -544,6 +545,52 @@ static void network_coop_note_bsp_switch(short from, short to, long const *cross
 }
 #include "majority_bsp_vote.inc"
 
+enum {MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO=200, _equipment_created_at_rest_bit=0,
+      _item_attached_to_unit_bit=2, _object_type_weapon=1, pickup_handle=0x40000};
+struct scenario_netgame_equipment {
+    unsigned long flags;
+    short game_type[4],spawn_time;
+    long run_time_spawned_item_index;
+    real_point3d position;
+    real facing;
+    struct {long index;} item_collection;
+};
+struct item_collection_definition {short spawn_time;};
+struct object_placement_data {real_point3d position;real_vector3d forward;};
+static struct {struct {short type;} object;} test_equipment_definition;
+static struct {boolean no_map_weapons;} test_equipment_options;
+static struct item_datum placed_pickups[8];
+static int placed_pickup_count;
+static boolean test_equipment_client;
+static unsigned long game_engine_equipment_regions_seen;
+static short game_engine_equipment_home_bsp[MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO];
+static boolean network_game_distributed_client(void) {return test_equipment_client;}
+static long game_engine_get_type(void) {return 2;}
+static boolean match_game_type(long type,long count,short const *kinds) {return count>0&&type==kinds[0];}
+static struct item_collection_definition *item_collection_definition_get(long index)
+{static struct item_collection_definition collection={1};return &collection;}
+static long random_item(long index) {return index;}
+static void object_placement_data_new(struct object_placement_data *placement,long definition,long owner)
+{memset(placement,0,sizeof(*placement));}
+static void vector3d_from_angle(real_vector3d *forward,real angle) {}
+static long object_new(struct object_placement_data const *placement)
+{
+    long index=placed_pickup_count++;
+    CHECK(VALID_INDEX(index,NUMBEROF(placed_pickups)),"too many pickups");
+    placed_pickups[index].object.position=placement->position;
+    placed_pickups[index].object.parent_object_index=NONE;
+    placed_pickups[index].item.last_owned_time=ticks;
+    return pickup_handle+index;
+}
+static struct item_datum *item_try_and_get(long index)
+{return index>=pickup_handle&&index-pickup_handle<placed_pickup_count?&placed_pickups[index-pickup_handle]:NULL;}
+#define item_get(index) item_try_and_get(index)
+#define object_definition_get(index) (&test_equipment_definition)
+#define game_variant_options_get() (&test_equipment_options)
+static void object_set_garbage(long index,boolean value)
+{CHECK(!value&&item_try_and_get(index),"unexpected pickup garbage assignment");}
+#include "regional_equipment.inc"
+
 static void setup(short old,short destination)
 {
     scenario.bsp_switch_trigger_volumes=(struct tag_block){1,switches};
@@ -586,6 +633,57 @@ int main(int argc,char **argv)
     short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "regional-equipment"))
+    {
+        struct scenario_netgame_equipment equipment[3]={
+            {.game_type={2},.spawn_time=1,.position={50,0,-.01f},.item_collection={1}},
+            {.game_type={2},.spawn_time=1,.position={200,0,0},.item_collection={1}},
+            {.game_type={2},.spawn_time=1,.position={250,0,0},.item_collection={1}},
+        };
+
+        scenario.type=_scenario_type_multiplayer;
+        scenario.netgame_equipment=(struct tag_block){NUMBEROF(equipment),equipment};
+        test_region_lookup=test_region_overlap=mcc_loaded=TRUE;
+        structures[0].clusters.count=structures[1].clusters.count=4;
+        memset(game_engine_equipment_home_bsp,NONE,sizeof(game_engine_equipment_home_bsp));
+
+        ticks=1;
+        test_equipment_client=TRUE;
+        game_engine_update_item_spawn();
+        CHECK(!placed_pickup_count&&!game_engine_equipment_regions_seen,"a client initialized pickups");
+        test_equipment_client=FALSE;
+        game_engine_update_item_spawn();
+        CHECK(placed_pickup_count==2&&game_engine_equipment_home_bsp[2]==NONE,
+              "spawned outside the region or skipped first activation");
+
+        ticks=TICKS_PER_SECOND;
+        game_engine_update_item_spawn();
+        CHECK(placed_pickup_count==2&&placed_pickups[0].item.last_owned_time==ticks,
+              "duplicated an unclaimed pickup or left it eligible for cleanup");
+        placed_pickups[0].object.parent_object_index=units[0];
+        ticks+=TICKS_PER_SECOND;
+        game_engine_update_item_spawn();
+        CHECK(placed_pickup_count==3&&equipment[0].run_time_spawned_item_index==pickup_handle+2&&
+              placed_pickups[0].object.parent_object_index==units[0],"did not restock while preserving the carried item");
+
+        global_structure_bsp_index=1;
+        global_structure_bsp=&structures[1];
+        global_collision_bsp=&collisions[1];
+        ticks++;
+        game_engine_update_item_spawn();
+        CHECK(placed_pickup_count==4&&game_engine_equipment_home_bsp[1]==0&&
+              equipment[2].run_time_spawned_item_index==pickup_handle+3,"reassigned a shared seam or skipped the new region");
+        CHECK(placed_pickups[2].item.last_owned_time==ticks,"parked pad became eligible for cleanup");
+
+        global_structure_bsp_index=0;
+        global_structure_bsp=&structures[0];
+        global_collision_bsp=&collisions[0];
+        ticks=3*TICKS_PER_SECOND;
+        game_engine_update_item_spawn();
+        CHECK(placed_pickup_count==4&&equipment[0].run_time_spawned_item_index==pickup_handle+2,
+              "duplicated the pickup on a round trip");
+        return 0;
+    }
     if (!strcmp(name, "regional-starts"))
     {
         struct player_starting_location local={{100,0,0},0};
