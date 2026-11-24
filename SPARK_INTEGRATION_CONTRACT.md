@@ -2806,6 +2806,30 @@ to Timberland (x=37.218) and back to x=68.628 in Sidewinder. Seat and vehicle
 identity persisted, and the passenger and observer agreed within 0.082 world
 units. The run ended before the harness's farther x=70 destination.
 
+### Danger Canyon and safe MCC region loading
+
+Spark's separate nine-region CE609 branch
+`7d2039da75783b138b9b796cf1adf84535f98d572a6eac49cb28ea1d72960445`
+adds Danger Canyon to the Chill Out branch. Windows x64 Forerunner
+`3b8aef6c2dd37168f04f5f680ba8c762d17aefea4dc83a1db708ae0c7f4ab26d`
+and Chupathingy `c16096a8` verified both directions in separate private
+OpenCE 44 sessions. After staging at each tunnel approach, native input
+reached Danger Canyon (-151.361, 320.591, -17.122) and Chill Out
+(-108.813, 246.899, -17.113). On the return leg, 39 matched ticks
+differed by at most 0.0492 world units. The Chupathingy guest also moved
+independently in Timberland during the outbound run. This branch and the
+Prisoner branch remain separate, each with one resident BSP.
+
+MCC now checks a destination's geometry header and native visibility budget
+before disconnecting the current BSP. Focused regressions cover oversized
+cluster counts, incomplete visibility, short reads and out-of-range report
+offsets. The checks leave active players, vehicles, equipment, and visibility
+state intact. On the same Windows binary, two native peers loaded the
+full-audio MCC13 cache `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`
+and synchronized regular movement within 0.0765 world units under private
+OpenCE 43. This exercises valid native loading. Separate active native BSPs
+and a live transition into a deliberately invalid second BSP remain unverified.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

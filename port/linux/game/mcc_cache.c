@@ -16,6 +16,7 @@
 #include "cache/cache_files.h"
 #include "game/game.h"
 #include "scenario/scenario_definitions.h"
+#include "structures/structure_bsp_definitions.h"
 #include "interface/ui_widget.h"
 #include "mcc_cache.h"
 #include "mcc_network_messages.h"
@@ -544,7 +545,23 @@ static struct mcc_cache_bsp const *mcc_cache_bsp_reference(
 
 boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference const *reference)
 {
-    return mcc_cache_bsp_reference(reference) != NULL;
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    struct structure_bsp structure;
+    uint32_t offset;
+
+    if (!bsp || bsp->structure_address < bsp->address) return FALSE;
+    offset = bsp->structure_address - bsp->address;
+    /* Read only the fixed geometry header before the active BSP is disconnected.
+     * The normal loader still validates the converted geometry and pointers. */
+    if (offset > bsp->size || sizeof(structure) > bsp->size - offset ||
+        offset > UINT32_MAX - bsp->file_offset ||
+        !mcc_runtime_read(&mcc_loaded_cache, bsp->file_offset + offset, sizeof(structure), &structure) ||
+        !structure_bsp_port_verify(&structure)) {
+        error(_error_silent, "mcc: structure BSP %08lx failed geometry budget preflight",
+            (unsigned long)bsp->tag_handle);
+        return FALSE;
+    }
+    return TRUE;
 }
 
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,

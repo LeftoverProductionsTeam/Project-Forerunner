@@ -23,11 +23,16 @@ def generated(fault=None):
     if fault == 'activation':
         objects = mutated(objects, '\t\tobject_pvs_clear();', '\t\t;')
     mcc_cache = read('port/linux/game/mcc_cache.c')
+    bsp_limits = [('MAXIMUM_CLUSTERS_PER_STRUCTURE', 'source/structures/structures.h'),
+                  ('MAXIMUM_SURFACES_PER_STRUCTURE', 'source/render/render.h')]
+    bsp_verifier = function(read('source/structures/structure_bsp_definitions.c'), 'structure_bsp_port_verify')
     return (
         ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
          '\n'.join(function(mcc_cache, name) for name in
                    ('mcc_cache_bsp_reference', 'mcc_cache_bsp_reference_checked')) + '\n' +
          function(read('source/cache/cache_files.c'), 'scenario_structure_bsp_reference_is_valid')),
+        ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
+         '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
         ('objects.inc', objects),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('players.inc', '\n'.join(function(players, name) for name in (
@@ -49,6 +54,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', [
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
+    'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'scripted-selection', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

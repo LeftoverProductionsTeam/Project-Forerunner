@@ -45,7 +45,10 @@ struct scenario {struct tag_block bsp_switch_trigger_volumes,cutscene_flags,stru
 struct collision_bsp {int placeholder;};
 struct bsp3d {int placeholder;};
 struct structure_leaf {long cluster_index;};
-struct structure_bsp {struct tag_block leaves,collision_bsp;};
+struct structure_bsp {
+    struct tag_block leaves,collision_bsp,clusters,surfaces;
+    struct {long size;} cluster_data,sound_cluster_data;
+};
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index;};
 struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags;} object;
@@ -183,7 +186,19 @@ static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects
 static void scenario_call_reconnect_to_structure_bsp_procs(void) {reconnects++;players_reconnect_to_structure_bsp();}
 static boolean mcc_loaded;
 struct mcc_cache_bsp;
-static struct {struct {uint32_t bsp_count;struct mcc_cache_bsp const *bsps;} report;} mcc_loaded_cache;
+static struct mcc_runtime {struct {uint32_t bsp_count;struct mcc_cache_bsp const *bsps;} report;} mcc_loaded_cache;
+static struct structure_bsp mcc_file_structure;
+static boolean mcc_file_read_failed;
+static int mcc_file_reads;
+static int mcc_runtime_read(struct mcc_runtime *runtime,uint32_t offset,uint32_t size,void *out)
+{
+    CHECK(runtime==&mcc_loaded_cache&&offset==0x1018&&size==sizeof(mcc_file_structure),"unexpected BSP header read");
+    mcc_file_reads++;
+    if (mcc_file_read_failed) return FALSE;
+    memcpy(out,&mcc_file_structure,size);
+    return TRUE;
+}
+static boolean structure_bsp_port_verify(struct structure_bsp const *bsp);
 static boolean mcc_cache_tags_loaded(void) {return mcc_loaded;}
 #define TAG_CACHE_SIZE 1
 static struct {struct {long tag_data_size;} header;} cache_file_globals;
@@ -195,7 +210,14 @@ static boolean scenario_structure_bsp_load(struct scenario_structure_bsp_referen
 {loads[ref->structure_bsp.index]++;return !reject_reference[ref->structure_bsp.index] && !reject_load[ref->structure_bsp.index];}
 static void scenario_structure_bsp_unload(struct scenario_structure_bsp_reference *ref) {unloads[ref->structure_bsp.index]++;}
 static struct structure_bsp *structure_bsp_definition_get(long index) {return &structures[index];}
-static boolean structure_bsp_port_verify(struct structure_bsp *bsp) {return !reject_verify[bsp-structures];}
+#define BIT_VECTOR_SIZE_IN_BYTES(count) (4u * (((count) + 31u) / 32u))
+#include "bsp_limits.inc"
+static boolean structure_bsp_port_verify(struct structure_bsp const *bsp)
+{
+    if (bsp==&structures[0]) return !reject_verify[0];
+    if (bsp==&structures[1]) return !reject_verify[1];
+    return native_bsp_limits(bsp);
+}
 static void main_goto_main_menu(void) {menu++;}
 static void structure_culling_load_settings(void) {culling++;}
 static void structure_culling_structure_bsp_loaded(void) {culling++;}
@@ -564,10 +586,11 @@ int main(int argc,char **argv)
         objects[1].object.bounding_sphere_center=objects[1].object.position;
     }
     memcpy(before,objects,sizeof(before));
-    if(!strcmp(name,"reference-refused")||!strcmp(name,"mcc-reference-refused"))
+    if(!strcmp(name,"reference-refused")||!strncmp(name,"mcc-",4))
     {
-        struct mcc_cache_bsp checked={.file_offset=4096,.size=1024,.address=0x40001000,.tag_handle=(uint32_t)destination};
-        if(!strcmp(name,"mcc-reference-refused"))
+        struct mcc_cache_bsp checked={.file_offset=4096,.size=1024,.address=0x40001000,.tag_handle=(uint32_t)destination,
+                                      .structure_address=0x40001018};
+        if(!strncmp(name,"mcc-",4))
         {
             struct scenario_structure_bsp_reference *ref=&references[destination];
             mcc_loaded=TRUE;
@@ -576,20 +599,36 @@ int main(int argc,char **argv)
             ref->file_offset=checked.file_offset;
             ref->file_size=checked.size;
             ref->base_address=checked.address;
+            mcc_file_structure.collision_bsp.count=1;
+            mcc_file_structure.clusters.count=2;
+            mcc_file_structure.cluster_data.size=8;
+            mcc_file_structure.sound_cluster_data.size=1;
             CHECK(scenario_structure_bsp_reference_is_valid(ref),"matching MCC reference refused");
-            ref->base_address++;
-            CHECK(!mcc_cache_bsp_reference_checked(ref),"changed MCC address accepted");
-            ref->base_address--;
-            ref->file_size++;
-            CHECK(!mcc_cache_bsp_reference_checked(ref),"changed MCC size accepted");
-            ref->file_size--;
-            ref->file_offset++;
+            if (!strcmp(name,"mcc-neighbor-geometry")) {
+                mcc_file_structure.clusters.count=MAXIMUM_CLUSTERS_PER_STRUCTURE+1;
+            } else if (!strcmp(name,"mcc-neighbor-visibility")) {
+                mcc_file_structure.cluster_data.size=7;
+            } else if (!strcmp(name,"mcc-neighbor-truncated")) {
+                mcc_file_read_failed=TRUE;
+            } else if (!strcmp(name,"mcc-neighbor-range")) {
+                checked.structure_address=checked.address+checked.size;
+            } else {
+                ref->base_address++;
+                CHECK(!mcc_cache_bsp_reference_checked(ref),"changed MCC address accepted");
+                ref->base_address--;
+                ref->file_size++;
+                CHECK(!mcc_cache_bsp_reference_checked(ref),"changed MCC size accepted");
+                ref->file_size--;
+                ref->file_offset++;
+            }
         }
         else
             reject_reference[destination]=TRUE;
         object_globals->pvs_activation_type=_pvs_activation_cluster;
         object_globals->pvs_activation.cluster_index=2;
         CHECK(!scenario_switch_structure_bsp(destination),"invalid BSP reference was accepted");
+        if (!strcmp(name,"mcc-neighbor-range"))
+            CHECK(mcc_file_reads==1,"out-of-range header caused a file read");
         CHECK(!clock_stops&&!clock_starts&&collision_log&&!disconnects&&!reconnects&&
               !loads[old]&&!unloads[old]&&!loads[destination]&&!culling&&!menu,
               "invalid reference tore down simulation state before loading");
