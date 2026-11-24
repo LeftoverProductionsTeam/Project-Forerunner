@@ -2574,6 +2574,28 @@ This establishes two-way infantry traversal of the new connector on one
 resident BSP. Vehicle traversal, AI, objectives and the four-region
 candidate remain open.
 
+### Four-region Battle Creek connector
+
+Spark `90c784a` adds Battle Creek to the same resident BSP. The exact CE609
+cache SHA-256 `f66931cdd82bb15655868a39d3b1a5682d8baa088f1da01bd3efafd47a280251`
+ran on Windows x64 executable
+`6929b8d3ffb7bf80f713b6094bcdf25989bdb9fe8f50aa4d5fca210579af2226`.
+After one native placement at the approach, ordinary keyboard movement
+took the host from (370.834, -33.779, -17.912) to Battle Creek
+(460.093, -33.778, -18.274), then back to (369.064, -33.670, -18.250)
+in the same session. Both clients matched 86 traversal samples with a
+maximum position difference of .059 world units. While the host crossed,
+the guest moved independently by 4.5 units near (60.500, 34.124, -21.075).
+Both processes exited zero. The 2.2-unit-wide Battle Creek connector has
+infantry evidence. Its vehicle clearance, persistent AI and objectives
+remain open.
+
+The vehicle-ready Timberland–Sidewinder cache was also used to check
+a shared Warthog in Team Slayer. Native team change refused the host as
+the last player on its team. The stock seat check admitted the guest only.
+Both clients agreed on the guest's occupied position and exited zero.
+A two-teammate crossing remains open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.
