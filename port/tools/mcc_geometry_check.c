@@ -107,7 +107,9 @@ static int check_bsp_lifetime(struct mcc_runtime *r,char const *test) {
     struct mcc_cache_bsp const *a=&r->report.bsps[0], *b=&r->report.bsps[1];
     struct vertex_buffer *old_buffer;
     void *old_hardware, *old_payload, *new_hardware, *first, *second;
-    int baseline=active_buffers, expected=!strcmp(test,"disjoint");
+    int relocated=!strcmp(test,"relocated");
+    int baseline=active_buffers, expected=!strcmp(test,"disjoint") || relocated;
+    uint32_t destination=relocated ? r->report.tag_base+((r->used+15u)&~15u) : b->address;
     int loaded;
 
     if (r->report.bsp_count!=2 ||
@@ -119,7 +121,10 @@ static int check_bsp_lifetime(struct mcc_runtime *r,char const *test) {
     if (mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset+4,b->size,(void *)(uintptr_t)b->address,&second))
         return 0;
     if (!strcmp(test,"partial-bsp-failure")) fail_at=created_buffers+1;
-    loaded=mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset,b->size,(void *)(uintptr_t)b->address,&second);
+    loaded=mcc_geometry_bsp_load(r,b->tag_handle,b->file_offset,b->size,(void *)(uintptr_t)destination,&second);
+    if (expected && (r->bsp_addresses[1]!=destination ||
+        second!=(void *)(uintptr_t)(destination+b->structure_address-b->address) ||
+        *(uint32_t *)(uintptr_t)destination!=(uint32_t)(uintptr_t)second)) return 0;
     if (loaded!=expected || (!!second)!=expected || old_buffer->hardware_format!=old_hardware ||
         mcc_geometry_buffer_data(r,old_hardware,0,NULL,a->tag_handle)!=old_payload ||
         !mcc_geometry_contains(r,old_payload,32,a->tag_handle) ||
@@ -140,7 +145,7 @@ static int check_bsp_lifetime(struct mcc_runtime *r,char const *test) {
             !second || active_buffers!=baseline+2) return 0;
     }
     mcc_geometry_bsp_unload(r,b->tag_handle);
-    if (active_buffers!=baseline) return 0;
+    if (active_buffers!=baseline || r->bsp_addresses[0] || r->bsp_addresses[1]) return 0;
     printf("bsp_lifetime=%s\n",test);
     return 1;
 }
@@ -156,7 +161,7 @@ int main(int argc,char **argv) {
     if (!legacy_model_limits_check()) return 13;
     if (argc<2 || argc>4) return 2;
     if (argc==3 && (!strcmp(argv[2],"disjoint") || !strcmp(argv[2],"overlap") ||
-        !strcmp(argv[2],"partial-bsp-failure"))) bsp_lifetime_test=argv[2];
+        !strcmp(argv[2],"relocated") || !strcmp(argv[2],"partial-bsp-failure"))) bsp_lifetime_test=argv[2];
     else if (argc>=3) fail_at=atoi(argv[2]);
     if (argc==4) allocation_fail_at=atoi(argv[3]);
     memset(&r,0,sizeof(r));

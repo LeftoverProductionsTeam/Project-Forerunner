@@ -31,8 +31,8 @@ def generated(fault=None):
     return (
         ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
          '\n'.join(function(mcc_cache, name) for name in
-                   ('mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked',
-                    'mcc_cache_bsp_can_prepare', 'mcc_cache_bsp_release', 'mcc_cache_drop_retained_bsp',
+                   ('mcc_runtime_linked_bsp_limit', 'mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked',
+                    'mcc_cache_bsp_resident_address', 'mcc_cache_bsp_prepare_address', 'mcc_cache_bsp_release', 'mcc_cache_drop_retained_bsp',
                     'mcc_cache_bsp_load', 'mcc_cache_bsp_retain', 'mcc_cache_bsp_unload')) + '\n' +
          enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +
          structure(cache_header, 'scenario_bsp_prepared') + '\n' +
@@ -77,7 +77,7 @@ def generated(fault=None):
     'host-superseded', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
-    'mcc-prepare-success', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
+    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-crossing', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

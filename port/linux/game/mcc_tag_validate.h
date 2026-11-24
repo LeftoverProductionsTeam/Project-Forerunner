@@ -9,7 +9,8 @@ struct mcc_runtime;
 struct tag_validation;
 
 int mcc_tags_validate(struct mcc_runtime *runtime);
-int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size);
+int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size,
+    unsigned long linked_address);
 void mcc_bsp_release_claims(struct mcc_runtime *runtime, void const *address, unsigned long size);
 void mcc_validation_dispose(struct mcc_runtime *runtime);
 

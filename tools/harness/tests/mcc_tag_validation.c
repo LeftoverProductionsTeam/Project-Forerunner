@@ -889,24 +889,24 @@ int main(int argc, char **argv)
         second_bsp->root = second_root; second_bsp->signature = 'sbsp';
         geometry_owner = (uint32_t)instance[1].handle;
 
-        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, MCC_ADDRESS(bsp)));
         CHECK(callback_failures == 0);
         CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
         CHECK(mcc_validation_any_claimed(base_last_byte, 1));
         CHECK(!mcc_validation_any_claimed(runtime.tags + runtime.used, 1));
-        CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, MCC_ADDRESS(bsp)));
         CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
 
         second_root->other_data.address = external_vertices;
         second_root->other_data.size = sizeof(external_vertices);
-        CHECK(!mcc_bsp_validate(&runtime, instance[2].handle, second_bsp, 515));
+        CHECK(!mcc_bsp_validate(&runtime, instance[2].handle, second_bsp, 515, MCC_ADDRESS(second_bsp)));
         CHECK(!mcc_validation_any_claimed(second_bsp, 515));
         CHECK(mcc_validation_any_claimed(first_last_byte, 1));
 
         second_root->other_data.address = last_byte;
         second_root->other_data.size = 1;
         geometry_owner = (uint32_t)instance[2].handle;
-        CHECK(mcc_bsp_validate(&runtime, instance[2].handle, second_bsp, 515));
+        CHECK(mcc_bsp_validate(&runtime, instance[2].handle, second_bsp, 515, MCC_ADDRESS(second_bsp)));
         CHECK(callback_failures == 0);
         CHECK(mcc_validation_any_claimed(broot, sizeof(*broot)));
         CHECK(mcc_validation_any_claimed(first_last_byte, 1));
@@ -923,16 +923,39 @@ int main(int argc, char **argv)
         broot->other_data.address = external_vertices;
         broot->other_data.size = sizeof(external_vertices);
         geometry_owner = (uint32_t)instance[1].handle;
-        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, MCC_ADDRESS(bsp)));
         CHECK(callback_failures == 0);
         mcc_bsp_release_claims(&runtime, second_bsp, 515);
         CHECK(!mcc_validation_any_claimed(second_bsp, 515));
         CHECK(mcc_validation_any_claimed(bsp, sizeof(*bsp)));
         mcc_bsp_release_claims(&runtime, bsp, 512);
         broot->children.count = 1; broot->children.address = root;
-        CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512));
+        CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, MCC_ADDRESS(bsp)));
         CHECK(!mcc_validation_any_claimed(bsp, 512));
         CHECK(mcc_validation_any_claimed(base_last_byte, 1));
+
+        /* Geometry has already moved the root. Nested block and raw data
+         * addresses still refer to the overlapping linked BSP window. */
+        {
+            struct test_child *moved_child = (struct test_child *)((byte *)bsp + 256);
+            unsigned long linked_address = MCC_ADDRESS(second_bsp);
+            broot->children.address = (byte *)second_bsp + 256;
+            moved_child->data.size = 8;
+            moved_child->data.address = (byte *)second_bsp + 384;
+            moved_child->reference.index = NONE;
+            CHECK(mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, linked_address));
+            CHECK(broot->children.address == moved_child);
+            CHECK(moved_child->data.address == (byte *)bsp + 384);
+            mcc_bsp_release_claims(&runtime, bsp, 512);
+
+            /* Never accept an unvisited disk pointer already naming the new slot. */
+            CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, linked_address));
+            CHECK(!mcc_validation_any_claimed(bsp, 512));
+            broot->children.address = (byte *)second_bsp + 256;
+            moved_child->data.address = (byte *)second_bsp + 508;
+            CHECK(!mcc_bsp_validate(&runtime, instance[1].handle, bsp, 512, linked_address));
+            CHECK(!mcc_validation_any_claimed(bsp, 512));
+        }
     }
     mcc_validation_dispose(&runtime); free(runtime.tags);
     return 0;

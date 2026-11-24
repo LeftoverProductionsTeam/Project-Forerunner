@@ -334,14 +334,24 @@ int mcc_runtime_read(struct mcc_runtime *runtime, uint32_t offset, uint32_t byte
         runtime->source.read(runtime->source.context, offset, bytes, out);
 }
 
-void *mcc_runtime_allocate(struct mcc_runtime *runtime, uint32_t bytes)
+static uint32_t mcc_runtime_linked_bsp_limit(struct mcc_runtime const *runtime)
 {
     uint32_t limit = runtime->capacity, index;
-    uint32_t start = (runtime->used + 15u) & ~15u;
-    void *result;
     for (index = 0; index < runtime->report.bsp_count; ++index) {
         uint32_t bsp_offset = runtime->report.bsps[index].address - runtime->report.tag_base;
         if (bsp_offset < limit) limit = bsp_offset;
+    }
+    return limit;
+}
+
+void *mcc_runtime_allocate(struct mcc_runtime *runtime, uint32_t bytes)
+{
+    uint32_t limit = mcc_runtime_linked_bsp_limit(runtime), index;
+    uint32_t start = (runtime->used + 15u) & ~15u;
+    void *result;
+    for (index = 0; index < runtime->report.bsp_count; ++index) {
+        uint32_t bsp_offset = runtime->bsp_addresses[index] - runtime->report.tag_base;
+        if (runtime->bsp_addresses[index] && bsp_offset < limit) limit = bsp_offset;
     }
     if (start < runtime->used || start > limit || bytes > limit - start) return NULL;
     result = runtime->tags + start;
@@ -580,21 +590,40 @@ boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference 
     return FALSE;
 }
 
-boolean mcc_cache_bsp_can_prepare(struct scenario_structure_bsp_reference const *active,
+static uint32_t mcc_cache_bsp_resident_address(struct mcc_cache_bsp const *bsp)
+{
+    return mcc_loaded_cache.bsp_addresses[bsp - mcc_loaded_cache.report.bsps];
+}
+
+unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_reference const *active,
     struct scenario_structure_bsp_reference const *destination)
 {
     struct mcc_cache_bsp const *from = mcc_cache_bsp_reference(active);
     struct mcc_cache_bsp const *to = mcc_cache_bsp_reference(destination);
+    uint32_t current, limit, start;
+    if (!from || !to || from == to || !(current = mcc_cache_bsp_resident_address(from)))
+        return 0;
+    if (to == mcc_retained_bsp)
+        return mcc_cache_bsp_resident_address(to);
+    if ((uint64_t)current + from->size <= to->address ||
+        (uint64_t)to->address + to->size <= current)
+        return to->address;
 
-    return from && to && from->tag_handle != to->tag_handle &&
-        ((uint64_t)from->address + from->size <= to->address ||
-            (uint64_t)to->address + to->size <= from->address);
+    /* Use space above the converted static tags and below all linked BSPs.
+     * A parked neighbor can be evicted before this slot is reused. */
+    limit = mcc_runtime_linked_bsp_limit(&mcc_loaded_cache);
+    if (to->size > limit) return 0;
+    start = (limit - to->size) & ~15u;
+    if (start < mcc_loaded_cache.used) return 0;
+    return mcc_loaded_cache.report.tag_base + start;
 }
 
 static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)
 {
+    uint32_t address = mcc_cache_bsp_resident_address(bsp);
+    if (!address) return;
     mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
-    mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(bsp->address), bsp->size);
+    mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(address), bsp->size);
 }
 
 static void mcc_cache_drop_retained_bsp(void)
@@ -606,23 +635,26 @@ static void mcc_cache_drop_retained_bsp(void)
 }
 
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
-    void **header, void **structure)
+    unsigned long address, void **header, void **structure)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     if (!bsp) return FALSE;
     if (bsp == mcc_retained_bsp) {
-        *header = xbox_pointer(bsp->address);
-        *structure = xbox_pointer(bsp->structure_address);
+        uint32_t resident = mcc_cache_bsp_resident_address(bsp);
+        *header = xbox_pointer(resident);
+        *structure = xbox_pointer(resident + (bsp->structure_address - bsp->address));
         mcc_retained_bsp = NULL;
         return TRUE;
     }
 
     /* Allow at most the active BSP and one neighbor during conversion. */
     mcc_cache_drop_retained_bsp();
+    if (!address) address = bsp->address;
+    *header = xbox_pointer(address);
     if (!mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
-        bsp->size, xbox_pointer(bsp->address), structure)) return FALSE;
-    *header = xbox_pointer(bsp->address);
-    if (!mcc_bsp_validate(&mcc_loaded_cache, (long)bsp->tag_handle, *header, (long)bsp->size)) {
+        bsp->size, *header, structure)) return FALSE;
+    if (!mcc_bsp_validate(&mcc_loaded_cache, (long)bsp->tag_handle, *header,
+        (long)bsp->size, bsp->address)) {
         mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
         return FALSE;
     }

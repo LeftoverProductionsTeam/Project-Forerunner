@@ -2968,10 +2968,11 @@ BSP 1 at [0x8121b800, 0x819a6000). Both cannot occupy those linked
 addresses at once. The native runtime first needs disjoint or validated
 relocated BSP ranges. The MCC geometry adapter now owns buffers by BSP
 handle. Two disjoint linked ranges can hold geometry at the same time.
-An overlapping request is refused before copying into the tag arena, and
-a failed conversion releases only the candidate's buffers. Cold switches release the exact active cache reference and any retained
-neighbor. The validator retains claims of other live BSPs and clears only
-the released or rejected range.
+The geometry adapter refuses overlapping runtime ranges before copying
+bytes. Failed conversion releases only the candidate's buffers. Cold
+switches release the exact active cache reference and any retained neighbor.
+The validator retains claims of other live BSPs and clears only the released
+or rejected range.
 Geometry checks are restricted to the BSP handle being walked. Model
 allocations retain their shared owner. The native collision trees accept
 explicit BSP pointers. Higher-level location,
@@ -3009,9 +3010,8 @@ clock and cancels the pending gather while the active scene and cache
 header remain intact. After successful preparation, the switch publishes
 the destination and retains the former BSP's validated geometry with its tag
 binding cleared. Returning to it reuses geometry and validation claims.
-Preparing a third disjoint BSP evicts the inactive neighbor first. Cold
-switches, checkpoint reloads and map teardown release both. Overlapping
-linked windows still use the normal unload-and-load path.
+Preparing a third BSP evicts the inactive neighbor first. Cold switches,
+checkpoint reloads and map teardown release both.
 
 The Windows x64 executable
 `de6da5376ecb3ae01935c4d7c5cf5eb83053434f8d4890baa75166d89278990a`
@@ -3045,14 +3045,29 @@ smoke stalled at the same host coordinates on this build and on the
 comparison with the previous scenario and player objects. That run
 did not exercise a live prepared MCC13 seam.
 
+The MCC13 loader can now prepare an overlapping neighbor in the unused
+arena space above converted static tags and below the lowest linked BSP.
+Geometry conversion uses the on-disk offsets and schema validation
+translates BSP-local block/data addresses. Actual resident addresses own
+buffers and validation claims. The cache identity and references remain
+unchanged. When there is insufficient space or optional relocation fails,
+the original cold switch is available. CE609 keeps its existing loader.
+
+Windows x64 executable
+`66691caaf73c98c54ccef1d530c73b2a86cb732da860106bd0f72b823cd44783`
+passed 244 focused switch, conversion and validation checks with one
+platform-only skip. The fixtures exercised relocation of an overlapping
+BSP, retained return, insufficient space, and pointer bounds. Two private
+native peers loaded and moved on the exact twelve-region MCC13 cache, with
+observed position differences up to 0.075 units and zero exit statuses.
+That native map exercises a single BSP.
+
 Spark revision `9d89bfc` compiled both Chiron corridor BSPs with native
 two-way switch volumes in CE609 and MCC13. The probe used overlapping BSP
 windows and its outputs were disposable. The next runtime handoff needs
-the lit, playable caches for physical traversal. Native neighbor residency
-needs an MCC13 export whose two linked BSP ranges are disjoint and within
-the declared tag window. Both ranges must start above the static tag data.
-CE609 can retain its original linked-window layout. Independent simultaneous
-simulation remains open.
+the lit, playable caches for physical traversal. The ordinary overlapping
+MCC13 export can exercise native relocation if its converted static tags and
+both BSPs fit the arena. Simultaneous regional simulation remains open.
 
 The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal

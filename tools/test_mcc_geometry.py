@@ -180,10 +180,10 @@ def test_model_conversion_and_dispose(geometry_tool, tmp_path):
     assert fields["created_buffers"] == "2"
 
 
-@pytest.mark.parametrize("case", ["disjoint", "overlap", "partial-bsp-failure"])
+@pytest.mark.parametrize("case", ["disjoint", "overlap", "relocated", "partial-bsp-failure"])
 def test_bsp_geometry_has_independent_lifetime(geometry_tool, tmp_path, case):
     path = tmp_path / "regions.map"
-    path.write_bytes(two_bsp_geometry_map(overlap=case == "overlap"))
+    path.write_bytes(two_bsp_geometry_map(overlap=case in {"overlap", "relocated"}))
     code, fields = run(geometry_tool, path, case)
     assert code == 0
     assert fields["bsp_lifetime"] == case

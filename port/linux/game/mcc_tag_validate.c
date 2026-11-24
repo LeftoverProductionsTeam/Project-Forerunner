@@ -79,6 +79,8 @@ struct mcc_validation_context {
     boolean rejected;
     boolean geometry_access;
     unsigned long visits;
+    uint32_t linked_bsp_address;
+    byte *rebased_fields;
 };
 struct mcc_allocation {
     struct mcc_allocation *next;
@@ -642,6 +644,34 @@ static int mcc_animation_graph_check(struct mcc_validation_context *context,
 
 /* Every container's extents are verified before any of its indices or child
  * elements are visited. Claims reject overlap and cycles before dereference. */
+/* Only schema-owned block and data addresses are translated. The field
+ * bits distinguish previously visited shared descriptors from raw addresses. */
+static void mcc_bsp_rebase_pointer(struct mcc_validation_context *context,
+    XPTR(void) *field, unsigned long bytes)
+{
+    uint32_t address, delta;
+    unsigned long word;
+    byte mask;
+
+    if (!context->rebased_fields || !bytes) return;
+    word = (unsigned long)((byte *)field - context->region) / sizeof(uint32_t);
+    mask = (byte)(1u << (word & 7));
+    if (context->rebased_fields[word >> 3] & mask) return;
+
+    address = (uint32_t)(uintptr_t)*field;
+    delta = address - context->linked_bsp_address;
+    if (address >= context->linked_bsp_address && delta < context->length) {
+        if (bytes > context->length - delta) {
+            mcc_problem(context, 1, "relocated BSP pointer exceeds linked allocation");
+            return;
+        }
+        *field = xbox_address(context->region + delta);
+        context->rebased_fields[word >> 3] |= mask;
+    } else if (mcc_range(context->region, context->length, xbox_pointer(*field), 1)) {
+        mcc_problem(context, 1, "file pointer names the relocated BSP address");
+    }
+}
+
 static void mcc_fields(struct mcc_validation_context *context, byte *address,
     struct tag_schema_definition const *schema, int stage, int nesting)
 {
@@ -704,6 +734,8 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                         mcc_problem(context, 1, "invalid block count"); break;
                     }
                     bytes = (unsigned long)block->count * (unsigned long)element->size;
+                    mcc_bsp_rebase_pointer(context, &block->address, bytes);
+                    if (context->rejected) break;
                     /* BioHalo interns scalar records in other allocations.
                      * Isolate overlapping values before correcting them. A
                      * pointer-bearing block is eligible only when entirely
@@ -765,6 +797,8 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                         if (!mcc_validation_file_contains((struct tag_validation *)context, data->file_offset, data->size))
                             mcc_problem(context, 1, "file data leaves MCC stream");
                     } else if (data->size) {
+                        mcc_bsp_rebase_pointer(context, &data->address, data->size);
+                        if (context->rejected) break;
                         if (mcc_range(context->region, context->length, xbox_pointer(data->address), data->size)) {
                             /* Optimized animation, text and unused input-device
                              * metadata can share prefixes or padding. Isolate
@@ -1017,7 +1051,8 @@ void mcc_bsp_release_claims(struct mcc_runtime *runtime, void const *address, un
     if (end & 7) mcc_validation.claims[end >> 3] &= (byte)~((1U << (end & 7)) - 1U);
 }
 
-int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size)
+int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size,
+    unsigned long linked_address)
 {
     struct mcc_validation_context context;
     struct mcc_validation_bsp_header *header = address;
@@ -1033,6 +1068,15 @@ int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, lo
     if (!instance || instance->group != 'sbsp' || !schema || !schema->definition) return 0;
     mcc_allocations_dispose();
     memset(&context, 0, sizeof(context)); context.region = address; context.length = size; context.handle = handle;
+    if (linked_address != MCC_ADDRESS(address)) {
+        uint32_t position = MCC_ADDRESS(address);
+        if ((uint64_t)linked_address < (uint64_t)position + size &&
+            (uint64_t)position < (uint64_t)linked_address + size) return 0;
+        context.linked_bsp_address = linked_address;
+        context.rebased_fields = malloc(((unsigned long)size + 31) / 32);
+        if (!context.rebased_fields) return 0;
+        memset(context.rebased_fields, 0, ((unsigned long)size + 31) / 32);
+    }
     if (header->signature != 'sbsp' || !mcc_claim(header, sizeof(*header)) ||
         !mcc_range(address, size, xbox_pointer(header->root), schema->definition->size) || !mcc_claim(xbox_pointer(header->root), schema->definition->size)) {
         mcc_problem(&context, 1, "invalid BSP header or root");
@@ -1041,6 +1085,7 @@ int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, lo
         if (!context.rejected) mcc_walk(&context, xbox_pointer(header->root), schema->definition, 1);
     }
     mcc_allocations_dispose();
+    if (context.rebased_fields) free(context.rebased_fields);
     if (context.rejected) mcc_bsp_release_claims(runtime, address, (unsigned long)size);
     return !context.rejected;
 }

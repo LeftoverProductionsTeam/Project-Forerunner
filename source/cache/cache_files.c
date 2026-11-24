@@ -2435,11 +2435,14 @@ enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
 	struct scenario_structure_bsp_reference const *destination,
 	struct scenario_bsp_prepared *prepared)
 {
-	if (!mcc_cache_bsp_can_prepare(active, destination))
+	unsigned long address = mcc_cache_bsp_prepare_address(active, destination);
+
+	if (!address)
 		return _scenario_bsp_prepare_deferred;
 
-	if (!mcc_cache_bsp_load(destination, &prepared->header, &prepared->structure))
-		return _scenario_bsp_prepare_failed;
+	if (!mcc_cache_bsp_load(destination, address, &prepared->header, &prepared->structure))
+		return address == (unsigned long)(uintptr_t)destination->base_address ?
+			_scenario_bsp_prepare_failed : _scenario_bsp_prepare_deferred;
 	if (!structure_bsp_port_verify(prepared->structure))
 	{
 		mcc_cache_bsp_unload(destination);
@@ -2471,7 +2474,7 @@ boolean scenario_structure_bsp_load(
 	if (mcc_cache_tags_loaded())
 	{
 		struct scenario_bsp_prepared prepared;
-		if (!mcc_cache_bsp_load(reference, &prepared.header, &prepared.structure))
+		if (!mcc_cache_bsp_load(reference, 0, &prepared.header, &prepared.structure))
 			return FALSE;
 		scenario_structure_bsp_activate_prepared(reference, &prepared);
 		return TRUE;

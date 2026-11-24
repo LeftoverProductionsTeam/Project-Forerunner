@@ -23,6 +23,8 @@ struct mcc_runtime {
     uint32_t capacity;
     struct mcc_cache_source source;
     struct mcc_cache_report report;
+    /* Actual tag-arena addresses. On-disk BSP references stay unchanged. */
+    uint32_t bsp_addresses[MCC_CACHE_MAX_BSPS];
     /* Owned by the corresponding MCC adapter, released even on failed loads. */
     void *geometry;
     void *audio;

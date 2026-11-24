@@ -289,9 +289,12 @@ static int test_destination_activation(void)
 
 static boolean mcc_loaded;
 struct mcc_cache_bsp;
-static struct mcc_runtime {struct {uint32_t bsp_count;struct mcc_cache_bsp const *bsps;} report;} mcc_loaded_cache;
+static struct mcc_runtime {
+    struct {uint32_t bsp_count,tag_base;struct mcc_cache_bsp const *bsps;} report;
+    uint32_t capacity,used,bsp_addresses[3];
+} mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsp;
-static struct {
+static struct __attribute__((aligned(16))) {
     byte header[24];
     struct structure_bsp structure;
 } mcc_regions[3];
@@ -332,6 +335,7 @@ static int mcc_geometry_bsp_load(struct mcc_runtime *runtime, uint32_t handle, u
     mcc_prepared_loads++;
     if (reject_load[handle]) return FALSE;
     mcc_region_live[handle]=TRUE;
+    runtime->bsp_addresses[handle]=(uint32_t)(uintptr_t)address;
     *structure=&mcc_regions[handle].structure;
     return TRUE;
 }
@@ -339,13 +343,15 @@ static void mcc_geometry_bsp_unload(struct mcc_runtime *runtime, uint32_t handle
 {
     CHECK(runtime==&mcc_loaded_cache&&handle<3&&mcc_region_live[handle],"released missing geometry");
     mcc_region_live[handle]=FALSE;
+    runtime->bsp_addresses[handle]=0;
     mcc_prepared_releases++;
 }
-static int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size)
+static int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size, unsigned long linked_address)
 {
     CHECK(runtime==&mcc_loaded_cache&&handle>=0&&handle<3&&mcc_region_live[handle]&&
           address==mcc_regions[handle].header&&size==sizeof(mcc_regions[handle]),
           "validated a different cache window");
+    CHECK(linked_address==references[handle].base_address,"lost the linked address");
     mcc_prepared_validations++;
     return TRUE;
 }
@@ -555,7 +561,8 @@ static void setup(short old,short destination)
 int main(int argc,char **argv)
 {
     char const *name=argc>1?argv[1]:"";
-    short old=!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
+    boolean relocated=!strcmp(name,"mcc-prepare-relocated");
+    short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
     if (!strncmp(name, "mcc-prepare-",12))
@@ -571,6 +578,8 @@ int main(int argc,char **argv)
         mcc_loaded=mcc_prepare_fixture=TRUE;
         mcc_loaded_cache.report.bsp_count=scenario.structure_bsp_references.count=3;
         mcc_loaded_cache.report.bsps=regions;
+        mcc_loaded_cache.report.tag_base=(uint32_t)(uintptr_t)mcc_regions[0].header;
+        mcc_loaded_cache.capacity=sizeof(mcc_regions);
         for (short i=0;i<3;i++)
         {
             mcc_regions[i].structure=structures[i<2?i:0];
@@ -579,10 +588,10 @@ int main(int argc,char **argv)
                 .address=(uint32_t)(uintptr_t)mcc_regions[i].header,
                 .structure_address=(uint32_t)(uintptr_t)&mcc_regions[i].structure
             };
-            if (overlap&&i==1)
+            if ((overlap||relocated)&&i==destination)
             {
-                regions[i].address=regions[0].address+4;
-                regions[i].structure_address=regions[0].structure_address+4;
+                regions[i].address=(uint32_t)(uintptr_t)mcc_regions[old].header+4;
+                regions[i].structure_address=regions[i].address+24;
             }
             references[i].structure_bsp.index=i;
             references[i].base_address=regions[i].address;
@@ -594,6 +603,7 @@ int main(int argc,char **argv)
         mcc_file_structure.clusters.count=1;
         mcc_file_structure.cluster_data.size=4;
         mcc_region_live[old]=TRUE;
+        mcc_loaded_cache.bsp_addresses[old]=regions[old].address;
         global_structure_bsp=&mcc_regions[old].structure;
         cache_file_globals.structure_bsp_header=mcc_regions[old].header;
         test_tag_instances[old].base_address=global_structure_bsp;
@@ -652,6 +662,10 @@ int main(int argc,char **argv)
                       !test_tag_instances[old].base_address&&mcc_retained_bsp==&regions[old]&&
                       mcc_region_live[old]&&mcc_region_live[destination],
                       "the inactive BSP lost its geometry or remained published");
+                if (relocated)
+                    CHECK(mcc_loaded_cache.bsp_addresses[destination]==(uint32_t)(uintptr_t)mcc_regions[destination].header&&
+                          mcc_loaded_cache.bsp_addresses[destination]!=regions[destination].address,
+                          "an overlapping BSP did not use the free slot");
                 if (evict)
                 {
                     CHECK(scenario_switch_structure_bsp(2),"third region did not load");

@@ -77,7 +77,6 @@ struct mcc_converted_model {
 struct mcc_geometry_state {
     struct mcc_geometry_buffer *buffers;
     struct mcc_converted_model *models;
-    uint32_t resident_bsps;
 };
 
 typedef char mcc_render_part_size_check[sizeof(struct mcc_render_part)==0x68 ? 1 : -1];
@@ -488,10 +487,9 @@ int mcc_geometry_prepare(struct mcc_runtime *r) {
     return 1;
 }
 
-static void *mg_bsp_pointer(void *base,uint32_t size,uint32_t address,uint32_t bytes) {
-    uint32_t start=MCC_ADDRESS(base);
-    if (address<start || !mg_range((uint32_t)(address-start),bytes,size)) return NULL;
-    return (unsigned char *)base+(address-start);
+static void *mg_bsp_pointer(struct mcc_cache_bsp const *b,void *base,uint32_t address,uint32_t bytes) {
+    if (address<b->address || !mg_range(address-b->address,bytes,b->size)) return NULL;
+    return (unsigned char *)base+(address-b->address);
 }
 
 static int mg_bsp_material(struct mcc_runtime *r,struct mcc_cache_bsp const *b,
@@ -563,32 +561,39 @@ int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
     struct structure_lightmap *lightmaps;
     struct mg_material_run *runs=NULL;
     struct mcc_geometry_state *state=r ? r->geometry : NULL;
-    uint32_t i,bsp_index,run_count=0;
+    uint32_t i,bsp_index,position,run_count=0;
     long l;
     if (!state || !result || handle==MCC_GEOMETRY_NO_BSP || r->report.bsp_count>MCC_CACHE_MAX_BSPS)
         return 0;
     *result=NULL;
     for (bsp_index=0;bsp_index<r->report.bsp_count;bsp_index++) {
         struct mcc_cache_bsp const *candidate=&r->report.bsps[bsp_index];
-        if (candidate->tag_handle==handle && candidate->file_offset==offset && candidate->size==size &&
-            candidate->address==MCC_ADDRESS(address)) { b=candidate; break; }
+        if (candidate->tag_handle==handle && candidate->file_offset==offset && candidate->size==size) {
+            b=candidate; break;
+        }
     }
     if (!b) return mg_error("BSP request differs from validated reference");
-    /* Legacy caches can link several BSPs to the same tag addresses.
-     * Reject before writing into any resident BSP, including its descriptors. */
+    position=MCC_ADDRESS(address);
+    if ((position&3) || position<r->report.tag_base || position-r->report.tag_base<r->used ||
+        !mg_range(position-r->report.tag_base,size,r->capacity))
+        return mg_error("BSP destination leaves the tag arena");
+    if (position!=b->address &&
+        (uint64_t)position<(uint64_t)b->address+size && (uint64_t)b->address<(uint64_t)position+size)
+        return mg_error("BSP relocation overlaps its linked window");
+    /* Converted buffers retain pointers into this range until that BSP unloads. */
     for (i=0;i<r->report.bsp_count;i++) {
-        struct mcc_cache_bsp const *resident=&r->report.bsps[i];
-        if ((state->resident_bsps & (1u<<i)) &&
-            (resident->tag_handle==handle ||
-                ((uint64_t)b->address < (uint64_t)resident->address+resident->size &&
-                    (uint64_t)resident->address < (uint64_t)b->address+b->size)))
+        uint32_t resident=r->bsp_addresses[i];
+        if (resident && (i==bsp_index ||
+            ((uint64_t)position<(uint64_t)resident+r->report.bsps[i].size &&
+                (uint64_t)resident<(uint64_t)position+size)))
             return mg_error("BSP overlaps a resident region");
     }
     if (!mcc_runtime_read(r,offset,size,address)) return mg_error("BSP could not be read");
-    structure=mg_bsp_pointer(address,size,b->structure_address,sizeof(*structure));
+    if (mg_u32(address)!=b->structure_address) return mg_error("BSP root changed after preflight");
+    structure=mg_bsp_pointer(b,address,b->structure_address,sizeof(*structure));
     if (!structure || structure->lightmaps.count<0 || (uint32_t)structure->lightmaps.count>size/0x20)
         return mg_error("invalid BSP lightmaps");
-    lightmaps=mg_bsp_pointer(address,size,(uint32_t)(uintptr_t)structure->lightmaps.address,
+    lightmaps=mg_bsp_pointer(b,address,(uint32_t)(uintptr_t)structure->lightmaps.address,
         (uint32_t)structure->lightmaps.count*0x20);
     if (structure->lightmaps.count && !lightmaps) return mg_error("BSP lightmaps point outside BSP");
     if (structure->lightmaps.count &&
@@ -597,7 +602,7 @@ int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
         struct tag_block const *block=&lightmaps[l].materials;
         struct structure_material *materials;
         if (block->count<0 || (uint32_t)block->count>size/sizeof(*materials)) goto fail;
-        materials=mg_bsp_pointer(address,size,(uint32_t)(uintptr_t)block->address,
+        materials=mg_bsp_pointer(b,address,(uint32_t)(uintptr_t)block->address,
             (uint32_t)block->count*sizeof(*materials));
         if (block->count && !materials) goto fail;
         if (block->count) { runs[run_count].materials=materials; runs[run_count++].count=block->count; }
@@ -615,7 +620,8 @@ int mcc_geometry_bsp_load(struct mcc_runtime *r,uint32_t handle,uint32_t offset,
     if (runs) free(runs);
     /* The MCC file stream descriptors are not Xbox vertex-buffer tables. */
     memset((unsigned char *)address+4,0,16);
-    state->resident_bsps|=1u<<bsp_index;
+    *(XPTR(void) *)address=xbox_address(structure);
+    r->bsp_addresses[bsp_index]=position;
     *result=structure;
     return 1;
 fail:
@@ -644,7 +650,7 @@ void mcc_geometry_bsp_unload(struct mcc_runtime *r,uint32_t handle) {
     }
     for (i=0;i<r->report.bsp_count && i<MCC_CACHE_MAX_BSPS;i++)
         if (r->report.bsps[i].tag_handle==handle)
-            state->resident_bsps&=~(1u<<i);
+            r->bsp_addresses[i]=0;
 }
 
 void mcc_geometry_dispose(struct mcc_runtime *r) {
@@ -659,6 +665,7 @@ void mcc_geometry_dispose(struct mcc_runtime *r) {
         state->models=m->next; free(m);
     }
     free(state); r->geometry=NULL;
+    memset(r->bsp_addresses,0,sizeof(r->bsp_addresses));
 }
 
 void *mcc_geometry_buffer_data(struct mcc_runtime *r,void const *hardware,
