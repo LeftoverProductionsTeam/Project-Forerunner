@@ -1588,6 +1588,33 @@ The Evolved and Alpha variants retain their graphs. Spark's existing C45
 same-hierarchy animation binding must reach the next compiled handoff.
 Keep the original tags and all five audio findings above.
 
+Spark `711aa74` supplies the original standard carrier's rig repair.
+Rebuilding the audited Demo inputs with its opt-in recipe and the pinned H1A
+Tool reproduced MCC13 cache SHA-256
+`d520d509aa6a23a3fa67d37c28cc74459835ae53c0a4dae615f910e87b60b958`.
+Forerunner Windows x64 SHA-256
+`b84fab8268b13adfdf7425d36a06cb49041426b1dfb5101bb20bba96a490fdcb`
+admitted the exact cache, then refused the existing `double_kill` codec-3
+failure before player spawn. A disposable copy with only the five audited
+Vorbis prefixes and corrected header CRC hashed
+`7a496b9f908d54743373fc8f902ff8a9156d188d8a861555cf0010f6ac3861e5`.
+Two native Windows peers joined on the MCC map's negotiated OpenCE version
+43. Both spawned and agreed on 18 standard carrier objects across initial
+delivery and the 40-second refresh. They matched 27 living actor, carrier,
+and seat tuples and 12 of those actors on foot after automatic release,
+within three ticks across peers. Their last full player sample at tick 1770
+matched. Both exited zero, input hashes held, and staging was removed.
+
+For the standalone CE609 handoff, preserve the reviewed direct spawner
+behavior, the reconstructed inertia and the five-node standard carrier
+binding. Strict Invader still rejects the original Pistol's active lighten
+flash intensity of 3. Keep that authored behavior and separate damage
+values when selecting a CE compiler or compatible equivalent. The five
+damaged cues and two missing cues still need authoring review. The
+audio-prefix copy verifies native carrier delivery and synchronization
+only. Standalone CE, a complete survival round, and mixed Forerunner and
+Chupathingy play remain open.
+
 A finer two-peer capture sampled nine living riders in the valid carriers.
 Six stayed in their native seats on the host but never attached on the
 guest. Forerunner now publishes AI seat transitions and keeps idle seated
