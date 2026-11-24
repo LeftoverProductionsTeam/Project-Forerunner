@@ -543,25 +543,39 @@ static struct mcc_cache_bsp const *mcc_cache_bsp_reference(
     return NULL;
 }
 
-boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference const *reference)
+static boolean mcc_cache_bsp_header_fits(struct mcc_runtime *runtime,
+    struct mcc_cache_bsp const *bsp)
 {
-    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     struct structure_bsp structure;
     uint32_t offset;
 
-    if (!bsp || bsp->structure_address < bsp->address) return FALSE;
+    if (bsp->structure_address < bsp->address) return FALSE;
     offset = bsp->structure_address - bsp->address;
-    /* Read only the fixed geometry header before the active BSP is disconnected.
-     * The normal loader still validates the converted geometry and pointers. */
-    if (offset > bsp->size || sizeof(structure) > bsp->size - offset ||
-        offset > UINT32_MAX - bsp->file_offset ||
-        !mcc_runtime_read(&mcc_loaded_cache, bsp->file_offset + offset, sizeof(structure), &structure) ||
-        !structure_bsp_port_verify(&structure)) {
-        error(_error_silent, "mcc: structure BSP %08lx failed geometry budget preflight",
-            (unsigned long)bsp->tag_handle);
-        return FALSE;
-    }
-    return TRUE;
+    /* Read only the fixed header. The normal loader still checks the converted
+     * geometry and pointers when this BSP becomes active. */
+    return offset <= bsp->size && sizeof(structure) <= bsp->size - offset &&
+        offset <= UINT32_MAX - bsp->file_offset &&
+        mcc_runtime_read(runtime, bsp->file_offset + offset, sizeof(structure), &structure) &&
+        structure_bsp_port_verify(&structure);
+}
+
+int mcc_cache_initial_bsp_checked(struct mcc_runtime *runtime)
+{
+    if (runtime->report.bsp_count &&
+        mcc_cache_bsp_header_fits(runtime, &runtime->report.bsps[0])) return TRUE;
+    snprintf(runtime->failure, sizeof(runtime->failure),
+        "The first MCC structure BSP is missing, unreadable, or exceeds this runtime's geometry limits.");
+    return FALSE;
+}
+
+boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    if (!bsp) return FALSE;
+    if (mcc_cache_bsp_header_fits(&mcc_loaded_cache, bsp)) return TRUE;
+    error(_error_silent, "mcc: structure BSP %08lx failed geometry budget preflight",
+        (unsigned long)bsp->tag_handle);
+    return FALSE;
 }
 
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,

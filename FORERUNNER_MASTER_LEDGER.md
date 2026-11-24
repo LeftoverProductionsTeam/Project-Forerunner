@@ -5,7 +5,7 @@ This is an incomplete engine integration, not a release or gameplay acceptance c
 
 Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
 
-1. MegaWorld. Continue from Spark's accepted nine-region baseline. Keep CE609
+1. MegaWorld. Continue from Spark's verified ten-region baseline. Keep CE609
    at 23 MiB and reuse the native MCC13 loader for the optional 64 MiB export.
    Native Windows x64 private multiplayer passed with 24.46 MiB of loaded
    tag data. Continue independent regional occupancy, persistent AI, vehicles,

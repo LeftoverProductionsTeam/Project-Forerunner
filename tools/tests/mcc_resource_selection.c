@@ -15,6 +15,13 @@ static void counted_sha256_end(struct mcc_sha256 *hash,unsigned char digest[32])
 #define mcc_sha256_end counted_sha256_end
 static struct mcc_precache_snapshot stamps;
 static int unused,both,reads,stamp_reads,change_at;
+static int bad_initial_bsp;
+int mcc_cache_initial_bsp_checked(struct mcc_runtime *runtime)
+{
+    if (!bad_initial_bsp) return 1;
+    snprintf(runtime->failure, sizeof(runtime->failure), "fixture initial BSP refused");
+    return 0;
+}
 static size_t counted_read(void *p,size_t n,size_t count,FILE *f) {reads++;return fread(p,n,count,f);}
 #define fread counted_read
 unsigned long system_milliseconds(void) {return 0;}
@@ -64,6 +71,17 @@ int main(int argc,char **argv) {
     struct mcc_runtime runtime;FILE *f;int status,i,before,mismatch,owned,all;
     struct mcc_resource_candidates candidates;
     assert(argc==2);
+    if(!strcmp(argv[1],"geometry")) {
+        f=mcc_open_explain(name,&source,&identity,reason,sizeof(reason));assert(f);
+        bad_initial_bsp=1;
+        assert(!mcc_resources_probe_explain(name,&source,&checksum,reason,sizeof(reason)));
+        assert(!strcmp(reason,"fixture initial BSP refused"));
+        assert(!mcc_resources_check_begin(name,&source,reason,sizeof(reason)));
+        assert(!strcmp(reason,"fixture initial BSP refused"));
+        assert(!fingerprints);
+        fclose(f);
+        return 0;
+    }
     if(!strcmp(argv[1],"cache")) {
         memset(paths,0,sizeof(paths));strcpy(paths[1],"mcc_maps/p/sounds.map");
         write_bytes(paths[1],"base");write_bytes("mcc_maps/sounds.map","base");

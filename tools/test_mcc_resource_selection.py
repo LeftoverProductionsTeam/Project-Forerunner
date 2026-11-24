@@ -54,7 +54,7 @@ def resource_tool(tmp_path_factory):
 
 
 @pytest.mark.parametrize('case', ['match', 'mismatch', 'override', 'unused', 'changed', 'cache', 'stage', 'both',
-    'owned_mismatch', 'unused_mismatch', 'all_mismatch', 'denied'])
+    'owned_mismatch', 'unused_mismatch', 'all_mismatch', 'denied', 'geometry'])
 def test_local_resources(resource_tool, tmp_path, case):
     def resource(value, kind=2):
         names = b'sound\\test__0__0\0' if kind == 2 else b'sound\\test_0\0'

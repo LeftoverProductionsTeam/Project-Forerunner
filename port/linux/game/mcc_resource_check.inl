@@ -111,7 +111,7 @@ struct mcc_resource_check *mcc_resources_check_begin_candidate(char const *name,
     if (!raw) goto failed;
     check->runtime.source=*source;
     status=mcc_cache_load(source,raw,identity.tag_data_size,&check->runtime.report);
-    if (status!=MCC_CACHE_OK) goto failed;
+    if (status!=MCC_CACHE_OK || !mcc_cache_initial_bsp_checked(&check->runtime)) goto failed;
     memset(paths,0,sizeof(paths));
     if (candidates) {
         if (!candidates->count[0] && !mcc_resources_candidates(&check->runtime,raw,candidates)) goto failed;

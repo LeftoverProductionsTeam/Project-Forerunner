@@ -2830,6 +2830,32 @@ and synchronized regular movement within 0.0765 world units under private
 OpenCE 43. This exercises valid native loading. Separate active native BSPs
 and a live transition into a deliberately invalid second BSP remain unverified.
 
+### Combined ten-region CE609 and MCC lobby admission
+
+Spark revision `3dfc79e` supplied the combined Prisoner and Danger Canyon
+CE609 map `34776aa34e9ee7c0dd280ae4af3431e249739bd8fef903359bb73c98debc3c62`.
+On Windows x64 Forerunner `3b8aef6c2dd37168f04f5f680ba8c762d17aefea4dc83a1db708ae0c7f4ab26d`
+with Chupathingy `c16096a8` over private OpenCE 44, the host walked from
+Chill Out to Danger Canyon (-151.361, 320.592, -17.122) at host tick 1230
+and back to Chill Out (-109.706, 248.444, -17.113) at tick 2490 in the same
+session. One debug placement staged the host at the start. The guest moved
+6.675 units independently in Timberland and saw both ends of the crossing.
+Both games exited zero. The runner's final synchronization check missed its
+sample minimum because the clocks sampled different ticks. Four matched
+outbound ticks differed by at most 0.0264 units. This proves the route
+round trip on one BSP and leaves full tick-matched verification open.
+
+Both synchronous and asynchronous MCC admission now share the native
+initial BSP geometry budget check. On Windows x64
+`590fb19d2ba9062a18d7ba28c1954f6109f13f1f2825c4deb3ef0966287d4b2b`,
+two Forerunner peers admitted Spark's nine-region MCC13
+`04940e2873e3b707c69fa9bcdb3e7e129d5e1e4937bfd4dc39d31add55e63f9c`,
+loaded 3,332 tags each and moved with a maximum measured position delta
+of 0.15 units on private OpenCE 43. A disposable copy with an empty first
+BSP cluster count was rejected by the runtime and the lobby kept Carousel.
+This checks native admission scope. Independent active BSPs, region AI and
+objective persistence remain open.
+
 Stock D40 late-join playback used the unchanged cache above and Windows x64
 executable SHA-256 `c135fe65ccb78cf583fafcf127f9a1251f70298a5367f4095694fda5c534497d`.
 After the host walked through BSP 1→0→1, the first guest occupied slot 1.

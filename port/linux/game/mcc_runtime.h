@@ -34,6 +34,8 @@ struct mcc_runtime {
  * checked against its own region by the geometry adapter. */
 void *mcc_runtime_pointer(struct mcc_runtime *runtime, uint32_t address, uint32_t bytes);
 int mcc_runtime_read(struct mcc_runtime *runtime, uint32_t offset, uint32_t bytes, void *out);
+/* The native scenario loader starts at BSP zero. Check it before admission. */
+int mcc_cache_initial_bsp_checked(struct mcc_runtime *runtime);
 
 /* Appends aligned runtime data below the lowest BSP, never overwriting tags. */
 void *mcc_runtime_allocate(struct mcc_runtime *runtime, uint32_t bytes);

@@ -29,7 +29,7 @@ def generated(fault=None):
     return (
         ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
          '\n'.join(function(mcc_cache, name) for name in
-                   ('mcc_cache_bsp_reference', 'mcc_cache_bsp_reference_checked')) + '\n' +
+                   ('mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked')) + '\n' +
          function(read('source/cache/cache_files.c'), 'scenario_structure_bsp_reference_is_valid')),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
