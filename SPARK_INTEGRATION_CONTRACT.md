@@ -3358,6 +3358,22 @@ native diagnostic staged the host driver. Both peers saw Warthog
 75. Both runs exited normally. Guest-driven traversal and independent
 simulation in distinct BSPs remain open.
 
+Windows x64 executable
+`407d38d80f0526ec6cb19636729291c7ab4741ff0f1f4b7426e4dd49969375d6`
+passed a native guest-driven crossing on disposable MCC13 fixture
+`e99d077d507ee1feb804d8ec76ed76e53b08f73545bb7846a2991d89d441b1d9`.
+At 0.482 units from the driver entrance the guest received the enter
+action and used E. Both peers saw Warthog `e26f0000` and guest driver
+seat 0 at tick 150. The host stayed on foot in the seam. Guest keyboard
+throttle carried the Warthog through the markerless switch at tick 343
+on both peers. Both recorded the same vehicle, guest and seat at tick
+360. The host saw it at (60.853, 34.880, -20.723) and the guest at
+(61.228, 34.922, -20.723). Both processes exited normally. The fixture
+used identical BSP geometry and two modified test starts. Return attempts
+drew the farther guest start and stopped at the approach before boarding.
+Guest-driven return, teammate passengers across a native BSP seam and
+the actual Chiron map remain open.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.
