@@ -565,6 +565,7 @@ boolean collision_test_bsp_vector(
 	}
 
 	collision->type = NONE;
+	collision->bsp_index = NONE;
 	collision->start_location.leaf_index = NONE;
 	collision->start_location.cluster_index = NONE;
 	collision->start_location.bonus = NONE;
@@ -611,6 +612,7 @@ boolean collision_test_bsp_vector(
 
 			collision->t = bsp_result.t;
 			collision->type = _collision_result_structure;
+			collision->bsp_index = bsp;
 			collision->plane = *bsp_result.plane;
 			if (bsp_result.plane_designator & LONG_MIN)
 			{
@@ -687,6 +689,7 @@ boolean collision_test_bsp_vector(
 							collision->t = t;
 							collision->plane = plane;
 							collision->type = _collision_result_media;
+							collision->bsp_index = NONE;
 							if (negate)
 							{
 								plane3d_negate(&collision->plane, &collision->plane);

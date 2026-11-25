@@ -81,7 +81,8 @@ def generated(fault=None):
              'breakable_surface_indices_valid', 'breakable_surface_extant_in_bsp', 'breakable_surface_flags_in_bsp',
              'breakable_surface_port_break')) + '\n' +
          '\n'.join(function(coop, name) for name in (
-             'network_coop_note_surface_broken', 'host_send_broken_surfaces'))),
+             'network_coop_note_surface_broken', 'host_send_broken_surfaces')) + '\n' +
+         function(breakables, 'breakable_surface_damage_in_bsp')),
         ('regional_room.inc', function(coop, 'network_regional_bsp_room_ready')),
         ('bsp_terrain.inc', '\n'.join(function(read('source/physics/collisions.c'), name) for name in (
             'collision_vector_bsp_flags', 'collision_structure_bsp_line_clear')) + '\n' +

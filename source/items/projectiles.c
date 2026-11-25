@@ -1678,7 +1678,8 @@ static void projectile_collision(
 			damage.material_response = &default_projectile_material_response;
 		}
 		damage.location = collision->location;
-		breakable_surface_damage(collision->breakable_surface_index, &damage, collision->surface_index);
+		breakable_surface_damage_in_bsp(collision->bsp_index, collision->breakable_surface_index,
+			&damage, collision->surface_index);
 	}
 
 	*new_position = collision->point;

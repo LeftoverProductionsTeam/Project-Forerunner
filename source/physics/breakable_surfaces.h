@@ -102,6 +102,11 @@ boolean breakable_surface_extant(
 boolean breakable_surface_extant_in_bsp(
 	short structure_bsp_index,
 	short breakable_surface_index);
+void breakable_surface_damage_in_bsp(
+	short structure_bsp_index,
+	short breakable_surface_index,
+	struct damage_data *damage_data,
+	long seed_surface_index);
 void breakable_surface_damage(
 	short breakable_surface_index,
 	struct damage_data *damage_data,

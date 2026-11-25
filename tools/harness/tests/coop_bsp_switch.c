@@ -638,7 +638,24 @@ static struct {boolean scene_refresh,refresh;} host_resend;
 
 enum {_coop_event_surface_broken, MAXIMUM_QUEUED_EVENTS=128};
 static struct {short count;} coop_events;
-struct damage_data {real_point3d epicenter; struct location location;};
+enum { DAMAGE_EFFECT_DEFINITION_TAG=1, NUMBER_OF_MATERIAL_TYPES=1 };
+struct damage_data {real_point3d epicenter; struct location location;long definition_index;short material_type;real scale;};
+struct material_definition {struct {real maximum_vitality;} breakable_surface;};
+struct damage_definition {real damage_lower_bound,damage_upper_bound,damage_minimum,material_modifiers[1];};
+struct damage_effect_definition {struct damage_definition damage;};
+static boolean tag_index_is_group(long tag,long group) {return tag==group;}
+static struct material_definition *scenario_material_definition_get(short material)
+{
+    static struct material_definition glass={{1.f}};
+    return material==0?&glass:NULL;
+}
+static struct damage_effect_definition *damage_effect_definition_get(long tag)
+{
+    static struct damage_effect_definition impact={{.6f,.6f,0.f,{1.f}}};
+    CHECK(tag==DAMAGE_EFFECT_DEFINITION_TAG,"unexpected impact damage tag");
+    return &impact;
+}
+static real real_random_range(real lower,real upper) {return lower;}
 static short surface_events, surface_effects;
 static boolean warned_about_breakable_surfaces;
 static void scenario_location_from_point(struct location *location, real_point3d const *point)
@@ -2089,6 +2106,32 @@ int main(int argc,char **argv)
                           !scenario_structure_bsp_try_and_get(2),"resident lookup changed the active tag binding");
 
                     memset(surface_state.breakable_surface_flags,0xff,sizeof(surface_state.breakable_surface_flags));
+                    {
+                        struct damage_data impact={.epicenter=panes[old].centroid,
+                            .definition_index=DAMAGE_EFFECT_DEFINITION_TAG,.material_type=0,.scale=1.f};
+                        surface_state.enabled=TRUE;
+                        surface_state.breakable_surfaces[old][0].vitality=1.f;
+                        surface_state.breakable_surfaces[destination][0].vitality=1.f;
+                        breakable_surface_damage_in_bsp(old,1,&impact,7);
+                        breakable_surface_damage_in_bsp(2,0,&impact,7);
+                        breakable_surface_damage_in_bsp(old,0,&impact,7);
+                        CHECK(breakable_surface_extant_in_bsp(old,0)&&surface_events==0&&
+                              surface_state.breakable_surfaces[destination][0].vitality==1.f,
+                              "partial impact affected the matching surface or emitted a fracture too early");
+                        breakable_surface_damage_in_bsp(old,0,&impact,7);
+                        breakable_surface_damage_in_bsp(old,0,&impact,7);
+                        CHECK(!breakable_surface_extant_in_bsp(old,0)&&breakable_surface_extant_in_bsp(destination,0)&&
+                              surface_events==1&&sent_surfaces[0].frame==old&&surface_effects==0,
+                              "regional impacts did not dispatch exactly one owning-BSP fracture");
+                        impact.epicenter=panes[destination].centroid;
+                        breakable_surface_damage_in_bsp(destination,0,&impact,8);
+                        breakable_surface_damage_in_bsp(destination,0,&impact,8);
+                        CHECK(surface_effects==1&&surface_events==2&&sent_surfaces[1].frame==destination,
+                              "foreground impact lost its native effect or emitted a foreign frame");
+                        surface_state.breakable_surface_flags[destination][0]=0xff;
+                        surface_state.breakable_surfaces[destination][0].vitality=1.f;
+                        surface_effects=surface_events=coop_events.count=0;
+                    }
                     breakable_surface_port_break(old,0,&panes[old].centroid);
                     CHECK(!breakable_surface_extant_in_bsp(old,0)&&breakable_surface_extant_in_bsp(destination,0)&&
                           !surface_effects,"a retained BSP break changed the live surface or played an effect");

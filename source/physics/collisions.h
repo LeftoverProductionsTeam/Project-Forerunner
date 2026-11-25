@@ -98,7 +98,7 @@ struct collision_result
 	long object_index;
 	short region_index;
 	short node_index;
-	short bsp_index;
+	short bsp_index; /* Scenario BSP for structure hits, model BSP for object hits. */
 	long surface_index;
 	long plane_designator;
 	byte flags;
