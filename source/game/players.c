@@ -3757,14 +3757,59 @@ static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_con
 	return volume;
 }
 
+static boolean player_biped_bsp_obstructed(
+	long unit_index,
+	short bsp_index,
+	struct structure_bsp const *structure)
+{
+	real_point3d base;
+	real height, width;
+
+	biped_get_physics_pill(unit_index, &base, &height, &width);
+	return collision_structure_blocks_pill(structure, bsp_index, &base, height, width);
+}
+
+/* A cold load replaces the source tag window. Keep only the result for
+ * each exact on-foot unit while the world is stopped. */
+void players_capture_bsp_crossing_clearance(
+	short source,
+	short destination,
+	struct players_bsp_crossing_clearance *clearance)
+{
+	struct scenario_bsp_switch_trigger_volume const *volume;
+	struct structure_bsp const *structure;
+	struct data_iterator iterator;
+	struct player_datum *player;
+
+	csmemset(clearance, NONE, sizeof(*clearance));
+	if (!network_regional_bsp_active())
+		return;
+	volume = players_coop_pending_continuous_bsp_switch(source);
+	if (!volume || volume->destination_structure_bsp_index != destination)
+		return;
+	structure = global_structure_bsp_get();
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
+		struct biped_datum const *biped = biped_try_and_get(player->unit_index);
+
+		if (VALID_INDEX(slot, NUMBEROF(clearance->source_clear_units)) && biped &&
+			biped->object.parent_object_index == NONE && !TEST_FLAG(biped->object.damage_flags, _object_dead_bit) &&
+			!player_biped_bsp_obstructed(player->unit_index, source, structure))
+			clearance->source_clear_units[slot] = player->unit_index;
+	}
+}
+
 /* Competitive maps share one simulated BSP for now. Every living root
  * must reach the overlap before the host can move the world. */
 static boolean players_continuous_bsp_crossing_valid(
 	struct scenario_bsp_switch_trigger_volume const *volume,
-	struct structure_bsp const *structure)
+	struct structure_bsp const *structure,
+	struct players_bsp_crossing_clearance const *clearance)
 {
 	boolean regional = network_regional_bsp_active();
-	struct structure_bsp const *source = structure && regional ?
+	struct structure_bsp const *source = structure && regional && !clearance ?
 		scenario_structure_bsp_try_and_get(volume->source_structure_bsp_index) : NULL;
 	struct data_iterator iterator;
 	struct player_datum *player;
@@ -3790,17 +3835,17 @@ static boolean players_continuous_bsp_crossing_valid(
 		if (structure && !scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
 			!scenario_structure_bsp_contains_point(structure, &root->object.position))
 			return FALSE;
-		if (source && root_index == player->unit_index && biped_try_and_get(root_index))
+		if (regional && structure && (source || clearance) && root_index == player->unit_index &&
+			biped_try_and_get(root_index))
 		{
-			real_point3d base;
-			real height, width;
+			long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
+			boolean source_clear = clearance && VALID_INDEX(slot, NUMBEROF(clearance->source_clear_units)) &&
+				clearance->source_clear_units[slot] == root_index;
 
-			biped_get_physics_pill(root_index, &base, &height, &width);
 			/* Reject a new obstruction without rejecting shared floor contact. */
-			if (collision_structure_blocks_pill(structure, volume->destination_structure_bsp_index,
-					&base, height, width) &&
-				!collision_structure_blocks_pill(source, volume->source_structure_bsp_index,
-					&base, height, width))
+			if ((source || source_clear) &&
+				player_biped_bsp_obstructed(root_index, volume->destination_structure_bsp_index, structure) &&
+				(source_clear || !player_biped_bsp_obstructed(root_index, volume->source_structure_bsp_index, source)))
 				return FALSE;
 		}
 		crossing = TRUE;
@@ -3812,13 +3857,14 @@ static boolean players_continuous_bsp_crossing_valid(
 boolean players_coop_can_activate_structure_bsp(
 	short source,
 	short destination,
-	struct structure_bsp const *structure)
+	struct structure_bsp const *structure,
+	struct players_bsp_crossing_clearance const *clearance)
 {
 	struct scenario_bsp_switch_trigger_volume const *volume = players_coop_pending_continuous_bsp_switch(source);
 
 	return !volume || volume->destination_structure_bsp_index != destination ||
 		((!network_regional_bsp_active() || network_regional_bsp_room_ready()) &&
-			players_continuous_bsp_crossing_valid(volume, structure));
+			players_continuous_bsp_crossing_valid(volume, structure, clearance));
 }
 
 /* A seated AI can cross with the player in the same vehicle. Only a
@@ -4018,7 +4064,7 @@ static boolean players_coop_queue_bsp_switch(
 			&scenario->bsp_switch_trigger_volumes, bsp_switch_trigger_volume_index, struct scenario_bsp_switch_trigger_volume);
 
 		return volume->cutscene_flag_index == NONE && network_regional_bsp_room_ready() &&
-			players_continuous_bsp_crossing_valid(volume, NULL) && main_switch_structure_bsp(destination);
+			players_continuous_bsp_crossing_valid(volume, NULL, NULL) && main_switch_structure_bsp(destination);
 	}
 	/* port: a dedicated server has no player of its own: its zones switch the
 	BSP only once most of the living players who are not away stand in zones

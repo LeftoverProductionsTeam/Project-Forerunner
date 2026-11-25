@@ -415,10 +415,19 @@ loaded. A player left there switches the level on the next tick. */
 boolean player_position_switches_bsp(
 	real_point3d const *position);
 struct structure_bsp;
+struct players_bsp_crossing_clearance
+{
+	long source_clear_units[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
+};
+void players_capture_bsp_crossing_clearance(
+	short source,
+	short destination,
+	struct players_bsp_crossing_clearance *clearance);
 boolean players_coop_can_activate_structure_bsp(
 	short source,
 	short destination,
-	struct structure_bsp const *structure);
+	struct structure_bsp const *structure,
+	struct players_bsp_crossing_clearance const *clearance);
 boolean players_coop_vehicle_passenger_crossing_bsp(
 	long unit_index);
 void players_note_checkpoint(

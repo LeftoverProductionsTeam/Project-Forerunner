@@ -234,7 +234,12 @@ static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d c
     return point->x < 200 ? prepared_crossing_leaf : NONE;
 }
 #include "region_location.inc"
+#define HALO_PORT_MAXIMUM_NETWORK_PLAYERS 128
+#define csmemset memset
+#define NUMBEROF(array) ((int)(sizeof(array)/sizeof((array)[0])))
 #include "players.inc"
+#undef NUMBEROF
+#undef csmemset
 #pragma clang diagnostic pop
 
 static void main_stop_time(void) {clock_stops++;}
@@ -824,7 +829,8 @@ int main(int argc,char **argv)
     if (!strncmp(name, "mcc-prepare-",12))
     {
         boolean extra_above=!strcmp(name,"mcc-prepare-space-above");
-        boolean overlap=!strcmp(name,"mcc-prepare-overlap")||!strcmp(name,"mcc-prepare-cold-crossing");
+        boolean cold_regional=!strcmp(name,"mcc-prepare-cold-regional-clearance");
+        boolean overlap=!strcmp(name,"mcc-prepare-overlap")||!strcmp(name,"mcc-prepare-cold-crossing")||cold_regional;
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
@@ -840,7 +846,7 @@ int main(int argc,char **argv)
         mcc_loaded_cache.report.bsps=regions;
         if (three_regions) mcc_loaded_cache.report.identity.scenario_type=_scenario_type_multiplayer;
         mcc_loaded_cache.report.tag_base=(uint32_t)(uintptr_t)mcc_regions[0].header;
-        cold_crossing=!strcmp(name,"mcc-prepare-cold-crossing");
+        cold_crossing=!strcmp(name,"mcc-prepare-cold-crossing")||cold_regional;
         mcc_loaded_cache.capacity=overlap?2*sizeof(mcc_regions[0]):sizeof(mcc_regions);
         for (short i=0;i<3;i++)
         {
@@ -885,9 +891,19 @@ int main(int argc,char **argv)
             objects[0].object.position.x=260;
             objects[2].object.bounding_sphere_center.x=250;
             objects[2].object.position.x=190;
-            prepared_crossing_leaf=1;
+            prepared_crossing_leaf=cold_regional?0:1;
+            if (cold_regional)
+            {
+                coop=FALSE;
+                regional_match=regional_room_ready=TRUE;
+                objects[0].object.parent_object_index=passenger=NONE;
+                objects[1].object.parent_object_index=units[2];
+                objects[0].object.position.x=190;
+                bsp_pill_blocked[destination]=TRUE;
+            }
 
-            CHECK(!scenario_switch_structure_bsp(destination),"cold crossing accepted an invalid leaf");
+            CHECK(!scenario_switch_structure_bsp(destination),
+                  "cold crossing accepted an invalid leaf or a new obstruction");
             CHECK(global_structure_bsp_index==old&&global_collision_bsp==&collisions[old]&&
                   disconnects==1&&reconnects==1&&loads[destination]==1&&loads[old]==1&&
                   unloads[destination]==1&&!teleports&&!ejections&&!menu&&
@@ -896,6 +912,7 @@ int main(int argc,char **argv)
                   "cold rollback failed to restore the source and passenger");
 
             prepared_crossing_leaf=0;
+            bsp_pill_blocked[old]=cold_regional; /* Shared contact permits the retry. */
             players_globals->pending_teleport_starting_location_index=0;
             /* The cache boundary stub needs the reloaded source's resident address. */
             mcc_region_live[old]=TRUE;
@@ -922,19 +939,19 @@ int main(int argc,char **argv)
                 coop=FALSE;
                 regional_match=TRUE;
                 prepared_crossing_leaf=0;
-                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
                       "crossing accepted without negotiated peers");
                 regional_room_ready=TRUE;
-                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
                       "crossing would leave a living player behind");
                 objects[1].object.parent_object_index=units[2];
                 objects[0].object.parent_object_index=NONE;
                 objects[0].object.position.x=190;
                 bsp_pill_blocked[1]=TRUE;
-                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
                       "the destination obstructed a biped that fit in the source");
                 bsp_pill_blocked[0]=TRUE;
-                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
                       "shared terrain contact refused an otherwise valid crossing");
                 bsp_pill_blocked[0]=bsp_pill_blocked[1]=FALSE;
                 objects[0].object.parent_object_index=units[2];

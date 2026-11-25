@@ -77,12 +77,14 @@ def generated(fault=None):
              '_netgame_flag_teleporter_source') + '\n' +
          '\n'.join(function(read('source/game/game_engine.c'), name)
             for name in ('find_netgame_flags_in_structure', 'find_netgame_flags', 'game_engine_find_teleporter'))),
-        ('players.inc', '\n'.join(function(players, name) for name in (
+        ('players.inc', structure(read('source/game/players.h'), 'players_bsp_crossing_clearance') + '\n' +
+         '\n'.join(function(players, name) for name in (
             'player_teleport_with_policy', 'player_teleport', 'players_coop_teleport_stacked', 'is_player_in_trigger',
             'player_teleport_on_bsp_switch', 'players_cancel_bsp_switch_gather',
             'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger',
             'player_bsp_continuous_route_contains', 'player_bsp_crossing_root',
-            'players_coop_pending_continuous_bsp_switch', 'players_continuous_bsp_crossing_valid',
+            'players_coop_pending_continuous_bsp_switch', 'player_biped_bsp_obstructed',
+            'players_capture_bsp_crossing_clearance', 'players_continuous_bsp_crossing_valid',
             'players_coop_can_activate_structure_bsp',
             'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
         ('region_location.inc', '\n'.join(function(read('source/scenario/scenario.c'), name) for name in
@@ -110,7 +112,7 @@ def generated(fault=None):
     'host-superseded', 'regional-host-superseded', 'regional-late-join', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
-    'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing',
+    'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'overlapping-coop-routes', 'majority-overlapping-routes',

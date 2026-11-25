@@ -3176,7 +3176,7 @@ For a warm regional multiplayer crossing, the host checks each unseated
 biped's native collision capsule against the source and destination BSPs
 using their own breakable-surface state. A destination-only obstruction
 refuses the switch. Seated players continue to use their vehicle's native
-point membership. Classic and cold-crossing checks are unchanged.
+point membership.
 
 Windows x64 executable
 `7192848e8fb89ff693041fbfde4e1d6664c544e447cf992cc832fee0a493a14d`
@@ -3188,6 +3188,25 @@ tick 75 and still agreed on the vehicle and seat at ticks 90 and 120. The
 driver was staged by the native diagnostic and both processes exited
 normally. Both BSPs used the same geometry. Guest driving, a live Chiron
 crossing and combat in independently occupied BSPs remain open.
+
+When only one BSP fits, the host measures each on-foot unit's source
+capsule before releasing the old BSP. It compares that result against
+the destination before activating it. A new obstruction restores the
+source through the native rollback. Shared terrain contact still permits
+the switch.
+
+Windows x64 executable
+`407d38d80f0526ec6cb19636729291c7ab4741ff0f1f4b7426e4dd49969375d6`
+passed 74 focused BSP checks, including obstruction rollback and retry
+with shared contact. Two private Delta peers loaded the disposable MCC13
+cache `1b9187fed53e96ba19230497cca71317e74e426dca9a45c823ab70b03f8c9f8a`.
+Its 58,408,480 runtime tag bytes and two 7,334,552-byte BSP windows could
+fit only one window in 64 MiB. Both peers switched at tick 75, matched both
+live players at tick 90 and agreed on the guest's keyboard-driven position
+at tick 150. Both BSPs used the same source geometry. Both peers exited
+normally. The separate guest vehicle approach showed no native seat action
+at the sampled position 1.153 units from the driver's entrance. Physical
+guest boarding and driving across the seam remain open.
 
 Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
 active BSP and up to two previous BSPs inside the existing 64 MiB tag

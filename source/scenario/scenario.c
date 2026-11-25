@@ -1142,6 +1142,7 @@ boolean scenario_switch_structure_bsp(
 	boolean loaded;
 	struct scenario_structure_bsp_reference *reference;
 	struct scenario_bsp_prepared prepared;
+	struct players_bsp_crossing_clearance clearance;
 	enum scenario_bsp_prepare_result preparation = _scenario_bsp_prepare_deferred;
 	/* port: (the bsp loaded before, loaded again if the new one is refused) */
 	short old_structure_bsp_index = NONE;
@@ -1184,7 +1185,7 @@ boolean scenario_switch_structure_bsp(
 
 			preparation = scenario_structure_bsp_prepare(active, reference, &prepared);
 			if (preparation == _scenario_bsp_prepare_ready &&
-				!players_coop_can_activate_structure_bsp(global_structure_bsp_index, structure_bsp_index, prepared.structure))
+				!players_coop_can_activate_structure_bsp(global_structure_bsp_index, structure_bsp_index, prepared.structure, NULL))
 			{
 				/* Keep validated geometry while players approach the seam.
 				 * The candidate has never been bound to the native tag table. */
@@ -1199,6 +1200,8 @@ boolean scenario_switch_structure_bsp(
 				main_start_time();
 				return FALSE;
 			}
+			if (preparation == _scenario_bsp_prepare_deferred && mcc_cache_tags_loaded())
+				players_capture_bsp_crossing_clearance(global_structure_bsp_index, structure_bsp_index, &clearance);
 			scenario_call_disconnect_from_structure_bsp_procs();
 
 			had_old_structure_bsp = TRUE;
@@ -1231,7 +1234,7 @@ boolean scenario_switch_structure_bsp(
 				loaded = FALSE;
 			}
 			else if (had_old_structure_bsp && mcc_cache_tags_loaded() &&
-				!players_coop_can_activate_structure_bsp(old_structure_bsp_index, structure_bsp_index, structure))
+				!players_coop_can_activate_structure_bsp(old_structure_bsp_index, structure_bsp_index, structure, &clearance))
 			{
 				/* Restore the source through the native load failure path. */
 				players_cancel_bsp_switch_gather();
