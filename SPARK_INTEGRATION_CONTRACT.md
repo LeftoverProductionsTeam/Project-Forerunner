@@ -79,6 +79,22 @@ The terminal still appears low in the grass. Hub reappearance after
 return, the Spirit route and human multiplayer remain open. The installed
 executable and maps stayed on their previous-good hashes.
 
+Spark's early-evacuation CE609 candidate
+`95603ac1ac3e734c1e44c223fb7784cc20d662645ec15f6cf2b10b339efd7bc4`
+launched from Extraction → Play Solo with Delta disabled on the delivered
+Win64 `cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
+The UNSC player rode the Pelican to its grounded field landing at tick
+3120 and used E to disembark. From (70.696, -128.382, 0.758), normal E on
+field control object 4 started the ten-second countdown, then showed
+EXTRACTION SIGNAL READY without completing rescue, collection or defense.
+The recalled Pelican landed at tick 7650 with center (80.299, -124.530,
+1.092), up.k .953 and motion .0009. The player reached its native seat 1
+entrance and received the boarding prompt at tick 9360. The private
+process reached its configured time limit before confirming receipt of
+the boarding input. Occupied return, banking, optional-objective
+shutdown and rearm remain open. The installed cache and executable were
+unchanged. Use the same retained candidate for the longer return check.
+
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
 unchanged Windows baseline, the occupied pad-brake variant and the prior
