@@ -4143,6 +4143,20 @@ with the passenger on foot. Use a reviewed native passenger entrance in
 the next run. Free-for-all refuses an enemy passenger. Team Slayer requires
 two teams at start, and its last player cannot change teams in play.
 
+The exact nineteen-region cache `f0835f5e` passed a private Chiron Warthog
+round trip on Win64
+`fe4edde41235b71dd2573d883bc017ed1f8818b8d63b12b4b54d3dde27f78396`.
+Three separate local processes formed a normal Team Slayer lobby with two
+allies and an opposing observer. The host boarded passenger seat 1 and the
+guest boarded driver seat 0 using E. The vehicle was staged wholly within
+BSP 0 at (711.500, 29.000, -17.550). Guest keyboard throttle and reverse
+then carried Warthog `e26f0000` through both markerless switches without a
+seat change. All peers recorded BSP 1 with both riders at tick 2700 and
+BSP 0 with both riders at tick 3480. There was no Delta account sign-in.
+This verifies automated native shared-region traversal. The opposing
+observer was in the respawn cycle at each switch. Independent occupancy
+and human acceptance remain open.
+
 The native seat gate now refuses new authoritative NPC boarding of a parked
 vehicle, as it already does for players. An NPC seat attachment received
 from the host can still replay on a client. The change passed twelve
