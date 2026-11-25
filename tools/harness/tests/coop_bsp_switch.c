@@ -1248,11 +1248,17 @@ int main(int argc,char **argv)
         scenario.type=_scenario_type_multiplayer;
         mcc_loaded=TRUE;
         global_structure_bsp_index=old;
+        regional_test_root=units[2];
+        regional_test_root_bsp=destination;
         objects_disconnect_from_structure_bsp();
         CHECK(object_disconnected_bsp==old &&
-              game_engine_object_recorded_bsp(units[2],_object_type_projectile)==old &&
+              game_engine_object_recorded_bsp(units[2],_object_type_projectile)==destination &&
               game_engine_object_recorded_bsp(units[3],_object_type_projectile)==old,
-              "disconnect failed to record projectile ownership");
+              "disconnect overwrote the native owner of an off-foreground projectile");
+        regional_test_root=NONE;
+        game_engine_record_regional_object(units[2],round,old);
+        CHECK(game_engine_object_recorded_bsp(units[2],_object_type_projectile)==old,
+              "an unqualified projectile lost the foreground fallback");
         global_structure_bsp_index=destination;
 
         object_transfer_regional_projectile(units[2],round,object_disconnected_bsp,destination,&destination_location);

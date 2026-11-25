@@ -5531,8 +5531,12 @@ void game_engine_record_regional_object(
 		!TEST_FLAG(object->object.flags, _object_outside_of_map_bit) &&
 		object->object.location.cluster_index != NONE)
 	{
+		/* A qualified cluster can belong to a different resident BSP than
+		 * the foreground scene being disconnected. Capture it before the
+		 * object loses its cluster references. */
+		short bsp = object_get_regional_bsp(object_index);
 		region->object_index = object_index;
-		region->bsp_index = source_bsp;
+		region->bsp_index = bsp != NONE ? bsp : source_bsp;
 	}
 }
 
