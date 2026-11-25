@@ -4001,6 +4001,24 @@ test input walked into BSP 11 with Delta disabled and consumed the preview.
 The focused regional harness passed 45 cases, including preview replacement,
 cooldown, memory pressure and protection of simulation geometry.
 
+On the exact nineteen-region cache, the isolated Win64 executable
+`33cd0aafb3176472ff7a7f6dd16280018faf3333ff034ee12d9ba227ff5b68ca`
+completed one uninterrupted offline infantry round trip. Native BSP readback
+showed 0 → 11 → 12 → 11 → 0, with normal look and forward input from spawn.
+The player reached Infinity at (-313.882, -93.836, -21.083) and returned to
+the base at (46.309, 36.422, -21.075), with full health and shields at both
+ends. The session ran OpenCE protocol with Delta Peer disabled. This covers
+the complete Infinity walking route on the pinned map. Driving, other
+routes, regional teleporters on the donor terrain, and separate occupied
+BSPs did not run in this session.
+
+Pickups in the active region now fall when their resting prop belongs to a
+parked region. The existing item support test reproduced the stale-prop
+hold and passed after the native item-physics change. It also checks that
+an active prop continues supporting a pickup and that a parked pickup
+keeps its support. The round trip used this Win64 build. The specific prop
+and pickup interaction remains a separate native test.
+
 Negotiated regional MCC13 multiplayer now uses co-op's native device group
 and position messages. The host decides switch use and device movement.
 Physical snapshots remain bound to the announced BSP and omit parked
