@@ -4133,6 +4133,21 @@ at (707.800, 26.900, -17.550). Forward and reverse input then crossed
 passed, including an AI-only vehicle remaining with its original region.
 That AI case and an independent passenger still need a native session.
 
+A private three-peer Win64 check on exact `f0835f5e` used executable
+`b8aacebdd58381859a1a5edbfbd4efefcfc2538be1cd2b48976dbd631f5e65f1`.
+No account sign-in was used. The native lobby formed two teammates and one
+opponent. All peers agreed on Warthog `e2710002`, driver seat 0, and BSP 0.
+The passenger still had no Use action at (67.061, 36.096, -21.075), with
+the Warthog at (68.099, 36.049, -20.689). No shared seam was attempted
+with the passenger on foot. Use a reviewed native passenger entrance in
+the next run. Free-for-all refuses an enemy passenger. Team Slayer requires
+two teams at start, and its last player cannot change teams in play.
+
+The native seat gate now refuses new authoritative NPC boarding of a parked
+vehicle, as it already does for players. An NPC seat attachment received
+from the host can still replay on a client. The change passed twelve
+focused transport-admission checks and Win64 compilation.
+
 The Windows x64 vehicle harness passed all 97 checks, including an occupied
 vehicle and allocation failure after returning to a home. On executable
 `0ce46b08787d6d4909745fd28c039f3d058ea3e8eff9c35a6e7968e8809cc670`, a

@@ -3138,9 +3138,10 @@ boolean unit_can_enter_seat(
 	boolean result = TRUE;
 	long child_object_index;
 
-	/* port: managed Extraction transports reserve driver seats for the
-	 * authored pilot. Refusal must also hide the pilot from native eviction. */
-	if ((unit->unit.player_index != NONE &&
+	/* A parked region cannot start a new boarding on the authority.
+	 * Receiving peers can still apply the host's NPC attachments. Managed
+	 * Extraction also reserves the driver's seat for the authored pilot. */
+	if (((unit->unit.player_index != NONE || game_connection() != _game_connection_network_client) &&
 		game_engine_object_parked(target_unit_index, target_unit->object.type)) ||
 		!extraction_transport_can_board(unit_index, target_unit_index, seat_index))
 	{

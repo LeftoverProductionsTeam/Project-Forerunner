@@ -2025,6 +2025,13 @@ int main(int argc,char **argv)
     parked_region_vehicle=dropship_handles[1];
     CHECK(!unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,&occupant)&&occupant==NONE,
      "player could board a parked off-region vehicle");
+    units[0].unit.player_index=NONE;
+    occupant=77;
+    CHECK(!unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,&occupant)&&occupant==NONE,
+     "host could attach an NPC to a parked off-region vehicle");
+    connection=_game_connection_network_client;
+    CHECK(unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),
+     "a receiving peer refused an authoritative NPC attachment");
    } else if(!strcmp(case_name,"transport-admission-owner")) {
     players[0].unit_index=unit_handles[1];CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"stale player body boarded");
     players[0].unit_index=unit_handles[0];players[0].quit_out_of_game=TRUE;CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"departed owner boarded");
