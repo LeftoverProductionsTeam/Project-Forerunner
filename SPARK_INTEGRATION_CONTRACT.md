@@ -1652,7 +1652,10 @@ and spawned a new wave-1 Grunt. A separate no-fire CE609 run on
 `77681074de155ee68ecf8cdcb1eb83a83663b98bd7e65c5e3778fd066b8e0109`
 displayed the wave-timeout message and cleaned up the remaining actor by tick
 1890. Its pause menu showed score 0 and Restart Level. The long timeout message
-was clipped at the right edge of the 4:3 view. Both maps kept the built-in
+initially clipped at 4:3. Win64
+`b9e3fbbde242c340e5dd155a9f845a9b79725660121401246c769bc81bb17d1a`
+replayed the same CE export at 900x675 through the normal menus and showed the
+complete message at a word boundary. Both maps kept the built-in
 director off. These checks cover offline native play; co-op and human-player
 acceptance remain open. Menu admission still uses the existing cache catalogs.
 

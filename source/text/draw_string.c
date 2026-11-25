@@ -780,6 +780,9 @@ static word parse_unicode_string(
 	case 0:
 		state->result = _parsed_end_of_string;
 		break;
+	case ' ':
+		state->result = _parsed_end_of_word;
+		break;
 	case '\t':
 		state->result = _parsed_end_of_column;
 		break;

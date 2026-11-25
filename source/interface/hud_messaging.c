@@ -2103,6 +2103,17 @@ void hud_messaging_update(
 							rectangle2d text_bounds;
 							wchar_t pressed_text[128];
 
+							/* Plain scripted messages can use the full message box.
+							 * Mixed text and button prompts keep their inline layout. */
+							if ((objective_active || help_active) && message->element_count == 1)
+							{
+								draw_string_set_format(NONE, _text_justification_left,
+									FLAG(_draw_text_wrap_horizontally_bit));
+								draw_unicode_string_compute_bounds(&line_bounds, text, &text_bounds, &line_cursor);
+								rasterizer_draw_unicode_string(&line_bounds, NULL, NULL, 0, text);
+								break;
+							}
+
 							/* port: a stick clicked in ("Click in [R] to zoom the
 							sniper rifle") is a key pressed where the next icon
 							is drawn as the keyboard's key */
