@@ -240,6 +240,7 @@ symbols in this file:
 #include "devices/devices.h"
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
 #include "coop_enemies.h" /* port: Firefight life accounting and respawn gate */
+#include "mcc_cache.h"
 #include "extraction.h" /* port: Extraction respawns at authored hub starts */
 #include "bots.h" /* port: port/linux/game/bots.c */
 #include "server_team_switch.h" /* port: port/linux/game/server_team_switch.c */
@@ -6118,6 +6119,39 @@ static void player_queue_structure_bsp_switch(
 	}
 }
 
+/* Native roots own their collision scene, including when several players
+ * share a vehicle. The bound foreground already has a cache hold. */
+static void players_update_regional_bsp_holds(void)
+{
+	struct scenario const *scenario = global_scenario_get();
+	struct data_iterator iterator;
+	struct player_datum const *player;
+	unsigned long occupied = 0;
+	short bsp, count;
+
+	if (!scenario_uses_regional_gameplay(scenario) || network_game_distributed_client())
+		return;
+	count = MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum const *unit = unit_try_and_get(player->unit_index);
+		if (!unit || player->quit_out_of_game || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			continue;
+		bsp = object_get_regional_bsp(object_get_ultimate_parent(player->unit_index));
+		if (VALID_INDEX(bsp, count) && bsp != global_structure_bsp_index_get())
+			occupied |= FLAG(bsp);
+	}
+	if (!occupied && !mcc_cache_has_simulation_bsp_holds())
+		return;
+	for (bsp = 0; bsp < count; bsp++)
+	{
+		struct scenario_structure_bsp_reference const *reference =
+			TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references, bsp, struct scenario_structure_bsp_reference);
+		mcc_cache_bsp_set_in_use(reference, TEST_FLAG(occupied, bsp));
+	}
+}
+
 void players_update_after_game(
 	void)
 {
@@ -6130,6 +6164,7 @@ void players_update_after_game(
 
 	profile_enter(PLAYERS_UPDATE_AFTER_GAME_PROFILE);
 
+	players_update_regional_bsp_holds();
 	if (players_globals->double_speed_ticks > 0)
 	{
 		players_globals->double_speed_ticks--;

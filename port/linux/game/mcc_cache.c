@@ -773,6 +773,7 @@ void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *ref
     if (in_use) {
         int slot = mcc_cache_bsp_retained_slot(bsp);
         mcc_bsps_in_use |= bit;
+        if (bsp == mcc_preview_bsp) mcc_preview_bsp = NULL;
         if (slot != NONE) mcc_cache_remove_retained_slot(slot);
     } else if (mcc_bsps_in_use & bit) {
         mcc_bsps_in_use &= ~bit;

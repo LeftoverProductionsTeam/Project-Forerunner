@@ -63,7 +63,7 @@ struct structure_bsp {
     struct {long size;} cluster_data,sound_cluster_data;
 };
 struct data_iterator {long datum_index;int slot;};
-struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;};
+struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;boolean quit_out_of_game;};
 struct object_datum {
     struct {long parent_object_index,first_child_object_index,next_object_index;short type;
         real_point3d position,bounding_sphere_center;real bounding_sphere_radius;
@@ -306,6 +306,9 @@ static struct object_datum *object_iterator_next(struct object_iterator *it)
 static short game_engine_object_recorded_bsp(long index,short type);
 static real distance_squared3d(real_point3d const *a, real_point3d const *b);
 static boolean scenario_trigger_volume_test_point(short volume, real_point3d const *point);
+static boolean network_game_distributed_client(void);
+void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use);
+boolean mcc_cache_has_simulation_bsp_holds(void);
 #include "players.inc"
 #undef NUMBEROF
 #undef csmemset
@@ -327,7 +330,6 @@ static void object_disconnect_from_map(long index) {objects[slot(index)].object.
 static void object_type_disconnect_from_structure_bsp(long index) {}
 #define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
 static struct scenario *global_scenario_try_and_get(void) {return global_scenario;}
-static boolean network_game_distributed_client(void);
 static void game_engine_record_regional_object(long index,struct object_datum const *object,short bsp);
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
@@ -1588,7 +1590,8 @@ int main(int argc,char **argv)
         boolean evict=!strcmp(name,"mcc-prepare-evict");
         boolean occupied_regions=!strcmp(name,"mcc-prepare-occupied-regions");
         boolean fourth_region=occupied_regions||!strcmp(name,"mcc-prepare-fourth-region");
-        boolean preview=!strcmp(name,"mcc-prepare-preview");
+        boolean occupied_preview=!strcmp(name,"mcc-prepare-occupied-preview");
+        boolean preview=occupied_preview||!strcmp(name,"mcc-prepare-preview");
         boolean three_regions=fourth_region||!strcmp(name,"mcc-prepare-three-regions");
         short region_count=fourth_region?4:3;
         boolean regional_crossing=!strcmp(name,"mcc-prepare-regional-crossing");
@@ -1678,9 +1681,28 @@ int main(int argc,char **argv)
                   global_structure_bsp_index==old&&!test_tag_instances[2].base_address&&
                   mcc_cache_bsp_pinned(&regions[old])&&mcc_region_live[old],
                   "the camera exposed preview geometry to simulation or evicted a live region");
+            if (!occupied_preview)
+            {
+                CHECK(scenario_structure_bsp_prepare(&references[old],&references[2],&prepared)==_scenario_bsp_prepare_ready&&
+                      prepared.structure==geometry&&!mcc_preview_bsp&&mcc_prepared_loads==2,
+                      "the BSP switch failed to reuse the already validated preview");
+                return 0;
+            }
+            scenario.type=_scenario_type_multiplayer;
+            regional_test_root=units[2];
+            regional_test_root_bsp=2;
+            objects[0].object.parent_object_index=units[2];
+            players_update_regional_bsp_holds();
+            CHECK(mcc_cache_bsp_pinned(&regions[2])&&!mcc_preview_bsp&&
+                  scenario_structure_bsp_try_and_get(2)==geometry&&global_structure_bsp_index==old,
+                  "an occupied preview was not promoted to native resident geometry");
             CHECK(scenario_structure_bsp_prepare(&references[old],&references[2],&prepared)==_scenario_bsp_prepare_ready&&
-                  prepared.structure==geometry&&!mcc_preview_bsp&&mcc_prepared_loads==2,
-                  "the BSP switch failed to reuse the already validated preview");
+                  prepared.structure==geometry&&mcc_prepared_loads==2,
+                  "the BSP switch failed to reuse the occupied geometry");
+            objects[0].object.damage_flags|=FLAG(_object_dead_bit);
+            players_update_regional_bsp_holds();
+            CHECK(!mcc_cache_bsp_pinned(&regions[2])&&!mcc_region_live[2]&&mcc_region_live[old],
+                  "a deceased occupant leaked its regional hold or released the foreground");
             return 0;
         }
         if (occupied_regions)
