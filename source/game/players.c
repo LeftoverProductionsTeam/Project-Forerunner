@@ -3756,12 +3756,12 @@ boolean players_position_crosses_bsp_route(short source_bsp, short destination_b
 /* A marked campaign transition can lead to an unrelated coordinate space. */
 short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d const *forward)
 {
-	struct scenario const *scenario = global_scenario_get();
+	struct scenario const *scenario = global_scenario_try_and_get();
 	real nearest_squared = 48.0f * 48.0f;
 	short neighbor = NONE;
 	short index;
 
-	if (!scenario_uses_regional_gameplay(scenario) || global_structure_bsp_index == NONE)
+	if (!scenario || !scenario_uses_regional_gameplay(scenario) || global_structure_bsp_index == NONE)
 		return NONE;
 	for (index = 0; index < MIN(scenario->bsp_switch_trigger_volumes.count, SHORT_MAX); index++)
 	{

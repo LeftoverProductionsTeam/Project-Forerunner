@@ -436,14 +436,14 @@ struct structure_bsp const *scenario_structure_bsp_try_and_get(
 	return mcc_cache_bsp_retained_structure(reference);
 }
 
-struct structure_bsp const *scenario_structure_bsp_preview(short index)
+struct structure_bsp const *scenario_structure_bsp_preview(short index, boolean prefetch)
 {
 	struct scenario const *scenario = global_scenario;
 	if (!scenario || !scenario_uses_regional_gameplay(scenario) ||
 		!VALID_INDEX(index, scenario->structure_bsp_references.count))
 		return NULL;
 	return mcc_cache_bsp_preview(TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
-		index, struct scenario_structure_bsp_reference));
+		index, struct scenario_structure_bsp_reference), prefetch);
 }
 
 struct structure_bsp *global_structure_bsp_get(

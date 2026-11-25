@@ -3975,20 +3975,31 @@ Ahead of a markerless seam, the Windows renderer can draw opaque terrain
 from one adjoining BSP within 48 world units using that BSP's native
 materials and baked lightmaps. It uses a spare cache slot and at most 4,096
 surfaces within the existing frame budget. The preview does not activate
-collision, lights, or objects in that BSP. A preview cannot evict occupied
-geometry. The original map is unchanged.
+collision, lights, or objects in that BSP. At frame start it may replace an
+older preview after a one-second cooldown. Split-screen and stereo views
+borrow resident geometry during submission. Gameplay holds and ordinary warm
+BSPs have priority over a preview.
 
 On exact MCC13 `f0835f5e`, private Win64 OpenGL executable
 `f3c03d4ec8dfe7732fe2624d8fa97c6d1d1b8151f692f3f39e152391ffea9c82`
 prepared 68 Infinity connector surfaces while still in BSP 0 and crossed
 on foot to BSP 11 with Delta Peer disabled. Fifty focused regional checks
 passed. The view near (46.170, 36.220, -21.075) and the active passage at
-(39.603, 36.336, -21.075) both had large black surfaces. Spark's exact
-receipt lists one compiled lightmap page for `region_11`. Compare its baked
-texels, UVs, materials and expected terrain coverage at these positions
-with the runtime conversion before assigning the defect. Presentation,
-dynamic regional lights, cross-seam combat, vehicle and LAN play still need
-native acceptance. The testing installation keeps the previous-good build.
+(39.603, 36.336, -21.075) both had large black surfaces. Read-only native
+cache inspection found 68 rendered triangles and 120 lightmap vertices in
+BSP 11, using `levels\spark\assembly_709db2bb\region_11` page 0, a 128 × 64
+RGB565 bitmap. All 272 interior UV samples were RGB565 `0x0000`, including
+all 24 on the BSP 0 side. The cache's scenario has zero placed light
+fixtures. Spark should provide a separately baked connector and compare
+the same views on entry and inside. The baked page explains the reproduced
+darkness. Dynamic regional lights need a native fixture containing an actual
+light. Cross-seam combat, vehicle and LAN play still need acceptance.
+
+On Win64 `97b6b616492390f6c65cddede34b94ccf79b8a081de274bacb499f302439eee8`,
+frame-start prefetch again produced 68 neighbor surfaces in BSP 0. Ordinary
+test input walked into BSP 11 with Delta disabled and consumed the preview.
+The focused regional harness passed 45 cases, including preview replacement,
+cooldown, memory pressure and protection of simulation geometry.
 
 Negotiated regional MCC13 multiplayer now uses co-op's native device group
 and position messages. The host decides switch use and device movement.

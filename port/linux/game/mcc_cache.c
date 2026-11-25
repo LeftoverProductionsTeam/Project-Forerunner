@@ -70,6 +70,7 @@ static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static struct mcc_cache_bsp const *mcc_active_bsp;
 static struct mcc_cache_bsp const *mcc_preview_bsp;
 static uint32_t mcc_failed_bsp_previews;
+static uint32_t mcc_bsp_preview_tick;
 static uint32_t mcc_bsps_in_use;
 static FILE *mcc_stream;
 static boolean mcc_loaded;
@@ -384,6 +385,7 @@ void mcc_cache_tags_unload(void)
     mcc_active_bsp = NULL;
     mcc_preview_bsp = NULL;
     mcc_failed_bsp_previews = 0;
+    mcc_bsp_preview_tick = 0;
     mcc_bsps_in_use = 0;
     mcc_validation_cancel();
     mcc_cache_validation_clear();
@@ -865,24 +867,38 @@ boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *refe
 
 /* A view can borrow one spare warm slot. This does not expose new collision
  * to simulation; the normal BSP switch still owns activation. */
-struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_reference const *reference)
+struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_reference const *reference,
+    boolean prefetch)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     struct structure_bsp const *resident = mcc_cache_bsp_resident_structure(bsp);
-    uint32_t bit, address;
+    int preview_slot, retained_count;
+    struct mcc_cache_bsp const *retained;
+    uint32_t bit, address, now;
     void *header, *structure;
 
-    if (resident || !mcc_active_bsp || !bsp || bsp == mcc_active_bsp)
+    if (resident || !prefetch || !mcc_active_bsp || !bsp || bsp == mcc_active_bsp)
         return resident;
     bit = UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps);
     if (mcc_failed_bsp_previews & bit)
         return NULL;
-    if (mcc_preview_bsp || mcc_retained_bsps[1] ||
-        (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()))
+    now = (uint32_t)game_time_get();
+    preview_slot = mcc_preview_bsp ? mcc_cache_bsp_retained_slot(mcc_preview_bsp) : NONE;
+    if (preview_slot != NONE && now - mcc_bsp_preview_tick < TICKS_PER_SECOND)
         return NULL;
-    address = mcc_cache_bsp_address_with_neighbors(mcc_active_bsp, bsp, mcc_retained_bsps[0], NULL);
+    retained_count = (mcc_retained_bsps[0] != NULL) + (mcc_retained_bsps[1] != NULL) - (preview_slot != NONE);
+    if (retained_count > 1 || (retained_count && !mcc_cache_bsp_keep_two_neighbors()))
+        return NULL;
+    retained = mcc_retained_bsps[preview_slot == 0 ? 1 : 0];
+    address = mcc_cache_bsp_address_with_neighbors(mcc_active_bsp, bsp, retained, NULL);
     if (!address)
         return NULL;
+    /* At frame start no view can still borrow this preview. Leave all
+     * gameplay holds and ordinary warm regions in place. */
+    if (preview_slot != NONE) {
+        mcc_cache_bsp_release(mcc_preview_bsp);
+        mcc_cache_remove_retained_slot(preview_slot);
+    }
     if (!mcc_cache_bsp_load(reference, address, &header, &structure) ||
         !structure_bsp_port_verify(structure) || !mcc_cache_bsp_retain(reference, FALSE)) {
         mcc_cache_bsp_discard_prepared(reference);
@@ -890,6 +906,7 @@ struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_
         return NULL;
     }
     mcc_preview_bsp = bsp;
+    mcc_bsp_preview_tick = now;
     return structure;
 }
 

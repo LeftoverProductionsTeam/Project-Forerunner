@@ -63,6 +63,7 @@ symbols in this file:
 #include "cseries/errors.h"
 #include "render.h"
 #include "render_cameras_internal.h"
+#include "game/players.h"
 #include "vr_render.h" /* port: optional stereo traversal, port/linux/game/vr_render.c */
 #include "render_particles.h"
 #include "objects.h"
@@ -883,6 +884,22 @@ void render_frame(
 	short window_index;
 	struct render_window *window;
 	point2d screenshot_combined_index;
+
+	/* Prepare at most one preview before submitting any split-screen or
+	 * stereo views. Each view can then read resident terrain independently. */
+	for (window_index = 0; window_index < window_count; window_index++)
+	{
+		short neighbor;
+		window = &windoze[window_index];
+		if (window->console_window || window->local_player_index == NONE || window->render_camera.mirrored)
+			continue;
+		neighbor = players_visible_bsp_neighbor(&window->render_camera.position, &window->render_camera.forward);
+		if (neighbor != NONE)
+		{
+			scenario_structure_bsp_preview(neighbor, TRUE);
+			break;
+		}
+	}
 
 	render.frame_index++;
 	render.time_delta_since_tick_sec = time_delta_since_tick_sec;

@@ -402,6 +402,7 @@ static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static struct mcc_cache_bsp const *mcc_active_bsp;
 static struct mcc_cache_bsp const *mcc_preview_bsp;
 static uint32_t mcc_failed_bsp_previews;
+static uint32_t mcc_bsp_preview_tick;
 static uint32_t mcc_bsps_in_use;
 static struct __attribute__((aligned(16))) {
     byte header[24];
@@ -1476,18 +1477,42 @@ int main(int argc,char **argv)
             struct structure_bsp const *geometry;
             mcc_cache_bsp_set_active(&references[old],TRUE);
             mcc_cache_bsp_set_in_use(&references[old],TRUE);
-            geometry=mcc_cache_bsp_preview(&references[destination]);
+            CHECK(!mcc_cache_bsp_preview(&references[destination],FALSE)&&!mcc_prepared_loads,
+                  "a view loaded terrain during submission");
+            geometry=mcc_cache_bsp_preview(&references[destination],TRUE);
             CHECK(geometry&&mcc_prepared_loads==1&&mcc_preview_bsp==&regions[destination],
-                  "the spare warm slot did not render its checked geometry");
-            CHECK(mcc_cache_bsp_preview(&references[destination])==geometry&&
-                  !mcc_cache_bsp_preview(&references[2])&&mcc_prepared_loads==1,
-                  "the view loaded another BSP instead of borrowing one preview");
-            CHECK(!mcc_cache_bsp_retained_structure(&references[destination])&&
-                  global_structure_bsp_index==old&&!test_tag_instances[destination].base_address&&
-                  mcc_cache_bsp_pinned(&regions[old])&&!mcc_prepared_releases,
+                  "the spare warm slot did not prepare its checked geometry");
+            CHECK(mcc_cache_bsp_preview(&references[destination],FALSE)==geometry&&
+                  !mcc_cache_bsp_preview(&references[2],TRUE)&&mcc_prepared_loads==1,
+                  "an immediate camera turn replaced the preview without a cooldown");
+            ticks+=30;
+            CHECK(!mcc_cache_bsp_preview(&references[2],FALSE)&&
+                  mcc_cache_bsp_preview(&references[destination],FALSE)==geometry,
+                  "a viewport replaced the warmed region during submission");
+            {
+                uint32_t capacity=mcc_loaded_cache.capacity;
+                mcc_loaded_cache.capacity=sizeof(mcc_regions[0]);
+                regions[2].address=regions[old].address;
+                regions[2].structure_address=regions[2].address+24;
+                references[2].base_address=regions[2].address;
+                CHECK(!mcc_cache_bsp_preview(&references[2],TRUE)&&
+                      mcc_cache_bsp_preview(&references[destination],FALSE)==geometry&&
+                      !mcc_prepared_releases,
+                      "a preview that could not fit evicted an existing preview");
+                mcc_loaded_cache.capacity=capacity;
+                regions[2].address=(uint32_t)(uintptr_t)mcc_regions[2].header;
+                regions[2].structure_address=(uint32_t)(uintptr_t)&mcc_regions[2].structure;
+                references[2].base_address=regions[2].address;
+            }
+            geometry=mcc_cache_bsp_preview(&references[2],TRUE);
+            CHECK(geometry&&mcc_preview_bsp==&regions[2]&&mcc_prepared_loads==2&&mcc_prepared_releases==1,
+                  "the frame could not replace the preview with another route");
+            CHECK(!mcc_cache_bsp_retained_structure(&references[2])&&
+                  global_structure_bsp_index==old&&!test_tag_instances[2].base_address&&
+                  mcc_cache_bsp_pinned(&regions[old])&&mcc_region_live[old],
                   "the camera exposed preview geometry to simulation or evicted a live region");
-            CHECK(scenario_structure_bsp_prepare(&references[old],&references[destination],&prepared)==_scenario_bsp_prepare_ready&&
-                  prepared.structure==geometry&&!mcc_preview_bsp&&mcc_prepared_loads==1,
+            CHECK(scenario_structure_bsp_prepare(&references[old],&references[2],&prepared)==_scenario_bsp_prepare_ready&&
+                  prepared.structure==geometry&&!mcc_preview_bsp&&mcc_prepared_loads==2,
                   "the BSP switch failed to reuse the already validated preview");
             return 0;
         }
