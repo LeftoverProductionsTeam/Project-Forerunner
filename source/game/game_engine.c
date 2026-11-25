@@ -5465,6 +5465,15 @@ static boolean game_engine_vehicle_parked(
 		game_engine_vehicle_empty(vehicle);
 }
 
+void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index)
+{
+	struct game_engine_regional_object *region =
+		&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
+
+	region->object_index = object_index;
+	region->bsp_index = bsp_index;
+}
+
 /* Capture ownership before the source BSP loses its clusters. Carried items
  * and vehicles with players follow the shared crossing. AI crews stay with
  * their own regional vehicles until that scene resumes. */

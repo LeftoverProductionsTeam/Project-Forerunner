@@ -1131,6 +1131,9 @@ int main(int argc,char **argv)
         round->object.location.cluster_index=parked->object.location.cluster_index=0;
         round->object.bounding_sphere_center.x=1.f;
         parked->object.bounding_sphere_center.x=3.f;
+        parked->object.flags|=FLAG(_object_outside_of_map_bit);
+        parked->object.location.cluster_index=NONE;
+        game_engine_set_regional_projectile_bsp(units[3],old);
         scenario.type=_scenario_type_multiplayer;
         mcc_loaded=TRUE;
         global_structure_bsp_index=old;
@@ -1148,6 +1151,10 @@ int main(int argc,char **argv)
         object_transfer_regional_projectile(units[2],round,old,destination,&obstructed);
         CHECK(game_engine_object_parked(units[2],_object_type_projectile),
               "a projectile crossed without a destination leaf");
+        /* The swept round has left the source leaf, but its center and the
+         * destination leaf still meet at this authored seam. */
+        round->object.flags|=FLAG(_object_outside_of_map_bit);
+        round->object.location.cluster_index=NONE;
         object_transfer_regional_projectile(units[2],round,old,destination,&destination_location);
         CHECK(game_engine_object_recorded_bsp(units[2],_object_type_projectile)==destination,
               "a projectile in the native continuous seam lost its destination ownership");

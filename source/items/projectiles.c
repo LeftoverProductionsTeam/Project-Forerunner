@@ -532,6 +532,8 @@ boolean projectile_new(
 	real initial_velocity;
 	short attachment_index;
 	boolean underwater;
+	struct scenario const *scenario = global_scenario_try_and_get();
+	short structure_bsp_index = global_structure_bsp_index_get();
 
 	projectile = projectile_get(projectile_index);
 	definition = projectile_definition_get(projectile->definition_index);
@@ -607,6 +609,11 @@ boolean projectile_new(
 
 	SET_FLAG(projectile->object.flags, _object_shadowless_bit, TRUE);
 	SET_FLAG(projectile->object.flags, _object_deleted_when_deactivated_bit, TRUE);
+
+	/* A shot can leave its source collision leaf before the next BSP
+	 * transition. Record its owner while the firing scene is still bound. */
+	if (scenario && structure_bsp_index != NONE && scenario_uses_regional_gameplay(scenario))
+		game_engine_set_regional_projectile_bsp(projectile_index, structure_bsp_index);
 
 	return TRUE;
 }

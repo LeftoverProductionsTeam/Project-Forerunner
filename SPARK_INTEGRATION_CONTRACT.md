@@ -3325,6 +3325,18 @@ This verifies native projectile damage between authored regions sharing
 one resident BSP. Projectile/actor persistence across separately active
 BSPs and authored regional AI remain open.
 
+
+Projectile ownership is captured when each native round spawns in a
+regional match. A round can transfer at a markerless seam when its
+destination leaf is valid, including when it has left its source leaf.
+The focused regression reproduced the failed handoff and then passed.
+Win64 executable
+`e0a779ae8df45ee81367208ad5f56f58ca9a8588713b06ce68f2dc24dfc94b0a`
+threw a grenade in BSP 0 on exact cache `f0835f5e`, walked into BSP 1
+by tick 780, took blast damage there by tick 810, fired again and shut
+down normally. The test used native input with Delta Peer disabled.
+Combat with players active in separate BSPs remains open.
+
 ### Twelve-region Hang 'Em High tunnel
 
 Spark `7f6d360` added the Hang 'Em High infantry route to the connected BSP.

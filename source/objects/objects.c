@@ -2509,7 +2509,7 @@ static void object_transfer_regional_projectile(long object_index, struct object
 	if (object->object.type == _object_type_projectile && from != NONE && from != to &&
 		destination->cluster_index != NONE && game_engine_object_recorded_bsp(object_index, _object_type_projectile) == from &&
 		players_position_crosses_bsp_route(from, to, &object->object.bounding_sphere_center))
-		game_engine_record_regional_object(object_index, object, to);
+		game_engine_set_regional_projectile_bsp(object_index, to);
 }
 
 void objects_reconnect_to_structure_bsp(
