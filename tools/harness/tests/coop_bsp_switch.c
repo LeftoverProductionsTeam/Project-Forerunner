@@ -728,6 +728,16 @@ static boolean players_coop_queue_bsp_switch(long unit, short trigger, short des
 }
 #include "queue_bsp_switch.inc"
 
+static boolean preview_available;
+static int preview_requests;
+static struct structure_bsp const *scenario_structure_bsp_preview(short index, boolean prefetch)
+{
+    CHECK(prefetch&&index==1,"incorrect destination preview");
+    preview_requests++;
+    return preview_available?&structures[index]:NULL;
+}
+#include "queue_regional_bsp_switch.inc"
+
 static long vote_excluded_player = NONE, vote_crossers, voted_players[2];
 static short vote_source, vote_destination;
 static int vote_announced, vote_waiting;
@@ -1118,6 +1128,39 @@ int main(int argc,char **argv)
         splitscreen_local=FALSE;
         regional_room_ready=TRUE;
         CHECK(network_regional_bsp_room_ready(),"a negotiated remote room lost regional play");
+        return 0;
+    }
+    if (!strcmp(name, "regional-preview-admission"))
+    {
+        regional_match=TRUE;
+        main_globals.switch_to_structure_bsp_index=NONE;
+        CHECK(!players_queue_regional_bsp_switch(&switches[0])&&!preview_requests,
+              "the host prepared a marked transition");
+        switches[0].cutscene_flag_index=NONE;
+        CHECK(!players_queue_regional_bsp_switch(&switches[0])&&!preview_requests,
+              "an unnegotiated room prepared a neighbor");
+
+        regional_room_ready=TRUE;
+        objects[0].object.parent_object_index=NONE;
+        objects[1].object.parent_object_index=NONE;
+        prepared_crossing_leaf=NONE;
+        preview_available=TRUE;
+        CHECK(!players_queue_regional_bsp_switch(&switches[0])&&preview_requests==1,
+              "first arrival did not warm the neighbor or forced the scene to switch");
+        CHECK(main_globals.switch_to_structure_bsp_index==NONE,
+              "the host queued a switch with a living player still away");
+
+        connected=TRUE;
+        CHECK(!players_queue_regional_bsp_switch(&switches[0])&&preview_requests==2,
+              "a resident destination with no valid crossing leaf was queued");
+        CHECK(main_globals.switch_to_structure_bsp_index==NONE,
+              "an obstructed resident destination was allowed to switch");
+
+        preview_available=FALSE;
+        CHECK(players_queue_regional_bsp_switch(&switches[0])&&preview_requests==3,
+              "memory pressure prevented use of the ordinary cold-switch path");
+        CHECK(main_globals.switch_to_structure_bsp_index==destination,
+              "the valid cold crossing was not queued");
         return 0;
     }
     if (!strcmp(name, "regional-projectiles"))

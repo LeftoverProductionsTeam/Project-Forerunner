@@ -4028,6 +4028,18 @@ older preview after a one-second cooldown. Split-screen and stereo views
 borrow resident geometry during submission. Gameplay holds and ordinary warm
 BSPs have priority over a preview.
 
+
+The host also requests a bounded neighbor preview at a markerless
+crossing. When available, the checked geometry provides clearance before
+the foreground switch is queued. The native switch rechecks admission.
+With no preview capacity it retains the existing cold-switch path.
+Five focused checks cover a waiting player, blocked destination and
+absent preview. On exact cache `f0835f5e`, Win64
+`9b299c87d6352ea3897545ad3de28181b2749ae98777d509efc6df67d3f747d4`
+walked into Chiron in a local headless game at sample tick 570
+(`renderer=none`, Delta Peer off) and exited normally. This does not bind
+neighbor geometry for general projectile or multi-region simulation.
+
 On exact MCC13 `f0835f5e`, private Win64 OpenGL executable
 `f3c03d4ec8dfe7732fe2624d8fa97c6d1d1b8151f692f3f39e152391ffea9c82`
 prepared 68 Infinity connector surfaces while still in BSP 0 and crossed

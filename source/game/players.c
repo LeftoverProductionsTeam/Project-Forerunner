@@ -4163,6 +4163,21 @@ static boolean players_coop_host_alive(
 	return FALSE;
 }
 
+/* Check a resident neighbor before scheduling a foreground BSP switch.
+ * A dedicated host warms it through the same bounded cache as the renderer. */
+static boolean players_queue_regional_bsp_switch(
+	struct scenario_bsp_switch_trigger_volume const *volume)
+{
+	struct structure_bsp const *destination;
+
+	if (volume->cutscene_flag_index != NONE || !network_regional_bsp_room_ready())
+		return FALSE;
+
+	destination = scenario_structure_bsp_preview(volume->destination_structure_bsp_index, TRUE);
+	return players_continuous_bsp_crossing_valid(volume, destination, NULL) &&
+		main_switch_structure_bsp(volume->destination_structure_bsp_index);
+}
+
 /* port: whether the unit's crossing switches the BSP in network co-op. Only
 the host's does, and brings the whole team to the host
 (players_reconnect_to_structure_bsp), so no one running ahead or doubling
@@ -4184,8 +4199,7 @@ static boolean players_coop_queue_bsp_switch(
 		struct scenario_bsp_switch_trigger_volume const *volume = TAG_BLOCK_GET_ELEMENT(
 			&scenario->bsp_switch_trigger_volumes, bsp_switch_trigger_volume_index, struct scenario_bsp_switch_trigger_volume);
 
-		return volume->cutscene_flag_index == NONE && network_regional_bsp_room_ready() &&
-			players_continuous_bsp_crossing_valid(volume, NULL, NULL) && main_switch_structure_bsp(destination);
+		return players_queue_regional_bsp_switch(volume);
 	}
 	/* port: a dedicated server has no player of its own: its zones switch the
 	BSP only once most of the living players who are not away stand in zones

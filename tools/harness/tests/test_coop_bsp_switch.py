@@ -118,6 +118,7 @@ def generated(fault=None):
         ('loader.inc', function(read('source/scenario/scenario.c'), 'scenario_switch_structure_bsp')),
         ('scripted_bsp.inc', function(read('source/hs/hs.c'), 'scenario_switch_structure_bsp_evaluate')),
         ('queue_bsp_switch.inc', function(players, 'player_queue_structure_bsp_switch')),
+        ('queue_regional_bsp_switch.inc', function(players, 'players_queue_regional_bsp_switch')),
         ('majority_bsp_vote.inc', '\n'.join(function(players, name) for name in
             ('players_coop_bsp_switch_majority', 'players_coop_finish_bsp_switch'))),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
@@ -148,7 +149,7 @@ def generated(fault=None):
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
     'mcc-prepare-preview', 'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-preview-admission', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',
