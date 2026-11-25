@@ -511,6 +511,7 @@ struct damage_sight
 struct damage_history_tick
 {
 	long time;
+	short structure_bsp_index;
 	struct
 	{
 		long object_index;
@@ -526,6 +527,7 @@ vehicle it rode */
 struct damage_trail_point
 {
 	long time;
+	short structure_bsp_index;
 	real_point3d position;
 	real speed;
 	real radius;
@@ -1755,6 +1757,7 @@ static void distributed_note_targets(
 	short player_index;
 
 	tick->time = game_time_get();
+	tick->structure_bsp_index = global_structure_bsp_index_get();
 	for (player_index = 0; player_index < MAXIMUM_TRACKED_PLAYERS; player_index++)
 	{
 		long unit_index = distributed_living_unit(distributed_player(player_index));
@@ -1790,7 +1793,8 @@ static void distributed_note_targets(
 			struct damage_history_tick const *last =
 				&damage_history[(game_time_get() - 1) & (TARGET_HISTORY_TICKS - 1)];
 			boolean appeared = unit_index != NONE &&
-				(last->time != game_time_get() - 1 || last->objects[player_index][0].object_index == NONE);
+				(last->time != game_time_get() - 1 || last->objects[player_index][0].object_index == NONE ||
+				 !distributed_combat_sample_matches_bsp(last->structure_bsp_index, last->time));
 
 			if (game_time_get() % PLAYER_TRAIL_INTERVAL_TICKS == 0 || appeared)
 			{
@@ -1798,6 +1802,7 @@ static void distributed_note_targets(
 					&damage_trails[player_index][(game_time_get() / PLAYER_TRAIL_INTERVAL_TICKS) & (PLAYER_TRAIL_POINTS - 1)];
 
 				point->time = unit_index != NONE ? game_time_get() : NONE;
+				point->structure_bsp_index = tick->structure_bsp_index;
 				if (unit_index != NONE)
 				{
 					real_point3d camera;
@@ -1961,7 +1966,7 @@ static short distributed_target_seen(
 		real reach;
 		real distance;
 
-		if (tick->time != time)
+		if (tick->time != time || !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
 			break;
 		if (column_player_index == NONE ||
 			tick->objects[column_player_index][column_slot].object_index != object_index)
@@ -2019,7 +2024,7 @@ static boolean distributed_player_was_near(
 		long time = game_time_get() - back;
 		struct damage_history_tick const *tick = &damage_history[time & (TARGET_HISTORY_TICKS - 1)];
 
-		if (tick->time != time)
+		if (tick->time != time || !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
 			break;
 		if (tick->objects[player_index][0].object_index != NONE &&
 			distributed_history_near(&tick->objects[player_index][0].position, tick->objects[player_index][0].speed,
@@ -2052,7 +2057,7 @@ static boolean distributed_player_drove_into(
 		struct object_datum *vehicle;
 		real reach;
 
-		if (tick->time != time)
+		if (tick->time != time || !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
 			break;
 		if (tick->objects[player_index][1].object_index == NONE || !tick->objects[player_index][1].driving ||
 			!(vehicle = object_try_and_get(tick->objects[player_index][1].object_index)))
@@ -2100,7 +2105,8 @@ static boolean distributed_player_could_fire(
 		struct damage_trail_point const *trail_point = &damage_trails[player_index][index];
 		real distance;
 
-		if (trail_point->time == NONE || trail_point->time < earliest || trail_point->time > game_time_get())
+		if (trail_point->time == NONE || trail_point->time < earliest || trail_point->time > game_time_get() ||
+			!distributed_combat_sample_matches_bsp(trail_point->structure_bsp_index, trail_point->time))
 			continue;
 		distance = reach->distance + REPORT_RANGE_TOLERANCE + trail_point->radius + trail_point->speed *
 			(reach->carried_ticks + PLAYER_TRAIL_INTERVAL_TICKS + TARGET_HISTORY_SLACK_TICKS);
@@ -2414,7 +2420,8 @@ static boolean distributed_report_line_of_sight(
 				&damage_trails[player_index][bucket & (PLAYER_TRAIL_POINTS - 1)];
 			real_point3d eye;
 
-			if (trail_point->time == NONE || trail_point->time / PLAYER_TRAIL_INTERVAL_TICKS != bucket)
+			if (trail_point->time == NONE || trail_point->time / PLAYER_TRAIL_INTERVAL_TICKS != bucket ||
+				!distributed_combat_sample_matches_bsp(trail_point->structure_bsp_index, trail_point->time))
 				continue;
 			traced++;
 			eye = trail_point->position;
@@ -2499,11 +2506,12 @@ static struct damage_sight const *distributed_sight_at(
 
 	if (time > game_time_get())
 		return NULL;
-	if (tick->time == time)
+	if (tick->time == time && distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
 		return tick->sight[player_index].count > 0 ? &tick->sight[player_index] : NULL;
 	trail_time = time - time % PLAYER_TRAIL_INTERVAL_TICKS;
 	point = &damage_trails[player_index][(trail_time / PLAYER_TRAIL_INTERVAL_TICKS) & (PLAYER_TRAIL_POINTS - 1)];
-	if (point->time != trail_time || point->time == NONE)
+	if (point->time != trail_time || point->time == NONE ||
+		!distributed_combat_sample_matches_bsp(point->structure_bsp_index, point->time))
 		return NULL;
 	return point->sight.count > 0 ? &point->sight : NULL;
 }
@@ -3513,8 +3521,8 @@ void network_damage_note_grenade(
 	damage_players[player_index].throw_types[slot] = grenade_type;
 }
 
-/* Recorded positions and sight points belong to the active collision BSP. */
-void network_damage_clear_spatial_history(
+/* Restart and checkpoint restoration invalidate the host's entire timeline. */
+static void network_damage_clear_spatial_history(
 	void)
 {
 	short player_index;

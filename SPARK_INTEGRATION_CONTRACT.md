@@ -3204,6 +3204,15 @@ recorded three guest reports applied with zero refusals. Both peers
 exited zero. The regression harness checks rejection of older spatial
 history. Independent regional combat remains open.
 
+Forerunner now records the simulation BSP for each host combat history sample.
+Rewind checks both BSP and the latest entry tick before reusing positions, vehicle
+contacts or sight. Returning to the same BSP starts a fresh visit. This replaces
+clearing both history rings at every switch. Windows x64
+`2b74c044228ecf83202f2e337db0469c8f0209a1358a9bb5e4d7ec2ed28dd109`
+passed 94 focused checks. On the exact fourteen-region cache, two private peers
+traversed BSP 0 → 2 → 0 and the host applied three fresh guest hits after returning,
+with zero refusals in that check. Both peers exited normally.
+
 For a warm regional multiplayer crossing, the host checks each unseated
 biped's native collision capsule against the source and destination BSPs
 using their own breakable-surface state. A destination-only obstruction

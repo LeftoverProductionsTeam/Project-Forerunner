@@ -335,6 +335,7 @@ real distributed_machine_round_trip_ticks(long machine_index);
 /* (a client) the host's latest tick it has had a message of, NONE for none */
 long distributed_latest_host_time(void);
 boolean distributed_hit_report_matches_structure_bsp(long machine_index, short player_index, long host_time);
+boolean distributed_combat_sample_matches_bsp(short structure_bsp_index, long sample_time);
 /* Fresh host clock + elapsed receipt time + bounded measured latency; NONE
  * without recent evidence. For client pacing, never a clock rewrite. */
 long distributed_host_tick_limit(real ticks_per_second);
@@ -601,7 +602,6 @@ void network_damage_host_tables_free(void);
 player's machine reports */
 void network_damage_note_grenade(long unit_index, short grenade_type);
 void network_damage_host_tick(void);
-void network_damage_clear_spatial_history(void);
 void network_damage_client_tick(void);
 void network_damage_handle_events(void const *entries, short count);
 void network_damage_handle_reports(long machine_index, void const *entries, short count);

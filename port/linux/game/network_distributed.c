@@ -5466,6 +5466,15 @@ struct distributed_structure_bsp_message
 	struct distributed_structure_bsp structure_bsp;
 };
 
+/* The host's sample tag and most recent entry tick both belong to its
+ * simulation. A return to the same BSP cannot see an earlier visit. */
+boolean distributed_combat_sample_matches_bsp(short structure_bsp_index, long sample_time)
+{
+	return !network_regional_bsp_active() ||
+		(structure_bsp_index == global_structure_bsp_index_get() &&
+		 sample_time > distributed_host_structure_bsp_start);
+}
+
 /* Hit reports rewind positions, but visibility still uses the live BSP.
  * Skip reports belonging to a previous world before consulting geometry. */
 boolean distributed_hit_report_matches_structure_bsp(
@@ -5509,11 +5518,7 @@ static void distributed_send_structure_bsp(
 		return;
 	}
 	if (switched && distributed_sent_structure_bsp_index != NONE)
-	{
 		distributed_host_structure_bsp_start = game_time_get();
-		if (network_regional_bsp_active())
-			network_damage_clear_spatial_history();
-	}
 	distributed_send(&message, _distributed_message_structure_bsp, 1, (word)sizeof(message),
 		switched ? _distributed_to_clients_reliably : _distributed_to_clients);
 	distributed_sent_structure_bsp_index = index;
