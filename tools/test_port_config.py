@@ -613,14 +613,17 @@ def test_file_without_the_settings(program, directory, defaults, kind):
 	case = Case(program, directory / "without")
 	case.path.write_text("config_version = 2\n\n[display]\nfullscreen = false\n")
 	values, _ = case.get(*changed)
+	expected = {name: OLD[name] for name in changed}
+	if "display.menus" in expected:
+		expected["display.menus"] = NEW["display.menus"]
 	for name in changed:
-		check(values[name] == OLD[name], f"without: {name} is {values[name]}")
+		check(values[name] == expected[name], f"without: {name} is {values[name]}")
 		lines, commented = value_lines(case.text(), name.split(".")[1])
-		check(not lines and not commented, f"without: {name} was added before the answer: {lines} {commented}")
-	check(pending(case)[0] == len(changed), "without: not asked about every change")
+		check(not lines and (name == "display.menus" or not commented), f"without: {name} was added before the answer: {lines} {commented}")
+	check(pending(case)[0] == len(changed) - ("display.menus" in changed), "without: wrong number of pending defaults")
 	case.run("answer", "keep")
 	values, _ = case.get(*changed)
-	check(all(values[name] == OLD[name] for name in changed), f"without: keep: {values}")
+	check(all(values[name] == expected[name] for name in changed), f"without: keep: {values}")
 	check(pending(case)[0] == 0, "without: asked again")
 	check("fullscreen = false" in case.text(), "without: the player's fullscreen was lost")
 

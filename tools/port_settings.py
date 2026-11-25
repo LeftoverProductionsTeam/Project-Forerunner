@@ -124,7 +124,8 @@ SCREENS = {
         # Keep the last full row above the description and confirmation buttons.
         "spacing": 26,
         "help_top": 368,
-        "help_height": 44,
+        "help_height": 40,
+        "help_font": "ui\\small_ui",
         # (rows in the place of the row before them: Window Size in
         # Resolution's, port/linux/game/menu_functions.c showing the one the
         # display mode chosen uses; Android's resolution and anti-aliasing in
@@ -359,7 +360,8 @@ SCREENS = {
         "header": ("header_profile_audio_settings", f"{PE}/audio_settings/header_profile_audio_settings"),
         "spacing": 26,
         "help_top": 368,
-        "help_height": 44,
+        "help_height": 40,
+        "help_font": "ui\\small_ui",
         "rows": [
             ("MASTER VOLUME:", "audio.volume", VOLUMES, "Adjust the overall volume.", None),
             ("MUSIC VOLUME:", "audio.music_volume", VOLUMES, "Adjust the music volume.", None),

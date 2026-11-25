@@ -82,6 +82,7 @@ symbols in this file:
 #include "cache/texture_cache.h"
 #include "cutscene/cinematics.h"
 #include "devices/device_controls.h"
+#include "extraction.h" /* port: named Extraction control prompts. */
 #include "game/game_engine.h"
 #include "game/game_globals.h"
 #include "game/players.h"
@@ -531,6 +532,7 @@ static void hud_show_action_response(
 	case _player_action_result_touch_device:
 	{
 		struct control_datum *control = control_get(player->action_object_index);
+		wchar_t const *extraction_prompt = extraction_control_prompt(player->action_object_index);
 
 		if (control->control.custom_name_index != NONE)
 		{
@@ -543,10 +545,11 @@ static void hud_show_action_response(
 				control->control.custom_name_index,
 				TRUE);
 		}
-		else if (!hud_action_name_available(item_name_index))
+		else if (extraction_prompt || !hud_action_name_available(item_name_index))
 		{
 			hud_enable_custom_state_message(render.local_player_index, TRUE);
-			hud_set_state_text(render.local_player_index, L"Press %action to use device");
+			hud_set_state_text(render.local_player_index,
+				extraction_prompt ? extraction_prompt : L"Press %action to use device");
 		}
 		else
 		{

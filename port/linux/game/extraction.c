@@ -1726,6 +1726,39 @@ static void extraction_begin_squad_activation(struct extraction_run const *calle
 	}
 }
 
+static wchar_t const *extraction_control_label(short name, short *squad)
+{
+	short index;
+
+	if (name == NONE || (!extraction_owns_map() &&
+		!(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested()))) return NULL;
+
+	if (name == extraction.deploy_name) return L"Press %action to prepare for deployment";
+	if (name == extraction.activate_name || name == extraction.dropship_activate_names[0] ||
+		name == extraction.dropship_activate_names[1]) return L"Press %action to request evacuation";
+	if (name == extraction.loadout_name) return L"Press %action for loadout and stash";
+	if (name == extraction.debrief_name) return L"Press %action for operation report";
+	if (name == extraction.faction_names[0]) return L"Press %action to choose UNSC";
+	if (name == extraction.faction_names[1]) return L"Press %action to choose Covenant";
+	for (index = 0; index < NUMBEROF(extraction.squads); index++)
+	{
+		if (name == extraction.squads[index].name)
+		{
+			*squad = index;
+			return L"Press %action to choose this squad";
+		}
+	}
+	return NULL;
+}
+
+wchar_t const *extraction_control_prompt(long control_index)
+{
+	struct object_datum const *control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
+	short squad = NONE;
+
+	return control ? extraction_control_label(control->object.name_index, &squad) : NULL;
+}
+
 boolean extraction_control_touched(long control_index, long unit_index)
 {
 	struct object_datum *control;
@@ -1733,23 +1766,14 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct player_datum *player;
 	struct extraction_run *run;
 	long slot;
-	short faction, squad = NONE, index, zone, call_name;
+	short faction, squad = NONE, zone, call_name;
 	boolean in_hub, activation;
 
-	if (!extraction_owns_map() && !(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested())) return FALSE;
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
-	if (control)
-		for (index = 0; index < NUMBEROF(extraction.squads); index++)
-			if (extraction.squads[index].name != NONE && control->object.name_index == extraction.squads[index].name) squad = index;
-	if (!control || control->object.name_index == NONE) return FALSE;
+	if (!control || !extraction_control_label(control->object.name_index, &squad)) return FALSE;
 	activation = control->object.name_index == extraction.activate_name ||
 		control->object.name_index == extraction.dropship_activate_names[0] ||
 		control->object.name_index == extraction.dropship_activate_names[1];
-	if (control->object.name_index != extraction.deploy_name && !activation &&
-		(extraction.loadout_name == NONE || control->object.name_index != extraction.loadout_name) &&
-		(extraction.debrief_name == NONE || control->object.name_index != extraction.debrief_name) &&
-		(extraction.faction_names[0] == NONE || control->object.name_index != extraction.faction_names[0]) &&
-		(extraction.faction_names[1] == NONE || control->object.name_index != extraction.faction_names[1]) && squad == NONE) return FALSE;
 	if (extraction.suspended || cinematic_in_progress() ||
 		(extraction.survival && coop_enemies_firefight_outcome() != 0 && control->object.name_index != extraction.debrief_name)) return TRUE;
 	/* Recheck authored power, usability and one-use locks on the host before

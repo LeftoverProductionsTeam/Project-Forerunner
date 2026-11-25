@@ -5316,8 +5316,14 @@ static void config_find_new_defaults(const char *text, toml_datum_t table)
 				config_pending[index] = 2;
 			}
 		}
-		else if (config_commented_value_is(text, setting, config_old_defaults[old].default_value) != 0)
+		else
 		{
+			int commented = config_commented_value_is(text, setting, config_old_defaults[old].default_value);
+
+			/* A missing menu setting should open Forerunner's shell. An
+			 * actual older config comment still participates in migration. */
+			if (commented == 0 || (commented < 0 && !strcmp(setting->name, "display.menus")))
+				continue;
 #ifdef HALO_XBOX_CONSOLE
 			/* port: the original Xbox has no screen to ask on, so its
 			question never came and a file it wrote before a default changed
