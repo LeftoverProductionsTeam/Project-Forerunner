@@ -5475,21 +5475,18 @@ static boolean game_engine_vehicle_away(
 	return distance_squared3d(position, &game_engine_vehicle_homes[home].position) > VEHICLE_HOME_AWAY_SQUARED;
 }
 
-static boolean game_engine_vehicle_parked(
-	long object_index)
+static short game_engine_vehicle_home_bsp(long object_index)
 {
-	struct unit_datum *vehicle = unit_get(object_index);
-	long home = vehicle->object.vehicle_home_index;
-	short bsp;
+	struct unit_datum const *vehicle = unit_try_and_get(object_index);
+	long home = vehicle ? vehicle->object.vehicle_home_index : NONE;
 
 	if (!VALID_INDEX(home, game_engine_vehicle_home_count) ||
-		game_engine_vehicle_homes[home].object_index != object_index)
-		return FALSE;
-	bsp = game_engine_vehicle_homes[home].structure_bsp_index;
-	return bsp != NONE && bsp != global_structure_bsp_index_get() &&
-		vehicle->object.parent_object_index == NONE &&
-		!game_engine_vehicle_away((short)home, &vehicle->object.position) &&
-		game_engine_vehicle_empty(vehicle);
+		game_engine_vehicle_homes[home].object_index != object_index ||
+		vehicle->object.parent_object_index != NONE ||
+		game_engine_vehicle_away((short)home, &vehicle->object.position) ||
+		!game_engine_vehicle_empty(vehicle))
+		return NONE;
+	return game_engine_vehicle_homes[home].structure_bsp_index;
 }
 
 void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index)
@@ -5560,7 +5557,9 @@ short game_engine_object_recorded_bsp(
 			return region->bsp_index;
 		}
 	}
-	return NONE;
+	/* A vehicle at an authored home can have no cluster or saved region
+	 * before its BSP is first entered. Keep it in seam clearance checks. */
+	return object_type == _object_type_vehicle ? game_engine_vehicle_home_bsp(object_index) : NONE;
 }
 
 boolean game_engine_object_parked(
@@ -5571,8 +5570,6 @@ boolean game_engine_object_parked(
 
 	if (bsp != NONE)
 		return bsp != global_structure_bsp_index_get();
-	if (object_type == _object_type_vehicle)
-		return game_engine_vehicle_parked(object_index);
 	if (TEST_FLAG(_object_mask_item, object_type))
 		return game_engine_equipment_item_parked(object_index);
 	return object_type == _object_type_biped && ai_unit_belongs_to_other_bsp(object_index);

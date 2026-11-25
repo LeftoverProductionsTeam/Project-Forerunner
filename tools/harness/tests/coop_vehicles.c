@@ -463,6 +463,12 @@ static short game_engine_object_recorded_bsp(long index,short type)
 }
 #include "home_respawn.inc"
 
+static boolean game_engine_vehicle_parked(long index)
+{
+ short bsp=game_engine_vehicle_home_bsp(index);
+ return bsp!=NONE && bsp!=global_structure_bsp_index;
+}
+
 static void compiled_regional_home(void)
 {
  struct scenario_object_datum placement={.on_bsp_flags=2,.position={10,0,0}};
@@ -493,7 +499,8 @@ static void compiled_regional_home(void)
        game_engine_vehicle_homes[0].position.x==10 && game_engine_vehicle_homes[0].idle_since==NONE,
        "the initial scan duplicated or remapped the authored home");
  global_structure_bsp_index=1;
- CHECK(!game_engine_vehicle_parked(vehicle),"vehicle failed to wake in its authored region");
+ CHECK(!game_engine_vehicle_parked(vehicle) && game_engine_vehicle_home_bsp(vehicle)==1,
+       "vehicle failed to wake or lost its home during arrival clearance");
 }
 
 static void regional_respawn(void)

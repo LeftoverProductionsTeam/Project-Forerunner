@@ -827,7 +827,9 @@ static struct game_engine_regional_object {
 } game_engine_regional_objects[8];
 #define _object_mask_item FLAG(_object_type_weapon)
 static struct object_datum *unit_get(long index) {return object_get(index);}
-static boolean game_engine_vehicle_parked(long index) {return FALSE;}
+static short vehicle_home_bsp=NONE;
+static short game_engine_vehicle_home_bsp(long index)
+{return index==regional_blocker ? vehicle_home_bsp : NONE;}
 static long parked_ai_unit=NONE;
 static boolean ai_unit_belongs_to_other_bsp(long index) {return index==parked_ai_unit;}
 #include "regional_equipment.inc"
@@ -1817,6 +1819,17 @@ int main(int argc,char **argv)
                       regional_pill_probes==3,
                       "the on-foot player could cross into a solid destination light fixture");
                 objects[0].object.parent_object_index=units[2];
+                door->object.type=_object_type_vehicle;
+                door->object.flags=0;
+                door->object.bounding_sphere_center=objects[2].object.bounding_sphere_center;
+                game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(regional_blocker)].object_index=NONE;
+                vehicle_home_bsp=destination;
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
+                      "a vehicle parked at an unvisited home did not block crossing");
+                vehicle_home_bsp=old;
+                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
+                      "an unvisited vehicle home in the wrong region blocked crossing");
+                vehicle_home_bsp=NONE;
                 regional_blocker=NONE;
 
                 bsp_vehicle_contacts[old]=FLAG(0);
