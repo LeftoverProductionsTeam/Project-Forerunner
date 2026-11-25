@@ -2146,6 +2146,15 @@ not full Black Echo or scoped presentation acceptance. Spark next: require this
 feature through existing discovery and emit these declarations/groups through
 its existing mission HSC path for independent squad objectives.
 
+For optional objectives, the ready group should represent the earliest
+safe evacuation authorization. Keep it at 1 while optional work remains.
+If all objectives are optional, the map can omit the ready group and open
+its native extraction control as soon as the authored landing zone is usable.
+The normal countdown, physical boarding, arrival and per-player settlement
+still apply. A subsequent deployment uses the existing stash and squad begin
+callback. This is an authoring option in the current contract. Early escape
+and same-session rearm remain unverified on the staged Black Echo export.
+
 On maps with a managed aircraft crew signal, an authorized call or recall
 starts the ten-second activation for eligible deployed squadmates on foot in
 the same faction landing zone and current operation. The ready caller keeps
@@ -3334,6 +3343,21 @@ false for the other, and the host stayed in BSP 0 through tick 14460.
 Check the native trigger sample for each replicated biped before changing
 destination clearance or the authored box. Death Island traversal and return
 remain open. The installed fourteen-region map retains its original hash.
+
+A follow-up on the exact fifteen-region map used the installed build's
+objects and a disposable trace-only Windows executable
+`e1af4fd04546bc4a833150e4241b371ea04c85a8dae2fecd25dd3e9ebb5d0ab3`.
+On the replayed approach, feet and collision-center trigger tests agreed
+for both peers. Normal walking brought both collision centers inside the
+0.9-unit switch. The host reported BSP 3 at tick 2016. Both peers walked
+the approximately 491-world-unit connector up to the island. The host
+reported BSP 4 at tick 11606 and BSP 3 again at tick 12656 after both
+walked into the island-side return switch. The guest rebuilt matching
+corridor, island and corridor collision geometry at each transition and
+both players stayed alive. The test timer ended the run before the long
+walk back to BSP 0. Shared traversal is verified for 0 → 3 → 4 → 3; final
+base re-entry, independent occupancy and gameplay acceptance remain open.
+No map, crossing rule or installed executable was changed.
 
 Seam clearance now checks nearby vehicles, machines and controls with a known
 destination BSP before committing the shared switch. It takes contact from

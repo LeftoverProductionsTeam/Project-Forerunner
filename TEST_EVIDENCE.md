@@ -72,6 +72,16 @@ physical terminal and boarding acceptance, or consumption of Spark's new export
 mode receipt. Monitor grab compiled and existing Forge regressions passed without
 a full native placement session.
 
+Staged Win64 inventory, rehashed on 25 November. The installed executable is
+`cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
+
+| Menu/playtest | Staged file and SHA-256 | Last applicable native result |
+|---|---|---|
+| Extraction | `maps_ce/be_native.map` · `d113e9dbec1bae9554e7d4df3843ecc2bb6d40b4ee2c7cdf5f81831fc7b29b09` | Installed executable, local profile, normal menus through ground deployment, UNSC boarding and field egress. |
+| Zombies | `mcc_maps/fonzie's zombie apocalypse.map` · `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1` | Installed executable, Internet play off, normal Zombies menu through local Slayer lobby and armed spawn. Survival completion was outside this smoke. |
+| MegaWorld | `mcc_maps/gsmegaroad.map` · `71fc164876cafcece4de49c2b0563c79c6f772abfff308c7dc61d5a411b79e2b` | Fourteen-region baseline. Native menu spawn on the earlier recovery executable. Private later-region tests use separate maps. |
+| Firefight | `maps/b40.map` · `0a7b26d6d828e7b773d36d9d5c798b9bf4b143332301a0c0e7a3d685782eab48` | Stock-map wave 1 via the earlier recovery executable and OpenCE protocol; no authored evacuation on B40. |
+
 Repeat the applicable visible Windows menu and basic gameplay checks before
 updating the testing installation at each major checkpoint and every ten
 meaningful local commits. Keep the previous tested binary and map available.
