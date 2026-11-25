@@ -422,8 +422,8 @@ def test_native_seat_entrance_negative_control():
 
 def test_native_transport_admission_negative_control():
     files = tuple((name, mutated(text,
-        'if (!extraction_transport_can_board(unit_index, target_unit_index, seat_index))',
-        'if (FALSE)')) if name == 'native_seats.inc' else (name, text)
+        '!extraction_transport_can_board(unit_index, target_unit_index, seat_index))',
+        'FALSE)')) if name == 'native_seats.inc' else (name, text)
         for name, text in generated())
     status, output = run(build('extraction', files), 'transport-admission-factions')
     assert status == CHECK_FAILED, output

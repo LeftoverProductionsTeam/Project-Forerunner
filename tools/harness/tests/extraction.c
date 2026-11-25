@@ -414,6 +414,15 @@ static boolean network_coop_private_sound(long machine,long sound){CHECK(machine
 static void scripted_sound_new_private(long sound,boolean play){CHECK(sound==91,"wrong native radio definition");private_radio_calls++;private_radio_played+=play;}
 #include "notice_hud.inc"
 #include "native_unit_state.inc"
+static char const *coop_enemies_authored_round(void) { return NULL; }
+static short scenario_object_name_index_from_string(struct scenario *map, char const *name)
+{
+ short index;
+ struct scenario_object_name const *entries=map->object_names.address;
+ for(index=0;index<map->object_names.count;index++)
+  if(!strcmp(entries[index].name,name))return index;
+ return NONE;
+}
 #include "extraction.inc"
 #define vehicle_datum unit_datum
 #include "vehicle_brake.inc"
@@ -1927,16 +1936,21 @@ int main(int argc,char **argv)
      recorded_aircraft=NONE;
      CHECK(unit_can_enter_seat(unit_handles[0],craft,1,NULL),"finished playback did not reopen boarding");
     } else {
+     int notices=local_notices;
+     CHECK(notices>0&&strstr(local_notice_history[(notices-1)%4],"Board a Pelican passenger seat"),"deployment did not tell the player how to board");
      units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=1;
      CHECK(!extraction_transport_can_disembark(&units[0]),"active recording permitted voluntary exit");
      dropships[0].object.position.x=20;advance(1);
-     CHECK(!run(0)->field_reached,"recorded fly-through counted as a completed insertion");
+     CHECK(!run(0)->field_reached&&local_notices==notices,"recorded fly-through announced a completed insertion");
 
      dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);
      CHECK(extraction_transport_can_disembark(&units[0]),"damaged craft could not release its rider");
      dropships[0].object.damage_flags=0;recorded_aircraft=NONE;advance(1);
      CHECK(run(0)->field_reached&&extraction_transport_can_disembark(&units[0]),
        "finished recording did not complete insertion and reopen the exit");
+     CHECK(local_notices==notices+1&&strstr(local_notice_history[notices%4],"LANDED"),"safe arrival did not announce disembarkation");
+     advance(1);
+     CHECK(local_notices==notices+1,"landing notice repeated while the player remained seated");
 
      units[0].object.parent_object_index=NONE;units[0].object.position.x=20;
      touch(1,0);advance(300);

@@ -1119,7 +1119,7 @@ finished:
 		return;
 	}
 	if (extraction.admitted && !extraction.suspended)
-		extraction_notice("FIELD TERMINAL | Use the deployment control to begin. No raid timer.");
+		extraction_notice("HUB | Use the deployment control to begin. No raid timer.");
 	else if (!extraction.admitted)
 		extraction_notice("Extraction unavailable: check native hub controls/zones, starts, dropships and optional faction controls/profiles.");
 }
@@ -1568,7 +1568,11 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 			platform_log("extraction: squad %d operation %lu began; authored setup woken",
 				starting_squad + 1, extraction.squads[starting_squad].operation);
 	}
-	extraction_tell(run, !extraction.survival && !run->gear.record.reserved_count && !run->gear.record.reserved_grenades[0] && !run->gear.record.reserved_grenades[1] ?
+	if (!extraction.survival && VALID_INDEX(faction, 2) && extraction.dropship_names[faction] != NONE)
+		extraction_tell(run, faction == 0 ?
+			"DEPLOYED | Board a Pelican passenger seat. Escape alive to recover your carried gear and loot." :
+			"DEPLOYED | Board a Spirit passenger seat. Escape alive to recover your carried gear and loot.");
+	else extraction_tell(run, !extraction.survival && !run->gear.record.reserved_count && !run->gear.record.reserved_grenades[0] && !run->gear.record.reserved_grenades[1] ?
 		"DEPLOYED | Stored gear stays safe. Native starters/carried gear and field loot must escape to be recovered. No raid timer." : extraction.survival ?
 		"SURVIVAL DEPLOYED | Gear is at risk. Recover through an available evacuation point or finite victory." :
 		"DEPLOYED | Gear is at risk until escape, including disconnects. No raid timer.");
@@ -2217,7 +2221,11 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		long ship = extraction_player_dropship(unit);
 		if (ship != NONE && extraction_transport_at_field(faction, ship) &&
 			extraction_transport_arrival_ready(faction, ship))
+		{
 			run->field_reached = TRUE;
+			if (!extraction.survival)
+				extraction_tell(run, "LANDED | Use your seat exit to disembark. Find the extraction control when ready to evacuate.");
+		}
 	}
 	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&
 		!extraction_squad_objectives_ready(run))
