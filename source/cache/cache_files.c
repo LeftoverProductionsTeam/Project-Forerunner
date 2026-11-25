@@ -2441,7 +2441,7 @@ enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
 	{
 		/* A cold switch must not tear down geometry used by another scene. */
 		if ((address && address == (unsigned long)(uintptr_t)destination->base_address) ||
-			mcc_cache_has_bsp_in_use_elsewhere(active))
+			mcc_cache_has_simulation_bsp_holds())
 			return _scenario_bsp_prepare_failed;
 		return _scenario_bsp_prepare_deferred;
 	}
@@ -2459,7 +2459,7 @@ void scenario_structure_bsp_activate_prepared(
 {
 	cache_file_globals.structure_bsp_header = prepared->header;
 	cache_get_tag_instance(reference->structure_bsp.index)->base_address = xbox_address(prepared->structure);
-	mcc_cache_bsp_set_in_use(reference, TRUE);
+	mcc_cache_bsp_set_active(reference, TRUE);
 }
 
 boolean scenario_structure_bsp_load(
@@ -2644,7 +2644,7 @@ static void cache_files_unbind_mcc_bsp(
 {
 	cache_get_tag_instance(reference->structure_bsp.index)->base_address = XBOX_NULL;
 	cache_file_globals.structure_bsp_header = NULL;
-	mcc_cache_bsp_set_in_use(reference, FALSE);
+	mcc_cache_bsp_set_active(reference, FALSE);
 }
 
 boolean scenario_structure_bsp_retain(

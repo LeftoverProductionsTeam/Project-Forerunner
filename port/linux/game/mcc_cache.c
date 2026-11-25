@@ -67,6 +67,7 @@ short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer,
 
 static struct mcc_runtime mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
+static struct mcc_cache_bsp const *mcc_active_bsp;
 static uint32_t mcc_bsps_in_use;
 static FILE *mcc_stream;
 static boolean mcc_loaded;
@@ -378,6 +379,7 @@ boolean mcc_cache_contains(void const *address, long bytes)
 void mcc_cache_tags_unload(void)
 {
     memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
+    mcc_active_bsp = NULL;
     mcc_bsps_in_use = 0;
     mcc_validation_cancel();
     mcc_cache_validation_clear();
@@ -597,13 +599,31 @@ static uint32_t mcc_cache_bsp_resident_address(struct mcc_cache_bsp const *bsp)
     return mcc_loaded_cache.bsp_addresses[bsp - mcc_loaded_cache.report.bsps];
 }
 
-static boolean mcc_cache_bsp_in_use(struct mcc_cache_bsp const *bsp)
+static boolean mcc_cache_bsp_pinned(struct mcc_cache_bsp const *bsp)
 {
     return bsp && (mcc_bsps_in_use & (UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps)));
 }
 
-/* The simulation owns these holds. A client's BSP acknowledgement cannot
- * pin geometry on the host. The current shared scene holds only its BSP. */
+static boolean mcc_cache_bsp_in_use(struct mcc_cache_bsp const *bsp)
+{
+    return bsp && (bsp == mcc_active_bsp || mcc_cache_bsp_pinned(bsp));
+}
+
+/* Tag activation owns its own hold. Unbinding a foreground BSP must
+ * leave any simulation hold on the same geometry intact. */
+void mcc_cache_bsp_set_active(struct scenario_structure_bsp_reference const *reference, boolean active)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    if (!bsp || mcc_loaded_cache.report.identity.scenario_type != _scenario_type_multiplayer ||
+        mcc_loaded_cache.report.bsp_count < 2)
+        return;
+    if (active && mcc_cache_bsp_resident_address(bsp))
+        mcc_active_bsp = bsp;
+    else if (!active && mcc_active_bsp == bsp)
+        mcc_active_bsp = NULL;
+}
+
+/* Only the simulation can pin geometry. Peer acknowledgements do not. */
 void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
@@ -616,11 +636,9 @@ void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *ref
     else if (mcc_cache_bsp_resident_address(bsp)) mcc_bsps_in_use |= bit;
 }
 
-boolean mcc_cache_has_bsp_in_use_elsewhere(struct scenario_structure_bsp_reference const *active)
+boolean mcc_cache_has_simulation_bsp_holds(void)
 {
-    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(active);
-    uint32_t active_bit = bsp ? UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps) : 0;
-    return (mcc_bsps_in_use & ~active_bit) != 0;
+    return mcc_bsps_in_use != 0;
 }
 
 static boolean mcc_cache_bsp_keep_two_neighbors(void)
@@ -686,6 +704,11 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
         return 0;
     if (mcc_cache_bsp_retained_slot(to) != NONE)
         return mcc_cache_bsp_resident_address(to);
+    /* The foreground must have a retained slot if its simulation keeps
+     * running. Refuse before conversion or disconnection if none can open. */
+    if (mcc_cache_bsp_pinned(from) && mcc_cache_bsp_pinned(mcc_retained_bsps[0]) &&
+        mcc_cache_bsp_pinned(mcc_retained_bsps[1]))
+        return 0;
     if (mcc_cache_bsp_keep_two_neighbors() && mcc_retained_bsps[0]) {
         uint32_t free_address = mcc_cache_bsp_address_with_neighbors(from, to,
             mcc_retained_bsps[0], mcc_retained_bsps[1]);
@@ -762,7 +785,7 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
 
     if (!address) address = bsp->address;
     /* Check every live hold before releasing a neighbor or touching memory. */
-    if (mcc_bsps_in_use) {
+    if (mcc_active_bsp || mcc_bsps_in_use) {
         for (index = 0; index < mcc_loaded_cache.report.bsp_count; ++index) {
             struct mcc_cache_bsp const *resident = &mcc_loaded_cache.report.bsps[index];
             if (mcc_cache_bsp_in_use(resident) && mcc_cache_bsp_overlap_end(resident, address, bsp->size))

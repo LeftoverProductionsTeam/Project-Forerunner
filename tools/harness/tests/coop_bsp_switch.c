@@ -386,6 +386,7 @@ static struct mcc_runtime {
     uint32_t capacity,used,bsp_addresses[4];
 } mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
+static struct mcc_cache_bsp const *mcc_active_bsp;
 static uint32_t mcc_bsps_in_use;
 static struct __attribute__((aligned(16))) {
     byte header[24];
@@ -1356,6 +1357,19 @@ int main(int argc,char **argv)
         test_tag_instances[old].base_address=global_structure_bsp;
         reject_load[destination]=refused;
         reject_verify[destination]=limits;
+        if (occupied_regions)
+        {
+            uint32_t capacity=mcc_loaded_cache.capacity;
+            struct scenario_bsp_prepared prepared;
+            mcc_cache_bsp_set_active(&references[old],TRUE);
+            mcc_cache_bsp_set_in_use(&references[old],TRUE);
+            mcc_loaded_cache.capacity=sizeof(mcc_regions[0]);
+            CHECK(scenario_structure_bsp_prepare(&references[old],&references[3],&prepared)==_scenario_bsp_prepare_failed&&
+                  !mcc_prepared_loads&&!disconnects,
+                  "a sole foreground simulation hold permitted a cold switch");
+            mcc_loaded_cache.capacity=capacity;
+            mcc_cache_bsp_set_in_use(&references[old],FALSE);
+        }
         if (cold_crossing)
         {
             long passenger=objects[0].object.parent_object_index;
@@ -1638,17 +1652,27 @@ int main(int argc,char **argv)
                               scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure,
                               "retained lookup lost an occupied region after rejection");
 
+                        mcc_cache_bsp_set_in_use(&references[2],TRUE);
+                        mcc_loaded_cache.capacity=4*sizeof(mcc_regions[0]);
+                        CHECK(!scenario_switch_structure_bsp(3)&&global_structure_bsp_index==2&&
+                              disconnects==previous_disconnects&&mcc_prepared_loads==2,
+                              "a foreground with a simulation hold lost its retained slot");
+                        mcc_loaded_cache.capacity=3*sizeof(mcc_regions[0]);
                         mcc_cache_bsp_set_in_use(&references[destination],FALSE);
                         CHECK(scenario_switch_structure_bsp(3)&&global_structure_bsp_index==3&&
                               mcc_prepared_loads==3&&mcc_prepared_releases==1&&mcc_region_live[old]&&
                               !mcc_region_live[destination]&&mcc_region_live[2]&&mcc_region_live[3],
                               "the retry evicted the occupied oldest region instead of its unheld neighbor");
+                        CHECK(mcc_cache_bsp_pinned(&regions[2])&&mcc_active_bsp==&regions[3],
+                              "unbinding the foreground cleared its simulation hold");
                         scenario_structure_bsp_unload(&references[3]);
-                        CHECK(mcc_region_live[old]&&!mcc_region_live[2]&&!mcc_region_live[3],
+                        CHECK(mcc_region_live[old]&&mcc_region_live[2]&&!mcc_region_live[3],
                               "unloading the selected scene released geometry held elsewhere");
+                        mcc_cache_bsp_set_in_use(&references[2],FALSE);
                         mcc_cache_bsp_set_in_use(&references[old],FALSE);
                         mcc_cache_bsp_unload(&references[old]);
-                        CHECK(!mcc_region_live[old]&&!mcc_bsps_in_use, "the final release leaked a BSP or hold");
+                        CHECK(!mcc_region_live[old]&&!mcc_region_live[2]&&!mcc_bsps_in_use&&!mcc_active_bsp,
+                              "the final release leaked a BSP or hold");
                         return 0;
                     }
                     if (fourth_region)
