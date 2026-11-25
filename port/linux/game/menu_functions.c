@@ -5751,12 +5751,14 @@ static boolean multiplayer_player(short controller)
 the server made: an internet one (an invite, Discord) or a LAN one */
 static boolean forerunner_operation_chooser;
 static boolean forerunner_infection_chooser;
+static boolean forerunner_zombies_solo_chooser;
 
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
 	boolean *widget_deleted, boolean local_only)
 {
 	forerunner_operation_chooser = FALSE;
 	forerunner_infection_chooser = FALSE;
+	forerunner_zombies_solo_chooser = FALSE;
 	multiplayer_mode_set(widget);
 	if (!multiplayer_player(controller))
 		return FALSE;
@@ -5951,6 +5953,14 @@ static boolean map_list_initialize(struct widget_instance *list)
 		map_list.kind = config_boolean("network.firefight_encounter") ? MAP_KIND_SINGLEPLAYER : MAP_KIND_CUSTOM_SINGLEPLAYER;
 		last_used = 0;
 	}
+	/* The regular multiplayer list already includes detected CE maps. */
+	if (forerunner_zombies_solo_chooser && map_list.map_count > 0)
+	{
+		map_list.kind = MAP_KIND_MULTIPLAYER;
+		mcc_kind = NONE;
+		last_used = 0;
+	}
+	forerunner_zombies_solo_chooser = FALSE;
 	forerunner_operation_chooser = FALSE;
 	map_kind_set(list, map_list.kind);
 	/* (MULTIPLAYER's maps after the view's rows) */
@@ -13982,7 +13992,8 @@ static short forerunner_operation_mode(char const *action)
 	if (!strcmp(action, "port forerunner host extraction")) return 2;
 	if (!strcmp(action, "port forerunner host firefight")) return 1;
 	if (!strcmp(action, "port forerunner host native") || !strcmp(action, "port forerunner host forge") ||
-		!strcmp(action, "port forerunner host forge local") || !strcmp(action, "port forerunner host zombies")) return 0;
+		!strcmp(action, "port forerunner host forge local") || !strcmp(action, "port forerunner host zombies") ||
+		!strcmp(action, "port forerunner host zombies local")) return 0;
 	return NONE;
 }
 
@@ -14233,6 +14244,7 @@ boolean pc_menu_event_function_invoke(
 			struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
 			short mode = forerunner_operation_mode(name);
 			boolean local_forge = !strcmp(name, "port forerunner host forge local");
+			boolean local_zombies = !strcmp(name, "port forerunner host zombies local");
 			if (!option || !gametype_option_setting_write(option, mode)) return campaign_fail();
 			/* Authored operations own exact crew and encounter counts. The
 			 * ordinary co-op menu keeps its configurable enemy scaling. */
@@ -14241,11 +14253,14 @@ boolean pc_menu_event_function_invoke(
 				option = gametype_option_named("coop_extra_enemies_spinner");
 				if (!option || !gametype_option_setting_write(option, 2)) return campaign_fail();
 			}
-			if (!multiplayer_host(widget, event, controller, widget_deleted, local_forge)) return FALSE;
+			if (!multiplayer_host(widget, event, controller, widget_deleted, local_forge || local_zombies)) return FALSE;
 			if (local_forge || !strcmp(name, "port forerunner host forge"))
 				network_game_enable_forge();
-			else if (!strcmp(name, "port forerunner host zombies"))
+			else if (local_zombies || !strcmp(name, "port forerunner host zombies"))
+			{
 				map_list.kind = MAP_KIND_MCC_MULTIPLAYER;
+				forerunner_zombies_solo_chooser = local_zombies;
+			}
 			else
 				forerunner_operation_chooser = TRUE;
 			return TRUE;

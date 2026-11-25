@@ -1740,6 +1740,26 @@ effects. Fifty-five focused audio checks passed. Retain the linked-sound
 authoring path for smaller caches. Other platforms and the low-memory
 allocation fallback still need native verification.
 
+Spark's music-only linked CE609 export
+`31861dad5d9d72ec867a469b7e0154862339f388809300cd2aba6dcf77a17ecf`
+and the earlier `0a677fbc` both played on the same Win64 executable
+`053d7082242adb80e31a97115d1983623b9f40894a4e7771b9a4fa163a7d0ebe`.
+Both 18-second mixer captures recorded the music start, the Slayer cue
+and nearby native effects with zero sound-cache misses. The music's
+first permutation used 65,520 bytes on the linked export versus 16,508,364
+on the original. These captures cover the opening mix. The subsequent
+three-cue export `d29437a7` also splits Game Over and Ghost to cover
+the match-end pressure found in Chupathingy.
+
+Zombies → Play Solo now opens the existing loopback-only multiplayer
+picker with Delta disabled. Win64 `67ce9a0b82ff2a3f48467dee66a24249d77fb100851b6bf94bea2631f29b1db5`
+discovered Spark CE609 `d29437a7ead1a63425a7bd64854d87f764194ea304a452223131b73ace0ae568`.
+Normal menu input chose that map, selected Slayer and started with one
+local profile. The Survivor spawned, moved and fired. End Game reached
+native game over with no logged sound-cache refusal. This run does not
+establish full survival victory, replay, or audible Game Over playback.
+Installed files were preserved and disposable profiles and audio removed.
+
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
 `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
