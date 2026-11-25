@@ -190,9 +190,12 @@ static long object_get_ultimate_parent(long unit)
 }
 static long regional_test_root = NONE;
 static short regional_test_root_bsp = NONE;
+static long regional_test_other_root = NONE;
+static short regional_test_other_root_bsp = NONE;
 static short object_get_regional_bsp(long object)
 {
-    return object == regional_test_root ? regional_test_root_bsp : NONE;
+    return object == regional_test_root ? regional_test_root_bsp :
+        object == regional_test_other_root ? regional_test_other_root_bsp : NONE;
 }
 static long scenario_leaf_index_from_point(real_point3d const *p) {return p->x<200?0:NONE;}
 static long game_time_get(void) {return ticks;}
@@ -538,8 +541,9 @@ static long cluster_partition_port_no_cluster_first_reference;
 static long reference_list_get_next_datum_index(struct data_array *data,long *reference_index)
 {
     if (*reference_index==NONE) return NONE;
-    *reference_index=NONE;
-    return *(long *)data->data;
+    long datum = ((long *)data->data)[*reference_index-7];
+    *reference_index = (*reference_index==7 && data->count==2) ? 8 : NONE;
+    return datum;
 }
 #include "object_cluster_keys.inc"
 
@@ -914,8 +918,8 @@ int main(int argc,char **argv)
     if (!strcmp(name, "qualified-object-clusters"))
     {
         long head=7, cursor=NONE;
-        long entry=units[0], reverse_key=NONE;
-        struct data_array entries={.data=(unsigned char *)&entry}, reverse={.data=(unsigned char *)&reverse_key};
+        long entries_by_ref[]={units[0],units[1]}, reverse_key=NONE;
+        struct data_array entries={.data=(unsigned char *)entries_by_ref}, reverse={.data=(unsigned char *)&reverse_key};
         struct cluster_partition partition={
             .cluster_first_data_references=&head,
             .data_reference_data=&entries,
@@ -937,16 +941,28 @@ int main(int argc,char **argv)
 
         global_structure_bsp_index=destination;
         partition.port_structure_bsp_index=destination;
-        entry=units[1];
+        entries.count=2;
+        regional_test_root=units[0];
+        regional_test_root_bsp=old;
+        regional_test_other_root=units[1];
+        regional_test_other_root_bsp=destination;
         CHECK(cluster_partition_key(&partition,0)!=reverse_key&&
               cluster_partition_get_first_cluster(&partition,&cursor,head)==NONE&&cursor==NONE,
               "a reverse reference exposed a cluster from the previous BSP");
         CHECK(cluster_partition_reference_bsp(&partition,head)==old&&
               cluster_partition_reference_bsp(&partition,NONE)==NONE,
               "object ownership followed the foreground instead of its stored partition key");
-        CHECK(cluster_partition_get_first_datum_in_bsp(&partition,&cursor,old,0)==NONE&&
-              cluster_partition_get_first_datum(&partition,&cursor,0)==units[1],
-              "binding the next region changed the qualified lookup contract");
+        CHECK(cluster_partition_get_first_datum_in_bsp(&partition,&cursor,old,0)==units[0]&&
+              cluster_partition_get_next_datum_in_bsp(&partition,&cursor,old)==NONE,
+              "non-foreground query lost its object or leaked the foreground object");
+        CHECK(cluster_partition_get_first_datum(&partition,&cursor,0)==units[1]&&
+              cluster_partition_get_next_datum(&partition,&cursor)==NONE,
+              "foreground query leaked an object with the same cluster number");
+        CHECK(cluster_partition_get_first_reference(&partition,reverse_key)==&head,
+              "disconnect could not find an off-foreground object's forward list");
+        regional_test_other_root=NONE;
+        CHECK(cluster_partition_get_first_datum(&partition,&cursor,0)==units[1],
+              "a legacy unqualified forward entry was lost in the bound scene");
         reverse_key=0;
         CHECK(cluster_partition_get_first_cluster(&partition,&cursor,head)==0,
               "an older raw cluster key could not be read after restore");

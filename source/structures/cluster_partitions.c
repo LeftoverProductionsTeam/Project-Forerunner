@@ -302,8 +302,9 @@ void cluster_partition_copy(
 	csmemcpy(
 		result->cluster_first_data_references,
 		source->cluster_first_data_references,
-		PIN(global_structure_bsp_get()->clusters.count, 0, MAXIMUM_CLUSTERS_PER_STRUCTURE) *
-			sizeof(*result->cluster_first_data_references));
+		(source->port_structure_bsp_index == NONE ?
+		 PIN(global_structure_bsp_get()->clusters.count, 0, MAXIMUM_CLUSTERS_PER_STRUCTURE) :
+		 MAXIMUM_CLUSTERS_PER_STRUCTURE) * sizeof(*result->cluster_first_data_references));
 	reference_list_copy(
 		result->cluster_reference_data,
 		source->cluster_reference_data);
@@ -376,11 +377,34 @@ void reference_list_port_report(
 	}
 }
 
+long cluster_partition_get_next_datum_in_bsp(
+	struct cluster_partition const *partition,
+	long *reference_index,
+	short structure_bsp_index)
+{
+	long datum;
+
+	while ((datum = reference_list_get_next_datum_index(partition->data_reference_data, reference_index)) != NONE)
+	{
+		short owner;
+		if (partition->port_structure_bsp_index == NONE)
+			return datum;
+
+		/* Object clusters share the native heads and reference pools. The
+		 * reverse reference identifies the BSP even across foreground changes.
+		 * Unqualified references from older states belong to the bound scene. */
+		owner = object_get_regional_bsp(datum);
+		if ((owner == NONE ? partition->port_structure_bsp_index : owner) == structure_bsp_index)
+			return datum;
+	}
+	return NONE;
+}
+
 long cluster_partition_get_next_datum(
 	struct cluster_partition const *partition,
 	long *reference_index)
 {
-	return reference_list_get_next_datum_index(partition->data_reference_data, reference_index);
+	return cluster_partition_get_next_datum_in_bsp(partition, reference_index, global_structure_bsp_index_get());
 }
 
 /* Reference datums already store a long. Keep the legacy range unchanged
@@ -524,15 +548,18 @@ long cluster_partition_get_first_datum_in_bsp(
 	short structure_bsp_index,
 	short cluster_index)
 {
-	short bound_bsp = partition->port_structure_bsp_index != NONE ?
-		partition->port_structure_bsp_index : global_structure_bsp_index_get();
-
 	*reference_index = NONE;
-	if (structure_bsp_index != bound_bsp || !VALID_INDEX(cluster_index, MAXIMUM_CLUSTERS_PER_STRUCTURE))
+	if (!VALID_INDEX(cluster_index, MAXIMUM_CLUSTERS_PER_STRUCTURE) ||
+		(partition->port_structure_bsp_index == NONE ?
+		 structure_bsp_index != global_structure_bsp_index_get() :
+		 !VALID_INDEX(structure_bsp_index, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO)))
 		return NONE;
+
+	/* The physical list is shared when two BSPs use the same local cluster
+	 * index. Iteration qualifies each entry using its reverse reference. */
 	*reference_index = *cluster_partition_get_first_reference(
 		(struct cluster_partition *)partition, cluster_partition_key(partition, cluster_index));
-	return reference_list_get_next_datum_index(partition->data_reference_data, reference_index);
+	return cluster_partition_get_next_datum_in_bsp(partition, reference_index, structure_bsp_index);
 }
 
 long cluster_partition_get_first_datum(
@@ -678,16 +705,11 @@ static long *cluster_partition_get_first_reference(
 {
 	short cluster_index = cluster_partition_local_cluster(cluster_key);
 
-	if (cluster_key >= MAXIMUM_CLUSTERS_PER_STRUCTURE &&
-		cluster_key / MAXIMUM_CLUSTERS_PER_STRUCTURE - 1 != partition->port_structure_bsp_index)
-	{
-		cluster_partition_port_no_cluster_first_reference = NONE;
-		return &cluster_partition_port_no_cluster_first_reference;
-	}
 	match_assert(
 		"c:\\halo\\SOURCE\\structures\\cluster_partitions.c",
 		0xd5,
-		cluster_index>=0 && cluster_index<global_structure_bsp_get()->clusters.count);
+		cluster_index >= 0 && (cluster_key >= MAXIMUM_CLUSTERS_PER_STRUCTURE ||
+			cluster_index < global_structure_bsp_get()->clusters.count));
 
 	/* port: a cluster index that fits no cluster's list has an empty list
 	(what is put in it is not kept), not one past the lists */

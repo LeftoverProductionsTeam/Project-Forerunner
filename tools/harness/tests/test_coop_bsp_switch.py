@@ -55,6 +55,7 @@ def generated(fault=None):
             'cluster_partition_key', 'cluster_partition_local_cluster', 'cluster_partition_get_first_reference',
             'cluster_partition_get_next_cluster', 'cluster_partition_get_first_cluster',
             'cluster_partition_reference_bsp',
+            'cluster_partition_get_next_datum_in_bsp', 'cluster_partition_get_next_datum',
             'cluster_partition_get_first_datum_in_bsp', 'cluster_partition_get_first_datum'))),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),

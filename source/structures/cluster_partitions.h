@@ -35,8 +35,8 @@ struct cluster_partition
 	of them), for what is kept of them while they don't change
 	(object_lights.c's lights_port_cluster) */
 	unsigned long port_modification_count;
-	/* Native object lists have one bound region until independent scenes
-	 * own separate heads. Lights and classic worlds keep plain keys. */
+	/* Default BSP for native object queries and new reverse references.
+	 * Lights and classic worlds keep plain keys. */
 	short port_structure_bsp_index;
 };
 
@@ -78,6 +78,10 @@ long cluster_partition_get_first_datum(
 	struct cluster_partition const *partition,
 	long *reference_index,
 	short cluster_index);
+long cluster_partition_get_next_datum_in_bsp(
+	struct cluster_partition const *partition,
+	long *reference_index,
+	short structure_bsp_index);
 long cluster_partition_get_next_datum(
 	struct cluster_partition const *partition,
 	long *reference_index);
