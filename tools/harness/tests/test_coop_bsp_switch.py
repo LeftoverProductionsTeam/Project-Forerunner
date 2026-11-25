@@ -82,7 +82,11 @@ def generated(fault=None):
              'breakable_surface_port_break')) + '\n' +
          '\n'.join(function(coop, name) for name in (
              'network_coop_note_surface_broken', 'host_send_broken_surfaces')) + '\n' +
-         function(breakables, 'breakable_surface_damage_in_bsp')),
+         '\n'.join(function(breakables, name) for name in (
+             'breakable_surface_finish_fracture', 'breakable_surface_damage_in_bsp',
+             'breakable_surface_damage_area_of_effect_in_bsp'))),
+        ('regional_area_damage.inc', f"#define MAXIMUM_AREA_OF_EFFECT_NESTING {constant(read('source/objects/damage.c'), 'MAXIMUM_AREA_OF_EFFECT_NESTING')}" + '\n' +
+         function(read('source/objects/damage.c'), 'area_of_effect_cause_damage_in_bsp')),
         ('regional_room.inc', function(coop, 'network_regional_bsp_room_ready')),
         ('bsp_terrain.inc', '\n'.join(function(read('source/physics/collisions.c'), name) for name in (
             'collision_vector_bsp_flags', 'collision_structure_bsp_line_clear')) + '\n' +

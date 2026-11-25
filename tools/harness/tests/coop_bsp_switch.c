@@ -639,10 +639,11 @@ static struct {boolean scene_refresh,refresh;} host_resend;
 enum {_coop_event_surface_broken, MAXIMUM_QUEUED_EVENTS=128};
 static struct {short count;} coop_events;
 enum { DAMAGE_EFFECT_DEFINITION_TAG=1, NUMBER_OF_MATERIAL_TYPES=1 };
-struct damage_data {real_point3d epicenter; struct location location;long definition_index;short material_type;real scale;};
+struct damage_data {real_point3d epicenter,origin; struct location location;long definition_index;short material_type;real scale;};
 struct material_definition {struct {real maximum_vitality;} breakable_surface;};
 struct damage_definition {real damage_lower_bound,damage_upper_bound,damage_minimum,material_modifiers[1];};
-struct damage_effect_definition {struct damage_definition damage;};
+struct damage_effect_definition {struct damage_definition damage;real cutoff_radius;};
+static boolean point_in_sphere(real_point3d const *point, real_point3d const *center, real radius);
 static boolean tag_index_is_group(long tag,long group) {return tag==group;}
 static struct material_definition *scenario_material_definition_get(short material)
 {
@@ -651,7 +652,7 @@ static struct material_definition *scenario_material_definition_get(short materi
 }
 static struct damage_effect_definition *damage_effect_definition_get(long tag)
 {
-    static struct damage_effect_definition impact={{.6f,.6f,0.f,{1.f}}};
+    static struct damage_effect_definition impact={{.6f,.6f,0.f,{1.f}},1.f};
     CHECK(tag==DAMAGE_EFFECT_DEFINITION_TAG,"unexpected impact damage tag");
     return &impact;
 }
@@ -663,7 +664,7 @@ static void scenario_location_from_point(struct location *location, real_point3d
     (void)point;
     *location = (struct location){0,0,NONE};
 }
-static void breakable_surface_effect(short index, struct damage_data *damage, long collision_surface)
+static void breakable_surface_effect(short index, struct damage_data const *damage, long collision_surface)
 {
     CHECK(index==0&&damage->epicenter.x==20.f&&collision_surface==8,"effect used a foreign BSP");
     surface_effects++;
@@ -675,7 +676,8 @@ static void breakable_surface_effect(short index, struct damage_data *damage, lo
 #define MAXIMUM_OBJECTS_PER_MAP 4
 struct structure_cluster_graph {struct tag_block portal_indices;};
 struct structure_cluster_portal {short cluster_indices[2];};
-static struct cluster_partition collideable_object_cluster_partition, noncollideable_object_cluster_partition;
+static struct cluster_partition collideable_object_cluster_partition;
+static struct cluster_partition noncollideable_object_cluster_partition={.port_structure_bsp_index=NONE};
 static boolean search_cluster_marks[MAXIMUM_CLUSTERS_PER_STRUCTURE], search_object_marks[MAXIMUM_OBJECTS_PER_MAP];
 static void structure_cluster_marker_begin(void) {memset(search_cluster_marks,0,sizeof(search_cluster_marks));}
 static void structure_cluster_marker_end(void) {}
@@ -696,6 +698,18 @@ static boolean object_mark_function(long object)
 static boolean point_in_sphere(real_point3d const *point, real_point3d const *center, real radius)
 {return distance_squared3d(point,center)<=radius*radius;}
 #include "regional_object_search.inc"
+
+#define HALO_PORT_MAXIMUM_AREA_OF_EFFECT_OBJECTS 4
+static short area_target_bsp=NONE;
+static long area_target=NONE;
+static real mcc_skulls_blast_scale(void) {return 1.f;}
+static void area_of_effect_cause_damage_to_object(short bsp, struct damage_data *damage, long target, boolean next)
+{
+    CHECK(area_target==NONE&&!next,"regional area damage visited an unexpected target");
+    area_target=target;
+    area_target_bsp=bsp;
+}
+#include "regional_area_damage.inc"
 
 #include <float.h>
 #define REAL_MAX FLT_MAX
@@ -1828,6 +1842,23 @@ int main(int argc,char **argv)
                       "regional sphere missed a connected vehicle or borrowed the foreground list");
                 CHECK(objects_in_bsp_sphere(3,FLAG(0),_object_mask_vehicle,&location,&center,1,output,2)==0,
                       "an unloaded structure fell back to foreground geometry");
+                {
+                    struct structure_breakable_surface window={.centroid={0,0,0},.collision_surface_index=7};
+                    struct tag_block original=other->breakable_surfaces;
+                    struct damage_data splash={.origin=center,.epicenter=center,.location=location,
+                        .definition_index=DAMAGE_EFFECT_DEFINITION_TAG,.material_type=0,.scale=1.f};
+                    other->breakable_surfaces=(struct tag_block){1,&window};
+                    surface_state.enabled=TRUE;
+                    memset(surface_state.breakable_surface_flags,0xff,sizeof(surface_state.breakable_surface_flags));
+                    area_of_effect_cause_damage_in_bsp(3,&splash);
+                    CHECK(area_target==NONE&&surface_events==0,"area damage borrowed a region that was unloaded");
+                    area_of_effect_cause_damage_in_bsp(2,&splash);
+                    CHECK(area_target==units[2]&&area_target_bsp==2&&surface_events==1&&sent_surfaces[0].frame==2&&
+                          !breakable_surface_extant_in_bsp(2,0)&&breakable_surface_extant_in_bsp(old,0)&&
+                          !surface_effects&&global_structure_bsp_index==old,
+                          "area damage hit a foreign actor or surface");
+                    other->breakable_surfaces=original;
+                }
                 CHECK(structure_bsp_clusters_in_sphere(other,0,&center,1,1,short_output)==2&&
                       short_output[0]==0&&short_output[1]==42,
                       "portal traversal count or bounded output was corrupted");

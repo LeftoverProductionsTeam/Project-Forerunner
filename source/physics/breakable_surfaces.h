@@ -111,7 +111,8 @@ void breakable_surface_damage(
 	short breakable_surface_index,
 	struct damage_data *damage_data,
 	long seed_surface_index);
-void breakable_surface_damage_area_of_effect(
+void breakable_surface_damage_area_of_effect_in_bsp(
+	short bsp,
 	const struct damage_data *damage_data);
 
 /* ---------- globals */

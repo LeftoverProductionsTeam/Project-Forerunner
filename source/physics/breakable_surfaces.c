@@ -214,6 +214,18 @@ boolean breakable_surface_extant_in_bsp(
 	return result;
 }
 
+static void breakable_surface_finish_fracture(
+	short bsp,
+	short index,
+	struct damage_data const *damage,
+	long seed_surface_index)
+{
+	BIT_VECTOR_SET_FLAG((long *)globals->breakable_surface_flags[bsp], index, FALSE);
+	if (bsp == global_structure_bsp_index)
+		breakable_surface_effect(index, damage, seed_surface_index);
+	network_coop_note_surface_broken(bsp, index, &damage->epicenter);
+}
+
 void breakable_surface_damage_in_bsp(
 	short structure_bsp_index,
 	short breakable_surface_index,
@@ -258,12 +270,8 @@ void breakable_surface_damage_in_bsp(
 
 						if (surface->vitality <= 0.0f)
 						{
-							BIT_VECTOR_SET_FLAG((long *)globals->breakable_surface_flags[structure_bsp_index],
-								breakable_surface_index, FALSE);
-							if (structure_bsp_index == global_structure_bsp_index)
-								breakable_surface_effect(breakable_surface_index, damage_data, seed_surface_index);
-							network_coop_note_surface_broken(structure_bsp_index, breakable_surface_index,
-								&damage_data->epicenter);
+							breakable_surface_finish_fracture(structure_bsp_index,
+								breakable_surface_index, damage_data, seed_surface_index);
 						}
 					}
 				}
@@ -284,13 +292,16 @@ void breakable_surface_damage(
 		damage_data, seed_surface_index);
 }
 
-void breakable_surface_damage_area_of_effect(
+void breakable_surface_damage_area_of_effect_in_bsp(
+	short bsp,
 	const struct damage_data *damage_data)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
+	struct structure_bsp const *structure_bsp = bsp == global_structure_bsp_index ?
+		global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
 	struct damage_effect_definition *damage_effect_definition;
 
-	if (!tag_index_is_group(damage_data->definition_index, DAMAGE_EFFECT_DEFINITION_TAG))
+	if (!structure_bsp || !VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ||
+		!tag_index_is_group(damage_data->definition_index, DAMAGE_EFFECT_DEFINITION_TAG))
 		return;
 	damage_effect_definition = damage_effect_definition_get(damage_data->definition_index);
 
@@ -313,7 +324,7 @@ void breakable_surface_damage_area_of_effect(
 				breakable_surface_index < MAXIMUM_BREAKABLE_SURFACES_PER_MAP;
 			breakable_surface_index++)
 		{
-			if (breakable_surface_extant(breakable_surface_index))
+			if (breakable_surface_extant_in_bsp(bsp, breakable_surface_index))
 			{
 				struct structure_breakable_surface *breakable_surface = TAG_BLOCK_GET_ELEMENT(&structure_bsp->breakable_surfaces, breakable_surface_index, struct structure_breakable_surface);
 				real radius = breakable_surface->bounding_radius;
@@ -321,11 +332,9 @@ void breakable_surface_damage_area_of_effect(
 
 				if (point_in_sphere(&breakable_surface->centroid, &damage_data->epicenter, radius))
 				{
-					breakable_surface_get(breakable_surface_index)->vitality = 0.0f;
-					BIT_VECTOR_SET_FLAG((long *)breakable_surface_flags_get(), breakable_surface_index, FALSE);
-					breakable_surface_effect(breakable_surface_index, damage_data, breakable_surface->collision_surface_index);
-					/* port: publish the fracture to compatible clients */
-					network_coop_note_surface_broken(global_structure_bsp_index, breakable_surface_index, &damage_data->epicenter);
+					globals->breakable_surfaces[bsp][breakable_surface_index].vitality = 0.0f;
+					breakable_surface_finish_fracture(bsp, breakable_surface_index,
+						damage_data, breakable_surface->collision_surface_index);
 				}
 			}
 		}

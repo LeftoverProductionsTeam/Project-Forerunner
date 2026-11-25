@@ -9252,6 +9252,7 @@ void unit_cause_melee_damage(
 	short material_index,
 	real_vector3d const *object_normal)
 {
+	short bsp = object_get_regional_bsp(unit_index);
 	struct unit_datum *unit = unit_get(unit_index);
 	struct unit_definition *unit_definition =
 		unit_definition_get(unit->definition_index);
@@ -9277,7 +9278,8 @@ void unit_cause_melee_damage(
 			global_current_collision_users[global_current_collision_user_depth++] = 7;
 			collision_origin = &unit->object.bounding_sphere_center;
 			vector_from_points3d(collision_origin, &melee_position, &collision_vector);
-			if (collision_test_vector(
+			if (collision_test_bsp_vector(
+				bsp,
 				_collision_test_for_projectiles_flags,
 				collision_origin,
 				&collision_vector,
@@ -9332,7 +9334,7 @@ void unit_cause_melee_damage(
 
 			if (target_object_index==NONE)
 			{
-				area_of_effect_cause_damage(&damage_data, NONE);
+				area_of_effect_cause_damage_in_bsp(bsp, &damage_data);
 			}
 			else
 			{
@@ -9402,12 +9404,13 @@ long unit_unarmed_melee_damage(
 void unit_cause_player_melee_damage(
 	long unit_index)
 {
+	short bsp = object_get_regional_bsp(unit_index);
 	struct unit_datum *unit;
 	struct unit_definition *unit_definition;
 	real_vector3d *facing;
 	long best_object_index;
 	short hit_material_type;
-	short breakable_surface_index;
+	short breakable_surface_index, breakable_surface_bsp;
 	long breakable_surface_seed_surface_index;
 	long melee_response_effect_index;
 	real_point3d ray_origin;
@@ -9477,7 +9480,8 @@ void unit_cause_player_melee_damage(
 					scale_vector3d(&ray, melee_reach, &ray);
 #endif
 
-				if (collision_test_vector(
+				if (collision_test_bsp_vector(
+					bsp,
 					_collision_test_for_projectiles_flags,
 					&ray_origin,
 					&ray,
@@ -9496,6 +9500,7 @@ void unit_cause_player_melee_damage(
 							{
 								breakable_surface_index =
 									collision.breakable_surface_index;
+								breakable_surface_bsp = collision.bsp_index;
 								breakable_surface_seed_surface_index =
 									collision.surface_index;
 							}
@@ -9638,7 +9643,8 @@ void unit_cause_player_melee_damage(
 			{
 				if (breakable_surface_index!=NONE)
 				{
-					breakable_surface_damage(
+					breakable_surface_damage_in_bsp(
+						breakable_surface_bsp,
 						breakable_surface_index,
 						&damage_data,
 						breakable_surface_seed_surface_index);

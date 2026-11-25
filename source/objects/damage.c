@@ -368,6 +368,7 @@ static void object_permutation_shield_regions(
 	long object_index,
 	boolean active);
 static void area_of_effect_cause_damage_to_object(
+	short bsp,
 	struct damage_data *damage,
 	long object_index,
 	boolean damage_next_object);
@@ -2052,9 +2053,9 @@ of stack instead (crash reports from 0.8.0e and 0.8.0f). A chain stops
 where the Xbox's would have at the latest. */
 #define MAXIMUM_AREA_OF_EFFECT_NESTING 256
 
-void area_of_effect_cause_damage(
-	struct damage_data *damage,
-	long unused_object_index)
+void area_of_effect_cause_damage_in_bsp(
+	short bsp,
+	struct damage_data *damage)
 {
 	static short area_of_effect_nesting = 0;
 	struct damage_effect_definition *definition =
@@ -2064,12 +2065,15 @@ void area_of_effect_cause_damage(
 	long object_indices[HALO_PORT_MAXIMUM_AREA_OF_EFFECT_OBJECTS];
 	short object_count;
 
+	if (bsp == NONE)
+		bsp = global_structure_bsp_index_get();
 	if (area_of_effect_nesting >= MAXIMUM_AREA_OF_EFFECT_NESTING)
 		return;
 	area_of_effect_nesting++;
 
 	/* port: MCC's Boom skull doubles an explosion's radius (mcc_skulls.c) */
-	object_count = objects_in_sphere(
+	object_count = objects_in_bsp_sphere(
+		bsp,
 		0,
 		0,
 		&damage->location,
@@ -2084,15 +2088,21 @@ void area_of_effect_cause_damage(
 		for (object_number = 0; object_number < object_count; object_number++)
 		{
 			area_of_effect_cause_damage_to_object(
+				bsp,
 				damage,
 				object_indices[object_number],
 				FALSE);
 		}
 	}
 
-	breakable_surface_damage_area_of_effect(damage);
+	breakable_surface_damage_area_of_effect_in_bsp(bsp, damage);
 	area_of_effect_nesting--;
 	return;
+}
+
+void area_of_effect_cause_damage(struct damage_data *damage, long unused_object_index)
+{
+	area_of_effect_cause_damage_in_bsp(NONE, damage);
 }
 
 void object_damage_update(
@@ -2510,6 +2520,7 @@ static void object_destroy_region(
 }
 
 static void area_of_effect_cause_damage_to_object(
+	short bsp,
 	struct damage_data *damage,
 	long object_index,
 	boolean damage_next_object)
@@ -2599,7 +2610,8 @@ static void area_of_effect_cause_damage_to_object(
 				break;
 			}
 
-			collision_test_vector(
+			collision_test_bsp_vector(
+				bsp,
 				_damage_area_of_effect_collision_flags,
 				epicenter,
 				&collision_vector,
@@ -2607,7 +2619,8 @@ static void area_of_effect_cause_damage_to_object(
 				&spread_collision);
 			offset_point = spread_collision.point;
 			ultimate_parent_index = object_get_ultimate_parent(object_index);
-			if (!collision_test_vector(
+			if (!collision_test_bsp_vector(
+				bsp,
 				_damage_area_of_effect_collision_flags,
 				&offset_point,
 				vector_from_points3d(
@@ -2627,7 +2640,8 @@ static void area_of_effect_cause_damage_to_object(
 
 		ultimate_parent_index = object_get_ultimate_parent(object_index);
 		epicenter = &damage->epicenter;
-		collision_blocked = collision_test_vector(
+		collision_blocked = collision_test_bsp_vector(
+			bsp,
 			_damage_area_of_effect_collision_flags,
 			epicenter,
 			vector_from_points3d(
@@ -2756,6 +2770,7 @@ static void area_of_effect_cause_damage_to_object(
 				if (child_object_index != NONE)
 				{
 					area_of_effect_cause_damage_to_object(
+						bsp,
 						damage,
 						child_object_index,
 						TRUE);
@@ -2776,6 +2791,7 @@ static void area_of_effect_cause_damage_to_object(
 		if (next_object_index != NONE)
 		{
 			area_of_effect_cause_damage_to_object(
+				bsp,
 				damage,
 				next_object_index,
 				TRUE);

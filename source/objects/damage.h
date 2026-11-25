@@ -111,6 +111,7 @@ void object_deplete_shield(
 
 void object_deplete_body(
 	long object_index);
+void area_of_effect_cause_damage_in_bsp(short bsp, struct damage_data *damage);
 void area_of_effect_cause_damage(
 	struct damage_data *damage,
 	long unused_object_index);
