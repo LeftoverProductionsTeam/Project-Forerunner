@@ -106,6 +106,24 @@ so the stopped hull sustains the engine's .950 minimum up.k, with
 clear passenger egress. Covenant and human multiplayer remain open.
 The installed build and cache stayed unchanged.
 
+Forerunner accepts a small settling change for egress after durable banking
+and transport completion at the dedicated return pad. The same craft must
+be grounded and at rest, within the native motion limits, at up.k .940 or
+higher, with native playback finished. Initial touchdown, pickup, new
+boarding and banking still require the normal .950 landing check on maps
+that declare the landing output. The exact .947 Pelican and Spirit cases
+reproduced before the fix and passed with the 101 focused transport checks.
+The Win64 candidate compiled. Live egress on the authored return remains open.
+
+On Spark CE609 `26be7e13c17a368934a3b3ed0b24a309be99310cc0a036fd498a3b7af717b57e`,
+the Win64 candidate loaded through the normal solo menu. Squad control
+object 8 was visible and the binder reported usable at interaction center
+(42.728, -109.997, 1.205), radius .350. Normal standing and crouched
+approaches from (42.831, -110.318, 1.072) showed no Use action. Keep its
+base grounded and check the interaction marker and clear reach for a
+standing player before repeating the numbered operation. No begin or
+rearm was verified in this run.
+
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
 unchanged Windows baseline, the occupied pad-brake variant and the prior

@@ -69,6 +69,7 @@ boolean vehicle_is_flipped(
 /* port: distinguish native human-plane AI from legacy fighter control. */
 boolean vehicle_is_human_plane(long vehicle_index);
 boolean vehicle_is_landed(long vehicle_index);
+boolean vehicle_is_settled_on_return(long vehicle_index);
 long vehicle_find_pathfinding_surface_index(
 	long vehicle_index,
 	real_point3d *position);

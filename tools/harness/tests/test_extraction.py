@@ -80,7 +80,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('controls_types.inc', enum_with(devices, '_device_not_usable_bit')))
     files.append(('vehicle_landing_types.inc', enum_with(read('source/units/vehicles.h'), '_vehicle_hovering_bit')))
     vehicles = read('source/units/vehicles.c')
-    files.append(('vehicle_landing.inc', function(vehicles, 'vehicle_is_landed')))
+    files.append(('vehicle_landing.inc', '\n'.join(function(vehicles, name) for name in (
+        'vehicle_landing_check', 'vehicle_is_landed', 'vehicle_is_settled_on_return'))))
     files.append(('vehicle_brake.inc', function(vehicles, 'vehicle_apply_return_pad_brake')))
     files.append(('transport_seat_flags.inc', enum_with(read('source/units/unit_definitions.h'), '_unit_seat_driver_bit')))
     files.append(('native_seat_animation_types.inc', enum_with(read('source/units/units.h'), '_unit_seat_animation_airborne_dead')))
@@ -326,7 +327,8 @@ def test_native_faction_transport_calls(case):
 
 
 @pytest.mark.parametrize('before,after,case', [
-    ('extraction_faction((short)player->team_index) != faction) continue;', 'FALSE) continue;', 'transport-called-ownership'),
+    ('\n\t\t\textraction_faction((short)player->team_index) != faction) continue;',
+     '\n\t\t\tFALSE) continue;', 'transport-called-ownership'),
     ('(run->phase != _extraction_activating && run->phase != _extraction_ready) || run->gear.pending',
      '(run->phase != _extraction_ready) || run->gear.pending', 'transport-called-loop'),
 ])

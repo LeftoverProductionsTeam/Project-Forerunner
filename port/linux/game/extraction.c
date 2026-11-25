@@ -1948,8 +1948,19 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 static boolean extraction_transport_landed(long vehicle_index)
 {
 	/* The last recorded input can have landed while hover or cleanup is
-	 * still pending. Keep readiness, boarding, exit and banking in sync. */
+	 * still pending. Wait for native cleanup before accepting touchdown. */
 	return !recorded_animation_has_thread(vehicle_index) && vehicle_is_landed(vehicle_index);
+}
+
+/* A completed crew can leave a return pad after the hull settles slightly
+ * past the arrival angle. Banking and new boarding still require touchdown. */
+static boolean extraction_transport_completed_return(short faction, long vehicle_index)
+{
+	short zone = extraction.dropship_return_zones[faction];
+	return zone != NONE && extraction.dropship_completed[faction] == vehicle_index &&
+		extraction.dropship_banked[faction] == vehicle_index &&
+		!recorded_animation_has_thread(vehicle_index) &&
+		extraction_in_hub_volume(zone, vehicle_index) && vehicle_is_settled_on_return(vehicle_index);
 }
 
 static boolean extraction_transport_arrival_ready(short faction, long vehicle_index)
@@ -2021,7 +2032,8 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 			/* A damaged or destroyed craft must still release its passengers. */
 			return !vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 				extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.f) ||
-				extraction_transport_arrival_ready(faction, ship);
+				extraction_transport_arrival_ready(faction, ship) ||
+				extraction_transport_completed_return(faction, ship);
 		}
 	return TRUE;
 }
@@ -2396,10 +2408,12 @@ static void extraction_transport_readiness(void)
 		if (landing_group != NONE || boarding_group != NONE)
 		{
 			long ship = extraction.suspended ? NONE : object_index_from_name_index(extraction.dropship_names[faction]);
-			/* Both outputs refer to the same native craft and landing sample.
-			 * Older maps may declare only the crew output. */
-			real landed = landing_group != NONE && ship != NONE && extraction_transport_landed(ship) ? 1.f : 0.f;
-			real ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || landed > 0.f) &&
+			/* A completed stop remains available for egress. Crew readiness
+			 * still uses the normal touchdown sample when a landing output exists. */
+			boolean touchdown = landing_group != NONE && ship != NONE && extraction_transport_landed(ship);
+			real landed = landing_group != NONE && ship != NONE &&
+				(touchdown || extraction_transport_completed_return(faction, ship)) ? 1.f : 0.f;
+			real ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || touchdown) &&
 				extraction_transport_crew_ready(faction, ship) ? 1.f : 0.f;
 			if (landing_group != NONE && device_group_get_value(landing_group) != landed)
 				device_group_set_actual_value(landing_group, landed);

@@ -1717,6 +1717,28 @@ int main(int argc,char **argv)
    CHECK(run(faction)->phase==_extraction_returned&&transport_wakes[faction]==1&&run(faction)->gear.record.count==1,
     "aircraft arrival did not bank recovered gear and release its passengers");
    CHECK(!extraction_transport_brake_at_pad(transport),"settled evacuation left the brake active");
+   ship->object.up.k=.947f;
+   ship->object.flags|=FLAG(_object_at_rest_bit);
+   ship->object.translational_velocity.i=.0001f;advance(1);
+   CHECK(device_groups[11].actual_value==1.f&&extraction_transport_can_disembark(&units[faction]),
+    "a banked crew lost egress when the grounded aircraft settled on its return pad");
+   ship->object.flags&=~FLAG(_object_on_ground_bit);advance(1);
+   CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+    "completed return allowed airborne exit");
+   ship->object.flags|=FLAG(_object_on_ground_bit);
+   ship->object.position.x=0.f;advance(1);
+   CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+    "completed return allowed slope tolerance away from its pad");
+   ship->object.position.x=7.f;
+   recorded_aircraft=transport;advance(1);
+   CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+    "completed return allowed exit before native playback cleanup");
+   recorded_aircraft=NONE;
+   ship->object.up.k=.93f;advance(1);
+   CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+    "completed return allowed exit from an excessively tilted hull");
+   ship->object.up.k=1.f;
+
    units[faction].object.parent_object_index=NONE;units[faction].object.position.x=7.f;
    touch(0,faction);CHECK(run(faction)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
    units[faction].object.position.x=0.f;touch(0,faction);

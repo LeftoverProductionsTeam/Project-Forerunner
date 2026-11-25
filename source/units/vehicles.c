@@ -411,7 +411,7 @@ boolean vehicle_is_human_plane(long vehicle_index)
 
 /* Native hover skips physics and clears the temporary mass-point counter,
  * but preserves the last actual collision-grounded flag and parked pose. */
-boolean vehicle_is_landed(long vehicle_index)
+static boolean vehicle_landing_check(long vehicle_index, boolean settled_return)
 {
 	struct vehicle_datum *vehicle = (struct vehicle_datum *)
 		object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle);
@@ -419,11 +419,22 @@ boolean vehicle_is_landed(long vehicle_index)
 		(FLAG(_object_dead_bit) | FLAG(_object_die_act_of_god_bit) |
 		 FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))) ||
 		!TEST_FLAG(vehicle->object.flags, _object_on_ground_bit) ||
-		vehicle->object.up.k < 0.95f) return FALSE;
-	return TEST_FLAG(vehicle->vehicle.flags, _vehicle_hovering_bit) ||
+		vehicle->object.up.k < (settled_return ? 0.94f : 0.95f)) return FALSE;
+	if (settled_return && !TEST_FLAG(vehicle->object.flags, _object_at_rest_bit)) return FALSE;
+	return (!settled_return && TEST_FLAG(vehicle->vehicle.flags, _vehicle_hovering_bit)) ||
 		(vehicle->vehicle.on_ground_ticks >= 5 &&
 		 magnitude_squared3d(&vehicle->object.translational_velocity) <= 0.000025f &&
 		 magnitude_squared3d(&vehicle->object.angular_velocity) <= 0.0001f);
+}
+
+boolean vehicle_is_landed(long vehicle_index)
+{
+	return vehicle_landing_check(vehicle_index, FALSE);
+}
+
+boolean vehicle_is_settled_on_return(long vehicle_index)
+{
+	return vehicle_landing_check(vehicle_index, TRUE);
 }
 
 void vehicle_reset(
