@@ -115,14 +115,21 @@ that declare the landing output. The exact .947 Pelican and Spirit cases
 reproduced before the fix and passed with the 101 focused transport checks.
 The Win64 candidate compiled. Live egress on the authored return remains open.
 
-On Spark CE609 `26be7e13c17a368934a3b3ed0b24a309be99310cc0a036fd498a3b7af717b57e`,
-the Win64 candidate loaded through the normal solo menu. Squad control
-object 8 was visible and the binder reported usable at interaction center
-(42.728, -109.997, 1.205), radius .350. Normal standing and crouched
-approaches from (42.831, -110.318, 1.072) showed no Use action. Keep its
-base grounded and check the interaction marker and clear reach for a
-standing player before repeating the numbered operation. No begin or
-rearm was verified in this run.
+Spark's grounded squad cache CE609
+`26be7e13c17a368934a3b3ed0b24a309be99310cc0a036fd498a3b7af717b57e`
+loaded offline through Extraction → Play Solo on Win64
+`e7bb4797520901a8ce6bf63334cb8667574aec4b4d3ee60e7995cc8879f37309`.
+Approach object 8 from the west, near (42.51, -110.04, 1.10), and aim
+east and down toward its native center (42.728, -109.997, 1.205).
+The ordinary E prompt appeared at tick 570 and E selected Squad 01.
+The earlier southern approach showed no prompt. Normal E at Deploy
+woke operation 1 once. A controlled native grenade death before field
+departure woke the authored abort and respawned the player at the hub.
+The checksum-verified stash recorded a loss with zero items, reservations
+or escrow. Normal E at Deploy then woke operation 2 in the same session
+without reselecting the squad. This proves loss and redeployment. The
+successful extraction path, field-readiness reset and private guest
+acceptance remain open on this numbered cache.
 
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
