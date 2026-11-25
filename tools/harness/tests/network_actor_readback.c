@@ -110,6 +110,8 @@ static void platform_log(const char *format,...)
 struct vehicle_definition {real ai_steering_max_throttle,ai_avoidance_distance,ai_pathfinding_radius;unsigned long flags;short vehicle_type;};
 static struct vehicle_definition plane_tag={.65f,4.f,1.8f,0,_vehicle_type_human_plane};
 static boolean human_plane=TRUE;
+static boolean grounded_field_transfer;
+static boolean extraction_transport_idle_at_field(long id) {(void)id;return grounded_field_transfer;}
 static struct actor_datum *actor_get(long index) { struct actor_datum *a=actor_try_and_get(index);CHECK(a,"unknown actor");return a; }
 static struct unit_datum *vehicle_get(long id) {return unit_get(id);}
 static struct unit_datum *unit_try_and_get(long id) {return object_try_and_get_and_verify_type(id,_object_mask_unit);}
@@ -237,8 +239,15 @@ int main(int argc,char **argv)
 		native_actor.meta.frozen = FALSE;
 		native_actor.state.action = _actor_action_alert;
 		CHECK(vehicle_plane_pilot_power(ship_index, ship) == 1.f, "resumed pilot lost native power");
+		grounded_field_transfer = TRUE;
+		ship->object.flags &= ~FLAG(_object_at_rest_bit);
+		CHECK(vehicle_plane_pilot_power(ship_index, ship) == 0.f &&
+			!TEST_FLAG(ship->object.flags, _object_at_rest_bit), "an idle field pilot applied lift or invented rest");
+		ship->object.flags |= FLAG(_object_at_rest_bit);
 		native_actor.control.path.path.valid = TRUE;
-		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "new route failed to wake the plane");
+		CHECK(vehicle_plane_pilot_power(ship_index, ship) == 1.f &&
+			vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "new route failed to power and wake the plane");
+		grounded_field_transfer = FALSE;
 		native_actor.control.path.path.valid = FALSE;
 		native_actor.state.action = _actor_action_obey;
 		CHECK(vehicle_controls_wake_physics(ship_index, ship, &plane_tag), "a scripted facing order was held asleep");

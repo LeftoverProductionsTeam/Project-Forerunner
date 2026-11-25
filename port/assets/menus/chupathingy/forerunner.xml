@@ -174,7 +174,7 @@
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies local" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="HOST ZOMBIE APOCALYPSE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="284" height="32" bitmap="bitmaps/list_item_bkd" text="HOST ZOMBIE APOCALYPSE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies" />
 		<on event="left_mouse" run="mouse emit accept event" />

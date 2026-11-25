@@ -2,6 +2,22 @@
 
 ## Windows solo Extraction
 
+### Solo Blood Gulch transport replay
+
+On Win64 `c289a2ecfe5a7960ef3bb52fa7440ebca423687266f793a8aa47467620e47ef2`,
+the normal Extraction → Play Solo menu loaded CE609 Be Native `d113e9db`,
+whose native BSP is `levels\test\bloodgulch\bloodgulch`. Normal movement
+and E deployed and entered Pelican side seat 4. After powered flight the
+native contact solver reported ground, landed and rest at (78.154, -124.854,
+1.588), with zero measured motion. The Marine moved from seat 2 at tick 2640
+to the field alive at tick 2670. The player exited on E after tick 3510 and
+the AI pilot lifted off at tick 3540. No debug movement or seat changes were
+used. Repeated insertion, Spirit and multiplayer acceptance remain open.
+
+An earlier run on the installed executable suffered one native grenade death,
+respawned as a Cyborg, and moved on both axes using W+A and S+D afterward.
+The reported Grunt respawn was not reproduced on this exact cache.
+
 The installed Win64 executable SHA-256 is
 `cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
 Normal menu input created a local profile, opened Extraction → Play Solo,

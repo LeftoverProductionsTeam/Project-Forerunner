@@ -2173,6 +2173,20 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	return extraction_at_hub(unit_index);
 }
 
+boolean extraction_transport_idle_at_field(long vehicle_index)
+{
+	short faction;
+
+	if (!extraction_owns_map() || extraction.suspended || recorded_animation_has_thread(vehicle_index) ||
+		!vehicle_is_landed(vehicle_index)) return FALSE;
+	for (faction = 0; faction < NUMBEROF(extraction.dropship_names); faction++)
+		if (extraction.dropship_names[faction] != NONE && extraction.dropship_landing_groups[faction] != NONE &&
+			!extraction.dropship_hover_transfer[faction] &&
+			object_index_from_name_index(extraction.dropship_names[faction]) == vehicle_index)
+			return extraction_transport_at_field(faction, vehicle_index);
+	return FALSE;
+}
+
 boolean extraction_transport_brake_at_pad(long vehicle_index)
 {
 	short faction, index;

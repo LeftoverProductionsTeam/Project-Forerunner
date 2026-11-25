@@ -2416,10 +2416,15 @@ is the geometry and placement baseline. It has no Extraction operation.
 
 Author each base, route and objective using the native controls, faction
 profiles/body templates, squad controls and HaloScript interfaces below.
-Keep names unique within the scenario. Supply the native BSP index for each
-base's starts, terminals, clear passenger transfer areas and extraction return
-zones in the handoff readback. Preserve distinct UNSC/Pelican and Covenant/Spirit
-bindings, including explicit authored body templates. For stacked regions,
+Keep names unique within the scenario. In the MCC13 Extraction variant, place
+each eligible native player-start row inside exactly one of the oriented
+`extraction_unsc_hub` or `extraction_covenant_hub` trigger volumes. Starts
+outside both volumes are ordinary multiplayer placements. Use the native
+UNSC/Pelican and Covenant/Spirit profiles and explicit body templates. Use
+`extraction_pelican_zone` and `extraction_spirit_zone` for field transfer,
+and `pelican_return` and `spirit_return` for the grounded home pads. Include
+each volume's BSP, each accepted start row/index and each terminal's native
+object index in the existing readback. For stacked regions,
 record each link's source and destination BSP, 3-D trigger box, and clear
 continuation for a player or its vehicle hull. Vertical position and collision
 belong to the authored BSP. Crossing requires a matching native link.
@@ -2434,7 +2439,7 @@ local profile. Authenticated owners keep their existing Delta namespace.
 Private account-free remote banking requires a stable, host-verified owner
 with separate storage. A name, address or temporary machine slot cannot own
 a persistent stash. The ordinary multiplayer engine and campaign paths keep
-their existing rules. Advertise this combined mode only after both paths
+their existing rules. Reserve `extraction.megaworld.v1` for this combined mode. Advertise it only after both paths
 can launch and the host's capability gate is enforced.
 
 **Acceptance.** Play the same exact staged cache through the ordinary menu

@@ -1550,11 +1550,19 @@ static struct actor_datum const *vehicle_plane_ai_pilot(long vehicle_index, stru
 
 static real vehicle_plane_pilot_power(long vehicle_index, struct vehicle_datum const *vehicle)
 {
-	/* The suspended pilot owns parking only when native playback is not
-	 * driving the hull. Both paths use the original powered-seat ramp. */
-	if (!TEST_FLAG(vehicle->unit.flags, _unit_possessed_by_recording_bit) &&
-		actor_move_plane_pilot_suspended(vehicle_plane_ai_pilot(vehicle_index, vehicle), vehicle_index))
-		return 0.f;
+	if (!TEST_FLAG(vehicle->unit.flags, _unit_possessed_by_recording_bit))
+	{
+		struct actor_datum const *pilot = vehicle_plane_ai_pilot(vehicle_index, vehicle);
+		/* An arrived Extraction pilot can still apply near-weightless idle
+		 * lift and steering torque. Release both so contacts can settle the
+		 * hull. Native playback and new pilot orders keep seat power. */
+		if (actor_move_plane_pilot_suspended(pilot, vehicle_index) ||
+			(vehicle->unit.throttle.i == 0.f && vehicle->unit.throttle.j == 0.f &&
+			 !TEST_FLAG(vehicle->unit.control_flags, _unit_control_jump_bit) &&
+			 actor_move_plane_is_parked(pilot, vehicle_index) &&
+			 extraction_transport_idle_at_field(vehicle_index)))
+			return 0.f;
+	}
 	return vehicle->unit.seat_power[0];
 }
 

@@ -48,6 +48,8 @@ wchar_t const *extraction_control_prompt(long control_index);
 boolean extraction_transport_can_board(long unit_index, long vehicle_index, short seat_index);
 /* True only for an occupied evacuation already inside a dedicated return pad. */
 boolean extraction_transport_brake_at_pad(long vehicle_index);
+/* Scope the native idle-pilot power cut to a named grounded field transfer. */
+boolean extraction_transport_idle_at_field(long vehicle_index);
 /* Native voluntary player exits from transports with authored landing signals. */
 struct unit_datum;
 boolean extraction_transport_can_disembark(struct unit_datum const *passenger);
