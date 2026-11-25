@@ -933,7 +933,7 @@ void device_touched(
 {
 	struct device_datum *device = device_get(device_index);
 
-	if (game_engine_object_parked(device_index, device->object.type))
+	if (game_engine_object_parked_for_unit(device_index, device->object.type, unit_index))
 		return;
 
 	switch (device->object.type)

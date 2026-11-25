@@ -3142,7 +3142,7 @@ boolean unit_can_enter_seat(
 	 * Receiving peers can still apply the host's NPC attachments. Managed
 	 * Extraction also reserves the driver's seat for the authored pilot. */
 	if (((unit->unit.player_index != NONE || game_connection() != _game_connection_network_client) &&
-		game_engine_object_parked(target_unit_index, target_unit->object.type)) ||
+		game_engine_object_parked_for_unit(target_unit_index, target_unit->object.type, unit_index)) ||
 		!extraction_transport_can_board(unit_index, target_unit_index, seat_index))
 	{
 		if (occupant_unit_index) *occupant_unit_index = NONE;

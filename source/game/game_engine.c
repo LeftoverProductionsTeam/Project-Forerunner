@@ -5579,6 +5579,27 @@ boolean game_engine_object_parked(
 	return object_type == _object_type_biped && ai_unit_belongs_to_other_bsp(object_index);
 }
 
+/* A live interaction uses the participant's BSP. Dormant targets have
+ * no native cluster references and can only use the foreground fallback. */
+boolean game_engine_object_parked_for_unit(long object_index, short object_type, long unit_index)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	if (scenario && scenario_uses_regional_gameplay(scenario))
+	{
+		short foreground = global_structure_bsp_index_get();
+		short unit_bsp = object_get_regional_bsp(unit_index);
+		short object_bsp = object_get_regional_bsp(object_index);
+
+		if (unit_bsp == NONE)
+			unit_bsp = foreground;
+		if (object_bsp != NONE)
+			return object_bsp != unit_bsp;
+		if (unit_bsp != foreground)
+			return TRUE;
+	}
+	return game_engine_object_parked(object_index, object_type);
+}
+
 /* a living vehicle of the home's kind on its pad, but except, that no other
 home follows (one a map's script put there in place of the home's: another
 home's vehicle parked there is still that home's), else NONE */

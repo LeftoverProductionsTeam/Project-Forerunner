@@ -591,6 +591,7 @@ void game_engine_record_regional_object(long object_index, struct object_datum c
 void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index);
 short game_engine_object_recorded_bsp(long object_index, short object_type);
 boolean game_engine_object_parked(long object_index, short object_type);
+boolean game_engine_object_parked_for_unit(long object_index, short object_type, long unit_index);
 #ifdef HALO_CUSTOM_EDITION
 /* port: whether a Halo PC map's vehicles are chosen by their placements'
 spawn flags in this game, and whether a placement is (game_engine.c) */

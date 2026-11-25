@@ -506,8 +506,8 @@ static void unit_set_animation(long u,long graph,short index){CHECK(index==1,"wr
 static void object_set_visibility(long u,boolean visible){}
 static void ai_handle_exit_vehicle(long u,long parent){}
 static long parked_region_vehicle = NONE;
-static boolean game_engine_object_parked(long index,short type)
-{return index==parked_region_vehicle&&type==_object_type_vehicle;}
+static boolean game_engine_object_parked_for_unit(long index,short type,long unit)
+{(void)unit;return index==parked_region_vehicle&&type==_object_type_vehicle;}
 static void matrix4x3_transform_point(real_matrix4x3 const *matrix,real_point3d const *point,real_point3d *out)
 {*out=(real_point3d){matrix->position.x+point->x,matrix->position.y+point->y,matrix->position.z+point->z};}
 static void object_get_origin(long unit,real_point3d *origin) {*origin=unit_get(unit)->object.position;}

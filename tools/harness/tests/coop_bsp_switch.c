@@ -1287,8 +1287,16 @@ int main(int argc,char **argv)
               "a cached interaction crossed into another region");
         regional_test_root=units[0];
         regional_test_root_bsp=destination;
+        CHECK(!player_action_target_in_region(units[0],units[2]),
+              "recorded ownership let a player interact with a dormant device");
+        regional_test_other_root=units[2];
+        regional_test_other_root_bsp=destination;
         CHECK(player_action_target_in_region(units[0],units[2]),
               "an interaction in the player's region required that region to be foreground");
+        device_touched(units[2],units[0]);
+        CHECK(regional_control_touches==1,"a live off-foreground device did not receive the native action");
+        device_touched(units[2],units[1]);
+        CHECK(regional_control_touches==1,"a foreground player activated a device in another region");
         target->object.flags=FLAG(_object_outside_of_map_bit);
         CHECK(!player_action_target_in_region(units[0],units[2]),
               "an outside target kept its cached interaction");

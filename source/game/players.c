@@ -2096,22 +2096,12 @@ static boolean player_action_target_in_region(long unit_index, long target_index
 {
 	struct scenario const *scenario = global_scenario_try_and_get();
 	struct object_datum const *target;
-	short unit_bsp, target_bsp;
 
 	if (!scenario || !scenario_uses_regional_gameplay(scenario))
 		return TRUE;
 	target = object_try_and_get(target_index);
-	if (!target || TEST_FLAG(target->object.flags, _object_outside_of_map_bit))
-		return FALSE;
-	unit_bsp = object_get_regional_bsp(unit_index);
-	if (unit_bsp == NONE)
-		unit_bsp = global_structure_bsp_index_get();
-	target_bsp = object_get_regional_bsp(target_index);
-	if (target_bsp == NONE)
-		target_bsp = game_engine_object_recorded_bsp(target_index, target->object.type);
-	if (target_bsp == NONE)
-		target_bsp = global_structure_bsp_index_get();
-	return unit_bsp == target_bsp;
+	return target && !TEST_FLAG(target->object.flags, _object_outside_of_map_bit) &&
+		!game_engine_object_parked_for_unit(target_index, target->object.type, unit_index);
 }
 
 static boolean player_handle_action(
