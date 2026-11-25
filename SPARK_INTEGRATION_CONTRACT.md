@@ -3333,8 +3333,19 @@ Windows x64 `ca308c72236b5f380ab8e7232b1506451c58414de8c1abbfba43f65010d3b50d`
 passed 78 focused BSP checks. Two private peers on the exact fourteen-region
 cache saw a staged rifle disappear from the guest in Derelict and return
 at the same position in BSP 0. The host retained the same rifle throughout.
-Both processes exited normally. Independent player occupancy and protection
-of multiple occupied BSPs from eviction remain open.
+Both processes exited normally.
+
+The MCC13 cache now protects BSPs held by the native simulation within
+the existing tag budget. If the next BSP would overwrite held geometry,
+the load is refused before the current scene disconnects. The cache can
+reuse a free or unheld window after a hold is released. The current
+gameplay path holds its shared active BSP. Independent player occupancy
+and per-region collision, AI and networking remain open.
+
+Windows x64 `4de0028172d008d142109f223abc3d13e5e4f71828309700065e1dc9c6de5926`
+passed 79 focused BSP checks, including the full-cache refusal and retry
+with two held neighbors. Two private native peers on the retained
+fourteen-region cache crossed BSP 0 → 2 → 0 and both exited normally.
 
 Windows x64 executable
 `0ea3d89d42682873e1387da0412f88e92b6d47c040b59bfbda513220b286b57c`

@@ -24,6 +24,8 @@ void mcc_cache_tags_unload(void);
 boolean mcc_cache_contains(void const *address, long bytes);
 boolean mcc_cache_read(long tag, long offset, long bytes, void *out);
 boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference const *reference);
+void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use);
+boolean mcc_cache_has_bsp_in_use_elsewhere(struct scenario_structure_bsp_reference const *active);
 unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_reference const *active,
     struct scenario_structure_bsp_reference const *destination);
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
@@ -42,6 +44,8 @@ the shared code calls do nothing, their arguments unevaluated */
 #define mcc_cache_available(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_cache_bitmap_valid(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_cache_bsp_reference_checked(a0) ((void)sizeof(a0), (boolean)0)
+#define mcc_cache_bsp_set_in_use(reference, in_use) ((void)sizeof(reference), (void)sizeof(in_use))
+#define mcc_cache_has_bsp_in_use_elsewhere(active) ((void)sizeof(active), (boolean)0)
 #define mcc_cache_bsp_prepare_address(active, destination) ((void)sizeof(active), (void)sizeof(destination), 0ul)
 #define mcc_cache_bsp_load(a0, a1, a2, a3) ((void)sizeof(a0), (void)sizeof(a1), (void)sizeof(a2), (void)sizeof(a3), (boolean)0)
 #define mcc_cache_bsp_retained_structure(reference) ((void)sizeof(reference), (struct structure_bsp *)0)

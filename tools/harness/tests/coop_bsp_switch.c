@@ -350,6 +350,7 @@ static struct mcc_runtime {
     uint32_t capacity,used,bsp_addresses[4];
 } mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
+static uint32_t mcc_bsps_in_use;
 static struct __attribute__((aligned(16))) {
     byte header[24];
     struct structure_bsp structure;
@@ -378,13 +379,19 @@ static int mcc_geometry_bsp_load(struct mcc_runtime *runtime, uint32_t handle, u
                                  uint32_t size, void *address, void **structure)
 {
     short active=global_structure_bsp_index;
+    uint32_t window=(uint32_t)(uintptr_t)address;
+    uint32_t slot_offset=window-runtime->report.tag_base;
 
     CHECK(runtime==&mcc_loaded_cache&&handle<runtime->report.bsp_count&&size==sizeof(mcc_regions[handle])&&
-          address==mcc_regions[handle].header&&offset==references[handle].file_offset,
-          "loaded a different cache window");
-    CHECK(active!=NONE&&active!=handle&&cache_file_globals.structure_bsp_header==mcc_regions[active].header&&
-          test_tag_instances[active].base_address==&mcc_regions[active].structure,
+          slot_offset%size==0&&slot_offset+size<=runtime->capacity&&offset==references[handle].file_offset,
+          "loaded outside a checked fixture cache window");
+    CHECK(active!=NONE&&active!=handle&&
+          cache_file_globals.structure_bsp_header==xbox_pointer(runtime->bsp_addresses[active])&&
+          test_tag_instances[active].base_address==xbox_pointer(runtime->bsp_addresses[active]+24),
           "preparation detached the active BSP");
+    for (uint32_t index=0;index<runtime->report.bsp_count;index++)
+        CHECK(!mcc_region_live[index]||runtime->bsp_addresses[index]!=window,
+              "preparation wrote over live geometry");
     CHECK(!test_tag_instances[handle].base_address&&!mcc_region_live[handle]&&
           mcc_region_live[0]+mcc_region_live[1]+mcc_region_live[2]+mcc_region_live[3]<=
           (runtime->report.identity.scenario_type==_scenario_type_multiplayer?runtime->report.bsp_count-1:1),
@@ -392,8 +399,10 @@ static int mcc_geometry_bsp_load(struct mcc_runtime *runtime, uint32_t handle, u
     mcc_prepared_loads++;
     if (reject_load[handle]) return FALSE;
     mcc_region_live[handle]=TRUE;
-    runtime->bsp_addresses[handle]=(uint32_t)(uintptr_t)address;
-    *structure=&mcc_regions[handle].structure;
+    runtime->bsp_addresses[handle]=window;
+    *structure=xbox_pointer(window+24);
+    if (*structure!=&mcc_regions[handle].structure)
+        memcpy(*structure,&mcc_regions[handle].structure,sizeof(mcc_regions[handle].structure));
     return TRUE;
 }
 static void mcc_geometry_bsp_unload(struct mcc_runtime *runtime, uint32_t handle)
@@ -406,7 +415,7 @@ static void mcc_geometry_bsp_unload(struct mcc_runtime *runtime, uint32_t handle
 static int mcc_bsp_validate(struct mcc_runtime *runtime, long handle, void *address, long size, unsigned long linked_address)
 {
     CHECK(runtime==&mcc_loaded_cache&&handle>=0&&handle<(long)runtime->report.bsp_count&&mcc_region_live[handle]&&
-          address==mcc_regions[handle].header&&size==sizeof(mcc_regions[handle]),
+          address==xbox_pointer(runtime->bsp_addresses[handle])&&size==sizeof(mcc_regions[handle]),
           "validated a different cache window");
     CHECK(linked_address==references[handle].base_address,"lost the linked address");
     mcc_prepared_validations++;
@@ -433,12 +442,16 @@ static void scenario_structure_bsp_unload(struct scenario_structure_bsp_referenc
     unloads[index]++;
     if (mcc_loaded)
     {
-        mcc_cache_bsp_unload(ref);
         cache_files_unbind_mcc_bsp(ref);
+        mcc_cache_bsp_unload(ref);
     }
 }
 static struct structure_bsp *structure_bsp_definition_get(long index)
-{return mcc_prepare_fixture ? &mcc_regions[index].structure : &structures[index];}
+{
+    return mcc_prepare_fixture && test_tag_instances[index].base_address ?
+        test_tag_instances[index].base_address :
+        (mcc_prepare_fixture ? &mcc_regions[index].structure : &structures[index]);
+}
 #define BIT_VECTOR_SIZE_IN_BYTES(count) (4u * (((count) + 31u) / 32u))
 #include "bsp_limits.inc"
 static boolean structure_bsp_port_verify(struct structure_bsp const *bsp)
@@ -1014,7 +1027,8 @@ int main(int argc,char **argv)
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
-        boolean fourth_region=!strcmp(name,"mcc-prepare-fourth-region");
+        boolean occupied_regions=!strcmp(name,"mcc-prepare-occupied-regions");
+        boolean fourth_region=occupied_regions||!strcmp(name,"mcc-prepare-fourth-region");
         boolean three_regions=fourth_region||!strcmp(name,"mcc-prepare-three-regions");
         short region_count=fourth_region?4:3;
         boolean regional_crossing=!strcmp(name,"mcc-prepare-regional-crossing");
@@ -1259,6 +1273,39 @@ int main(int argc,char **argv)
                           scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure&&
                           !test_tag_instances[old].base_address&&!test_tag_instances[destination].base_address,
                           "third region overwrote a neighbor or published an inactive tag");
+                    if (occupied_regions)
+                    {
+                        struct scenario_bsp_prepared rejected;
+                        int previous_disconnects = disconnects;
+
+                        CHECK(mcc_cache_bsp_in_use(&regions[2]), "the bound native scene did not hold its BSP");
+                        mcc_cache_bsp_set_in_use(&references[old],TRUE);
+                        mcc_cache_bsp_set_in_use(&references[destination],TRUE);
+                        mcc_loaded_cache.capacity=3*sizeof(mcc_regions[0]);
+
+                        CHECK(!scenario_switch_structure_bsp(3)&&global_structure_bsp_index==2&&
+                              disconnects==previous_disconnects&&mcc_prepared_loads==2&&mcc_prepared_releases==0,
+                              "a full set of live holds fell through to a destructive cold switch");
+                        CHECK(!mcc_cache_bsp_load(&references[3],0,&rejected.header,&rejected.structure)&&
+                              mcc_region_live[old]&&mcc_region_live[destination]&&mcc_region_live[2],
+                              "the cold loader overwrote a held window");
+                        CHECK(scenario_structure_bsp_try_and_get(old)==&mcc_regions[old].structure&&
+                              scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure,
+                              "retained lookup lost an occupied region after rejection");
+
+                        mcc_cache_bsp_set_in_use(&references[destination],FALSE);
+                        CHECK(scenario_switch_structure_bsp(3)&&global_structure_bsp_index==3&&
+                              mcc_prepared_loads==3&&mcc_prepared_releases==1&&mcc_region_live[old]&&
+                              !mcc_region_live[destination]&&mcc_region_live[2]&&mcc_region_live[3],
+                              "the retry evicted the occupied oldest region instead of its unheld neighbor");
+                        scenario_structure_bsp_unload(&references[3]);
+                        CHECK(mcc_region_live[old]&&!mcc_region_live[2]&&!mcc_region_live[3],
+                              "unloading the selected scene released geometry held elsewhere");
+                        mcc_cache_bsp_set_in_use(&references[old],FALSE);
+                        mcc_cache_bsp_unload(&references[old]);
+                        CHECK(!mcc_region_live[old]&&!mcc_bsps_in_use, "the final release leaked a BSP or hold");
+                        return 0;
+                    }
                     if (fourth_region)
                     {
                         reject_verify[3]=TRUE;

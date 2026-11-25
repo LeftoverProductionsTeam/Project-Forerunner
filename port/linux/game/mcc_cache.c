@@ -67,6 +67,7 @@ short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer,
 
 static struct mcc_runtime mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
+static uint32_t mcc_bsps_in_use;
 static FILE *mcc_stream;
 static boolean mcc_loaded;
 
@@ -377,6 +378,7 @@ boolean mcc_cache_contains(void const *address, long bytes)
 void mcc_cache_tags_unload(void)
 {
     memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
+    mcc_bsps_in_use = 0;
     mcc_validation_cancel();
     mcc_cache_validation_clear();
     mcc_cache_precache_clear();
@@ -595,6 +597,32 @@ static uint32_t mcc_cache_bsp_resident_address(struct mcc_cache_bsp const *bsp)
     return mcc_loaded_cache.bsp_addresses[bsp - mcc_loaded_cache.report.bsps];
 }
 
+static boolean mcc_cache_bsp_in_use(struct mcc_cache_bsp const *bsp)
+{
+    return bsp && (mcc_bsps_in_use & (UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps)));
+}
+
+/* The simulation owns these holds. A client's BSP acknowledgement cannot
+ * pin geometry on the host. The current shared scene holds only its BSP. */
+void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    uint32_t bit;
+    if (!bsp || mcc_loaded_cache.report.identity.scenario_type != _scenario_type_multiplayer ||
+        mcc_loaded_cache.report.bsp_count < 2)
+        return;
+    bit = UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps);
+    if (!in_use) mcc_bsps_in_use &= ~bit;
+    else if (mcc_cache_bsp_resident_address(bsp)) mcc_bsps_in_use |= bit;
+}
+
+boolean mcc_cache_has_bsp_in_use_elsewhere(struct scenario_structure_bsp_reference const *active)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(active);
+    uint32_t active_bit = bsp ? UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps) : 0;
+    return (mcc_bsps_in_use & ~active_bit) != 0;
+}
+
 static boolean mcc_cache_bsp_keep_two_neighbors(void)
 {
     return mcc_loaded_cache.report.identity.scenario_type == _scenario_type_multiplayer &&
@@ -661,9 +689,16 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
     if (mcc_cache_bsp_keep_two_neighbors() && mcc_retained_bsps[0]) {
         uint32_t free_address = mcc_cache_bsp_address_with_neighbors(from, to,
             mcc_retained_bsps[0], mcc_retained_bsps[1]);
-        if (!free_address && mcc_retained_bsps[1])
-            free_address = mcc_cache_bsp_address_with_neighbors(from, to, mcc_retained_bsps[0], NULL);
         if (free_address) return free_address;
+        if (mcc_cache_bsp_in_use(mcc_retained_bsps[1])) {
+            if (mcc_cache_bsp_in_use(mcc_retained_bsps[0])) return 0;
+            return mcc_cache_bsp_address_with_neighbors(from, to, mcc_retained_bsps[1], NULL);
+        }
+        if (mcc_retained_bsps[1]) {
+            free_address = mcc_cache_bsp_address_with_neighbors(from, to, mcc_retained_bsps[0], NULL);
+            if (free_address) return free_address;
+        }
+        if (mcc_cache_bsp_in_use(mcc_retained_bsps[0])) return 0;
     }
     if ((uint64_t)current + from->size <= to->address ||
         (uint64_t)to->address + to->size <= current)
@@ -688,16 +723,15 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
 static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)
 {
     uint32_t address = bsp ? mcc_cache_bsp_resident_address(bsp) : 0;
-    if (!address) return;
+    if (!address || mcc_cache_bsp_in_use(bsp)) return;
     mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
     mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(address), bsp->size);
 }
 
-static void mcc_cache_drop_retained_bsps(void)
+static void mcc_cache_remove_retained_slot(int slot)
 {
-    mcc_cache_bsp_release(mcc_retained_bsps[0]);
-    mcc_cache_bsp_release(mcc_retained_bsps[1]);
-    memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
+    if (slot == 0) mcc_retained_bsps[0] = mcc_retained_bsps[1];
+    mcc_retained_bsps[1] = NULL;
 }
 
 struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
@@ -714,30 +748,35 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     int slot;
+    uint32_t index;
+    boolean warm = address && mcc_cache_bsp_keep_two_neighbors();
     if (!bsp) return FALSE;
     slot = mcc_cache_bsp_retained_slot(bsp);
     if (slot != NONE) {
         uint32_t resident = mcc_cache_bsp_resident_address(bsp);
         *header = xbox_pointer(resident);
         *structure = mcc_cache_bsp_retained_structure(reference);
-        if (slot == 0) mcc_retained_bsps[0] = mcc_retained_bsps[1];
-        mcc_retained_bsps[1] = NULL;
+        mcc_cache_remove_retained_slot(slot);
         return TRUE;
     }
 
-    if (address && mcc_cache_bsp_keep_two_neighbors()) {
-        /* Delay eviction when the candidate fits in a disjoint window. A
-         * tight cache can still reuse a neighbor's window for a shared switch. */
-        if (mcc_cache_bsp_overlap_end(mcc_retained_bsps[0], address, bsp->size))
-            mcc_cache_drop_retained_bsps();
-        else if (mcc_cache_bsp_overlap_end(mcc_retained_bsps[1], address, bsp->size)) {
-            mcc_cache_bsp_release(mcc_retained_bsps[1]);
-            mcc_retained_bsps[1] = NULL;
-        }
-    } else {
-        mcc_cache_drop_retained_bsps();
-    }
     if (!address) address = bsp->address;
+    /* Check every live hold before releasing a neighbor or touching memory. */
+    if (mcc_bsps_in_use) {
+        for (index = 0; index < mcc_loaded_cache.report.bsp_count; ++index) {
+            struct mcc_cache_bsp const *resident = &mcc_loaded_cache.report.bsps[index];
+            if (mcc_cache_bsp_in_use(resident) && mcc_cache_bsp_overlap_end(resident, address, bsp->size))
+                return FALSE;
+        }
+    }
+    for (slot = NUMBEROF(mcc_retained_bsps) - 1; slot >= 0; --slot) {
+        struct mcc_cache_bsp const *neighbor = mcc_retained_bsps[slot];
+        if (neighbor && !mcc_cache_bsp_in_use(neighbor) &&
+            (!warm || mcc_cache_bsp_overlap_end(neighbor, address, bsp->size))) {
+            mcc_cache_bsp_release(neighbor);
+            mcc_cache_remove_retained_slot(slot);
+        }
+    }
     *header = xbox_pointer(address);
     if (!mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
         bsp->size, *header, structure)) return FALSE;
@@ -757,8 +796,10 @@ boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *refe
         return FALSE;
     if (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()) return FALSE;
     if (mcc_retained_bsps[1]) {
-        if (!replace_oldest) return FALSE;
-        mcc_cache_bsp_release(mcc_retained_bsps[1]);
+        int slot = mcc_cache_bsp_in_use(mcc_retained_bsps[1]) ? 0 : 1;
+        if (!replace_oldest || mcc_cache_bsp_in_use(mcc_retained_bsps[slot])) return FALSE;
+        mcc_cache_bsp_release(mcc_retained_bsps[slot]);
+        mcc_cache_remove_retained_slot(slot);
     }
     mcc_retained_bsps[1] = mcc_retained_bsps[0];
     mcc_retained_bsps[0] = bsp;
@@ -776,9 +817,17 @@ void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *referen
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
 
-    /* A cold switch or a checkpoint reload releases every retained region. */
+    int slot;
+    /* A cold switch or checkpoint may reclaim warm neighbors. Other scenes
+     * retain their geometry until their simulation releases the hold. */
     if (bsp && mcc_cache_bsp_retained_slot(bsp) == NONE) mcc_cache_bsp_release(bsp);
-    mcc_cache_drop_retained_bsps();
+    for (slot = NUMBEROF(mcc_retained_bsps) - 1; slot >= 0; --slot) {
+        struct mcc_cache_bsp const *neighbor = mcc_retained_bsps[slot];
+        if (neighbor && !mcc_cache_bsp_in_use(neighbor)) {
+            mcc_cache_bsp_release(neighbor);
+            mcc_cache_remove_retained_slot(slot);
+        }
+    }
 }
 
 short mcc_cache_part_palette(void const *buffer, byte const **nodes)

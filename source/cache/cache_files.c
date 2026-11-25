@@ -2437,12 +2437,14 @@ enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
 {
 	unsigned long address = mcc_cache_bsp_prepare_address(active, destination);
 
-	if (!address)
+	if (!address || !mcc_cache_bsp_load(destination, address, &prepared->header, &prepared->structure))
+	{
+		/* A cold switch must not tear down geometry used by another scene. */
+		if ((address && address == (unsigned long)(uintptr_t)destination->base_address) ||
+			mcc_cache_has_bsp_in_use_elsewhere(active))
+			return _scenario_bsp_prepare_failed;
 		return _scenario_bsp_prepare_deferred;
-
-	if (!mcc_cache_bsp_load(destination, address, &prepared->header, &prepared->structure))
-		return address == (unsigned long)(uintptr_t)destination->base_address ?
-			_scenario_bsp_prepare_failed : _scenario_bsp_prepare_deferred;
+	}
 	if (!structure_bsp_port_verify(prepared->structure))
 	{
 		mcc_cache_bsp_discard_prepared(destination);
@@ -2457,6 +2459,7 @@ void scenario_structure_bsp_activate_prepared(
 {
 	cache_file_globals.structure_bsp_header = prepared->header;
 	cache_get_tag_instance(reference->structure_bsp.index)->base_address = xbox_address(prepared->structure);
+	mcc_cache_bsp_set_in_use(reference, TRUE);
 }
 
 boolean scenario_structure_bsp_load(
@@ -2641,6 +2644,7 @@ static void cache_files_unbind_mcc_bsp(
 {
 	cache_get_tag_instance(reference->structure_bsp.index)->base_address = XBOX_NULL;
 	cache_file_globals.structure_bsp_header = NULL;
+	mcc_cache_bsp_set_in_use(reference, FALSE);
 }
 
 boolean scenario_structure_bsp_retain(
@@ -2662,8 +2666,8 @@ void scenario_structure_bsp_unload(
 	/* port: an MCC map's bsp (mcc_cache.c) */
 	if (mcc_cache_tags_loaded())
 	{
-		mcc_cache_bsp_unload(reference);
 		cache_files_unbind_mcc_bsp(reference);
+		mcc_cache_bsp_unload(reference);
 		return;
 	}
 
