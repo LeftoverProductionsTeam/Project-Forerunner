@@ -1630,6 +1630,11 @@ int main(int argc,char **argv)
    units[0].unit.player_index=player_handles[0];units[0].unit.animation.state=_unit_state_idle;
    extraction.dropship_landing_groups[1]=NONE;
    CHECK(unit_try_and_exit_seat(unit_handles[0]),"legacy authored exit was refused");
+   units[0].object.type=_object_type_vehicle;
+   units[0].unit.player_index=NONE;
+   CHECK(unit_try_and_exit_seat(unit_handles[0]) && units[0].object.parent_object_index==NONE,
+         "native exit detached the carried vehicle but reported failure");
+   CHECK(!unit_try_and_exit_seat(unit_handles[0]),"native exit reported an already detached vehicle");
    return 0;
   }
   if(!strcmp(case_name,"transport-spirit-return")||!strcmp(case_name,"transport-pelican-return")) {

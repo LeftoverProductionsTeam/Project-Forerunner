@@ -5134,6 +5134,7 @@ boolean unit_try_and_exit_seat(
 		if (unit->object.type==_object_type_vehicle)
 		{
 			unit_exit_seat_end(unit_index);
+			result = TRUE;
 		}
 		else if (!unit_animation_busy(&unit->unit.animation))
 		{
