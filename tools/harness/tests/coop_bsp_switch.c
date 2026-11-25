@@ -70,8 +70,10 @@ struct object_datum {
 };
 #define biped_datum object_datum
 #define unit_datum object_datum
-#define _object_mask_vehicle 2
-enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4};
+#define _object_mask_vehicle FLAG(_object_type_vehicle)
+enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6};
+#define _object_mask_machine FLAG(_object_type_machine)
+#define _object_mask_control FLAG(_object_type_control)
 
 static struct scenario scenario;
 static struct scenario *global_scenario=&scenario;
@@ -712,6 +714,18 @@ static boolean game_engine_vehicle_parked(long index) {return FALSE;}
 static boolean ai_unit_belongs_to_other_bsp(long index) {return FALSE;}
 #include "regional_equipment.inc"
 
+struct device_datum { struct { short type; } object; };
+static struct device_datum *device_get(long index)
+{
+    static struct device_datum device;
+    device.object.type=object_get(index)->object.type;
+    return &device;
+}
+static int regional_machine_touches, regional_control_touches;
+static void machine_bumped(long device,long unit) {regional_machine_touches++;}
+static void control_touched(long device,long unit) {regional_control_touches++;}
+#include "device_touch.inc"
+
 static void setup(short old,short destination)
 {
     scenario.bsp_switch_trigger_volumes=(struct tag_block){1,switches};
@@ -826,6 +840,46 @@ int main(int argc,char **argv)
         CHECK(distributed_sight_at(0,10)==&original->sight[0]&&
               distributed_sight_at(0,111)==&new_trail->sight,
               "classic co-op unexpectedly filtered spatial history");
+        return 0;
+    }
+    if (!strcmp(name, "regional-devices"))
+    {
+        long machine=units[2], control=units[3];
+        struct object_datum *door=&objects[2], *button=&objects[3];
+        memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
+        scenario.type=_scenario_type_multiplayer;
+        scenario.structure_bsp_references.count=2;
+        door->object.type=_object_type_machine;
+        button->object.type=_object_type_control;
+        door->object.parent_object_index=button->object.parent_object_index=NONE;
+        door->object.flags=button->object.flags=FLAG(_object_connected_to_map_bit);
+        door->object.location.cluster_index=button->object.location.cluster_index=0;
+
+        objects_disconnect_from_structure_bsp();
+        global_structure_bsp_index=1;
+        CHECK(!game_engine_object_parked(machine,_object_type_machine),"legacy machine was parked");
+
+        global_structure_bsp_index=0;
+        mcc_loaded=TRUE;
+        test_equipment_client=TRUE;
+        objects_disconnect_from_structure_bsp();
+        global_structure_bsp_index=1;
+        CHECK(game_engine_object_parked(machine,_object_type_machine)&&
+              game_engine_object_parked(control,_object_type_control),
+              "a peer moved its native devices into a different BSP");
+        device_touched(machine,units[0]);
+        device_touched(control,units[0]);
+        CHECK(!regional_machine_touches&&!regional_control_touches,
+              "touch in foreign geometry reached a parked device");
+
+        global_structure_bsp_index=0;
+        CHECK(!game_engine_object_parked(machine,_object_type_machine)&&
+              !game_engine_object_parked(control,_object_type_control),
+              "the device was not returned to its home BSP");
+        device_touched(machine,units[0]);
+        device_touched(control,units[0]);
+        CHECK(regional_machine_touches==1&&regional_control_touches==1,
+              "the same devices did not receive native actions after returning");
         return 0;
     }
     if (!strcmp(name, "regional-loose-objects"))

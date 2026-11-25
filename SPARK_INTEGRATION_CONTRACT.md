@@ -3344,6 +3344,15 @@ cache saw a staged rifle disappear from the guest in Derelict and return
 at the same position in BSP 0. The host retained the same rifle throughout.
 Both processes exited normally.
 
+Native machines and switches use the same regional ownership when reconnecting.
+Each peer keeps its local native devices with the BSP where they were connected.
+A parked device contributes no collision to the active BSP and rejects native
+touches until its BSP returns. Windows x64
+`d096ba1e2bedf199d685f942ac0005340cd7f05af14faf1f6c5b2fc543a7b6e5`
+passed 80 focused BSP checks including device touch isolation and resumption.
+Two private peers crossed into Derelict on the retained cache. Native
+cross-region device interaction still needs an authored two-region device test.
+
 The MCC13 cache now protects BSPs held by the native simulation within
 the existing tag budget. If the next BSP would overwrite held geometry,
 the load is refused before the current scene disconnects. The cache can

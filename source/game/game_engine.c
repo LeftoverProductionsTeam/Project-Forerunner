@@ -5370,7 +5370,13 @@ static short game_engine_vehicle_home_count = NONE;
 static unsigned long game_engine_equipment_regions_seen;
 static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
 
-/* Use the full handle so a new item in a recycled slot has no inherited region. */
+enum
+{
+	REGIONAL_STATIC_DEVICE_TYPES = _object_mask_machine | _object_mask_control,
+	REGIONAL_TRACKED_OBJECT_TYPES = _object_mask_item | _object_mask_vehicle | REGIONAL_STATIC_DEVICE_TYPES
+};
+
+/* Use the full handle so a new object in a recycled slot has no inherited region. */
 static struct game_engine_regional_object
 {
 	long object_index;
@@ -5465,12 +5471,17 @@ void game_engine_record_regional_object(
 	short type = object->object.type;
 	boolean travels;
 
-	if (type != _object_type_vehicle && !TEST_FLAG(_object_mask_item, type))
+	if (!TEST_FLAG(REGIONAL_TRACKED_OBJECT_TYPES, type))
+		return;
+	/* The host owns loose items and vehicles. Native devices already exist
+	 * independently on each peer and need the same collision parking there. */
+	if (!TEST_FLAG(REGIONAL_STATIC_DEVICE_TYPES, type) && network_game_distributed_client())
 		return;
 	region = &game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
 	travels = object->object.parent_object_index != NONE ||
-		(type == _object_type_vehicle ? !game_engine_vehicle_empty(unit_get(object_index)) :
-			TEST_FLAG(item_get(object_index)->item.flags, _item_attached_to_unit_bit));
+		(type == _object_type_vehicle && !game_engine_vehicle_empty(unit_get(object_index))) ||
+		(TEST_FLAG(_object_mask_item, type) &&
+		 TEST_FLAG(item_get(object_index)->item.flags, _item_attached_to_unit_bit));
 	if (travels)
 	{
 		if (region->object_index == object_index)
@@ -5489,7 +5500,7 @@ boolean game_engine_object_parked(
 	long object_index,
 	short object_type)
 {
-	if (object_type == _object_type_vehicle || TEST_FLAG(_object_mask_item, object_type))
+	if (TEST_FLAG(REGIONAL_TRACKED_OBJECT_TYPES, object_type))
 	{
 		struct game_engine_regional_object const *region =
 			&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];

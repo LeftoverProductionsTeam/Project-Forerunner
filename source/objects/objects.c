@@ -1879,7 +1879,7 @@ void objects_disconnect_from_structure_bsp(
 	struct scenario const *scenario = global_scenario_try_and_get();
 	short source_bsp = NONE;
 
-	if (scenario && !network_game_distributed_client() && scenario_uses_regional_gameplay(scenario))
+	if (scenario && scenario_uses_regional_gameplay(scenario))
 		source_bsp = global_structure_bsp_index_get();
 
 	/* port: a camera/network cluster number belongs to the BSP being left.

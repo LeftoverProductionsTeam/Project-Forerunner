@@ -101,6 +101,7 @@ symbols in this file:
 #include "sound/game_sound.h"
 #include "sound/sound_definitions.h"
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "game/game_engine.h"
 
 /* ---------- constants */
 
@@ -931,6 +932,9 @@ void device_touched(
 	long unit_index)
 {
 	struct device_datum *device = device_get(device_index);
+
+	if (game_engine_object_parked(device_index, device->object.type))
+		return;
 
 	switch (device->object.type)
 	{
