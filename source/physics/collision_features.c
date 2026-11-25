@@ -520,9 +520,10 @@ void collision_bsp_get_features_in_sphere(
 	return;
 }
 
-boolean collision_features_test_point(
+boolean collision_features_test_point_with_floor_tolerance(
 	struct collision_feature_list const *features,
 	real_point3d const *point,
+	real floor_tolerance,
 	struct collision_plane *collision)
 {
 	real_plane3d deepest_feature_plane;
@@ -546,6 +547,10 @@ boolean collision_features_test_point(
 				(feature_type == _collision_feature_cylinder && collision_cylinder_test_point(&features->cylinders[feature_index], point, &feature_depth, &feature_plane)) ||
 				(feature_type == _collision_feature_prism && collision_prism_test_point(&features->prisms[feature_index], point, &feature_depth, &feature_plane))) && deepest_feature_depth < feature_depth)
 			{
+				/* A tiny resting contact can differ between two BSPs.
+				 * Check every other contact, even one less deep than the floor. */
+				if (floor_tolerance > 0.0f && feature_depth <= floor_tolerance && feature_plane.n.k >= 0.99f)
+					continue;
 				deepest_feature_type = feature_type;
 				deepest_feature_index = feature_index;
 				deepest_feature_depth = feature_depth;
@@ -601,6 +606,14 @@ boolean collision_features_test_point(
 	}
 
 	return FALSE;
+}
+
+boolean collision_features_test_point(
+	struct collision_feature_list const *features,
+	real_point3d const *point,
+	struct collision_plane *collision)
+{
+	return collision_features_test_point_with_floor_tolerance(features, point, 0.0f, collision);
 }
 
 boolean collision_features_test_vector(

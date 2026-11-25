@@ -930,7 +930,9 @@ boolean collision_structure_blocks_pill(
 	collision_features_new(&features);
 	collision_collect_bsp_features(bsp, breakable_surface_flags_in_bsp(structure_bsp_index), TRUE,
 		&center, height * 0.5f + width + 0.0625f, height, width, &sphere, &features);
-	return collision_features_test_point(&features, base, &contact);
+	/* Regional preflight compares independently compiled floors. Ignore
+	 * shallow near-horizontal support only in this read-only seam query. */
+	return collision_features_test_point_with_floor_tolerance(&features, base, 0.001f, &contact);
 }
 
 boolean collision_get_features_in_sphere(

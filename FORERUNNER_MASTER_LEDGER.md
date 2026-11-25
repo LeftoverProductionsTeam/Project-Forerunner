@@ -11,13 +11,12 @@ Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
    Native Windows x64 private multiplayer passed with 24.46 MiB of loaded
    tag data. Prioritize simultaneous native BSP residency and independent
    squad occupancy, with persistent AI, vehicles, pickups and objectives.
-   Chiron's thirteenth-region compile established geometry and environmental
-   readback. A retained playable export is pending. Regional MCC13 placements
-   share a native format and BSP gate. Bound encounters use the native
-   park-and-resume lifecycle. Two private Delta peers completed an authored
-   markerless BSP crossing on the native fixture. Next prove the retained
-   Chiron route and advance host collision and snapshots toward independently
-   occupied BSPs. Keep CE609 and MCC13 verification separate.
+   Two private native Delta peers walked both ways on Spark's exact retained
+   MCC13 Chiron cache `ba57480a` after a floor-contact correction. The existing
+   [Spark contract](SPARK_INTEGRATION_CONTRACT.md) holds the hashes and evidence.
+   Regional placements share a native format and BSP gate. Bound encounters use
+   native park and resume. Finish guest-driven return and advance toward
+   independently occupied BSPs. Keep CE609 and MCC13 verification separate.
 2. Original Zombie Apocalypse. Verify the original carrier behavior, native
    unloading, restored audio, projectile wrappers and a full mixed-runtime
    survival round.

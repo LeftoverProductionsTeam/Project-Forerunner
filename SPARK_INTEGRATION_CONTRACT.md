@@ -3234,8 +3234,33 @@ load keeps the source contact mask and exact root identity through the
 existing rollback path. The Windows x64 executable
 `cbf42951d423987d11e45e87371cf81194d3b56205719cdebe380c53515eb888`
 compiled and passed 76 focused checks, including warm refusal and cold
-rollback with a separate new mass-point contact. Native vehicle
-acceptance on Chiron awaits Spark's retained cache.
+rollback with a separate new mass-point contact.
+
+Spark's retained MCC13 Chiron handoff is
+`%TEMP%/GuiltySpark-Traversal-Handoff/thirteen-mcc13-YTz6Uc/ready`.
+Its self-contained `gsmegaroad.map` is 118,840,788 bytes with SHA-256
+`ba57480a30c5121da3be111acc7d605a277b6809f5604b6e182bbf97c3f205af`.
+Forerunner retained matching copies and both authoring receipts under
+`build/native-mcc-chiron-ba57480a`. Both peers loaded 3,890 tags and
+9,293,888 runtime tag bytes. No external resource banks were needed.
+
+The previous seam checks rejected both players inside the outbound
+trigger. Native diagnostics found that the destination capsule contact
+disappeared with a 0.001-world-unit upward probe. Regional clearance
+now ignores contacts up to that depth only on near-horizontal support.
+Walls, ceilings and deeper contacts still count. The normal collision
+selector and the native position and trigger tests retain their rules.
+Windows x64 executable
+`73a9e7d61fbad6a285350f27879a938c4842ec9ca24f4671b3948a2228be04f3`
+passed 76 focused BSP checks and five contact selection checks.
+
+Two isolated native Delta peers used the exact cache on that executable.
+Debug staging placed them on the base approach. Normal keyboard
+movement triggered both switches without moving either player across
+a seam by command. The host and guest reported BSP 1 at ticks 889 and
+896, and BSP 0 again at tick 1281 on both. Both exited zero. This is
+automated native gameplay with a shared active BSP. Independent regional
+occupancy and human acceptance remain open.
 
 Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
 active BSP and up to two previous BSPs inside the existing 64 MiB tag

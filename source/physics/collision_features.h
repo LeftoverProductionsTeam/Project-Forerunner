@@ -216,6 +216,11 @@ boolean collision_prism_test_point(
 	real *depth,
 	real_plane3d *plane);
 
+boolean collision_features_test_point_with_floor_tolerance(
+	struct collision_feature_list const *features,
+	real_point3d const *point,
+	real floor_tolerance,
+	struct collision_plane *collision);
 boolean collision_features_test_vector(
 	struct collision_feature_list const *features,
 	real_point3d const *point,
