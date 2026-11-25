@@ -153,7 +153,8 @@ def generated(fault=None):
         "distributed_state_from_object", "distributed_client_dead_biped"))
     code += "\n" + "\n".join(function(damage, name) for name in (
         "distributed_damage_to_data", "distributed_damage_indices_valid",
-        "distributed_damage_numbers_valid", "network_damage_handle_events", "damage_host_tables_reset",
+        "distributed_damage_numbers_valid", "network_damage_handle_events",
+        "network_damage_clear_spatial_history", "damage_host_tables_reset",
         "network_damage_new_game", "network_damage_client_tick"))
     code += "\n" + function(distributed, "distributed_message_epoch_valid")
     code += "\n" + "\n".join(function(objects, name) for name in (

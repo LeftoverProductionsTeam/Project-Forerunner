@@ -589,6 +589,14 @@ static void distributed_send(void *message, byte type, word count, word size, in
           "invalid broadcast BSP message");
     bsp_announcement_broadcast++;
 }
+#define TARGET_HISTORY_TICKS 4
+#define MAXIMUM_TRACKED_PLAYERS 2
+#define PLAYER_TRAIL_POINTS 3
+static struct {long time;} damage_history[TARGET_HISTORY_TICKS],
+    damage_trails[MAXIMUM_TRACKED_PLAYERS][PLAYER_TRAIL_POINTS];
+static boolean damage_host = TRUE;
+#include "bsp_damage_history.inc"
+
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
 #include "bsp_receive.inc"
@@ -725,8 +733,11 @@ int main(int argc,char **argv)
         regional_match=regional_room_ready=check_report_region=TRUE;
         people[0].identifier=(unsigned long)players[0]>>16;
         ticks=10;
+        damage_history[0].time=damage_trails[0][0].time=ticks;
+        damage_history[3].time=damage_trails[1][2].time=ticks;
         distributed_send_structure_bsp(NONE);
         CHECK(distributed_hit_report_matches_structure_bsp(7,0,10),"initial BSP combat was refused");
+        CHECK(damage_history[0].time==10&&damage_trails[0][0].time==10,"initial announcement cleared live history");
 
         global_structure_bsp_index=destination;
         ticks=100;
@@ -735,7 +746,11 @@ int main(int argc,char **argv)
         distributed_send_structure_bsp(7);
         CHECK(bsp_announcement_targeted==1&&!distributed_hit_report_matches_structure_bsp(7,0,101),
               "a late join request advanced the room's combat boundary");
+        CHECK(damage_history[0].time==10&&damage_trails[0][0].time==10,"late join cleared live history");
         distributed_send_structure_bsp(NONE);
+        CHECK(damage_history[0].time==NONE&&damage_history[3].time==NONE&&
+              damage_trails[0][0].time==NONE&&damage_trails[1][2].time==NONE,
+              "regional switch kept collision positions or sight points from the previous BSP");
         CHECK(!distributed_hit_report_matches_structure_bsp(7,0,101),
               "report was accepted before the shooter loaded the BSP");
 
@@ -746,9 +761,12 @@ int main(int argc,char **argv)
               "combat resumed with a hit from the previous BSP or the ambiguous switch tick");
 
         ticks=110;
+        damage_history[0].time=damage_trails[0][0].time=ticks;
         distributed_send_structure_bsp(NONE);
         CHECK(distributed_hit_report_matches_structure_bsp(7,0,101),
               "a periodic announcement moved the combat boundary");
+        CHECK(damage_history[0].time==110&&damage_trails[0][0].time==110,
+              "periodic announcement cleared fresh history");
         global_structure_bsp_index=old;
         ticks=120;
         distributed_send_structure_bsp(NONE);
@@ -757,9 +775,17 @@ int main(int argc,char **argv)
               distributed_hit_report_matches_structure_bsp(7,0,121),
               "return to the same BSP did not establish a new combat boundary");
 
+        CHECK(damage_history[0].time==NONE&&damage_trails[0][0].time==NONE,
+              "returning to the original BSP kept the neighboring BSP's history");
         regional_room_ready=FALSE;
         CHECK(distributed_hit_report_matches_structure_bsp(7,0,110),
               "legacy report behavior changed without negotiation");
+        regional_match=FALSE;
+        damage_history[0].time=damage_trails[0][0].time=ticks;
+        global_structure_bsp_index=destination;
+        distributed_send_structure_bsp(NONE);
+        CHECK(damage_history[0].time==ticks&&damage_trails[0][0].time==ticks,
+              "classic co-op unexpectedly cleared history");
         return 0;
     }
     if (!strcmp(name, "regional-equipment"))

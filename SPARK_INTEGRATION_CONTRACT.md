@@ -3189,7 +3189,20 @@ reports resume. Resends and late-join announcements leave the room's
 boundary in place. The packet layout is unchanged. Windows x64 executable
 `06277526476e0c3accfb98eaa9d6d8359c43b86c04009a1e62a6e346f53e0d26`
 compiled and passed 75 focused BSP checks. This verifies report
-admission in the harness. Live combat on Chiron awaits the retained map.
+admission in the harness.
+
+On a real regional switch the host also clears its position and sight
+history before recording the first tick in the new BSP. This prevents
+current hit reports from rewinding into the previous collision world.
+Periodic announcements, late joins and classic co-op preserve their
+history. Existing packet layouts are unchanged. Windows x64 executable
+`4a8c78cc03b3de0312a1095a915edaca350d2966e3bd777538aa0a9093ec375a`
+passed 106 BSP and stale damage checks and 117 checkpoint checks.
+On the exact Chiron cache below, both native peers loaded BSP 1 at tick
+896. Normal guest fire damaged the host after the switch. The host
+recorded three guest reports applied with zero refusals. Both peers
+exited zero. The regression harness checks rejection of older spatial
+history. Independent regional combat remains open.
 
 For a warm regional multiplayer crossing, the host checks each unseated
 biped's native collision capsule against the source and destination BSPs
@@ -3260,8 +3273,19 @@ movement triggered both switches without moving either player across
 a seam by command. The host and guest reported BSP 1 at ticks 889 and
 896, and BSP 0 again at tick 1281 on both. Both exited zero. This is
 automated native gameplay with a shared active BSP. Independent regional
-occupancy and human acceptance remain open. The guest Warthog attempts stopped
-during staging, before an observed driver seat or a vehicle switch.
+occupancy and human acceptance remain open.
+
+The same exact Chiron map passed the guest-driven Warthog round trip on
+Windows x64 `6406abe7424c194acfca4a9a367b63f55d03fa6dd8d2c5f89d3142773bb23da7`.
+The host used normal E boarding, then staged the map's original Warthog
+entirely within BSP 0. The guest used E to take the driver seat and
+drove the native vehicle through both switch volumes. Both peers saw
+BSP 1 at tick 1512. The host and guest saw BSP 0 again at ticks 1862 and
+1869. Both retained Warthog handle `e26f0000` with the guest in seat 0
+and exited zero. The host walked to each shared switch. The map,
+same-build executable and native logs are retained under
+`build/native-mcc-chiron-ba57480a`. Passenger and independent
+regional acceptance remain open.
 
 Spark's fourteen-region Derelict cache is
 `%TEMP%/GuiltySpark-Traversal-Handoff/fourteen-mcc13-ubQ0YV/ready`.

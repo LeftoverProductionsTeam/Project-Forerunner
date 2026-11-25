@@ -105,6 +105,7 @@ def generated(fault=None):
                              'distributed_handle_actor_states', 'distributed_handle_bsp_world_snapshot',
                              'distributed_handle_structure_bsp', 'distributed_handle_unit_states',
                              'distributed_hit_report_matches_structure_bsp', 'distributed_send_structure_bsp'))),
+        ('bsp_damage_history.inc', function(read('port/linux/game/network_damage.c'), 'network_damage_clear_spatial_history')),
         ('bsp_actor_controls.inc', function(read('port/linux/game/network_actors.c'), 'network_actors_client_bsp_changed')),
         ('bsp_world_state.inc', '\n'.join(function(read('port/linux/game/network_objects.c'), name) for name in
             ('objects_client_reset_own_vehicle_history', 'network_objects_client_bsp_changed')) + '\n' +

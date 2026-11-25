@@ -3511,8 +3511,8 @@ void network_damage_note_grenade(
 	damage_players[player_index].throw_types[slot] = grenade_type;
 }
 
-/* the host's tables (damage_host), emptied */
-static void damage_host_tables_reset(
+/* Recorded positions and sight points belong to the active collision BSP. */
+void network_damage_clear_spatial_history(
 	void)
 {
 	short player_index;
@@ -3527,6 +3527,17 @@ static void damage_host_tables_reset(
 		for (index = 0; index < PLAYER_TRAIL_POINTS; index++)
 			damage_trails[player_index][index].time = NONE;
 	}
+}
+
+/* the host's tables (damage_host), emptied */
+static void damage_host_tables_reset(
+	void)
+{
+	short index;
+
+	if (!damage_host)
+		return;
+	network_damage_clear_spatial_history();
 	for (index = 0; index < DAMAGE_RATE_CACHE_SIZE; index++)
 		damage_rate_cache[index].source_index = NONE;
 }

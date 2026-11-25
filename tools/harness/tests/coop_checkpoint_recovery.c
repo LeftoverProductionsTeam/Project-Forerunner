@@ -450,6 +450,11 @@ static long grenade_drop_new(struct object_placement_data *placement) {
     CHECK(placement->definition_index>=100&&placement->definition_index<=103,"grenade drop definition");
     grenade_drop_attempts++;return NONE;
 }
+static long game_engine_find_teleporter(real_point3d const *position,real radius,short type,short channel)
+{
+    (void)position; (void)radius; (void)type; (void)channel;
+    return NONE;
+}
 #include "under_test.inc"
 
 static void begin_checkpoint(void) {

@@ -5509,7 +5509,11 @@ static void distributed_send_structure_bsp(
 		return;
 	}
 	if (switched && distributed_sent_structure_bsp_index != NONE)
+	{
 		distributed_host_structure_bsp_start = game_time_get();
+		if (network_regional_bsp_active())
+			network_damage_clear_spatial_history();
+	}
 	distributed_send(&message, _distributed_message_structure_bsp, 1, (word)sizeof(message),
 		switched ? _distributed_to_clients_reliably : _distributed_to_clients);
 	distributed_sent_structure_bsp_index = index;

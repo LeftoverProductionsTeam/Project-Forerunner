@@ -601,6 +601,7 @@ void network_damage_host_tables_free(void);
 player's machine reports */
 void network_damage_note_grenade(long unit_index, short grenade_type);
 void network_damage_host_tick(void);
+void network_damage_clear_spatial_history(void);
 void network_damage_client_tick(void);
 void network_damage_handle_events(void const *entries, short count);
 void network_damage_handle_reports(long machine_index, void const *entries, short count);

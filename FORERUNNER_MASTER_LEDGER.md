@@ -16,7 +16,9 @@ Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
    starts and 512 equipment rows. Two native peers verified high starts and
    item replication on a separate 563/485 cache. The
    [Spark contract](SPARK_INTEGRATION_CONTRACT.md) holds the hashes and evidence.
-   Guest-driven Chiron return, independent occupancy and the final five
+   The guest drove Chiron's original Warthog through both native switches.
+   Native guest damage resumed after loading Chiron, with prior BSP spatial
+   history cleared at the switch. Independent occupancy and the final five
    regions remain open. Keep CE609 and MCC13 verification separate.
 2. Original Zombie Apocalypse. Verify the original carrier behavior, native
    unloading, restored audio, projectile wrappers and a full mixed-runtime
