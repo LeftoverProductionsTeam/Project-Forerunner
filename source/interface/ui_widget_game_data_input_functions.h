@@ -25,6 +25,8 @@ typedef void (*ui_widget_game_data_function)(
 
 /* ---------- prototypes/UI_WIDGET_GAME_DATA_INPUT_FUNCTIONS.C */
 
+boolean ui_widget_game_data_function_is_objective(word function);
+
 void ui_widget_game_data_function_invoke(
 	struct widget_instance *widget,
 	word function);

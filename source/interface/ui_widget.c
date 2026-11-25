@@ -1550,7 +1550,8 @@ static void widget_instance_render_text_box(
 	struct ui_widget_definition *definition,
 	rectangle2d *clip_rect,
 	point2d offset,
-	boolean focus);
+	boolean focus,
+	boolean native_objective);
 static void widget_instance_render_spinner_list(
 	struct widget_instance *widget,
 	struct ui_widget_definition *definition,
@@ -6565,7 +6566,8 @@ static void widget_instance_render_text_box(
 	struct ui_widget_definition *definition,
 	rectangle2d *clip_rect,
 	point2d offset,
-	boolean focus)
+	boolean focus,
+	boolean native_objective)
 {
 	wchar_t **text;
 	long search_index;
@@ -6804,17 +6806,14 @@ static void widget_instance_render_text_box(
 		}
 		ui_widget_port_text_wrap(*text, &bounds, width);
 	}
-	/* port: MCC owns these text boxes; wrap their instance copies to the panel
-	 * width without changing the map's objective strings or other menus. */
+	/* Wrap only the instance copy, using the actual render font and panel width. */
+	if (native_objective || mcc_pause_text_wrap_needed(widget->definition_tag_index))
 	{
-		if (mcc_pause_text_wrap_needed(widget->definition_tag_index))
-		{
-			ui_widget_port_text_wrap(*text, &bounds, (short)(bounds.x1 - bounds.x0));
-			clip.x0 = MAX(clip.x0, bounds.x0);
-			clip.y0 = MAX(clip.y0, bounds.y0);
-			clip.x1 = MIN(clip.x1, bounds.x1);
-			clip.y1 = MIN(clip.y1, bounds.y1);
-		}
+		clip.x0 = MAX(clip.x0, bounds.x0);
+		clip.y0 = MAX(clip.y0, bounds.y0);
+		clip.x1 = MIN(clip.x1, bounds.x1);
+		clip.y1 = MIN(clip.y1, bounds.y1);
+		ui_widget_port_text_wrap(*text, &bounds, (short)(clip.x1 - bounds.x0));
 	}
 	/* port: authored MCC catalog text needs measured wrapping in every
 	 * frontend. The MCC module owns formatting and clips to this text box. */
@@ -8886,6 +8885,7 @@ static void widget_instance_render_recursive(
 		ui_widget_definition_get(widget->definition_tag_index);
 	real alpha_modifier = widget_instance_get_cumulative_alpha_modifier(widget);
 	boolean render_children = TRUE;
+	boolean native_objective = FALSE;
 	long input_index;
 	struct widget_instance *child;
 	struct bitmap_data *bitmap;
@@ -8909,6 +8909,7 @@ static void widget_instance_render_recursive(
 				xbox_pointer(definition->game_data_inputs.address) +
 			input_index;
 
+		native_objective |= ui_widget_game_data_function_is_objective(input->function);
 		ui_widget_game_data_function_invoke(widget, input->function);
 	}
 	if (!widget->visible)
@@ -9079,7 +9080,8 @@ static void widget_instance_render_recursive(
 			definition,
 			clip_rect,
 			offset,
-			widget_instance_text_box_is_focused(widget));
+			widget_instance_text_box_is_focused(widget),
+			native_objective);
 		/* port: what the menus draw beside a text (the lobby's speaker
 		icons: port/linux/game/menu_functions.c), its bounds as it was
 		drawn in them (widget_instance_render_text_box), its font and

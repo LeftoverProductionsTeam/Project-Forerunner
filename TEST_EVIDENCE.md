@@ -40,6 +40,15 @@ An on-foot eastern detour reached (59.373, -94.567, 0.432) and
 (59.493, -85.117, 0.093). Facility objectives were not reached on this run.
 The installed map and executable hashes were unchanged.
 
+The native pause panel on the same pinned map rendered the entire opening
+objective over three lines at 900 × 675 with Windows candidate
+`e846c57912cbbcd3aa5feabda89381b01bc6eb7f65abc73e90c402e19908b4b1`.
+The stock inherited pause panel had clipped the sentence after “Disembark.”
+The map’s original text and HUD art were untouched. The screenshot is under
+`build/windows64/screenshots/black-echo-objective-wrapped.png`. Two existing
+text-fit checks passed; other display modes and the oversized authored HUD
+art remain separate acceptance checks.
+
 ## Windows playtest recovery
 
 The Windows x64 testing executable at `build/windows64/halo.exe` used SHA-256

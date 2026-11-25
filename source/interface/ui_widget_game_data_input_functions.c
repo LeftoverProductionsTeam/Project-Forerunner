@@ -768,6 +768,12 @@ static byte const local_player_controller_bitmap_frames[2][MAXIMUM_LOCAL_PLAYERS
 
 /* ---------- public code */
 
+boolean ui_widget_game_data_function_is_objective(word function)
+{
+	return function < NUMBEROF(game_data_input_function_list) &&
+		game_data_input_function_list[function] == solo_game_objective_text;
+}
+
 void ui_widget_game_data_function_invoke(
 	struct widget_instance *widget,
 	word function)
@@ -2169,6 +2175,8 @@ static void solo_game_objective_text(
 			widget->parameters.text_box.text[length] = 0;
 		}
 	}
+	else if (widget->parameters.text_box.text)
+		widget->parameters.text_box.text[0] = 0;
 	return;
 }
 
