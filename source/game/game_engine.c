@@ -5373,7 +5373,8 @@ static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIM
 enum
 {
 	REGIONAL_STATIC_OBJECT_TYPES = _object_mask_device | _object_mask_scenery | _object_mask_sound_scenery,
-	REGIONAL_TRACKED_OBJECT_TYPES = _object_mask_item | _object_mask_vehicle | REGIONAL_STATIC_OBJECT_TYPES
+	REGIONAL_TRACKED_OBJECT_TYPES = _object_mask_item | _object_mask_vehicle |
+		_object_mask_biped | REGIONAL_STATIC_OBJECT_TYPES
 };
 
 /* Use the full handle so a new object in a recycled slot has no inherited region. */
@@ -5473,12 +5474,14 @@ void game_engine_record_regional_object(
 
 	if (!TEST_FLAG(REGIONAL_TRACKED_OBJECT_TYPES, type))
 		return;
-	/* The host owns loose items and vehicles. Placed geometry, devices and
-	 * sound emitters belong to the same BSP on every peer. */
-	if (!TEST_FLAG(REGIONAL_STATIC_OBJECT_TYPES, type) && network_game_distributed_client())
+	/* The host owns loose items and vehicles. Each machine also keeps its
+	 * local scenery and dead bodies in the BSP where they were connected. */
+	if (type != _object_type_biped && !TEST_FLAG(REGIONAL_STATIC_OBJECT_TYPES, type) &&
+		network_game_distributed_client())
 		return;
 	region = &game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
 	travels = object->object.parent_object_index != NONE ||
+		(type == _object_type_biped && !TEST_FLAG(object->object.damage_flags, _object_dead_bit)) ||
 		(type == _object_type_vehicle && !game_engine_vehicle_empty(unit_get(object_index))) ||
 		(TEST_FLAG(_object_mask_item, type) &&
 		 TEST_FLAG(item_get(object_index)->item.flags, _item_attached_to_unit_bit));
@@ -5505,7 +5508,17 @@ short game_engine_object_recorded_bsp(
 		struct game_engine_regional_object const *region =
 			&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
 		if (region->object_index == object_index)
+		{
+			if (object_type == _object_type_biped)
+			{
+				struct object_datum const *body = object_try_and_get(object_index);
+				/* A revived unit or a corpse attached to a moving parent can travel. */
+				if (!body || body->object.parent_object_index != NONE ||
+					!TEST_FLAG(body->object.damage_flags, _object_dead_bit))
+					return NONE;
+			}
 			return region->bsp_index;
+		}
 	}
 	return NONE;
 }

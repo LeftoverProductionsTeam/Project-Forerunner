@@ -4130,10 +4130,11 @@ static boolean object_update(
 	boolean elevator_sampled = FALSE;
 	real_point3d elevator_sample;
 
-	/* Parked doors and lifts must not advance timers, carry riders, or
-	 * trigger from nearby players in the currently bound BSP. */
-	if (TEST_FLAG(_object_mask_device, object->object.type) &&
-		object->object.parent_object_index == NONE && game_engine_object_parked(object_index, object->object.type))
+	/* Do not simulate a parked machine or corpse against another BSP. */
+	if (object->object.parent_object_index == NONE &&
+		(TEST_FLAG(_object_mask_device, object->object.type) ||
+		 (object->object.type == _object_type_biped && TEST_FLAG(object->object.damage_flags, _object_dead_bit))) &&
+		game_engine_object_parked(object_index, object->object.type))
 		return TRUE;
 	object_definition = object_definition_get(object->definition_index);
 	if (!TEST_FLAG(header->flags, _object_header_do_not_update_bit))

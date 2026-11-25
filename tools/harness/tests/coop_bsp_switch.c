@@ -74,6 +74,7 @@ struct object_datum {
 #define biped_datum object_datum
 #define unit_datum object_datum
 #define _object_mask_vehicle FLAG(_object_type_vehicle)
+#define _object_mask_biped FLAG(_object_type_biped)
 enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6, _object_type_scenery=7, _object_type_light_fixture=8, _object_type_sound_scenery=9};
 #define _object_mask_machine FLAG(_object_type_machine)
 #define _object_mask_control FLAG(_object_type_control)
@@ -1031,6 +1032,46 @@ int main(int argc,char **argv)
         CHECK(!game_engine_object_parked(units[2],_object_type_sound_scenery)&&
               !game_engine_object_parked(units[3],_object_type_light_fixture),
               "environment objects failed to resume in their recorded BSP");
+        return 0;
+    }
+    if (!strcmp(name, "regional-bodies"))
+    {
+        long handle=units[2];
+        struct object_datum *body=&objects[2];
+
+        memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
+        body->object.type=_object_type_biped;
+        body->object.flags=FLAG(_object_connected_to_map_bit);
+        body->object.parent_object_index=NONE;
+        body->object.location.cluster_index=0;
+        test_equipment_client=TRUE;
+
+        game_engine_record_regional_object(handle,body,2);
+        CHECK(game_engine_object_recorded_bsp(handle,_object_type_biped)==NONE,
+              "a live unit was pinned to the scene it crossed from");
+        body->object.damage_flags=FLAG(_object_dead_bit);
+        game_engine_record_regional_object(handle,body,2);
+
+        global_structure_bsp_index=1;
+        CHECK(game_engine_object_parked(handle,_object_type_biped),
+              "a corpse reconnected in overlapping geometry");
+        body->object.flags|=FLAG(_object_outside_of_map_bit);
+        game_engine_record_regional_object(handle,body,1);
+        CHECK(game_engine_object_recorded_bsp(handle,_object_type_biped)==2,
+              "the inactive scene replaced corpse ownership");
+
+        global_structure_bsp_index=2;
+        CHECK(!game_engine_object_parked(handle,_object_type_biped),
+              "the corpse did not return to its home scene");
+
+        global_structure_bsp_index=1;
+        body->object.parent_object_index=units[0];
+        CHECK(!game_engine_object_parked(handle,_object_type_biped),
+              "a carried corpse used its old scene instead of its parent's");
+        body->object.parent_object_index=NONE;
+        body->object.damage_flags=0;
+        CHECK(!game_engine_object_parked(handle,_object_type_biped),
+              "revival inherited the corpse's region");
         return 0;
     }
     if (!strcmp(name, "regional-loose-objects"))
