@@ -3504,9 +3504,19 @@ The authoring receipt reports 13 BSPs, 563 starts, 485 pickups and
 crossed the four Infinity switches on foot after same-BSP approach staging
 and agreed on BSPs 0 → 11 → 12 → 11 → 0. A single local System Link client
 using OpenCE protocol with online access disabled also loaded the cache,
-spawned and walked in BSP 0. Full-length play, native split-screen launch,
-other routes and simultaneous simulation remain separate. See
+spawned and walked in BSP 0. See
 `build/native-megaworld-f0835f5e-infinity-seams.json`.
+
+On the same nineteen-region cache, a native local match with two virtual
+controllers, the OpenCE protocol and online access disabled spawned both
+players in BSP 0 and rendered both viewports. Keyboard movement advanced
+player one while player two held position. The local test entry now resolves
+the Xbox pregame widget path with escaped C path separators. Before and after
+runs with two local controllers both spawned, and the repaired entry cleared
+the malformed widget lookup. The ordinary Xbox menu reached Multiplayer,
+Split Screen and Select Profile. Selecting this map and starting it through
+that menu, full-length routes and simultaneous regional simulation remain
+open. See `build/native-megaworld-f0835f5e-split-screen.json`.
 
 The MCC13 cache now protects BSPs held by the native simulation within
 the existing tag budget. If the next BSP would overwrite held geometry,
