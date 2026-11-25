@@ -10,8 +10,17 @@ selected Be Native [CE], and launched the unchanged Black Echo cache at
 The native hub admitted the local player with OpenCE protocol selected,
 Delta and public discovery off, and the saved host Firefight setting on.
 The deployed binary retains the prior recovery build as
-`halo.before-solo-menu.exe`. 18 focused menu checks passed. Physical deployment,
-both faction flights, banking and private LAN guest persistence remain open.
+`halo.before-solo-menu.exe`. 18 focused menu checks passed.
+
+A follow-up through the same installed executable and map used ordinary walking,
+mouse aim and E with passive native logging. At (40.308, -110.355, 1.441), E
+activated the authored deployment control and issued the local starter kit.
+Walking to (53.625, -103.680, 0.025) showed the Pelican side-seat prompt.
+E boarded, the occupied Pelican flew the field insertion, and E disembarked
+at (77.740, -125.738, 0.518) at full health. No forced placement or seating
+was used. The low blue deployment control was difficult to see from spawn.
+Covenant insertion, field combat and objectives, evacuation, banking and private
+LAN guest persistence remain open on this build.
 
 ## Windows playtest recovery
 
