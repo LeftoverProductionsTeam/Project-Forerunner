@@ -3479,17 +3479,21 @@ static void host_send_broken_surfaces(
 {
 	enum { SURFACES_PER_BSP_REFRESH = 8 };
 	static short cursors[MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO];
+	static short next_bsp;
 	struct scenario const *scenario;
-	short bsp_index;
+	short offset;
 	short count;
 
-	if (!host_resend.refresh)
+	if (!host_resend.refresh || coop_events.count >= MAXIMUM_QUEUED_EVENTS)
 		return;
 	scenario = global_scenario_get();
 	count = (short)MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
+	if (!VALID_INDEX(next_bsp, count))
+		next_bsp = 0;
 
-	for (bsp_index = 0; bsp_index < count; bsp_index++)
+	for (offset = 0; offset < count; offset++)
 	{
+		short bsp_index = (short)((next_bsp + offset) % count);
 		struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp_index);
 		short surface_count, sent, step;
 
@@ -3504,8 +3508,16 @@ static void host_send_broken_surfaces(
 
 			if (!breakable_surface_extant_in_bsp(bsp_index, index))
 			{
-				struct structure_breakable_surface const *surface = TAG_BLOCK_GET_ELEMENT(
-					&structure->breakable_surfaces, index, struct structure_breakable_surface);
+				struct structure_breakable_surface const *surface;
+				if (coop_events.count >= MAXIMUM_QUEUED_EVENTS)
+				{
+					/* Keep the unsent pane and let other regions take a turn
+					 * before returning to a BSP that already sent events. */
+					cursors[bsp_index] = index;
+					next_bsp = sent ? (short)((bsp_index + 1) % count) : bsp_index;
+					return;
+				}
+				surface = TAG_BLOCK_GET_ELEMENT(&structure->breakable_surfaces, index, struct structure_breakable_surface);
 
 				network_coop_note_surface_broken(bsp_index, index, &surface->centroid);
 				sent++;

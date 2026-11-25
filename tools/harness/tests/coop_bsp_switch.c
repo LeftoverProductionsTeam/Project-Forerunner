@@ -596,7 +596,8 @@ static struct {boolean scene_refresh,refresh;} host_resend;
 #define VALID_INDEX(index, count) (index>=0 && index<count)
 #include "bsp_world_state.inc"
 
-enum {_coop_event_surface_broken};
+enum {_coop_event_surface_broken, MAXIMUM_QUEUED_EVENTS=128};
+static struct {short count;} coop_events;
 struct damage_data {real_point3d epicenter; struct location location;};
 static short surface_events, surface_effects;
 static boolean warned_about_breakable_surfaces;
@@ -1646,8 +1647,30 @@ int main(int argc,char **argv)
                     CHECK(surface_events==5&&sent_surfaces[4].frame==destination,
                           "legacy cache sent off-BSP fracture state");
                     mcc_loaded=TRUE;
+                    coop_events.count=MAXIMUM_QUEUED_EVENTS-1;
+                    host_send_broken_surfaces();
+                    CHECK(surface_events==6&&sent_surfaces[5].frame==old,
+                          "fracture refresh ignored the last available queue slot");
+                    coop_events.count=MAXIMUM_QUEUED_EVENTS-1;
+                    host_send_broken_surfaces();
+                    CHECK(surface_events==7&&sent_surfaces[6].frame==destination,
+                          "fracture refresh starved the next BSP when capacity was limited");
                     CHECK(scenario_switch_structure_bsp(2)&&!scenario_structure_bsp_try_and_get(old),
                           "an evicted region still exposed geometry");
+                    surface_state.breakable_surface_flags[old][0]=0xff;
+                    breakable_surface_port_break(old,0,&panes[old].centroid);
+                    CHECK(breakable_surface_extant_in_bsp(old,0),
+                          "legacy campaign accepted a fracture for unloaded geometry");
+                    scenario.type=_scenario_type_multiplayer;
+                    breakable_surface_port_break(3,0,&panes[old].centroid);
+                    CHECK(breakable_surface_extant_in_bsp(3,0),
+                          "a BSP with no scenario reference accepted a fracture");
+                    breakable_surface_port_break(old,0,&panes[old].centroid);
+                    CHECK(!breakable_surface_extant_in_bsp(old,0)&&surface_effects==1,
+                          "an authoritative break received before load was lost or played an off-region effect");
+                    CHECK(scenario_switch_structure_bsp(old)&&global_structure_bsp_index==old&&
+                          !breakable_surface_extant_in_bsp(old,0)&&surface_effects==1,
+                          "loading a region restored glass that was already broken");
                     return 0;
                 }
                 if (three_regions)

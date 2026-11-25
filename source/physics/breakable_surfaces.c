@@ -23,6 +23,7 @@ BREAKABLE_SURFACES.C
 #include "objects/objects.h"
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "sound/game_sound.h"
 #include "structures/structure_bsp_definitions.h"
 #include "tag_files/tag_groups.h"
@@ -328,14 +329,28 @@ void breakable_surface_port_break(
 	struct structure_breakable_surface const *breakable_surface;
 	struct damage_data damage;
 
-	if (!structure_bsp || !VALID_INDEX(breakable_surface_index, structure_bsp->breakable_surfaces.count) ||
-		!breakable_surface_indices_valid(structure_bsp_index, breakable_surface_index) ||
-		!breakable_surface_extant_in_bsp(structure_bsp_index, breakable_surface_index))
+	if (!globals || !breakable_surface_indices_valid(structure_bsp_index, breakable_surface_index))
+		return;
+	if (structure_bsp)
+	{
+		if (!VALID_INDEX(breakable_surface_index, structure_bsp->breakable_surfaces.count))
+			return;
+	}
+	else
+	{
+		/* Regional peers can receive a fracture before the geometry arrives.
+		 * Its bounded state row already exists. No geometry or effect is read. */
+		struct scenario const *scenario = global_scenario_try_and_get();
+		if (!scenario || !scenario_uses_regional_gameplay(scenario) ||
+			!VALID_INDEX(structure_bsp_index, scenario->structure_bsp_references.count))
+			return;
+	}
+	if (!breakable_surface_extant_in_bsp(structure_bsp_index, breakable_surface_index))
 		return;
 
 	globals->breakable_surfaces[structure_bsp_index][breakable_surface_index].vitality = 0.0f;
 	BIT_VECTOR_SET_FLAG((long *)globals->breakable_surface_flags[structure_bsp_index], breakable_surface_index, FALSE);
-	if (structure_bsp_index != global_structure_bsp_index)
+	if (!structure_bsp || structure_bsp_index != global_structure_bsp_index)
 		return;
 
 	breakable_surface = TAG_BLOCK_GET_ELEMENT(&structure_bsp->breakable_surfaces, breakable_surface_index,

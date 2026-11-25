@@ -67,7 +67,8 @@ def generated(fault=None):
          'static struct distributed_coop_event sent_surfaces[16];\n' +
          'static struct distributed_coop_event *event_new(byte kind)\n'
          '{ CHECK(kind == _coop_event_surface_broken && surface_events < 16, "invalid fracture event");'
-         ' return &sent_surfaces[surface_events++]; }\n' +
+         ' CHECK(coop_events.count < MAXIMUM_QUEUED_EVENTS, "fracture refresh exceeded shared event capacity");'
+         ' coop_events.count++; return &sent_surfaces[surface_events++]; }\n' +
          function(read('source/scenario/scenario.c'), 'scenario_structure_bsp_try_and_get') + '\n' +
          '\n'.join(function(breakables, name) for name in (
              'breakable_surface_indices_valid', 'breakable_surface_extant_in_bsp', 'breakable_surface_flags_in_bsp',
