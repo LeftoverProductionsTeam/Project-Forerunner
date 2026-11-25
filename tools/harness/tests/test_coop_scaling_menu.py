@@ -20,7 +20,8 @@ def generated(fault=None):
         function(source, 'gametype_option_setting_write') + '\n' + function(source, 'forerunner_operation_mode')
     if fault:
         code = mutated(code, *fault)
-    return (('under_test.inc', code),)
+    return (('under_test.inc', code),
+            ('solo_start.inc', function(source, 'campaign_start') + '\n' + function(source, 'difficulty_start')))
 
 
 @pytest.mark.parametrize('case', ['layout', 'help', 'unrelated'])
@@ -31,6 +32,12 @@ def test_case(case):
 
 @pytest.mark.parametrize('case', ['mode-loop', 'mode-write-failure', 'mode-unrelated', 'custom-setting', 'entry-modes'])
 def test_operations_mode(case):
+    status, output = run(build('coop_scaling_menu', generated()), case)
+    assert status == 0, output
+
+
+@pytest.mark.parametrize('case', ['solo-extraction-fresh', 'solo-extraction-missing', 'solo-campaign-continue'])
+def test_solo_start(case):
     status, output = run(build('coop_scaling_menu', generated()), case)
     assert status == 0, output
 

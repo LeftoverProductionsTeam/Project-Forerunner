@@ -53,6 +53,29 @@ static boolean setting_write(char const *name,char const *value)
  return TRUE;
 }
 #include "under_test.inc"
+
+#define PIN(value,min,max) ((value)<(min)?(min):MIN((value),(max)))
+#define SOUND_FORWARD 0
+struct player_profile { int unused; };
+static const short player_spawn_count=1;
+static const char *solo_map;
+static boolean solo_extraction_start_pending, snapshot_allowed, solo_started;
+static const char *main_get_map_name(void) { return solo_map; }
+static short main_get_solo_level_from_name(const char *name) { return strcmp(name,"a10") ? NONE : 0; }
+static const char *main_get_solo_level_name(short level) { (void)level; return "a10"; }
+static boolean custom_campaign_map(const char *name) { return !strcmp(name,"patrol@ce"); }
+static boolean mcc_maps_level_campaign(const char *name) { return name && !strcmp(name,"mcc_maps\\patrol"); }
+static boolean campaign_profile(short controller, struct player_profile *profile) { (void)controller; (void)profile; return TRUE; }
+static boolean campaign_fail(void) { return FALSE; }
+static void main_set_map_name(const char *name) { solo_map=name; snapshot_allowed=TRUE; }
+static void main_disallow_persistent_storage(void) { snapshot_allowed=FALSE; }
+static void main_set_difficulty(short difficulty) { (void)difficulty; }
+static void game_connection_set(short connection) { (void)connection; }
+static void player_ui_set_single_player_local_player_controller(short local,short controller) { (void)local; (void)controller; }
+static void main_menu_switch_to_single_player(void) { solo_started=TRUE; }
+static void player_ui_remember_player1_profile(boolean remember) { (void)remember; }
+static void ui_play_audio_feedback_sound(short sound) { (void)sound; }
+#include "solo_start.inc"
 #define ROWS 10
 static char const *rows[]={"op_coop_friendly_fire","op_coop_extra_enemies","op_coop_extra_pickups","op_coop_extra_vehicles",
  "op_coop_enemies_multiplier","op_coop_enemies_per_player","op_coop_player_collisions","op_coop_ally_friendly_fire",
@@ -77,6 +100,23 @@ static void setup(void)
 }
 int main(int argc,char **argv)
 {
+ if(argc==2&&!strcmp(argv[1],"solo-extraction-fresh")) {
+  solo_map="patrol@ce";solo_extraction_start_pending=TRUE;snapshot_allowed=TRUE;
+  CHECK(difficulty_start(1,0)&&solo_started&&!snapshot_allowed&&!solo_extraction_start_pending,
+   "Extraction restored the old world or left its start request pending");
+  CHECK(!strcmp(solo_map,"patrol@ce"),"Extraction launched a different scenario");
+  return 0;
+ }
+ if(argc==2&&!strcmp(argv[1],"solo-extraction-missing")) {
+  solo_map="deleted@ce";solo_extraction_start_pending=TRUE;
+  CHECK(!difficulty_start(1,0)&&!solo_started,"missing operation fell through to the stock campaign");
+  return 0;
+ }
+ if(argc==2&&!strcmp(argv[1],"solo-campaign-continue")) {
+  solo_map="a10";
+  CHECK(difficulty_start(1,0)&&solo_started&&snapshot_allowed,"ordinary campaign lost snapshot loading");
+  return 0;
+ }
  if(argc==2&&!strcmp(argv[1],"entry-modes")) {
   CHECK(forerunner_operation_mode("port forerunner host extraction")==2,"Extraction selected ordinary co-op");
   CHECK(forerunner_operation_mode("port forerunner host firefight")==1,"Firefight selected ordinary co-op");

@@ -1103,10 +1103,15 @@ static void campaign_levels_read(struct player_profile const *profile)
 		campaign.saved_level = NONE;
 }
 
+/* An Extraction choice remains pending until the difficulty menu commits it. */
+static boolean solo_extraction_start_pending;
+
 /* plays the map, at the difficulty (a saved game in it goes on: main.c's
 main_new_map, if its difficulty is this one) */
+
 static void campaign_start(char const *map_name, short difficulty, short controller)
 {
+	solo_extraction_start_pending = FALSE;
 	if (player_spawn_count < 2)
 		player_ui_set_single_player_local_player_controller(0, controller);
 	main_set_map_name(map_name);
@@ -2028,6 +2033,7 @@ static struct
 {
 	short kind;
 	short first, chosen;
+	boolean extraction;
 	/* the multiplayer maps (ui_widget_port_multiplayer_maps) */
 	char const *const *map_names;
 	short map_count;
@@ -2077,6 +2083,8 @@ static boolean level_list_initialize(struct widget_instance *list, short control
 	boolean extraction = solo_extraction_chooser;
 
 	solo_extraction_chooser = FALSE;
+	solo_extraction_start_pending = FALSE;
+	level_list.extraction = extraction;
 	mcc_maps_rescan();
 	mcc_solo_list.first = mcc_solo_list.chosen = 0;
 
@@ -2254,6 +2262,7 @@ static boolean level_choose(struct widget_instance *list, short controller)
 {
 	short level;
 
+	solo_extraction_start_pending = FALSE;
 	level_list_update(list);
 	level = campaign.shown_level;
 
@@ -2289,6 +2298,7 @@ static boolean level_choose(struct widget_instance *list, short controller)
 
 		if (!map_name)
 			return campaign_fail();
+		solo_extraction_start_pending = level_list.extraction;
 		main_set_map_name(map_name);
 		main_defer_map_map_change();
 		return TRUE;
@@ -2320,18 +2330,22 @@ static boolean difficulty_start(short difficulty, short controller)
 {
 	struct player_profile profile;
 	char const *map_name = main_get_map_name();
+	boolean fresh_operation = solo_extraction_start_pending;
 
 	if (!campaign_profile(controller, &profile))
 		return campaign_fail();
-	if (mcc_maps_level_campaign(map_name))
+	if (!mcc_maps_level_campaign(map_name) &&
+		(!map_name || (main_get_solo_level_from_name(map_name) == NONE && !custom_campaign_map(map_name))))
 	{
-		campaign_start(map_name, PIN(difficulty, 0, 3), controller);
-		return TRUE;
-	}
-	/* (a campaign level, or a Halo PC campaign map: CUSTOM SINGLEPLAYER's) */
-	if (!map_name || (main_get_solo_level_from_name(map_name) == NONE && !custom_campaign_map(map_name)))
+		if (fresh_operation)
+			return campaign_fail(); /* The selected operation is no longer available. */
 		map_name = main_get_solo_level_name(0);
+	}
 	campaign_start(map_name, PIN(difficulty, 0, 3), controller);
+	/* Setting the map name enables world snapshot loading. Extraction starts a
+	 * new mission, while gear.c independently opens the same player's stash. */
+	if (fresh_operation)
+		main_disallow_persistent_storage();
 	return TRUE;
 }
 
