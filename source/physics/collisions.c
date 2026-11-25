@@ -271,10 +271,9 @@ static void collision_material_type_report(
 /* port: the cluster of a collision bsp leaf (from the map), NONE if it is
 no leaf of the structure bsp (whose leaves the collision bsp's are: the
 retail ones have as many) */
-static long collision_cluster_index_from_leaf(
-	long leaf_index)
+static long collision_bsp_cluster_index_from_leaf(
+	struct structure_bsp const *structure_bsp, long leaf_index)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 
 	if (leaf_index == NONE)
 	{
@@ -296,6 +295,11 @@ static long collision_cluster_index_from_leaf(
 		&structure_bsp->leaves,
 		leaf_index & LONG_MAX,
 		struct structure_leaf)->cluster_index;
+}
+
+static long collision_cluster_index_from_leaf(long leaf_index)
+{
+	return collision_bsp_cluster_index_from_leaf(global_structure_bsp_get(), leaf_index);
 }
 
 /* port: the material type of a structure bsp's collision material (from
@@ -535,13 +539,20 @@ boolean collision_structure_bsp_line_clear(
 	return !blocked;
 }
 
-boolean collision_test_vector(
+boolean collision_test_bsp_vector(
+	short bsp,
 	unsigned long flags,
 	real_point3d const *point,
 	real_vector3d const *vector,
 	long ignore_object_index,
 	struct collision_result *collision)
 {
+	short foreground = global_structure_bsp_index_get();
+	boolean use_foreground = bsp == NONE || bsp == foreground;
+	struct structure_bsp const *structure = use_foreground ? global_structure_bsp_get() :
+		scenario_structure_bsp_try_and_get(bsp);
+	struct collision_bsp const *terrain;
+	byte const *breakable_flags;
 	boolean hit = FALSE;
 	boolean test_environment = TEST_FLAG(flags, _collision_test_structure_bit) ||
 		TEST_FLAG(flags, _collision_test_media_bit) ||
@@ -562,9 +573,14 @@ boolean collision_test_vector(
 	collision->location.bonus = NONE;
 	collision->t = 1.0f;
 
-	if (test_environment)
+	if (use_foreground)
+		bsp = foreground;
+	terrain = use_foreground ? global_collision_bsp_get() :
+		structure && structure->collision_bsp.count > 0 ?
+			TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp) : NULL;
+
+	if (test_environment && terrain)
 	{
-		struct structure_bsp *structure_bsp = global_structure_bsp_get();
 		boolean test_objects = TEST_FLAG(flags, _collision_test_objects_bit);
 		unsigned long bsp_flags;
 		struct collision_bsp_test_vector_result bsp_result;
@@ -574,6 +590,7 @@ boolean collision_test_vector(
 			test_objects = FALSE;
 		}
 
+		breakable_flags = use_foreground ? breakable_surface_flags_get() : breakable_surface_flags_in_bsp(bsp);
 		bsp_flags = collision_vector_bsp_flags(flags);
 		flags |= bsp_flags;
 
@@ -581,9 +598,9 @@ boolean collision_test_vector(
 		collision_log_start_time(&collision_usage_times.vector_structure);
 		if (collision_bsp_test_vector(
 			bsp_flags,
-			global_collision_bsp_get(),
-			MAXIMUM_BREAKABLE_SURFACES_PER_MAP,
-			breakable_surface_flags_get(),
+			terrain,
+			breakable_flags || use_foreground ? MAXIMUM_BREAKABLE_SURFACES_PER_MAP : 0,
+			breakable_flags,
 			point,
 			vector,
 			REAL_MAX,
@@ -602,7 +619,7 @@ boolean collision_test_vector(
 
 			/* port: (collision_structure_material_type) */
 			material_type = collision_structure_material_type(
-				structure_bsp,
+				structure,
 				bsp_result.material_index);
 
 			collision->material_type = (short)material_type;
@@ -621,12 +638,12 @@ boolean collision_test_vector(
 
 			/* port: (collision_cluster_index_from_leaf) */
 			collision->start_location.leaf_index = leaf_index;
-			cluster_index = collision_cluster_index_from_leaf(leaf_index);
+			cluster_index = collision_bsp_cluster_index_from_leaf(structure, leaf_index);
 			collision->start_location.cluster_index = cluster_index;
 
 			leaf_index = bsp_result.leaf_indices[bsp_result.leaf_count - 1];
 			collision->location.leaf_index = leaf_index;
-			cluster_index = collision_cluster_index_from_leaf(leaf_index);
+			cluster_index = collision_bsp_cluster_index_from_leaf(structure, leaf_index);
 			collision->location.cluster_index = cluster_index;
 		}
 		collision_log_end_time(
@@ -641,7 +658,7 @@ boolean collision_test_vector(
 
 			/* port: (collision_cluster_fog_plane) */
 			if (collision_cluster_fog_plane(
-				structure_bsp,
+				structure,
 				collision->location.cluster_index,
 				&fog_plane,
 				&fog))
@@ -710,16 +727,16 @@ boolean collision_test_vector(
 			{
 				long leaf = bsp_result.leaf_indices[leaf_index];
 				/* port: (collision_cluster_index_from_leaf) */
-				long cluster_index = collision_cluster_index_from_leaf(leaf);
+				long cluster_index = collision_bsp_cluster_index_from_leaf(structure, leaf);
 
 				if (structure_cluster_mark(cluster_index))
 				{
 					long reference_index;
 					long object_index;
 
-					for (object_index = cluster_get_first_collideable_object(&reference_index, cluster_index);
+					for (object_index = cluster_get_first_collideable_object_in_bsp(&reference_index, bsp, cluster_index);
 						object_index != NONE;
-						object_index = cluster_get_next_collideable_object(&reference_index))
+						object_index = cluster_get_next_collideable_object_in_bsp(&reference_index, bsp))
 					{
 						/* port: (the ones the vector misses passed over on a
 						packed copy of their bounding spheres, before they
@@ -756,10 +773,10 @@ boolean collision_test_vector(
 		if (TEST_FLAG(flags, _collision_test_try_to_keep_location_valid_bit) &&
 			hit &&
 			collision->location.leaf_index != NONE &&
-			scenario_leaf_index_from_point(&collision->point) != collision->location.leaf_index)
+			bsp3d_test_point((struct bsp3d const *)terrain, 0, &collision->point) != collision->location.leaf_index)
 		{
 			point_from_line3d(&collision->point, &collision->plane.n, 0.00024414062f, &collision->point);
-			scenario_location_from_point(&collision->location, &collision->point);
+			scenario_location_from_point_in_structure(&collision->location, structure, &collision->point);
 			if (collision->location.leaf_index == NONE)
 			{
 				real vector_dot = dot_product3d(vector, &collision->plane.n);
@@ -769,7 +786,7 @@ boolean collision_test_vector(
 				{
 					collision->t = MAX(collision->t - step, 0.0f);
 					COLLISION_POINT_FROM_LINE3D(point, vector, collision->t, &collision->point);
-					scenario_location_from_point(&collision->location, &collision->point);
+					scenario_location_from_point_in_structure(&collision->location, structure, &collision->point);
 					if (collision->t <= 0.0f)
 					{
 						break;
@@ -786,11 +803,21 @@ boolean collision_test_vector(
 			(real_vector3d const *)point,
 			vector,
 			(real_vector3d *)&collision->point);
-		scenario_location_from_point(&collision->location, &collision->point);
+		scenario_location_from_point_in_structure(&collision->location, structure, &collision->point);
 	}
 
 	HALO_PERF_END(_halo_perf_tick_collision);
 	return hit;
+}
+
+boolean collision_test_vector(
+	unsigned long flags,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	long ignore_object_index,
+	struct collision_result *collision)
+{
+	return collision_test_bsp_vector(NONE, flags, point, vector, ignore_object_index, collision);
 }
 
 boolean collision_test_pill(

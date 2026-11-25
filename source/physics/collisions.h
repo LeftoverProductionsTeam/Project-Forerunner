@@ -149,6 +149,13 @@ boolean collision_test_pill_new(
 	real radius,
 	long ignore_object_index,
 	struct collision_result *collision);
+boolean collision_test_bsp_vector(
+	short bsp,
+	unsigned long flags,
+	real_point3d const *point,
+	real_vector3d const *vector,
+	long ignore_object_index,
+	struct collision_result *collision);
 boolean collision_test_vector(
 	unsigned long flags,
 	real_point3d const *point,

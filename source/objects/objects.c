@@ -298,6 +298,17 @@ long cluster_get_next_collideable_object(
 		reference_index);
 }
 
+long cluster_get_first_collideable_object_in_bsp(long *reference_index, short bsp, short cluster_index)
+{
+	return cluster_partition_get_first_datum_in_bsp(&collideable_object_cluster_partition,
+		reference_index, bsp, cluster_index);
+}
+
+long cluster_get_next_collideable_object_in_bsp(long *reference_index, short bsp)
+{
+	return cluster_partition_get_next_datum_in_bsp(&collideable_object_cluster_partition, reference_index, bsp);
+}
+
 short object_get_next_cluster(
 	struct object_cluster_iterator *iterator,
 	long object_index)

@@ -919,17 +919,29 @@ void scenario_location_from_point(
 	scenario_location_in_bsp_tree(location, global_structure_bsp_get(), global_bsp3d_get(), point);
 }
 
+void scenario_location_from_point_in_structure(
+	struct location *location,
+	struct structure_bsp const *structure,
+	const real_point3d *point)
+{
+	if (structure && structure->collision_bsp.count > 0)
+	{
+		struct collision_bsp const *collision =
+			TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
+		scenario_location_in_bsp_tree(location, structure, (struct bsp3d const *)collision, point);
+	}
+	else
+	{
+		*location = (struct location){ .leaf_index = NONE, .cluster_index = NONE, .bonus = NONE };
+	}
+}
+
 boolean scenario_structure_bsp_contains_point(
 	struct structure_bsp const *structure,
 	const real_point3d *point)
 {
 	struct location location;
-	struct collision_bsp const *collision;
-
-	if (structure->collision_bsp.count <= 0)
-		return FALSE;
-	collision = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
-	scenario_location_in_bsp_tree(&location, structure, (struct bsp3d const *)collision, point);
+	scenario_location_from_point_in_structure(&location, structure, point);
 	return location.cluster_index != NONE;
 }
 

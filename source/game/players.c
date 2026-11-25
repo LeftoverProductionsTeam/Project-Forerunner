@@ -3396,7 +3396,8 @@ static boolean players_coop_unit_on_object(
 	match_assert("c:\\halo\\SOURCE\\game\\players.c", __LINE__,
 		global_current_collision_user_depth < MAXIMUM_COLLISION_USER_STACK_DEPTH);
 	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_bipeds;
-	hit = collision_test_vector(
+	hit = collision_test_bsp_vector(
+		object_get_regional_bsp(unit_index),
 		FLAG(_collision_test_front_facing_surfaces_bit) | FLAG(_collision_test_objects_bit) |
 			_collision_test_objects_all_types_flags,
 		&feet, &down, unit_index, &collision);

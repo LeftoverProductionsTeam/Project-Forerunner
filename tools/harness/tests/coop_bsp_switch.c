@@ -270,8 +270,14 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 static long prepared_crossing_leaf;
 static boolean cold_crossing;
 static boolean test_region_lookup,test_region_overlap;
+static struct bsp3d const *expected_spatial_tree;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
+    if (expected_spatial_tree)
+    {
+        CHECK(node==0&&tree==expected_spatial_tree,"location refresh borrowed the foreground BSP tree");
+        return 0;
+    }
     if (test_region_lookup)
     {
         CHECK(node==0&&tree==(struct bsp3d const *)&collisions[global_structure_bsp_index],"incorrect flag collision tree");
@@ -2040,6 +2046,20 @@ int main(int argc,char **argv)
                 {
                     real_point3d eye={0,0,0}, target={4,0,0};
                     unsigned long flags=FLAG(_collision_test_objects_scenery_bit);
+                    struct structure_leaf retained_leaf={.cluster_index=0};
+                    struct location located={0};
+                    struct structure_bsp *retained=(struct structure_bsp *)scenario_structure_bsp_try_and_get(old);
+                    CHECK(retained,"retained BSP was missing before testing location");
+                    retained->clusters.count=1;
+                    retained->leaves=(struct tag_block){1,&retained_leaf};
+                    expected_spatial_tree=(struct bsp3d const *)&collisions[old];
+                    scenario_location_from_point_in_structure(&located,retained,&eye);
+                    CHECK(located.cluster_index==0&&located.leaf_index==0&&located.bonus==NONE&&
+                          global_structure_bsp_index==destination,"regional hit location did not use its resident leaves");
+                    scenario_location_from_point_in_structure(&located,scenario_structure_bsp_try_and_get(2),&eye);
+                    CHECK(located.cluster_index==NONE&&located.leaf_index==NONE&&located.bonus==NONE,
+                          "missing structure produced an actionable hit location");
+                    expected_spatial_tree=NULL;
                     surface_state.breakable_surface_flags[0][0]=1;
 
                     CHECK(!distributed_report_sight_clear(old,flags,&eye,&target,&target)&&
