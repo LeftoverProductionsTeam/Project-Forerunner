@@ -23,6 +23,7 @@ short mcc_maps_find(char const *level_name);
 char const *mcc_maps_level_name(short index);
 wchar_t const *mcc_maps_name(short index);
 wchar_t const *mcc_maps_description(short index);
+short mcc_maps_play_mode(short index);
 boolean mcc_maps_campaign(short index);
 boolean mcc_maps_level_campaign(char const *level_name);
 /* 0 standalone/disabled, 1 next mission, 2 completed, -1 unavailable next
@@ -69,6 +70,7 @@ the shared code calls do nothing, their arguments unevaluated */
 #define mcc_maps_campaign(a0) ((void)sizeof(a0), (boolean)0)
 #define mcc_maps_count(a0) ((void)sizeof(a0), (short)0)
 #define mcc_maps_description(a0) ((void)sizeof(a0), (wchar_t const *)L"")
+#define mcc_maps_play_mode(a0) ((void)sizeof(a0), (short)0)
 #define mcc_maps_directory() ((char const *)0)
 #define mcc_maps_find(a0) ((void)sizeof(a0), (short)NONE)
 #define mcc_maps_level_campaign(a0) ((void)sizeof(a0), (boolean)0)

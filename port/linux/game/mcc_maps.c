@@ -53,6 +53,7 @@ struct mcc_menu_map
 	wchar_t description[MCC_MAP_DESCRIPTION_MAXIMUM + 1];
 	boolean campaign, titled;
 	boolean spark_description_checked;
+	short play_mode;
 	short mission_order, next_state;
 	char next_mission[64];
 	char campaign_title[64];
@@ -721,10 +722,17 @@ wchar_t const *mcc_maps_description(short index)
 		char path[128];
 		map->spark_description_checked = TRUE;
 		if (mcc_package_map_path(map->level_name, path))
-			ui_map_list_spark_description(path, 13, map->campaign, map->description, NUMBEROF(map->description));
+			map->play_mode = ui_map_list_spark_description(path, 13, map->campaign, map->description, NUMBEROF(map->description));
 	}
 #endif
 	return map->description;
+}
+
+short mcc_maps_play_mode(short index)
+{
+	mcc_maps_description(index);
+	return VALID_INDEX(index, mcc_menu_catalog.count) ?
+		mcc_menu_catalog.maps[index].play_mode : _ui_map_mode_unspecified;
 }
 
 boolean mcc_maps_campaign(short index)

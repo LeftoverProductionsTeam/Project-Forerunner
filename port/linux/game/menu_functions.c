@@ -1597,6 +1597,33 @@ static void custom_multiplayer_map_text(short map, wchar_t *text)
 	custom_map_text(FALSE, map, text);
 }
 
+/* The existing map pane also shows the empty state for a mode filter. */
+static void map_mode_empty_description(struct widget_instance *description, short mode)
+{
+	struct widget_instance *name = named(description, "mcc_folder_name", 0);
+	struct widget_instance *help = named(description, "mcc_folder_help", 0);
+	visible_set(name, TRUE);
+	visible_set(help, TRUE);
+	text_set(name, mode == _ui_map_mode_extraction ? L"No Extraction maps" : L"No Survival maps");
+	text_set(help, L"Install a compatible Spark export with its mode manifest.");
+}
+
+#ifdef HALO_SPARK_MODE_RECEIPTS
+#define HALO_MODE_FILTER TRUE
+#else
+#define HALO_MODE_FILTER FALSE
+#endif
+
+static void extraction_map_text(short row, wchar_t *text)
+{
+	custom_campaign_map_text(ui_map_list_play_mode_row(_ui_map_mode_extraction, row), text);
+}
+
+static void survival_map_text(short row, wchar_t *text)
+{
+	multiplayer_map_text(ui_map_list_play_mode_row(_ui_map_mode_survival, row), text);
+}
+
 /* (the map choosers' view's rows: MAP_VIEW_ROWS, below) */
 #define MAP_KIND_VIEW_ROWS 3
 
@@ -2083,6 +2110,9 @@ static boolean level_list_initialize(struct widget_instance *list, short control
 	boolean extraction = solo_extraction_chooser;
 
 	solo_extraction_chooser = FALSE;
+#ifdef HALO_SPARK_MODE_RECEIPTS
+	visible_set(list->child, !extraction);
+#endif
 	solo_extraction_start_pending = FALSE;
 	level_list.extraction = extraction;
 	mcc_maps_rescan();
@@ -2176,7 +2206,9 @@ static void level_row_text(short level, wchar_t *text)
 static void level_list_update(struct widget_instance *list)
 {
 	struct widget_instance *description = list->parameters.list.extended_description;
-	short kind = map_kind_shown(list, TRUE, level_list.kind), count, entry, level;
+	short kind = level_list.extraction && HALO_MODE_FILTER ? MAP_KIND_CUSTOM_SINGLEPLAYER :
+		map_kind_shown(list, TRUE, level_list.kind);
+	short count, entry, level;
 
 	if (kind != level_list.kind)
 	{
@@ -2212,9 +2244,11 @@ static void level_list_update(struct widget_instance *list)
 	else if (kind != MAP_KIND_MULTIPLAYER)
 		map_view_update(&new_game_view, NONE);
 	/* (SINGLEPLAYER's levels, then the MCC catalog's campaign maps) */
-	count = kind == MAP_KIND_SINGLEPLAYER ? (short)(NUMBER_OF_SINGLE_PLAYER_LEVELS + mcc_level_count()) :
+	count = level_list.extraction && HALO_MODE_FILTER ? ui_map_list_play_mode_row(_ui_map_mode_extraction, NONE) :
+		kind == MAP_KIND_SINGLEPLAYER ? (short)(NUMBER_OF_SINGLE_PLAYER_LEVELS + mcc_level_count()) :
 		map_kind_count(kind, level_list.map_count);
 	entry = map_kind_rows_update(list, &level_list.first, count,
+		level_list.extraction && HALO_MODE_FILTER ? extraction_map_text :
 		kind == MAP_KIND_SINGLEPLAYER ? level_row_text :
 		kind == MAP_KIND_MULTIPLAYER ? level_map_row_text : map_kind_text(kind));
 	if (entry != NONE)
@@ -2227,7 +2261,10 @@ static void level_list_update(struct widget_instance *list)
 				(short)(level_list.chosen - MAP_VIEW_ROWS) : NONE);
 		else
 			map_kind_description_show(description, kind, level_list.map_count,
-				level_list.chosen < count ? level_list.chosen : NONE);
+				level_list.chosen >= count ? NONE : level_list.extraction && HALO_MODE_FILTER ?
+					ui_map_list_play_mode_row(_ui_map_mode_extraction, level_list.chosen) : level_list.chosen);
+		if (level_list.extraction && HALO_MODE_FILTER && !count)
+			map_mode_empty_description(description, _ui_map_mode_extraction);
 		profile_name_show(description);
 		return;
 	}
@@ -2294,7 +2331,9 @@ static boolean level_choose(struct widget_instance *list, short controller)
 	}
 	if (level_list.kind == MAP_KIND_CUSTOM_SINGLEPLAYER)
 	{
-		char const *map_name = custom_map_name(TRUE, level_list.map_count, level_list.chosen);
+		short index = level_list.extraction && HALO_MODE_FILTER ?
+			ui_map_list_play_mode_row(_ui_map_mode_extraction, level_list.chosen) : level_list.chosen;
+		char const *map_name = index == NONE ? NULL : custom_map_name(TRUE, level_list.map_count, index);
 
 		if (!map_name)
 			return campaign_fail();
@@ -5751,14 +5790,14 @@ static boolean multiplayer_player(short controller)
 the server made: an internet one (an invite, Discord) or a LAN one */
 static boolean forerunner_operation_chooser;
 static boolean forerunner_infection_chooser;
-static boolean forerunner_zombies_solo_chooser;
+static short forerunner_map_mode;
 
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
 	boolean *widget_deleted, boolean local_only, boolean campaign_chooser)
 {
 	forerunner_operation_chooser = FALSE;
 	forerunner_infection_chooser = FALSE;
-	forerunner_zombies_solo_chooser = FALSE;
+	forerunner_map_mode = _ui_map_mode_unspecified;
 	multiplayer_mode_set(widget);
 	if (!multiplayer_player(controller))
 		return FALSE;
@@ -5802,7 +5841,7 @@ enum
 
 static struct
 {
-	short kind, step;
+	short kind, step, play_mode;
 	/* hosting over the network, which co-op needs */
 	boolean hosting;
 	/* the multiplayer maps (ui_widget_port_multiplayer_maps: the Xbox's;
@@ -5820,7 +5859,8 @@ static short map_step_count(void)
 {
 	if (map_list.step == MAP_STEP_DIFFICULTIES)
 		return NUMBER_OF_GAME_DIFFICULTY_LEVELS;
-	return map_kind_count(map_list.kind, map_list.map_count);
+	return map_list.play_mode == _ui_map_mode_unspecified ?
+		map_kind_count(map_list.kind, map_list.map_count) : ui_map_list_play_mode_row(map_list.play_mode, NONE);
 }
 
 /* opens a step at the entry given */
@@ -5933,6 +5973,9 @@ static boolean map_list_initialize(struct widget_instance *list)
 	short mcc_kind = forerunner_operation_chooser ? NONE : map_list.kind;
 	boolean operation = forerunner_operation_chooser;
 
+	map_list.play_mode = HALO_MODE_FILTER ? forerunner_map_mode : _ui_map_mode_unspecified;
+	visible_set(list->child, map_list.play_mode == _ui_map_mode_unspecified);
+
 	/* Local Forge can host a campaign cache for editing using the native
 	 * co-op chooser. Ordinary local multiplayer keeps its map kinds. */
 	map_list.hosting = global_network_game_server_get() != NULL &&
@@ -5940,6 +5983,8 @@ static boolean map_list_initialize(struct widget_instance *list)
 	/* (the list found first, so that the view knows the sources it has) */
 	ui_widget_port_multiplayer_maps(&names, NULL);
 	map_view_open(&create_game_view);
+	if (map_list.play_mode == _ui_map_mode_survival)
+		ui_map_list_view_set(_ui_map_list_source_all, _ui_map_list_sort_default, "");
 	map_list.map_count = ui_widget_port_multiplayer_maps(&names, &last_used);
 	map_list.kind = MAP_KIND_MULTIPLAYER;
 	/* (a Halo PC map's kind, when it was one: a row past the Xbox's) */
@@ -5956,19 +6001,26 @@ static boolean map_list_initialize(struct widget_instance *list)
 			mcc_kind = MAP_KIND_MCC_SINGLEPLAYER;
 		last_used = 0;
 	}
-	/* The regular multiplayer list already includes detected CE maps. */
-	if (forerunner_zombies_solo_chooser && map_list.map_count > 0)
+	if (!HALO_MODE_FILTER && forerunner_map_mode == _ui_map_mode_survival &&
+		network_game_is_splitscreen_local() && map_list.map_count > 0)
 	{
 		map_list.kind = MAP_KIND_MULTIPLAYER;
 		mcc_kind = NONE;
 		last_used = 0;
 	}
-	forerunner_zombies_solo_chooser = FALSE;
+	if (map_list.play_mode != _ui_map_mode_unspecified)
+	{
+		map_list.kind = map_list.play_mode == _ui_map_mode_extraction ?
+			MAP_KIND_CUSTOM_SINGLEPLAYER : MAP_KIND_MULTIPLAYER;
+		mcc_kind = NONE;
+		last_used = 0;
+	}
 	forerunner_operation_chooser = FALSE;
 	map_kind_set(list, map_list.kind);
 	/* (MULTIPLAYER's maps after the view's rows) */
-	map_step_open(list, MAP_STEP_MAPS, map_list.kind == MAP_KIND_MULTIPLAYER ? (short)(MAP_VIEW_ROWS + last_used) :
-		last_used);
+	map_step_open(list, MAP_STEP_MAPS,
+		map_list.kind == MAP_KIND_MULTIPLAYER && map_list.play_mode == _ui_map_mode_unspecified ?
+			(short)(MAP_VIEW_ROWS + last_used) : last_used);
 	if (map_kind_mcc(mcc_kind) &&
 		((map_list.hosting && !forerunner_infection_chooser) || mcc_kind == MAP_KIND_MCC_MULTIPLAYER))
 	{
@@ -5989,7 +6041,9 @@ static void map_list_update(struct widget_instance *list)
 {
 	struct widget_instance *description = list->parameters.list.extended_description;
 	boolean allow_campaign = map_list.hosting && !forerunner_infection_chooser;
-	short kind = map_kind_shown(list, allow_campaign, map_list.kind), count, entry, shown;
+	short kind = map_list.play_mode != _ui_map_mode_unspecified ? map_list.kind :
+		map_kind_shown(list, allow_campaign, map_list.kind);
+	short count, entry, shown;
 
 	if (kind != map_list.kind)
 	{
@@ -6018,7 +6072,8 @@ static void map_list_update(struct widget_instance *list)
 		mcc_host_list_update(list);
 		return;
 	}
-	if (map_list.step == MAP_STEP_MAPS && kind == MAP_KIND_MULTIPLAYER)
+	if (map_list.step == MAP_STEP_MAPS && kind == MAP_KIND_MULTIPLAYER &&
+		map_list.play_mode == _ui_map_mode_unspecified)
 	{
 		if (map_view_update(&create_game_view, map_list.chosen))
 		{
@@ -6031,14 +6086,23 @@ static void map_list_update(struct widget_instance *list)
 		map_view_update(&create_game_view, NONE);
 	count = map_step_count();
 	entry = map_kind_rows_update(list, &map_list.first, count, map_list.step == MAP_STEP_DIFFICULTIES ?
-		map_difficulty_text : kind == MAP_KIND_SINGLEPLAYER ? map_level_text :
+		map_difficulty_text : map_list.play_mode == _ui_map_mode_extraction ? extraction_map_text :
+		map_list.play_mode == _ui_map_mode_survival ? survival_map_text :
+		kind == MAP_KIND_SINGLEPLAYER ? map_level_text :
 		kind == MAP_KIND_MULTIPLAYER ? map_map_row_text : map_kind_text(kind));
 	if (entry != NONE)
 		map_list.chosen = entry;
 	visible_set(named(description, "mp_map_right_item", 0), map_list.chosen < count);
 	/* (the map whose difficulties are listed, else the one chosen) */
 	shown = map_list.step == MAP_STEP_DIFFICULTIES ? map_list.level : map_list.chosen;
-	if (kind == MAP_KIND_SINGLEPLAYER)
+	if (map_list.play_mode != _ui_map_mode_unspecified)
+	{
+		map_kind_description_show(description, kind, map_list.map_count,
+			ui_map_list_play_mode_row(map_list.play_mode, shown));
+		if (!count)
+			map_mode_empty_description(description, map_list.play_mode);
+	}
+	else if (kind == MAP_KIND_SINGLEPLAYER)
 	{
 		map_description_show(description, shown, NONE);
 		level_description(description, "replay_level", shown, FALSE, NULL, NONE);
@@ -6084,12 +6148,24 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 #endif
 		/* the co-op game set up, then Server Setup in the gametypes' place */
 		if (!ui_widget_port_cooperative_level_choose(map_list.kind == MAP_KIND_SINGLEPLAYER ?
-			main_get_solo_level_name(map_list.level) : custom_map_name(TRUE, map_list.map_count, map_list.level),
+			main_get_solo_level_name(map_list.level) : custom_map_name(TRUE, map_list.map_count,
+				map_list.play_mode == _ui_map_mode_extraction ?
+					ui_map_list_play_mode_row(_ui_map_mode_extraction, map_list.level) : map_list.level),
 			chosen))
 		{
 			return campaign_fail();
 		}
 		return ui_widget_port_open(list, SERVER_SETUP_NAME, widget_deleted);
+	}
+	if (map_list.play_mode == _ui_map_mode_survival)
+	{
+		short index = ui_map_list_play_mode_row(_ui_map_mode_survival, chosen);
+#ifdef HALO_SPARK_MODE_RECEIPTS
+		char const *name = index == NONE ? NULL : ui_map_list_names()[index];
+		if (name && mcc_level_name(name))
+			return ui_widget_port_mcc_multiplayer_map_choose(name);
+#endif
+		return index != NONE && ui_widget_port_multiplayer_map_choose(index);
 	}
 	if (map_list.kind == MAP_KIND_MULTIPLAYER)
 	{
@@ -6250,7 +6326,7 @@ static boolean gametype_list_initialize(struct widget_instance *list)
 	short last, index;
 
 	multiplayer.gametype_count = ui_widget_port_gametypes(multiplayer.gametypes, MAXIMUM_GAMETYPES, &last);
-	if (forerunner_infection_chooser)
+	if (forerunner_infection_chooser || (HALO_MODE_FILTER && forerunner_map_mode == _ui_map_mode_survival))
 	{
 		for (index = 0; index < multiplayer.gametype_count; index++)
 		{
@@ -6259,11 +6335,16 @@ static boolean gametype_list_initialize(struct widget_instance *list)
 			struct game_variant_options options;
 
 			if (((unsigned long)profile & PLAYLIST_READ_ONLY_BIT) &&
-				playlist_profile_get(profile, &variant) && playlist_profile_get_options(profile, &options) &&
-				game_modes_variant_mode(&variant, &options) == _game_mode_infection)
+				playlist_profile_get(profile, &variant) && playlist_profile_get_options(profile, &options))
 			{
-				last = index;
-				break;
+				short mode = game_modes_variant_mode(&variant, &options);
+				if (forerunner_infection_chooser ? mode == _game_mode_infection :
+					mode == _game_mode_none && variant.game_engine_index == game_engine_slayer &&
+					!variant.universal_variant.teams)
+				{
+					last = index;
+					break;
+				}
 			}
 		}
 	}
@@ -14264,10 +14345,14 @@ boolean pc_menu_event_function_invoke(
 			else if (local_zombies || !strcmp(name, "port forerunner host zombies"))
 			{
 				map_list.kind = MAP_KIND_MCC_MULTIPLAYER;
-				forerunner_zombies_solo_chooser = local_zombies;
+				forerunner_map_mode = _ui_map_mode_survival;
 			}
 			else
+			{
 				forerunner_operation_chooser = TRUE;
+				if (mode == 2)
+					forerunner_map_mode = _ui_map_mode_extraction;
+			}
 			return TRUE;
 		}
 		else if (!strcmp(name, "port setup open"))

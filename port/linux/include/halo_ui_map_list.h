@@ -41,8 +41,16 @@ void ui_map_list_refresh(char *const *xbox_maps);
 	!defined(HALO_ANDROID) && !defined(HALO_IOS) && !defined(HALO_BROWSER) && !defined(HALO_WEB)
 #define HALO_SPARK_MODE_RECEIPTS
 #endif
-void ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
+enum
+{
+	_ui_map_mode_unspecified,
+	_ui_map_mode_extraction,
+	_ui_map_mode_survival
+};
+
+short ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
 	wchar_t *description, long size);
+short ui_map_list_play_mode_row(short mode, short row);
 
 /* the map choosers' view of the multiplayer maps: those of a source (where
 they come from), in an order, matching a search; the default view (all, the

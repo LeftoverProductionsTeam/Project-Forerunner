@@ -332,6 +332,7 @@ struct ui_map_entry
 	char path[MAP_PATH_LENGTH];
 	boolean picture_read;
 	boolean spark_receipt_pending;
+	short play_mode;
 	struct bitmap_data *picture;
 	/* its game's type in the lobby, for a row that has one of its own (a
 	campaign level's: co-op), else NULL */
@@ -486,7 +487,7 @@ static boolean spark_map_matches(char const *path, short version, boolean campai
 }
 
 static wchar_t const *spark_mode_description(struct server_json_document const *json,
-	char const *path, char const *base, short version, boolean campaign)
+	char const *path, char const *base, short version, boolean campaign, short *play_mode)
 {
 	static char const *const features[] = {
 		"extraction.squad_objectives.v1", "extraction.squad_begin.v1",
@@ -563,11 +564,17 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 		return L"Spark metadata\r\nmap mismatch";
 	if (version == 609 && !map_family_resources_ready(NULL, 0))
 		return L"Spark map needs\r\nCE resource banks";
+	/* Extraction launches through the current native CE co-op path.
+	 * Survival's chooser is the multiplayer path, including offline local. */
+	if (campaign && extraction && version == 609)
+		*play_mode = _ui_map_mode_extraction;
+	else if (!campaign && !strcmp(mode, "zombieSurvival"))
+		*play_mode = _ui_map_mode_survival;
 	return label;
 }
 #endif
 
-void ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
+short ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
 	wchar_t *description, long size)
 {
 #ifdef HALO_SPARK_MODE_RECEIPTS
@@ -575,6 +582,7 @@ void ui_map_list_spark_description(char const *path, short cache_version, boolea
 	char receipt[512], text[4096];
 	wchar_t previous[128];
 	wchar_t const *label = L"Invalid Spark\r\nmap metadata";
+	short play_mode = _ui_map_mode_unspecified;
 	struct server_json_document json;
 	size_t name_length = strlen(path);
 	char const *base = strrchr(path, '\\');
@@ -583,17 +591,17 @@ void ui_map_list_spark_description(char const *path, short cache_version, boolea
 
 	if (name_length < 5 || name_length - 4 + sizeof(suffix) > sizeof(receipt) ||
 		_stricmp(path + name_length - 4, ".map") || size <= 0)
-		return;
+		return _ui_map_mode_unspecified;
 	memcpy(receipt, path, name_length - 4);
 	memcpy(receipt + name_length - 4, suffix, sizeof(suffix));
 	file = fopen(receipt, "rb");
 	if (!file)
-		return;
+		return _ui_map_mode_unspecified;
 	length = fread(text, 1, sizeof(text), file);
 	if (!ferror(file) && length < sizeof(text) &&
 		server_json_parse_tokens(&json, text, (int)length, 4, 128))
 	{
-		label = spark_mode_description(&json, path, base ? base + 1 : path, cache_version, campaign);
+		label = spark_mode_description(&json, path, base ? base + 1 : path, cache_version, campaign, &play_mode);
 		server_json_document_free(&json);
 	}
 	fclose(file);
@@ -605,12 +613,14 @@ void ui_map_list_spark_description(char const *path, short cache_version, boolea
 		wide_append(description, size, L"\r\n\r\n");
 		wide_append(description, size, previous);
 	}
+	return play_mode;
 #else
 	(void)path;
 	(void)cache_version;
 	(void)campaign;
 	(void)description;
 	(void)size;
+	return _ui_map_mode_unspecified;
 #endif
 }
 
@@ -1537,7 +1547,11 @@ static void add_mcc_catalog_entry(
 	for an unknown level when there is none, ui_map_list_unknown_picture) */
 	add_entry(level, display_name, lobby_name, description, NONE, (short)(MCC_MAPS_FIRST_DISPLAY_INDEX + index));
 	if (ui_map_list_count_value && !strcmp(ui_map_list[ui_map_list_count_value - 1].map_name, level))
-		pane_name_wrap(ui_map_list[ui_map_list_count_value - 1].pane_name, name, PANE_NAME_LINE, PANE_NAME_LINES);
+	{
+		struct ui_map_entry *entry = &ui_map_list[ui_map_list_count_value - 1];
+		entry->play_mode = mcc_maps_play_mode(index);
+		pane_name_wrap(entry->pane_name, name, PANE_NAME_LINE, PANE_NAME_LINES);
+	}
 }
 
 /* the files found of a family's maps, while the list is filled */
@@ -2393,6 +2407,46 @@ short ui_map_list_unknown_picture(
 	return 9;
 }
 
+static void entry_check_spark_mode(struct ui_map_entry *entry, boolean campaign)
+{
+	if (entry->spark_receipt_pending)
+	{
+		entry->spark_receipt_pending = FALSE;
+		entry->play_mode = ui_map_list_spark_description(entry->path, 609, campaign,
+			entry->description, DESCRIPTION_LENGTH);
+	}
+}
+
+/* Filtered rows retain native catalog identities and their existing cards. */
+short ui_map_list_play_mode_row(short mode, short row)
+{
+#ifdef HALO_SPARK_MODE_RECEIPTS
+	static short rows[MAXIMUM_MAP_LIST];
+	static short last_mode, matched;
+	static unsigned long serial;
+	boolean campaign = mode == _ui_map_mode_extraction;
+	long count = campaign ? ui_map_list_campaign_count() : ui_map_list_count();
+	if (serial != view.serial || last_mode != mode)
+	{
+		long index;
+		last_mode = mode;
+		serial = view.serial;
+		matched = 0;
+		for (index = 0; index < count; index++)
+		{
+			struct ui_map_entry *entry = campaign ? &ui_campaign_list[index] : ROW(index);
+			entry_check_spark_mode(entry, campaign);
+			if (entry->play_mode == mode)
+				rows[matched++] = (short)index;
+		}
+	}
+	return row == NONE ? matched : VALID_INDEX(row, matched) ? rows[row] : NONE;
+#else
+	(void)mode;
+	return row == NONE ? 0 : NONE;
+#endif
+}
+
 /* the text of a string list index of this list's (UI_MAP_LIST_STRING_BASE
 and up, the campaign maps' from UI_MAP_LIST_CAMPAIGN_STRING_BASE), or NULL
 for any other */
@@ -2427,12 +2481,7 @@ wchar_t const *ui_map_list_text(
 	switch (kind)
 	{
 	case _ui_map_list_string_description:
-		if (entry->spark_receipt_pending)
-		{
-			entry->spark_receipt_pending = FALSE;
-			ui_map_list_spark_description(entry->path, 609,
-				string_list_index >= UI_MAP_LIST_CAMPAIGN_STRING_BASE, entry->description, DESCRIPTION_LENGTH);
-		}
+		entry_check_spark_mode(entry, string_list_index >= UI_MAP_LIST_CAMPAIGN_STRING_BASE);
 		return entry->description;
 	case _ui_map_list_string_lobby_name:
 		return entry->lobby_name;
