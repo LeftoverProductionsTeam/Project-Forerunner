@@ -75,7 +75,8 @@ struct object_datum {
 #define unit_datum object_datum
 #define _object_mask_vehicle FLAG(_object_type_vehicle)
 #define _object_mask_biped FLAG(_object_type_biped)
-enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6, _object_type_scenery=7, _object_type_light_fixture=8, _object_type_sound_scenery=9};
+enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6, _object_type_scenery=7, _object_type_light_fixture=8, _object_type_sound_scenery=9, _object_type_projectile=10};
+#define _object_mask_projectile FLAG(_object_type_projectile)
 #define _object_mask_machine FLAG(_object_type_machine)
 #define _object_mask_control FLAG(_object_type_control)
 #define _object_mask_scenery FLAG(_object_type_scenery)
@@ -288,6 +289,7 @@ static struct object_datum *object_iterator_next(struct object_iterator *it)
 }
 static short game_engine_object_recorded_bsp(long index,short type);
 static real distance_squared3d(real_point3d const *a, real_point3d const *b);
+static boolean scenario_trigger_volume_test_point(short volume, real_point3d const *point);
 #include "players.inc"
 #undef NUMBEROF
 #undef csmemset
@@ -315,6 +317,7 @@ static void game_engine_record_regional_object(long index,struct object_datum co
 #include "item_structure_support.inc"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
+static short object_disconnected_bsp=NONE;
 #include "objects.inc"
 #pragma clang diagnostic pop
 static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;objects_disconnect_from_structure_bsp();}
@@ -343,6 +346,8 @@ static void structure_decals_update(unsigned long *old,unsigned long *current,sh
     CHECK(*old==0&&*current==2&&clusters==2,"old region visibility used for new decals");
     decals++;
 }
+#define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
+boolean game_engine_object_parked(long object_index, short type);
 #include "bsp_activation.inc"
 static int test_destination_activation(void)
 {
@@ -702,7 +707,6 @@ static void distributed_send(void *message, byte type, word count, word size, in
 #define PLAYER_TRAIL_INTERVAL_TICKS 10
 
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
-#define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
 #include "bsp_receive.inc"
 #undef DATUM_INDEX_NEW
 #include "bsp_damage_history.inc"
@@ -1093,6 +1097,60 @@ int main(int argc,char **argv)
         parked_ai_unit=NONE;
         CHECK(!object_simulation_is_parked(handle,body),
               "an active or unbound actor cannot resume native object updates");
+        return 0;
+    }
+    if (!strcmp(name, "regional-projectiles"))
+    {
+        struct object_datum *round=&objects[2], *parked=&objects[3];
+        struct location destination_location={0,1,0};
+        struct location obstructed={NONE,NONE,0};
+        memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
+        round->object.type=parked->object.type=_object_type_projectile;
+        round->object.flags=parked->object.flags=FLAG(_object_connected_to_map_bit);
+        round->object.location.cluster_index=parked->object.location.cluster_index=0;
+        round->object.bounding_sphere_center.x=1.f;
+        parked->object.bounding_sphere_center.x=3.f;
+        scenario.type=_scenario_type_multiplayer;
+        mcc_loaded=TRUE;
+        global_structure_bsp_index=old;
+        objects_disconnect_from_structure_bsp();
+        CHECK(object_disconnected_bsp==old &&
+              game_engine_object_recorded_bsp(units[2],_object_type_projectile)==old &&
+              game_engine_object_recorded_bsp(units[3],_object_type_projectile)==old,
+              "disconnect failed to record projectile ownership");
+        global_structure_bsp_index=destination;
+
+        object_transfer_regional_projectile(units[2],round,object_disconnected_bsp,destination,&destination_location);
+        CHECK(game_engine_object_parked(units[2],_object_type_projectile),
+              "a marked player transition moved a projectile");
+        switches[0].cutscene_flag_index=NONE;
+        object_transfer_regional_projectile(units[2],round,old,destination,&obstructed);
+        CHECK(game_engine_object_parked(units[2],_object_type_projectile),
+              "a projectile crossed without a destination leaf");
+        object_transfer_regional_projectile(units[2],round,old,destination,&destination_location);
+        CHECK(game_engine_object_recorded_bsp(units[2],_object_type_projectile)==destination,
+              "a projectile in the native continuous seam lost its destination ownership");
+
+        object_transfer_regional_projectile(units[3],parked,old,destination,&destination_location);
+        parked->object.flags|=FLAG(_object_outside_of_map_bit)|FLAG(_object_deleted_when_deactivated_bit);
+        CHECK(object_simulation_is_parked(units[3],parked),
+              "an off-route projectile resumed in overlapping destination geometry");
+        activation_headers[3].identifier=(short)(units[3]>>16);
+        activation_headers[3].cluster_index=NONE;
+        activation_headers[3].datum=parked;
+        activation_headers[3].flags=FLAG(_object_header_automatically_deactivate_bit)|FLAG(_object_header_connected_to_map_bit);
+        global_structure_bsp=&structures[0];
+        structures[0].clusters.count=2;
+        players_globals->combined_pvs[0]=2;
+        object_bsp_activation_pending=TRUE;
+        objects_update_cluster_activation();
+        CHECK(!deletions&&!activations,"destination PVS expired a parked projectile");
+        global_structure_bsp_index=old;
+        activation_headers[3].cluster_index=1;
+        object_bsp_activation_pending=TRUE;
+        objects_update_cluster_activation();
+        CHECK(!object_simulation_is_parked(units[3],parked)&&activations==FLAG(3)&&!deletions,
+              "a parked projectile did not resume in its source region");
         return 0;
     }
     if (!strcmp(name, "regional-triggers"))

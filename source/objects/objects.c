@@ -240,6 +240,7 @@ static struct memory_pool *object_memory_pool = NULL;
 static struct object_globals *object_globals = NULL;
 /* Cluster indices in the previous BSP's mask have no meaning in the next. */
 static boolean object_bsp_activation_pending;
+static short object_disconnected_bsp = NONE;
 /* port: (by the object's absolute index) */
 static struct object_function_inputs object_function_inputs[MAXIMUM_OBJECTS_PER_MAP];
 
@@ -1137,6 +1138,7 @@ void objects_initialize_for_new_map(
 	memset(object_globals->last_active_cluster_bits, 0, sizeof(object_globals->last_active_cluster_bits));
 	memset(object_globals->active_cluster_bits, 0, sizeof(object_globals->active_cluster_bits));
 	object_bsp_activation_pending = FALSE;
+	object_disconnected_bsp = NONE;
 	object_globals->pvs_activation_type = 0;
 	object_globals->object_marker_initialized = FALSE;
 	global_object_marker = 0;
@@ -1881,6 +1883,7 @@ void objects_disconnect_from_structure_bsp(
 
 	if (scenario && scenario_uses_regional_gameplay(scenario))
 		source_bsp = global_structure_bsp_index_get();
+	object_disconnected_bsp = source_bsp;
 
 	/* port: a camera/network cluster number belongs to the BSP being left.
 	 * Keeping it can address an unrelated or nonexistent PVS row after loading.
@@ -2500,13 +2503,25 @@ void objects_bind_cluster_partition_bsp(short structure_bsp_index)
 	noncollideable_object_cluster_partition.port_structure_bsp_index = structure_bsp_index;
 }
 
+static void object_transfer_regional_projectile(long object_index, struct object_datum const *object,
+	short from, short to, struct location const *destination)
+{
+	if (object->object.type == _object_type_projectile && from != NONE && from != to &&
+		destination->cluster_index != NONE && game_engine_object_recorded_bsp(object_index, _object_type_projectile) == from &&
+		players_position_crosses_bsp_route(from, to, &object->object.bounding_sphere_center))
+		game_engine_record_regional_object(object_index, object, to);
+}
+
 void objects_reconnect_to_structure_bsp(
 	void)
 {
 	struct object_datum *object;
 
 	struct object_iterator iterator;
+	short from = object_disconnected_bsp;
+	short to = global_structure_bsp_index_get();
 
+	object_disconnected_bsp = NONE;
 	object_bsp_activation_pending = TRUE;
 	object_iterator_new(&iterator, _object_mask_all, 0);
 	
@@ -2517,12 +2532,11 @@ void objects_reconnect_to_structure_bsp(
 		{
 			struct location scenario_location;
 
+			scenario_location_from_point(&scenario_location, &object->object.bounding_sphere_center);
+			object_transfer_regional_projectile(iterator.index, object, from, to, &scenario_location);
 			SET_FLAG(object->object.flags, _object_connected_to_map_bit, FALSE);
-			
 			object->object.location.cluster_index = NONE;
 			object_header_get(iterator.index)->cluster_index = NONE;
-		
-			scenario_location_from_point(&scenario_location, &object->object.bounding_sphere_center);
 			if (scenario_location.cluster_index==NONE)
 			{
 				struct collision_bsp_test_sphere_result result;
@@ -4126,7 +4140,7 @@ static boolean object_simulation_is_parked(long object_index, struct object_datu
 	return object->object.parent_object_index == NONE &&
 		(TEST_FLAG(_object_mask_device, object->object.type) ||
 		 (object->object.type == _object_type_biped && TEST_FLAG(object->object.damage_flags, _object_dead_bit)) ||
-		 (TEST_FLAG(_object_mask_item | _object_mask_vehicle | _object_mask_biped, object->object.type) &&
+		 (TEST_FLAG(_object_mask_item | _object_mask_vehicle | _object_mask_biped | _object_mask_projectile, object->object.type) &&
 		  TEST_FLAG(object->object.flags, _object_outside_of_map_bit))) &&
 		game_engine_object_parked(object_index, object->object.type);
 }
@@ -4840,8 +4854,11 @@ static void objects_update_cluster_activation(void)
 
 		active = TEST_FLAG(object_header->flags, _object_header_active_bit);
 		child = TEST_FLAG(object_header->flags, _object_header_child_bit);
-		/* Switches reconnect roots. Their attached children follow their owners. */
-		if (refresh && child)
+		/* Switches reconnect roots. Their attached children follow their owners.
+		 * Parked projectiles have no active cluster and retain their native timers. */
+		if ((refresh && child) ||
+			(object_header->datum->object.type == _object_type_projectile &&
+			 game_engine_object_parked(DATUM_INDEX_NEW(i, object_header->identifier), _object_type_projectile)))
 			continue;
 		in_pvs = object_header->cluster_index >= 0 && object_header->cluster_index < cluster_count &&
 			BIT_VECTOR_TEST_FLAG(active_cluster_bits, object_header->cluster_index);

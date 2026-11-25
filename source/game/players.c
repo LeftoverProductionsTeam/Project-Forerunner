@@ -3718,10 +3718,10 @@ static boolean player_in_bsp_switch_volume(
 		volume->cutscene_flag_index == NONE && network_synchronizes_structure_bsp() ? root_index : unit_index);
 }
 
-/* Parallel markerless routes can lead to the same loaded BSP. */
-static boolean player_bsp_continuous_route_contains(
-	struct scenario_bsp_switch_trigger_volume const *selected,
-	long root_index)
+/* Parallel markerless routes can lead to the same loaded BSP. Use the
+ * raw position for rounds still bound to the previous scene. */
+static boolean continuous_bsp_route_contains(short source_bsp, short destination_bsp,
+	long root_index, real_point3d const *position)
 {
 	struct tag_block *volumes = &global_scenario_get()->bsp_switch_trigger_volumes;
 	short index;
@@ -3732,12 +3732,25 @@ static boolean player_bsp_continuous_route_contains(
 			TAG_BLOCK_GET_ELEMENT(volumes, index, struct scenario_bsp_switch_trigger_volume);
 
 		if (route->cutscene_flag_index == NONE &&
-			route->source_structure_bsp_index == selected->source_structure_bsp_index &&
-			route->destination_structure_bsp_index == selected->destination_structure_bsp_index &&
-			scenario_trigger_volume_test_object(route->trigger_volume_index, root_index))
+			route->source_structure_bsp_index == source_bsp &&
+			route->destination_structure_bsp_index == destination_bsp &&
+			(position ? scenario_trigger_volume_test_point(route->trigger_volume_index, position) :
+			 scenario_trigger_volume_test_object(route->trigger_volume_index, root_index)))
 			return TRUE;
 	}
 	return FALSE;
+}
+
+static boolean player_bsp_continuous_route_contains(
+	struct scenario_bsp_switch_trigger_volume const *selected, long root_index)
+{
+	return continuous_bsp_route_contains(selected->source_structure_bsp_index,
+		selected->destination_structure_bsp_index, root_index, NULL);
+}
+
+boolean players_position_crosses_bsp_route(short source_bsp, short destination_bsp, real_point3d const *position)
+{
+	return continuous_bsp_route_contains(source_bsp, destination_bsp, NONE, position);
 }
 
 static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_continuous_bsp_switch(
