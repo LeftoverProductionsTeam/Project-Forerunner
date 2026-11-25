@@ -467,6 +467,7 @@ static void regional_respawn(void)
  long rider=make(2,0);
  long replacement;
 
+ get(vehicle)->object.type=_object_type_vehicle;
  get(vehicle)->object.position.x=10;
  get(vehicle)->object.name_index=7;
  get(rider)->object.type=_object_type_biped;
@@ -525,6 +526,17 @@ static void regional_respawn(void)
  get(vehicle)->object.first_child_object_index=NONE;
  now+=TICKS_PER_SECOND;
  game_engine_update_vehicle_respawn();
+
+ regional_vehicle=vehicle;
+ regional_vehicle_bsp=1;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(vehicle)&&!new_count&&game_engine_vehicle_homes[0].idle_since==NONE&&
+       object_index_from_name_index(7)==vehicle,"respawn deleted a working vehicle parked across the seam");
+ regional_vehicle_bsp=0;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(game_engine_vehicle_homes[0].idle_since==now,"did not resume the timer after the vehicle returned");
 
  allocation_failed=TRUE;
  now+=TICKS_PER_SECOND;

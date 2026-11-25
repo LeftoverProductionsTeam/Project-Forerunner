@@ -5700,7 +5700,11 @@ static void game_engine_update_vehicle_respawn(
 		vehicle = unit_try_and_get(object_index);
 		if (vehicle && !TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit))
 		{
-			waiting = game_engine_vehicle_away(index, &vehicle->object.position) && game_engine_vehicle_empty(vehicle);
+			short bsp = structure ? game_engine_object_recorded_bsp(object_index, _object_type_vehicle) : NONE;
+
+			/* A live vehicle parked in another region can be recovered on return. */
+			waiting = (bsp == NONE || bsp == active_bsp) &&
+				game_engine_vehicle_away(index, &vehicle->object.position) && game_engine_vehicle_empty(vehicle);
 		}
 		if (!waiting)
 			game_engine_vehicle_homes[index].idle_since = NONE;
