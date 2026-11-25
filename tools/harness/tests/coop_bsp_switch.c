@@ -792,7 +792,8 @@ static struct game_engine_regional_object {
 #define _object_mask_item FLAG(_object_type_weapon)
 static struct object_datum *unit_get(long index) {return object_get(index);}
 static boolean game_engine_vehicle_parked(long index) {return FALSE;}
-static boolean ai_unit_belongs_to_other_bsp(long index) {return FALSE;}
+static long parked_ai_unit=NONE;
+static boolean ai_unit_belongs_to_other_bsp(long index) {return index==parked_ai_unit;}
 #include "regional_equipment.inc"
 
 struct device_datum { struct { short type; } object; };
@@ -1072,6 +1073,16 @@ int main(int argc,char **argv)
         body->object.damage_flags=0;
         CHECK(!game_engine_object_parked(handle,_object_type_biped),
               "revival inherited the corpse's region");
+        parked_ai_unit=handle;
+        CHECK(object_simulation_is_parked(handle,body),
+              "a disconnected encounter actor still runs physics in the active BSP");
+        body->object.parent_object_index=units[0];
+        CHECK(!object_simulation_is_parked(handle,body),
+              "a seated actor lost its native parent update");
+        body->object.parent_object_index=NONE;
+        parked_ai_unit=NONE;
+        CHECK(!object_simulation_is_parked(handle,body),
+              "an active or unbound actor cannot resume native object updates");
         return 0;
     }
     if (!strcmp(name, "regional-loose-objects"))

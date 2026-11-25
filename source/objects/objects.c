@@ -4120,13 +4120,13 @@ static int object_update_perf_phase(
 #endif
 
 /* Parked roots are disconnected from collision in the active BSP. Keep
- * their motion and item detonation timers until their own BSP resumes. */
+ * their motion and timers until their own BSP resumes. */
 static boolean object_simulation_is_parked(long object_index, struct object_datum const *object)
 {
 	return object->object.parent_object_index == NONE &&
 		(TEST_FLAG(_object_mask_device, object->object.type) ||
 		 (object->object.type == _object_type_biped && TEST_FLAG(object->object.damage_flags, _object_dead_bit)) ||
-		 (TEST_FLAG(_object_mask_item | _object_mask_vehicle, object->object.type) &&
+		 (TEST_FLAG(_object_mask_item | _object_mask_vehicle | _object_mask_biped, object->object.type) &&
 		  TEST_FLAG(object->object.flags, _object_outside_of_map_bit))) &&
 		game_engine_object_parked(object_index, object->object.type);
 }
