@@ -22,6 +22,7 @@ list, loader, resource directory or display index is used here.
 #include "errors.h"
 #include "mcc_cache_format.h"
 #include "mcc_maps.h"
+#include "halo_ui_map_list.h"
 #include "mcc_menu_preview.h"
 #include "mcc_cache.h"
 #include "mcc_identity.h"
@@ -51,6 +52,7 @@ struct mcc_menu_map
 	wchar_t name[64];
 	wchar_t description[MCC_MAP_DESCRIPTION_MAXIMUM + 1];
 	boolean campaign, titled;
+	boolean spark_description_checked;
 	short mission_order, next_state;
 	char next_mission[64];
 	char campaign_title[64];
@@ -708,8 +710,21 @@ wchar_t const *mcc_maps_name(short index)
 
 wchar_t const *mcc_maps_description(short index)
 {
+	struct mcc_menu_map *map;
 	mcc_maps_scan();
-	return index >= 0 && index < mcc_menu_catalog.count ? mcc_menu_catalog.maps[index].description : L"";
+	if (index < 0 || index >= mcc_menu_catalog.count)
+		return L"";
+	map = &mcc_menu_catalog.maps[index];
+#ifdef HALO_SPARK_MODE_RECEIPTS
+	if (!map->spark_description_checked)
+	{
+		char path[128];
+		map->spark_description_checked = TRUE;
+		if (mcc_package_map_path(map->level_name, path))
+			ui_map_list_spark_description(path, 13, map->campaign, map->description, NUMBEROF(map->description));
+	}
+#endif
+	return map->description;
 }
 
 boolean mcc_maps_campaign(short index)

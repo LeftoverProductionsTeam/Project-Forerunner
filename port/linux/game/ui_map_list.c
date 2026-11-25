@@ -74,6 +74,11 @@ is fetched (its page shows the pictures itself: online_client.js).
 #include "halomd_map_names.h"
 #include "mcc_maps.h"
 
+#ifdef HALO_SPARK_MODE_RECEIPTS
+#include "../src/server_json.h"
+#include "mcc_sha256.h"
+#endif
+
 /* Halo PC's multiplayer maps, in the order of its map list (its strings and
 pictures), and an Xbox map of the same kind whose picture stands in
 without Halo PC's ui.map */
@@ -326,6 +331,7 @@ struct ui_map_entry
 	description are; its own picture, once read (NULL if it cannot be shown) */
 	char path[MAP_PATH_LENGTH];
 	boolean picture_read;
+	boolean spark_receipt_pending;
 	struct bitmap_data *picture;
 	/* its game's type in the lobby, for a row that has one of its own (a
 	campaign level's: co-op), else NULL */
@@ -438,6 +444,173 @@ static void wide_from_text(
 	for (index = 0; index < size - 1 && source[index]; index++)
 		destination[index] = (wchar_t)(unsigned char)source[index];
 	destination[index] = 0;
+}
+
+#ifdef HALO_SPARK_MODE_RECEIPTS
+/* Hash the exact file, including its header. The native catalog and loader
+ * still own scenario admission and resource selection. */
+static boolean spark_map_matches(char const *path, short version, boolean campaign, char const *expected)
+{
+	static char const hex[] = "0123456789abcdef";
+	struct mcc_sha256 hash;
+	unsigned char buffer[32768], digest[32];
+	char actual[65];
+	FILE *file = fopen(path, "rb");
+	size_t read, index;
+	boolean valid;
+
+	if (!file)
+		return FALSE;
+	read = fread(buffer, 1, 0x64, file);
+	valid = read == 0x64 && !memcmp(buffer, "daeh", 4) &&
+		buffer[4] == (version & 255) && buffer[5] == (version >> 8) && !buffer[6] && !buffer[7] &&
+		buffer[0x60] == (campaign ? 0 : 1) && !buffer[0x61];
+	if (valid)
+	{
+		mcc_sha256_begin(&hash);
+		mcc_sha256_add(&hash, buffer, (int)read);
+		while ((read = fread(buffer, 1, sizeof(buffer), file)) > 0)
+			mcc_sha256_add(&hash, buffer, (int)read);
+		valid = !ferror(file);
+		mcc_sha256_end(&hash, digest);
+		for (index = 0; index < sizeof(digest); index++)
+		{
+			actual[index * 2] = hex[digest[index] >> 4];
+			actual[index * 2 + 1] = hex[digest[index] & 15];
+		}
+		actual[64] = 0;
+		valid = valid && !strcmp(actual, expected);
+	}
+	fclose(file);
+	return valid;
+}
+
+static wchar_t const *spark_mode_description(struct server_json_document const *json,
+	char const *path, char const *base, short version, boolean campaign)
+{
+	static char const *const features[] = {
+		"extraction.squad_objectives.v1", "extraction.squad_begin.v1",
+		"extraction.faction_landing_zones.v1", "extraction.pelican_return_pad.v1",
+		"extraction.squad_notices.v1", "extraction.squad_radio.v1"
+	};
+	char filename[128], expected[65], mode[24], scenario[512], value[96];
+	double schema, cache_version, scenario_type;
+	int banks = server_json_member(json, 0, "requiredResourceBanks");
+	int native = server_json_member(json, 0, "requiredNativeFeatures");
+	int settings = server_json_member(json, 0, "runtimeSettings");
+	int index, token, enabled;
+	boolean extraction, scripted;
+	wchar_t const *label;
+
+	if (!server_json_get_number(json, server_json_member(json, 0, "schemaVersion"), &schema) || schema != 1 ||
+		!server_json_get_number(json, server_json_member(json, 0, "cacheVersion"), &cache_version) || cache_version != version ||
+		!server_json_get_number(json, server_json_member(json, 0, "scenarioType"), &scenario_type) ||
+		scenario_type != (campaign ? 0 : 1) ||
+		!server_json_get_string(json, server_json_member(json, 0, "scenarioPath"), scenario, sizeof(scenario)) ||
+		!scenario[0] ||
+		!server_json_get_string(json, server_json_member(json, 0, "fileName"), filename, sizeof(filename)) ||
+		strcmp(filename, base) ||
+		!server_json_get_string(json, server_json_member(json, 0, "cacheSha256"), expected, sizeof(expected)) ||
+		strspn(expected, "0123456789abcdef") != 64 ||
+		!server_json_get_string(json, server_json_member(json, 0, "mode"), mode, sizeof(mode)) ||
+		banks < 0 || json->tokens[banks].type != _server_json_array ||
+		native < 0 || json->tokens[native].type != _server_json_array ||
+		settings < 0 || json->tokens[settings].type != _server_json_object)
+		return L"Invalid Spark\r\nmap metadata";
+
+	extraction = !strcmp(mode, "extraction");
+	scripted = extraction || !strcmp(mode, "firefight") || !strcmp(mode, "zombieSurvival");
+	if (json->tokens[settings].size != (extraction ? 2 : scripted ? 1 : 0))
+		return L"Unsupported Spark\r\nmode settings";
+	if (scripted &&
+		(!server_json_get_boolean(json, server_json_member(json, settings, "network.firefight_encounter"), &enabled) || enabled))
+		return L"Unsupported Spark\r\nmode settings";
+	if (extraction &&
+		(!server_json_get_boolean(json, server_json_member(json, settings, "game.extraction"), &enabled) || !enabled))
+		return L"Unsupported Spark\r\nmode settings";
+
+	if (campaign && extraction)
+		label = L"Spark Extraction";
+	else if (campaign && !strcmp(mode, "firefight"))
+		label = L"Spark Firefight";
+	else if (!strcmp(mode, "zombieSurvival"))
+		label = L"Spark Zombie\r\nSurvival";
+	else if (campaign && !strcmp(mode, "campaign"))
+		label = L"Spark Campaign";
+	else if (!campaign && !strcmp(mode, "multiplayer"))
+		label = L"Spark Multiplayer";
+	else
+		return L"Unsupported\r\nSpark mode";
+
+	for (index = 0; (token = server_json_element(json, native, index)) >= 0; index++)
+	{
+		size_t feature = 0;
+		if (!extraction || !server_json_get_string(json, token, value, sizeof(value)))
+			return L"Unsupported Spark\r\nnative requirement";
+		while (feature < NUMBEROF(features) && strcmp(features[feature], value))
+			feature++;
+		if (feature == NUMBEROF(features))
+			return L"Unsupported Spark\r\nnative requirement";
+	}
+	for (index = 0; (token = server_json_element(json, banks, index)) >= 0; index++)
+	{
+		if (version != 609 || !server_json_get_string(json, token, value, sizeof(value)) ||
+			(strcmp(value, "bitmaps.map") && strcmp(value, "sounds.map") && strcmp(value, "loc.map")))
+			return L"Unsupported Spark\r\nresource bank";
+	}
+	if (!spark_map_matches(path, version, campaign, expected))
+		return L"Spark metadata\r\nmap mismatch";
+	if (version == 609 && !map_family_resources_ready(NULL, 0))
+		return L"Spark map needs\r\nCE resource banks";
+	return label;
+}
+#endif
+
+void ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
+	wchar_t *description, long size)
+{
+#ifdef HALO_SPARK_MODE_RECEIPTS
+	static char const suffix[] = ".spark-mode.json";
+	char receipt[512], text[4096];
+	wchar_t previous[128];
+	wchar_t const *label = L"Invalid Spark\r\nmap metadata";
+	struct server_json_document json;
+	size_t name_length = strlen(path);
+	char const *base = strrchr(path, '\\');
+	FILE *file;
+	size_t length;
+
+	if (name_length < 5 || name_length - 4 + sizeof(suffix) > sizeof(receipt) ||
+		_stricmp(path + name_length - 4, ".map") || size <= 0)
+		return;
+	memcpy(receipt, path, name_length - 4);
+	memcpy(receipt + name_length - 4, suffix, sizeof(suffix));
+	file = fopen(receipt, "rb");
+	if (!file)
+		return;
+	length = fread(text, 1, sizeof(text), file);
+	if (!ferror(file) && length < sizeof(text) &&
+		server_json_parse_tokens(&json, text, (int)length, 4, 128))
+	{
+		label = spark_mode_description(&json, path, base ? base + 1 : path, cache_version, campaign);
+		server_json_document_free(&json);
+	}
+	fclose(file);
+
+	wide_copy(previous, NUMBEROF(previous), description);
+	wide_copy(description, size, label);
+	if (previous[0])
+	{
+		wide_append(description, size, L"\r\n\r\n");
+		wide_append(description, size, previous);
+	}
+#else
+	(void)path;
+	(void)cache_version;
+	(void)campaign;
+	(void)description;
+	(void)size;
+#endif
 }
 
 #ifdef HALO_CUSTOM_EDITION
@@ -1224,6 +1397,7 @@ static void add_pc_entry(
 		return;
 	if (beside_description_read(entry->path, own_description, DESCRIPTION_LENGTH))
 		wide_copy(entry->description, DESCRIPTION_LENGTH, own_description);
+	entry->spark_receipt_pending = family == _map_family_custom_edition;
 	if (beside_picture_present(entry->path))
 	{
 		entry->picture_index = (short)((campaign ? UI_MAP_LIST_CAMPAIGN_PICTURE_BASE : UI_MAP_LIST_ROW_PICTURE_BASE) +
@@ -2252,6 +2426,12 @@ wchar_t const *ui_map_list_text(
 	switch (kind)
 	{
 	case _ui_map_list_string_description:
+		if (entry->spark_receipt_pending)
+		{
+			entry->spark_receipt_pending = FALSE;
+			ui_map_list_spark_description(entry->path, 609,
+				string_list_index >= UI_MAP_LIST_CAMPAIGN_STRING_BASE, entry->description, DESCRIPTION_LENGTH);
+		}
 		return entry->description;
 	case _ui_map_list_string_lobby_name:
 		return entry->lobby_name;

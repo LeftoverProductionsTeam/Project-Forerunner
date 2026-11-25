@@ -1601,6 +1601,24 @@ objectives and HUD messages for round feedback and the existing pause menu for
 restart and exit. These globals remain separate from negotiated runtime
 operations; discovery remains read-only.
 
+Spark's Build & Playtest export can place a schema-1
+`<basename>.spark-mode.json` beside an installed CE609 or MCC13 map. The
+native CE and MCC catalog previews show the authored mode after checking the
+receipt filename, cache version, scenario type, exact cache SHA-256, and the
+supported native requirements and mode settings. Original descriptions follow
+the Spark annotation. An invalid or stale receipt shows the reason in the
+preview. Receipt fields do not change configuration or bypass native admission.
+Classic maps without a receipt still use their existing catalog and loader.
+Choose the corresponding gameplay menu to start the map.
+
+Native Win64 checks identified renamed CE `ash bridge` and renamed MCC
+`dust echo` as Firefight and displayed a hash mismatch on the deliberately
+stale CE receipt. The renamed MCC map spawned with its own HaloScript wave
+controller. The renamed CE Black Echo `26be7e13` displayed Spark Extraction,
+and Win64 `c164e287b82e1825721aa480a5676659d35476d8662a42515787be3626065137`
+entered its native hub through Extraction → Play Solo with internet play off.
+This was map discovery and startup coverage, not mission or co-op acceptance.
+
 Spark's authored Firefight CE609
 `95599caa307aa24fd29fe5ed069a8c91986287ee57703673af0a364963a434f1`
 appeared as Native Solo Firefight Acceptanc [CE] on Win64

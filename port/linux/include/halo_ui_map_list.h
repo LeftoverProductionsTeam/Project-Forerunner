@@ -36,6 +36,14 @@ enum
 /* the list anew: the game's thirteen Xbox map names, then those found */
 void ui_map_list_refresh(char *const *xbox_maps);
 
+/* Desktop Spark export receipts annotate the existing cache catalogs. */
+#if defined(HALO_CUSTOM_EDITION) && !defined(HALO_CONSOLE) && !defined(HALO_SERVER) && \
+	!defined(HALO_ANDROID) && !defined(HALO_IOS) && !defined(HALO_BROWSER) && !defined(HALO_WEB)
+#define HALO_SPARK_MODE_RECEIPTS
+#endif
+void ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
+	wchar_t *description, long size);
+
 /* the map choosers' view of the multiplayer maps: those of a source (where
 they come from), in an order, matching a search; the default view (all, the
 list's own order, no search) is the list as it is built. The rows below
