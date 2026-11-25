@@ -188,6 +188,12 @@ static long object_get_ultimate_parent(long unit)
         unit=objects[slot(unit)].object.parent_object_index;
     return unit;
 }
+static long regional_test_root = NONE;
+static short regional_test_root_bsp = NONE;
+static short object_get_regional_bsp(long object)
+{
+    return object == regional_test_root ? regional_test_root_bsp : NONE;
+}
 static long scenario_leaf_index_from_point(real_point3d const *p) {return p->x<200?0:NONE;}
 static long game_time_get(void) {return ticks;}
 static boolean player_input_enabled(void) {return TRUE;}
@@ -1139,6 +1145,22 @@ int main(int argc,char **argv)
         splitscreen_local=FALSE;
         regional_room_ready=TRUE;
         CHECK(network_regional_bsp_room_ready(),"a negotiated remote room lost regional play");
+        return 0;
+    }
+    if (!strcmp(name, "regional-source-ownership"))
+    {
+        regional_match=regional_room_ready=connected=TRUE;
+        switches[0].cutscene_flag_index=NONE;
+        objects[0].object.parent_object_index=units[3];
+        objects[1].object.parent_object_index=units[3];
+        main_globals.switch_to_structure_bsp_index=NONE;
+        regional_test_root=units[3];
+        regional_test_root_bsp=destination;
+        CHECK(!players_queue_regional_bsp_switch(&switches[0])&&main_globals.switch_to_structure_bsp_index==NONE,
+              "a vehicle in a different BSP carried both passengers through the source portal");
+        regional_test_root_bsp=old;
+        CHECK(players_queue_regional_bsp_switch(&switches[0])&&main_globals.switch_to_structure_bsp_index==destination,
+              "a shared vehicle with native source ownership could not cross");
         return 0;
     }
     if (!strcmp(name, "regional-preview-admission"))

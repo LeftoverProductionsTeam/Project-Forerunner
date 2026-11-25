@@ -3935,10 +3935,18 @@ static boolean player_root_blocked_in_destination(
 	while ((blocker = object_iterator_next(&iterator)) != NULL)
 	{
 		real reach = root->object.bounding_sphere_radius + blocker->object.bounding_sphere_radius;
+		short blocker_bsp;
 
 		if (iterator.index == root_index || blocker->object.parent_object_index != NONE ||
-			game_engine_object_recorded_bsp(iterator.index, blocker->object.type) != destination ||
 			distance_squared3d(&root->object.bounding_sphere_center, &blocker->object.bounding_sphere_center) > reach * reach)
+			continue;
+
+		/* Connected objects use their native partition. Parked objects have
+		 * no cluster reference until their region is connected again. */
+		blocker_bsp = object_get_regional_bsp(iterator.index);
+		if (blocker_bsp == NONE)
+			blocker_bsp = game_engine_object_recorded_bsp(iterator.index, blocker->object.type);
+		if (blocker_bsp != destination)
 			continue;
 
 		if (root->object.type == _object_type_vehicle && physics_vehicle_blocked_by_object(root_index, iterator.index))
@@ -4015,6 +4023,14 @@ static boolean players_continuous_bsp_crossing_valid(
 		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 			continue;
 		root_index = object_get_ultimate_parent(player->unit_index);
+		if (regional)
+		{
+			short owner = object_get_regional_bsp(root_index);
+			/* Stacked regions can contain the same point. The native root,
+			 * including a shared vehicle, must own the source partition. */
+			if (owner != NONE && owner != volume->source_structure_bsp_index)
+				return FALSE;
+		}
 		if (!player_bsp_continuous_route_contains(volume, root_index))
 		{
 			if (regional)
