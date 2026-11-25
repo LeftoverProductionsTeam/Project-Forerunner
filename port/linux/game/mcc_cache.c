@@ -68,6 +68,8 @@ short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer,
 static struct mcc_runtime mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static struct mcc_cache_bsp const *mcc_active_bsp;
+static struct mcc_cache_bsp const *mcc_preview_bsp;
+static uint32_t mcc_failed_bsp_previews;
 static uint32_t mcc_bsps_in_use;
 static FILE *mcc_stream;
 static boolean mcc_loaded;
@@ -380,6 +382,8 @@ void mcc_cache_tags_unload(void)
 {
     memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
     mcc_active_bsp = NULL;
+    mcc_preview_bsp = NULL;
+    mcc_failed_bsp_previews = 0;
     mcc_bsps_in_use = 0;
     mcc_validation_cancel();
     mcc_cache_validation_clear();
@@ -743,6 +747,7 @@ static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)
 {
     uint32_t address = bsp ? mcc_cache_bsp_resident_address(bsp) : 0;
     if (!address || mcc_cache_bsp_in_use(bsp)) return;
+    if (bsp == mcc_preview_bsp) mcc_preview_bsp = NULL;
     mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
     mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(address), bsp->size);
 }
@@ -773,14 +778,19 @@ void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *ref
     }
 }
 
-struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
+static struct structure_bsp *mcc_cache_bsp_resident_structure(struct mcc_cache_bsp const *bsp)
 {
-    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     uint32_t address;
     if (!bsp || (!mcc_cache_bsp_pinned(bsp) && mcc_cache_bsp_retained_slot(bsp) == NONE) ||
         !(address = mcc_cache_bsp_resident_address(bsp)))
         return NULL;
     return xbox_pointer(address + (bsp->structure_address - bsp->address));
+}
+
+struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    return bsp != mcc_preview_bsp ? mcc_cache_bsp_resident_structure(bsp) : NULL;
 }
 
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
@@ -795,7 +805,8 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     if (mcc_cache_bsp_pinned(bsp) || slot != NONE) {
         uint32_t resident = mcc_cache_bsp_resident_address(bsp);
         *header = xbox_pointer(resident);
-        *structure = mcc_cache_bsp_retained_structure(reference);
+        *structure = mcc_cache_bsp_resident_structure(bsp);
+        if (bsp == mcc_preview_bsp) mcc_preview_bsp = NULL;
         if (slot != NONE) mcc_cache_remove_retained_slot(slot);
         return TRUE;
     }
@@ -832,9 +843,15 @@ boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *refe
     boolean replace_oldest)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    int slot;
     if (!bsp || !mcc_cache_bsp_resident_address(bsp) || mcc_cache_bsp_retained_slot(bsp) != NONE)
         return FALSE;
     if (mcc_cache_bsp_pinned(bsp)) return TRUE;
+    if (replace_oldest && mcc_preview_bsp) {
+        slot = mcc_cache_bsp_retained_slot(mcc_preview_bsp);
+        mcc_cache_bsp_release(mcc_preview_bsp);
+        if (slot != NONE) mcc_cache_remove_retained_slot(slot);
+    }
     if (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()) return FALSE;
     if (mcc_retained_bsps[1]) {
         if (!replace_oldest) return FALSE;
@@ -844,6 +861,36 @@ boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *refe
     mcc_retained_bsps[1] = mcc_retained_bsps[0];
     mcc_retained_bsps[0] = bsp;
     return TRUE;
+}
+
+/* A view can borrow one spare warm slot. This does not expose new collision
+ * to simulation; the normal BSP switch still owns activation. */
+struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    struct structure_bsp const *resident = mcc_cache_bsp_resident_structure(bsp);
+    uint32_t bit, address;
+    void *header, *structure;
+
+    if (resident || !mcc_active_bsp || !bsp || bsp == mcc_active_bsp)
+        return resident;
+    bit = UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps);
+    if (mcc_failed_bsp_previews & bit)
+        return NULL;
+    if (mcc_preview_bsp || mcc_retained_bsps[1] ||
+        (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()))
+        return NULL;
+    address = mcc_cache_bsp_address_with_neighbors(mcc_active_bsp, bsp, mcc_retained_bsps[0], NULL);
+    if (!address)
+        return NULL;
+    if (!mcc_cache_bsp_load(reference, address, &header, &structure) ||
+        !structure_bsp_port_verify(structure) || !mcc_cache_bsp_retain(reference, FALSE)) {
+        mcc_cache_bsp_discard_prepared(reference);
+        mcc_failed_bsp_previews |= bit;
+        return NULL;
+    }
+    mcc_preview_bsp = bsp;
+    return structure;
 }
 
 /* A rejected warm candidate was never bound to the native tag table. */

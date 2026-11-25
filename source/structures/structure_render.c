@@ -90,6 +90,7 @@ symbols in this file:
 #include "cseries/errors.h"
 #include "cseries/profile.h"
 #include "cseries/sort.h"
+#include "game/players.h"
 #include "physics/breakable_surfaces.h"
 #include "rasterizer/rasterizer.h"
 #include "rasterizer/rasterizer_environment.h"
@@ -157,14 +158,18 @@ static void structure_render_dynamic_triangles_from_bitvector(
 	unsigned long *surface_flags,
 	short *triangles);
 static void structure_render_dynamic_triangles_from_indices(
+	struct structure_bsp const *structure_bsp,
 	long surface_count,
 	long *surface_indices,
 	short *triangles);
 static long structure_render_build_dynamic_triangles(
+	struct structure_bsp const *structure_bsp,
 	long *surface_indices,
 	long surface_count,
 	unsigned long *surface_flags);
 static void structure_render_pass(
+	struct structure_bsp const *structure_bsp,
+	short bsp_index,
 	long *surface_indices,
 	long surface_count,
 	long dynamic_triangles_index,
@@ -194,6 +199,14 @@ static void structure_render_pass(
 /* ---------- globals */
 
 static struct structure_render_globals structure_render_globals;
+
+enum { MAXIMUM_NEIGHBOR_SURFACES = 4096 };
+static long neighbor_surface_indices[MAXIMUM_NEIGHBOR_SURFACES];
+static unsigned long neighbor_surface_flags[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_SURFACES_PER_STRUCTURE)];
+static long neighbor_surface_count;
+static long neighbor_triangles_index;
+static short neighbor_bsp_index;
+static struct structure_bsp const *neighbor_structure;
 
 long debug_leaf_index = NONE;
 long debug_leaf_portal_index = NONE;
@@ -396,11 +409,11 @@ static void structure_render_sort_surface_indices(
 }
 
 static void structure_render_dynamic_triangles_from_indices(
+	struct structure_bsp const *structure_bsp,
 	long surface_count,
 	long *surface_indices,
 	short *triangles)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	long surface_index_index;
 
 	structure_render_sort_surface_indices(surface_indices, surface_count); /* port: (not qsort_4byte) */
@@ -426,11 +439,11 @@ static void structure_render_dynamic_triangles_from_indices(
 }
 
 static long structure_render_build_dynamic_triangles(
+	struct structure_bsp const *structure_bsp,
 	long *surface_indices,
 	long surface_count,
 	unsigned long *surface_flags)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	long dynamic_triangles_index = NONE;
 
 	if (surface_count > 0)
@@ -457,6 +470,7 @@ static long structure_render_build_dynamic_triangles(
 			else
 			{
 				structure_render_dynamic_triangles_from_indices(
+					structure_bsp,
 					surface_count,
 					surface_indices,
 					triangles);
@@ -475,6 +489,8 @@ static long structure_render_build_dynamic_triangles(
 }
 
 static void structure_render_pass(
+	struct structure_bsp const *structure_bsp,
+	short bsp_index,
 	long *surface_indices,
 	long surface_count,
 	long dynamic_triangles_index,
@@ -501,7 +517,6 @@ static void structure_render_pass(
 		void const *lighting,
 		unsigned long geometry_flags))
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	long *surface_index_cursor = surface_indices;
 	long *surface_index_end = surface_indices + surface_count;
 	long first_triangle_index = 0;
@@ -525,6 +540,8 @@ static void structure_render_pass(
 			&structure_bsp->lightmaps,
 			lightmap_index,
 			struct structure_lightmap);
+		if (!lightmap->materials.count)
+			continue;
 		last_material = TAG_BLOCK_GET_ELEMENT(
 			&lightmap->materials,
 			lightmap->materials.count - 1,
@@ -587,7 +604,7 @@ static void structure_render_pass(
 
 			chunk_count = surface_index_cursor - chunk_start;
 
-			if (breakable_surface_extant(material->breakable_surface_index))
+			if (breakable_surface_extant_in_bsp(bsp_index, material->breakable_surface_index))
 			{
 				if (!shader_type_is_transparent(shader->base.type))
 				{
@@ -642,6 +659,38 @@ static void structure_render_pass(
 	return;
 }
 
+static void structure_render_prepare_neighbor(void)
+{
+	long surface_limit = MIN(MAXIMUM_NEIGHBOR_SURFACES,
+		MAXIMUM_RENDERED_ENVIRONMENT_SURFACES - render.environment_surface_count);
+	long surface;
+
+	neighbor_structure = NULL;
+	if (surface_limit <= 0 || render.camera.mirrored)
+		return;
+	neighbor_bsp_index = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward);
+	if (neighbor_bsp_index == NONE)
+		return;
+	neighbor_structure = scenario_structure_bsp_preview(neighbor_bsp_index);
+	if (!neighbor_structure)
+		return;
+
+	memset(neighbor_surface_flags, 0, sizeof(neighbor_surface_flags));
+	neighbor_surface_count = structure_visibility_neighbor_surfaces(neighbor_structure,
+		&render.frustum, neighbor_surface_flags, surface_limit);
+	neighbor_triangles_index = NONE;
+	if (!neighbor_surface_count)
+		return;
+	neighbor_surface_count = 0;
+	for (surface = 0; surface < neighbor_structure->surfaces.count; surface++)
+	{
+		if (BIT_VECTOR_TEST_FLAG(neighbor_surface_flags, surface))
+			neighbor_surface_indices[neighbor_surface_count++] = surface;
+	}
+	neighbor_triangles_index = structure_render_build_dynamic_triangles(neighbor_structure,
+		neighbor_surface_indices, neighbor_surface_count, NULL);
+}
+
 /* ---------- public code */
 
 void structure_render_preprocess(
@@ -653,10 +702,12 @@ void structure_render_preprocess(
 
 	structure_render_globals.environment_triangles_index =
 		structure_render_build_dynamic_triangles(
+			global_structure_bsp_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			render.environment_surface_flags);
 
+	structure_render_prepare_neighbor();
 	profile_exit(render_structure_build_triangle_arrays_section);
 
 	structure_render_globals.environment_geometry_valid =
@@ -695,66 +746,53 @@ void structure_render_preprocess(
 	return;
 }
 
+static void structure_render_lightmap_pass(struct structure_bsp const *structure_bsp, short bsp_index,
+	long *surface_indices, long surface_count, long triangles_index)
+{
+	short saved_lightmap_mode = rasterizer_globals.lightmap_mode;
+	if (structure_bsp->lightmap_group.index == NONE && !saved_lightmap_mode)
+		rasterizer_globals.lightmap_mode = _rasterizer_lightmap_mode_no_lightmap;
+	rasterizer_environment_lightmaps_begin();
+	structure_render_pass(structure_bsp, bsp_index, surface_indices, surface_count, triangles_index,
+		rasterizer_environment_lightmap_begin, rasterizer_environment_lightmap_draw,
+		rasterizer_environment_lightmap_end, NULL);
+	rasterizer_environment_lightmaps_end();
+	rasterizer_globals.lightmap_mode = saved_lightmap_mode;
+}
+
 void structure_render_lightmaps(
 	void)
 {
 	profile_enter(render_structure_lightmaps_section);
-
 	if (structure_render_globals.environment_geometry_valid)
-	{
-		short saved_lightmap_mode = rasterizer_globals.lightmap_mode;
-
-		if (global_structure_bsp_get()->lightmap_group.index == NONE
-			&& !rasterizer_globals.lightmap_mode)
-		{
-			rasterizer_globals.lightmap_mode = _rasterizer_lightmap_mode_no_lightmap;
-		}
-
-		rasterizer_environment_lightmaps_begin();
-
-		structure_render_pass(
-			render.environment_surface_indices,
-			render.environment_surface_count,
-			structure_render_globals.environment_triangles_index,
-			rasterizer_environment_lightmap_begin,
-			rasterizer_environment_lightmap_draw,
-			rasterizer_environment_lightmap_end,
-			NULL);
-
-		rasterizer_environment_lightmaps_end();
-
-		rasterizer_globals.lightmap_mode = saved_lightmap_mode;
-	}
-
+		structure_render_lightmap_pass(global_structure_bsp_get(), global_structure_bsp_index_get(),
+			render.environment_surface_indices, render.environment_surface_count,
+			structure_render_globals.environment_triangles_index);
+	if (neighbor_structure && neighbor_triangles_index != NONE)
+		structure_render_lightmap_pass(neighbor_structure, neighbor_bsp_index,
+			neighbor_surface_indices, neighbor_surface_count, neighbor_triangles_index);
 	profile_exit(render_structure_lightmaps_section);
-
-	return;
 }
 
 void structure_render_diffuse_texture(
 	void)
 {
 	profile_enter(render_structure_diffuse_textures_section);
-
-	if (structure_render_globals.environment_geometry_valid)
+	if (structure_render_globals.environment_geometry_valid || (neighbor_structure && neighbor_triangles_index != NONE))
 	{
 		rasterizer_environment_diffuse_textures_begin();
-
-		structure_render_pass(
-			render.environment_surface_indices,
-			render.environment_surface_count,
-			structure_render_globals.environment_triangles_index,
-			NULL,
-			rasterizer_environment_diffuse_texture_draw,
-			NULL,
-			NULL);
-
+		if (structure_render_globals.environment_geometry_valid)
+			structure_render_pass(global_structure_bsp_get(), global_structure_bsp_index_get(),
+				render.environment_surface_indices, render.environment_surface_count,
+				structure_render_globals.environment_triangles_index,
+				NULL, rasterizer_environment_diffuse_texture_draw, NULL, NULL);
+		if (neighbor_structure && neighbor_triangles_index != NONE)
+			structure_render_pass(neighbor_structure, neighbor_bsp_index,
+				neighbor_surface_indices, neighbor_surface_count, neighbor_triangles_index,
+				NULL, rasterizer_environment_diffuse_texture_draw, NULL, NULL);
 		rasterizer_environment_diffuse_textures_end();
 	}
-
 	profile_exit(render_structure_diffuse_textures_section);
-
-	return;
 }
 
 void structure_render_specular_lightmaps(
@@ -773,6 +811,8 @@ void structure_render_specular_lightmaps(
 		rasterizer_environment_specular_lightmaps_begin();
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -797,6 +837,8 @@ void structure_render_reflection_lightmap_masks(
 		rasterizer_environment_reflection_lightmap_masks_begin();
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -819,6 +861,8 @@ void structure_render_reflection_mirrors(
 		rasterizer_environment_reflection_mirrors_begin();
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -843,6 +887,8 @@ void structure_render_reflections(
 		rasterizer_environment_reflections_begin();
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -869,6 +915,8 @@ void structure_render_transparent_geometry(
 		rasterizer_environment_transparent_geometry_begin();
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -895,6 +943,8 @@ void structure_render_fog(
 		rasterizer_environment_fog_begin();
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -919,6 +969,8 @@ void structure_render_fog_screen(
 		rasterizer_environment_fog_screen_begin(FALSE);
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -932,6 +984,8 @@ void structure_render_fog_screen(
 		rasterizer_environment_fog_screen_begin(TRUE);
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			render.environment_surface_indices,
 			render.environment_surface_count,
 			structure_render_globals.environment_triangles_index,
@@ -973,6 +1027,7 @@ void structure_render_specular_light(
 			cluster_count,
 			cluster_indices);
 		environment_triangles_index = structure_render_build_dynamic_triangles(
+			global_structure_bsp_get(),
 			surface_indices,
 			environment_surface_count,
 			NULL);
@@ -991,6 +1046,8 @@ void structure_render_specular_light(
 		rasterizer_environment_specular_light_begin(rasterizer_light_index);
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			environment_surface_indices,
 			environment_surface_count,
 			environment_triangles_index,
@@ -1041,6 +1098,7 @@ void structure_render_diffuse_light(
 			cluster_count,
 			cluster_indices);
 		environment_triangles_index = structure_render_build_dynamic_triangles(
+			global_structure_bsp_get(),
 			surface_indices,
 			environment_surface_count,
 			NULL);
@@ -1059,6 +1117,8 @@ void structure_render_diffuse_light(
 		rasterizer_environment_diffuse_light_begin(rasterizer_light_index);
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			environment_surface_indices,
 			environment_surface_count,
 			environment_triangles_index,
@@ -1107,6 +1167,7 @@ void structure_render_shadow(
 		NULL);
 
 	dynamic_triangles_index = structure_render_build_dynamic_triangles(
+		global_structure_bsp_get(),
 		surface_indices,
 		surface_count,
 		NULL);
@@ -1116,6 +1177,8 @@ void structure_render_shadow(
 		profile_enter(render_structure_shadows_draw_section);
 
 		structure_render_pass(
+			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			surface_indices,
 			surface_count,
 			dynamic_triangles_index,

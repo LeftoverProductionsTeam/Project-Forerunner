@@ -3753,6 +3753,58 @@ boolean players_position_crosses_bsp_route(short source_bsp, short destination_b
 	return continuous_bsp_route_contains(source_bsp, destination_bsp, NONE, position);
 }
 
+/* A marked campaign transition can lead to an unrelated coordinate space. */
+short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d const *forward)
+{
+	struct scenario const *scenario = global_scenario_get();
+	real nearest_squared = 48.0f * 48.0f;
+	short neighbor = NONE;
+	short index;
+
+	if (!scenario_uses_regional_gameplay(scenario) || global_structure_bsp_index == NONE)
+		return NONE;
+	for (index = 0; index < MIN(scenario->bsp_switch_trigger_volumes.count, SHORT_MAX); index++)
+	{
+		struct scenario_bsp_switch_trigger_volume const *route = TAG_BLOCK_GET_ELEMENT(
+			&scenario->bsp_switch_trigger_volumes, index, struct scenario_bsp_switch_trigger_volume);
+		struct scenario_trigger_volume const *volume;
+		real_point3d center;
+		real_vector3d delta;
+		real distance_squared;
+
+		if (route->cutscene_flag_index != NONE || route->source_structure_bsp_index != global_structure_bsp_index ||
+			route->destination_structure_bsp_index == global_structure_bsp_index ||
+			!VALID_INDEX(route->destination_structure_bsp_index, scenario->structure_bsp_references.count) ||
+			!VALID_INDEX(route->trigger_volume_index, scenario->trigger_volumes.count))
+			continue;
+		volume = TAG_BLOCK_GET_ELEMENT(&scenario->trigger_volumes, route->trigger_volume_index, struct scenario_trigger_volume);
+		if (volume->type == _scenario_trigger_volume_type_oriented)
+		{
+			real_matrix4x3 matrix;
+			real_point3d local_center = {{volume->extents.i * 0.5f, volume->extents.j * 0.5f, volume->extents.k * 0.5f}};
+			matrix4x3_from_point_and_vectors(&matrix, &volume->position, &volume->forward, &volume->up);
+			matrix4x3_transform_point(&matrix, &local_center, &center);
+		}
+		else if (volume->type == _scenario_trigger_volume_type_axis_aligned)
+		{
+			center.x = (volume->bounds.x0 + volume->bounds.x1) * 0.5f;
+			center.y = (volume->bounds.y0 + volume->bounds.y1) * 0.5f;
+			center.z = (volume->bounds.z0 + volume->bounds.z1) * 0.5f;
+		}
+		else
+			continue;
+
+		vector_from_points3d(position, &center, &delta);
+		distance_squared = distance_squared3d(position, &center);
+		if (distance_squared < nearest_squared && dot_product3d(forward, &delta) >= -2.0f)
+		{
+			nearest_squared = distance_squared;
+			neighbor = route->destination_structure_bsp_index;
+		}
+	}
+	return neighbor;
+}
+
 static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_continuous_bsp_switch(
 	short source)
 {

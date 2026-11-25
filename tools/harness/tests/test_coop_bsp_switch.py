@@ -42,8 +42,8 @@ def generated(fault=None):
                     'mcc_cache_bsp_set_active', 'mcc_cache_has_simulation_bsp_holds', 'mcc_cache_bsp_keep_two_neighbors', 'mcc_cache_bsp_retained_slot',
                     'mcc_cache_bsp_overlap_end', 'mcc_cache_bsp_overlap_held_end', 'mcc_cache_bsp_address_with_neighbors', 'mcc_cache_bsp_prepare_address',
                     'mcc_cache_bsp_release', 'mcc_cache_remove_retained_slot', 'mcc_cache_bsp_set_in_use',
-                    'mcc_cache_bsp_retained_structure', 'mcc_cache_bsp_load', 'mcc_cache_bsp_retain',
-                    'mcc_cache_bsp_discard_prepared', 'mcc_cache_bsp_unload')) + '\n' +
+                    'mcc_cache_bsp_resident_structure', 'mcc_cache_bsp_retained_structure', 'mcc_cache_bsp_load', 'mcc_cache_bsp_retain',
+                    'mcc_cache_bsp_discard_prepared', 'mcc_cache_bsp_preview', 'mcc_cache_bsp_unload')) + '\n' +
          enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +
          structure(cache_header, 'scenario_bsp_prepared') + '\n' +
          function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
@@ -145,7 +145,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
-    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
+    'mcc-prepare-preview', 'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',

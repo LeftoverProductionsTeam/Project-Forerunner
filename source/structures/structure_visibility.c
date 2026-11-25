@@ -421,6 +421,83 @@ leaf_index_ready:
 
 /* ---------- private code */
 
+static void structure_visibility_collect_subclusters(
+	struct structure_bsp const *structure,
+	struct structure_visibility_cluster const *cluster,
+	struct render_frustum const *frustum,
+	unsigned long *surface_flags, long *surface_count, long surface_limit)
+{
+	long subcluster_index;
+	for (subcluster_index = 0;
+		(short)subcluster_index < cluster->subclusters.count;
+		subcluster_index++)
+	{
+		struct structure_visibility_subcluster *subcluster;
+		long *surface_index_buffer;
+		long surface_list_index;
+
+		if (*surface_count >= surface_limit)
+		{
+			break;
+		}
+
+		subcluster = TAG_BLOCK_GET_ELEMENT(
+			&cluster->subclusters,
+			(short)subcluster_index,
+			struct structure_visibility_subcluster);
+		if (!render_frustum_cube_visible(frustum, &subcluster->world_bounds, FALSE))
+		{
+			continue;
+		}
+
+		surface_index_buffer = subcluster->surface_indices.count > 0 ?
+			TAG_BLOCK_GET_ELEMENT(&subcluster->surface_indices, 0, long) : NULL;
+		/* port: compared whole: a short index wraps past 32767 surfaces
+		and the walk never ends */
+		for (surface_list_index = 0;
+			surface_list_index < subcluster->surface_indices.count;
+			surface_index_buffer++, surface_list_index++)
+		{
+			/* port: a surface index (from the map) that is no surface is
+			skipped (the bsp's surfaces fit the flags, as
+			structure_bsp_port_verify checked) */
+			if ((unsigned long)*surface_index_buffer >= (unsigned long)structure->surfaces.count)
+			{
+				continue;
+			}
+
+			if (!BIT_VECTOR_TEST_FLAG(surface_flags, *surface_index_buffer))
+			{
+				if (*surface_count >= surface_limit)
+				{
+					break;
+				}
+
+				BIT_VECTOR_SET_FLAG(surface_flags, *surface_index_buffer, TRUE);
+				(*surface_count)++;
+			}
+		}
+	}
+}
+
+/* Neighbor geometry shares the world coordinates, but has its own cluster
+ * indices. Cull against the camera without changing the active visibility set. */
+long structure_visibility_neighbor_surfaces(struct structure_bsp const *structure,
+	struct render_frustum const *frustum, unsigned long *surface_flags, long surface_limit)
+{
+	long count = 0;
+	long index;
+
+	for (index = 0; index < structure->clusters.count && count < surface_limit; index++)
+	{
+		struct structure_visibility_cluster const *cluster = TAG_BLOCK_GET_ELEMENT(
+			&structure->clusters, index, struct structure_visibility_cluster);
+		structure_visibility_collect_subclusters(structure, cluster, frustum,
+			surface_flags, &count, surface_limit);
+	}
+	return count;
+}
+
 static void structure_visibility_traverse_subclusters(
 	struct structure_bsp *structure)
 {
@@ -434,7 +511,6 @@ static void structure_visibility_traverse_subclusters(
 		struct rendered_cluster *rendered_cluster;
 		struct structure_visibility_cluster *cluster;
 		struct render_frustum *frustum;
-		long subcluster_index;
 
 		if (render.environment_surface_count >= MAXIMUM_RENDERED_ENVIRONMENT_SURFACES)
 		{
@@ -450,55 +526,9 @@ static void structure_visibility_traverse_subclusters(
 			? &render.frustum
 			: &rendered_cluster->frustum;
 
-		for (subcluster_index = 0;
-			(short)subcluster_index < cluster->subclusters.count;
-			subcluster_index++)
-		{
-			struct structure_visibility_subcluster *subcluster;
-			long *surface_index_buffer;
-			long surface_list_index;
-
-			if (render.environment_surface_count >= MAXIMUM_RENDERED_ENVIRONMENT_SURFACES)
-			{
-				break;
-			}
-
-			subcluster = TAG_BLOCK_GET_ELEMENT(
-				&cluster->subclusters,
-				(short)subcluster_index,
-				struct structure_visibility_subcluster);
-			if (!render_frustum_cube_visible(frustum, &subcluster->world_bounds, FALSE))
-			{
-				continue;
-			}
-
-			surface_index_buffer = TAG_BLOCK_GET_ELEMENT(&subcluster->surface_indices, 0, long);
-			/* port: compared whole: a short index wraps past 32767 surfaces
-			and the walk never ends */
-			for (surface_list_index = 0;
-				surface_list_index < subcluster->surface_indices.count;
-				surface_index_buffer++, surface_list_index++)
-			{
-				/* port: a surface index (from the map) that is no surface is
-				skipped (the bsp's surfaces fit the flags, as
-				structure_bsp_port_verify checked) */
-				if ((unsigned long)*surface_index_buffer >= (unsigned long)structure->surfaces.count)
-				{
-					continue;
-				}
-
-				if (!BIT_VECTOR_TEST_FLAG(render.environment_surface_flags, *surface_index_buffer))
-				{
-					if (render.environment_surface_count >= MAXIMUM_RENDERED_ENVIRONMENT_SURFACES)
-					{
-						break;
-					}
-
-					BIT_VECTOR_SET_FLAG(render.environment_surface_flags, *surface_index_buffer, TRUE);
-					render.environment_surface_count++;
-				}
-			}
-		}
+		structure_visibility_collect_subclusters(structure, cluster, frustum,
+			render.environment_surface_flags, &render.environment_surface_count,
+			MAXIMUM_RENDERED_ENVIRONMENT_SURFACES);
 	}
 	profile_exit(render_structure_visibility_subcluster_traversal);
 

@@ -400,6 +400,8 @@ static struct mcc_runtime {
 } mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static struct mcc_cache_bsp const *mcc_active_bsp;
+static struct mcc_cache_bsp const *mcc_preview_bsp;
+static uint32_t mcc_failed_bsp_previews;
 static uint32_t mcc_bsps_in_use;
 static struct __attribute__((aligned(16))) {
     byte header[24];
@@ -1418,6 +1420,7 @@ int main(int argc,char **argv)
         boolean evict=!strcmp(name,"mcc-prepare-evict");
         boolean occupied_regions=!strcmp(name,"mcc-prepare-occupied-regions");
         boolean fourth_region=occupied_regions||!strcmp(name,"mcc-prepare-fourth-region");
+        boolean preview=!strcmp(name,"mcc-prepare-preview");
         boolean three_regions=fourth_region||!strcmp(name,"mcc-prepare-three-regions");
         short region_count=fourth_region?4:3;
         boolean regional_crossing=!strcmp(name,"mcc-prepare-regional-crossing");
@@ -1429,7 +1432,7 @@ int main(int argc,char **argv)
         mcc_loaded=mcc_prepare_fixture=TRUE;
         mcc_loaded_cache.report.bsp_count=scenario.structure_bsp_references.count=region_count;
         mcc_loaded_cache.report.bsps=regions;
-        if (three_regions) mcc_loaded_cache.report.identity.scenario_type=_scenario_type_multiplayer;
+        if (three_regions||preview) mcc_loaded_cache.report.identity.scenario_type=_scenario_type_multiplayer;
         mcc_loaded_cache.report.tag_base=(uint32_t)(uintptr_t)mcc_regions[0].header;
         cold_crossing=!strcmp(name,"mcc-prepare-cold-crossing")||cold_regional;
         mcc_loaded_cache.capacity=(overlap?2:region_count)*sizeof(mcc_regions[0]);
@@ -1467,6 +1470,27 @@ int main(int argc,char **argv)
         test_tag_instances[old].base_address=global_structure_bsp;
         reject_load[destination]=refused;
         reject_verify[destination]=limits;
+        if (preview)
+        {
+            struct scenario_bsp_prepared prepared;
+            struct structure_bsp const *geometry;
+            mcc_cache_bsp_set_active(&references[old],TRUE);
+            mcc_cache_bsp_set_in_use(&references[old],TRUE);
+            geometry=mcc_cache_bsp_preview(&references[destination]);
+            CHECK(geometry&&mcc_prepared_loads==1&&mcc_preview_bsp==&regions[destination],
+                  "the spare warm slot did not render its checked geometry");
+            CHECK(mcc_cache_bsp_preview(&references[destination])==geometry&&
+                  !mcc_cache_bsp_preview(&references[2])&&mcc_prepared_loads==1,
+                  "the view loaded another BSP instead of borrowing one preview");
+            CHECK(!mcc_cache_bsp_retained_structure(&references[destination])&&
+                  global_structure_bsp_index==old&&!test_tag_instances[destination].base_address&&
+                  mcc_cache_bsp_pinned(&regions[old])&&!mcc_prepared_releases,
+                  "the camera exposed preview geometry to simulation or evicted a live region");
+            CHECK(scenario_structure_bsp_prepare(&references[old],&references[destination],&prepared)==_scenario_bsp_prepare_ready&&
+                  prepared.structure==geometry&&!mcc_preview_bsp&&mcc_prepared_loads==1,
+                  "the BSP switch failed to reuse the already validated preview");
+            return 0;
+        }
         if (occupied_regions)
         {
             uint32_t capacity=mcc_loaded_cache.capacity;

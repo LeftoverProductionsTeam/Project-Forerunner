@@ -3565,9 +3565,10 @@ MCC13 candidate with those placements and all 127 reviewed regional starts.
 
 Native MCC13 multiplayer maps with multiple BSPs and authored switch rows
 now share the campaign BSP announcement and input acknowledgment. Existing
-packet layouts are unchanged. All machines must negotiate Delta
-`regional_bsp` before the host tries a physical crossing. Use markerless
-native switches and a collision overlap large enough for every living
+packet layouts are unchanged. Remote peers still negotiate Delta
+`regional_bsp` before the host tries a physical crossing. Local split screen
+can cross with Delta disabled. Use markerless native switches and a collision
+overlap large enough for every living
 player and occupied vehicle root. The host checks that all roots are inside
 and uses the existing crossing preflight. It leaves players seated and
 does not gather them by teleport. Only the host can schedule the switch.
@@ -3969,6 +3970,25 @@ changing the packet layout. The exact export has no authored breakable
 surfaces, so actual glass damage and playback across a crossing still
 need a map containing breakable geometry. See
 `build/native-megaworld-f0835f5e-fracture-wire.json`.
+
+Ahead of a markerless seam, the Windows renderer can draw opaque terrain
+from one adjoining BSP within 48 world units using that BSP's native
+materials and baked lightmaps. It uses a spare cache slot and at most 4,096
+surfaces within the existing frame budget. The preview does not activate
+collision, lights, or objects in that BSP. A preview cannot evict occupied
+geometry. The original map is unchanged.
+
+On exact MCC13 `f0835f5e`, private Win64 OpenGL executable
+`f3c03d4ec8dfe7732fe2624d8fa97c6d1d1b8151f692f3f39e152391ffea9c82`
+prepared 68 Infinity connector surfaces while still in BSP 0 and crossed
+on foot to BSP 11 with Delta Peer disabled. Fifty focused regional checks
+passed. The view near (46.170, 36.220, -21.075) and the active passage at
+(39.603, 36.336, -21.075) both had large black surfaces. Spark's exact
+receipt lists one compiled lightmap page for `region_11`. Compare its baked
+texels, UVs, materials and expected terrain coverage at these positions
+with the runtime conversion before assigning the defect. Presentation,
+dynamic regional lights, cross-seam combat, vehicle and LAN play still need
+native acceptance. The testing installation keeps the previous-good build.
 
 Negotiated regional MCC13 multiplayer now uses co-op's native device group
 and position messages. The host decides switch use and device movement.

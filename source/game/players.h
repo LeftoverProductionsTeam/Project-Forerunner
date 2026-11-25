@@ -415,6 +415,7 @@ loaded. A player left there switches the level on the next tick. */
 boolean player_position_switches_bsp(
 	real_point3d const *position);
 boolean players_position_crosses_bsp_route(short source_bsp, short destination_bsp, real_point3d const *position);
+short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d const *forward);
 struct structure_bsp;
 struct players_bsp_crossing_clearance
 {

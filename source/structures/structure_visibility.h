@@ -58,6 +58,9 @@ short structure_visibility_build_surfaces(
 	real_plane3d const *bounding_surfaces,
 	short cluster_count,
 	short const *cluster_indices);
+struct structure_bsp;
+long structure_visibility_neighbor_surfaces(struct structure_bsp const *structure,
+	struct render_frustum const *frustum, unsigned long *surface_flags, long surface_limit);
 void structure_visibility_compute(
 	void);
 
