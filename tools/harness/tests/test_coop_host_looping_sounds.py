@@ -67,14 +67,15 @@ def generated(fault=None, faulty_function=None):
     queue = re.search(r'^static struct\n\{\n\tstruct distributed_coop_event events\[MAXIMUM_QUEUED_EVENTS\];.*?^} coop_events;', coop, re.M | re.S)
     assert queue
     queue_code = queue.group(0) + '\n' + '\n'.join(function(coop, name) for name in (
-        'event_new', 'host_send_events', 'network_coop_private_sound'))
+        'regional_surface_sync_active', 'event_new', 'host_send_events', 'network_coop_private_sound',
+        'network_coop_handle_events'))
     audio_code = '\n'.join(function(sound, name) for name in (
         'scripted_sound_trace', 'scripted_sound_new_internal', 'scripted_sound_new', 'scripted_sound_new_private', 'scripted_sound_time'))
     return (('types.inc', types), ('under_test.inc', code), ('event_queue.inc', queue_code), ('impulse.inc', audio_code))
 
 
 @pytest.mark.parametrize('case', ['length', 'ended', 'not-resent-near-end', 'drawing-host', 'music', 'no-length',
-                                  'started-again', 'queue-full', 'resent-time', 'private-events', 'private-slot', 'private-audio', 'ordinary-impulse'])
+                                  'started-again', 'queue-full', 'resent-time', 'private-events', 'private-slot', 'private-audio', 'ordinary-impulse', 'regional-fracture-events'])
 def test_host_looping_sounds(case):
     status, output = run(build('coop_host_looping_sounds', generated()), case)
     assert status == 0, output

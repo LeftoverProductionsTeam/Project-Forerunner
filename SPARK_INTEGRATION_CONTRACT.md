@@ -3589,6 +3589,16 @@ exited normally. The B40 map hash is recorded above. Windows x64 executable
 Full simultaneous simulation and native two-BSP fracture playback remain
 open.
 
+Negotiated regional MCC13 multiplayer now uses the same BSP-qualified
+fracture event and refresh path. Regional clients accept only the fracture
+kind from that stream. The 105 focused co-op event and BSP checks cover
+negotiation, duplicate suppression and retained collision state. Two private
+Win64 peers on `f0835f5e` delivered and accepted one native probe without
+changing the packet layout. The exact export has no authored breakable
+surfaces, so actual glass damage and playback across a crossing still
+need a map containing breakable geometry. See
+`build/native-megaworld-f0835f5e-fracture-wire.json`.
+
 #### Expanded MCC13 scenario placements
 
 Spark can use the MCC13 discovery fields `max_player_starts` (1,024)

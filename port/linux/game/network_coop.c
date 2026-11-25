@@ -661,6 +661,11 @@ static boolean coop_client(
 	return game_connection() == _game_connection_network_client && coop_game();
 }
 
+static boolean regional_surface_sync_active(void)
+{
+	return network_regional_bsp_active() && network_regional_bsp_room_ready();
+}
+
 /* host: sends count entries of entry_size in message to every client */
 static void send_to_clients(
 	void *message,
@@ -772,7 +777,8 @@ static struct distributed_coop_event *event_new(
 {
 	struct distributed_coop_event *event;
 
-	if (!coop_host())
+	if (!coop_host() && (kind != _coop_event_surface_broken ||
+		game_connection() != _game_connection_network_server || !regional_surface_sync_active()))
 		return NULL;
 	if (coop_events.count == MAXIMUM_QUEUED_EVENTS)
 	{
@@ -3721,7 +3727,15 @@ void network_coop_host_tick(
 	struct distributed_coop_presentation_message message;
 
 	if (!coop_game())
+	{
+		if (regional_surface_sync_active())
+		{
+			host_resend_update();
+			host_send_broken_surfaces();
+			host_send_events();
+		}
 		return;
+	}
 	host_resend_update();
 	players_vitality_keep();
 	host_friendly_fire_update();
@@ -4061,12 +4075,16 @@ void network_coop_handle_events(
 	short count)
 {
 	struct distributed_coop_event const *events = entries;
+	boolean cooperative = coop_client();
 	short index;
 
-	if (!coop_client())
+	if (!cooperative && (game_connection() != _game_connection_network_client ||
+		!regional_surface_sync_active()))
 		return;
 	for (index = 0; index < count; index++)
 	{
+		if (!cooperative && events[index].kind != _coop_event_surface_broken)
+			continue;
 		/* already applied (the comparison handles the number wrapping) */
 		if (coop_events.applied_any && (short)(events[index].number - coop_events.applied_number) <= 0)
 			continue;

@@ -256,7 +256,7 @@ void breakable_surface_damage(
 							BIT_VECTOR_SET_FLAG((long *)breakable_surface_flags_get(), breakable_surface_index, FALSE);
 
 							breakable_surface_effect(breakable_surface_index, damage_data, seed_surface_index);
-							/* port: and on network co-op's clients */
+							/* port: publish the fracture to compatible clients */
 							network_coop_note_surface_broken(global_structure_bsp_index, breakable_surface_index, &damage_data->epicenter);
 						}
 					}
@@ -309,7 +309,7 @@ void breakable_surface_damage_area_of_effect(
 					breakable_surface_get(breakable_surface_index)->vitality = 0.0f;
 					BIT_VECTOR_SET_FLAG((long *)breakable_surface_flags_get(), breakable_surface_index, FALSE);
 					breakable_surface_effect(breakable_surface_index, damage_data, breakable_surface->collision_surface_index);
-					/* port: and on network co-op's clients */
+					/* port: publish the fracture to compatible clients */
 					network_coop_note_surface_broken(global_structure_bsp_index, breakable_surface_index, &damage_data->epicenter);
 				}
 			}

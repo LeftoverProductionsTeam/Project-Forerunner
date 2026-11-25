@@ -105,7 +105,22 @@ static boolean host_enabled=TRUE;
 static int event_errors,wire_count[2],wire_broadcasts;
 static long test_machines[2]={0x10020,0x10021};
 static struct distributed_coop_event wire_events[2][MAXIMUM_QUEUED_EVENTS];
+enum {_game_connection_network_server=2, _game_connection_network_client=3};
+static int connection=_game_connection_network_server;
+static boolean regional_match, regional_negotiated;
+static int client_events;
+static struct distributed_coop_event last_client_event;
+static int game_connection(void){return connection;}
+static boolean network_regional_bsp_active(void){return regional_match;}
+static boolean network_regional_bsp_room_ready(void){return regional_negotiated;}
 static boolean coop_host(void){return host_enabled;}
+static boolean coop_client(void){return FALSE;}
+static boolean distributed_real_valid(real value){return value==value;}
+static void client_apply_event(struct distributed_coop_event const *event)
+{
+ client_events++;
+ last_client_event=*event;
+}
 static boolean distributed_tag_of_group(long tag,unsigned long group){return group==SOUND_DEFINITION_TAG&&tag>=0&&tag<SOUNDS;}
 static void error(int level,char const *text,...){event_errors++;}
 static short distributed_client_machines(long *out,short capacity){CHECK(capacity>=2,"machine list truncated");memcpy(out,test_machines,sizeof(test_machines));return 2;}
@@ -237,6 +252,38 @@ int main(int argc,char **argv)
   sounds[SHORT_SOUND].longest_permutation_length=2000;
   scripted_sound_new(SHORT_SOUND,44,.5f);
   CHECK(sent_count==1&&sent[0].object_index==44&&sent[0].reals[0]==.5f&&impulse_plays==1&&scripted_sound_time(SHORT_SOUND)==60,"ordinary native sound path changed");
+ }
+ else if(!strcmp(name,"regional-fracture-events"))
+ {
+  struct distributed_coop_event *fracture;
+  struct distributed_coop_event entries[2];
+  host_enabled=FALSE;
+  regional_match=TRUE;
+  CHECK(!event_new(_coop_event_surface_broken),"unnegotiated room queued a regional fracture");
+  regional_negotiated=TRUE;
+  CHECK(!event_new(_coop_event_sound),"regional room queued a campaign sound");
+  fracture=event_new(_coop_event_surface_broken);
+  CHECK(fracture&&coop_events.count==1,"negotiated host did not queue its fracture");
+  fracture->frame=11;
+  fracture->value=2;
+  host_send_events();
+  CHECK(wire_count[0]==1&&wire_count[1]==1,"regional fracture skipped a peer");
+  entries[1]=wire_events[0][0];
+  entries[0]=entries[1];
+  entries[0].kind=_coop_event_sound;
+  entries[0].number++;
+  network_coop_handle_events(entries,2);
+  CHECK(!client_events,"regional server accepted an incoming event");
+  connection=_game_connection_network_client;
+  regional_negotiated=FALSE;
+  network_coop_handle_events(entries,2);
+  CHECK(!client_events,"regional client accepted events before negotiation");
+  regional_negotiated=TRUE;
+  network_coop_handle_events(entries,2);
+  network_coop_handle_events(entries,2);
+  CHECK(client_events==1&&last_client_event.kind==_coop_event_surface_broken&&
+        last_client_event.frame==11&&last_client_event.value==2,
+        "regional event filtering, BSP identity or duplicate suppression failed");
  }
  else if(!strcmp(name,"length"))
  {
