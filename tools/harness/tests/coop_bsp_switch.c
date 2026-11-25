@@ -28,7 +28,9 @@
 #define VALID_INDEX(index, count) (index>=0 && index<count)
 enum {_game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
-      _collision_test_structure_bit, _collision_test_objects_scenery_bit};
+      _collision_test_structure_bit, _collision_test_objects_scenery_bit,
+      _collision_test_back_facing_surfaces_bit, _collision_test_ignore_two_sided_surfaces_bit,
+      _collision_test_ignore_breakable_surfaces_bit};
 
 struct tag_block {long count;void *elements;};
 static void *element(struct tag_block const *block,long index,size_t size)
@@ -567,6 +569,42 @@ static void breakable_surface_effect(short index, struct damage_data *damage, lo
 #define csmemset memset
 #define BIT_VECTOR_SET_FLAG(bits,index,value) SET_FLAG((bits)[(index)/32],(index)%32,value)
 #include "surface_breaks.inc"
+
+#include <float.h>
+#define REAL_MAX FLT_MAX
+#define HALO_PERF_BEGIN(section) ((void)0)
+#define HALO_PERF_END(section) ((void)0)
+enum {_collision_function_vector_structure};
+static struct {struct {long QuadPart;} vector_structure;} collision_usage_times;
+static void collision_log_usage(int function) {}
+#define collision_log_start_time(state) ((void)(state))
+#define collision_log_end_time(function, elapsed) ((void)(elapsed))
+struct collision_bsp_test_vector_result {int unused;};
+struct collision_result {int unused;};
+static boolean debug_collision_skip_vectors;
+static int terrain_traces, legacy_traces;
+static boolean collision_bsp_test_vector(unsigned long flags, struct collision_bsp const *bsp,
+    short surface_count, byte const *surface_flags, real_point3d const *from,
+    real_vector3d const *vector, real maximum_t, struct collision_bsp_test_vector_result *result)
+{
+    short region=bsp==&collisions[0]?0:1;
+    CHECK(bsp==&collisions[region]&&surface_count==MAXIMUM_BREAKABLE_SURFACES_PER_MAP&&
+          surface_flags==surface_state.breakable_surface_flags[region],
+          "terrain and fracture state did not both belong to the requested BSP");
+    CHECK((flags&FLAG(_collision_test_front_facing_surfaces_bit))&&
+          !(flags&FLAG(_collision_test_objects_scenery_bit))&&
+          from->x==0.0f&&vector->i==4.0f&&maximum_t==REAL_MAX,
+          "the trace did not retain native structure-only flags or endpoints");
+    terrain_traces++;
+    return region==0 && TEST_FLAG(surface_flags[0],0);
+}
+static boolean collision_test_line(unsigned long flags,real_point3d const *from,real_point3d const *to,
+    long ignored,struct collision_result *result)
+{
+    legacy_traces++;
+    return FALSE;
+}
+#include "bsp_terrain.inc"
 
 enum {
     _distributed_message_object_states,
@@ -1287,6 +1325,26 @@ int main(int argc,char **argv)
                     CHECK(mcc_loaded_cache.bsp_addresses[destination]==(uint32_t)(uintptr_t)mcc_regions[destination].header&&
                           mcc_loaded_cache.bsp_addresses[destination]!=regions[destination].address,
                           "an overlapping BSP did not use the free slot");
+                if (!strcmp(name,"mcc-prepare-terrain-sight"))
+                {
+                    real_point3d eye={0,0,0}, target={4,0,0};
+                    unsigned long flags=FLAG(_collision_test_objects_scenery_bit);
+                    surface_state.breakable_surface_flags[0][0]=1;
+
+                    CHECK(!distributed_report_sight_clear(old,flags,&eye,&target,&target)&&
+                          distributed_report_sight_clear(destination,flags,&eye,&target,&target),
+                          "identical world positions did not query independent resident geometry");
+                    CHECK(!distributed_report_sight_clear(2,flags,&eye,&target,&target),
+                          "missing geometry looked like a clear line");
+                    CHECK(distributed_report_sight_clear(NONE,flags,&eye,&target,&target)&&legacy_traces==1,
+                          "classic combat did not keep the native shared scene trace");
+
+                    surface_state.breakable_surface_flags[0][0]=0;
+                    CHECK(distributed_report_sight_clear(old,flags,&eye,&target,&target)&&terrain_traces==4&&
+                          global_structure_bsp_index==destination&&global_collision_bsp==&collisions[destination],
+                          "the retained trace changed the session BSP or read its neighbor's fracture state");
+                    return 0;
+                }
                 if (fractures)
                 {
                     struct structure_breakable_surface panes[2] = {

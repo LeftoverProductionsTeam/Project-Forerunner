@@ -78,6 +78,7 @@ being hit looks and feels like on the clients).
 #include "network_fairplay.h"
 #include "network_recording.h"
 #include "network_rules.h"
+#include "network_coop.h"
 #include "line_of_sight.h"
 #include "mcc_grenades.h"
 
@@ -2309,17 +2310,29 @@ static boolean distributed_report_paid(
 	return TRUE;
 }
 
+static boolean distributed_report_terrain_clear(
+	short structure_bsp_index,
+	unsigned long flags,
+	real_point3d const *from,
+	real_point3d const *to)
+{
+	struct collision_result collision;
+
+	if (structure_bsp_index != NONE)
+		return collision_structure_bsp_line_clear(structure_bsp_index, flags, from, to);
+	return !collision_test_line(flags, from, to, NONE, &collision);
+}
+
 static boolean distributed_report_sight_clear(
+	short structure_bsp_index,
 	unsigned long flags,
 	real_point3d const *from,
 	real_point3d const *impact,
 	real_point3d const *centre)
 {
-	struct collision_result collision;
-
-	return !collision_test_line(flags, from, centre, NONE, &collision) ||
-		(!collision_test_line(flags, from, impact, NONE, &collision) &&
-			!collision_test_line(flags, impact, centre, NONE, &collision));
+	return distributed_report_terrain_clear(structure_bsp_index, flags, from, centre) ||
+		(distributed_report_terrain_clear(structure_bsp_index, flags, from, impact) &&
+		 distributed_report_terrain_clear(structure_bsp_index, flags, impact, centre));
 }
 
 /* the host's network.fire_origins: whether a hand its client says a player
@@ -2389,7 +2402,7 @@ static boolean distributed_report_line_of_sight(
 	short traced;
 	short pass;
 	real_point3d impact = *impact_point;
-	struct collision_result collision;
+	boolean regional = network_regional_bsp_active();
 
 	{
 		real distance = (real)sqrt(distributed_distance_squared(centre, impact_point));
@@ -2418,6 +2431,7 @@ static boolean distributed_report_line_of_sight(
 		{
 			struct damage_trail_point const *trail_point =
 				&damage_trails[player_index][bucket & (PLAYER_TRAIL_POINTS - 1)];
+			short structure_bsp_index = regional ? trail_point->structure_bsp_index : NONE;
 			real_point3d eye;
 
 			if (trail_point->time == NONE || trail_point->time / PLAYER_TRAIL_INTERVAL_TICKS != bucket ||
@@ -2426,12 +2440,12 @@ static boolean distributed_report_line_of_sight(
 			traced++;
 			eye = trail_point->position;
 			eye.z += trail_point->eye;
-			if (pass == 0 && distributed_report_sight_clear(flags, &eye, &impact, centre))
+			if (pass == 0 && distributed_report_sight_clear(structure_bsp_index, flags, &eye, &impact, centre))
 				return TRUE;
 			if (trail_point->mounted && trail_point->hand == (pass == 1) &&
 				(pass == 0 || distributed_fire_origin_shape(&eye, &trail_point->muzzle, centre)) &&
-				!collision_test_line(flags, &eye, &trail_point->muzzle, NONE, &collision) &&
-				distributed_report_sight_clear(flags, &trail_point->muzzle, &impact, centre))
+				distributed_report_terrain_clear(structure_bsp_index, flags, &eye, &trail_point->muzzle) &&
+				distributed_report_sight_clear(structure_bsp_index, flags, &trail_point->muzzle, &impact, centre))
 			{
 				if (pass == 1)
 				{

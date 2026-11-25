@@ -65,10 +65,14 @@ def generated(fault=None):
          ' return &sent_surfaces[surface_events++]; }\n' +
          function(read('source/scenario/scenario.c'), 'scenario_structure_bsp_try_and_get') + '\n' +
          '\n'.join(function(breakables, name) for name in (
-             'breakable_surface_indices_valid', 'breakable_surface_extant_in_bsp',
+             'breakable_surface_indices_valid', 'breakable_surface_extant_in_bsp', 'breakable_surface_flags_in_bsp',
              'breakable_surface_port_break')) + '\n' +
          '\n'.join(function(coop, name) for name in (
              'network_coop_note_surface_broken', 'host_send_broken_surfaces'))),
+        ('bsp_terrain.inc', '\n'.join(function(read('source/physics/collisions.c'), name) for name in (
+            'collision_vector_bsp_flags', 'collision_structure_bsp_line_clear')) + '\n' +
+         '\n'.join(function(damage, name) for name in (
+            'distributed_report_terrain_clear', 'distributed_report_sight_clear'))),
         ('objects.inc', objects),
         ('item_structure_support.inc', '\n'.join(function(read('source/items/items.c'), name)
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_structure_support'))),
@@ -128,7 +132,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
-    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing',
+    'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-devices', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',

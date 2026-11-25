@@ -3213,6 +3213,16 @@ passed 94 focused checks. On the exact fourteen-region cache, two private peers
 traversed BSP 0 → 2 → 0 and the host applied three fresh guest hits after returning,
 with zero refusals in that check. Both peers exited normally.
 
+The host's terrain sight check now uses the sampled BSP's resident collision
+geometry and breakable-surface state. An unavailable BSP cannot supply a clear
+line, and tracing a retained BSP does not switch the scene or use another BSP's
+object partition. Windows x64
+`5e9e18f18b78a2aecca98df2157c9d4ecb97cf8a110dc6f221bbf4a0d6b1f7c2`
+passed 96 focused checks. Two private peers crossed into Chiron on the retained
+fourteen-region cache. The host applied three guest hits with line-of-sight
+validation enabled, and both peers exited normally. This verifies the live
+terrain path in a shared scene. Independent regional combat remains open.
+
 For a warm regional multiplayer crossing, the host checks each unseated
 biped's native collision capsule against the source and destination BSPs
 using their own breakable-surface state. A destination-only obstruction

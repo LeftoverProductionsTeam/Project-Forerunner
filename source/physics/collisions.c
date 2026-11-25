@@ -486,6 +486,55 @@ collision:
 	return TRUE;
 }
 
+static unsigned long collision_vector_bsp_flags(unsigned long flags)
+{
+	unsigned long faces = FLAG(_collision_test_front_facing_surfaces_bit) |
+		FLAG(_collision_test_back_facing_surfaces_bit);
+	if (!(flags & faces))
+		flags |= faces;
+	return flags & (faces | FLAG(_collision_test_ignore_two_sided_surfaces_bit) |
+		FLAG(_collision_test_ignore_invisible_surfaces_bit) |
+		FLAG(_collision_test_ignore_breakable_surfaces_bit));
+}
+
+boolean collision_structure_bsp_line_clear(
+	short structure_bsp_index,
+	unsigned long flags,
+	real_point3d const *from,
+	real_point3d const *to)
+{
+	struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(structure_bsp_index);
+	struct collision_bsp const *bsp;
+	struct collision_bsp_test_vector_result result;
+	byte const *breakable_flags;
+	real_vector3d vector;
+	boolean blocked;
+
+	/* An unloaded region cannot answer for its terrain. In particular,
+	 * never let an authoritative sight check fall back to another BSP. */
+	if (!structure || structure->collision_bsp.count < 1)
+		return FALSE;
+	if (debug_collision_skip_vectors)
+		return TRUE;
+
+	bsp = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
+	breakable_flags = breakable_surface_flags_in_bsp(structure_bsp_index);
+	vector.i = to->x - from->x;
+	vector.j = to->y - from->y;
+	vector.k = to->z - from->z;
+
+	HALO_PERF_BEGIN(_halo_perf_tick_collision);
+	collision_log_usage(_collision_function_vector_structure);
+	collision_log_start_time(&collision_usage_times.vector_structure);
+	blocked = collision_bsp_test_vector(collision_vector_bsp_flags(flags), bsp,
+		breakable_flags ? MAXIMUM_BREAKABLE_SURFACES_PER_MAP : 0, breakable_flags,
+		from, &vector, REAL_MAX, &result);
+	collision_log_end_time(_collision_function_vector_structure,
+		collision_usage_times.vector_structure.QuadPart);
+	HALO_PERF_END(_halo_perf_tick_collision);
+	return !blocked;
+}
+
 boolean collision_test_vector(
 	unsigned long flags,
 	real_point3d const *point,
@@ -525,17 +574,8 @@ boolean collision_test_vector(
 			test_objects = FALSE;
 		}
 
-		if (!(flags & (FLAG(_collision_test_front_facing_surfaces_bit) | FLAG(_collision_test_back_facing_surfaces_bit))))
-		{
-			flags |= FLAG(_collision_test_front_facing_surfaces_bit) | FLAG(_collision_test_back_facing_surfaces_bit);
-		}
-
-		bsp_flags = 0;
-		SET_FLAG(bsp_flags, _collision_test_front_facing_surfaces_bit, TEST_FLAG(flags, _collision_test_front_facing_surfaces_bit));
-		SET_FLAG(bsp_flags, _collision_test_back_facing_surfaces_bit, TEST_FLAG(flags, _collision_test_back_facing_surfaces_bit));
-		SET_FLAG(bsp_flags, _collision_test_ignore_two_sided_surfaces_bit, TEST_FLAG(flags, _collision_test_ignore_two_sided_surfaces_bit));
-		SET_FLAG(bsp_flags, _collision_test_ignore_invisible_surfaces_bit, TEST_FLAG(flags, _collision_test_ignore_invisible_surfaces_bit));
-		SET_FLAG(bsp_flags, _collision_test_ignore_breakable_surfaces_bit, TEST_FLAG(flags, _collision_test_ignore_breakable_surfaces_bit));
+		bsp_flags = collision_vector_bsp_flags(flags);
+		flags |= bsp_flags;
 
 		collision_log_usage(_collision_function_vector_structure);
 		collision_log_start_time(&collision_usage_times.vector_structure);
