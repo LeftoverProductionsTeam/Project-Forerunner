@@ -1047,6 +1047,40 @@ void object_types_disconnect_from_structure_bsp(
 	return;
 }
 
+static boolean object_placement_overlaps_current_bsp(
+	struct scenario_object_datum const *placement,
+	struct tag_block *palette)
+{
+	struct scenario_object_palette_entry *entry;
+	struct object_definition *definition;
+	real_matrix4x3 matrix;
+	real_point3d transformed;
+
+	if (!VALID_INDEX(placement->palette_entry_index, palette->count))
+		return FALSE;
+	entry = TAG_BLOCK_GET_ELEMENT(palette, placement->palette_entry_index, struct scenario_object_palette_entry);
+	if (entry->reference.index == NONE)
+		return FALSE;
+	definition = object_definition_get(entry->reference.index);
+	matrix4x3_rotation_from_angles(&matrix, placement->rotation.yaw,
+		placement->rotation.pitch, placement->rotation.roll);
+	matrix.position = placement->position;
+	matrix4x3_transform_point(&matrix, &definition->object.bounding_offset, &transformed);
+	return scenario_leaf_index_from_point(&placement->position) != NONE ||
+		scenario_leaf_index_from_point(&transformed) != NONE;
+}
+
+/* Preserve valid compiled MCC13 ownership even if geometry overlaps.
+ * A zero or out-of-range mask still gets the native placement test. */
+static boolean object_placement_active_in_bsp(
+	struct scenario_object_datum const *placement, struct tag_block *palette, word regional_mask)
+{
+	word flags = placement->on_bsp_flags;
+	if (!regional_mask || (flags && !(flags & ~regional_mask)))
+		return TEST_FLAG(flags, global_structure_bsp_index);
+	return object_placement_overlaps_current_bsp(placement, palette);
+}
+
 void object_types_place_objects(
 	boolean reconnecting)
 {
@@ -1054,6 +1088,9 @@ void object_types_place_objects(
 	{
 		short object_type;
 		struct scenario *scenario = global_scenario_get();
+		word regional_mask = scenario_uses_regional_gameplay(scenario) &&
+			VALID_INDEX(scenario->structure_bsp_references.count - 1, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ?
+			(word)((1UL << scenario->structure_bsp_references.count) - 1) : 0;
 
 		for (object_type = 0; object_type < NUMBER_OF_OBJECT_TYPES; object_type++)
 		{
@@ -1077,7 +1114,7 @@ void object_types_place_objects(
 					scenario,
 					object_type);
 
-				if (!TEST_FLAG(processed_bsp_flags, global_structure_bsp_index))
+				if (!regional_mask && !TEST_FLAG(processed_bsp_flags, global_structure_bsp_index))
 				{
 					short scenario_datum_index;
 
@@ -1093,45 +1130,8 @@ void object_types_place_objects(
 								scenario_datum_index,
 								element_size);
 
-						/* port: a palette entry the scenario has, naming a tag (a
-						map's index; object_new_from_scenario makes nothing from
-						any other) */
-						if (VALID_INDEX(scenario_object->palette_entry_index, scenario_palette->count) &&
-							TAG_BLOCK_GET_ELEMENT(
-								scenario_palette,
-								scenario_object->palette_entry_index,
-								struct scenario_object_palette_entry)->reference.index!=NONE)
-						{
-							struct scenario_object_palette_entry *palette_entry = TAG_BLOCK_GET_ELEMENT(
-								scenario_palette,
-								scenario_object->palette_entry_index,
-								struct scenario_object_palette_entry);
-							struct object_definition *object_definition = object_definition_get(
-								palette_entry->reference.index);
-							real_matrix4x3 matrix;
-							real_point3d transformed_bounding_offset;
-
-							matrix4x3_rotation_from_angles(
-								&matrix,
-								scenario_object->rotation.yaw,
-								scenario_object->rotation.pitch,
-								scenario_object->rotation.roll);
-							matrix.position = scenario_object->position;
-							matrix4x3_transform_point(
-								&matrix,
-								&object_definition->object.bounding_offset,
-								&transformed_bounding_offset);
-
-							if (scenario_leaf_index_from_point(&scenario_object->position)==NONE &&
-								scenario_leaf_index_from_point(&transformed_bounding_offset)==NONE)
-							{
-								scenario_object->on_bsp_flags &= ~FLAG(global_structure_bsp_index);
-							}
-							else
-							{
-								scenario_object->on_bsp_flags |= FLAG(global_structure_bsp_index);
-							}
-						}
+						SET_FLAG(scenario_object->on_bsp_flags, global_structure_bsp_index,
+							object_placement_overlaps_current_bsp(scenario_object, scenario_palette));
 					}
 				}
 
@@ -1154,7 +1154,7 @@ void object_types_place_objects(
 						if ((scenario_object->name_index==NONE ||
 							object_index_from_name_index(scenario_object->name_index)==NONE) &&
 							!TEST_FLAG(scenario_object->placement_flags, _scenario_object_placement_not_automatic_bit) &&
-							TEST_FLAG(scenario_object->on_bsp_flags, global_structure_bsp_index))
+							object_placement_active_in_bsp(scenario_object, scenario_palette, regional_mask))
 						{
 							object_new_from_scenario(scenario_object, scenario_palette);
 							objects_garbage_collection();

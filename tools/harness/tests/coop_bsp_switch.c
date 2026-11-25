@@ -844,6 +844,13 @@ static void machine_bumped(long device,long unit) {regional_machine_touches++;}
 static void control_touched(long device,long unit) {regional_control_touches++;}
 #include "device_touch.inc"
 
+struct scenario_object_datum {word on_bsp_flags;};
+static boolean mock_placement_geometry;
+static boolean object_placement_overlaps_current_bsp(
+    struct scenario_object_datum const *placement,struct tag_block *palette)
+{return mock_placement_geometry;}
+#include "regional_scenery.inc"
+
 static void setup(short old,short destination)
 {
     scenario.bsp_switch_trigger_volumes=(struct tag_block){1,switches};
@@ -1427,6 +1434,26 @@ int main(int argc,char **argv)
         CHECK(placed_pickup_count==4&&equipment[0].run_time_spawned_item_index==pickup_handle+2&&
               !game_engine_equipment_item_parked(pickup_handle+2),
               "duplicated the pickup on a round trip");
+        return 0;
+    }
+    if (!strcmp(name, "regional-scenery"))
+    {
+        struct scenario_object_datum placement={FLAG(3)};
+        word mask=FLAG(0)|FLAG(1)|FLAG(2)|FLAG(3);
+        global_structure_bsp_index=2;
+        mock_placement_geometry=TRUE;
+        CHECK(!object_placement_active_in_bsp(&placement,NULL,mask),"overlapping BSP claimed authored scenery");
+        placement.on_bsp_flags|=FLAG(2);
+        mock_placement_geometry=FALSE;
+        CHECK(object_placement_active_in_bsp(&placement,NULL,mask),"lost compiled two-BSP placement");
+        placement.on_bsp_flags=0;
+        CHECK(!object_placement_active_in_bsp(&placement,NULL,mask),"geometry rejected a missing authored mask");
+        mock_placement_geometry=TRUE;
+        CHECK(object_placement_active_in_bsp(&placement,NULL,mask),"unassigned scenery lost its geometry fallback");
+        placement.on_bsp_flags=FLAG(9);
+        CHECK(object_placement_active_in_bsp(&placement,NULL,mask),"invalid scenery membership lost its fallback");
+        CHECK(!object_placement_active_in_bsp(&placement,NULL,0),"classic BSP flags no longer drive placement");
+        CHECK(placement.on_bsp_flags==FLAG(9),"readback altered original membership");
         return 0;
     }
     if (!strcmp(name, "regional-starts"))

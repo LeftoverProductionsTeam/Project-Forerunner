@@ -86,6 +86,7 @@ def generated(fault=None):
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('regional_start.inc', function(players, 'player_starting_location_in_active_bsp')),
+        ('regional_scenery.inc', function(read('source/objects/object_types.c'), 'object_placement_active_in_bsp')),
         ('regional_equipment.inc', enum_with(read('source/game/game_engine.c'), 'REGIONAL_STATIC_OBJECT_TYPES') +
          '\n' + '\n'.join(function(read('source/game/game_engine.c'), name) for name in
             ('game_engine_equipment_item_at_pad', 'game_engine_equipment_item_parked', 'game_engine_vehicle_empty',
@@ -149,7 +150,7 @@ def generated(fault=None):
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
     'mcc-prepare-preview', 'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-preview-admission', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-preview-admission', 'regional-teleporters', 'regional-starts', 'regional-scenery', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

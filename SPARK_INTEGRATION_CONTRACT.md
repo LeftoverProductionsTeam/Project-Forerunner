@@ -3957,6 +3957,22 @@ The player stopped before switch 2 to 3, so the full round trip is open.
 Spark received the exact placement, pose and contact for a content clearance
 correction. The current Forerunner physics and retained cache were preserved.
 
+The corrected component cache
+5df5d9ba0f7559da9de2a71b0eaf0e6bb22f8803dfd698ef4dc184fc86858b8e
+passed one uninterrupted private offline Win64 walking round trip on
+12d31bedb25a0d1c47179cdc8953b72d2b3f8309c72170f8843d3c6160de1d69.
+After staging before the first switch, native movement crossed 0 → 2 → 3 →
+2 → 0 at ticks 240, 1950, 3990 and 5700. The player returned at
+(689.160,8.148,-18.199) with full health and shields. Use this correction in
+the full-world build. That build still needs its own traversal checks.
+
+MCC13 regional scenery and light fixtures now retain a valid compiled
+membership mask across BSP reconnects. Unassigned and invalid masks still
+use the native origin and model bounds check. Five focused checks and the
+Win64 build passed, and the updated build spawned at BSP 0 on the full
+456db754 cache. This checks normal startup for the updated build. The
+completed Derelict round trip above used the earlier executable.
+
 Forerunner records which BSP owns loose equipment and empty vehicles when
 they leave the active scene. Objects stay with their source BSP even when
 the destination has geometry at the same coordinates. Carried gear and
@@ -5399,8 +5415,13 @@ Spark's separate authored CE609 cache
 uses a dedicated player Elite and leaves the AI tag alone. The consolidated
 Win64 playtest candidate loaded it from Extraction → Play Solo. After a
 native grenade death the Elite respawned with its plasma pistol, moved in
-both diagonals and jumped 0.479 units above the hub floor. Spirit boarding
-and human multiplayer acceptance on this cache remain open.
+both diagonals and jumped 0.479 units above the hub floor. The same exact
+cache later passed one normal Solo Spirit insertion on the same executable.
+The Elite used E to deploy and board passenger seat 5, flew to field
+touchdown (95.216,-130.839,2.435), then used E to disembark at
+(91.910,-130.808,0.859) with full health and shields. The empty Spirit took
+off, reaching Z 11.011 by tick 12750. Evacuation, redeployment and human
+multiplayer acceptance on this cache remain open.
 
 The original cache retains the technology weapon's
 `pp` label, which the imported Elite animation graph has for stand and
