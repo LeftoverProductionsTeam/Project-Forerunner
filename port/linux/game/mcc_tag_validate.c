@@ -749,7 +749,7 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                         !strcmp(field->name, "netgame_equipment")) {
                         maximum = MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM;
                         if (block->count > maximum) {
-                            mcc_problem(context, 1, "netgame equipment exceeds MCC's 512-entry capacity");
+                            mcc_problem(context, 1, "netgame equipment exceeds the supported MCC capacity");
                             break;
                         }
                     }

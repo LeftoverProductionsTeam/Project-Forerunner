@@ -346,7 +346,9 @@ struct object_header_datum {
     struct object_datum *datum;
 };
 static struct object_header_datum activation_headers[4];
-static struct {void *data;short count;} activation_table={activation_headers,4}, *object_header_data=&activation_table;
+enum { GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER = 100 };
+static struct {void *data;short count,maximum_count,actual_count;}
+    activation_table={activation_headers,4,2048,0}, *object_header_data=&activation_table;
 static unsigned activations,deactivations,deletions,decals;
 #define csmemcmp memcmp
 #define BIT_VECTOR_SIZE_IN_BYTES(count) (sizeof(unsigned long))
@@ -1393,7 +1395,7 @@ int main(int argc,char **argv)
     }
     if (!strcmp(name, "regional-equipment"))
     {
-        enum { DONOR_EQUIPMENT_ROW = 484 };
+        enum { DONOR_EQUIPMENT_ROW = 974 };
         struct scenario_netgame_equipment equipment[DONOR_EQUIPMENT_ROW + 1]={
             {.game_type={2},.spawn_time=1,.position={50,0,-.01f},.item_collection={1}},
             {.game_type={2},.spawn_time=1,.position={200,0,0},.item_collection={1}},
@@ -1429,12 +1431,18 @@ int main(int argc,char **argv)
         global_structure_bsp=&structures[1];
         global_collision_bsp=&collisions[1];
         ticks++;
+        object_header_data->actual_count=object_header_data->maximum_count-GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER;
+        game_engine_update_item_spawn();
+        CHECK(placed_pickup_count==3&&game_engine_equipment_home_bsp[DONOR_EQUIPMENT_ROW]==1,
+              "the cold region consumed the reserved object slots or lost pad ownership");
+        object_header_data->actual_count--;
+        ticks=3*TICKS_PER_SECOND;
         game_engine_update_item_spawn();
         CHECK(placed_pickup_count==4&&game_engine_equipment_home_bsp[1]==0&&
               equipment[DONOR_EQUIPMENT_ROW].run_time_spawned_item_index==pickup_handle+3&&
               placed_pickups[3].item.netgame_equipment_index==DONOR_EQUIPMENT_ROW,
               "reassigned a shared seam or skipped the expanded equipment row");
-        CHECK(placed_pickups[2].item.last_owned_time==ticks-1,"inactive pad updated the ownership timer");
+        CHECK(placed_pickups[2].item.last_owned_time==2*TICKS_PER_SECOND,"inactive pad updated the ownership timer");
         CHECK(game_engine_equipment_item_parked(pickup_handle+2)&&
               game_engine_equipment_item_parked(pickup_handle+1)&&
               !game_engine_equipment_item_parked(pickup_handle+3),

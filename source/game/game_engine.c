@@ -10736,8 +10736,15 @@ static void game_engine_update_item_spawn(
 			if (first_visit || now % respawn_period == 0)
 			{
 				struct object_placement_data placement_data;
-				long definition_index = random_item(equipment->item_collection.index);
+				long definition_index;
 				long object_index;
+
+				/* Leave the native collection reserve available for players
+				 * and combat. Deferred pads retry at their next spawn interval. */
+				if (mcc_cache_tags_loaded() && object_header_data->maximum_count -
+					object_header_data->actual_count <= GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER)
+					continue;
+				definition_index = random_item(equipment->item_collection.index);
 
 				/* port: the gametype's no weapons on the map */
 				if (definition_index != NONE && game_variant_options_get()->no_map_weapons &&

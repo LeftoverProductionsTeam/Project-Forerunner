@@ -64,7 +64,7 @@ def test_native_discovery_without_game_data(runtime):
         assert feature in reply["native_features"]
         assert targets[13] == {
             "cache_version": 13, "tag_space_bytes": 64 * 1024 * 1024, "max_netgame_flags": 4096,
-            "max_player_starts": 1536, "max_netgame_equipment": 512,
+            "max_player_starts": 1536, "max_netgame_equipment": 1024,
             "invader_engine": "mcc-cea", "required_feature": feature, "default": False,
         }
     assert {"OpenCE", "ChupathingyCE", "FractumSeraph/OpenCE"} <= set(reply["upstream_projects"])

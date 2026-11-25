@@ -207,7 +207,7 @@ def test_hud_conversion_preserves_validation(hud_validation_tool, case):
                                      "file_range", "handle", "unknown_group", "bsp",
                                      "netgame_flags_284", "netgame_flags_4096", "netgame_flags_4097",
                                      "starts_563", "starts_1024", "starts_1307", "starts_1536", "starts_1537",
-                                     "pickups_485", "pickups_512", "pickups_513",
+                                     "pickups_485", "pickups_512", "pickups_975", "pickups_1024", "pickups_1025",
                                      "legacy_isolation", "callbacks", "misaligned", "stream_hole",
                                      "collection", "collection_outside", "device", "device_outside",
                                      "trimmed_structure", "graph_large", "graph_cycle", "graph_node_cycle",
