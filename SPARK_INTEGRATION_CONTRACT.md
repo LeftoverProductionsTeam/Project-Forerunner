@@ -171,6 +171,24 @@ holds the existing .950 floor across both launch poses. Retain the native
 landing and collision gates. Private guest and authenticated human acceptance
 remain open.
 
+Spark's field-pad revision CE609
+`ee28d5914a5916f011634fd720443f9d63419eca025670093b28ea97073f77c8`
+was tested on Win64
+`55897bff5d55bb5e50f29c2414e387c3a96511ca6293b7c4f998e42bed3c8e43`
+with a private offline profile and ordinary menu, movement and E inputs.
+The first insertion boarded seat 4 and the pilot reported arrival at tick
+3720 for goal (80, -122, 1.850). The actual origin was
+(80.532, -123.701, 1.803), with hull up.k .981, motion .0131,
+and ground/rest/landed 1/0/0. The commanded stop left zero throttle.
+At tick 4830 origin was (80.211, -123.920, 1.541), hull up.k .937,
+ground/rest/landed 1/1/0 and facing (.143, .980, .139). At tick 9720
+it had slid farther to center (78.568, -127.240, .919), up.k .926.
+Normal E left the healthy passenger seated. Review the actual approach
+and north-facing contact footprint. The sampled goal is approximately
+1.8 units away from the first arrival origin and the facing point did
+not match the observed hull heading. The corrected cache did not reach
+field disembarkation or the second insertion. Keep the .950 landing gate.
+
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
 unchanged Windows baseline, the occupied pad-brake variant and the prior

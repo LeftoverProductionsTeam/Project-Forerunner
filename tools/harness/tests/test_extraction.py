@@ -616,8 +616,11 @@ def test_departed_refund_negative_control():
         'if (run->phase == _extraction_cancelling)\n\t\t{\n'
         '\t\t\tif (!gear_cancel_reservation(&run->gear))\n'
         '\t\t\t\tplatform_log("extraction: ungranted loadout refund failed before session close");\n'
-        '\t\t}\n\t\telse\n\t\t\tgear_lose(&run->gear);',
-        'gear_lose(&run->gear);')) if name == 'extraction.inc' else
+        '\t\t}\n\t\telse if (gear_lose(&run->gear))\n'
+        '\t\t{\n'
+        '\t\t\tif (run->phase == _extraction_settling) extraction_remember_bank(run);\n'
+        '\t\t}',
+        'if (gear_lose(&run->gear)) { }')) if name == 'extraction.inc' else
         # gear_lose also protects unissued reservations. Remove both refund
         # paths to model loss; removing only the caller is now harmless.
         (name, mutated(text, 'if (session->record.phase == _gear_reserved) return gear_cancel_reservation(session);', ''))

@@ -2822,7 +2822,14 @@ int main(int argc,char **argv)
     "published confirmation revoked the issued loadout");
    for(i=before;i<weapon_count;i++)CHECK(weapons[i].handle!=NONE&&weapons[i].datum.object.parent_object_index==unit_handles[1],
     "published native deployment lost its owned equipment");
+   units[1].object.position.x=20.f;touch(1,1);advance(TICKS_PER_SECOND);
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.pending,
+    "a run with unflushed confirmation became ready to extract");
    publish_confirm=publish_failure=FALSE;
+   before=weapon_count;
+   advance(TICKS_PER_SECOND);
+   CHECK(!run(1)->gear.pending&&weapon_count==before,
+    "storage recovery left the run locked or issued gear again");
   }
   CHECK(run(1)->phase==_extraction_deployed,"confirmed retry failed to deploy");escape(1);
   CHECK(run(1)->gear.record.count==2&&run(1)->gear.record.grenades[0]==2,

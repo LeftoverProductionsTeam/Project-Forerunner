@@ -1558,6 +1558,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->dropship = NONE;
 	run->field_reached = FALSE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
+	run->retry_tick = game_time_get();
 	if (!extraction.survival && starting_squad != NONE)
 	{
 		char script[32];
@@ -2222,6 +2223,17 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		extraction_lose_run(run); return;
 	}
 	if (extraction_unit_pending_death(unit)) return; /* Native death decides the loss next tick. */
+	/* The equipment has already been issued. Retry the published confirmation
+	 * for this owner without reissuing gear or restarting the operation. */
+	if (run->phase == _extraction_deployed && run->gear.pending && run->gear.record.phase == _gear_deployed)
+	{
+		if ((unsigned long)now - (unsigned long)run->retry_tick >= TICKS_PER_SECOND)
+		{
+			run->retry_tick = now;
+			gear_confirm_deployment(&run->gear);
+		}
+		if (run->gear.pending) return;
+	}
 	if (run->phase == _extraction_ready) return_ready = extraction_return_ready(run, unit);
 	if (extraction_medical_incapacitated(run->unit))
 	{
