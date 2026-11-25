@@ -175,6 +175,16 @@ static long players_coop_unit_where(long player,boolean (*eligible)(long))
 static real_point3d const *players_checkpoint_position(long player) {return NULL;}
 static void biped_get_physics_pill(long unit,real_point3d *p,real *height,real *width)
 {*p=objects[slot(unit)].object.position;*height=1;*width=.2f;}
+static struct structure_bsp const *scenario_structure_bsp_try_and_get(short index);
+static boolean bsp_pill_blocked[2];
+static boolean collision_structure_blocks_pill(struct structure_bsp const *structure,short index,
+                                              real_point3d const *base,real height,real width)
+{
+    CHECK(VALID_INDEX(index,2)&&height==1.f&&width==.2f,"seam used incorrect native biped shape");
+    CHECK(structure && base->x==objects[0].object.position.x,"seam used incorrect biped position");
+    CHECK((index==0)==(structure==global_structure_bsp),"tested capsule in the wrong BSP");
+    return bsp_pill_blocked[index];
+}
 static boolean collision_test_point(unsigned long mask,real_point3d const *p,long ignore) {return FALSE;}
 static void unit_exit_seat_end(long unit) {ejections++;objects[slot(unit)].object.parent_object_index=NONE;}
 static boolean player_teleport_internal(long player,long source,real_point3d const *p,boolean coop_spawn)
@@ -896,6 +906,16 @@ int main(int argc,char **argv)
                 CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
                       "crossing would leave a living player behind");
                 objects[1].object.parent_object_index=units[2];
+                objects[0].object.parent_object_index=NONE;
+                objects[0].object.position.x=190;
+                bsp_pill_blocked[1]=TRUE;
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                      "the destination obstructed a biped that fit in the source");
+                bsp_pill_blocked[0]=TRUE;
+                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure),
+                      "shared terrain contact refused an otherwise valid crossing");
+                bsp_pill_blocked[0]=bsp_pill_blocked[1]=FALSE;
+                objects[0].object.parent_object_index=units[2];
                 prepared_crossing_leaf=1;
             }
 

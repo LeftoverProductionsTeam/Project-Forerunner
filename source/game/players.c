@@ -3764,6 +3764,8 @@ static boolean players_continuous_bsp_crossing_valid(
 	struct structure_bsp const *structure)
 {
 	boolean regional = network_regional_bsp_active();
+	struct structure_bsp const *source = structure && regional ?
+		scenario_structure_bsp_try_and_get(volume->source_structure_bsp_index) : NULL;
 	struct data_iterator iterator;
 	struct player_datum *player;
 	boolean crossing = FALSE;
@@ -3788,6 +3790,19 @@ static boolean players_continuous_bsp_crossing_valid(
 		if (structure && !scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
 			!scenario_structure_bsp_contains_point(structure, &root->object.position))
 			return FALSE;
+		if (source && root_index == player->unit_index && biped_try_and_get(root_index))
+		{
+			real_point3d base;
+			real height, width;
+
+			biped_get_physics_pill(root_index, &base, &height, &width);
+			/* Reject a new obstruction without rejecting shared floor contact. */
+			if (collision_structure_blocks_pill(structure, volume->destination_structure_bsp_index,
+					&base, height, width) &&
+				!collision_structure_blocks_pill(source, volume->source_structure_bsp_index,
+					&base, height, width))
+				return FALSE;
+		}
 		crossing = TRUE;
 	}
 	return crossing;

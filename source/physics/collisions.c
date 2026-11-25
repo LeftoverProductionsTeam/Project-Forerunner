@@ -100,6 +100,7 @@ symbols in this file:
 #include "breakable_surfaces.h"
 #include "bsp3d.h"
 #include "collision_bsp.h"
+#include "collision_bsp_definitions.h"
 #include "collision_features.h"
 #include "collision_model_definitions.h"
 #include "collision_models.h"
@@ -890,6 +891,48 @@ boolean collision_test_vector_exit(
 	return found;
 }
 
+static void collision_collect_bsp_features(
+	struct collision_bsp const *bsp,
+	byte const *breakable_flags,
+	boolean test_structure,
+	real_point3d const *center,
+	real radius,
+	real height,
+	real width,
+	struct collision_bsp_test_sphere_result *result,
+	struct collision_feature_list *features)
+{
+	if (collision_bsp_test_sphere(bsp, breakable_flags ? MAXIMUM_BREAKABLE_SURFACES_PER_MAP : 0,
+			breakable_flags, center, radius, result) && test_structure)
+	{
+		collision_bsp_get_features_in_sphere(bsp, result, NULL, height, width, NONE, features);
+	}
+}
+
+boolean collision_structure_blocks_pill(
+	struct structure_bsp const *structure,
+	short structure_bsp_index,
+	real_point3d const *base,
+	real height,
+	real width)
+{
+	struct collision_bsp const *bsp;
+	struct collision_bsp_test_sphere_result sphere;
+	struct collision_feature_list features;
+	struct collision_plane contact;
+	real_point3d center = *base;
+
+	if (structure->collision_bsp.count < 1)
+		return TRUE;
+
+	bsp = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
+	center.z += height * 0.5f;
+	collision_features_new(&features);
+	collision_collect_bsp_features(bsp, breakable_surface_flags_in_bsp(structure_bsp_index), TRUE,
+		&center, height * 0.5f + width + 0.0625f, height, width, &sphere, &features);
+	return collision_features_test_point(&features, base, &contact);
+}
+
 boolean collision_get_features_in_sphere(
 	unsigned long flags,
 	real_point3d const *center,
@@ -920,24 +963,8 @@ boolean collision_get_features_in_sphere(
 		collision_log_start_time(&collision_usage_times.features);
 		radius += 0.0625f;
 
-		if (collision_bsp_test_sphere(
-			collision_bsp,
-			MAXIMUM_BREAKABLE_SURFACES_PER_MAP,
-			breakable_surface_flags_get(),
-			center,
-			radius,
-			&result) &&
-			structure_flags)
-		{
-			collision_bsp_get_features_in_sphere(
-				collision_bsp,
-				&result,
-				NULL,
-				height,
-				width,
-				NONE,
-				features);
-		}
+		collision_collect_bsp_features(collision_bsp, breakable_surface_flags_get(),
+			structure_flags != 0, center, radius, height, width, &result, features);
 
 		if (objects && result.leaf_count > 0)
 		{

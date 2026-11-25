@@ -126,6 +126,10 @@ boolean collision_test_point(
 	unsigned long flags,
 	real_point3d const *point,
 	long ignore_object_index);
+struct structure_bsp;
+boolean collision_structure_blocks_pill(
+	struct structure_bsp const *structure, short structure_bsp_index,
+	real_point3d const *base, real height, real width);
 boolean collision_test_pill(
 	unsigned long flags,
 	real_point3d const *point,

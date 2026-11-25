@@ -62,6 +62,7 @@ struct collision_bsp;
 struct collision_bsp_test_sphere_result { int leaf_count; long leaf_indices[CLUSTERS]; };
 #define global_structure_bsp_get() ((struct structure_bsp const *)NULL)
 #define global_collision_bsp_get() ((struct collision_bsp const *)NULL)
+#define breakable_surface_flags_get() ((byte const *)NULL)
 #define collision_bsp_test_sphere(bsp, maximum, breakable, center, radius, result) \
 	(((result)->leaf_count = clusters_touched(center, radius, (result)->leaf_indices)) > 0)
 #define collision_cluster_index_from_leaf(leaf_index) (leaf_index)

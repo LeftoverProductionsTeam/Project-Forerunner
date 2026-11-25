@@ -183,6 +183,14 @@ byte *breakable_surface_flags_get(
 	return globals->breakable_surface_flags[global_structure_bsp_index];
 }
 
+byte const *breakable_surface_flags_in_bsp(
+	short structure_bsp_index)
+{
+	if (!globals || !VALID_INDEX(structure_bsp_index, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+		return NULL;
+	return globals->breakable_surface_flags[structure_bsp_index];
+}
+
 boolean breakable_surface_extant(
 	short breakable_surface_index)
 {

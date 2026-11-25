@@ -46,6 +46,7 @@ def under_test(fault=None):
     text += (mutated(cache, *fault) if fault else cache) + "\n"
     collisions = read("source/physics/collisions.c")
     text += function(collisions, "object_get_features_in_sphere") + "\n"
+    text += function(collisions, "collision_collect_bsp_features") + "\n"
     text += function(collisions, "collision_get_features_in_sphere") + "\n"
     text += function(collisions, "object_test_vector") + "\n"
     return (("enums.inc", enums), ("under_test.inc", text))

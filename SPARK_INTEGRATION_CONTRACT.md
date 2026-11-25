@@ -3172,6 +3172,23 @@ and its normal aim input reached the host at tick 1080. The two original
 players stayed in the match. All processes exited normally. Live Chiron
 and independent simulation of occupied BSPs remain open.
 
+For a warm regional multiplayer crossing, the host checks each unseated
+biped's native collision capsule against the source and destination BSPs
+using their own breakable-surface state. A destination-only obstruction
+refuses the switch. Seated players continue to use their vehicle's native
+point membership. Classic and cold-crossing checks are unchanged.
+
+Windows x64 executable
+`7192848e8fb89ff693041fbfde4e1d6664c544e447cf992cc832fee0a493a14d`
+passed 82 focused BSP and object collision checks. Two private Delta peers
+on disposable MCC13 fixture
+`9bfbf4b97b5cbb9a5ce56f2a8df68fcf5262d5f6477d9646d8198bd5c9e724d6`
+saw the same Warthog and driver seat at tick 60 in BSP 0, entered BSP 1 at
+tick 75 and still agreed on the vehicle and seat at ticks 90 and 120. The
+driver was staged by the native diagnostic and both processes exited
+normally. Both BSPs used the same geometry. Guest driving, a live Chiron
+crossing and combat in independently occupied BSPs remain open.
+
 #### Region-bound encounters
 
 MCC13 multiplayer encounters with a valid compiled BSP assignment retain their

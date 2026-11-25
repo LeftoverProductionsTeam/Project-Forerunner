@@ -95,6 +95,8 @@ void breakable_surfaces_reset(
 	void);
 byte *breakable_surface_flags_get(
 	void);
+byte const *breakable_surface_flags_in_bsp(
+	short structure_bsp_index);
 boolean breakable_surface_extant(
 	short breakable_surface_index);
 boolean breakable_surface_extant_in_bsp(
