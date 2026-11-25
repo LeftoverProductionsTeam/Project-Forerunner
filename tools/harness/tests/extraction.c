@@ -103,6 +103,7 @@ static struct unit_seat transport_seats[2];
 static struct unit_definition dropship_tag={{{2,transport_seats}}},character_tag;
 static boolean native_cinematic;
 static long recorded_aircraft=NONE;
+static long human_plane_aircraft=NONE;
 static struct unit_definition *unit_definition_get(long index) { if(index==4||index==5)return &character_tag;CHECK(index==300,"native vehicle definition");return &dropship_tag; }
 static short active_players=2;
 static struct { long handle; struct weapon_datum datum; boolean flag; } weapons[96];
@@ -220,6 +221,7 @@ static struct weapon_datum *weapon_try_and_get(long h) { return object_try_and_g
 static struct weapon_datum *weapon_get(long h) { struct weapon_datum *p=weapon_try_and_get(h); CHECK(p,"invalid weapon"); return p; }
 static boolean cinematic_in_progress(void) { return native_cinematic; }
 static boolean recorded_animation_has_thread(long vehicle_index) { return vehicle_index==recorded_aircraft; }
+boolean vehicle_is_human_plane(long vehicle_index) { return vehicle_index==human_plane_aircraft; }
 static boolean unit_controllable(long h) { return !(unit_get(h)->object.damage_flags & 1); }
 static boolean unit_is_busy(long h) { return FALSE; }
 static void object_deplete_shield(long h) { unit_get(h)->object.shield_vitality=0.f; }
@@ -1618,6 +1620,19 @@ int main(int argc,char **argv)
     dropships[a].object.flags&=~FLAG(_object_on_ground_bit);
     CHECK(!unit_try_and_exit_seat(unit_handles[0]),"live passenger started exit while aircraft was airborne");
     dropships[a].object.flags|=FLAG(_object_on_ground_bit);
+    if(a==0) {
+     human_plane_aircraft=dropship_handles[a];
+     short landed_group=extraction.dropship_landing_groups[a];
+     advance(1);
+     CHECK(!device_groups[landed_group].actual_value&&!unit_try_and_exit_seat(unit_handles[0]),
+           "a field Pelican still rolling announced arrival or allowed exit");
+     dropships[a].object.flags|=FLAG(_object_at_rest_bit);
+     dropships[a].object.up.k=.929f;advance(1);
+     CHECK(!device_groups[landed_group].actual_value&&!unit_try_and_exit_seat(unit_handles[0]),
+           "an under-threshold resting Pelican announced arrival or allowed exit");
+     dropships[a].object.up.k=.98f;advance(1);
+     CHECK(device_groups[landed_group].actual_value==1.f,"a safely settled Pelican did not publish arrival");
+    }
     CHECK(unit_try_and_exit_seat(unit_handles[0]),"grounded passenger exit was refused");
     units[0].unit.animation.state=_unit_state_idle;
    }

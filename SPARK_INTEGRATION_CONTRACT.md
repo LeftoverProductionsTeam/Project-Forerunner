@@ -189,6 +189,32 @@ and north-facing contact footprint. The sampled goal is approximately
 not match the observed hull heading. The corrected cache did not reach
 field disembarkation or the second insertion. Keep the .950 landing gate.
 
+On that same map, Win64 heading-only
+`7845ee22be1606b801cd3eddadf0a3a0cff2e759fd63289bf3f42bac0a850ccb`
+honored the native final facing command. At tick 5010 the actual hull
+forward vector was (.899, -.407, .162), hull up.k .986, motion .0066 and
+ground/rest/landed 1/0/0. The hull then slid to (77.358, -121.084, 1.461)
+by tick 5250, with up.k .932 and ground/rest/landed 1/1/0. Ordinary E
+did not establish physical egress. The heading correction alone did not
+hold the authored landing footprint.
+
+The same map with experimental field braking on Win64
+`55c9e3fadc132dbb116be02533dc7073162cbf6182395037f84ba1542261c7cc`
+stopped nearer the target, but by tick 9540 the hull was at
+(79.221, -122.370, 1.505), forward (.907, -.204, .368), up.k .929,
+and ground/rest/landed 1/1/0. Ordinary E after settlement still left the
+passenger aboard. The field brake was removed. The hull became steeper
+as its nose rose during final settlement. Review the ground and aircraft
+contacts across the actual stopped footprint, not only the authored goal.
+
+The heading correction remains. For an opted-in Pelican at its field
+stop, the landing output, crew readiness and normal exit now require
+native rest as well as the existing .950 landing test. The focused harness
+covered rolling, settled at .929, and settled at .980. The final Win64
+binary `ca48069b667acd813a4385c3bd4684874713e2aec6d50610ea51d901435bf18b`
+linked locally. Live gameplay for the final binary, field exit on the
+revised map, second insertion, Covenant and human multiplayer are open.
+
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
 unchanged Windows baseline, the occupied pad-brake variant and the prior

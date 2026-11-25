@@ -2465,6 +2465,29 @@ boolean actor_move_plane_parked_facing(struct actor_datum const *actor, real_vec
 	return TRUE;
 }
 
+/* Honor a native go-to-and-face stop while applying the same level attitude
+ * and zero throttle as an ordinary touchdown. */
+static real_vector3d actor_move_plane_stop_heading(long actor_index)
+{
+	struct actor_datum const *actor = actor_get(actor_index);
+	real_vector3d heading = actor->input.facing_vector;
+
+	if (actor->state.action == _actor_action_obey)
+	{
+		struct obey_individual_complex_control const *command = &actor->state.action_data.obey.complex_control;
+		if (command->destination_valid && command->destination_facing &&
+			!command->destination_keep_moving && actor_path_at_destination(actor_index))
+		{
+			real_vector3d commanded;
+			vector_from_points3d(&actor->input.position.body_position, &command->destination_facing_point, &commanded);
+			commanded.k = 0.f;
+			if (normalize3d(&commanded) > 0.f)
+				heading = commanded;
+		}
+	}
+	return heading;
+}
+
 static real actor_move_plane_approach_scale(real distance_fraction, real heading_dot, boolean keep_moving)
 {
 	real alignment = PIN(heading_dot, 0.f, 1.f);
@@ -3585,7 +3608,7 @@ void actor_move_update(
 	if (plane_landing || plane_ground_roll)
 	{
 		real_vector3d level = plane_landing
-			? actor->input.facing_vector : actor->control.desired_facing_vector;
+			? actor_move_plane_stop_heading(actor_index) : actor->control.desired_facing_vector;
 		level.k = 0.f;
 		if (normalize3d(&level) > 0.f)
 			actor->control.desired_facing_vector = level;

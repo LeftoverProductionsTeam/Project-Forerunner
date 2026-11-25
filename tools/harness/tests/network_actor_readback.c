@@ -28,8 +28,8 @@ struct unit_datum
 	struct {real speed,slide,turn;} vehicle;
 };
 struct obey_individual_complex_control {
- boolean destination_valid,destination_keep_moving;
- real_point3d destination_point;
+ boolean destination_valid,destination_keep_moving,destination_facing;
+ real_point3d destination_point,destination_facing_point;
 };
 static int actor_data=1;
 static struct actor_datum {
@@ -124,6 +124,10 @@ static real distance_squared3d(real_point3d const *a,real_point3d const *b)
 {
 	real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;
 	return x*x+y*y+z*z;
+}
+static void vector_from_points3d(real_point3d const *a,real_point3d const *b,real_vector3d *vector)
+{
+	*vector=(real_vector3d){b->x-a->x,b->y-a->y,b->z-a->z};
 }
 static real normalize3d(real_vector3d *vector)
 {
@@ -275,6 +279,31 @@ int main(int argc,char **argv)
 		native_actor.state.action_data.obey.complex_control.destination_keep_moving=FALSE;
 		human_plane=FALSE;
 		CHECK(actor_path_at_destination(actor),"legacy aircraft arrival changed");
+	}
+	else CASE("plane-landing-heading")
+	{
+		long actor=0x56780000;
+		struct obey_individual_complex_control *order=&native_actor.state.action_data.obey.complex_control;
+		real_vector3d heading;
+
+		native_actor.input.vehicle_index=add(1);
+		native_actor.input.vehicle_driver_type=_actor_vehicle_driver_directional_flying;
+		native_actor.input.facing_vector=(real_vector3d){0,1,0};
+		native_actor.state.action=_actor_action_obey;
+		native_actor.input.position.body_position=(real_point3d){80,-122,1.85f};
+		order->destination_valid=order->destination_facing=TRUE;
+		order->destination_point=native_actor.input.position.body_position;
+		order->destination_facing_point=(real_point3d){83,-126,9};
+		heading=actor_move_plane_stop_heading(actor);
+		CHECK(fabsf(heading.i-.6f)<.001f && fabsf(heading.j+.8f)<.001f && heading.k==0,
+		      "touchdown discarded the authored horizontal heading");
+		native_actor.input.position.body_position.x=70;
+		heading=actor_move_plane_stop_heading(actor);
+		CHECK(heading.j==1,"a stop outside the native radius turned toward the facing point");
+		native_actor.input.position.body_position=order->destination_point;
+		order->destination_keep_moving=TRUE;
+		heading=actor_move_plane_stop_heading(actor);
+		CHECK(heading.j==1,"a cruise waypoint took the touchdown heading");
 	}
 	else CASE("plane-waypoint-position")
 	{
