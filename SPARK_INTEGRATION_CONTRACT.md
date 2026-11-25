@@ -3321,6 +3321,24 @@ CRC `ff631a4e`. The guest exited normally and the harness stopped the
 dedicated process after sampling. Physical traversal and live return to a
 parked home on the authored Chiron corridor remain unverified.
 
+Regional vehicle homes also register when the gametype disables respawn.
+An empty vehicle still at its assigned home stays out of the neighboring
+BSP's collision and object replication, even in overlapping geometry.
+Player boarding checks honor the same ownership. The vehicle keeps its
+host identity and returns through native object reconnect. Occupied,
+carrier-attached and displaced vehicles continue through the native path.
+
+Windows x64 executable
+`bbc47830a33e15d6ff4bfc5bfdf36d8b7b1195ed122a4b16e3608b646dfa8f22`
+passed 13 focused vehicle and seat-admission checks. In the three-BSP
+equipment fixture above, the host kept Warthog slot 0 across BSPs 1 and 2
+and the guest received slot 0 again on return to BSP 0 at tick 210. The
+rifle also retained slot 552. In the two-BSP occupied fixture above, the
+native diagnostic staged the host driver. Both peers saw Warthog
+`e2710002` and driver seat 0 at tick 60 and after the BSP switch at tick
+75. Both runs exited normally. Guest-driven traversal and independent
+simulation in distinct BSPs remain open.
+
 ### Eleven-region Damnation route and regional object state
 
 Spark revision `8750c40` expanded the ten-region CE609 build to Damnation.

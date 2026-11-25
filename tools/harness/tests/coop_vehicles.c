@@ -33,7 +33,7 @@ struct player_datum {long unit_index;};
 struct location {long leaf_index; short cluster_index;};
 struct test_object {
  long definition_index;
- struct {long parent_object_index,first_child_object_index,next_object_index,owner_object_index,owner_player_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
+ struct {long parent_object_index,first_child_object_index,next_object_index,owner_object_index,owner_player_index,vehicle_home_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
  real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
  float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];} object;
  struct {unsigned long flags; long driver_object_index,gunner_object_index,player_index;} unit;
@@ -447,6 +447,12 @@ static void object_claim_scenario_name(long object,short name)
  if (get(object)&&name!=NONE&&object_index_from_name_index(name)==NONE)
   get(object)->object.name_index=name;
 }
+static struct unit_datum *unit_get(long index);
+static real distance_squared3d(real_point3d const *p,real_point3d const *q)
+{
+ real dx=p->x-q->x,dy=p->y-q->y,dz=p->z-q->z;
+ return dx*dx+dy*dy+dz*dz;
+}
 #include "home_respawn.inc"
 
 static void regional_respawn(void)
@@ -465,10 +471,25 @@ static void regional_respawn(void)
  game_engine_update_vehicle_respawn();
  CHECK(game_engine_vehicle_home_count==NONE,"client initialized authoritative vehicle homes");
  connection=2;
+ respawn_options.vehicle_respawn_time=0;
  game_engine_update_vehicle_respawn();
- CHECK(game_engine_vehicle_home_count==1&&game_engine_vehicle_homes[0].structure_bsp_index==0,
-       "did not bind the original home");
+ CHECK(game_engine_vehicle_home_count==1&&game_engine_vehicle_homes[0].structure_bsp_index==0&&
+       get(vehicle)->object.vehicle_home_index==0&&!game_engine_vehicle_parked(vehicle),
+       "did not bind the active home with respawn disabled");
+
+ global_structure_bsp_index=1;
+ CHECK(game_engine_vehicle_parked(vehicle),"an empty vehicle appeared in the neighboring region");
+ get(vehicle)->object.first_child_object_index=rider;
+ CHECK(!game_engine_vehicle_parked(vehicle),"parked a vehicle with a passenger");
+ get(vehicle)->object.first_child_object_index=NONE;
+ get(vehicle)->object.parent_object_index=rider;
+ CHECK(!game_engine_vehicle_parked(vehicle),"parked a vehicle attached to a carrier");
+ get(vehicle)->object.parent_object_index=NONE;
  get(vehicle)->object.position.x=30;
+ CHECK(!game_engine_vehicle_parked(vehicle),"parked a vehicle moved away from its home");
+
+ global_structure_bsp_index=0;
+ respawn_options.vehicle_respawn_time=1;
  now=TICKS_PER_SECOND;
  game_engine_update_vehicle_respawn();
  CHECK(game_engine_vehicle_homes[0].idle_since==now,"did not arm the native respawn timer");
@@ -500,7 +521,10 @@ static void regional_respawn(void)
  game_engine_update_vehicle_respawn();
  replacement=game_engine_vehicle_homes[0].object_index;
  CHECK(!get(vehicle)&&new_count==1&&get(replacement)&&get(replacement)->object.position.x==10&&
+       get(replacement)->object.vehicle_home_index==0&&
        object_index_from_name_index(7)==replacement,"did not respawn at the home with its original name");
+ global_structure_bsp_index=1;
+ CHECK(game_engine_vehicle_parked(replacement),"replacement lost its native region");
 }
 
 #define MAXIMUM_REGIONS_PER_OBJECT 16

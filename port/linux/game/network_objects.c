@@ -757,9 +757,8 @@ static boolean distributed_object_networked(
 	return header && header->datum && TEST_FLAG(NETWORKED_OBJECT_TYPES, header->type) &&
 		!TEST_FLAG(header->flags, _object_header_being_deleted_bit) &&
 		DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index) < MAXIMUM_TRACKED_OBJECTS &&
-		(!TEST_FLAG(_object_mask_item, header->type) ||
-		 !TEST_FLAG(header->datum->object.flags, _object_outside_of_map_bit) ||
-		 !game_engine_equipment_item_parked(object_index));
+		(!TEST_FLAG(header->datum->object.flags, _object_outside_of_map_bit) ||
+		 !game_engine_object_parked(object_index, header->type));
 }
 
 boolean network_objects_client_has(

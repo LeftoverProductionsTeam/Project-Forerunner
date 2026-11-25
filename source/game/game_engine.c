@@ -5377,7 +5377,7 @@ static boolean game_engine_equipment_item_at_pad(
 		distance_squared3d(&item->object.position, &equipment->position) < 0.25f;
 }
 
-boolean game_engine_equipment_item_parked(
+static boolean game_engine_equipment_item_parked(
 	long object_index)
 {
 	struct item_datum const *item = item_get(object_index);
@@ -5421,6 +5421,41 @@ static boolean game_engine_vehicle_empty(
 	return TRUE;
 }
 
+static boolean game_engine_vehicle_away(
+	short home,
+	real_point3d const *position)
+{
+	return distance_squared3d(position, &game_engine_vehicle_homes[home].position) > VEHICLE_HOME_AWAY_SQUARED;
+}
+
+static boolean game_engine_vehicle_parked(
+	long object_index)
+{
+	struct unit_datum *vehicle = unit_get(object_index);
+	long home = vehicle->object.vehicle_home_index;
+	short bsp;
+
+	if (!VALID_INDEX(home, game_engine_vehicle_home_count) ||
+		game_engine_vehicle_homes[home].object_index != object_index)
+		return FALSE;
+	bsp = game_engine_vehicle_homes[home].structure_bsp_index;
+	return bsp != NONE && bsp != global_structure_bsp_index_get() &&
+		vehicle->object.parent_object_index == NONE &&
+		!game_engine_vehicle_away((short)home, &vehicle->object.position) &&
+		game_engine_vehicle_empty(vehicle);
+}
+
+boolean game_engine_object_parked(
+	long object_index,
+	short object_type)
+{
+	if (object_type == _object_type_vehicle)
+		return game_engine_vehicle_parked(object_index);
+	if (TEST_FLAG(_object_mask_item, object_type))
+		return game_engine_equipment_item_parked(object_index);
+	return FALSE;
+}
+
 /* a living vehicle of the home's kind on its pad, but except, that no other
 home follows (one a map's script put there in place of the home's: another
 home's vehicle parked there is still that home's), else NONE */
@@ -5434,14 +5469,12 @@ static long game_engine_vehicle_home_on_pad(
 	while (object_iterator_next(&iterator))
 	{
 		struct object_datum *object = object_get(iterator.index);
-		real dx = object->object.position.x - game_engine_vehicle_homes[home].position.x;
-		real dy = object->object.position.y - game_engine_vehicle_homes[home].position.y;
-		real dz = object->object.position.z - game_engine_vehicle_homes[home].position.z;
+
 		short other;
 
 		if (iterator.index == except || TEST_FLAG(object->object.damage_flags, _object_dead_bit) ||
 			object->definition_index != game_engine_vehicle_homes[home].definition_index ||
-			dx * dx + dy * dy + dz * dz > VEHICLE_HOME_AWAY_SQUARED)
+			game_engine_vehicle_away(home, &object->object.position))
 		{
 			continue;
 		}
@@ -5456,12 +5489,21 @@ static long game_engine_vehicle_home_on_pad(
 	return NONE;
 }
 
+static void game_engine_vehicle_home_track(
+	short home,
+	long object_index)
+{
+	game_engine_vehicle_homes[home].object_index = object_index;
+	if (object_index != NONE)
+		object_get(object_index)->object.vehicle_home_index = home;
+}
+
 /* the home follows this vehicle, which keeps (or takes) the home's name */
 static void game_engine_vehicle_home_follow(
 	short home,
 	long object_index)
 {
-	game_engine_vehicle_homes[home].object_index = object_index;
+	game_engine_vehicle_home_track(home, object_index);
 	if (game_engine_vehicle_homes[home].name_index == NONE)
 		game_engine_vehicle_homes[home].name_index = object_get(object_index)->object.name_index;
 	else
@@ -5487,7 +5529,7 @@ static long game_engine_vehicle_home_current(
 	vehicle = unit_try_and_get(named_index);
 	if (vehicle && !TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit))
 	{
-		game_engine_vehicle_homes[home].object_index = named_index;
+		game_engine_vehicle_home_track(home, named_index);
 		return named_index;
 	}
 
@@ -5506,7 +5548,7 @@ static void game_engine_update_vehicle_respawn(
 	short active_bsp = NONE;
 	short index;
 
-	if (respawn_ticks <= 0 || network_game_distributed_client() || now % TICKS_PER_SECOND)
+	if (network_game_distributed_client() || now % TICKS_PER_SECOND)
 		return;
 	if (scenario_uses_regional_gameplay(global_scenario_get()))
 	{
@@ -5515,6 +5557,9 @@ static void game_engine_update_vehicle_respawn(
 			return;
 		structure = global_structure_bsp_get();
 	}
+	if (!structure && respawn_ticks <= 0)
+		return;
+
 	/* (where the map put them: the vehicles there at the first look) */
 	if (game_engine_vehicle_home_count == NONE)
 	{
@@ -5527,7 +5572,7 @@ static void game_engine_update_vehicle_respawn(
 			struct object_datum *object = object_get(iterator.index);
 			short home = game_engine_vehicle_home_count++;
 
-			game_engine_vehicle_homes[home].object_index = iterator.index;
+			game_engine_vehicle_home_track(home, iterator.index);
 			game_engine_vehicle_homes[home].definition_index = object->definition_index;
 			game_engine_vehicle_homes[home].position = object->object.position;
 			object_get_orientation(iterator.index, &game_engine_vehicle_homes[home].forward,
@@ -5555,15 +5600,13 @@ static void game_engine_update_vehicle_respawn(
 			if (*home_bsp != active_bsp)
 				continue;
 		}
+		if (respawn_ticks <= 0)
+			continue;
 		object_index = game_engine_vehicle_home_current(index);
 		vehicle = unit_try_and_get(object_index);
 		if (vehicle && !TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit))
 		{
-			real dx = vehicle->object.position.x - game_engine_vehicle_homes[index].position.x;
-			real dy = vehicle->object.position.y - game_engine_vehicle_homes[index].position.y;
-			real dz = vehicle->object.position.z - game_engine_vehicle_homes[index].position.z;
-
-			waiting = dx * dx + dy * dy + dz * dz > VEHICLE_HOME_AWAY_SQUARED && game_engine_vehicle_empty(vehicle);
+			waiting = game_engine_vehicle_away(index, &vehicle->object.position) && game_engine_vehicle_empty(vehicle);
 		}
 		if (!waiting)
 			game_engine_vehicle_homes[index].idle_since = NONE;
@@ -5584,7 +5627,7 @@ static void game_engine_update_vehicle_respawn(
 			if (named && named_index != stale_index && !TEST_FLAG(named->object.damage_flags, _object_dead_bit) &&
 				!game_engine_vehicle_empty(named))
 			{
-				game_engine_vehicle_homes[index].object_index = named_index;
+				game_engine_vehicle_home_track(index, named_index);
 				game_engine_vehicle_homes[index].idle_since = NONE;
 				continue;
 			}
@@ -5618,7 +5661,7 @@ static void game_engine_update_vehicle_respawn(
 			}
 			if (!structure)
 				replacement = object_new(&placement_data);
-			game_engine_vehicle_homes[index].object_index = replacement;
+			game_engine_vehicle_home_track(index, replacement);
 			object_claim_scenario_name(replacement, game_engine_vehicle_homes[index].name_index);
 			game_engine_vehicle_homes[index].idle_since = NONE;
 		}

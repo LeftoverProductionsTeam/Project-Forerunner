@@ -586,7 +586,7 @@ struct scenario_object_datum;
 struct tag_block;
 void game_engine_vehicle_placement_begin(
 	void);
-boolean game_engine_equipment_item_parked(long object_index);
+boolean game_engine_object_parked(long object_index, short object_type);
 #ifdef HALO_CUSTOM_EDITION
 /* port: whether a Halo PC map's vehicles are chosen by their placements'
 spawn flags in this game, and whether a placement is (game_engine.c) */

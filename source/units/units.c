@@ -3140,7 +3140,9 @@ boolean unit_can_enter_seat(
 
 	/* port: managed Extraction transports reserve driver seats for the
 	 * authored pilot. Refusal must also hide the pilot from native eviction. */
-	if (!extraction_transport_can_board(unit_index, target_unit_index, seat_index))
+	if ((unit->unit.player_index != NONE &&
+		game_engine_object_parked(target_unit_index, target_unit->object.type)) ||
+		!extraction_transport_can_board(unit_index, target_unit_index, seat_index))
 	{
 		if (occupant_unit_index) *occupant_unit_index = NONE;
 		return FALSE;

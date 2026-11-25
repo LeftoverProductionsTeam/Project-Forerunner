@@ -2076,8 +2076,7 @@ static void object_reconnect_to_map_internal(
 		objects at level start, reading a stack slot reused meanwhile) */
 		struct location bounding_sphere_location;
 
-		if (TEST_FLAG(_object_mask_item, object->object.type) &&
-			game_engine_equipment_item_parked(object_index))
+		if (game_engine_object_parked(object_index, object->object.type))
 		{
 			object->object.location.leaf_index = NONE;
 			object->object.location.cluster_index = NONE;

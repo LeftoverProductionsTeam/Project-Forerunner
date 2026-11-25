@@ -460,6 +460,7 @@ boolean vehicle_new(
 	struct unit_definition *definition = vehicle_definition_get(vehicle->definition_index);
 
 	vehicle_reset(vehicle_index);
+	vehicle->object.vehicle_home_index = NONE;
 
 	if (definition->object.physics.index==NONE)
 		vehicle->object.flags |= FLAG(5);

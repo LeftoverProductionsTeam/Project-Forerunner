@@ -469,6 +469,9 @@ static short animation_choose_random_permutation(long graph,short index){return 
 static void unit_set_animation(long u,long graph,short index){CHECK(index==1,"wrong native exit animation");}
 static void object_set_visibility(long u,boolean visible){}
 static void ai_handle_exit_vehicle(long u,long parent){}
+static long parked_region_vehicle = NONE;
+static boolean game_engine_object_parked(long index,short type)
+{return index==parked_region_vehicle&&type==_object_type_vehicle;}
 #include "native_seats.inc"
 #include "controls.inc"
 
@@ -1876,6 +1879,10 @@ int main(int argc,char **argv)
     CHECK(unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"client rejected authoritative seat replay");
     connection=_game_connection_network_server;enabled=FALSE;
     CHECK(unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,NULL),"disabled Extraction changed native admission");
+    dropships[1].object.type=_object_type_vehicle;
+    parked_region_vehicle=dropship_handles[1];
+    CHECK(!unit_can_enter_seat(unit_handles[0],dropship_handles[1],0,&occupant)&&occupant==NONE,
+     "player could board a parked off-region vehicle");
    } else if(!strcmp(case_name,"transport-admission-owner")) {
     players[0].unit_index=unit_handles[1];CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"stale player body boarded");
     players[0].unit_index=unit_handles[0];players[0].quit_out_of_game=TRUE;CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"departed owner boarded");

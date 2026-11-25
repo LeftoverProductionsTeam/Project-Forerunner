@@ -293,7 +293,7 @@ struct _object_datum
 	long body_damage_decay_timer;
 	short shield_stun_ticks;
 	word damage_flags;
-	long scenery_idx;
+	long vehicle_home_index;
 	long first_cluster_reference_index;
 	long next_garbage_object_index;
 	long next_object_index;
