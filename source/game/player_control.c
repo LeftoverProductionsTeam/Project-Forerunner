@@ -522,16 +522,18 @@ real player_control_get_field_of_view(
 			control->unit_index,
 			unit->unit.current_weapon_index);
 
+		real unit_field_of_view = definition->unit.camera_field_of_view;
+
+		/* The observer requires a finite half-angle within these bounds.
+		 * Keep the stock view for invalid camera data from custom bipeds. */
+		if (valid_real(unit_field_of_view) && unit_field_of_view >= 0.001f && unit_field_of_view <= _pi / 2.f)
+			field_of_view = unit_field_of_view;
 		if (weapon_index != NONE)
 		{
-			field_of_view = weapon_get_field_of_view(
-				weapon_index,
-				definition->unit.camera_field_of_view,
-				control->zoom_level);
-		}
-		else
-		{
-			field_of_view = definition->unit.camera_field_of_view;
+			real zoom_field_of_view = weapon_get_field_of_view(weapon_index, field_of_view, control->zoom_level);
+
+			if (valid_real(zoom_field_of_view) && zoom_field_of_view >= 0.001f && zoom_field_of_view <= _pi / 2.f)
+				field_of_view = zoom_field_of_view;
 		}
 	}
 	return field_of_view;

@@ -1688,6 +1688,26 @@ audio-prefix copy verifies native carrier delivery and synchronization
 only. Standalone CE, a complete survival round, and mixed Forerunner and
 Chupathingy play remain open.
 
+Spark's standalone CE609 Zombie Apocalypse export
+`8e8b0a59b566de29502738ddf67ad0350603aba4a360cdfba2fd2b59e18520a7`
+loaded 2,114 tags on both private OpenCE peers. The initial host halted
+at first spawn in the observer with FOV 4.5 radians from
+`mgm\fonzie\sparky\tags\player\survivor.biped`. Forerunner now substitutes
+the existing stock view for invalid unit camera angles and keeps the
+valid base view if weapon zoom produces an invalid result. The map
+bytes were unchanged. Spark separately authored the stock Survivor
+angle in derivative `0a677fbc48e268daa99ef0a32a37e2518d8dab08882c332b6f250a180241a2be`;
+its Forerunner runtime comparison is pending.
+
+On Win64 executable `3e42b68f177e15c405d1339cfd8f34b9451d6c9e5e6cd44df4635a719fab0790`,
+both peers spawned, agreed on guest movement and weapon fire, and
+sampled 24 matching live Standard exits from carrier seats through tick
+3720. Both sampled Alpha and Evolved riders aboard three carriers each,
+with no observed living exits for either class. This was a private
+native Slayer run with Delta disabled. Full survival victory, restart,
+and Chupathingy interoperability remain open on this export. The installed
+MCC13 candidate and executable were preserved and staging was removed.
+
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
 `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
