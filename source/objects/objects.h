@@ -424,6 +424,7 @@ void object_reset(long object_index);
 void object_placement_data_new(struct object_placement_data *data, long definition_index, long owner_object_index);
 void object_disconnect_from_map(long object_index);
 short object_get_first_cluster(struct object_cluster_iterator *iterator, long object_index);
+short object_get_regional_bsp(long object_index);
 real_matrix4x3 *object_get_node_matrices(long object_index);
 char const *object_get_attachment_marker_name(long object_index, short attachment_index);
 boolean object_has_node(long object_index, short node_index);

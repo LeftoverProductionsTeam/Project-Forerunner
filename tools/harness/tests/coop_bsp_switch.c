@@ -925,6 +925,9 @@ int main(int argc,char **argv)
         CHECK(cluster_partition_key(&partition,0)!=reverse_key&&
               cluster_partition_get_first_cluster(&partition,&cursor,head)==NONE&&cursor==NONE,
               "a reverse reference exposed a cluster from the previous BSP");
+        CHECK(cluster_partition_reference_bsp(&partition,head)==old&&
+              cluster_partition_reference_bsp(&partition,NONE)==NONE,
+              "object ownership followed the foreground instead of its stored partition key");
         CHECK(cluster_partition_get_first_datum_in_bsp(&partition,&cursor,old,0)==NONE&&
               cluster_partition_get_first_datum(&partition,&cursor,0)==units[1],
               "binding the next region changed the qualified lookup contract");
@@ -1470,6 +1473,7 @@ int main(int argc,char **argv)
         structures[0].clusters.count=structures[1].clusters.count=4;
         CHECK(player_starting_location_in_active_bsp(&local),"rejected a valid authored start");
         CHECK(!player_starting_location_in_active_bsp(&foreign),"admitted a foreign authored start inside shared geometry");
+        CHECK(!player_starting_location_in_bsp(&foreign, 1),"admitted a start before the target BSP was retained");
         CHECK(!player_starting_location_in_active_bsp(&outside),"admitted a start without valid collision");
         CHECK(player_starting_location_in_active_bsp(&unset),"rejected an unassigned start in valid geometry");
         CHECK(player_starting_location_in_active_bsp(&floor)&&floor.position.z==-.01f,

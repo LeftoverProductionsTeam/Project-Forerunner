@@ -1175,17 +1175,24 @@ struct player_starting_location *player_get_starting_location(
 
 /* An unassigned multiplayer start is usable if its position is inside
  * the active BSP. An authored BSP assignment also has to match. */
+boolean player_starting_location_in_bsp(
+	struct player_starting_location const *start, short bsp)
+{
+	struct structure_bsp const *structure;
+
+	if (bsp == NONE || (start->structure_bsp_reference_index != NONE &&
+		start->structure_bsp_reference_index != bsp))
+		return FALSE;
+
+	structure = scenario_structure_bsp_try_and_get(bsp);
+	return structure && scenario_structure_bsp_contains_placement(structure, &start->position);
+}
+
 boolean player_starting_location_in_active_bsp(
 	struct player_starting_location const *start)
 {
-	if (!scenario_uses_regional_gameplay(global_scenario_get()))
-		return TRUE;
-	if (global_structure_bsp_index == NONE ||
-		(start->structure_bsp_reference_index != NONE &&
-			start->structure_bsp_reference_index != global_structure_bsp_index))
-		return FALSE;
-
-	return scenario_structure_bsp_contains_placement(global_structure_bsp_get(), &start->position);
+	return !scenario_uses_regional_gameplay(global_scenario_get()) ||
+		player_starting_location_in_bsp(start, global_structure_bsp_index);
 }
 
 static long is_player_in_trigger(
@@ -1343,6 +1350,50 @@ long player_new(
 	return player_index;
 }
 
+/* Halo's stock spawn score uses a fixed distance between origins. An
+ * Extraction hub can use bodies that overlap even when that score is positive. */
+static boolean player_extraction_start_clear(long player_index, long biped,
+	real_point3d const *position)
+{
+	struct biped_definition const *definition = biped_definition_get(biped);
+	struct data_iterator players;
+	struct player_datum const *other;
+	real radius = definition->biped.collision_radius;
+	real height = TEST_FLAG(definition->biped.flags, _biped_spherical_bit) ? 0.f :
+		MAX(0.f, definition->biped.collision_height_standing - 2.f * radius);
+	real_point3d base = *position;
+
+	if (!TEST_FLAG(definition->biped.flags, _biped_pill_centered_at_origin_bit))
+		base.z += radius;
+
+	data_iterator_new(&players, player_data);
+	while ((other = (struct player_datum const *)data_iterator_next(&players)) != NULL)
+	{
+		struct unit_datum const *unit;
+		real_point3d other_base;
+		real other_height, other_radius, dx, dy, dz, separation;
+
+		if (players.datum_index == player_index || other->unit_index == NONE)
+			continue;
+		unit = unit_try_and_get(other->unit_index);
+		if (!unit || unit->object.type != _object_type_biped ||
+			unit->object.parent_object_index != NONE ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+			TEST_FLAG(unit->object.flags, _object_outside_of_map_bit))
+			continue;
+
+		biped_get_physics_pill(other->unit_index, &other_base, &other_height, &other_radius);
+		dx = base.x - other_base.x;
+		dy = base.y - other_base.y;
+		dz = MAX(0.f, MAX(base.z - (other_base.z + other_height),
+			other_base.z - (base.z + height)));
+		separation = radius + other_radius;
+		if (dx * dx + dy * dy + dz * dz < separation * separation)
+			return FALSE;
+	}
+	return TRUE;
+}
+
 long find_best_starting_location_index(
 	long player_index)
 {
@@ -1354,6 +1405,9 @@ long find_best_starting_location_index(
 	short best_starting_location_index;
 	real starting_location_rating;
 	real best_starting_location_rating;
+	long extraction_biped = NONE;
+	short faction_profile = NONE, faction_variant = 0;
+	boolean checked_extraction_profile = FALSE;
 
 	scenario = global_scenario_get();
 	starting_location_count = scenario->players.count;
@@ -1384,6 +1438,22 @@ long find_best_starting_location_index(
 			0.5);
 		if (starting_location_rating > best_starting_location_rating)
 		{
+			/* start_allowed may have bound the operation on this first spawn. */
+			if (!checked_extraction_profile && extraction_owns_map())
+			{
+				struct game_globals *globals = scenario_get_game_globals();
+				struct game_globals_player_information const *information =
+					TAG_BLOCK_GET_ELEMENT(&globals->player_information, 0,
+						struct game_globals_player_information);
+				extraction_biped = information->player_unit.index;
+				extraction_player_spawn_profile(player_index, &extraction_biped,
+					&faction_profile, &faction_variant);
+				checked_extraction_profile = TRUE;
+			}
+			if (extraction_biped != NONE &&
+				!player_extraction_start_clear(player_index, extraction_biped, &starting_location->position))
+				continue;
+
 			best_starting_location_rating = starting_location_rating;
 			best_starting_location_index = starting_location_index;
 		}

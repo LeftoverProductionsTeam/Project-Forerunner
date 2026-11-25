@@ -397,6 +397,13 @@ static short cluster_partition_local_cluster(long cluster_key)
 	return cluster_key == NONE ? NONE : (short)(cluster_key % MAXIMUM_CLUSTERS_PER_STRUCTURE);
 }
 
+short cluster_partition_reference_bsp(
+	struct cluster_partition const *partition, long reference_index)
+{
+	long key = reference_list_get_next_datum_index(partition->cluster_reference_data, &reference_index);
+	return key >= MAXIMUM_CLUSTERS_PER_STRUCTURE ? (short)(key / MAXIMUM_CLUSTERS_PER_STRUCTURE - 1) : NONE;
+}
+
 long cluster_partition_get_first_cluster(
 	struct cluster_partition const *partition,
 	long *reference_index,

@@ -3988,6 +3988,17 @@ static boolean nearby_vehicle(
 	return FALSE;
 }
 
+static boolean game_engine_spawn_observes_unit(long unit_index, short bsp)
+{
+	short unit_bsp;
+	if (unit_index == NONE)
+		return FALSE;
+	if (bsp == NONE)
+		return TRUE;
+	unit_bsp = object_get_regional_bsp(unit_index);
+	return unit_bsp == NONE || unit_bsp == bsp;
+}
+
 static real game_engine_get_friendly_bonus(
 	long player_index,
 	real_point3d const *position)
@@ -3996,13 +4007,14 @@ static real game_engine_get_friendly_bonus(
 	struct data_iterator iterator;
 	struct player_datum *other_player;
 	real rating = 0.0f;
+	short bsp = scenario_uses_regional_gameplay(global_scenario_get()) ? global_structure_bsp_index_get() : NONE;
 
 	data_iterator_new(&iterator, player_data);
 	other_player = (struct player_datum *)data_iterator_next(&iterator);
 	while (other_player)
 	{
 		if (player->team_index == other_player->team_index &&
-			other_player->unit_index != NONE)
+			game_engine_spawn_observes_unit(other_player->unit_index, bsp))
 		{
 			real_point3d origin;
 			real distance;
@@ -9164,6 +9176,7 @@ real game_engine_get_distance_rating_for_spawn(
 	struct data_iterator iterator;
 	struct player_datum *other_player;
 	real rating;
+	short bsp = scenario_uses_regional_gameplay(global_scenario_get()) ? global_structure_bsp_index_get() : NONE;
 
 	player = player_get(player_index);
 	rating = 1.0f;
@@ -9171,7 +9184,7 @@ real game_engine_get_distance_rating_for_spawn(
 	other_player = (struct player_datum *)data_iterator_next(&iterator);
 	while (other_player)
 	{
-		if (other_player->unit_index!=NONE)
+		if (game_engine_spawn_observes_unit(other_player->unit_index, bsp))
 		{
 			real_point3d origin;
 			real distance;

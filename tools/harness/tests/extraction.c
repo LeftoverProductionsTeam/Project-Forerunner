@@ -518,6 +518,15 @@ static boolean biped_fix_position(long unit,long ship,real_point3d const *positi
 {CHECK(dont_teleport,"hover clearance moved the passenger");
  CHECK(position->x==13.f && fabsf(position->z-30.1f)<.001f,"hover clearance did not use the native clip and biped capsule base");
  return !wall;}
+enum { _biped_spherical_bit, _biped_pill_centered_at_origin_bit };
+struct biped_definition { struct {unsigned long flags; real collision_radius, collision_height_standing;} biped; };
+static struct biped_definition fixture_elite = {{0, .35f, 1.4f}};
+static struct biped_definition *biped_definition_get(long tag)
+{CHECK(tag==5,"clearance used a different faction body");return &fixture_elite;}
+#ifndef MAX
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#endif
+#include "spawn_clearance.inc"
 #include "native_seats.inc"
 #include "controls.inc"
 
@@ -670,6 +679,19 @@ int main(int argc,char **argv)
   touch(6,1);
   CHECK(remote_notices==before+4 && strstr(remote_notice_history[before%4],"DEBRIEF"),
    "Covenant operation report did not route to the debrief");
+  return 0;
+ }
+ if(!strcmp(case_name,"faction-hub-clearance")) {
+  real_point3d start={0,0,0};
+  units[1].object.position=(real_point3d){.55f,0,0};
+  CHECK(!player_extraction_start_clear(player_handles[0],5,&start),"overlapping Elite and Spartan spawn was clear");
+  units[1].object.position.x=.65f;
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start),"non-overlapping neighboring spawn was blocked");
+  units[1].object.position=(real_point3d){0,0,2.f};
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start),"same horizontal coordinates blocked on a different level");
+  units[1].object.position.z=0;
+  units[1].object.damage_flags=FLAG(_object_dead_bit);
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start),"dead player blocked a replacement spawn");
   return 0;
  }
  if(!strncmp(case_name,"faction-hub-",12)) {

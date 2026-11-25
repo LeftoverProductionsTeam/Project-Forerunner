@@ -51,6 +51,16 @@ component validator. Validation of the resulting tree is recorded separately.
 | Recording and replay | Inherited `network_recording.c`, `guide_record.c`; Fractum viewer/service code | Retain source; replay fidelity and production playback acceptance remain open. Do not treat every recording format as deterministic Theater. |
 | Spark adapter and MegaWorld | `server_mode.c` capability contract v1; `tools/spark_runtime.py` reference client | Read-only discovery implemented and tested against real engine. Live editing and connected-world traversal are not implemented. |
 
+## MegaWorld and authored gameplay upstream review
+
+| Source reviewed | Reuse decision |
+| --- | --- |
+| [OpenH1 BSP cache at 4549a984](https://github.com/OpenH1/goath1/blob/4549a984dc3a87708c652a77b449af7731686e59/port/linux/game/structure_bsp_cache.c) | Keeps checked byte images by map checksum, file range and original address, with a 128 MiB cap and 32 entries. Restore writes one active window and uses bounded offset reads for inactive materials. Forerunner already reuses resident MCC geometry without copying or revalidation on a warm hit. Use the bounded-read approach where cold-load profiling shows repeated work in that loader. A copied image cannot serve as an independent physics scene. |
+| [SutlabSol OpenCE-Forge at 084da2a6](https://github.com/SutlabSol/OpenCE-Forge/blob/084da2a60c9408b460575c95898511acb9d810c5/port/linux/game/forge_network.c) | Holds custom placement until its dependency arrives. The stream bounds offers and chunks, verifies the decompressed digest and schema, and heals placement/object update ordering for late joiners. Adapt that readiness and ordering behind existing Forerunner replication, retaining native HMV. The fork's separate wire protocol needs explicit compatibility. |
+| [Watanoge Halo Content Evolved at 9c50f047](https://github.com/Watanoge/halo-content-evolved/tree/9c50f0472dcc17a09d97cc726f628d167eb58913) | Source still separates CE and MCC tag dependencies, native CE export and MCC package export, host Firefight objectives, Floodfection's rendered forms, and deterministic placement rolls after a seed is selected. Keep the feature-level reuse decisions below. [Milenko's merged Delta layout bridge](https://github.com/Watanoge/halo-content-evolved/pull/5) is a separate interoperability comparison with Forerunner's existing bridge. |
+
+Spark can surface supported layouts, dependency profiles, objective roles and seed choices in its existing editors and export dialog. Forerunner owns cache admission, dependency readiness, authoritative objectives and replication. Each reviewed repository carries the AGPL v3 license. Preserve per-file authorship and notices when adapting source, and keep runtime code out of Spark's MIT editor.
+
 ## Halo Content Evolved at 61fd80aa
 
 Source audit of [61fd80aafc3e1af551124516c4c6915cafd16511](https://github.com/Watanoge/halo-content-evolved/tree/61fd80aafc3e1af551124516c4c6915cafd16511).

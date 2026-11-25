@@ -1352,6 +1352,20 @@ short object_get_first_cluster(
 		object_get(ultimate_parent_index)->object.first_cluster_reference_index);
 }
 
+short object_get_regional_bsp(long object_index)
+{
+	struct object_datum const *root = object_try_and_get(object_get_ultimate_parent(object_index));
+	struct cluster_partition *partition;
+
+	if (!root || !TEST_FLAG(root->object.flags, _object_connected_to_map_bit) ||
+		root->object.first_cluster_reference_index == NONE)
+		return NONE;
+
+	partition = TEST_FLAG(root->object.flags, _object_has_collision_model_bit) ?
+		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
+	return cluster_partition_reference_bsp(partition, root->object.first_cluster_reference_index);
+}
+
 real_matrix4x3 *object_get_node_matrices(
 	long object_index)
 {

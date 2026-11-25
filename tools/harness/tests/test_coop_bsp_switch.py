@@ -54,6 +54,7 @@ def generated(fault=None):
          '\n'.join(function(read('source/structures/cluster_partitions.c'), name) for name in (
             'cluster_partition_key', 'cluster_partition_local_cluster', 'cluster_partition_get_first_reference',
             'cluster_partition_get_next_cluster', 'cluster_partition_get_first_cluster',
+            'cluster_partition_reference_bsp',
             'cluster_partition_get_first_datum_in_bsp', 'cluster_partition_get_first_datum'))),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
@@ -85,7 +86,8 @@ def generated(fault=None):
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_support'))),
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
-        ('regional_start.inc', function(players, 'player_starting_location_in_active_bsp')),
+        ('regional_start.inc', '\n'.join(function(players, name) for name in
+            ('player_starting_location_in_bsp', 'player_starting_location_in_active_bsp'))),
         ('regional_scenery.inc', function(read('source/objects/object_types.c'), 'object_placement_active_in_bsp')),
         ('regional_equipment.inc', enum_with(read('source/game/game_engine.c'), 'REGIONAL_STATIC_OBJECT_TYPES') +
          '\n' + '\n'.join(function(read('source/game/game_engine.c'), name) for name in

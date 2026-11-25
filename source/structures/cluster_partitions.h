@@ -81,6 +81,8 @@ long cluster_partition_get_first_datum(
 long cluster_partition_get_next_datum(
 	struct cluster_partition const *partition,
 	long *reference_index);
+short cluster_partition_reference_bsp(
+	struct cluster_partition const *partition, long reference_index);
 long cluster_partition_get_first_cluster(
 	struct cluster_partition const *partition,
 	long *reference_index,
