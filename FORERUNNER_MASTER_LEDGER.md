@@ -5,18 +5,19 @@ This is an incomplete engine integration, not a release or gameplay acceptance c
 
 Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
 
-1. MegaWorld. Continue from Spark's twelve-region baseline. The Hang 'Em High
+1. MegaWorld. Continue from Spark's fourteen-region MCC13 baseline. The Hang 'Em High
    tunnel passed two-way native pedestrian traversal in CE609 and MCC13. Keep CE609
    at 23 MiB and reuse the native MCC13 loader for the optional 64 MiB export.
    Native Windows x64 private multiplayer passed with 24.46 MiB of loaded
    tag data. Prioritize simultaneous native BSP residency and independent
    squad occupancy, with persistent AI, vehicles, pickups and objectives.
-   Two private native Delta peers walked both ways on Spark's exact retained
-   MCC13 Chiron cache `ba57480a` after a floor-contact correction. The existing
+   Two private native Delta peers walked both ways on Spark's exact Chiron
+   `ba57480a` and Derelict `71fc1648` MCC13 caches. MCC13 now admits 1,024
+   starts and 512 equipment rows. Two native peers verified high starts and
+   item replication on a separate 563/485 cache. The
    [Spark contract](SPARK_INTEGRATION_CONTRACT.md) holds the hashes and evidence.
-   Regional placements share a native format and BSP gate. Bound encounters use
-   native park and resume. Finish guest-driven return and advance toward
-   independently occupied BSPs. Keep CE609 and MCC13 verification separate.
+   Guest-driven Chiron return, independent occupancy and the final five
+   regions remain open. Keep CE609 and MCC13 verification separate.
 2. Original Zombie Apocalypse. Verify the original carrier behavior, native
    unloading, restored audio, projectile wrappers and a full mixed-runtime
    survival round.

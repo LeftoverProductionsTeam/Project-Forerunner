@@ -647,7 +647,7 @@ static struct item_datum placed_pickups[8];
 static int placed_pickup_count;
 static boolean test_equipment_client;
 static unsigned long game_engine_equipment_regions_seen;
-static short game_engine_equipment_home_bsp[MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO];
+static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
 static boolean network_game_distributed_client(void) {return test_equipment_client;}
 static long game_engine_get_type(void) {return 2;}
 static boolean match_game_type(long type,long count,short const *kinds) {return count>0&&type==kinds[0];}
@@ -764,10 +764,11 @@ int main(int argc,char **argv)
     }
     if (!strcmp(name, "regional-equipment"))
     {
-        struct scenario_netgame_equipment equipment[3]={
+        enum { DONOR_EQUIPMENT_ROW = 484 };
+        struct scenario_netgame_equipment equipment[DONOR_EQUIPMENT_ROW + 1]={
             {.game_type={2},.spawn_time=1,.position={50,0,-.01f},.item_collection={1}},
             {.game_type={2},.spawn_time=1,.position={200,0,0},.item_collection={1}},
-            {.game_type={2},.spawn_time=1,.position={250,0,0},.item_collection={1}},
+            [DONOR_EQUIPMENT_ROW]={.game_type={2},.spawn_time=1,.position={250,0,0},.item_collection={1}},
         };
 
         scenario.type=_scenario_type_multiplayer;
@@ -782,7 +783,7 @@ int main(int argc,char **argv)
         CHECK(!placed_pickup_count&&!game_engine_equipment_regions_seen,"a client initialized pickups");
         test_equipment_client=FALSE;
         game_engine_update_item_spawn();
-        CHECK(placed_pickup_count==2&&game_engine_equipment_home_bsp[2]==NONE,
+        CHECK(placed_pickup_count==2&&game_engine_equipment_home_bsp[DONOR_EQUIPMENT_ROW]==NONE,
               "spawned outside the region or skipped first activation");
 
         ticks=TICKS_PER_SECOND;
@@ -801,7 +802,9 @@ int main(int argc,char **argv)
         ticks++;
         game_engine_update_item_spawn();
         CHECK(placed_pickup_count==4&&game_engine_equipment_home_bsp[1]==0&&
-              equipment[2].run_time_spawned_item_index==pickup_handle+3,"reassigned a shared seam or skipped the new region");
+              equipment[DONOR_EQUIPMENT_ROW].run_time_spawned_item_index==pickup_handle+3&&
+              placed_pickups[3].item.netgame_equipment_index==DONOR_EQUIPMENT_ROW,
+              "reassigned a shared seam or skipped the expanded equipment row");
         CHECK(placed_pickups[2].item.last_owned_time==ticks,"parked pad became eligible for cleanup");
         CHECK(game_engine_equipment_item_parked(pickup_handle+2)&&
               game_engine_equipment_item_parked(pickup_handle+1)&&

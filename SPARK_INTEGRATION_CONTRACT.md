@@ -1227,7 +1227,7 @@ The response has these fields:
 | `network` | Compiled advertised version 45 and native layout 44; preserve the accepted 44/45 bridge |
 | `operations` | Currently only `runtime.discover` |
 | `native_features` | Optional native desktop CE feature identifiers. These include `extraction.squad_objectives.v1` and `character.biped_hands.v1`. Older or unsupported builds omit features they lack. |
-| `map_targets` | Optional native build-target list with `cache_version`, `tag_space_bytes`, `invader_engine`, `default` and, for expanded MCC13, `required_feature`. The MCC13 target can report its optional `max_netgame_flags` from the native loader. |
+| `map_targets` | Optional native build-target list with `cache_version`, `tag_space_bytes`, `invader_engine`, `default` and, for expanded MCC13, `required_feature`. The MCC13 target can report `max_player_starts`, `max_netgame_equipment` and `max_netgame_flags` from the native loader. |
 | `process_entrypoints` | Inherited CLI entrypoints listed below; not live-edit RPC operations |
 | `startup_map` | Optional desktop CE startup metadata: setting/environment, `basename@ce`, cache version 609, solo scenario, native-menu profile creation, fresh start and no network hosting. Windows64 fresh-profile/native-hub startup passes on the exact binary above; other targets remain unverified. Older and non-desktop/server builds may omit it. Not a new operation or loaded-map acknowledgement. |
 | `upstream_projects` | OpenCE, ChupathingyCE, FractumSeraph/OpenCE attribution |
@@ -3095,7 +3095,7 @@ required resource banks with their hashes, or record that resources are
 self-contained. Preserve that exact package through Forerunner's
 forward and return traversal acceptance. The verified Normal Build
 `73aadc284e134ed1e11c01eadaf5623194ff5c2875dfc3bd34dbdd7f5c666fdc`
-was retired after Spark's readback. The retained package is pending.
+was retired after Spark's readback. The retained package is recorded below.
 
 #### Regional native teleporter flags
 
@@ -3260,7 +3260,19 @@ movement triggered both switches without moving either player across
 a seam by command. The host and guest reported BSP 1 at ticks 889 and
 896, and BSP 0 again at tick 1281 on both. Both exited zero. This is
 automated native gameplay with a shared active BSP. Independent regional
-occupancy and human acceptance remain open.
+occupancy and human acceptance remain open. The guest Warthog attempts stopped
+during staging, before an observed driver seat or a vehicle switch.
+
+Spark's fourteen-region Derelict cache is
+`%TEMP%/GuiltySpark-Traversal-Handoff/fourteen-mcc13-ubQ0YV/ready`.
+The self-contained MCC13 map has SHA-256
+`71fc164876cafcece4de49c2b0563c79c6f772abfff308c7dc61d5a411b79e2b`.
+Its three original BSP slots and four switch rows were left intact.
+Using the same Chiron executable, the private peers stepped through
+the new authored switch to BSP 2 at tick 889. The host and guest
+reported BSP 0 again at ticks 1274 and 1281. Both exited zero. The
+same debug approach staging and normal keyboard movement apply.
+Retained copies and receipts are in `build/native-mcc-derelict-71fc1648`.
 
 Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
 active BSP and up to two previous BSPs inside the existing 64 MiB tag
@@ -3309,6 +3321,27 @@ exited normally. The B40 map hash is recorded above. Windows x64 executable
 `d757a5c8312c57d2623801ab1aefa3b7304b87864fd815f03797defba86610ae`.
 Full simultaneous simulation and native two-BSP fracture playback remain
 open.
+
+#### Expanded MCC13 scenario placements
+
+Spark can use the MCC13 discovery fields `max_player_starts` (1,024)
+and `max_netgame_equipment` (512). These are validated counts for the
+native `scenario.players` and `scenario.netgame_equipment` blocks.
+The MCC loader refuses larger blocks before reading their entries.
+CE609 and Xbox keep 256 starts and 200 equipment rows. If those fields
+are absent, keep the selected runtime's verified limits. Equipment uses
+the existing host scheduler, regional ownership and object budget.
+
+Windows x64 `6406abe7424c194acfca4a9a367b63f55d03fa6dd8d2c5f89d3142773bb23da7`
+passed 143 MCC validator, 76 BSP and 15 discovery checks. The MCC
+validator preserved 563/485 and 1,024/512, rejected 1,025/513 and
+verified the original legacy limits. On a separate disposable test
+cache `fec0447b87b69b7757553be5053ad4a1c1148ad0deebd12ada28f1e1cc4c8915`,
+two private native peers agreed on spawns from rows 562 and 563 and
+the same assault rifle from equipment row 485 (object 608 at tick 30).
+Both exited zero. The test placed only the high rows needed for proof.
+The complete populated 19-region world still needs gameplay and
+performance acceptance.
 
 #### Regional native player starts
 

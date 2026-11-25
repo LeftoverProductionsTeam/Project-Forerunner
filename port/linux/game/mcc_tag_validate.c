@@ -737,6 +737,22 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                             break;
                         }
                     }
+                    if (schema->name && !strcmp(schema->name, "scenario") &&
+                        !strcmp(field->name, "players")) {
+                        maximum = MCC_SCENARIO_PLAYER_STARTS_MAXIMUM;
+                        if (block->count > maximum) {
+                            mcc_problem(context, 1, "player starts exceed MCC's 1024-entry capacity");
+                            break;
+                        }
+                    }
+                    if (schema->name && !strcmp(schema->name, "scenario") &&
+                        !strcmp(field->name, "netgame_equipment")) {
+                        maximum = MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM;
+                        if (block->count > maximum) {
+                            mcc_problem(context, 1, "netgame equipment exceeds MCC's 512-entry capacity");
+                            break;
+                        }
+                    }
                     if (!element || element->size <= 0 || block->count < 0 ||
                         (unsigned long)block->count > context->length / (unsigned long)element->size) {
                         mcc_problem(context, 1, "invalid block count"); break;

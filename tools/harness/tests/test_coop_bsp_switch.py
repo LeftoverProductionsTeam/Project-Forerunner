@@ -25,7 +25,8 @@ def generated(fault=None):
     mcc_cache = read('port/linux/game/mcc_cache.c')
     cache = read('source/cache/cache_files.c')
     cache_header = read('source/cache/cache_files.h')
-    bsp_limits = [('MAXIMUM_CLUSTERS_PER_STRUCTURE', 'source/structures/structures.h'),
+    bsp_limits = [('MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM', 'port/linux/game/mcc_cache_format.h'),
+                  ('MAXIMUM_CLUSTERS_PER_STRUCTURE', 'source/structures/structures.h'),
                   ('MAXIMUM_SURFACES_PER_STRUCTURE', 'source/render/render.h')]
     bsp_verifier = function(read('source/structures/structure_bsp_definitions.c'), 'structure_bsp_port_verify')
     breakables = read('source/physics/breakable_surfaces.c')

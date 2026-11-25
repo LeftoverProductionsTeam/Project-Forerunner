@@ -249,6 +249,8 @@ static void print_spark_capabilities(void)
 	server_json_object_begin(&json, NULL);
 	server_json_integer(&json, "cache_version", MCC_CACHE_VERSION);
 	server_json_integer(&json, "tag_space_bytes", MCC_CACHE_TAG_CAPACITY);
+	server_json_integer(&json, "max_player_starts", MCC_SCENARIO_PLAYER_STARTS_MAXIMUM);
+	server_json_integer(&json, "max_netgame_equipment", MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM);
 	server_json_integer(&json, "max_netgame_flags", MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM);
 	server_json_string(&json, "invader_engine", "mcc-cea");
 	server_json_string(&json, "required_feature", "maps.mcc13_tag_space_64m.v1");

@@ -628,6 +628,7 @@ void medal_hud_hold(boolean hold);
 boolean cache_file_tags_are_ce(void);
 #endif
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
+#include "mcc_cache_format.h"
 #include "mcc_objects.h" /* port: port/linux/game/mcc_objects.h */
 #include "mcc_player.h" /* port: port/linux/game/mcc_player.h */
 #include "mcc_ui_teams.h" /* port: port/linux/game/mcc_ui_teams.c */
@@ -5366,7 +5367,7 @@ static short game_engine_vehicle_home_count = NONE;
 
 /* Bind each equipment row to one home, including rows in a shared seam. */
 static unsigned long game_engine_equipment_regions_seen;
-static short game_engine_equipment_home_bsp[MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO];
+static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
 
 static boolean game_engine_equipment_item_at_pad(
 	struct item_datum const *item,
