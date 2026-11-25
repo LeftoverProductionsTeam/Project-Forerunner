@@ -1596,10 +1596,9 @@ source paths, not new native acceptance.
 Spark's `src/haloScript.ts::exportHaloCeFirefightRound` currently records team
 wave-clear points and terminal states in `gs_ff_score` / `gs_ff_state`, then waits
 for another start request. Forerunner does not interpret those names as a HUD,
-session-result API or restart command. Spark still needs visible round/outcome
-feedback and an explicit replay/exit policy using reviewed native content. A
-one-player/one-life configuration check or a terminal global alone does not prove
-that human gameplay flow. Keep these globals separate from negotiated runtime
+session-result API or restart command. The HUD-enabled exports use native
+objectives and HUD messages for round feedback and the existing pause menu for
+restart and exit. These globals remain separate from negotiated runtime
 operations; discovery remains read-only.
 
 Spark's authored Firefight CE609
@@ -1640,6 +1639,22 @@ Pistol fire killed the first Grunt by tick 1740. Wave 2 spawned two
 actors by tick 1830 with the engine director still disabled. One
 second-wave Grunt remained alive when the disposable game reached its
 time limit. Victory and replay remain open.
+
+The HUD-enabled exports were tested on Win64
+`c9831b1d348e9a5f5c26d0bec4468276fde9ecf3677ceae535b2efbe95d83efe` through
+the normal Firefight menu on a private offline profile, using scripted movement,
+aim and fire through ordinary game controls. MCC13
+`8bc1c9df0fdc463dd0250e1bc95470a750588b9bca16afdee135c777d88154b7`
+cleared one Grunt in wave 1 and both Grunts in wave 2. The HUD displayed
+Victory and the pause menu displayed a team wave-clear score of 300.
+Restart Level reloaded the same map, reset the player to the starting loadout,
+and spawned a new wave-1 Grunt. A separate no-fire CE609 run on
+`77681074de155ee68ecf8cdcb1eb83a83663b98bd7e65c5e3778fd066b8e0109`
+displayed the wave-timeout message and cleaned up the remaining actor by tick
+1890. Its pause menu showed score 0 and Restart Level. The long timeout message
+was clipped at the right edge of the 4:3 view. Both maps kept the built-in
+director off. These checks cover offline native play; co-op and human-player
+acceptance remain open. Menu admission still uses the existing cache catalogs.
 
 Forerunner's finite host director may select an original loaded Zombie variant
 and native spawn location once compatible source exists. It remains separate
