@@ -3092,6 +3092,8 @@ static short postgame_prompt_measure(
 	wchar_t part[256];
 	rectangle2d drawn = *bounds;
 
+	/* Measure the full line before applying the visible right edge. */
+	drawn.x1 = (short)MAX(drawn.x1, drawn.x0 + 640);
 	length = MIN(length, (long)NUMBEROF(part) - 1);
 	csmemcpy(part, prompt, length * sizeof(wchar_t));
 	part[length] = 0;
@@ -3167,17 +3169,19 @@ static void postgame_draw_prompt(
 {
 	rectangle2d drawn = *bounds;
 	real_argb_color unseen = *color;
+	short right = (short)MIN(bounds->x1, POSTGAME_PROMPT_RIGHT);
+	short end;
 
 	/* (the keys that work here: the carnage report takes the buttons as the
 	menus do, Backspace to quit, not the game's controls on them) */
 	draw_string_and_hack_in_icons_for_menus(TRUE);
 	unseen.alpha = 0.0f;
 	draw_string_set_color(&unseen);
-	draw_string_and_hack_in_icons(&drawn, NULL, NULL, 0, prompt, FALSE);
-	drawn = *bounds;
-	if (draw_string_and_hack_in_icons_end_x > POSTGAME_PROMPT_RIGHT)
-		drawn.x0 = (short)MAX(0, drawn.x0 - (draw_string_and_hack_in_icons_end_x - POSTGAME_PROMPT_RIGHT));
-	postgame_prompt_note(&drawn, prompt, (short)MIN(draw_string_and_hack_in_icons_end_x, POSTGAME_PROMPT_RIGHT));
+	end = postgame_prompt_measure(bounds, prompt, (long)wcslen(prompt));
+	if (end > right)
+		drawn.x0 = (short)MAX(0, drawn.x0 - (end - right));
+	drawn.x1 = right;
+	postgame_prompt_note(&drawn, prompt, (short)MIN(end - (bounds->x0 - drawn.x0), right));
 	draw_string_set_color(color);
 	draw_string_and_hack_in_icons(&drawn, NULL, NULL, 0, prompt, FALSE);
 	draw_string_and_hack_in_icons_for_menus(FALSE);

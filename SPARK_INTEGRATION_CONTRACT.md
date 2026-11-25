@@ -1774,6 +1774,17 @@ and 39 focused checks passed. A legacy Chupathingy host still needs its own
 authority-side fix. This is a combat exchange, with full Survival
 acceptance still open.
 
+The Win64 postgame layout on CE609 `d29437a7` clipped the host's
+`[Enter] =pick game` prompt. Forerunner now measures the complete line
+before moving it into the viewport and uses the same shifted bounds for
+clicks. On `da68fdc3bcbe348006680716fd6ba73d1ce8dbf0a185b475acfadd92f4b78785`,
+a private Play Solo match with Delta disabled reached End Game, showed
+both prompts in full, accepted a click on Pick Game and loaded the same
+map again with the same local profile. Both rounds reached tick 30 with a
+living Survivor. No sound-cache error or exception appeared. This verifies
+local replay after a manual end. Survival victory and audible Game Over
+playback remain open.
+
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
 `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
