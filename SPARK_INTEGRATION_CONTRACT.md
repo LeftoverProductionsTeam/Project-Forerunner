@@ -380,6 +380,27 @@ should keep the approach to the earlier verified field route and explicitly
 track player death and respawn during pursuit.
 Receipt: `build/native-black-echo-a051-native-spirit-loaded.json`.
 
+An isolated replay from the normal Windows Extraction menu on installed
+executable `cf6a00e0` defeated the facility guard and physically recovered
+the technology after the swap offer at tick 16020. The defense guard killed
+the player before the field control opened. An ordinary hub respawn and E at the deployment
+terminal started a new gear transaction. The loss record at generation 3
+was idle with outcome lost and zero stash, reservation or escrow items.
+Generation 5 was deployed with the same prior outcome and zero stored items.
+Both records passed their on-disk digest check.
+
+After that second deployment, the native trace still showed the original
+facility guard dead, the original defense guard at 0.189 body vitality,
+and the field control locked at tick 20880. Gear redeployment works on this
+export. The authored encounter state carried over. The exact cache carries
+`gs_mission` and `forerunner_extraction_complete`; the
+`forerunner_squad_01_begin` and `forerunner_squad_01_complete` names are absent
+from its native string data. Spark should wire rearming of AI, technology,
+mission progress and control state to the existing operation-start path and
+demonstrate two distinct attempts in one session. Field recall and evacuation
+boarding were not reached in this replay.
+Receipt: `build/native-black-echo-a051-loss-redeployment.json`.
+
 Forerunner independently ran the earlier UNSC export with one offline player. Normal
 deployment, Pelican seat 4 boarding, field landing and voluntary dismount
 left the Spartan at full health and shields. The Marine and player reached
