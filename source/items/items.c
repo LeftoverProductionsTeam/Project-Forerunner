@@ -166,6 +166,7 @@ boolean item_new(
 		FLAG(_object_static_lighting_recompute_bit);
 	item->item.last_owned_time = game_time_get();
 	item->item.ignore_object_index = NONE;
+	item->item.netgame_equipment_index = NONE;
 
 	return TRUE;
 }

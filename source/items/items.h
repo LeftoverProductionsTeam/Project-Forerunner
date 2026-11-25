@@ -39,7 +39,7 @@ struct _item_datum
 	short detonation_ticks;
 	short rested_surface_index;
 	short bsp_index;
-	short pad;
+	short netgame_equipment_index;
 	long ignore_object_index;
 	long last_owned_time;
 	long item_on_rest_object_index;

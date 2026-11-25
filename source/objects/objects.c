@@ -2076,7 +2076,16 @@ static void object_reconnect_to_map_internal(
 		objects at level start, reading a stack slot reused meanwhile) */
 		struct location bounding_sphere_location;
 
-		if (!location)
+		if (TEST_FLAG(_object_mask_item, object->object.type) &&
+			game_engine_equipment_item_parked(object_index))
+		{
+			object->object.location.leaf_index = NONE;
+			object->object.location.cluster_index = NONE;
+			scenario_location_award_bonus(&object->object.location);
+			header->cluster_index = NONE;
+			location = &object->object.location;
+		}
+		else if (!location)
 		{
 			scenario_location_from_point(&bounding_sphere_location, &object->object.bounding_sphere_center);
 			location = &bounding_sphere_location;

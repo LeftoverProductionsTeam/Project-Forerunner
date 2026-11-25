@@ -3281,6 +3281,22 @@ The BSPs in this fixture use the same geometry. First activation in a
 distinct region, shared-seam ownership, and carried-item restock are
 covered by the focused harness. A live Chiron crossing remains open.
 
+An unclaimed pickup still at its bound pad belongs to that BSP even when
+a neighboring BSP contains the same coordinates. On a shared BSP switch,
+the host disconnects the parked item from collision clusters and withdraws
+its replica using the existing object lifetime messages. It restores that
+same host datum when the owning BSP becomes active. Carried and displaced
+gear follows ordinary item rules. No authoring field or packet changed.
+
+Windows x64 executable
+`2b7ff657738542c3298bb3779c534f4f67bd6fe8d9ea2b3d8a623400ef7aeb24`
+passed 73 focused BSP checks. Two private Delta peers on disposable MCC13
+fixture `8ecb01644739f8dbd038a993ada9b89b82e2f7522d948b15ac452f065cd3a1ff`
+saw rifle slot 552 on its pad at ticks 30 and 60 in BSP 0. The host kept
+slot 552 while the guest saw no rifle on that pad at ticks 90 through 180
+across BSPs 1 and 2. At tick 210 in BSP 0 both peers saw slot 552 again.
+The three BSPs used identical source geometry. Both processes exited normally.
+
 #### Regional native vehicle homes
 
 On hosted multi-BSP MCC13 multiplayer maps, each vehicle home binds to the

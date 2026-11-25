@@ -5368,6 +5368,37 @@ static short game_engine_vehicle_home_count = NONE;
 static unsigned long game_engine_equipment_regions_seen;
 static short game_engine_equipment_home_bsp[MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO];
 
+static boolean game_engine_equipment_item_at_pad(
+	struct item_datum const *item,
+	struct scenario_netgame_equipment const *equipment)
+{
+	return item && item->object.parent_object_index == NONE &&
+		!TEST_FLAG(item->item.flags, _item_attached_to_unit_bit) &&
+		distance_squared3d(&item->object.position, &equipment->position) < 0.25f;
+}
+
+boolean game_engine_equipment_item_parked(
+	long object_index)
+{
+	struct item_datum const *item = item_get(object_index);
+	struct scenario const *scenario;
+	struct scenario_netgame_equipment const *equipment;
+	short index = item->item.netgame_equipment_index;
+	short home;
+
+	if (!VALID_INDEX(index, NUMBEROF(game_engine_equipment_home_bsp)))
+		return FALSE;
+	scenario = global_scenario_get();
+	if (!scenario_uses_regional_gameplay(scenario) || !VALID_INDEX(index, scenario->netgame_equipment.count))
+		return FALSE;
+	home = game_engine_equipment_home_bsp[index];
+	if (home == NONE || home == global_structure_bsp_index_get())
+		return FALSE;
+	equipment = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_equipment, index, struct scenario_netgame_equipment);
+	return equipment->run_time_spawned_item_index == object_index &&
+		game_engine_equipment_item_at_pad(item, equipment);
+}
+
 /* still on the pad the map put it on: further than this, and empty, it can
 come back */
 #define VEHICLE_HOME_AWAY_SQUARED 4.0f
@@ -10492,9 +10523,7 @@ static void game_engine_update_item_spawn(
 
 				/* The native purge uses the ownership timer even for
 				 * unclaimed items. Keep pads stocked while their BSP is parked. */
-				if (previous && previous->object.parent_object_index == NONE &&
-					!TEST_FLAG(previous->item.flags, _item_attached_to_unit_bit) &&
-					distance_squared3d(&previous->object.position, &equipment->position) < 0.25f)
+				if (game_engine_equipment_item_at_pad(previous, equipment))
 				{
 					previous->item.last_owned_time = now;
 					continue;
@@ -10561,7 +10590,10 @@ static void game_engine_update_item_spawn(
 
 					object_set_garbage(object_index, FALSE);
 					if (structure)
+					{
 						equipment->run_time_spawned_item_index = object_index;
+						item->item.netgame_equipment_index = (short)equipment_index;
+					}
 					if (TEST_FLAG(
 						equipment->flags,
 						_equipment_created_at_rest_bit))

@@ -138,7 +138,7 @@ static short global_structure_bsp_index_get(void);
 static struct collision_bsp *global_collision_bsp_get(void) {return global_collision_bsp;}
 struct item_datum {
     struct {unsigned long flags;real_point3d position;long parent_object_index;} object;
-    struct {unsigned long flags;short rested_surface_index,bsp_index;long last_owned_time;} item;
+    struct {unsigned long flags;short rested_surface_index,bsp_index,netgame_equipment_index;long last_owned_time;} item;
 };
 struct item_definition {struct {unsigned long flags;} item;};
 enum {_item_on_structure_bit, _item_does_not_accelerate_bit};
@@ -622,6 +622,7 @@ static long object_new(struct object_placement_data const *placement)
     placed_pickups[index].object.position=placement->position;
     placed_pickups[index].object.parent_object_index=NONE;
     placed_pickups[index].item.last_owned_time=ticks;
+    placed_pickups[index].item.netgame_equipment_index=NONE;
     return pickup_handle+index;
 }
 static struct item_datum *item_try_and_get(long index)
@@ -717,13 +718,29 @@ int main(int argc,char **argv)
         CHECK(placed_pickup_count==4&&game_engine_equipment_home_bsp[1]==0&&
               equipment[2].run_time_spawned_item_index==pickup_handle+3,"reassigned a shared seam or skipped the new region");
         CHECK(placed_pickups[2].item.last_owned_time==ticks,"parked pad became eligible for cleanup");
+        CHECK(game_engine_equipment_item_parked(pickup_handle+2)&&
+              game_engine_equipment_item_parked(pickup_handle+1)&&
+              !game_engine_equipment_item_parked(pickup_handle+3),
+              "pad ownership did not separate the active and parked region");
+        placed_pickups[0].object.parent_object_index=NONE;
+        CHECK(!game_engine_equipment_item_parked(pickup_handle),
+              "a superseded pad item still belonged to the old region");
+        placed_pickups[1].object.position.x+=1.f;
+        CHECK(!game_engine_equipment_item_parked(pickup_handle+1),
+              "a displaced item could not leave its home region");
+        placed_pickups[1].object.position.x-=1.f;
+        placed_pickups[1].item.flags|=FLAG(_item_attached_to_unit_bit);
+        CHECK(!game_engine_equipment_item_parked(pickup_handle+1),
+              "a carried item was parked outside the player's region");
+        placed_pickups[1].item.flags&=~FLAG(_item_attached_to_unit_bit);
 
         global_structure_bsp_index=0;
         global_structure_bsp=&structures[0];
         global_collision_bsp=&collisions[0];
         ticks=3*TICKS_PER_SECOND;
         game_engine_update_item_spawn();
-        CHECK(placed_pickup_count==4&&equipment[0].run_time_spawned_item_index==pickup_handle+2,
+        CHECK(placed_pickup_count==4&&equipment[0].run_time_spawned_item_index==pickup_handle+2&&
+              !game_engine_equipment_item_parked(pickup_handle+2),
               "duplicated the pickup on a round trip");
         return 0;
     }
