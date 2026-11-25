@@ -81,19 +81,30 @@ executable and maps stayed on their previous-good hashes.
 
 Spark's early-evacuation CE609 candidate
 `95603ac1ac3e734c1e44c223fb7784cc20d662645ec15f6cf2b10b339efd7bc4`
-launched from Extraction → Play Solo with Delta disabled on the delivered
+launched from Extraction → Play Solo with Delta disabled on delivered
 Win64 `cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
-The UNSC player rode the Pelican to its grounded field landing at tick
-3120 and used E to disembark. From (70.696, -128.382, 0.758), normal E on
-field control object 4 started the ten-second countdown, then showed
-EXTRACTION SIGNAL READY without completing rescue, collection or defense.
-The recalled Pelican landed at tick 7650 with center (80.299, -124.530,
-1.092), up.k .953 and motion .0009. The player reached its native seat 1
-entrance and received the boarding prompt at tick 9360. The private
-process reached its configured time limit before confirming receipt of
-the boarding input. Occupied return, banking, optional-objective
-shutdown and rearm remain open. The installed cache and executable were
-unchanged. Use the same retained candidate for the longer return check.
+With ordinary controls, the UNSC player rode the Pelican in, disembarked
+and used field control 4 without completing rescue, collection or defense.
+After the ten-second countdown the recalled craft landed at tick 8460.
+E physically boarded seat 1 at tick 8880 and the occupied Pelican flew
+back. By tick 11760 the rifle, pistol and two frag grenades were banked.
+Both native completion hooks woke. Cessation of the optional script was
+not independently observed.
+
+The idle generation-4 bank passed checksum and record-length verification
+with two items and no escrow. It reopened byte-identical after process
+restart. E at Deploy issued both exact item IDs at generation 6 with no
+duplicate stash or escrow entries. This verifies restart and gear reissue.
+
+Same-session hub disembarkation remains blocked on this route. After
+banking the intact craft settled near (55.391, -99.150, 0.655) at hull
+center, up.k .947, ground/rest 1 and linear/angular speed near .0001.
+Native landed remained 0 and normal E left the passenger seated. The
+authored `pelican_return` sequence waits for `extraction_pelican_landed`
+before releasing its lock. Review that approach and landing footprint
+so the stopped hull sustains the engine's .950 minimum up.k, with
+clear passenger egress. Covenant and human multiplayer remain open.
+The installed build and cache stayed unchanged.
 
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
