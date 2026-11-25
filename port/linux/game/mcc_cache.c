@@ -66,7 +66,7 @@ int mcc_scripts_prepare(struct mcc_runtime *runtime);
 short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer, byte const **nodes);
 
 static struct mcc_runtime mcc_loaded_cache;
-static struct mcc_cache_bsp const *mcc_retained_bsp;
+static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static FILE *mcc_stream;
 static boolean mcc_loaded;
 
@@ -376,7 +376,7 @@ boolean mcc_cache_contains(void const *address, long bytes)
 
 void mcc_cache_tags_unload(void)
 {
-    mcc_retained_bsp = NULL;
+    memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
     mcc_validation_cancel();
     mcc_cache_validation_clear();
     mcc_cache_precache_clear();
@@ -595,6 +595,55 @@ static uint32_t mcc_cache_bsp_resident_address(struct mcc_cache_bsp const *bsp)
     return mcc_loaded_cache.bsp_addresses[bsp - mcc_loaded_cache.report.bsps];
 }
 
+static boolean mcc_cache_bsp_keep_two_neighbors(void)
+{
+    return mcc_loaded_cache.report.identity.scenario_type == _scenario_type_multiplayer &&
+        mcc_loaded_cache.report.bsp_count > 2;
+}
+
+static int mcc_cache_bsp_retained_slot(struct mcc_cache_bsp const *bsp)
+{
+    int slot;
+    for (slot = 0; slot < NUMBEROF(mcc_retained_bsps); ++slot)
+        if (mcc_retained_bsps[slot] == bsp) return slot;
+    return NONE;
+}
+
+static uint64_t mcc_cache_bsp_overlap_end(struct mcc_cache_bsp const *bsp, uint64_t start, uint32_t size)
+{
+    uint64_t address;
+    if (!bsp || !(address = mcc_cache_bsp_resident_address(bsp))) return 0;
+    if (start >= address + bsp->size || address >= start + size) return 0;
+    return address + bsp->size;
+}
+
+static uint32_t mcc_cache_bsp_address_with_neighbor(struct mcc_cache_bsp const *active,
+    struct mcc_cache_bsp const *destination, struct mcc_cache_bsp const *neighbor)
+{
+    uint64_t start = destination->address;
+    uint64_t tag_base = mcc_loaded_cache.report.tag_base;
+    uint64_t limit = tag_base + mcc_loaded_cache.capacity;
+
+    if (!mcc_cache_bsp_overlap_end(active, start, destination->size) &&
+        !mcc_cache_bsp_overlap_end(neighbor, start, destination->size))
+        return destination->address;
+
+    /* Walk past occupied windows until this converted BSP has room. The
+     * oldest retained window can be reused. */
+    start = (tag_base + mcc_loaded_cache.used + 15) & ~(uint64_t)15;
+    while (start <= UINT32_MAX && start + destination->size <= limit) {
+        uint64_t end = mcc_cache_bsp_overlap_end(active, start, destination->size);
+        if (!end) end = mcc_cache_bsp_overlap_end(neighbor, start, destination->size);
+        if (!end && start != destination->address &&
+            start < (uint64_t)destination->address + destination->size &&
+            destination->address < start + destination->size)
+            end = (uint64_t)destination->address + destination->size;
+        if (!end) return (uint32_t)start;
+        start = (end + 15) & ~(uint64_t)15;
+    }
+    return 0;
+}
+
 unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_reference const *active,
     struct scenario_structure_bsp_reference const *destination)
 {
@@ -605,8 +654,12 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
     uint64_t tag_base = mcc_loaded_cache.report.tag_base;
     if (!from || !to || from == to || !(current = mcc_cache_bsp_resident_address(from)))
         return 0;
-    if (to == mcc_retained_bsp)
+    if (mcc_cache_bsp_retained_slot(to) != NONE)
         return mcc_cache_bsp_resident_address(to);
+    if (mcc_cache_bsp_keep_two_neighbors() && mcc_retained_bsps[0]) {
+        uint32_t free_address = mcc_cache_bsp_address_with_neighbor(from, to, mcc_retained_bsps[0]);
+        if (free_address) return free_address;
+    }
     if ((uint64_t)current + from->size <= to->address ||
         (uint64_t)to->address + to->size <= current)
         return to->address;
@@ -629,25 +682,24 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
 
 static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)
 {
-    uint32_t address = mcc_cache_bsp_resident_address(bsp);
+    uint32_t address = bsp ? mcc_cache_bsp_resident_address(bsp) : 0;
     if (!address) return;
     mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
     mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(address), bsp->size);
 }
 
-static void mcc_cache_drop_retained_bsp(void)
+static void mcc_cache_drop_retained_bsps(void)
 {
-    if (mcc_retained_bsp) {
-        mcc_cache_bsp_release(mcc_retained_bsp);
-        mcc_retained_bsp = NULL;
-    }
+    mcc_cache_bsp_release(mcc_retained_bsps[0]);
+    mcc_cache_bsp_release(mcc_retained_bsps[1]);
+    memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
 }
 
 struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     uint32_t address;
-    if (!bsp || bsp != mcc_retained_bsp || !(address = mcc_cache_bsp_resident_address(bsp)))
+    if (!bsp || mcc_cache_bsp_retained_slot(bsp) == NONE || !(address = mcc_cache_bsp_resident_address(bsp)))
         return NULL;
     return xbox_pointer(address + (bsp->structure_address - bsp->address));
 }
@@ -656,17 +708,28 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     unsigned long address, void **header, void **structure)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    int slot;
     if (!bsp) return FALSE;
-    if (bsp == mcc_retained_bsp) {
+    slot = mcc_cache_bsp_retained_slot(bsp);
+    if (slot != NONE) {
         uint32_t resident = mcc_cache_bsp_resident_address(bsp);
         *header = xbox_pointer(resident);
         *structure = mcc_cache_bsp_retained_structure(reference);
-        mcc_retained_bsp = NULL;
+        if (slot == 0) mcc_retained_bsps[0] = mcc_retained_bsps[1];
+        mcc_retained_bsps[1] = NULL;
         return TRUE;
     }
 
-    /* Allow at most the active BSP and one neighbor during conversion. */
-    mcc_cache_drop_retained_bsp();
+    if (address && mcc_cache_bsp_keep_two_neighbors()) {
+        /* Keep at most one inactive neighbor while converting a new BSP.
+         * A tight cache can still fall back to the previous two-window path. */
+        mcc_cache_bsp_release(mcc_retained_bsps[1]);
+        mcc_retained_bsps[1] = NULL;
+        if (mcc_cache_bsp_overlap_end(mcc_retained_bsps[0], address, bsp->size))
+            mcc_cache_drop_retained_bsps();
+    } else {
+        mcc_cache_drop_retained_bsps();
+    }
     if (!address) address = bsp->address;
     *header = xbox_pointer(address);
     if (!mcc_geometry_bsp_load(&mcc_loaded_cache, bsp->tag_handle, bsp->file_offset,
@@ -682,8 +745,12 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
 boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    if (!bsp || mcc_retained_bsp || !mcc_cache_bsp_resident_address(bsp)) return FALSE;
-    mcc_retained_bsp = bsp;
+    if (!bsp || !mcc_cache_bsp_resident_address(bsp) ||
+        mcc_cache_bsp_retained_slot(bsp) != NONE || mcc_retained_bsps[1])
+        return FALSE;
+    if (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()) return FALSE;
+    mcc_retained_bsps[1] = mcc_retained_bsps[0];
+    mcc_retained_bsps[0] = bsp;
     return TRUE;
 }
 
@@ -691,9 +758,9 @@ void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *referen
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
 
-    /* A cold switch or a checkpoint reload drops both cached regions. */
-    if (bsp && bsp != mcc_retained_bsp) mcc_cache_bsp_release(bsp);
-    mcc_cache_drop_retained_bsp();
+    /* A cold switch or a checkpoint reload releases every retained region. */
+    if (bsp && mcc_cache_bsp_retained_slot(bsp) == NONE) mcc_cache_bsp_release(bsp);
+    mcc_cache_drop_retained_bsps();
 }
 
 short mcc_cache_part_palette(void const *buffer, byte const **nodes)

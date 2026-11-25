@@ -326,10 +326,10 @@ static int test_destination_activation(void)
 static boolean mcc_loaded;
 struct mcc_cache_bsp;
 static struct mcc_runtime {
-    struct {uint32_t bsp_count,tag_base;struct mcc_cache_bsp const *bsps;} report;
+    struct {uint32_t bsp_count,tag_base;struct {uint16_t scenario_type;} identity;struct mcc_cache_bsp const *bsps;} report;
     uint32_t capacity,used,bsp_addresses[3];
 } mcc_loaded_cache;
-static struct mcc_cache_bsp const *mcc_retained_bsp;
+static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static struct __attribute__((aligned(16))) {
     byte header[24];
     struct structure_bsp structure;
@@ -365,9 +365,10 @@ static int mcc_geometry_bsp_load(struct mcc_runtime *runtime, uint32_t handle, u
     CHECK(active!=NONE&&active!=handle&&cache_file_globals.structure_bsp_header==mcc_regions[active].header&&
           test_tag_instances[active].base_address==&mcc_regions[active].structure,
           "preparation detached the active BSP");
-    CHECK(!test_tag_instances[handle].base_address&&
-          mcc_region_live[0]+mcc_region_live[1]+mcc_region_live[2]==1,
-          "conversion exceeded two resident regions or published the target early");
+    CHECK(!test_tag_instances[handle].base_address&&!mcc_region_live[handle]&&
+          mcc_region_live[0]+mcc_region_live[1]+mcc_region_live[2]<=
+          (runtime->report.identity.scenario_type==_scenario_type_multiplayer?2:1),
+          "conversion exceeded the resident limit or published the target early");
     mcc_prepared_loads++;
     if (reject_load[handle]) return FALSE;
     mcc_region_live[handle]=TRUE;
@@ -400,7 +401,9 @@ static void mcc_bsp_release_claims(struct mcc_runtime *runtime, void const *addr
 static boolean cache_file_structure_bsp_tag_valid(struct scenario_structure_bsp_reference const *ref)
 {return !reject_reference[ref->structure_bsp.index];}
 #define cache_file_structure_bsp_reference_verify cache_file_structure_bsp_tag_valid
+#define NUMBEROF(array) ((int)(sizeof(array)/sizeof((array)[0])))
 #include "mcc_bsp.inc"
+#undef NUMBEROF
 static boolean scenario_structure_bsp_load(struct scenario_structure_bsp_reference *ref)
 {loads[ref->structure_bsp.index]++;return !reject_reference[ref->structure_bsp.index] && !reject_load[ref->structure_bsp.index];}
 static void scenario_structure_bsp_unload(struct scenario_structure_bsp_reference *ref)
@@ -808,6 +811,7 @@ int main(int argc,char **argv)
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
         boolean evict=!strcmp(name,"mcc-prepare-evict");
+        boolean three_regions=!strcmp(name,"mcc-prepare-three-regions");
         boolean regional_crossing=!strcmp(name,"mcc-prepare-regional-crossing");
         boolean crossing=!strcmp(name,"mcc-prepare-crossing")||regional_crossing;
         boolean fractures=!strcmp(name,"mcc-prepare-fractures");
@@ -817,6 +821,7 @@ int main(int argc,char **argv)
         mcc_loaded=mcc_prepare_fixture=TRUE;
         mcc_loaded_cache.report.bsp_count=scenario.structure_bsp_references.count=3;
         mcc_loaded_cache.report.bsps=regions;
+        if (three_regions) mcc_loaded_cache.report.identity.scenario_type=_scenario_type_multiplayer;
         mcc_loaded_cache.report.tag_base=(uint32_t)(uintptr_t)mcc_regions[0].header;
         cold_crossing=!strcmp(name,"mcc-prepare-cold-crossing");
         mcc_loaded_cache.capacity=overlap?2*sizeof(mcc_regions[0]):sizeof(mcc_regions);
@@ -833,7 +838,7 @@ int main(int argc,char **argv)
                 regions[i].address=(uint32_t)(uintptr_t)mcc_regions[old].header+(extra_above?0:4);
                 regions[i].structure_address=regions[i].address+24;
             }
-            if (extra_below&&i==2)
+            if ((extra_below||three_regions)&&i==2)
             {
                 regions[i].address=(uint32_t)(uintptr_t)mcc_regions[0].header;
                 regions[i].structure_address=regions[i].address+24;
@@ -922,7 +927,7 @@ int main(int argc,char **argv)
             CHECK(!scenario_switch_structure_bsp(destination),"crossed to an invalid destination leaf");
             CHECK(global_structure_bsp_index==old&&global_collision_bsp==&collisions[old]&&
                   cache_file_globals.structure_bsp_header==mcc_regions[old].header&&!disconnects&&!reconnects&&
-                  clock_stops==1&&clock_starts==1&&collision_log&&mcc_retained_bsp==&regions[destination]&&
+                  clock_stops==1&&clock_starts==1&&collision_log&&mcc_retained_bsps[0]==&regions[destination]&&
                   players_globals->pending_teleport_starting_location_index==NONE,
                   "refused seam dropped the active scene or its prepared neighbor");
 
@@ -930,7 +935,7 @@ int main(int argc,char **argv)
             players_globals->pending_teleport_starting_location_index=0;
             CHECK(scenario_switch_structure_bsp(destination),"a valid vehicle root failed to cross");
             CHECK(disconnects==1&&reconnects==1&&objects[0].object.parent_object_index==units[2]&&
-                  global_collision_bsp==&collisions[destination]&&mcc_retained_bsp==&regions[old]&&
+                  global_collision_bsp==&collisions[destination]&&mcc_retained_bsps[0]==&regions[old]&&
                   mcc_prepared_loads==1&&mcc_prepared_validations==1&&mcc_prepared_releases==0,
                   "crossing reloaded its prepared BSP or removed the passenger");
             if (regional_crossing)
@@ -949,7 +954,7 @@ int main(int argc,char **argv)
                   global_structure_bsp_index==old&&global_structure_bsp==&mcc_regions[old].structure&&
                   cache_file_globals.structure_bsp_header==mcc_regions[old].header&&
                   test_tag_instances[old].base_address==global_structure_bsp&&
-                  mcc_region_live[old]&&!mcc_region_live[destination]&&!mcc_retained_bsp&&
+                  mcc_region_live[old]&&!mcc_region_live[destination]&&!mcc_retained_bsps[0]&&
                   players_globals->pending_teleport_starting_location_index==NONE,
                   "refused staging mutated the active BSP or its players");
         }
@@ -962,7 +967,7 @@ int main(int argc,char **argv)
             {
                 CHECK(cache_file_globals.structure_bsp_header==mcc_regions[destination].header&&
                       test_tag_instances[destination].base_address==&mcc_regions[destination].structure&&
-                      !test_tag_instances[old].base_address&&mcc_retained_bsp==&regions[old]&&
+                      !test_tag_instances[old].base_address&&mcc_retained_bsps[0]==&regions[old]&&
                       mcc_region_live[old]&&mcc_region_live[destination],
                       "the inactive BSP lost its geometry or remained published");
                 if (relocated||extra_above)
@@ -1006,22 +1011,47 @@ int main(int argc,char **argv)
                           "an evicted region still exposed geometry");
                     return 0;
                 }
+                if (three_regions)
+                {
+                    unsigned long address;
+                    mcc_loaded_cache.capacity=2*sizeof(mcc_regions[0]);
+                    address=mcc_cache_bsp_prepare_address(&references[destination],&references[2]);
+                    CHECK(address==references[2].base_address&&mcc_region_live[old],
+                          "two-window fallback evicted its neighbor during address selection");
+                    mcc_loaded_cache.capacity=sizeof(mcc_regions);
+                    CHECK(scenario_switch_structure_bsp(2), "third regional BSP did not load");
+                    CHECK(mcc_prepared_loads==2&&mcc_prepared_releases==0&&
+                          mcc_loaded_cache.bsp_addresses[2]!=(uint32_t)references[2].base_address&&
+                          scenario_structure_bsp_try_and_get(old)==&mcc_regions[old].structure&&
+                          scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure&&
+                          !test_tag_instances[old].base_address&&!test_tag_instances[destination].base_address,
+                          "third region overwrote a neighbor or published an inactive tag");
+                    CHECK(scenario_switch_structure_bsp(old)&&mcc_prepared_loads==2&&mcc_prepared_releases==0&&
+                          scenario_structure_bsp_try_and_get(2)==&mcc_regions[2].structure&&
+                          scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure,
+                          "return reloaded geometry or lost the third resident BSP");
+                    scenario_structure_bsp_unload(&references[old]);
+                    CHECK(!mcc_region_live[0]&&!mcc_region_live[1]&&!mcc_region_live[2]&&
+                          !mcc_retained_bsps[0]&&!mcc_retained_bsps[1]&&mcc_prepared_releases==3,
+                          "unload leaked a third resident BSP");
+                    return 0;
+                }
                 if (evict)
                 {
                     CHECK(scenario_switch_structure_bsp(2),"third region did not load");
                     CHECK(!mcc_region_live[old]&&mcc_region_live[destination]&&mcc_region_live[2]&&
-                          mcc_prepared_loads==2&&mcc_prepared_releases==1&&mcc_retained_bsp==&regions[destination],
+                          mcc_prepared_loads==2&&mcc_prepared_releases==1&&mcc_retained_bsps[0]==&regions[destination],
                           "third region failed to evict only the inactive neighbor");
                 }
                 else
                 {
                     CHECK(scenario_switch_structure_bsp(old),"cached return did not activate");
                     CHECK(mcc_prepared_loads==1&&mcc_prepared_validations==1&&mcc_prepared_releases==0&&
-                          mcc_retained_bsp==&regions[destination]&&test_tag_instances[old].base_address==
+                          mcc_retained_bsps[0]==&regions[destination]&&test_tag_instances[old].base_address==
                           &mcc_regions[old].structure&&!test_tag_instances[destination].base_address,
                           "the cached return reloaded geometry or published both tags");
                     scenario_structure_bsp_unload(&references[old]);
-                    CHECK(!mcc_region_live[old]&&!mcc_region_live[destination]&&!mcc_retained_bsp&&
+                    CHECK(!mcc_region_live[old]&&!mcc_region_live[destination]&&!mcc_retained_bsps[0]&&
                           mcc_prepared_releases==2,"cold unload leaked retained geometry");
                 }
             }

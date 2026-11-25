@@ -3189,6 +3189,23 @@ driver was staged by the native diagnostic and both processes exited
 normally. Both BSPs used the same geometry. Guest driving, a live Chiron
 crossing and combat in independently occupied BSPs remain open.
 
+Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
+active BSP and up to two previous BSPs inside the existing 64 MiB tag
+window. The loader selects disjoint ranges for retained geometry and can
+reuse the oldest window. If there is only room for two BSPs, the loader
+uses the existing two-window path. Only the active BSP is bound to native
+simulation.
+
+Windows x64 executable
+`0ea3d89d42682873e1387da0412f88e92b6d47c040b59bfbda513220b286b57c`
+passed 73 focused BSP checks. The cache regression verifies reuse, a tight
+budget fallback and unloading all three regions. Two private Delta peers
+followed native switches 0 → 1 → 2 → 0 on disposable MCC13 fixture
+`136d31a88423758fbbd61012da8fd3587e776d0289987c35e802cb1ff75c4cd4`.
+The three BSPs used the same source geometry and linked address. Both
+players began in a shared test volume and both processes exited normally.
+Independent simulation and Chiron gameplay remain open.
+
 #### Region-bound encounters
 
 MCC13 multiplayer encounters with a valid compiled BSP assignment retain their
