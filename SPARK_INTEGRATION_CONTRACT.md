@@ -3810,6 +3810,25 @@ verify all four handoff switches and the full outbound corridor on foot.
 One uninterrupted round trip, island equipment/device use and independent
 regional gameplay remain separate checks.
 
+The separate 6-unit Death Island land-bridge cache is
+`bff59561f8125338b28a781791e3792bdb013be0b1229355d72cfebd1ad507b1`.
+Win64 `066b038ed095a93982867cff18b997fb8845961a379c18d64b32d733fdc77979`
+boarded Warthog `e26f0000` with E, staged it inside BSP 0, then drove the
+entire 0 → 3 → 4 route without a seat change, sampled at ticks 2040 and
+6480. It reversed through 4 → 3 at tick 7560. A separate short return
+crossed 3 → 0 at tick 2464 and remained in the same vehicle and seat.
+These were local native runs with Delta Peer disabled. An uninterrupted
+return and multiplayer bridge traversal remain open.
+
+Normal driver-view captures show the neighboring connector before entry,
+the dark-walled bridge, the island approach, and the base re-entry.
+A farther island-side turn at (-79.796, 1.244, 91.668) drifted east of
+the return lane. Native BSP readback at the recorded path shows the
+floor dropping from Z 92.3 at (-77.848, 11.781) to Z 82.0 at
+(-73.939, 13.076), where the vehicle fell. Retain this candidate for
+a marked, safe return approach before applying it to other regions.
+Four local screenshots are in `build/evidence/megaworld-death-island-bff59561`.
+
 Seam clearance now checks nearby vehicles, machines and controls with a known
 destination BSP before committing the shared switch. It takes contact from
 native object models and vehicle physics, even while those blockers are
