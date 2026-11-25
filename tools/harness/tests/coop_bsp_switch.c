@@ -529,6 +529,7 @@ static void structure_culling_load_settings(void) {culling++;}
 static void structure_culling_structure_bsp_loaded(void) {culling++;}
 static short object_partition_bsp = NONE;
 static void objects_bind_cluster_partition_bsp(short bsp) {object_partition_bsp=bsp;}
+void network_coop_clear_structure_bsp_acknowledgments(void);
 #include "loader.inc"
 
 static long cluster_partition_port_no_cluster_first_reference;
@@ -2259,11 +2260,13 @@ int main(int argc,char **argv)
     }
     if (!strcmp(name, "scripted-selection"))
     {
+        network_coop_note_player_structure_bsp(0,old);
         reject_load[destination] = TRUE;
         bsp_argument.value = destination;
         scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
         CHECK(global_structure_bsp_index == old && scripted_multiplayer_bsp == NONE,
               "refused first choice locked the multiplayer BSP selector");
+        CHECK(host_player_structure_bsps[0]==old,"refused load discarded the working acknowledgment");
 
         bsp_argument.value = old;
         scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
@@ -2280,6 +2283,7 @@ int main(int argc,char **argv)
         scenario_switch_structure_bsp_evaluate(0, 0, TRUE);
         CHECK(global_structure_bsp_index == destination && scripted_multiplayer_bsp == destination,
               "valid menu choice did not update the selected BSP");
+        CHECK(host_player_structure_bsps[0]==NONE,"direct native BSP load reused the old acknowledgment");
 
         hs_menu_script_running = FALSE;
         bsp_argument.value = old;

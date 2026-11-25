@@ -167,6 +167,7 @@ symbols in this file:
 #include "ai/ai.h"
 #include "bink/bink_playback.h"
 #include "cache/cache_files.h"
+#include "network_coop.h"
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "cseries/errors.h"
 #include "effects/contrails.h"
@@ -1329,12 +1330,15 @@ boolean scenario_switch_structure_bsp(
 			structure_culling_load_settings();
 			structure_culling_structure_bsp_loaded();
 
+			/* Port: native campaign scripts also switch BSPs through this loader. */
+			result = structure_bsp_index != old_structure_bsp_index;
 			if (had_old_structure_bsp)
 			{
+				if (result && game_connection() == _game_connection_network_server &&
+					network_synchronizes_structure_bsp())
+					network_coop_clear_structure_bsp_acknowledgments();
 				scenario_call_reconnect_to_structure_bsp_procs();
 			}
-			/* port: (not when it is the old one, loaded again) */
-			result = structure_bsp_index != old_structure_bsp_index;
 		}
 
 		collision_log_enable(TRUE);
