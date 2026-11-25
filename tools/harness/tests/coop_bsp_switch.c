@@ -1687,24 +1687,30 @@ int main(int argc,char **argv)
 
                         mcc_cache_bsp_set_in_use(&references[2],TRUE);
                         mcc_loaded_cache.capacity=4*sizeof(mcc_regions[0]);
-                        CHECK(!scenario_switch_structure_bsp(3)&&global_structure_bsp_index==2&&
-                              disconnects==previous_disconnects&&mcc_prepared_loads==2,
-                              "a foreground with a simulation hold lost its retained slot");
-                        mcc_loaded_cache.capacity=3*sizeof(mcc_regions[0]);
-                        mcc_cache_bsp_set_in_use(&references[destination],FALSE);
                         CHECK(scenario_switch_structure_bsp(3)&&global_structure_bsp_index==3&&
-                              mcc_prepared_loads==3&&mcc_prepared_releases==1&&mcc_region_live[old]&&
-                              !mcc_region_live[destination]&&mcc_region_live[2]&&mcc_region_live[3],
-                              "the retry evicted the occupied oldest region instead of its unheld neighbor");
-                        CHECK(mcc_cache_bsp_pinned(&regions[2])&&mcc_active_bsp==&regions[3],
-                              "unbinding the foreground cleared its simulation hold");
-                        scenario_structure_bsp_unload(&references[3]);
-                        CHECK(mcc_region_live[old]&&mcc_region_live[2]&&!mcc_region_live[3],
-                              "unloading the selected scene released geometry held elsewhere");
-                        mcc_cache_bsp_set_in_use(&references[2],FALSE);
+                              mcc_prepared_loads==3&&mcc_prepared_releases==0,
+                              "three simulation holds could not coexist with a foreground within budget");
+                        CHECK(scenario_structure_bsp_try_and_get(old)==&mcc_regions[old].structure&&
+                              scenario_structure_bsp_try_and_get(destination)==&mcc_regions[destination].structure&&
+                              scenario_structure_bsp_try_and_get(2)==&mcc_regions[2].structure&&
+                              mcc_cache_bsp_pinned(&regions[2])&&mcc_active_bsp==&regions[3],
+                              "foreground activation hid or released an occupied BSP");
+                        CHECK(scenario_switch_structure_bsp(old)&&global_structure_bsp_index==old&&
+                              mcc_prepared_loads==3&&mcc_prepared_releases==0&&mcc_region_live[3],
+                              "returning to a held BSP reloaded it or dropped the unoccupied neighbor");
+
                         mcc_cache_bsp_set_in_use(&references[old],FALSE);
-                        mcc_cache_bsp_unload(&references[old]);
-                        CHECK(!mcc_region_live[old]&&!mcc_region_live[2]&&!mcc_bsps_in_use&&!mcc_active_bsp,
+                        CHECK(mcc_region_live[old]&&mcc_active_bsp==&regions[old],
+                              "releasing a simulation hold unloaded the active BSP");
+                        mcc_cache_bsp_set_in_use(&references[destination],FALSE);
+                        CHECK(!mcc_region_live[destination]&&!scenario_structure_bsp_try_and_get(destination)&&
+                              mcc_region_live[2]&&mcc_region_live[3],
+                              "releasing an inactive hold leaked or evicted another BSP");
+                        scenario_structure_bsp_unload(&references[old]);
+                        CHECK(!mcc_region_live[old]&&mcc_region_live[2]&&!mcc_region_live[3]&&!mcc_active_bsp,
+                              "unloading the foreground disturbed held geometry or kept an unheld neighbor");
+                        mcc_cache_bsp_set_in_use(&references[2],FALSE);
+                        CHECK(!mcc_region_live[2]&&!mcc_bsps_in_use&&mcc_prepared_releases==4,
                               "the final release leaked a BSP or hold");
                         return 0;
                     }

@@ -39,9 +39,9 @@ def generated(fault=None):
          '\n'.join(function(mcc_cache, name) for name in
                    ('mcc_runtime_linked_bsp_limit', 'mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked',
                     'mcc_cache_bsp_resident_address', 'mcc_cache_bsp_pinned', 'mcc_cache_bsp_in_use',
-                    'mcc_cache_bsp_set_active', 'mcc_cache_bsp_set_in_use', 'mcc_cache_has_simulation_bsp_holds', 'mcc_cache_bsp_keep_two_neighbors', 'mcc_cache_bsp_retained_slot',
-                    'mcc_cache_bsp_overlap_end', 'mcc_cache_bsp_address_with_neighbors', 'mcc_cache_bsp_prepare_address',
-                    'mcc_cache_bsp_release', 'mcc_cache_remove_retained_slot',
+                    'mcc_cache_bsp_set_active', 'mcc_cache_has_simulation_bsp_holds', 'mcc_cache_bsp_keep_two_neighbors', 'mcc_cache_bsp_retained_slot',
+                    'mcc_cache_bsp_overlap_end', 'mcc_cache_bsp_overlap_held_end', 'mcc_cache_bsp_address_with_neighbors', 'mcc_cache_bsp_prepare_address',
+                    'mcc_cache_bsp_release', 'mcc_cache_remove_retained_slot', 'mcc_cache_bsp_set_in_use',
                     'mcc_cache_bsp_retained_structure', 'mcc_cache_bsp_load', 'mcc_cache_bsp_retain',
                     'mcc_cache_bsp_discard_prepared', 'mcc_cache_bsp_unload')) + '\n' +
          enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +

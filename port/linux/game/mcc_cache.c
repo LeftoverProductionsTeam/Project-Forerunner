@@ -623,19 +623,6 @@ void mcc_cache_bsp_set_active(struct scenario_structure_bsp_reference const *ref
         mcc_active_bsp = NULL;
 }
 
-/* Only the simulation can pin geometry. Peer acknowledgements do not. */
-void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use)
-{
-    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    uint32_t bit;
-    if (!bsp || mcc_loaded_cache.report.identity.scenario_type != _scenario_type_multiplayer ||
-        mcc_loaded_cache.report.bsp_count < 2)
-        return;
-    bit = UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps);
-    if (!in_use) mcc_bsps_in_use &= ~bit;
-    else if (mcc_cache_bsp_resident_address(bsp)) mcc_bsps_in_use |= bit;
-}
-
 boolean mcc_cache_has_simulation_bsp_holds(void)
 {
     return mcc_bsps_in_use != 0;
@@ -663,6 +650,21 @@ static uint64_t mcc_cache_bsp_overlap_end(struct mcc_cache_bsp const *bsp, uint6
     return address + bsp->size;
 }
 
+static uint64_t mcc_cache_bsp_overlap_held_end(uint64_t start, uint32_t size)
+{
+    uint32_t index;
+    uint64_t end = 0;
+    if (!mcc_bsps_in_use) return 0;
+    for (index = 0; index < mcc_loaded_cache.report.bsp_count; ++index) {
+        struct mcc_cache_bsp const *bsp = &mcc_loaded_cache.report.bsps[index];
+        if (mcc_cache_bsp_pinned(bsp)) {
+            uint64_t overlap_end = mcc_cache_bsp_overlap_end(bsp, start, size);
+            if (overlap_end > end) end = overlap_end;
+        }
+    }
+    return end;
+}
+
 static uint32_t mcc_cache_bsp_address_with_neighbors(struct mcc_cache_bsp const *active,
     struct mcc_cache_bsp const *destination, struct mcc_cache_bsp const *newer,
     struct mcc_cache_bsp const *older)
@@ -673,7 +675,8 @@ static uint32_t mcc_cache_bsp_address_with_neighbors(struct mcc_cache_bsp const 
 
     if (!mcc_cache_bsp_overlap_end(active, start, destination->size) &&
         !mcc_cache_bsp_overlap_end(newer, start, destination->size) &&
-        !mcc_cache_bsp_overlap_end(older, start, destination->size))
+        !mcc_cache_bsp_overlap_end(older, start, destination->size) &&
+        !mcc_cache_bsp_overlap_held_end(start, destination->size))
         return destination->address;
 
     /* Walk past the windows this candidate must leave resident. */
@@ -682,6 +685,7 @@ static uint32_t mcc_cache_bsp_address_with_neighbors(struct mcc_cache_bsp const 
         uint64_t end = mcc_cache_bsp_overlap_end(active, start, destination->size);
         if (!end) end = mcc_cache_bsp_overlap_end(newer, start, destination->size);
         if (!end) end = mcc_cache_bsp_overlap_end(older, start, destination->size);
+        if (!end) end = mcc_cache_bsp_overlap_held_end(start, destination->size);
         if (!end && start != destination->address &&
             start < (uint64_t)destination->address + destination->size &&
             destination->address < start + destination->size)
@@ -702,27 +706,19 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
     uint64_t tag_base = mcc_loaded_cache.report.tag_base;
     if (!from || !to || from == to || !(current = mcc_cache_bsp_resident_address(from)))
         return 0;
-    if (mcc_cache_bsp_retained_slot(to) != NONE)
+    if (mcc_cache_bsp_pinned(to) || mcc_cache_bsp_retained_slot(to) != NONE)
         return mcc_cache_bsp_resident_address(to);
-    /* The foreground must have a retained slot if its simulation keeps
-     * running. Refuse before conversion or disconnection if none can open. */
-    if (mcc_cache_bsp_pinned(from) && mcc_cache_bsp_pinned(mcc_retained_bsps[0]) &&
-        mcc_cache_bsp_pinned(mcc_retained_bsps[1]))
-        return 0;
     if (mcc_cache_bsp_keep_two_neighbors() && mcc_retained_bsps[0]) {
         uint32_t free_address = mcc_cache_bsp_address_with_neighbors(from, to,
             mcc_retained_bsps[0], mcc_retained_bsps[1]);
         if (free_address) return free_address;
-        if (mcc_cache_bsp_in_use(mcc_retained_bsps[1])) {
-            if (mcc_cache_bsp_in_use(mcc_retained_bsps[0])) return 0;
-            return mcc_cache_bsp_address_with_neighbors(from, to, mcc_retained_bsps[1], NULL);
-        }
         if (mcc_retained_bsps[1]) {
             free_address = mcc_cache_bsp_address_with_neighbors(from, to, mcc_retained_bsps[0], NULL);
             if (free_address) return free_address;
         }
-        if (mcc_cache_bsp_in_use(mcc_retained_bsps[0])) return 0;
     }
+    if (mcc_bsps_in_use)
+        return mcc_cache_bsp_address_with_neighbors(from, to, NULL, NULL);
     if ((uint64_t)current + from->size <= to->address ||
         (uint64_t)to->address + to->size <= current)
         return to->address;
@@ -757,11 +753,32 @@ static void mcc_cache_remove_retained_slot(int slot)
     mcc_retained_bsps[1] = NULL;
 }
 
+/* Simulation holds use the resident addresses directly. The warm list
+ * remains available for unoccupied neighbors, even with several live scenes. */
+void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    uint32_t bit;
+    if (!bsp || mcc_loaded_cache.report.identity.scenario_type != _scenario_type_multiplayer ||
+        mcc_loaded_cache.report.bsp_count < 2 || !mcc_cache_bsp_resident_address(bsp))
+        return;
+    bit = UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps);
+    if (in_use) {
+        int slot = mcc_cache_bsp_retained_slot(bsp);
+        mcc_bsps_in_use |= bit;
+        if (slot != NONE) mcc_cache_remove_retained_slot(slot);
+    } else if (mcc_bsps_in_use & bit) {
+        mcc_bsps_in_use &= ~bit;
+        mcc_cache_bsp_release(bsp);
+    }
+}
+
 struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     uint32_t address;
-    if (!bsp || mcc_cache_bsp_retained_slot(bsp) == NONE || !(address = mcc_cache_bsp_resident_address(bsp)))
+    if (!bsp || (!mcc_cache_bsp_pinned(bsp) && mcc_cache_bsp_retained_slot(bsp) == NONE) ||
+        !(address = mcc_cache_bsp_resident_address(bsp)))
         return NULL;
     return xbox_pointer(address + (bsp->structure_address - bsp->address));
 }
@@ -775,11 +792,11 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     boolean warm = address && mcc_cache_bsp_keep_two_neighbors();
     if (!bsp) return FALSE;
     slot = mcc_cache_bsp_retained_slot(bsp);
-    if (slot != NONE) {
+    if (mcc_cache_bsp_pinned(bsp) || slot != NONE) {
         uint32_t resident = mcc_cache_bsp_resident_address(bsp);
         *header = xbox_pointer(resident);
         *structure = mcc_cache_bsp_retained_structure(reference);
-        mcc_cache_remove_retained_slot(slot);
+        if (slot != NONE) mcc_cache_remove_retained_slot(slot);
         return TRUE;
     }
 
@@ -817,12 +834,12 @@ boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *refe
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     if (!bsp || !mcc_cache_bsp_resident_address(bsp) || mcc_cache_bsp_retained_slot(bsp) != NONE)
         return FALSE;
+    if (mcc_cache_bsp_pinned(bsp)) return TRUE;
     if (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()) return FALSE;
     if (mcc_retained_bsps[1]) {
-        int slot = mcc_cache_bsp_in_use(mcc_retained_bsps[1]) ? 0 : 1;
-        if (!replace_oldest || mcc_cache_bsp_in_use(mcc_retained_bsps[slot])) return FALSE;
-        mcc_cache_bsp_release(mcc_retained_bsps[slot]);
-        mcc_cache_remove_retained_slot(slot);
+        if (!replace_oldest) return FALSE;
+        mcc_cache_bsp_release(mcc_retained_bsps[1]);
+        mcc_cache_remove_retained_slot(1);
     }
     mcc_retained_bsps[1] = mcc_retained_bsps[0];
     mcc_retained_bsps[0] = bsp;
