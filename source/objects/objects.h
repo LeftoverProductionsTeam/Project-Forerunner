@@ -468,6 +468,7 @@ void object_get_orientation(long object_index, real_vector3d *forward, real_vect
 real_matrix4x3 *object_get_world_matrix(long object_index, real_matrix4x3 *matrix);
 void object_inverse_kinematics(long hand_object_index, char *hand_marker_name, long grip_object_index, char *grip_marker_name, real_matrix4x3 *node_matrices);
 short objects_in_sphere(unsigned long class_flags, unsigned long type_flags, struct location const *location, real_point3d const *center, real radius, long *object_indices, short maximum_count);
+void objects_bind_cluster_partition_bsp(short structure_bsp_index);
 void objects_reconnect_to_structure_bsp(void);
 void objects_paparazzi(void);
 void object_export_function_values(long object_index);

@@ -91,7 +91,7 @@ void reference_list_copy(
 
 static long *cluster_partition_get_first_reference(
 	struct cluster_partition *partition,
-	short cluster_index);
+	long cluster_key);
 static void cluster_partition_port_forget(
 	struct cluster_partition *partition);
 static long cluster_partition_port_add(
@@ -203,6 +203,7 @@ void cluster_partition_new(
 {
 	char cluster_name[256];
 
+	partition->port_structure_bsp_index = NONE;
 	partition->cluster_first_data_references = game_state_malloc(
 		name,
 		"cluster references",
@@ -309,6 +310,7 @@ void cluster_partition_copy(
 	reference_list_copy(
 		result->data_reference_data,
 		source->data_reference_data);
+	result->port_structure_bsp_index = source->port_structure_bsp_index;
 	cluster_partition_port_forget(result);
 
 	return;
@@ -381,21 +383,41 @@ long cluster_partition_get_next_datum(
 	return reference_list_get_next_datum_index(partition->data_reference_data, reference_index);
 }
 
+/* Reference datums already store a long. Keep the legacy range unchanged
+ * for classic lists and older restored images. */
+static long cluster_partition_key(struct cluster_partition const *partition, short cluster_index)
+{
+	if (partition->port_structure_bsp_index == NONE)
+		return cluster_index;
+	return ((long)partition->port_structure_bsp_index + 1) * MAXIMUM_CLUSTERS_PER_STRUCTURE + cluster_index;
+}
+
+static short cluster_partition_local_cluster(long cluster_key)
+{
+	return cluster_key == NONE ? NONE : (short)(cluster_key % MAXIMUM_CLUSTERS_PER_STRUCTURE);
+}
+
 long cluster_partition_get_first_cluster(
 	struct cluster_partition const *partition,
 	long *reference_index,
 	long first_cluster_reference)
 {
 	*reference_index = first_cluster_reference;
-
-	return reference_list_get_next_datum_index(partition->cluster_reference_data, reference_index);
+	return cluster_partition_get_next_cluster(partition, reference_index);
 }
 
 long cluster_partition_get_next_cluster(
 	struct cluster_partition const *partition,
 	long *reference_index)
 {
-	return reference_list_get_next_datum_index(partition->cluster_reference_data, reference_index);
+	long key = reference_list_get_next_datum_index(partition->cluster_reference_data, reference_index);
+	if (key >= MAXIMUM_CLUSTERS_PER_STRUCTURE &&
+		key / MAXIMUM_CLUSTERS_PER_STRUCTURE - 1 != partition->port_structure_bsp_index)
+	{
+		*reference_index = NONE;
+		return NONE;
+	}
+	return cluster_partition_local_cluster(key);
 }
 
 void cluster_partition_reconnect(
@@ -431,16 +453,16 @@ void cluster_partition_reconnect(
 
 	for (cluster_index_index = 0; cluster_index_index < cluster_count; cluster_index_index++)
 	{
-		short const cluster_index = cluster_indices[cluster_index_index];
+		long cluster_key = cluster_partition_key(partition, cluster_indices[cluster_index_index]);
 		/* port: reference_list_add's, noting where the references are */
 		long cluster_reference_index = cluster_partition_port_add(
 			partition->cluster_reference_data,
 			first_cluster_reference,
-			cluster_index,
+			cluster_key,
 			NULL);
 		long data_reference_index = cluster_partition_port_add(
 			partition->data_reference_data,
-			cluster_partition_get_first_reference(partition, cluster_index),
+			cluster_partition_get_first_reference(partition, cluster_key),
 			datum_index,
 			partition->port_previous_references);
 
@@ -467,7 +489,7 @@ void cluster_partition_disconnect(
 		struct data_reference *cluster_reference = (struct data_reference *)datum_get(
 			partition->cluster_reference_data,
 			cluster_reference_index);
-		short const cluster_index = (short)cluster_reference->datum_index;
+		long cluster_key = cluster_reference->datum_index;
 		long data_reference_index = partition->port_cluster_data_references ?
 			partition->port_cluster_data_references[DATUM_INDEX_TO_ABSOLUTE_INDEX(cluster_reference_index)] : NONE;
 
@@ -477,7 +499,7 @@ void cluster_partition_disconnect(
 		put */
 		cluster_partition_port_remove(
 			partition,
-			cluster_partition_get_first_reference(partition, cluster_index),
+			cluster_partition_get_first_reference(partition, cluster_key),
 			datum_index,
 			data_reference_index);
 
@@ -489,14 +511,30 @@ void cluster_partition_disconnect(
 	return;
 }
 
+long cluster_partition_get_first_datum_in_bsp(
+	struct cluster_partition const *partition,
+	long *reference_index,
+	short structure_bsp_index,
+	short cluster_index)
+{
+	short bound_bsp = partition->port_structure_bsp_index != NONE ?
+		partition->port_structure_bsp_index : global_structure_bsp_index_get();
+
+	*reference_index = NONE;
+	if (structure_bsp_index != bound_bsp || !VALID_INDEX(cluster_index, MAXIMUM_CLUSTERS_PER_STRUCTURE))
+		return NONE;
+	*reference_index = *cluster_partition_get_first_reference(
+		(struct cluster_partition *)partition, cluster_partition_key(partition, cluster_index));
+	return reference_list_get_next_datum_index(partition->data_reference_data, reference_index);
+}
+
 long cluster_partition_get_first_datum(
 	struct cluster_partition const *partition,
 	long *reference_index,
 	short cluster_index)
 {
-	*reference_index = *cluster_partition_get_first_reference((struct cluster_partition *)partition, cluster_index);
-
-	return reference_list_get_next_datum_index(partition->data_reference_data, reference_index);
+	return cluster_partition_get_first_datum_in_bsp(partition, reference_index,
+		global_structure_bsp_index_get(), cluster_index);
 }
 
 /* ---------- private code */
@@ -629,8 +667,16 @@ static void cluster_partition_port_remove(
 
 static long *cluster_partition_get_first_reference(
 	struct cluster_partition *partition,
-	short cluster_index)
+	long cluster_key)
 {
+	short cluster_index = cluster_partition_local_cluster(cluster_key);
+
+	if (cluster_key >= MAXIMUM_CLUSTERS_PER_STRUCTURE &&
+		cluster_key / MAXIMUM_CLUSTERS_PER_STRUCTURE - 1 != partition->port_structure_bsp_index)
+	{
+		cluster_partition_port_no_cluster_first_reference = NONE;
+		return &cluster_partition_port_no_cluster_first_reference;
+	}
 	match_assert(
 		"c:\\halo\\SOURCE\\structures\\cluster_partitions.c",
 		0xd5,

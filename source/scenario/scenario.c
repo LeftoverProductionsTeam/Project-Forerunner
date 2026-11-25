@@ -1302,6 +1302,8 @@ boolean scenario_switch_structure_bsp(
 				struct collision_bsp);
 			scenario_globals->structure_bsp_index = structure_bsp_index;
 			global_structure_bsp_index = structure_bsp_index;
+			objects_bind_cluster_partition_bsp(
+				scenario_uses_regional_gameplay(global_scenario) ? structure_bsp_index : NONE);
 			/* port: cache buckets while the newly current bsp's tags are loaded */
 			structure_culling_load_settings();
 			structure_culling_structure_bsp_loaded();

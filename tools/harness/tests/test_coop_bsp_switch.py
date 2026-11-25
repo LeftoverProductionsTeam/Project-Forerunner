@@ -50,6 +50,11 @@ def generated(fault=None):
          '\n'.join(function(cache, name) for name in ('scenario_structure_bsp_reference_is_valid',
              'scenario_structure_bsp_prepare', 'scenario_structure_bsp_activate_prepared',
              'cache_files_unbind_mcc_bsp', 'scenario_structure_bsp_retain'))),
+        ('object_cluster_keys.inc', structure(read('source/structures/cluster_partitions.h'), 'cluster_partition') + '\n' +
+         '\n'.join(function(read('source/structures/cluster_partitions.c'), name) for name in (
+            'cluster_partition_key', 'cluster_partition_local_cluster', 'cluster_partition_get_first_reference',
+            'cluster_partition_get_next_cluster', 'cluster_partition_get_first_cluster',
+            'cluster_partition_get_first_datum_in_bsp', 'cluster_partition_get_first_datum'))),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
         ('surface_breaks.inc',
@@ -136,7 +141,7 @@ def generated(fault=None):
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-devices', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'qualified-object-clusters', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-devices', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

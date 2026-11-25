@@ -2494,6 +2494,12 @@ short objects_in_sphere(
 	return result;
 }
 
+void objects_bind_cluster_partition_bsp(short structure_bsp_index)
+{
+	collideable_object_cluster_partition.port_structure_bsp_index = structure_bsp_index;
+	noncollideable_object_cluster_partition.port_structure_bsp_index = structure_bsp_index;
+}
+
 void objects_reconnect_to_structure_bsp(
 	void)
 {

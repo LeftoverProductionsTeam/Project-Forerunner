@@ -485,7 +485,18 @@ static boolean structure_bsp_port_verify(struct structure_bsp const *bsp)
 static void main_goto_main_menu(void) {menu++;}
 static void structure_culling_load_settings(void) {culling++;}
 static void structure_culling_structure_bsp_loaded(void) {culling++;}
+static short object_partition_bsp = NONE;
+static void objects_bind_cluster_partition_bsp(short bsp) {object_partition_bsp=bsp;}
 #include "loader.inc"
+
+static long cluster_partition_port_no_cluster_first_reference;
+static long reference_list_get_next_datum_index(struct data_array *data,long *reference_index)
+{
+    if (*reference_index==NONE) return NONE;
+    *reference_index=NONE;
+    return *(long *)data->data;
+}
+#include "object_cluster_keys.inc"
 
 static struct {short switch_to_structure_bsp_index;} main_globals={NONE};
 static short distributed_host_structure_bsp_index = NONE;
@@ -824,6 +835,44 @@ int main(int argc,char **argv)
     short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "qualified-object-clusters"))
+    {
+        long head=7, cursor=NONE;
+        long entry=units[0], reverse_key=NONE;
+        struct data_array entries={.data=(unsigned char *)&entry}, reverse={.data=(unsigned char *)&reverse_key};
+        struct cluster_partition partition={
+            .cluster_first_data_references=&head,
+            .data_reference_data=&entries,
+            .cluster_reference_data=&reverse,
+            .port_structure_bsp_index=NONE,
+        };
+        global_structure_bsp->clusters.count=1;
+        CHECK(cluster_partition_key(&partition,0)==0&&
+              cluster_partition_get_first_datum(&partition,&cursor,0)==units[0],
+              "classic cluster key or traversal changed");
+        partition.port_structure_bsp_index=old;
+        reverse_key=cluster_partition_key(&partition,0);
+        CHECK(reverse_key==MAXIMUM_CLUSTERS_PER_STRUCTURE&&
+              cluster_partition_get_first_cluster(&partition,&cursor,head)==0,
+              "native membership did not store a qualified key or expose the local cluster");
+        CHECK(cluster_partition_get_first_datum_in_bsp(&partition,&cursor,destination,0)==NONE&&cursor==NONE&&
+              cluster_partition_get_first_datum_in_bsp(&partition,&cursor,old,0)==units[0],
+              "equal cluster numbers made two BSP lookups alias");
+
+        global_structure_bsp_index=destination;
+        partition.port_structure_bsp_index=destination;
+        entry=units[1];
+        CHECK(cluster_partition_key(&partition,0)!=reverse_key&&
+              cluster_partition_get_first_cluster(&partition,&cursor,head)==NONE&&cursor==NONE,
+              "a reverse reference exposed a cluster from the previous BSP");
+        CHECK(cluster_partition_get_first_datum_in_bsp(&partition,&cursor,old,0)==NONE&&
+              cluster_partition_get_first_datum(&partition,&cursor,0)==units[1],
+              "binding the next region changed the qualified lookup contract");
+        reverse_key=0;
+        CHECK(cluster_partition_get_first_cluster(&partition,&cursor,head)==0,
+              "an older raw cluster key could not be read after restore");
+        return 0;
+    }
     if (!strcmp(name, "regional-hit-boundary"))
     {
         struct damage_history_tick *original=&damage_history[10 & (TARGET_HISTORY_TICKS - 1)];
@@ -1263,6 +1312,7 @@ int main(int argc,char **argv)
             {
                 coop=FALSE;
                 regional_match=TRUE;
+                scenario.type=_scenario_type_multiplayer;
                 prepared_crossing_leaf=0;
                 CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
                       "crossing accepted without negotiated peers");
@@ -1333,8 +1383,9 @@ int main(int argc,char **argv)
                   mcc_prepared_loads==1&&mcc_prepared_validations==1&&mcc_prepared_releases==0,
                   "crossing reloaded its prepared BSP or removed the passenger");
             if (regional_crossing)
-                CHECK(objects[1].object.parent_object_index==units[2]&&!teleports&&!ejections,
-                      "competitive crossing gathered or unboarded a player");
+                CHECK(objects[1].object.parent_object_index==units[2]&&!teleports&&!ejections&&
+                      object_partition_bsp==destination,
+                      "competitive crossing lost its regional partition or unboarded a player");
             return 0;
         }
 

@@ -3328,6 +3328,17 @@ cache took the same guest-driven Warthog through Chiron and back, keeping
 handle `e26f0000` and driver seat 0 on both machines. Both exited normally.
 Independent occupants and simulation still require their own regional scenes.
 
+MCC13 multiplayer object references now store both the BSP and its local
+cluster in the existing object reference pools. Collision lookups reject an
+unbound BSP even when its local cluster number matches, and visibility still
+receives local cluster numbers. The Windows x64 executable with SHA-256
+`a5ceb94524983d4a2864c45d6d000ca2f4cdf79e9870101c1e6a65e9bec6173d` built
+successfully and passed 82 focused BSP checks. The pinned fourteen-region
+cache reached BSP 0 on the host. The guest joined too late to reach gameplay
+before the test ended, so this build has no new Chiron round-trip result.
+The partition still binds one BSP at a time. Independent two-player movement
+and combat across BSPs remain open.
+
 Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
 active BSP and up to two previous BSPs inside the existing 64 MiB tag
 window. The loader selects disjoint ranges for retained geometry and can
