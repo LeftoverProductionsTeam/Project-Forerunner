@@ -1607,9 +1607,9 @@ Spark's authored Firefight CE609
 appeared as Native Solo Firefight Acceptanc [CE] on Win64
 `d0ae6548263ed9f963386c5b34031a88170236cacc99a1a84d683776defedda6`.
 Firefight → Authored Encounter → Custom Singleplayer reached the
-ordinary private lobby with internet play off. The existing lobby first
-loads stock carousel, which the disposable data root needed alongside
-ui.map and the three owned CE banks. The actual round loaded eight
+ordinary private lobby with internet play off. That build first loaded
+stock carousel alongside ui.map and the three owned CE banks. The actual
+round loaded eight
 scripts and ten globals. The log confirmed `gs_firefight` suppressed
 the built-in director. The player spawned at (-5, -4, 0) and saw the
 authored pistol with 12 loaded and 72 reserve.
@@ -1623,6 +1623,23 @@ timeout feedback and restart. This run demonstrated menu admission,
 loadout and authored spawning. Wave 2, victory and the MCC13 gameplay
 path remain open. The mode sidecars were staged with the caches.
 Menu admission used the existing CE discovery path.
+
+The authored-operation lobby now uses an installed campaign cache if
+its usual multiplayer starter is missing. On a data root without
+carousel.map, Win64 `c39903f5dc2d5ca476877cb3988457cf12616b154443aa19458cde381fb8d931`
+opened the CE chooser and spawned the player on the exact CE609 export
+above. With the CE scenario absent, Win64
+`58762fe93add80448d3a6cf09c4acf7c199b1a4ec19f959097cb791ff0ac5e64`
+opened MCC Singleplayer directly. The private client matched the exact
+MCC13 map identity, SHA-256
+`ed1627befc7680e6646980a3a15eba3dacaebe195d7e013f9a3d9f443e417358`,
+and spawned the player and one live authored Grunt. Both admissions
+used the regular menus and existing catalogs. The MCC run took the
+east-side floor route via (4.97, -4, 0) and (5.476, 1.715, 0).
+Pistol fire killed the first Grunt by tick 1740. Wave 2 spawned two
+actors by tick 1830 with the engine director still disabled. One
+second-wave Grunt remained alive when the disposable game reached its
+time limit. Victory and replay remain open.
 
 Forerunner's finite host director may select an original loaded Zombie variant
 and native spawn location once compatible source exists. It remains separate

@@ -1083,7 +1083,8 @@ short network_game_client_get_state(
 static boolean network_game_start_new_server(
 	struct widget_instance *widget,
 	struct event_record *event,
-	boolean *widget_deleted);
+	boolean *widget_deleted,
+	boolean campaign_chooser);
 
 extern byte cached_player_profile[0x9C];
 
@@ -1163,7 +1164,8 @@ static boolean network_game_server_list_initialize(
 static boolean network_game_start_new_server(
 	struct widget_instance *widget,
 	struct event_record *event,
-	boolean *widget_deleted);
+	boolean *widget_deleted,
+	boolean campaign_chooser);
 static boolean network_game_join_game_from_server_list(
 	struct widget_instance *widget,
 	struct event_record *event,
@@ -2832,7 +2834,7 @@ static boolean start_network_game_if_no_advertised_servers(
 	{
 		client = global_network_game_client_get();
 		if (client && network_game_client_get_state(client, &state) == 0)
-			result = network_game_start_new_server(widget, event, widget_deleted);
+			result = network_game_start_new_server(widget, event, widget_deleted, FALSE);
 	}
 	else
 		error(2, "not attempting to start a new server; there are other servers available");
@@ -3713,10 +3715,43 @@ int config_boolean(const char *name);
 which chose internet or LAN, public or private, itself */
 static boolean network_game_port_pc_menus_hosting = FALSE;
 
+/* A private lobby advertises a map before the campaign chooser opens. */
+static void network_game_campaign_lobby_map(void)
+{
+	struct game_variant variant;
+	char current[256];
+	long row;
+
+	game_engine_get_current_stage(&variant, current);
+	if (cache_files_map_installed(current))
+		return;
+#ifdef HALO_MAP_LIST
+	for (row = 0; row < ui_map_list_campaign_count(); row++)
+	{
+		char const *name = ui_map_list_campaign_name(row);
+		if (cache_files_map_installed(name))
+		{
+			game_engine_override_map_name(name);
+			return;
+		}
+	}
+#endif
+	for (row = 0; row < mcc_maps_type_count(TRUE); row++)
+	{
+		char const *name = mcc_maps_level_name(mcc_maps_type_index((short)row, TRUE));
+		if (cache_files_map_installed(name))
+		{
+			game_engine_override_map_name(name);
+			return;
+		}
+	}
+}
+
 static boolean network_game_start_new_server(
 	struct widget_instance *widget,
 	struct event_record *event,
-	boolean *widget_deleted)
+	boolean *widget_deleted,
+	boolean campaign_chooser)
 {
 	boolean result = TRUE;
 
@@ -3735,6 +3770,8 @@ static boolean network_game_start_new_server(
 	if (!global_network_game_server_get())
 	{
 		game_engine_playlist_initialize();
+		if (campaign_chooser)
+			network_game_campaign_lobby_map();
 		result = create_global_network_game_server();
 		if (result == TRUE)
 		{
@@ -6377,7 +6414,7 @@ boolean ui_online_games_start_server(
 {
 	boolean deleted = FALSE;
 
-	return network_game_start_new_server(NULL, NULL, &deleted);
+	return network_game_start_new_server(NULL, NULL, &deleted, FALSE);
 }
 #endif
 
@@ -6630,14 +6667,15 @@ and the lobby had nobody in it */
 boolean ui_widget_port_host(
 	struct widget_instance *widget,
 	struct event_record *event,
-	boolean *widget_deleted)
+	boolean *widget_deleted,
+	boolean campaign_chooser)
 {
 	boolean result;
 
 	dispose_global_network_game_client();
 	dispose_global_network_game_server();
 	network_game_port_pc_menus_hosting = TRUE;
-	result = network_game_start_new_server(widget, event, widget_deleted);
+	result = network_game_start_new_server(widget, event, widget_deleted, campaign_chooser);
 	network_game_port_pc_menus_hosting = FALSE;
 	return result;
 }

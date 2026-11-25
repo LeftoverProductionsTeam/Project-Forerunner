@@ -5459,7 +5459,7 @@ boolean ui_widget_port_multiplayer_map_choose(short level_index);
 boolean ui_widget_port_cooperative_level_choose(char const *map_name, short difficulty);
 short ui_widget_port_gametypes(long *indices, short maximum, short *last_used);
 boolean ui_widget_port_gametype_choose(long profile_index);
-boolean ui_widget_port_host(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
+boolean ui_widget_port_host(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted, boolean campaign_chooser);
 boolean ui_widget_port_host_local(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
 boolean ui_widget_port_browse(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
 boolean ui_widget_port_open(struct widget_instance *widget, char const *name, boolean *widget_deleted);
@@ -5754,7 +5754,7 @@ static boolean forerunner_infection_chooser;
 static boolean forerunner_zombies_solo_chooser;
 
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
-	boolean *widget_deleted, boolean local_only)
+	boolean *widget_deleted, boolean local_only, boolean campaign_chooser)
 {
 	forerunner_operation_chooser = FALSE;
 	forerunner_infection_chooser = FALSE;
@@ -5775,14 +5775,14 @@ static boolean multiplayer_host(struct widget_instance *widget, struct event_rec
 	which this opens: port/web/src/web_online_ui.c) */
 	{
 		extern void web_online_game_hosting(int internet);
-		boolean hosted = ui_widget_port_host(widget, event, widget_deleted);
+		boolean hosted = ui_widget_port_host(widget, event, widget_deleted, campaign_chooser);
 
 		if (hosted && global_network_game_server_get())
 			web_online_game_hosting(multiplayer.mode == _multiplayer_mode_host_internet);
 		return hosted;
 	}
 #else
-	return ui_widget_port_host(widget, event, widget_deleted);
+	return ui_widget_port_host(widget, event, widget_deleted, campaign_chooser);
 #endif
 }
 
@@ -5930,7 +5930,7 @@ static boolean map_list_initialize(struct widget_instance *list)
 {
 	char const *const *names;
 	short last_used = 0;
-	short mcc_kind = map_list.kind;
+	short mcc_kind = forerunner_operation_chooser ? NONE : map_list.kind;
 	boolean operation = forerunner_operation_chooser;
 
 	/* Local Forge can host a campaign cache for editing using the native
@@ -5951,6 +5951,9 @@ static boolean map_list_initialize(struct widget_instance *list)
 	if (operation && map_list.hosting)
 	{
 		map_list.kind = config_boolean("network.firefight_encounter") ? MAP_KIND_SINGLEPLAYER : MAP_KIND_CUSTOM_SINGLEPLAYER;
+		if (map_list.kind == MAP_KIND_CUSTOM_SINGLEPLAYER &&
+			!custom_map_count(TRUE, map_list.map_count) && mcc_maps_type_count(TRUE))
+			mcc_kind = MAP_KIND_MCC_SINGLEPLAYER;
 		last_used = 0;
 	}
 	/* The regular multiplayer list already includes detected CE maps. */
@@ -5966,10 +5969,11 @@ static boolean map_list_initialize(struct widget_instance *list)
 	/* (MULTIPLAYER's maps after the view's rows) */
 	map_step_open(list, MAP_STEP_MAPS, map_list.kind == MAP_KIND_MULTIPLAYER ? (short)(MAP_VIEW_ROWS + last_used) :
 		last_used);
-	if (!operation && map_kind_mcc(mcc_kind) &&
+	if (map_kind_mcc(mcc_kind) &&
 		((map_list.hosting && !forerunner_infection_chooser) || mcc_kind == MAP_KIND_MCC_MULTIPLAYER))
 	{
 		map_list.kind = mcc_kind;
+		mcc_host_list.multiplayer_only = !map_list.hosting || forerunner_infection_chooser;
 		mcc_host_list.campaign = mcc_kind == MAP_KIND_MCC_SINGLEPLAYER;
 		mcc_map_browser_open(&mcc_host_browsers[mcc_host_list.campaign], mcc_host_list.campaign);
 		map_kind_set(list, mcc_kind);
@@ -14224,7 +14228,7 @@ boolean pc_menu_event_function_invoke(
 		}
 		else if (!strcmp(name, "port forerunner host infection"))
 		{
-			if (!multiplayer_host(widget, event, controller, widget_deleted, FALSE)) return FALSE;
+			if (!multiplayer_host(widget, event, controller, widget_deleted, FALSE, FALSE)) return FALSE;
 			forerunner_infection_chooser = TRUE;
 			return TRUE;
 		}
@@ -14253,7 +14257,8 @@ boolean pc_menu_event_function_invoke(
 				option = gametype_option_named("coop_extra_enemies_spinner");
 				if (!option || !gametype_option_setting_write(option, 2)) return campaign_fail();
 			}
-			if (!multiplayer_host(widget, event, controller, widget_deleted, local_forge || local_zombies)) return FALSE;
+			if (!multiplayer_host(widget, event, controller, widget_deleted, local_forge || local_zombies,
+				mode != 0 || !strcmp(name, "port forerunner host native"))) return FALSE;
 			if (local_forge || !strcmp(name, "port forerunner host forge"))
 				network_game_enable_forge();
 			else if (local_zombies || !strcmp(name, "port forerunner host zombies"))
@@ -14313,7 +14318,7 @@ boolean pc_menu_event_function_invoke(
 		}
 		else if (!strcmp(name, "join controller to mp game"))
 		{
-			return multiplayer_host(widget, event, controller, widget_deleted, FALSE);
+			return multiplayer_host(widget, event, controller, widget_deleted, FALSE, FALSE);
 		}
 		else if (!strcmp(name, "mp level list initialize"))
 		{
