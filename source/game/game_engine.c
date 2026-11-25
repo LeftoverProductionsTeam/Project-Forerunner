@@ -5564,6 +5564,14 @@ static long game_engine_vehicle_home_on_pad(
 		{
 			continue;
 		}
+		/* Different BSPs can contain the same pad coordinates. */
+		if (game_engine_vehicle_homes[home].structure_bsp_index != NONE)
+		{
+			short bsp = game_engine_object_recorded_bsp(iterator.index, object->object.type);
+
+			if (bsp != NONE && bsp != game_engine_vehicle_homes[home].structure_bsp_index)
+				continue;
+		}
 		for (other = 0; other < game_engine_vehicle_home_count; other++)
 		{
 			if (other != home && game_engine_vehicle_homes[other].object_index == iterator.index)

@@ -453,6 +453,12 @@ static real distance_squared3d(real_point3d const *p,real_point3d const *q)
  real dx=p->x-q->x,dy=p->y-q->y,dz=p->z-q->z;
  return dx*dx+dy*dy+dz*dz;
 }
+static long regional_vehicle=NONE;
+static short regional_vehicle_bsp=NONE;
+static short game_engine_object_recorded_bsp(long index,short type)
+{
+ return index==regional_vehicle && type==_object_type_vehicle ? regional_vehicle_bsp : NONE;
+}
 #include "home_respawn.inc"
 
 static void regional_respawn(void)
@@ -477,6 +483,16 @@ static void regional_respawn(void)
        get(vehicle)->object.vehicle_home_index==0&&!game_engine_vehicle_parked(vehicle),
        "did not bind the active home with respawn disabled");
 
+ regional_vehicle=path_vehicle=make(3,0);
+ get(regional_vehicle)->object.type=_object_type_vehicle;
+ get(regional_vehicle)->object.position.x=10;
+ regional_vehicle_bsp=1;
+ CHECK(game_engine_vehicle_home_on_pad(0,vehicle)==NONE,
+       "adopted a vehicle parked in another BSP at the same coordinates");
+ regional_vehicle_bsp=0;
+ CHECK(game_engine_vehicle_home_on_pad(0,vehicle)==regional_vehicle,
+       "refused a replacement on the pad in the same BSP");
+ path_vehicle=vehicle;
  global_structure_bsp_index=1;
  CHECK(game_engine_vehicle_parked(vehicle),"an empty vehicle appeared in the neighboring region");
  get(vehicle)->object.first_child_object_index=rider;
