@@ -75,6 +75,10 @@ static void player_ui_set_single_player_local_player_controller(short local,shor
 static void main_menu_switch_to_single_player(void) { solo_started=TRUE; }
 static void player_ui_remember_player1_profile(boolean remember) { (void)remember; }
 static void ui_play_audio_feedback_sound(short sound) { (void)sound; }
+struct event_record { short controller_index; };
+static short event_controller(struct widget_instance *widget, struct event_record *event)
+{ (void)widget; return event->controller_index; }
+static short main_get_difficulty(void) { return 1; }
 #include "solo_start.inc"
 #define ROWS 10
 static char const *rows[]={"op_coop_friendly_fire","op_coop_extra_enemies","op_coop_extra_pickups","op_coop_extra_vehicles",
@@ -100,6 +104,18 @@ static void setup(void)
 }
 int main(int argc,char **argv)
 {
+ if(argc==2&&(!strcmp(argv[1],"solo-extraction-ok")||!strcmp(argv[1],"solo-extraction-missing-ok")||
+             !strcmp(argv[1],"solo-campaign-ok"))) {
+  struct event_record event={0};
+  boolean deleted=FALSE;
+  boolean ordinary=!strcmp(argv[1],"solo-campaign-ok");
+  boolean missing=!strcmp(argv[1],"solo-extraction-missing-ok");
+  solo_map=ordinary?"a10":missing?"deleted@ce":"patrol@ce";
+  solo_extraction_start_pending=!ordinary;snapshot_allowed=TRUE;
+  CHECK(switch_from_main_menu_to_single_player(&list,&event,&deleted)==!missing,"wrong OK button launch result");
+  CHECK(solo_started==!missing&&snapshot_allowed==(ordinary||missing),"OK button bypassed operation launch policy");
+  return 0;
+ }
  if(argc==2&&!strcmp(argv[1],"solo-extraction-fresh")) {
   solo_map="patrol@ce";solo_extraction_start_pending=TRUE;snapshot_allowed=TRUE;
   CHECK(difficulty_start(1,0)&&solo_started&&!snapshot_allowed&&!solo_extraction_start_pending,

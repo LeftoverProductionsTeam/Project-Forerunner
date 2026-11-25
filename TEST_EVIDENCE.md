@@ -22,6 +22,24 @@ was used. The low blue deployment control was difficult to see from spawn.
 Covenant insertion, field combat and objectives, evacuation, banking and private
 LAN guest persistence remain open on this build.
 
+A subsequent Windows candidate
+(`9bfaac5c26f123cba3401c50fdb85adc7d6f754453d4c1eb6c97fc67e880b866`)
+used the same map and disposable local profile. Clicking the difficulty OK
+button on the previous-good executable and the first candidate attempted to
+read the world snapshot after confirmation. The fixed button reached the hub
+without that read, and both scratch save files remained byte-identical. The
+fixture slot was empty, so this comparison does not establish recovery from
+a populated checkpoint or durable banking. Twelve focused menu checks passed.
+
+On the fixed candidate, normal movement and E activated the hub control,
+displayed the new boarding guidance, entered the native Pelican side seat,
+received the landing cue, and disembarked at (77.740, -125.738, 0.518) with
+full health. The direct approach met the parked Pelican near (56.8, -99.9).
+An on-foot eastern detour reached (59.373, -94.567, 0.432) and
+(61.668, -86.158, 0.314); turning west met the Spirit at
+(59.493, -85.117, 0.093). Facility objectives were not reached on this run.
+The installed map and executable hashes were unchanged.
+
 ## Windows playtest recovery
 
 The Windows x64 testing executable at `build/windows64/halo.exe` used SHA-256

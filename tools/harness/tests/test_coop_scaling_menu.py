@@ -21,7 +21,9 @@ def generated(fault=None):
     if fault:
         code = mutated(code, *fault)
     return (('under_test.inc', code),
-            ('solo_start.inc', function(source, 'campaign_start') + '\n' + function(source, 'difficulty_start')))
+            ('solo_start.inc', '\n'.join(function(source, name) for name in (
+                'campaign_start', 'difficulty_start', 'pc_menu_solo_extraction_confirm')) + '\n' +
+             function(read('source/interface/ui_widget_event_handler_functions.c'), 'switch_from_main_menu_to_single_player')))
 
 
 @pytest.mark.parametrize('case', ['layout', 'help', 'unrelated'])
@@ -36,7 +38,9 @@ def test_operations_mode(case):
     assert status == 0, output
 
 
-@pytest.mark.parametrize('case', ['solo-extraction-fresh', 'solo-extraction-missing', 'solo-campaign-continue'])
+@pytest.mark.parametrize('case', ['solo-extraction-fresh', 'solo-extraction-ok',
+                                 'solo-extraction-missing', 'solo-extraction-missing-ok',
+                                 'solo-campaign-continue', 'solo-campaign-ok'])
 def test_solo_start(case):
     status, output = run(build('coop_scaling_menu', generated()), case)
     assert status == 0, output

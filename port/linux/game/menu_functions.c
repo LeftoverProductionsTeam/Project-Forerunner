@@ -2349,6 +2349,18 @@ static boolean difficulty_start(short difficulty, short controller)
 	return TRUE;
 }
 
+/* The difficulty screen's OK button reaches the original solo branch
+ * after setting the chosen difficulty. Consume the same pending operation
+ * used by direct difficulty-row selection. */
+boolean pc_menu_solo_extraction_confirm(struct widget_instance *widget, struct event_record *event,
+	boolean *result)
+{
+	if (!solo_extraction_start_pending)
+		return FALSE;
+	*result = difficulty_start(main_get_difficulty(), event_controller(widget, event));
+	return TRUE;
+}
+
 static short difficulty_shown(struct widget_instance *widget)
 {
 	for (; widget; widget = widget->parent)

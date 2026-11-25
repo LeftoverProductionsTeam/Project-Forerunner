@@ -2275,6 +2275,11 @@ static boolean switch_from_main_menu_to_single_player(
 	struct event_record *event,
 	boolean *widget_deleted)
 {
+	extern boolean pc_menu_solo_extraction_confirm(struct widget_instance *, struct event_record *, boolean *);
+	boolean result;
+
+	if (pc_menu_solo_extraction_confirm(widget, event, &result))
+		return result;
 	game_connection_set(0);
 	main_menu_switch_to_single_player();
 	player_ui_remember_player1_profile(0);
