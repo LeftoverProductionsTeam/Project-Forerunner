@@ -3322,6 +3322,20 @@ keyboard movement after debug staging within BSP 0. Both peers exited
 zero. These checks verify retained geometry and shared switches.
 Independent simulation of occupied regions remains open.
 
+Forerunner records which BSP owns loose equipment and empty vehicles when
+they leave the active scene. Objects stay with their source BSP even when
+the destination has geometry at the same coordinates. Carried gear and
+occupied vehicles continue to follow native crossings. This uses the
+existing host object synchronization and requires the same Spark cache
+format and authoring data.
+
+Windows x64 `ca308c72236b5f380ab8e7232b1506451c58414de8c1abbfba43f65010d3b50d`
+passed 78 focused BSP checks. Two private peers on the exact fourteen-region
+cache saw a staged rifle disappear from the guest in Derelict and return
+at the same position in BSP 0. The host retained the same rifle throughout.
+Both processes exited normally. Independent player occupancy and protection
+of multiple occupied BSPs from eviction remain open.
+
 Windows x64 executable
 `0ea3d89d42682873e1387da0412f88e92b6d47c040b59bfbda513220b286b57c`
 passed 73 focused BSP checks. The cache regression verifies reuse, a tight

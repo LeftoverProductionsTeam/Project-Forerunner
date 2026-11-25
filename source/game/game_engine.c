@@ -5369,6 +5369,13 @@ static short game_engine_vehicle_home_count = NONE;
 static unsigned long game_engine_equipment_regions_seen;
 static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
 
+/* Use the full handle so a new item in a recycled slot has no inherited region. */
+static struct game_engine_regional_object
+{
+	long object_index;
+	short bsp_index;
+} game_engine_regional_objects[MAXIMUM_OBJECTS_PER_MAP];
+
 static boolean game_engine_equipment_item_at_pad(
 	struct item_datum const *item,
 	struct scenario_netgame_equipment const *equipment)
@@ -5407,7 +5414,7 @@ come back */
 /* whether nobody rides the vehicle: no driver or gunner, and no rider among
 its children (which hold its own weapons too) */
 static boolean game_engine_vehicle_empty(
-	struct unit_datum *vehicle)
+	struct unit_datum const *vehicle)
 {
 	long child_index;
 
@@ -5446,10 +5453,48 @@ static boolean game_engine_vehicle_parked(
 		game_engine_vehicle_empty(vehicle);
 }
 
+/* Capture ownership before the source BSP loses its clusters. Carried items
+ * and occupied vehicles follow their occupants through the native crossing. */
+void game_engine_record_regional_object(
+	long object_index,
+	struct object_datum const *object,
+	short source_bsp)
+{
+	struct game_engine_regional_object *region;
+	short type = object->object.type;
+	boolean travels;
+
+	if (type != _object_type_vehicle && !TEST_FLAG(_object_mask_item, type))
+		return;
+	region = &game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
+	travels = object->object.parent_object_index != NONE ||
+		(type == _object_type_vehicle ? !game_engine_vehicle_empty(unit_get(object_index)) :
+			TEST_FLAG(item_get(object_index)->item.flags, _item_attached_to_unit_bit));
+	if (travels)
+	{
+		if (region->object_index == object_index)
+			region->object_index = NONE;
+	}
+	else if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit) &&
+		!TEST_FLAG(object->object.flags, _object_outside_of_map_bit) &&
+		object->object.location.cluster_index != NONE)
+	{
+		region->object_index = object_index;
+		region->bsp_index = source_bsp;
+	}
+}
+
 boolean game_engine_object_parked(
 	long object_index,
 	short object_type)
 {
+	if (object_type == _object_type_vehicle || TEST_FLAG(_object_mask_item, object_type))
+	{
+		struct game_engine_regional_object const *region =
+			&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
+		if (region->object_index == object_index)
+			return region->bsp_index != global_structure_bsp_index_get();
+	}
 	if (object_type == _object_type_vehicle)
 		return game_engine_vehicle_parked(object_index);
 	if (TEST_FLAG(_object_mask_item, object_type))
@@ -8962,6 +9007,7 @@ void game_engine_initialize_for_new_map(
 		game_engine_vehicle_home_count = NONE;
 		game_engine_equipment_regions_seen = 0;
 		csmemset(game_engine_equipment_home_bsp, NONE, sizeof(game_engine_equipment_home_bsp));
+		csmemset(game_engine_regional_objects, NONE, sizeof(game_engine_regional_objects));
 		timeout_for_endgame_sound = 0;
 		game_engine_network_state_read = FALSE;
 

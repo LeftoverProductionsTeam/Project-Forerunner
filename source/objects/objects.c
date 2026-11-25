@@ -1876,6 +1876,11 @@ void objects_disconnect_from_structure_bsp(
 {
 	struct object_datum *object;
 	struct object_iterator iterator;
+	struct scenario const *scenario = global_scenario_try_and_get();
+	short source_bsp = NONE;
+
+	if (scenario && !network_game_distributed_client() && scenario_uses_regional_gameplay(scenario))
+		source_bsp = global_structure_bsp_index_get();
 
 	/* port: a camera/network cluster number belongs to the BSP being left.
 	 * Keeping it can address an unrelated or nonexistent PVS row after loading.
@@ -1886,6 +1891,8 @@ void objects_disconnect_from_structure_bsp(
 	object_iterator_new(&iterator, _object_mask_all, 0);
 	while (object = (struct object_datum *)object_iterator_next(&iterator))
 	{
+		if (source_bsp != NONE)
+			game_engine_record_regional_object(iterator.index, object, source_bsp);
 		if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit) &&
 			object->object.parent_object_index==NONE)
 		{

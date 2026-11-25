@@ -62,8 +62,12 @@ struct structure_bsp {
 };
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;};
-struct object_datum {struct {long parent_object_index;short type;real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;} object;
-                     long weapon;short ammunition;struct {long player_index;short parent_seat_index;} unit;};
+struct object_datum {
+    struct {long parent_object_index,first_child_object_index,next_object_index;short type;
+        real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;struct location location;} object;
+    long weapon;short ammunition;
+    struct {long player_index,driver_object_index,gunner_object_index;short parent_seat_index;} unit;
+};
 #define biped_datum object_datum
 #define unit_datum object_datum
 #define _object_mask_vehicle 2
@@ -268,6 +272,10 @@ static struct object_datum *object_iterator_next(struct object_iterator *it)
 static void object_disconnect_from_map(long index) {objects[slot(index)].object.flags=0;}
 static void object_type_disconnect_from_structure_bsp(long index) {}
 #define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
+static struct scenario *global_scenario_try_and_get(void) {return global_scenario;}
+static boolean scenario_uses_regional_gameplay(struct scenario const *scenario);
+static boolean network_game_distributed_client(void);
+static void game_engine_record_regional_object(long index,struct object_datum const *object,short bsp);
 #include "item_structure_support.inc"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
@@ -682,6 +690,13 @@ static struct item_datum *item_try_and_get(long index)
 #define game_variant_options_get() (&test_equipment_options)
 static void object_set_garbage(long index,boolean value)
 {CHECK(!value&&item_try_and_get(index),"unexpected pickup garbage assignment");}
+static struct game_engine_regional_object {
+    long object_index;
+    short bsp_index;
+} game_engine_regional_objects[8];
+#define _object_mask_item FLAG(_object_type_weapon)
+static struct object_datum *unit_get(long index) {return object_get(index);}
+static boolean game_engine_vehicle_parked(long index) {return FALSE;}
 #include "regional_equipment.inc"
 
 static void setup(short old,short destination)
@@ -786,6 +801,61 @@ int main(int argc,char **argv)
         distributed_send_structure_bsp(NONE);
         CHECK(damage_history[0].time==ticks&&damage_trails[0][0].time==ticks,
               "classic co-op unexpectedly cleared history");
+        return 0;
+    }
+    if (!strcmp(name, "regional-loose-objects"))
+    {
+        struct object_datum item={.object={
+            .type=_object_type_weapon,.parent_object_index=NONE,.flags=FLAG(_object_connected_to_map_bit),
+            .location={.cluster_index=0},
+        }};
+        struct object_datum *vehicle=&objects[2];
+        long index=pickup_handle;
+        long vehicle_index=units[2];
+
+        memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
+        placed_pickup_count=1;
+        placed_pickups[0].item.netgame_equipment_index=NONE;
+        vehicle->object.type=_object_type_vehicle;
+        vehicle->object.parent_object_index=NONE;
+        vehicle->object.first_child_object_index=NONE;
+        vehicle->object.flags=FLAG(_object_connected_to_map_bit);
+        vehicle->object.location.cluster_index=0;
+        vehicle->unit.driver_object_index=NONE;
+        vehicle->unit.gunner_object_index=NONE;
+
+        game_engine_record_regional_object(index,&item,0);
+        game_engine_record_regional_object(vehicle_index,vehicle,0);
+        global_structure_bsp_index=1;
+        CHECK(game_engine_object_parked(index,_object_type_weapon)&&
+              game_engine_object_parked(vehicle_index,_object_type_vehicle),
+              "loose objects in overlapping geometry moved to the destination");
+
+        item.object.flags|=FLAG(_object_outside_of_map_bit);
+        vehicle->object.flags|=FLAG(_object_outside_of_map_bit);
+        game_engine_record_regional_object(index,&item,1);
+        game_engine_record_regional_object(vehicle_index,vehicle,1);
+        CHECK(game_engine_object_parked(index,_object_type_weapon)&&
+              game_engine_object_parked(vehicle_index,_object_type_vehicle),
+              "an inactive BSP replaced an object's owner");
+        CHECK(!game_engine_object_parked(vehicle_index+0x10000,_object_type_vehicle),
+              "a recycled datum inherited the previous vehicle's region");
+
+        global_structure_bsp_index=0;
+        CHECK(!game_engine_object_parked(index,_object_type_weapon)&&
+              !game_engine_object_parked(vehicle_index,_object_type_vehicle),
+              "returning to the original BSP did not restore its objects");
+
+        placed_pickups[0].item.flags=FLAG(_item_attached_to_unit_bit);
+        vehicle->object.first_child_object_index=units[0];
+        objects[0].object.type=_object_type_biped;
+        objects[0].object.next_object_index=NONE;
+        game_engine_record_regional_object(index,&item,0);
+        game_engine_record_regional_object(vehicle_index,vehicle,0);
+        global_structure_bsp_index=1;
+        CHECK(!game_engine_object_parked(index,_object_type_weapon)&&
+              !game_engine_object_parked(vehicle_index,_object_type_vehicle),
+              "carried gear or a passenger-only vehicle failed to follow the crossing");
         return 0;
     }
     if (!strcmp(name, "regional-equipment"))
