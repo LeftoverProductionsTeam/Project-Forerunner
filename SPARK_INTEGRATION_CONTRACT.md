@@ -1602,6 +1602,28 @@ one-player/one-life configuration check or a terminal global alone does not prov
 that human gameplay flow. Keep these globals separate from negotiated runtime
 operations; discovery remains read-only.
 
+Spark's authored Firefight CE609
+`95599caa307aa24fd29fe5ed069a8c91986287ee57703673af0a364963a434f1`
+appeared as Native Solo Firefight Acceptanc [CE] on Win64
+`d0ae6548263ed9f963386c5b34031a88170236cacc99a1a84d683776defedda6`.
+Firefight → Authored Encounter → Custom Singleplayer reached the
+ordinary private lobby with internet play off. The existing lobby first
+loads stock carousel, which the disposable data root needed alongside
+ui.map and the three owned CE banks. The actual round loaded eight
+scripts and ten globals. The log confirmed `gs_firefight` suppressed
+the built-in director. The player spawned at (-5, -4, 0) and saw the
+authored pistol with 12 loaded and 72 reserve.
+
+Wave 1 placed exactly one living Grunt. At tick 1860 it was still at
+(3.992, 2.973, 0) with full body vitality, while the player was alive
+at (0.108, -4.015, 0). The actor disappeared by tick 1875 with no
+second wave. This matches the generated 60-second wave timeout and
+cleanup. Review line of sight and approach from the spawn, plus visible
+timeout feedback and restart. This run demonstrated menu admission,
+loadout and authored spawning. Wave 2, victory and the MCC13 gameplay
+path remain open. The mode sidecars were staged with the caches.
+Menu admission used the existing CE discovery path.
+
 Forerunner's finite host director may select an original loaded Zombie variant
 and native spawn location once compatible source exists. It remains separate
 from Spark's `gs_firefight` HaloScript controller: select exactly one wave owner.
