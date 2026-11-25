@@ -38,10 +38,10 @@ def generated(fault=None):
          '\n'.join(function(mcc_cache, name) for name in
                    ('mcc_runtime_linked_bsp_limit', 'mcc_cache_bsp_reference', 'mcc_cache_bsp_header_fits', 'mcc_cache_bsp_reference_checked',
                     'mcc_cache_bsp_resident_address', 'mcc_cache_bsp_keep_two_neighbors', 'mcc_cache_bsp_retained_slot',
-                    'mcc_cache_bsp_overlap_end', 'mcc_cache_bsp_address_with_neighbor', 'mcc_cache_bsp_prepare_address',
+                    'mcc_cache_bsp_overlap_end', 'mcc_cache_bsp_address_with_neighbors', 'mcc_cache_bsp_prepare_address',
                     'mcc_cache_bsp_release', 'mcc_cache_drop_retained_bsps',
                     'mcc_cache_bsp_retained_structure', 'mcc_cache_bsp_load', 'mcc_cache_bsp_retain',
-                    'mcc_cache_bsp_unload')) + '\n' +
+                    'mcc_cache_bsp_discard_prepared', 'mcc_cache_bsp_unload')) + '\n' +
          enum_with(cache_header, '_scenario_bsp_prepare_deferred') + '\n' +
          structure(cache_header, 'scenario_bsp_prepared') + '\n' +
          function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
@@ -119,7 +119,7 @@ def generated(fault=None):
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-crossing',
-    'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
+    'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',

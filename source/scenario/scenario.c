@@ -1189,8 +1189,8 @@ boolean scenario_switch_structure_bsp(
 			{
 				/* Keep validated geometry while players approach the seam.
 				 * The candidate has never been bound to the native tag table. */
-				if (!mcc_cache_bsp_retain(reference))
-					mcc_cache_bsp_unload(reference);
+				if (!mcc_cache_bsp_retain(reference, FALSE))
+					mcc_cache_bsp_discard_prepared(reference);
 				preparation = _scenario_bsp_prepare_failed;
 			}
 			if (preparation == _scenario_bsp_prepare_failed)

@@ -2445,7 +2445,7 @@ enum scenario_bsp_prepare_result scenario_structure_bsp_prepare(
 			_scenario_bsp_prepare_failed : _scenario_bsp_prepare_deferred;
 	if (!structure_bsp_port_verify(prepared->structure))
 	{
-		mcc_cache_bsp_unload(destination);
+		mcc_cache_bsp_discard_prepared(destination);
 		return _scenario_bsp_prepare_failed;
 	}
 	return _scenario_bsp_prepare_ready;
@@ -2646,7 +2646,7 @@ static void cache_files_unbind_mcc_bsp(
 boolean scenario_structure_bsp_retain(
 	struct scenario_structure_bsp_reference const *reference)
 {
-	if (!mcc_cache_bsp_retain(reference))
+	if (!mcc_cache_bsp_retain(reference, TRUE))
 		return FALSE;
 
 	/* Preserve the geometry but keep only the selected BSP in the tag table. */

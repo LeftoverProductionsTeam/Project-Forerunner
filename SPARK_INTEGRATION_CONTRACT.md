@@ -3305,6 +3305,23 @@ reuse the oldest window. If there is only room for two BSPs, the loader
 uses the existing two-window path. Only the active BSP is bound to native
 simulation.
 
+If a disjoint window fits within the existing tag arena, preparation
+converts and verifies a new BSP while leaving the active BSP and both
+retained neighbors in place. A refused candidate releases its own
+geometry. A successful switch can then evict the oldest neighbor to
+stay within the existing retention count. The shared-switch fallback
+can still reuse an inactive window under a tight budget.
+
+Windows x64 `4b0c7962ce8291b778225963427957ddb6a45755e2d83285c6fe3831e556f29d`
+passed 77 focused BSP checks. The fourth-region regression verifies
+failed preparation, a successful retry, and final resource release.
+The original whole-cache rejection path fails that case. On the exact
+fourteen-region cache above, two native peers traveled BSP 0 → 2 → 0 → 1
+in one session. Both the Chiron and Derelict crossings used normal
+keyboard movement after debug staging within BSP 0. Both peers exited
+zero. These checks verify retained geometry and shared switches.
+Independent simulation of occupied regions remains open.
+
 Windows x64 executable
 `0ea3d89d42682873e1387da0412f88e92b6d47c040b59bfbda513220b286b57c`
 passed 73 focused BSP checks. The cache regression verifies reuse, a tight

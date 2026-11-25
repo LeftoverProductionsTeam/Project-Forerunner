@@ -617,23 +617,25 @@ static uint64_t mcc_cache_bsp_overlap_end(struct mcc_cache_bsp const *bsp, uint6
     return address + bsp->size;
 }
 
-static uint32_t mcc_cache_bsp_address_with_neighbor(struct mcc_cache_bsp const *active,
-    struct mcc_cache_bsp const *destination, struct mcc_cache_bsp const *neighbor)
+static uint32_t mcc_cache_bsp_address_with_neighbors(struct mcc_cache_bsp const *active,
+    struct mcc_cache_bsp const *destination, struct mcc_cache_bsp const *newer,
+    struct mcc_cache_bsp const *older)
 {
     uint64_t start = destination->address;
     uint64_t tag_base = mcc_loaded_cache.report.tag_base;
     uint64_t limit = tag_base + mcc_loaded_cache.capacity;
 
     if (!mcc_cache_bsp_overlap_end(active, start, destination->size) &&
-        !mcc_cache_bsp_overlap_end(neighbor, start, destination->size))
+        !mcc_cache_bsp_overlap_end(newer, start, destination->size) &&
+        !mcc_cache_bsp_overlap_end(older, start, destination->size))
         return destination->address;
 
-    /* Walk past occupied windows until this converted BSP has room. The
-     * oldest retained window can be reused. */
+    /* Walk past the windows this candidate must leave resident. */
     start = (tag_base + mcc_loaded_cache.used + 15) & ~(uint64_t)15;
     while (start <= UINT32_MAX && start + destination->size <= limit) {
         uint64_t end = mcc_cache_bsp_overlap_end(active, start, destination->size);
-        if (!end) end = mcc_cache_bsp_overlap_end(neighbor, start, destination->size);
+        if (!end) end = mcc_cache_bsp_overlap_end(newer, start, destination->size);
+        if (!end) end = mcc_cache_bsp_overlap_end(older, start, destination->size);
         if (!end && start != destination->address &&
             start < (uint64_t)destination->address + destination->size &&
             destination->address < start + destination->size)
@@ -657,7 +659,10 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
     if (mcc_cache_bsp_retained_slot(to) != NONE)
         return mcc_cache_bsp_resident_address(to);
     if (mcc_cache_bsp_keep_two_neighbors() && mcc_retained_bsps[0]) {
-        uint32_t free_address = mcc_cache_bsp_address_with_neighbor(from, to, mcc_retained_bsps[0]);
+        uint32_t free_address = mcc_cache_bsp_address_with_neighbors(from, to,
+            mcc_retained_bsps[0], mcc_retained_bsps[1]);
+        if (!free_address && mcc_retained_bsps[1])
+            free_address = mcc_cache_bsp_address_with_neighbors(from, to, mcc_retained_bsps[0], NULL);
         if (free_address) return free_address;
     }
     if ((uint64_t)current + from->size <= to->address ||
@@ -721,12 +726,14 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     }
 
     if (address && mcc_cache_bsp_keep_two_neighbors()) {
-        /* Keep at most one inactive neighbor while converting a new BSP.
-         * A tight cache can still fall back to the previous two-window path. */
-        mcc_cache_bsp_release(mcc_retained_bsps[1]);
-        mcc_retained_bsps[1] = NULL;
+        /* Delay eviction when the candidate fits in a disjoint window. A
+         * tight cache can still reuse a neighbor's window for a shared switch. */
         if (mcc_cache_bsp_overlap_end(mcc_retained_bsps[0], address, bsp->size))
             mcc_cache_drop_retained_bsps();
+        else if (mcc_cache_bsp_overlap_end(mcc_retained_bsps[1], address, bsp->size)) {
+            mcc_cache_bsp_release(mcc_retained_bsps[1]);
+            mcc_retained_bsps[1] = NULL;
+        }
     } else {
         mcc_cache_drop_retained_bsps();
     }
@@ -742,16 +749,27 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
     return TRUE;
 }
 
-boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference)
+boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference,
+    boolean replace_oldest)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    if (!bsp || !mcc_cache_bsp_resident_address(bsp) ||
-        mcc_cache_bsp_retained_slot(bsp) != NONE || mcc_retained_bsps[1])
+    if (!bsp || !mcc_cache_bsp_resident_address(bsp) || mcc_cache_bsp_retained_slot(bsp) != NONE)
         return FALSE;
     if (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()) return FALSE;
+    if (mcc_retained_bsps[1]) {
+        if (!replace_oldest) return FALSE;
+        mcc_cache_bsp_release(mcc_retained_bsps[1]);
+    }
     mcc_retained_bsps[1] = mcc_retained_bsps[0];
     mcc_retained_bsps[0] = bsp;
     return TRUE;
+}
+
+/* A rejected warm candidate was never bound to the native tag table. */
+void mcc_cache_bsp_discard_prepared(struct scenario_structure_bsp_reference const *reference)
+{
+    struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
+    if (bsp && mcc_cache_bsp_retained_slot(bsp) == NONE) mcc_cache_bsp_release(bsp);
 }
 
 void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *reference)
