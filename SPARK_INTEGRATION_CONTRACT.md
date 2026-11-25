@@ -141,9 +141,35 @@ ground/rest 1, up.k .947, motion .0012, strict landed 0, and center
 was on foot at tick 13050. E at Deploy woke operation 2 and reissued both
 exact weapon IDs from the generation-4 bank without duplicates. Approaching
 the second boarding on that executable found no valid seat with the
-authored lock open at up.k .946. The retained-stop fix above was compiled
-and checked in the harness. Its live second boarding and departure,
-field-readiness reset and private guest acceptance remain open.
+authored lock open at up.k .946.
+
+The retained-stop fix passed live second boarding and departure on the exact
+same 26be7e13 cache, Win64
+`467381a3a0dbc1ed44fd1343c2c33eb2bff77e3d8ae63b247c740615aeaa0939`.
+Extraction → Play Solo used a disposable offline profile and scripted normal
+controls. The first insertion reached strict landed at tick 10650 (up.k .952,
+origin 78.092, -124.922, 1.633), then normal E disembarked. The player used
+field control 4, boarded the recalled craft in seat 1 and returned. The stash
+reported two weapons and two frag grenades banked, and the authored squad
+completion woke. The player left the stopped aircraft with E and activated
+Deploy again. Operation 2 began in the same session. At tick 23460 normal
+boarding offered seat 1 from (54.966, -97.722, -.104) at the retained stop
+(up.k .947, strict landed 0, lock open). E seated the player by tick 23700,
+and at tick 23790 the same craft was airborne with its passenger.
+
+The second field touchdown needs a separate route correction. The intact
+aircraft settled at origin (78.781, -127.796, 1.394), center
+(78.759, -127.420, .919), hull forward (.316, .872, .375), up.k .923,
+speed and spin .0001, ground/rest 1, strict landed 0 at tick 27120.
+Ordinary E did not release seat 1. The authored insertion invokes
+`ai_command_list pilot field_route` and waits for both `extraction_zone`
+and `extraction_pelican_landed`. Review the repeated field approach from
+the returned craft's different heading. The first arrival was about
+2.87 units north and faced almost east. The second faced almost north,
+after the stopped hull slid south. Target a field contact footprint that
+holds the existing .950 floor across both launch poses. Retain the native
+landing and collision gates. Private guest and authenticated human acceptance
+remain open.
 
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
