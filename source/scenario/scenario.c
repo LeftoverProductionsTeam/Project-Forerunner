@@ -175,6 +175,7 @@ symbols in this file:
 #include "effects/material_effect_definitions.h"
 #include "effects/particle_systems.h"
 #include "effects/particles.h"
+#include "game/game_engine.h"
 #include "game/game_globals.h"
 #include "game/players.h"
 #include "camera/observer.h"
@@ -983,12 +984,22 @@ boolean scenario_trigger_volume_test_object(
 	short trigger_volume_index,
 	long object_index)
 {
-	boolean result = FALSE;
+	struct object_datum const *object;
 
-	if (object_index != NONE)
-		result = scenario_trigger_volume_test_point(trigger_volume_index, &object_get(object_index)->object.bounding_sphere_center);
+	if (object_index == NONE)
+		return FALSE;
+	object = object_get(object_index);
 
-	return result;
+	/* In a regional match, a parked encounter or vehicle can overlap the
+	 * active volume numerically. Use the root's scene before testing the
+	 * original object's position, including for riders and carried items. */
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		long root = object_get_ultimate_parent(object_index);
+		if (game_engine_object_parked(root, object_get(root)->object.type))
+			return FALSE;
+	}
+	return scenario_trigger_volume_test_point(trigger_volume_index, &object->object.bounding_sphere_center);
 }
 
 void scenario_debug_to_file(

@@ -797,6 +797,14 @@ static long parked_ai_unit=NONE;
 static boolean ai_unit_belongs_to_other_bsp(long index) {return index==parked_ai_unit;}
 #include "regional_equipment.inc"
 
+static boolean scenario_trigger_volume_test_point(short volume, real_point3d const *point)
+{
+    return volume==0 && point->x>0.f && point->x<2.f;
+}
+#define scenario_trigger_volume_test_object native_trigger_volume_test_object
+#include "regional_trigger.inc"
+#undef scenario_trigger_volume_test_object
+
 struct device_datum { struct { short type; } object; };
 static struct device_datum *device_get(long index)
 {
@@ -1084,6 +1092,31 @@ int main(int argc,char **argv)
         parked_ai_unit=NONE;
         CHECK(!object_simulation_is_parked(handle,body),
               "an active or unbound actor cannot resume native object updates");
+        return 0;
+    }
+    if (!strcmp(name, "regional-triggers"))
+    {
+        struct object_datum *actor=&objects[2], *carried=&objects[3];
+        mcc_loaded=TRUE;
+        scenario.type=_scenario_type_multiplayer;
+        scenario.structure_bsp_references.count=2;
+        global_structure_bsp_index=0;
+        actor->object.type=_object_type_biped;
+        actor->object.parent_object_index=NONE;
+        actor->object.bounding_sphere_center.x=1.f;
+        carried->object.type=_object_type_weapon;
+        carried->object.parent_object_index=units[2];
+        carried->object.bounding_sphere_center.x=1.f;
+
+        CHECK(native_trigger_volume_test_object(0,units[2])&&
+              native_trigger_volume_test_object(0,units[3]), "active objects did not enter their native volume");
+        parked_ai_unit=units[2];
+        CHECK(!native_trigger_volume_test_object(0,units[2])&&
+              !native_trigger_volume_test_object(0,units[3]), "an inactive encounter or its carried equipment tripped the active trigger");
+        mcc_loaded=FALSE;
+        CHECK(native_trigger_volume_test_object(0,units[2])&&
+              native_trigger_volume_test_object(0,units[3]), "classic trigger membership changed");
+        CHECK(!native_trigger_volume_test_object(0,NONE), "an absent script object tripped a trigger");
         return 0;
     }
     if (!strcmp(name, "regional-loose-objects"))
