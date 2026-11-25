@@ -45,6 +45,27 @@ and the player held the technology. Both processes exited normally.
 Receipt: `build/native-black-echo-d113-pelican-pad.json`. Two authenticated
 humans, repeat mission reset, and Covenant loaded return remain open.
 
+The delivered Windows build also passed solo UNSC insertion on the exact
+installed `d113e9db` export. Executable SHA-256
+`cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
+The test used a fresh local profile, Delta disabled, and normal
+Extraction → Play Solo navigation, movement, aiming and E. Hub deploy
+control 3 at (40.928, -109.997, 1.455) showed “Press [E] to use device”
+from (40.602, -110.346, 1.415) and accepted deployment. The control sits
+visually low in the grass. Review its placement and visibility in Spark
+while retaining the reachable interaction point.
+
+The parked Pelican at (53.339, -102.537, 1.348) was grounded and stationary.
+Its native seat 4 entrance at (53.718, -102.715, -0.012) offered “Press [E]
+to enter side seat of Pelican” from (53.56, -102.75, -0.03). E occupied
+seat 4. The occupied flight landed at tick 4800 with center
+(77.802, -124.896, 1.400), up.k .991 and native landed state true.
+Normal E disembarkation left the player on foot at
+(77.740, -125.738, .518) with full health and shields. This run ended at
+field disembarkation. Field terminal, return flight, settlement and
+two-human acceptance on this executable remain open. Both installed
+hashes matched after the run and the disposable staging was removed.
+
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
 unchanged Windows baseline, the occupied pad-brake variant and the prior
