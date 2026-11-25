@@ -349,6 +349,21 @@ seat offer. Native seat 8's entrance was (89.785, -130.439, 0.482), about
 before concluding a seat or animation defect. Loaded Spirit return and
 banking remain open. Receipt: `build/native-black-echo-a051-native-spirit-route.json`.
 
+The same `a0514689` export passed Covenant insertion from the normal Windows
+Extraction → Play Solo menu on the installed executable
+`cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
+The local profile used E at (37.50, -104.49, 1.00) to select Covenant and
+at (40.466, -110.501, 1.442) to deploy with a plasma pistol. The near-side
+approach at (53.99, -88.44, 0.14) offered “Press [E] to board.” E seated the
+player in the Spirit and the occupied flight reached its field pad.
+Voluntary E disembarkation put the player on foot at (91.320, -133.829,
+0.741) at tick 11520 with full health and shields. The test used normal
+movement and seat controls, with no placement or forced seating.
+The generic prompt is the native fallback when either the vehicle or seat
+icon-text entry is unusable. Review both labels in the authoring handoff.
+Field objectives, return boarding and banking were outside this installed
+build's smoke. The original staged UNSC map and resource banks were preserved.
+
 On the Windows pad-discovery build, the same exact Covenant export confirmed
 Elite insertion, on-foot disembarkation, recovery of the technology on unit 9
 at tick 9660, and a usable field control after defense. The replay driver's
