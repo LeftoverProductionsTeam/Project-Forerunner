@@ -1697,7 +1697,7 @@ the existing stock view for invalid unit camera angles and keeps the
 valid base view if weapon zoom produces an invalid result. The map
 bytes were unchanged. Spark separately authored the stock Survivor
 angle in derivative `0a677fbc48e268daa99ef0a32a37e2518d8dab08882c332b6f250a180241a2be`;
-its Forerunner runtime comparison is pending.
+its Forerunner runtime comparison is recorded below.
 
 On Win64 executable `3e42b68f177e15c405d1339cfd8f34b9451d6c9e5e6cd44df4635a719fab0790`,
 both peers spawned, agreed on guest movement and weapon fire, and
@@ -1707,6 +1707,28 @@ with no observed living exits for either class. This was a private
 native Slayer run with Delta disabled. Full survival victory, restart,
 and Chupathingy interoperability remain open on this export. The installed
 MCC13 candidate and executable were preserved and staging was removed.
+
+The corrected CE609 map `0a677fbc` and Spark's collision comparison
+`3bf94b1642fe70b45be9053f247c4eb081c270059b11a3192b211df7037ef49c`
+both spawned on two private OpenCE peers using the same Win64 executable
+`100709e39196b8e4c880e4376ddd5dd4435ddefa30a7908909053081e79990e2`.
+Independent byte comparison found changes only in the Alpha and Evolved
+collision references and the checksum. Through tick 3447, both maps showed
+the same six living unseated Alpha actors in each session, three at the
+60-second refresh. Only the compact-collider map had a matching living
+Evolved and a matching living armed Alpha on foot at the first sample
+(tick 9). The samples captured 30 matching live Standard seat exits
+with the collider and 33 without it. Neither session captured a live
+Alpha or Evolved seat-to-foot transition. Retain the compact collider
+for the next playable candidate. Grounded rollover still needs targeted
+verification before changing engine physics.
+
+Both maps also reproduced requests failing in the 16 MiB desktop sound
+cache. A native dump showed `sparky\sound\sparkmusic\v1_hit_themes\killer_tracks_invaders`
+locking 4031 of 4096 pages, leaving no room for the 228-page Slayer cue.
+For Spark's authoring pass, split that music permutation into the native
+linked permutation chain while retaining its full decoded audio. Installed
+files were preserved and disposable staging was removed.
 
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
