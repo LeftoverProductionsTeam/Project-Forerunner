@@ -1760,6 +1760,20 @@ native game over with no logged sound-cache refusal. This run does not
 establish full survival victory, replay, or audible Game Over playback.
 Installed files were preserved and disposable profiles and audio removed.
 
+On exact CE609 `d29437a7`, two private OpenCE peers on Win64
+`7c7237a90de2230c9d9fbea5c9977e01a8ce9e4be48491c0a649212f57d2dad8`
+reproduced the authored fragmentation grenade raising the same Survivor to
+166,666.02 vitality on the host and 4.00 on the guest. Forerunner now applies
+negative biped damage within the existing packet range on the authority.
+The grenade still heals and the packet layout is unchanged. On
+`694be0b76ab31184ae9825e2a1fdf61d9455423534721a162fff5dbab3908172`,
+both peers saw the healed Survivor rise from 1.00 to 4.00 by tick 1260
+and drop to 3.35 after a pistol hit by tick 1860. The same map bytes and
+normal movement, pickup, throw and fire controls were used. Win64 compiled
+and 39 focused checks passed. A legacy Chupathingy host still needs its own
+authority-side fix. This is a combat exchange, with full Survival
+acceptance still open.
+
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
 `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.

@@ -104,6 +104,7 @@ symbols in this file:
 #include "cseries.h"
 #include "damage.h"
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
+#include "network_distributed.h" /* native vitality encoding */
 #include "extraction.h" /* port: optional native medical co-op state */
 #include "ai/ai.h"
 #include "cseries/errors.h"
@@ -1224,6 +1225,7 @@ static void object_damage_body(
 	real maximum_body_vitality;
 	real inverse_maximum_body_vitality;
 	real actual_damage;
+	boolean network_biped_healing;
 
 	if (TEST_FLAG(damage_resistance->flags, _damage_resistance_only_hurt_while_occupied_bit) &&
 		object->object.type == _object_type_vehicle &&
@@ -1275,9 +1277,21 @@ static void object_damage_body(
 		damage_material_type_error(damage_material->material_type);
 	}
 
+	/* Apply healing on the authority within the same range peers receive.
+	 * Keep existing overheal if a script supplied it before this hit. */
+	network_biped_healing = actual_damage < 0.f && object->object.type == _object_type_biped &&
+		(game_connection() == _game_connection_network_server || network_game_distributed_client());
+	if (network_biped_healing)
+	{
+		real limit = distributed_vitality_unpack((word)~0u);
+		real headroom = MAX(0.f, limit - object->object.body_vitality);
+
+		actual_damage = MAX(actual_damage, -headroom);
+	}
+
 	if (!TEST_FLAG(object->object.damage_flags, _object_cannot_take_damage_bit))
 	{
-		if (damage_amount > 0.f && TEST_FLAG(damage_material->flags, _damage_material_head_bit))
+		if (!network_biped_healing && damage_amount > 0.f && TEST_FLAG(damage_material->flags, _damage_material_head_bit))
 		{
 			/* port: SWAT's headshots, a shot of any weapon's (game_modes.c) */
 			if (TEST_FLAG(damage_definition->flags, _damage_can_cause_headshots_bit) ||
@@ -1330,7 +1344,7 @@ static void object_damage_body(
 		region_index = NONE;
 	}
 
-	if (region_index != NONE &&
+	if (!network_biped_healing && region_index != NONE &&
 		!TEST_FLAG(object->object.regions_destroyed_flags, region_index))
 	{
 		struct damage_region const *region = TAG_BLOCK_GET_ELEMENT(
@@ -1356,6 +1370,11 @@ static void object_damage_body(
 	object->object.body_damage_decay_timer = 0;
 	object->object.current_body_damage += actual_damage;
 	object->object.recent_body_damage += actual_damage;
+	if (network_biped_healing)
+	{
+		object->object.current_body_damage = MAX(0.f, object->object.current_body_damage);
+		object->object.recent_body_damage = MAX(0.f, object->object.recent_body_damage);
+	}
 	if (object->object.current_body_damage > 1.f)
 		object->object.current_body_damage = 1.f;
 	if (object->object.recent_body_damage > 1.f)
