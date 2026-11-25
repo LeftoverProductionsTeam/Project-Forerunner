@@ -220,6 +220,7 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "extraction.squad_radio.v1");
 	server_json_string(&json, NULL, "extraction.faction_landing_zones.v1");
 	server_json_string(&json, NULL, "extraction.pelican_return_pad.v1");
+	server_json_string(&json, NULL, "extraction.hover_transfer.v1");
 	server_json_string(&json, NULL, "character.biped_hands.v1");
 	server_json_string(&json, NULL, "forge.hmv_base_placements.v1");
 #if HALO_MCC && defined(HALO_64BIT)

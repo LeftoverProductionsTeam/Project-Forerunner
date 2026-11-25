@@ -230,6 +230,22 @@ Reproduce the landing with the isolated native transport map before another
 whole-mission run. Native flight/braking belongs here; the route and pad
 geometry remain Spark authoring data.
 
+### Authored field hover transfer
+
+A runtime advertising `extraction.hover_transfer.v1` accepts the unique
+static boolean declaration `gs_pelican_hover_field` or
+`gs_spirit_hover_field` as a per-aircraft opt-in. Use an existing
+`extraction_<aircraft>_landed` output and the authored field volume.
+The field output now means transfer-ready for that aircraft. It requires
+native hover after recording cleanup. Keep the aircraft in the low,
+reachable transfer pose until the riders finish the ordinary seat cycle.
+Use `recording_play_and_hover` on arrival, `vehicle_test_seat_list` to
+confirm the crew, and release hover before the next leg. Native
+`vehicle_unload` and the normal player exit both use seat animations and
+the selected exit clip's capsule-clearance check. Use the supported native
+plane flight model for each aircraft. The hub return still needs native
+grounded banking and ordinary maps keep their existing rules.
+
 Native recorded flight uses Bungie's playback, unit controls and collision.
 Managed aircraft with a landing output now wait for playback cleanup before
 publishing landed or crew-ready, accepting boarding or exit, and banking.

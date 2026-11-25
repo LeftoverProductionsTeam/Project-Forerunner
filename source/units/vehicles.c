@@ -409,6 +409,16 @@ boolean vehicle_is_human_plane(long vehicle_index)
 	return vehicle_specific_definition_get(vehicle->definition_index)->vehicle_type == _vehicle_type_human_plane;
 }
 
+/* The native airframe that honors vehicle_hover, including authored Spirits
+ * that use the human-plane flight model. Other vehicle types keep native physics. */
+boolean vehicle_is_hovering(long vehicle_index)
+{
+	struct vehicle_datum const *vehicle = object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle);
+	return vehicle && vehicle->object.parent_object_index == NONE &&
+		TEST_FLAG(vehicle->vehicle.flags, _vehicle_hovering_bit) &&
+		vehicle_is_human_plane(vehicle_index) && !vehicle_is_flipped(vehicle_index);
+}
+
 /* Native hover skips physics and clears the temporary mass-point counter,
  * but preserves the last actual collision-grounded flag and parked pose. */
 static boolean vehicle_landing_check(long vehicle_index, boolean settled_return)

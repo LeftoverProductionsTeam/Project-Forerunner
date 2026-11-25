@@ -5121,6 +5121,41 @@ void unit_scripting_enter_vehicle(
 	return;
 }
 
+/* Probe the selected native exit clip against the biped's ordinary world
+ * clearance before starting a voluntary hover transfer. */
+static boolean unit_hover_exit_clear(long unit_index, struct unit_datum const *unit,
+	struct unit_definition const *definition, struct animation_graph const *graph, short animation_index)
+{
+	long ship = unit->object.parent_object_index;
+	struct unit_definition *ship_definition = unit_definition_get(unit_get(ship)->definition_index);
+	struct unit_seat const *seat;
+	struct animation *clip;
+	struct model *model;
+	struct model_node const *root_node;
+	struct object_marker marker;
+	real_matrix4x3 exit_root;
+	real_point3d exit_point, origin, pill_base;
+	real pill_height, pill_width;
+
+	if (!VALID_INDEX(unit->unit.parent_seat_index, ship_definition->unit.seats.count) ||
+		!VALID_INDEX(animation_index, graph->animations.count)) return FALSE;
+	seat = TAG_BLOCK_GET_ELEMENT(&ship_definition->unit.seats, unit->unit.parent_seat_index, struct unit_seat);
+	clip = TAG_BLOCK_GET_ELEMENT(&graph->animations, animation_index, struct animation);
+	if (clip->frame_count <= 0 || definition->object.model.index == NONE ||
+		object_get_marker_by_name(ship, seat->marker_name, &marker, 1) <= 0) return FALSE;
+	model = model_definition_get(definition->object.model.index);
+	if (model->nodes.count < 1) return FALSE;
+	root_node = TAG_BLOCK_GET_ELEMENT(&model->nodes, 0, struct model_node);
+	animation_get_root_matrix(model, clip, clip->frame_count - 1, &exit_root);
+	matrix4x3_transform_point(&marker.matrix, &exit_root.position, &exit_point);
+	/* unit_exit_seat_end removes the model root offset. biped_fix_position
+	 * takes the capsule base, which can sit above the biped origin. */
+	object_get_origin(unit_index, &origin);
+	biped_get_physics_pill(unit_index, &pill_base, &pill_height, &pill_width);
+	exit_point.z += pill_base.z - origin.z - root_node->default_translation.z;
+	return biped_fix_position(unit_index, ship, &exit_point, NULL, 2.f, TRUE, TRUE, TRUE);
+}
+
 boolean unit_try_and_exit_seat(
 	long unit_index)
 {
@@ -5153,14 +5188,16 @@ boolean unit_try_and_exit_seat(
 				{
 					struct unit_datum *parent_unit = unit_get(unit->object.parent_object_index);
 
-					if (parent_unit->unit.driver_object_index==unit_index)
-					{
-						unit_open(unit->object.parent_object_index);
-					}
-
 					animation_index = animation_choose_random_permutation(
 						unit_definition->object.animation_graph.index,
 						animation_index);
+
+					if (unit->object.type == _object_type_biped && extraction_transport_uses_hover_exit(unit) &&
+						!unit_hover_exit_clear(unit_index, unit, unit_definition, animation_graph, animation_index))
+						return FALSE;
+
+					if (parent_unit->unit.driver_object_index==unit_index)
+						unit_open(unit->object.parent_object_index);
 
 					unit_set_animation(
 						unit_index,

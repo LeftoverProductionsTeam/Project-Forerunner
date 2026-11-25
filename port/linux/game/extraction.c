@@ -121,7 +121,8 @@ static struct
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
 	short dropship_boarding_groups[2]; /* optional host-derived native outputs */
-	short dropship_landing_groups[2]; /* optional physical landing output/gate */
+	short dropship_landing_groups[2]; /* optional touchdown or transfer output */
+	boolean dropship_hover_transfer[2];
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
 	/* Full native handles for this arrival, cleared by actual LZ boarding. */
 	long dropship_evacuating[2], dropship_banked[2], dropship_completed[2];
@@ -756,6 +757,24 @@ static boolean extraction_transport_at_field(short faction, long ship)
 		(return_zone == extraction.return_zone || !scenario_trigger_volume_test_object(return_zone, ship));
 }
 
+/* The compiled declaration opts in to field hover. It is never executed. */
+static boolean extraction_bind_field_hover(struct scenario const *scenario, short faction)
+{
+	char const *name = faction ? "gs_spirit_hover_field" : "gs_pelican_hover_field";
+	short index;
+	extraction.dropship_hover_transfer[faction] = FALSE;
+	for (index = 0; index < MIN(scenario->hs_scripts.count, SHORT_MAX); index++)
+	{
+		struct hs_script const *script = TAG_BLOCK_GET_ELEMENT(&scenario->hs_scripts, index, struct hs_script);
+		if (strcmp(script->name, name)) continue;
+		if (extraction.dropship_hover_transfer[faction] || script->script_type != _hs_script_static ||
+			script->return_type != _hs_type_boolean || extraction.dropship_landing_groups[faction] == NONE ||
+			extraction.dropship_names[faction] == NONE) return FALSE;
+		extraction.dropship_hover_transfer[faction] = TRUE;
+	}
+	return TRUE;
+}
+
 static void extraction_bind(void)
 {
 	short index, faction, squad;
@@ -882,6 +901,7 @@ static void extraction_bind(void)
 		if (!device_group_find_named(faction ? "extraction_spirit_landed" : "extraction_pelican_landed",
 			&extraction.dropship_landing_groups[faction]) ||
 			(extraction.dropship_landing_groups[faction] != NONE && extraction.dropship_names[faction] == NONE)) unique = FALSE;
+		if (!extraction_bind_field_hover(global_scenario, faction)) unique = FALSE;
 		if (!device_group_find_named(faction ? "extraction_spirit_called" : "extraction_pelican_called",
 			&extraction.dropship_call_groups[faction]) ||
 			(extraction.dropship_call_groups[faction] != NONE && extraction.dropship_names[faction] == NONE)) unique = FALSE;
@@ -1947,11 +1967,24 @@ static long extraction_player_dropship(struct unit_datum const *unit)
 	return index;
 }
 
+static boolean extraction_transport_hover_ready(long vehicle_index)
+{
+	struct unit_datum const *vehicle =
+		object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle);
+	return vehicle && vehicle->object.body_vitality > 0.f &&
+		!TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) &&
+		!extraction_unit_pending_death(vehicle) && vehicle_is_hovering(vehicle_index);
+}
+
 static boolean extraction_transport_landed(short faction, long vehicle_index)
 {
 	/* The last recorded input can have landed while hover or cleanup is
 	 * still pending. Wait for native cleanup before accepting touchdown. */
-	if (recorded_animation_has_thread(vehicle_index) || !vehicle_is_landed(vehicle_index))
+	if (recorded_animation_has_thread(vehicle_index))
+		return FALSE;
+	if (extraction.dropship_hover_transfer[faction] && extraction_transport_at_field(faction, vehicle_index))
+		return extraction_transport_hover_ready(vehicle_index);
+	if (!vehicle_is_landed(vehicle_index))
 		return FALSE;
 
 	/* A field-bound Pelican can briefly pass the speed and attitude limits
@@ -2028,6 +2061,19 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 		return run->phase == _extraction_deployed;
 	return run->phase == _extraction_ready && extraction_transport_at_field(faction, vehicle_index) &&
 		extraction_squad_objectives_ready(run);
+}
+
+boolean extraction_transport_uses_hover_exit(struct unit_datum const *passenger)
+{
+	short faction;
+	long ship = passenger->object.parent_object_index;
+	if (passenger->unit.player_index == NONE || ship == NONE ||
+		!extraction_requested() || !extraction.bound || !extraction.admitted) return FALSE;
+	for (faction = 0; faction < NUMBEROF(extraction.dropship_names); faction++)
+		if (extraction.dropship_hover_transfer[faction] && extraction.dropship_names[faction] != NONE &&
+			object_index_from_name_index(extraction.dropship_names[faction]) == ship)
+			return extraction_transport_at_field(faction, ship) && extraction_transport_hover_ready(ship);
+	return FALSE;
 }
 
 boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
@@ -2263,7 +2309,9 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		{
 			run->field_reached = TRUE;
 			if (!extraction.survival)
-				extraction_tell(run, "LANDED | Use your seat exit to disembark. Find the extraction control when ready to evacuate.");
+				extraction_tell(run, extraction.dropship_hover_transfer[faction]
+					? "AT TRANSFER | Use your seat exit to deploy. Find the extraction control when ready to evacuate."
+					: "LANDED | Use your seat exit to disembark. Find the extraction control when ready to evacuate.");
 		}
 	}
 	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&

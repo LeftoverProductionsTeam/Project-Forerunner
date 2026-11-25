@@ -50,6 +50,7 @@ boolean extraction_transport_brake_at_pad(long vehicle_index);
 /* Native voluntary player exits from transports with authored landing signals. */
 struct unit_datum;
 boolean extraction_transport_can_disembark(struct unit_datum const *passenger);
+boolean extraction_transport_uses_hover_exit(struct unit_datum const *passenger);
 /* Revoke the host's crew-ready signal when native boarding or disembarkation starts. */
 void extraction_transport_seat_transition_started(struct unit_datum const *passenger);
 /* Clear the host's landed and boarded outputs when native playback takes control. */

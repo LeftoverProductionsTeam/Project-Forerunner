@@ -222,6 +222,7 @@ static struct weapon_datum *weapon_get(long h) { struct weapon_datum *p=weapon_t
 static boolean cinematic_in_progress(void) { return native_cinematic; }
 static boolean recorded_animation_has_thread(long vehicle_index) { return vehicle_index==recorded_aircraft; }
 boolean vehicle_is_human_plane(long vehicle_index) { return vehicle_index==human_plane_aircraft; }
+boolean vehicle_is_flipped(long vehicle_index) { return unit_get(vehicle_index)->object.up.k<.2f; }
 static boolean unit_controllable(long h) { return !(unit_get(h)->object.damage_flags & 1); }
 static boolean unit_is_busy(long h) { return FALSE; }
 static void object_deplete_shield(long h) { unit_get(h)->object.shield_vitality=0.f; }
@@ -441,7 +442,8 @@ static void mcc_player_profile_grenades(long unit,struct scenario_starting_profi
 #define csstrcat strcat
 typedef struct {real_point3d position;} real_matrix4x3;
 struct object_marker {real_matrix4x3 matrix;};
-struct model {int unused;};
+struct model_node {real_point3d default_translation;};
+struct model {struct tag_block nodes;};
 struct animation {short frame_count;};
 struct animation_graph_animation_index {short animation_index;};
 struct animation_graph_unit_seat {char label[32];struct tag_block animations;};
@@ -451,7 +453,8 @@ static struct animation_graph_unit_seat native_animation_seat;
 static struct animation_graph_animation_index native_animation_indices[12];
 static struct animation native_animations[2];
 static struct animation_graph native_animation_graph;
-static struct model native_model;
+static struct model_node native_root_node={{0,0,.15f}};
+static struct model native_model={{1,&native_root_node}};
 static short observed_root_frame=NONE;
 static boolean native_seat_marker=TRUE;
 static struct model *model_definition_get(long index) {(void)index;return &native_model;}
@@ -483,6 +486,16 @@ static void ai_handle_exit_vehicle(long u,long parent){}
 static long parked_region_vehicle = NONE;
 static boolean game_engine_object_parked(long index,short type)
 {return index==parked_region_vehicle&&type==_object_type_vehicle;}
+static void matrix4x3_transform_point(real_matrix4x3 const *matrix,real_point3d const *point,real_point3d *out)
+{*out=(real_point3d){matrix->position.x+point->x,matrix->position.y+point->y,matrix->position.z+point->z};}
+static void object_get_origin(long unit,real_point3d *origin) {*origin=unit_get(unit)->object.position;}
+static void biped_get_physics_pill(long unit, real_point3d *base, real *height, real *width)
+{object_get_origin(unit,base);base->z+=.25f;*height=.5f;*width=.25f;}
+static boolean biped_fix_position(long unit,long ship,real_point3d const *position,real_point3d *out,real radius,
+ boolean below,boolean dont_teleport,boolean scale)
+{CHECK(dont_teleport,"hover clearance moved the passenger");
+ CHECK(position->x==13.f && fabsf(position->z-30.1f)<.001f,"hover clearance did not use the native clip and biped capsule base");
+ return !wall;}
 #include "native_seats.inc"
 #include "controls.inc"
 
@@ -1586,7 +1599,7 @@ int main(int argc,char **argv)
     strcpy(authored_groups[0].name,authored_groups[10].name);authored_groups[10].name[0]=0;
    }
   }
-  if(!strncmp(case_name,"transport-landed",16)) {
+  if(!strncmp(case_name,"transport-landed",16)||!strncmp(case_name,"transport-hover-",16)) {
    scenario.device_groups.count=12;scenario.device_groups.address=authored_groups;
    strcpy(authored_groups[10].name,"extraction_pelican_landed");
    strcpy(authored_groups[11].name,"extraction_spirit_landed");
@@ -1608,6 +1621,77 @@ int main(int argc,char **argv)
    dropships[a].definition_index=300;dropships[a].object.body_vitality=1;
    dropships[a].object.position.x=20;dropships[a].object.up.k=1;
    dropships[a].object.flags|=FLAG(_object_on_ground_bit);dropships[a].vehicle.on_ground_ticks=5;
+  }
+  if(!strncmp(case_name,"transport-hover-",16)) {
+   short faction=!strcmp(case_name,"transport-hover-spirit");
+   long craft=dropship_handles[faction];
+   struct unit_datum *ship=&dropships[faction];
+   short group=10+faction;
+   strcpy(transport_scripts[0].name,faction?"gs_spirit_hover_field":"gs_pelican_hover_field");
+   transport_scripts[0].script_type=_hs_script_static;
+   transport_scripts[0].return_type=_hs_type_boolean;
+   scenario.hs_scripts.count=1;scenario.hs_scripts.address=transport_scripts;
+   players[faction].team_index=units[faction].object.owner_team_index=faction?_game_team_covenant:_game_team_human;
+   human_plane_aircraft=craft;
+   ship->object.parent_object_index=ship->object.first_child_object_index=NONE;
+   ship->object.flags &= ~FLAG(_object_on_ground_bit);
+   ship->vehicle.on_ground_ticks=0;
+   ship->vehicle.flags=FLAG(_vehicle_hovering_bit);
+   ship->object.position.x=0;
+   advance(1); touch(0,faction);
+   CHECK(run(faction)->phase==_extraction_deployed,"fixture could not deploy from the hub");
+   CHECK(!device_groups[group].actual_value &&
+         !unit_can_enter_seat(unit_handles[faction],craft,0,NULL),"field opt-in bypassed hub landing");
+   ship->object.position.x=20;
+   units[faction].object.parent_object_index=craft;units[faction].unit.parent_seat_index=0;
+   recorded_aircraft=craft;advance(1);
+   CHECK(!device_groups[group].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+         "active playback opened a hovering transfer");
+   recorded_aircraft=NONE;advance(1);
+   CHECK(extraction.dropship_hover_transfer[faction], "compiled hover marker was not bound");
+   CHECK(device_groups[group].actual_value==1.f, "hover readiness was not published");
+   CHECK(extraction_transport_can_disembark(&units[faction]) && extraction_transport_uses_hover_exit(&units[faction]),
+         "authored field hover did not permit a native passenger transfer");
+   CHECK(run(faction)->field_reached,"hovering insertion did not mark field arrival");
+   native_animation_graph.unit_seats=(struct tag_block){1,&native_animation_seat};
+   native_animation_graph.animations=(struct tag_block){2,native_animations};
+   native_animation_seat.animations=(struct tag_block){9,native_animation_indices};
+   native_animation_indices[8].animation_index=1;
+   native_animations[1].frame_count=4;
+   wall=TRUE;
+   CHECK(!unit_try_and_exit_seat(unit_handles[faction]) &&
+         units[faction].unit.animation.state!=_unit_state_exiting_seat,
+         "blocked exit started a hover disembarkation");
+   wall=FALSE;
+   CHECK(unit_try_and_exit_seat(unit_handles[faction]) &&
+         units[faction].unit.animation.state==_unit_state_exiting_seat && observed_root_frame==3,
+         "the native exit clip did not start after clearance");
+   ship->vehicle.flags=0;advance(1);
+   CHECK(!device_groups[group].actual_value && !extraction_transport_can_disembark(&units[faction]),
+         "released hover left the passenger gate open");
+   ship->vehicle.flags=FLAG(_vehicle_hovering_bit);
+   human_plane_aircraft=NONE;advance(1);
+   CHECK(!device_groups[group].actual_value && !extraction_transport_can_disembark(&units[faction]),
+         "a vehicle without native hover opened the field gate");
+
+   human_plane_aircraft=craft;
+   unit_exit_seat_end(unit_handles[faction]);
+   units[faction].unit.animation.state=_unit_state_idle;
+   units[faction].object.position.x=20;
+   touch(1,faction);advance(300);
+   CHECK(run(faction)->phase==_extraction_ready &&
+         unit_can_enter_seat(unit_handles[faction],craft,0,NULL),"a ready crew could not board at a field hover");
+   units[faction].object.parent_object_index=craft;
+   units[faction].unit.parent_seat_index=0;advance(1);
+   CHECK(run(faction)->dropship==craft,"hover pickup failed to register physical boarding");
+   recorded_aircraft=craft;ship->object.position.x=0;advance(1);
+   CHECK(run(faction)->phase==_extraction_ready,"active return recording settled the run");
+   recorded_aircraft=NONE;advance(1);
+   CHECK(run(faction)->phase==_extraction_ready,"a hub hover settled a field-only route");
+   ship->vehicle.flags=0;ship->vehicle.on_ground_ticks=5;
+   ship->object.flags|=FLAG(_object_on_ground_bit);advance(1);
+   CHECK(run(faction)->phase==_extraction_returned,"grounded return failed to settle the hover operation");
+   return 0;
   }
   advance(1);
   if(!strcmp(case_name,"transport-landed-egress")) {

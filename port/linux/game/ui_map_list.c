@@ -491,6 +491,7 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 	static char const *const features[] = {
 		"extraction.squad_objectives.v1", "extraction.squad_begin.v1",
 		"extraction.faction_landing_zones.v1", "extraction.pelican_return_pad.v1",
+		"extraction.hover_transfer.v1",
 		"extraction.squad_notices.v1", "extraction.squad_radio.v1"
 	};
 	char filename[128], expected[65], mode[24], scenario[512], value[96];
