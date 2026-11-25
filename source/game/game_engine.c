@@ -5466,7 +5466,8 @@ static boolean game_engine_vehicle_parked(
 }
 
 /* Capture ownership before the source BSP loses its clusters. Carried items
- * and occupied vehicles follow their occupants through the native crossing. */
+ * and vehicles with players follow the shared crossing. AI crews stay with
+ * their own regional vehicles until that scene resumes. */
 void game_engine_record_regional_object(
 	long object_index,
 	struct object_datum const *object,
@@ -5485,7 +5486,7 @@ void game_engine_record_regional_object(
 	region = &game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
 	travels = object->object.parent_object_index != NONE ||
 		(type == _object_type_biped && !TEST_FLAG(object->object.damage_flags, _object_dead_bit)) ||
-		(type == _object_type_vehicle && !game_engine_vehicle_empty(unit_get(object_index))) ||
+		(type == _object_type_vehicle && players_vehicle_has_living_rider(object_index)) ||
 		(TEST_FLAG(_object_mask_item, type) &&
 		 TEST_FLAG(item_get(object_index)->item.flags, _item_attached_to_unit_bit));
 	if (travels)

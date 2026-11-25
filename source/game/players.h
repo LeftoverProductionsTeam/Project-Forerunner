@@ -434,6 +434,7 @@ boolean players_coop_can_activate_structure_bsp(
 	short destination,
 	struct structure_bsp const *structure,
 	struct players_bsp_crossing_clearance const *clearance);
+boolean players_vehicle_has_living_rider(long vehicle_index);
 boolean players_coop_vehicle_passenger_crossing_bsp(
 	long unit_index);
 void players_note_checkpoint(

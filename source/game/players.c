@@ -3983,27 +3983,11 @@ boolean players_coop_can_activate_structure_bsp(
 			players_continuous_bsp_crossing_valid(volume, structure, clearance));
 }
 
-/* A seated AI can cross with the player in the same vehicle. Only a
- * continuous, player-triggered transition preserves the vehicle this way. */
-boolean players_coop_vehicle_passenger_crossing_bsp(
-	long unit_index)
+boolean players_vehicle_has_living_rider(
+	long vehicle_index)
 {
-	struct scenario_bsp_switch_trigger_volume const *volume =
-		players_coop_pending_continuous_bsp_switch(global_structure_bsp_index);
-	struct unit_datum const *unit;
-	long vehicle_index;
 	struct data_iterator iterator;
 	struct player_datum *player;
-
-	if (!volume)
-		return FALSE;
-	unit = unit_try_and_get(unit_index);
-	if (!unit || unit->unit.parent_seat_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
-		return FALSE;
-	vehicle_index = unit->object.parent_object_index;
-	if (!object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle) ||
-		!player_bsp_continuous_route_contains(volume, object_get_ultimate_parent(vehicle_index)))
-		return FALSE;
 
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
@@ -4014,6 +3998,27 @@ boolean players_coop_vehicle_passenger_crossing_bsp(
 			return TRUE;
 	}
 	return FALSE;
+}
+
+/* A seated AI can cross with the player in the same vehicle. Only a
+ * continuous, player-triggered transition preserves the vehicle this way. */
+boolean players_coop_vehicle_passenger_crossing_bsp(
+	long unit_index)
+{
+	struct scenario_bsp_switch_trigger_volume const *volume =
+		players_coop_pending_continuous_bsp_switch(global_structure_bsp_index);
+	struct unit_datum const *unit;
+	long vehicle_index;
+
+	if (!volume)
+		return FALSE;
+	unit = unit_try_and_get(unit_index);
+	if (!unit || unit->unit.parent_seat_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		return FALSE;
+	vehicle_index = unit->object.parent_object_index;
+	return object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle) &&
+		player_bsp_continuous_route_contains(volume, object_get_ultimate_parent(vehicle_index)) &&
+		players_vehicle_has_living_rider(vehicle_index);
 }
 
 /* The trigger the unit stands in, optionally restricted to one destination.

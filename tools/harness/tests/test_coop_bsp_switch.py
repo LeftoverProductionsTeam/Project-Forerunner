@@ -110,7 +110,7 @@ def generated(fault=None):
             'player_root_blocked_in_destination',
             'players_capture_bsp_crossing_clearance', 'players_continuous_bsp_crossing_valid',
             'players_coop_can_activate_structure_bsp',
-            'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
+            'players_vehicle_has_living_rider', 'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
         ('region_location.inc', '\n'.join(function(read('source/scenario/scenario.c'), name) for name in
             ('scenario_location_in_bsp_tree', 'scenario_structure_bsp_contains_point',
              'scenario_structure_bsp_contains_placement'))),

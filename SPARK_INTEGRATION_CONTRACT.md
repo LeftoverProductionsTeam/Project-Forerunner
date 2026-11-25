@@ -4118,9 +4118,20 @@ The three BSPs used identical source geometry. Both processes exited normally.
 On hosted multi-BSP MCC13 multiplayer maps, each vehicle home binds to the
 first BSP containing its pad. An armed timer stays recorded while that
 BSP is parked. The host checks the vehicle's condition again before
-respawning it after returning to the home. An occupied vehicle follows the
-existing passenger rules, and a failed replacement allocation leaves the
-old vehicle and its scenario name intact.
+respawning it after returning to the home. A vehicle with a living seated
+player follows the shared crossing. AI-crewed vehicles keep their original
+region when players leave. A failed replacement allocation leaves the old
+vehicle and its scenario name intact.
+
+On exact nineteen-region MCC13 `f0835f5e`, Win64 executable
+`9ba51579ac1c4bf8d13b3645186ccf1543ae3d8ce9f34fea06cc1bd32d9d56cc`
+verified a private offline Chiron round trip. The driver used E to board
+the authored MP Warthog in slot 0. A camera command staged it inside BSP 0
+at (707.800, 26.900, -17.550). Forward and reverse input then crossed
+0 → 1 → 0. The driver stayed aboard, and the same vehicle slot returned to
+(708.470, 27.042, -17.840). Delta Peer was disabled. Seven focused checks
+passed, including an AI-only vehicle remaining with its original region.
+That AI case and an independent passenger still need a native session.
 
 The Windows x64 vehicle harness passed all 97 checks, including an occupied
 vehicle and allocation failure after returning to a home. On executable

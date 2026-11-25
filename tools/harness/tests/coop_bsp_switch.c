@@ -1251,10 +1251,29 @@ int main(int argc,char **argv)
               !object_simulation_is_parked(vehicle_index,vehicle),
               "returning to the original BSP still suppressed physics");
 
+        vehicle->object.flags&=~FLAG(_object_outside_of_map_bit);
+        vehicle->object.first_child_object_index=units[3];
+        vehicle->unit.driver_object_index=units[3];
+        objects[3].object.type=_object_type_biped;
+        objects[3].object.parent_object_index=vehicle_index;
+        objects[3].object.next_object_index=NONE;
+        objects[3].unit.parent_seat_index=0;
+        objects[3].unit.player_index=NONE;
+        game_engine_record_regional_object(vehicle_index,vehicle,0);
+        global_structure_bsp_index=1;
+        CHECK(game_engine_object_parked(vehicle_index,_object_type_vehicle),
+              "an AI-only vehicle followed players through an unrelated seam");
+        global_structure_bsp_index=0;
+        CHECK(!game_engine_object_parked(vehicle_index,_object_type_vehicle),
+              "an AI-only vehicle did not return in its original scene");
+
         placed_pickups[0].item.flags=FLAG(_item_attached_to_unit_bit);
+        vehicle->unit.driver_object_index=NONE;
         vehicle->object.first_child_object_index=units[0];
         objects[0].object.type=_object_type_biped;
-        objects[0].object.next_object_index=NONE;
+        objects[0].object.parent_object_index=vehicle_index;
+        objects[0].object.next_object_index=units[3];
+        objects[0].unit.parent_seat_index=1;
         game_engine_record_regional_object(index,&item,0);
         game_engine_record_regional_object(vehicle_index,vehicle,0);
         global_structure_bsp_index=1;
