@@ -3483,8 +3483,30 @@ mass-point collision checks. The 82 focused BSP checks covered legacy
 behavior, scenery parking and re-entry, and refusal of blocked infantry and
 vehicle crossings. Two private Windows peers on the exact sixteen-region
 cache `3946c47e` loaded BSP 0 and synchronized both players' movement.
-Boarding Action traversal and simultaneous regional simulation remain open.
-Receipt: `build/native-megaworld-3946c47e-scenery-smoke.json`.
+See `build/native-megaworld-3946c47e-scenery-smoke.json`.
+
+A follow-up Win64 run on that cache observed the same BSP sequence
+0 → 1 → 5 → 6 → 5 → 1 on both private peers. They crossed all four Boarding
+Action switches on foot and stayed alive. The disposable test build
+(`1191524c31dd48958fffb4a9215cc429c03e2c6a456cff2761b17f89d4f14c45`)
+staged the two players in the current BSP outside the switch volumes.
+An earlier attempt walked 201.6 world units of corridor with both players
+alive before a concurrent test displaced the guest's loopback session.
+The full-length continuous round trip remains open. See
+`build/native-megaworld-3946c47e-boarding-action-seams.json`.
+
+Spark's full nineteen-region MCC13 cache is retained at
+`%TEMP%/GuiltySpark-Traversal-Handoff/nineteen-mcc13-PJaU6n/ready/gsmegaroad.map`
+with SHA-256 `f0835f5e10aebf05e3db0696c60821ad669a3c0981c0d5dfba8e2fb5368876c6`.
+The authoring receipt reports 13 BSPs, 563 starts, 485 pickups and
+25,430,200 bytes of packed resident tag space. Both private peers loaded
+6,805 tags and 19,002,000 converted runtime tag bytes. They physically
+crossed the four Infinity switches on foot after same-BSP approach staging
+and agreed on BSPs 0 → 11 → 12 → 11 → 0. A single local System Link client
+using OpenCE protocol with online access disabled also loaded the cache,
+spawned and walked in BSP 0. Full-length play, native split-screen launch,
+other routes and simultaneous simulation remain separate. See
+`build/native-megaworld-f0835f5e-infinity-seams.json`.
 
 The MCC13 cache now protects BSPs held by the native simulation within
 the existing tag budget. If the next BSP would overwrite held geometry,
