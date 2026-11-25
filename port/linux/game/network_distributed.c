@@ -5466,6 +5466,33 @@ struct distributed_structure_bsp_message
 	struct distributed_structure_bsp structure_bsp;
 };
 
+/* Hit reports rewind positions, but visibility still uses the live BSP.
+ * Skip reports belonging to a previous world before consulting geometry. */
+boolean distributed_hit_report_matches_structure_bsp(
+	long machine_index,
+	short player_index,
+	long host_time)
+{
+	struct player_datum *player;
+
+	if (!network_regional_bsp_active() || !network_regional_bsp_room_ready())
+		return TRUE;
+	if (distributed_sent_structure_bsp_index == NONE)
+		return global_structure_bsp_index_get() == 0;
+	if (distributed_sent_structure_bsp_index != global_structure_bsp_index_get())
+		return FALSE;
+	if (distributed_host_structure_bsp_start == NONE)
+		return TRUE;
+
+	/* A legacy-format hit has no finer ordering inside the switch tick. */
+	if (host_time <= distributed_host_structure_bsp_start)
+		return FALSE;
+	player = distributed_player(player_index);
+	/* Keep the existing identity checks and their diagnostics for bad owners. */
+	return !player || !distributed_machine_has_player(machine_index, player_index) ||
+		network_coop_player_has_structure_bsp(DATUM_INDEX_NEW(player_index, player->identifier));
+}
+
 static void distributed_send_structure_bsp(
 	long machine_index)
 {
@@ -5481,6 +5508,8 @@ static void distributed_send_structure_bsp(
 			1, (word)sizeof(message));
 		return;
 	}
+	if (switched && distributed_sent_structure_bsp_index != NONE)
+		distributed_host_structure_bsp_start = game_time_get();
 	distributed_send(&message, _distributed_message_structure_bsp, 1, (word)sizeof(message),
 		switched ? _distributed_to_clients_reliably : _distributed_to_clients);
 	distributed_sent_structure_bsp_index = index;

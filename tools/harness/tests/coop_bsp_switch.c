@@ -61,7 +61,7 @@ struct structure_bsp {
     struct {long size;} cluster_data,sound_cluster_data;
 };
 struct data_iterator {long datum_index;int slot;};
-struct player_datum {long unit_index,cluster_index;short local_player_index;};
+struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;};
 struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;} object;
                      long weapon;short ammunition;struct {long player_index;short parent_seat_index;} unit;};
 #define biped_datum object_datum
@@ -560,8 +560,32 @@ static void network_coop_handle_device_states(void const *entries,short count)
     received_scene_types|=4;
 }
 
+enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably};
+struct distributed_message_header {long game_time;};
+static short distributed_sent_structure_bsp_index=NONE;
+static int bsp_announcement_targeted,bsp_announcement_broadcast;
+static struct player_datum *distributed_player(short slot)
+{return slot==0?&people[0]:NULL;}
+static boolean distributed_machine_has_player(long machine, short slot)
+{return machine==7&&slot==0;}
+static boolean network_coop_player_has_structure_bsp(long player);
+static boolean check_report_region;
+static void distributed_send_to_machine_reliably(long machine,void const *message,byte type,word count,word size)
+{
+    CHECK(machine==7&&message&&type==_distributed_message_structure_bsp&&count==1&&size,
+          "invalid targeted BSP message");
+    bsp_announcement_targeted++;
+}
+static void distributed_send(void *message, byte type, word count, word size, int delivery)
+{
+    CHECK(message&&type==_distributed_message_structure_bsp&&count==1&&size,
+          "invalid broadcast BSP message");
+    bsp_announcement_broadcast++;
+}
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
+#define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
 #include "bsp_receive.inc"
+#undef DATUM_INDEX_NEW
 
 static boolean players_coop_queue_bsp_switch(long unit, short trigger, short destination)
 {
@@ -573,7 +597,13 @@ static long vote_excluded_player = NONE, vote_crossers, voted_players[2];
 static short vote_source, vote_destination;
 static int vote_announced, vote_waiting;
 static long vote_waiting_player;
-static boolean network_coop_player_has_structure_bsp(long player) {return TRUE;}
+static boolean network_coop_player_has_structure_bsp(long player)
+{
+    if (!check_report_region)
+        return TRUE;
+    CHECK(player==players[0],"hit report lost the current player identity");
+    return host_player_structure_bsps[0]==global_structure_bsp_index;
+}
 static boolean network_coop_player_away(long player) {return player == vote_excluded_player;}
 static void network_coop_tell_bsp_switch_waiting(long player, long more, long in, long total)
 {
@@ -652,7 +682,7 @@ static void setup(short old,short destination)
         leaves[i].cluster_index=2+i;
         structures[i].leaves=(struct tag_block){1,&leaves[i]};
         structures[i].collision_bsp=(struct tag_block){1,&collisions[i]};
-        people[i]=(struct player_datum){units[i],8+i,i?NONE:0};
+        people[i]=(struct player_datum){units[i],8+i,i?NONE:0,0};
     }
     for(int i=0;i<4;i++)
     {
@@ -682,6 +712,48 @@ int main(int argc,char **argv)
     short old=relocated||!strcmp(name,"reverse")||!strcmp(name,"reverse-refused")||!strcmp(name,"connected-reverse")?1:0,destination=1-old;
     struct object_datum before[4];
     setup(old,destination);
+    if (!strcmp(name, "regional-hit-boundary"))
+    {
+        regional_match=regional_room_ready=check_report_region=TRUE;
+        people[0].identifier=(unsigned long)players[0]>>16;
+        ticks=10;
+        distributed_send_structure_bsp(NONE);
+        CHECK(distributed_hit_report_matches_structure_bsp(7,0,10),"initial BSP combat was refused");
+
+        global_structure_bsp_index=destination;
+        ticks=100;
+        CHECK(!distributed_hit_report_matches_structure_bsp(7,0,99),
+              "report crossed ahead of the host announcement");
+        distributed_send_structure_bsp(7);
+        CHECK(bsp_announcement_targeted==1&&!distributed_hit_report_matches_structure_bsp(7,0,101),
+              "a late join request advanced the room's combat boundary");
+        distributed_send_structure_bsp(NONE);
+        CHECK(!distributed_hit_report_matches_structure_bsp(7,0,101),
+              "report was accepted before the shooter loaded the BSP");
+
+        network_coop_note_player_structure_bsp(0,destination);
+        CHECK(!distributed_hit_report_matches_structure_bsp(7,0,99)&&
+              !distributed_hit_report_matches_structure_bsp(7,0,100)&&
+              distributed_hit_report_matches_structure_bsp(7,0,101),
+              "combat resumed with a hit from the previous BSP or the ambiguous switch tick");
+
+        ticks=110;
+        distributed_send_structure_bsp(NONE);
+        CHECK(distributed_hit_report_matches_structure_bsp(7,0,101),
+              "a periodic announcement moved the combat boundary");
+        global_structure_bsp_index=old;
+        ticks=120;
+        distributed_send_structure_bsp(NONE);
+        network_coop_note_player_structure_bsp(0,old);
+        CHECK(bsp_announcement_broadcast==4&&!distributed_hit_report_matches_structure_bsp(7,0,119)&&
+              distributed_hit_report_matches_structure_bsp(7,0,121),
+              "return to the same BSP did not establish a new combat boundary");
+
+        regional_room_ready=FALSE;
+        CHECK(distributed_hit_report_matches_structure_bsp(7,0,110),
+              "legacy report behavior changed without negotiation");
+        return 0;
+    }
     if (!strcmp(name, "regional-equipment"))
     {
         struct scenario_netgame_equipment equipment[3]={

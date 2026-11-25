@@ -2961,6 +2961,10 @@ void network_damage_handle_reports(
 		struct distributed_hit_report matched;
 		struct damage_data damage;
 
+		if (!distributed_hit_report_matches_structure_bsp(machine_index, report->damage.owner_player_index,
+				report->host_time))
+			continue;
+
 		/* (from network version 34, a report on an index that names none of
 		this machine's units, weapons, equipment or static targets: the
 		client's own copy of a static target made during play, a tripmine,

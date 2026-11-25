@@ -31,6 +31,7 @@ def generated(fault=None):
     breakables = read('source/physics/breakable_surfaces.c')
     breakables_header = read('source/physics/breakable_surfaces.h')
     coop = read('port/linux/game/network_coop.c')
+    network = read('port/linux/game/network_distributed.c')
     return (
         ('mcc_bsp.inc', structure(read('port/linux/game/mcc_cache_format.h'), 'mcc_cache_bsp') + '\n' +
          '\n'.join(function(mcc_cache, name) for name in
@@ -97,10 +98,12 @@ def generated(fault=None):
             ('players_coop_bsp_switch_majority', 'players_coop_finish_bsp_switch'))),
         ('bsp_receive.inc', '\n'.join(function(read('source/main/main.c'), name) for name in
             ('main_switch_structure_bsp', 'main_sync_structure_bsp', 'main_switch_to_structure_bsp_private')) +
-            '\n' + '\n'.join(function(read('port/linux/game/network_distributed.c'), name) for name in
+            '\n' + structure(network, 'distributed_structure_bsp_message') +
+            '\n' + '\n'.join(function(network, name) for name in
                             ('distributed_bsp_world_ready', 'distributed_can_apply_bsp_snapshot',
                              'distributed_handle_actor_states', 'distributed_handle_bsp_world_snapshot',
-                             'distributed_handle_structure_bsp', 'distributed_handle_unit_states'))),
+                             'distributed_handle_structure_bsp', 'distributed_handle_unit_states',
+                             'distributed_hit_report_matches_structure_bsp', 'distributed_send_structure_bsp'))),
         ('bsp_actor_controls.inc', function(read('port/linux/game/network_actors.c'), 'network_actors_client_bsp_changed')),
         ('bsp_world_state.inc', '\n'.join(function(read('port/linux/game/network_objects.c'), name) for name in
             ('objects_client_reset_own_vehicle_history', 'network_objects_client_bsp_changed')) + '\n' +
@@ -109,7 +112,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance',

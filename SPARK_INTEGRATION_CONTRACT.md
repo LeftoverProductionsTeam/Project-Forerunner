@@ -3088,6 +3088,15 @@ The existing MCC13 pressure fixture loaded 25,647,424 tag bytes on two
 native Forerunner peers, while the twelve-region CE609 and MCC13 traversal
 is verified separately above. Both currently exercise one resident BSP.
 
+The Chiron gameplay handoff uses Spark's retained MCC13 export and its
+dependency receipt from the existing Guilty Spark traversal handoff.
+The receipt must identify the cache path, SHA-256, Spark revision and
+required resource banks with their hashes, or record that resources are
+self-contained. Preserve that exact package through Forerunner's
+forward and return traversal acceptance. The verified Normal Build
+`73aadc284e134ed1e11c01eadaf5623194ff5c2875dfc3bd34dbdd7f5c666fdc`
+was retired after Spark's readback. The retained package is pending.
+
 #### Regional native teleporter flags
 
 Spark's reviewed base and Chiron source have 284 native netgame flags.
@@ -3171,6 +3180,16 @@ its spawn at tick 540. After it left, a replacement reused slot 2 in BSP 1
 and its normal aim input reached the host at tick 1080. The two original
 players stayed in the match. All processes exited normally. Live Chiron
 and independent simulation of occupied BSPs remain open.
+
+On a negotiated regional switch, the host applies the existing BSP
+announcement tick to incoming hit reports. Reports stamped in the old
+BSP or on the switch tick are skipped before collision and moderation
+checks. The shooter must have acknowledged the active BSP before later
+reports resume. Resends and late-join announcements leave the room's
+boundary in place. The packet layout is unchanged. Windows x64 executable
+`06277526476e0c3accfb98eaa9d6d8359c43b86c04009a1e62a6e346f53e0d26`
+compiled and passed 75 focused BSP checks. This verifies report
+admission in the harness. Live combat on Chiron awaits the retained map.
 
 For a warm regional multiplayer crossing, the host checks each unseated
 biped's native collision capsule against the source and destination BSPs
