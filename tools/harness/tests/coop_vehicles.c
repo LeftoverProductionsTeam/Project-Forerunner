@@ -28,7 +28,8 @@ enum { _collision_test_structure_bit, _collision_test_objects_bit, _collision_te
 #define _collision_test_objects_sight_blocking_flags 0
 #define _object_mask_all 0xffffffffUL
 #define _object_mask_projectile 4
-struct scenario_object_datum {int unused;};
+struct scenario_object_datum {int unused;unsigned short on_bsp_flags;real_point3d position;};
+typedef unsigned short word;
 struct player_datum {long unit_index;};
 struct location {long leaf_index; short cluster_index;};
 struct test_object {
@@ -424,6 +425,7 @@ static struct structure_bsp respawn_bsp[2]={{0},{1}};
 static struct {short vehicle_respawn_time;} respawn_options={1};
 static boolean respawn_mcc;
 static short game_engine_vehicle_home_count=NONE;
+static boolean game_engine_vehicle_homes_scanned;
 static boolean mcc_cache_tags_loaded(void) {return respawn_mcc;}
 static short global_structure_bsp_index_get(void) {return global_structure_bsp_index;}
 static struct structure_bsp *global_structure_bsp_get(void)
@@ -460,6 +462,39 @@ static short game_engine_object_recorded_bsp(long index,short type)
  return index==regional_vehicle && type==_object_type_vehicle ? regional_vehicle_bsp : NONE;
 }
 #include "home_respawn.inc"
+
+static void compiled_regional_home(void)
+{
+ struct scenario_object_datum placement={.on_bsp_flags=2,.position={10,0,0}};
+ long vehicle=path_vehicle=make(1,0);
+ get(vehicle)->object.type=_object_type_vehicle;
+ get(vehicle)->object.position.x=9.75f;
+ rider_scenario.type=_scenario_type_multiplayer;
+ rider_scenario.structure_bsp_references.count=2;
+ connection=2;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ CHECK(game_engine_vehicle_home_count==NONE,"classic maps used regional ownership");
+ respawn_mcc=TRUE;
+ placement.on_bsp_flags=3;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ placement.on_bsp_flags=4;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ CHECK(game_engine_vehicle_home_count==NONE,"accepted ambiguous or out-of-range BSP flags");
+ placement.on_bsp_flags=2;
+ connection=1;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ CHECK(game_engine_vehicle_home_count==NONE,"client assigned an authoritative vehicle home");
+ connection=2;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ CHECK(game_engine_vehicle_home_count==1 && game_engine_vehicle_parked(vehicle),
+       "a compiled foreign home became active in overlapping foreground geometry");
+ game_engine_update_vehicle_respawn();
+ CHECK(game_engine_vehicle_home_count==1 && game_engine_vehicle_homes[0].structure_bsp_index==1 &&
+       game_engine_vehicle_homes[0].position.x==10 && game_engine_vehicle_homes[0].idle_since==NONE,
+       "the initial scan duplicated or remapped the authored home");
+ global_structure_bsp_index=1;
+ CHECK(!game_engine_vehicle_parked(vehicle),"vehicle failed to wake in its authored region");
+}
 
 static void regional_respawn(void)
 {
@@ -631,6 +666,7 @@ static void unsteered_path(char const *name) {
 }
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
+ if(!strcmp(argv[1],"compiled-regional-home")) {compiled_regional_home();return 0;}
  if(!strcmp(argv[1],"regional-respawn")) {regional_respawn();return 0;}
  if(!strncmp(argv[1],"clone-",6)) {
   long source=reset(),copy;char const *name=argv[1]+6;boolean refused=FALSE;

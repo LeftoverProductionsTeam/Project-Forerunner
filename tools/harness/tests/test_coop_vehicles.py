@@ -40,6 +40,7 @@ def generated(fault=None):
         *(function(engine, name) for name in (
             'game_engine_vehicle_empty', 'game_engine_vehicle_away', 'game_engine_vehicle_parked',
             'game_engine_vehicle_home_on_pad', 'game_engine_vehicle_home_track',
+            'game_engine_vehicle_home_add', 'game_engine_register_regional_vehicle_home',
             'game_engine_vehicle_home_follow', 'game_engine_vehicle_home_current',
             'game_engine_update_vehicle_respawn')),
     ])
@@ -83,6 +84,11 @@ def test_cinematic_path_negative_control():
                   for name, text in generated())
     status, output = run(build('coop_vehicles', files), 'path-cinematic')
     assert status == CHECK_FAILED, output
+
+
+def test_mcc_compiled_regional_vehicle_home():
+    status, output = run(build('coop_vehicles', generated()), 'compiled-regional-home')
+    assert status == 0, output
 
 
 def test_mcc_regional_vehicle_respawn():

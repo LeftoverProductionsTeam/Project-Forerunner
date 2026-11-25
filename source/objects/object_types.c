@@ -1224,6 +1224,7 @@ void object_types_place_all(
 							scenario_datums,
 							scenario_datum_index,
 							element_size);
+					long object_index;
 
 					if (object_type == _object_type_vehicle &&
 						!mcc_vehicle_placement_allowed(scenario_object))
@@ -1251,7 +1252,18 @@ void object_types_place_all(
 						continue;
 					}
 #endif
-					object_new_from_scenario(scenario_object, scenario_palette);
+					object_index = object_new_from_scenario(scenario_object, scenario_palette);
+					if (object_index != NONE && object_type == _object_type_vehicle && game_engine_running())
+					{
+						game_engine_register_regional_vehicle_home(object_index, scenario_object);
+						/* Initial placement connected the vehicle before its home was known. */
+						if (game_engine_object_parked(object_index, object_type) &&
+							TEST_FLAG(object_get(object_index)->object.flags, _object_connected_to_map_bit))
+						{
+							object_disconnect_from_map(object_index);
+							object_reconnect_to_map(object_index, NULL);
+						}
+					}
 					objects_garbage_collection();
 				}
 			}

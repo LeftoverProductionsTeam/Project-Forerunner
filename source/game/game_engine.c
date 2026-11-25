@@ -5386,6 +5386,7 @@ static struct
 	short structure_bsp_index;
 } game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];
 static short game_engine_vehicle_home_count = NONE;
+static boolean game_engine_vehicle_homes_scanned;
 
 /* Bind each equipment row to one home, including rows in a shared seam. */
 static unsigned long game_engine_equipment_regions_seen;
@@ -5627,6 +5628,49 @@ static void game_engine_vehicle_home_track(
 		object_get(object_index)->object.vehicle_home_index = home;
 }
 
+static void game_engine_vehicle_home_add(
+	long object_index, real_point3d const *position, short bsp)
+{
+	struct object_datum const *object = object_get(object_index);
+	short home;
+
+	if (game_engine_vehicle_home_count == NONE)
+		game_engine_vehicle_home_count = 0;
+	if (game_engine_vehicle_home_count >= MAXIMUM_VEHICLE_HOMES)
+		return;
+	home = game_engine_vehicle_home_count++;
+	game_engine_vehicle_home_track(home, object_index);
+	game_engine_vehicle_homes[home].definition_index = object->definition_index;
+	game_engine_vehicle_homes[home].position = *position;
+	object_get_orientation(object_index, &game_engine_vehicle_homes[home].forward,
+		&game_engine_vehicle_homes[home].up);
+	game_engine_vehicle_homes[home].idle_since = NONE;
+	game_engine_vehicle_homes[home].name_index = object->object.name_index;
+	game_engine_vehicle_homes[home].structure_bsp_index = bsp;
+}
+
+/* Bind unambiguous compiled pads before the foreground geometry can claim
+ * an overlapping home. Older or unspecified placements still use the scan. */
+void game_engine_register_regional_vehicle_home(
+	long object_index, struct scenario_object_datum const *placement)
+{
+	struct scenario const *scenario = global_scenario_get();
+	word flags = placement->on_bsp_flags;
+	short bsp;
+
+	if (!flags || (flags & (flags - 1)) || !scenario_uses_regional_gameplay(scenario) ||
+		network_game_distributed_client())
+		return;
+	for (bsp = 0; bsp < MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO); bsp++)
+	{
+		if (TEST_FLAG(flags, bsp))
+		{
+			game_engine_vehicle_home_add(object_index, &placement->position, bsp);
+			break;
+		}
+	}
+}
+
 /* the home follows this vehicle, which keeps (or takes) the home's name */
 static void game_engine_vehicle_home_follow(
 	short home,
@@ -5689,26 +5733,23 @@ static void game_engine_update_vehicle_respawn(
 	if (!structure && respawn_ticks <= 0)
 		return;
 
-	/* (where the map put them: the vehicles there at the first look) */
-	if (game_engine_vehicle_home_count == NONE)
+	/* Keep the stock first-look behavior for homes without a compiled BSP. */
+	if (!game_engine_vehicle_homes_scanned)
 	{
 		struct object_iterator iterator;
 
-		game_engine_vehicle_home_count = 0;
+		game_engine_vehicle_homes_scanned = TRUE;
+		if (game_engine_vehicle_home_count == NONE)
+			game_engine_vehicle_home_count = 0;
 		object_iterator_new(&iterator, _object_mask_vehicle, 0);
 		while (object_iterator_next(&iterator) && game_engine_vehicle_home_count < MAXIMUM_VEHICLE_HOMES)
 		{
-			struct object_datum *object = object_get(iterator.index);
-			short home = game_engine_vehicle_home_count++;
+			struct object_datum const *object = object_get(iterator.index);
+			long home = object->object.vehicle_home_index;
 
-			game_engine_vehicle_home_track(home, iterator.index);
-			game_engine_vehicle_homes[home].definition_index = object->definition_index;
-			game_engine_vehicle_homes[home].position = object->object.position;
-			object_get_orientation(iterator.index, &game_engine_vehicle_homes[home].forward,
-				&game_engine_vehicle_homes[home].up);
-			game_engine_vehicle_homes[home].idle_since = NONE;
-			game_engine_vehicle_homes[home].name_index = object->object.name_index;
-			game_engine_vehicle_homes[home].structure_bsp_index = NONE;
+			if (!VALID_INDEX(home, game_engine_vehicle_home_count) ||
+				game_engine_vehicle_homes[home].object_index != iterator.index)
+				game_engine_vehicle_home_add(iterator.index, &object->object.position, NONE);
 		}
 	}
 	for (index = 0; index < game_engine_vehicle_home_count; index++)
@@ -9092,6 +9133,7 @@ void game_engine_initialize_for_new_map(
 		game_engine_globals.next_team_index = 0;
 		csmemset(game_engine_betrayal_penalty, 0, sizeof(game_engine_betrayal_penalty));
 		game_engine_vehicle_home_count = NONE;
+		game_engine_vehicle_homes_scanned = FALSE;
 		game_engine_equipment_regions_seen = 0;
 		csmemset(game_engine_equipment_home_bsp, NONE, sizeof(game_engine_equipment_home_bsp));
 		csmemset(game_engine_regional_objects, NONE, sizeof(game_engine_regional_objects));

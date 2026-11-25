@@ -586,6 +586,7 @@ struct scenario_object_datum;
 struct tag_block;
 void game_engine_vehicle_placement_begin(
 	void);
+void game_engine_register_regional_vehicle_home(long object_index, struct scenario_object_datum const *placement);
 void game_engine_record_regional_object(long object_index, struct object_datum const *object, short source_bsp);
 void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index);
 short game_engine_object_recorded_bsp(long object_index, short object_type);
