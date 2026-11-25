@@ -98,6 +98,7 @@ def generated(fault=None):
              'game_engine_object_parked', 'game_engine_update_item_spawn')) + '\n' +
          function(read('source/objects/objects.c'), 'object_simulation_is_parked') + '\n' +
          function(read('source/objects/objects.c'), 'object_transfer_regional_projectile')),
+        ('regional_action.inc', function(players, 'player_action_target_in_region')),
         ('regional_trigger.inc', function(read('source/scenario/scenario.c'), 'scenario_trigger_volume_test_object')),
         ('device_touch.inc', function(read('source/devices/devices.c'), 'device_touched')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
@@ -154,7 +155,7 @@ def generated(fault=None):
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
     'mcc-prepare-preview', 'mcc-prepare-occupied-preview', 'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-preview-admission', 'regional-source-ownership', 'regional-teleporters', 'regional-starts', 'regional-scenery', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-preview-admission', 'regional-source-ownership', 'regional-teleporters', 'regional-starts', 'regional-scenery', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-actions', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

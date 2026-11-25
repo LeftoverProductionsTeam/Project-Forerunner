@@ -844,6 +844,7 @@ static boolean scenario_trigger_volume_test_point(short volume, real_point3d con
     return volume==0 && point->x>0.f && point->x<2.f;
 }
 #define scenario_trigger_volume_test_object native_trigger_volume_test_object
+#include "regional_action.inc"
 #include "regional_trigger.inc"
 #undef scenario_trigger_volume_test_object
 
@@ -1229,6 +1230,32 @@ int main(int argc,char **argv)
         player_queue_structure_bsp_switch(&people[0], units[0]);
         CHECK(main_globals.switch_to_structure_bsp_index==destination&&preview_requests==5,
               "an offline cold crossing incorrectly required a network capability");
+        return 0;
+    }
+    if (!strcmp(name, "regional-actions"))
+    {
+        struct object_datum *target=&objects[2];
+        target->object.type=_object_type_control;
+        target->object.flags=FLAG(_object_connected_to_map_bit);
+        target->object.location.cluster_index=0;
+        scenario.type=_scenario_type_multiplayer;
+        mcc_loaded=TRUE;
+        memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
+        game_engine_record_regional_object(units[2],target,destination);
+        CHECK(!player_action_target_in_region(units[0],units[2]),
+              "a cached interaction crossed into another region");
+        regional_test_root=units[0];
+        regional_test_root_bsp=destination;
+        CHECK(player_action_target_in_region(units[0],units[2]),
+              "an interaction in the player's region required that region to be foreground");
+        target->object.flags=FLAG(_object_outside_of_map_bit);
+        CHECK(!player_action_target_in_region(units[0],units[2]),
+              "an outside target kept its cached interaction");
+        CHECK(!player_action_target_in_region(units[0],NONE),
+              "a disappeared target kept its cached interaction");
+        mcc_loaded=FALSE;
+        CHECK(player_action_target_in_region(units[0],units[2]),
+              "classic interaction gained a regional gate");
         return 0;
     }
     if (!strcmp(name, "regional-projectiles"))

@@ -2090,6 +2090,30 @@ static void players_compute_combined_pvs(
 	return;
 }
 
+/* Interaction offers can survive until the next input tick. Qualify both
+ * the nearby query results and the cached action before applying it. */
+static boolean player_action_target_in_region(long unit_index, long target_index)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	struct object_datum const *target;
+	short unit_bsp, target_bsp;
+
+	if (!scenario || !scenario_uses_regional_gameplay(scenario))
+		return TRUE;
+	target = object_try_and_get(target_index);
+	if (!target || TEST_FLAG(target->object.flags, _object_outside_of_map_bit))
+		return FALSE;
+	unit_bsp = object_get_regional_bsp(unit_index);
+	if (unit_bsp == NONE)
+		unit_bsp = global_structure_bsp_index_get();
+	target_bsp = object_get_regional_bsp(target_index);
+	if (target_bsp == NONE)
+		target_bsp = game_engine_object_recorded_bsp(target_index, target->object.type);
+	if (target_bsp == NONE)
+		target_bsp = global_structure_bsp_index_get();
+	return unit_bsp == target_bsp;
+}
+
 static boolean player_handle_action(
 	long player_index)
 {
@@ -2109,6 +2133,9 @@ static boolean player_handle_action(
 
 	player = player_get(player_index);
 	unit_get(player->unit_index);
+	if (player->action_object_index != NONE &&
+		!player_action_target_in_region(player->unit_index, player->action_object_index))
+		return FALSE;
 	result = FALSE;
 	switch (player->action_result)
 	{
@@ -4748,7 +4775,8 @@ static boolean player_handle_weapon_swap(
 	 * control is processed. Keep the held weapon if the target left the world. */
 	weapon = weapon_try_and_get(player->action_object_index);
 	if (!weapon || weapon->object.parent_object_index != NONE ||
-		!TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit))
+		!TEST_FLAG(weapon->object.flags, _object_connected_to_map_bit) ||
+		!player_action_target_in_region(player->unit_index, player->action_object_index))
 		return FALSE;
 
 	switch (player->action_result)
@@ -5502,6 +5530,8 @@ static void player_examine_nearby_objects(
 				NUMBEROF(object_indices));
 			for (object_number = 0; object_number < object_count; object_number++)
 			{
+				if (!player_action_target_in_region(player->unit_index, object_indices[object_number]))
+					continue;
 				object = object_get(object_indices[object_number]);
 				switch (object->object.type)
 				{
