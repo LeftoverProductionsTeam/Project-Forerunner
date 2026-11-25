@@ -345,7 +345,8 @@ struct light_datum
 	long marker;
 	long cluster_reference;
 	real_rgb_color color;
-	byte reserved20[0xC];
+	short world_bsp_index_plus_one;
+	byte reserved22[0xA];
 	long object_index;
 	real_point3d position;
 	real_vector3d forward;
@@ -925,6 +926,7 @@ long light_new(
 
 			light->definition_index = definition_index;
 			light->object_index = object_index;
+			light->world_bsp_index_plus_one = 0;
 			light->attachment_marker_index = object_attachment_index;
 			/* port: a function and a change color the object holds, or none
 			(an attachment's references in a map; retail's are none to d for
@@ -990,12 +992,16 @@ long light_new_unattached(
 		light->parent_light_index = game_time_get();
 		light->definition_index = definition_index;
 		light->object_index = object_index;
+		light->world_bsp_index_plus_one = 0;
 		light->intensity_scale = scale;
 		light->cluster_reference = NONE;
 		SET_FLAG(light->flags, _point_light_dynamic_bit, TRUE);
 		SET_FLAG(light->flags, _point_light_connects_to_map_bit, TRUE);
 		if (object_index == NONE)
 		{
+			struct scenario const *scenario = global_scenario_try_and_get();
+			if (scenario && scenario_uses_regional_gameplay(scenario))
+				light->world_bsp_index_plus_one = global_structure_bsp_index_get() + 1;
 			light->position = *position;
 			light->forward = *direction;
 		}
@@ -1111,7 +1117,13 @@ long light_port_glow_new(
 		return NONE;
 	light_index = light_new_unattached(definition, object_index, 0, position, global_forward3d, 0.0f);
 	if (light_index != NONE)
-		SET_FLAG(light_get(light_index)->flags, _point_light_port_glow_bit, TRUE);
+	{
+		struct light_datum *light = light_get(light_index);
+
+		/* The port's renderer resamples these emitters at their current pose. */
+		light->world_bsp_index_plus_one = 0;
+		SET_FLAG(light->flags, _point_light_port_glow_bit, TRUE);
+	}
 	return light_index;
 }
 
@@ -2561,6 +2573,13 @@ void light_reconnect_to_map(
 		if (light->object_index != NONE && object_try_and_get(light->object_index))
 		{
 			object_get_location(light->object_index, &location);
+		}
+		else if (light->world_bsp_index_plus_one &&
+			light->world_bsp_index_plus_one != global_structure_bsp_index_get() + 1)
+		{
+			/* Overlapping coordinates can belong to another region. Keep the
+			 * light alive, with no cluster links until its BSP returns. */
+			location = (struct location){ .leaf_index = NONE, .cluster_index = NONE, .bonus = NONE };
 		}
 		else
 		{
