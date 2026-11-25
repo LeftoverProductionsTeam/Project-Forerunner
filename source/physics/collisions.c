@@ -988,7 +988,7 @@ boolean collision_object_blocks_pill(
 	real_point3d center = *base;
 	unsigned long flags = FLAG(_collision_test_objects_vehicles_bit) |
 		FLAG(_collision_test_objects_machines_bit) | FLAG(_collision_test_objects_controls_bit) |
-		FLAG(_collision_test_use_vehicle_physics_bit);
+		FLAG(_collision_test_objects_scenery_bit) | FLAG(_collision_test_use_vehicle_physics_bit);
 
 	center.z += height * 0.5f;
 	collision_features_new(&features);

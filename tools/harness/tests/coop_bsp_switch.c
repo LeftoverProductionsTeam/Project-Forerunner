@@ -74,9 +74,10 @@ struct object_datum {
 #define biped_datum object_datum
 #define unit_datum object_datum
 #define _object_mask_vehicle FLAG(_object_type_vehicle)
-enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6};
+enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6, _object_type_scenery=7};
 #define _object_mask_machine FLAG(_object_type_machine)
 #define _object_mask_control FLAG(_object_type_control)
+#define _object_mask_scenery FLAG(_object_type_scenery)
 
 static struct scenario scenario;
 static struct scenario *global_scenario=&scenario;
@@ -266,10 +267,21 @@ static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d c
 #define HALO_PORT_MAXIMUM_NETWORK_PLAYERS 128
 #define csmemset memset
 #define NUMBEROF(array) ((int)(sizeof(array)/sizeof((array)[0])))
-struct object_iterator {short slot;long index;};
-static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->slot=0;}
+struct object_iterator {short slot;long index;unsigned long mask;};
+static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->slot=0;it->mask=mask;}
 static struct object_datum *object_iterator_next(struct object_iterator *it)
-{if(it->slot==4)return NULL;it->index=units[it->slot];return &objects[it->slot++];}
+{
+    while(it->slot<4)
+    {
+        short slot=it->slot++;
+        if(TEST_FLAG(it->mask,objects[slot].object.type))
+        {
+            it->index=units[slot];
+            return &objects[slot];
+        }
+    }
+    return NULL;
+}
 static short game_engine_object_recorded_bsp(long index,short type);
 static real distance_squared3d(real_point3d const *a, real_point3d const *b);
 #include "players.inc"
@@ -947,20 +959,22 @@ int main(int argc,char **argv)
     }
     if (!strcmp(name, "regional-devices"))
     {
-        long machine=units[2], control=units[3];
-        struct object_datum *door=&objects[2], *button=&objects[3];
+        long machine=units[2], control=units[3], scenery=units[1];
+        struct object_datum *door=&objects[2], *button=&objects[3], *barrier=&objects[1];
         memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
         scenario.type=_scenario_type_multiplayer;
         scenario.structure_bsp_references.count=2;
         door->object.type=_object_type_machine;
         button->object.type=_object_type_control;
-        door->object.parent_object_index=button->object.parent_object_index=NONE;
-        door->object.flags=button->object.flags=FLAG(_object_connected_to_map_bit);
-        door->object.location.cluster_index=button->object.location.cluster_index=0;
+        barrier->object.type=_object_type_scenery;
+        door->object.parent_object_index=button->object.parent_object_index=barrier->object.parent_object_index=NONE;
+        door->object.flags=button->object.flags=barrier->object.flags=FLAG(_object_connected_to_map_bit);
+        door->object.location.cluster_index=button->object.location.cluster_index=barrier->object.location.cluster_index=0;
 
         objects_disconnect_from_structure_bsp();
         global_structure_bsp_index=1;
-        CHECK(!game_engine_object_parked(machine,_object_type_machine),"legacy machine was parked");
+        CHECK(!game_engine_object_parked(machine,_object_type_machine)&&
+              !game_engine_object_parked(scenery,_object_type_scenery),"legacy static object was parked");
 
         global_structure_bsp_index=0;
         mcc_loaded=TRUE;
@@ -970,6 +984,8 @@ int main(int argc,char **argv)
         CHECK(game_engine_object_parked(machine,_object_type_machine)&&
               game_engine_object_parked(control,_object_type_control),
               "a peer moved its native devices into a different BSP");
+        CHECK(game_engine_object_parked(scenery,_object_type_scenery),
+              "a peer moved its native scenery into a different BSP");
         device_touched(machine,units[0]);
         device_touched(control,units[0]);
         CHECK(!regional_machine_touches&&!regional_control_touches,
@@ -979,6 +995,8 @@ int main(int argc,char **argv)
         CHECK(!game_engine_object_parked(machine,_object_type_machine)&&
               !game_engine_object_parked(control,_object_type_control),
               "the device was not returned to its home BSP");
+        CHECK(!game_engine_object_parked(scenery,_object_type_scenery),
+              "the scenery was not returned to its home BSP");
         device_touched(machine,units[0]);
         device_touched(control,units[0]);
         CHECK(regional_machine_touches==1&&regional_control_touches==1,
@@ -1355,6 +1373,19 @@ int main(int argc,char **argv)
                 CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
                       regional_vehicle_probes==1,
                       "an out-of-reach blocker reached the vehicle collision test");
+
+                door->object.type=_object_type_scenery;
+                door->object.bounding_sphere_center=objects[2].object.bounding_sphere_center;
+                game_engine_record_regional_object(regional_blocker,door,destination);
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      regional_vehicle_probes==2,
+                      "the occupied vehicle could cross into destination scenery");
+                objects[0].object.parent_object_index=NONE;
+                door->object.bounding_sphere_center=objects[0].object.bounding_sphere_center;
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      regional_pill_probes==2,
+                      "the on-foot player could cross into destination scenery");
+                objects[0].object.parent_object_index=units[2];
                 regional_blocker=NONE;
 
                 bsp_vehicle_contacts[old]=FLAG(0);

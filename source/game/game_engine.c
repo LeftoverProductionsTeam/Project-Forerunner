@@ -5372,8 +5372,8 @@ static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIM
 
 enum
 {
-	REGIONAL_STATIC_DEVICE_TYPES = _object_mask_machine | _object_mask_control,
-	REGIONAL_TRACKED_OBJECT_TYPES = _object_mask_item | _object_mask_vehicle | REGIONAL_STATIC_DEVICE_TYPES
+	REGIONAL_STATIC_OBJECT_TYPES = _object_mask_machine | _object_mask_control | _object_mask_scenery,
+	REGIONAL_TRACKED_OBJECT_TYPES = _object_mask_item | _object_mask_vehicle | REGIONAL_STATIC_OBJECT_TYPES
 };
 
 /* Use the full handle so a new object in a recycled slot has no inherited region. */
@@ -5473,9 +5473,9 @@ void game_engine_record_regional_object(
 
 	if (!TEST_FLAG(REGIONAL_TRACKED_OBJECT_TYPES, type))
 		return;
-	/* The host owns loose items and vehicles. Native devices already exist
-	 * independently on each peer and need the same collision parking there. */
-	if (!TEST_FLAG(REGIONAL_STATIC_DEVICE_TYPES, type) && network_game_distributed_client())
+	/* The host owns loose items and vehicles. Map scenery and devices also
+	 * need to keep their collision in the correct BSP on each peer. */
+	if (!TEST_FLAG(REGIONAL_STATIC_OBJECT_TYPES, type) && network_game_distributed_client())
 		return;
 	region = &game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
 	travels = object->object.parent_object_index != NONE ||

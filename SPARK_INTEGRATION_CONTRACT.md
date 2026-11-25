@@ -3477,6 +3477,15 @@ passed 80 focused BSP checks including device touch isolation and resumption.
 Two private peers crossed into Derelict on the retained cache. Native
 cross-region device interaction still needs an authored two-region device test.
 
+Native scenery now keeps its recorded BSP on the host and guest. Seam
+preflight tests destination scenery with the existing biped pill and vehicle
+mass-point collision checks. The 82 focused BSP checks covered legacy
+behavior, scenery parking and re-entry, and refusal of blocked infantry and
+vehicle crossings. Two private Windows peers on the exact sixteen-region
+cache `3946c47e` loaded BSP 0 and synchronized both players' movement.
+Boarding Action traversal and simultaneous regional simulation remain open.
+Receipt: `build/native-megaworld-3946c47e-scenery-smoke.json`.
+
 The MCC13 cache now protects BSPs held by the native simulation within
 the existing tag budget. If the next BSP would overwrite held geometry,
 the load is refused before the current scene disconnects. The cache can

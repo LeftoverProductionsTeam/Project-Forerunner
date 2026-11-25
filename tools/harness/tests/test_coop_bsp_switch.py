@@ -84,7 +84,7 @@ def generated(fault=None):
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('regional_start.inc', function(players, 'player_starting_location_in_active_bsp')),
-        ('regional_equipment.inc', enum_with(read('source/game/game_engine.c'), 'REGIONAL_STATIC_DEVICE_TYPES') +
+        ('regional_equipment.inc', enum_with(read('source/game/game_engine.c'), 'REGIONAL_STATIC_OBJECT_TYPES') +
          '\n' + '\n'.join(function(read('source/game/game_engine.c'), name) for name in
             ('game_engine_equipment_item_at_pad', 'game_engine_equipment_item_parked', 'game_engine_vehicle_empty',
              'game_engine_record_regional_object', 'game_engine_object_recorded_bsp',
