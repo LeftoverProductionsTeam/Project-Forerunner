@@ -82,7 +82,7 @@ def generated(fault=None):
             'distributed_report_terrain_clear', 'distributed_report_sight_clear'))),
         ('objects.inc', objects),
         ('item_structure_support.inc', '\n'.join(function(read('source/items/items.c'), name)
-            for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_structure_support'))),
+            for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_support'))),
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
         ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
         ('regional_start.inc', function(players, 'player_starting_location_in_active_bsp')),

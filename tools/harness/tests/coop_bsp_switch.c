@@ -161,10 +161,10 @@ static short global_structure_bsp_index_get(void);
 static struct collision_bsp *global_collision_bsp_get(void) {return global_collision_bsp;}
 struct item_datum {
     struct {unsigned long flags;real_point3d position;long parent_object_index;} object;
-    struct {unsigned long flags;short rested_surface_index,bsp_index,netgame_equipment_index;long last_owned_time;} item;
+    struct {unsigned long flags;short rested_surface_index,bsp_index,netgame_equipment_index;long last_owned_time,item_on_rest_object_index;} item;
 };
 struct item_definition {struct {unsigned long flags;} item;};
-enum {_item_on_structure_bit, _item_does_not_accelerate_bit};
+enum {_item_on_structure_bit, _item_does_not_accelerate_bit, _item_on_object_bit};
 enum {_object_at_rest_bit, _object_outside_of_map_bit};
 enum {_item_definition_antigravity_bit};
 static void data_iterator_new(struct data_iterator *it,void *data) {it->slot=-1;it->datum_index=NONE;}
@@ -322,7 +322,6 @@ static struct scenario *global_scenario_try_and_get(void) {return global_scenari
 static boolean scenario_uses_regional_gameplay(struct scenario const *scenario);
 static boolean network_game_distributed_client(void);
 static void game_engine_record_regional_object(long index,struct object_datum const *object,short bsp);
-#include "item_structure_support.inc"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wparentheses"
 static short object_disconnected_bsp=NONE;
@@ -356,6 +355,7 @@ static void structure_decals_update(unsigned long *old,unsigned long *current,sh
 }
 #define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
 boolean game_engine_object_parked(long object_index, short type);
+#include "item_structure_support.inc"
 #include "bsp_activation.inc"
 static int test_destination_activation(void)
 {
@@ -1925,28 +1925,56 @@ int main(int argc,char **argv)
         item.item.bsp_index=old;
         item.item.flags=FLAG(_item_on_structure_bit);
         item.object.flags=FLAG(_object_at_rest_bit);
-        item_recheck_structure_support(&item,&definition);
+        item_recheck_support(&item,&definition);
         CHECK(item_rested_surface(&item)==&old_floor&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
               "a rested weapon lost its own support plane");
         CHECK(scenario_switch_structure_bsp(destination),"destination test BSP failed to load");
         CHECK(!item_rested_surface(&item),"an impact could snap the weapon to another BSP's ground plane");
         item.object.flags|=FLAG(_object_outside_of_map_bit);
-        item_recheck_structure_support(&item,&definition);
+        item_recheck_support(&item,&definition);
         CHECK(item.item.bsp_index==old&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
               "a pickup outside the loaded BSP lost its previous support");
         item.object.flags&=~FLAG(_object_outside_of_map_bit);
         definition.item.flags=FLAG(_item_definition_antigravity_bit);
-        item_recheck_structure_support(&item,&definition);
+        item_recheck_support(&item,&definition);
         CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"an antigravity pickup started falling");
         definition.item.flags=0;
         item.item.flags|=FLAG(_item_does_not_accelerate_bit);
-        item_recheck_structure_support(&item,&definition);
+        item_recheck_support(&item,&definition);
         CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"an immobile pickup started falling");
         item.item.flags&=~FLAG(_item_does_not_accelerate_bit);
-        item_recheck_structure_support(&item,&definition);
+        item_recheck_support(&item,&definition);
         CHECK(item.item.bsp_index==NONE&&item.item.rested_surface_index==NONE&&
               !TEST_FLAG(item.item.flags,_item_on_structure_bit)&&!TEST_FLAG(item.object.flags,_object_at_rest_bit),
               "a mobile pickup inside the new BSP could not settle again");
+
+        /* The prop is still a valid datum, but its support belongs to the
+         * region just left. The pickup is now inside the active region. */
+        scenario.type=_scenario_type_multiplayer;
+        mcc_loaded=TRUE;
+        objects[2].object.type=_object_type_scenery;
+        objects[2].object.parent_object_index=NONE;
+        objects[2].object.flags=FLAG(_object_connected_to_map_bit);
+        objects[2].object.location.cluster_index=0;
+        game_engine_record_regional_object(units[2],&objects[2],old);
+        item.item.flags=FLAG(_item_on_object_bit);
+        item.item.item_on_rest_object_index=units[2];
+        item.object.flags=FLAG(_object_at_rest_bit);
+        global_structure_bsp_index=old;
+        item_recheck_support(&item,&definition);
+        CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit)&&item.item.item_on_rest_object_index==units[2],
+              "an in-region prop stopped supporting a pickup");
+        global_structure_bsp_index=destination;
+        item.object.flags|=FLAG(_object_outside_of_map_bit);
+        item_recheck_support(&item,&definition);
+        CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit)&&item.item.item_on_rest_object_index==units[2],
+              "an inactive pickup lost the prop it rests on");
+        item.object.flags&=~FLAG(_object_outside_of_map_bit);
+        CHECK(game_engine_object_parked(units[2],_object_type_scenery),"fixture support did not park");
+        item_recheck_support(&item,&definition);
+        CHECK(!TEST_FLAG(item.object.flags,_object_at_rest_bit)&&!TEST_FLAG(item.item.flags,_item_on_object_bit)&&
+              item.item.item_on_rest_object_index==NONE,
+              "an active pickup hung in the air on a prop in another BSP");
         return 0;
     }
     if (!strcmp(name, "connected-ai-passenger"))
