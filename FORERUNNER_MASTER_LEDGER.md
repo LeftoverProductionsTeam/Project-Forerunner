@@ -19,7 +19,8 @@ Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
    The guest drove Chiron's original Warthog through both native switches.
    Spark's fifteen-region Death Island handoff passed native 0 → 3 → 4 → 3
    on foot with two private peers and matching guest collision geometry.
-   The last base-side return and independent occupancy remain open.
+   The installed build passed the base-side return in a separate short test.
+   An uninterrupted round trip and independent occupancy remain open.
    Native guest damage resumed after loading Chiron, with prior BSP spatial
    history cleared at the switch. Independent occupancy and the final five
    regions remain open. Keep CE609 and MCC13 verification separate.

@@ -3359,6 +3359,15 @@ walk back to BSP 0. Shared traversal is verified for 0 → 3 → 4 → 3; final
 base re-entry, independent occupancy and gameplay acceptance remain open.
 No map, crossing rule or installed executable was changed.
 
+A separate short return test used the exact same cache on the installed
+Windows executable `cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
+Both peers walked into BSP 3 near the base at host tick 1771, turned back
+under normal input, and crossed `bsp3,0` at tick 3010. Both rebuilt matching
+base collision and continued walking. Taken together, the two sessions
+verify all four handoff switches and the full outbound corridor on foot.
+One uninterrupted round trip, island equipment/device use and independent
+regional gameplay remain separate checks.
+
 Seam clearance now checks nearby vehicles, machines and controls with a known
 destination BSP before committing the shared switch. It takes contact from
 native object models and vehicle physics, even while those blockers are
