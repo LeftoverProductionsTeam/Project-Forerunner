@@ -1104,6 +1104,12 @@ int main(int argc,char **argv)
 
         item.object.flags|=FLAG(_object_outside_of_map_bit);
         vehicle->object.flags|=FLAG(_object_outside_of_map_bit);
+        CHECK(object_simulation_is_parked(index,&item)&&
+              object_simulation_is_parked(vehicle_index,vehicle),
+              "parked equipment or vehicle could run physics in the destination BSP");
+        item.object.parent_object_index=units[0];
+        CHECK(!object_simulation_is_parked(index,&item),"attached equipment cannot follow its parent");
+        item.object.parent_object_index=NONE;
         game_engine_record_regional_object(index,&item,1);
         game_engine_record_regional_object(vehicle_index,vehicle,1);
         CHECK(game_engine_object_parked(index,_object_type_weapon)&&
@@ -1116,6 +1122,9 @@ int main(int argc,char **argv)
         CHECK(!game_engine_object_parked(index,_object_type_weapon)&&
               !game_engine_object_parked(vehicle_index,_object_type_vehicle),
               "returning to the original BSP did not restore its objects");
+        CHECK(!object_simulation_is_parked(index,&item)&&
+              !object_simulation_is_parked(vehicle_index,vehicle),
+              "returning to the original BSP still suppressed physics");
 
         placed_pickups[0].item.flags=FLAG(_item_attached_to_unit_bit);
         vehicle->object.first_child_object_index=units[0];

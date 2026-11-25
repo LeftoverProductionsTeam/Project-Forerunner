@@ -88,7 +88,8 @@ def generated(fault=None):
          '\n' + '\n'.join(function(read('source/game/game_engine.c'), name) for name in
             ('game_engine_equipment_item_at_pad', 'game_engine_equipment_item_parked', 'game_engine_vehicle_empty',
              'game_engine_record_regional_object', 'game_engine_object_recorded_bsp',
-             'game_engine_object_parked', 'game_engine_update_item_spawn'))),
+             'game_engine_object_parked', 'game_engine_update_item_spawn')) + '\n' +
+         function(read('source/objects/objects.c'), 'object_simulation_is_parked')),
         ('device_touch.inc', function(read('source/devices/devices.c'), 'device_touched')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +

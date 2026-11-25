@@ -4119,6 +4119,18 @@ static int object_update_perf_phase(
 #define OBJECT_UPDATE_PERF_PHASE(type) 0
 #endif
 
+/* Parked roots are disconnected from collision in the active BSP. Keep
+ * their motion and item detonation timers until their own BSP resumes. */
+static boolean object_simulation_is_parked(long object_index, struct object_datum const *object)
+{
+	return object->object.parent_object_index == NONE &&
+		(TEST_FLAG(_object_mask_device, object->object.type) ||
+		 (object->object.type == _object_type_biped && TEST_FLAG(object->object.damage_flags, _object_dead_bit)) ||
+		 (TEST_FLAG(_object_mask_item | _object_mask_vehicle, object->object.type) &&
+		  TEST_FLAG(object->object.flags, _object_outside_of_map_bit))) &&
+		game_engine_object_parked(object_index, object->object.type);
+}
+
 static boolean object_update(
 	long object_index)
 {
@@ -4130,11 +4142,7 @@ static boolean object_update(
 	boolean elevator_sampled = FALSE;
 	real_point3d elevator_sample;
 
-	/* Do not simulate a parked machine or corpse against another BSP. */
-	if (object->object.parent_object_index == NONE &&
-		(TEST_FLAG(_object_mask_device, object->object.type) ||
-		 (object->object.type == _object_type_biped && TEST_FLAG(object->object.damage_flags, _object_dead_bit))) &&
-		game_engine_object_parked(object_index, object->object.type))
+	if (object_simulation_is_parked(object_index, object))
 		return TRUE;
 	object_definition = object_definition_get(object->definition_index);
 	if (!TEST_FLAG(header->flags, _object_header_do_not_update_bit))
