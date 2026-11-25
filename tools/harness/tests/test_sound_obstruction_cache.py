@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run, structure
 from harness.audio import manager_types
 
-CASES = ['moving', 'next-tick', 'listener', 'slot', 'impulse', 'out-of-range']
+CASES = ['moving', 'next-tick', 'listener', 'region', 'tracked-origin', 'slot', 'impulse', 'out-of-range']
 NEGATIVE_CONTROLS = {
     'keyed-on-position': ('entry->local_player_index != local_player_index)',
                           'entry->local_player_index != local_player_index ||\n\t\tsource->location.position.x != 2.f)',

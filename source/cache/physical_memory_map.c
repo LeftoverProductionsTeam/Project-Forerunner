@@ -107,6 +107,9 @@ struct physical_memory_map_globals
 	void *tag_cache_base_address;
 	void *texture_cache_base_address;
 	void *sound_cache_base_address;
+#ifdef HALO_DESKTOP_LARGE_SOUND_CACHE_SIZE
+	unsigned long sound_cache_size;
+#endif
 };
 
 /* ---------- prototypes */
@@ -151,7 +154,19 @@ void physical_memory_allocate(
 #line 55 "c:\\halo\\SOURCE\\cache\\physical_memory_map.c"
 	match_assert(__FILE__, __LINE__, physical_memory_map_globals.texture_cache_base_address);
 
+#ifdef HALO_DESKTOP_LARGE_SOUND_CACHE_SIZE
+	physical_memory_map_globals.sound_cache_size = HALO_DESKTOP_LARGE_SOUND_CACHE_SIZE;
+	physical_memory_map_globals.sound_cache_base_address =
+		XPhysicalAlloc(SOUND_CACHE_SIZE, SOUND_CACHE_MAXIMUM_ADDRESS, 0, PAGE_READWRITE);
+	if (!physical_memory_map_globals.sound_cache_base_address)
+	{
+		physical_memory_map_globals.sound_cache_size = HALO_PORT_SOUND_CACHE_SIZE;
+		physical_memory_map_globals.sound_cache_base_address =
+			XPhysicalAlloc(SOUND_CACHE_SIZE, SOUND_CACHE_MAXIMUM_ADDRESS, 0, PAGE_READWRITE);
+	}
+#else
 	physical_memory_map_globals.sound_cache_base_address = XPhysicalAlloc(SOUND_CACHE_SIZE, SOUND_CACHE_MAXIMUM_ADDRESS, 0, PAGE_READWRITE);
+#endif
 	PHYSICAL_MEMORY_LOG("sound cache", SOUND_CACHE_SIZE, physical_memory_map_globals.sound_cache_base_address);
 #line 58 "c:\\halo\\SOURCE\\cache\\physical_memory_map.c"
 	match_assert(__FILE__, __LINE__, physical_memory_map_globals.sound_cache_base_address);
@@ -234,6 +249,11 @@ unsigned long physical_memory_get_sound_cache_size(
 	void)
 {
 	return SOUND_CACHE_SIZE;
+}
+#elif defined(HALO_DESKTOP_LARGE_SOUND_CACHE_SIZE)
+unsigned long physical_memory_get_sound_cache_size(void)
+{
+	return physical_memory_map_globals.sound_cache_size;
 }
 #endif
 

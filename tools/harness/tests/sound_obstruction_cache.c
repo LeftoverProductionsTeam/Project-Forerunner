@@ -9,6 +9,9 @@ and a sound past its range is never tested. */
 #define REAL_MAX 3.4028235e38f
 static struct sound_listener listeners[MAXIMUM_NUMBER_OF_LOCAL_PLAYERS];
 static long now;
+static short global_structure_bsp_index;
+static boolean tracked_listener;
+static boolean listener_uses_tracking(short index) { (void)index; return tracked_listener; }
 static int tests;
 static long game_time_get(void) { return now; }
 static struct sound_listener *listener_get(short index) { return &listeners[index]; }
@@ -74,6 +77,22 @@ int main(int argc, char **argv)
 		listeners[1].valid = TRUE;
 		source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound);
 		CHECK(tests == 2, "another listener made %d wall tests", tests);
+	}
+	CASE("region")
+	{
+		source = at(2.f);
+		source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound);
+		global_structure_bsp_index++;
+		source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound);
+		CHECK(tests == 2, "a new BSP reused the old obstruction");
+	}
+	CASE("tracked-origin")
+	{
+		source = at(2.f);
+		source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound);
+		tracked_listener = TRUE;
+		source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound);
+		CHECK(tests == 2, "the tracked listener reused the old camera obstruction");
 	}
 	CASE("slot")
 	{

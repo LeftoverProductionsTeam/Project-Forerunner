@@ -119,7 +119,15 @@ symbols in this file:
 many 4k pages as the cache holds (the Xbox's 4 MB, 1024), so a platform's
 smaller cache never has sounds placed past its end, and the sounds it may
 hold at once (the Xbox's 512) */
-#ifndef HALO_CONSOLE_MEMORY_CLASS
+#if defined(HALO_DESKTOP_LARGE_SOUND_CACHE_SIZE)
+enum
+{
+	SOUND_CACHE_PAGE_SIZE_BITS = 12,
+	SOUND_CACHE_MAXIMUM_PAGE_COUNT = HALO_DESKTOP_LARGE_SOUND_CACHE_SIZE >> SOUND_CACHE_PAGE_SIZE_BITS,
+	SOUND_CACHE_SOUND_COUNT = 512,
+};
+#define SOUND_CACHE_PAGE_COUNT ((long)(SOUND_CACHE_SIZE >> SOUND_CACHE_PAGE_SIZE_BITS))
+#elif !defined(HALO_CONSOLE_MEMORY_CLASS)
 enum
 {
 	SOUND_CACHE_PAGE_SIZE_BITS = 12,

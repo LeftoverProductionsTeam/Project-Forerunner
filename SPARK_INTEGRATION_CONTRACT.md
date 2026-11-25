@@ -1730,6 +1730,16 @@ For Spark's authoring pass, split that music permutation into the native
 linked permutation chain while retaining its full decoded audio. Installed
 files were preserved and disposable staging was removed.
 
+Forerunner's native 64-bit desktop sound cache now tries 32 MiB and
+falls back to 16 MiB if the larger allocation fails. On Win64
+`6d9fdffff274f04f0f31d0e96ca73561d56061f38f6c85c1eee6d8a3be1a35d7`,
+two private peers on unchanged CE609 `0a677fbc` reported zero allocation
+misses through tick 1740. An 18-second local mixer capture recorded the
+full-sized music sample, the Slayer cue, Flood idle calls and Molotov
+effects. Fifty-five focused audio checks passed. Retain the linked-sound
+authoring path for smaller caches. Other platforms and the low-memory
+allocation fallback still need native verification.
+
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
 `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
