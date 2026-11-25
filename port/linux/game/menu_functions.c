@@ -5911,9 +5911,9 @@ static boolean map_list_initialize(struct widget_instance *list)
 		map_list.kind = MAP_KIND_CUSTOM_MULTIPLAYER;
 		last_used -= map_list.map_count;
 	}
-	if (forerunner_operation_chooser && map_list.hosting)
+	if (operation && map_list.hosting)
 	{
-		map_list.kind = MAP_KIND_CUSTOM_SINGLEPLAYER;
+		map_list.kind = config_boolean("network.firefight_encounter") ? MAP_KIND_SINGLEPLAYER : MAP_KIND_CUSTOM_SINGLEPLAYER;
 		last_used = 0;
 	}
 	forerunner_operation_chooser = FALSE;
@@ -13947,7 +13947,7 @@ static short forerunner_operation_mode(char const *action)
 	if (!strcmp(action, "port forerunner host extraction")) return 2;
 	if (!strcmp(action, "port forerunner host firefight")) return 1;
 	if (!strcmp(action, "port forerunner host native") || !strcmp(action, "port forerunner host forge") ||
-		!strcmp(action, "port forerunner host forge local")) return 0;
+		!strcmp(action, "port forerunner host forge local") || !strcmp(action, "port forerunner host zombies")) return 0;
 	return NONE;
 }
 
@@ -14204,6 +14204,8 @@ boolean pc_menu_event_function_invoke(
 			if (!multiplayer_host(widget, event, controller, widget_deleted, local_forge)) return FALSE;
 			if (local_forge || !strcmp(name, "port forerunner host forge"))
 				network_game_enable_forge();
+			else if (!strcmp(name, "port forerunner host zombies"))
+				map_list.kind = MAP_KIND_MCC_MULTIPLAYER;
 			else
 				forerunner_operation_chooser = TRUE;
 			return TRUE;

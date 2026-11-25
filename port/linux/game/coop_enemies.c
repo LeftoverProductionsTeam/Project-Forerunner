@@ -668,9 +668,9 @@ static boolean firefight_authored_origin(real_point3d const *player_position)
 	return found;
 }
 
-/* Default: an existing nearby Grunt supplies the tag and origin. Explicit
-selection uses the map's loaded actor variant and optional native spawn encounter;
-missing authored data never silently becomes a different stock enemy. */
+/* Default: prefer a nearby native Grunt, or use another nearby hostile
+actor when the level has none. Explicit selection still requires the loaded
+variant and optional authored spawn encounter. */
 static boolean firefight_prepare(void)
 {
 	struct data_iterator iterator;
@@ -682,6 +682,7 @@ static boolean firefight_prepare(void)
 	real nearest = 20.0f * 20.0f;
 	boolean explicit_actor = firefight.actor_path[0] != 0;
 	boolean found_origin = FALSE;
+	boolean found_grunt = FALSE;
 
 	if (cinematic_in_progress())
 		return FALSE;
@@ -748,6 +749,7 @@ static boolean firefight_prepare(void)
 		struct actor_variant_definition *variant;
 		long actor_index = unit->unit.actor_index != NONE ? unit->unit.actor_index : unit->unit.swarm_actor_index;
 		real x, y, z, distance;
+		boolean grunt;
 
 		if (unit->unit.player_index != NONE || actor_index == NONE || !game_team_is_enemy(_game_team_player, unit->object.owner_team_index) ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || unit->object.parent_object_index != NONE)
@@ -760,11 +762,15 @@ static boolean firefight_prepare(void)
 		y = unit->object.position.y - player_position.y;
 		z = unit->object.position.z - player_position.z;
 		distance = x*x + y*y + z*z;
-		if (variant->actor_reference.index != NONE && distance < nearest &&
-			(explicit_actor ? actor->meta.variant_definition_index == firefight.variant :
-			actor_definition_get(variant->actor_reference.index)->type == _actor_grunt))
+		if (variant->actor_reference.index == NONE || variant->unit_reference.index == NONE ||
+			distance >= 20.0f * 20.0f ||
+			(explicit_actor && actor->meta.variant_definition_index != firefight.variant))
+			continue;
+		grunt = !explicit_actor && actor_definition_get(variant->actor_reference.index)->type == _actor_grunt;
+		if ((grunt && !found_grunt) || (grunt == found_grunt && distance < nearest))
 		{
 			found_origin = TRUE;
+			found_grunt = grunt;
 			nearest = distance;
 			firefight.variant = actor->meta.variant_definition_index;
 			firefight.team = unit->object.owner_team_index;
@@ -1002,36 +1008,40 @@ static void firefight_try_evacuation(long now)
 	firefight_notice("Survival: team evacuated - recovered gear secured");
 }
 
+/* Spark compiles these named HaloScript entry points into its native map.
+ * Their presence reserves wave ownership before any engine director starts. */
+char const *coop_enemies_authored_round(void)
+{
+	static char const *const names[] =
+	{
+		"gs_firefight", "gs_ff_reset", "gs_ff_bootstrap"
+	};
+	short script;
+	for (script = 0; script < NUMBEROF(names); script++)
+		if (hs_find_script_by_name(names[script]) != NONE)
+			return names[script];
+	return NULL;
+}
+
 static void firefight_update(void)
 {
 	long now = game_time_get();
 	short index, dead = 0;
 
+	if (!firefight.script_owner_checked)
+	{
+		char const *authored = coop_enemies_authored_round();
+		firefight.script_owner_checked = TRUE;
+		if (authored)
+		{
+			firefight.enabled = FALSE;
+			platform_log("firefight: authored script %s found; built-in director disabled", authored);
+		}
+	}
 	if (!firefight.enabled)
 		return;
 	if (!firefight.phase)
 	{
-		/* Spark's native_round_plan/verify_native_round use these compiled
-		   bindings (firefight.rs). Presence is an ownership stop, not proof
-		   the artifact passed validation. Never replace a broken native
-		   round with our unrelated built-in director or freeze its scripts. */
-		static char const *const native_round_scripts[] =
-		{
-			"gs_firefight", "gs_ff_reset", "gs_ff_bootstrap"
-		};
-		short script;
-
-		if (!firefight.script_owner_checked)
-		{
-			firefight.script_owner_checked = TRUE;
-			for (script = 0; script < NUMBEROF(native_round_scripts); script++)
-				if (hs_find_script_by_name(native_round_scripts[script]) != NONE)
-				{
-					firefight.enabled = FALSE;
-					platform_log("firefight: authored script %s found; built-in director disabled", native_round_scripts[script]);
-					return;
-				}
-		}
 		if (firefight_prepare())
 		{
 			firefight.phase = 1;

@@ -821,21 +821,16 @@ failed:
 	return NULL;
 }
 
-/* a GL texture of a decoded PNG's texels (which it frees), as below; none
-without OpenGL (a dedicated server, or debug.null_renderer, draws its
-post-game screen's icons too, and has no GL functions to call) */
+/* Upload the decoded PNG to the active renderer, which owns its texture.
+ * A null renderer has no texture API even if its scoreboard requests art. */
 static unsigned int png_pixels_texture(unsigned char *pixels, unsigned long width, unsigned long height,
 	unsigned long *levels)
 {
 	unsigned long largest;
 	GLuint texture;
 
-	/* (no OpenGL: a null renderer's postgame scoreboard asks for its icons) */
-	if (!pixels || !xgpu_gl_ready())
-	{
-		free(pixels);
+	if (!pixels)
 		return 0;
-	}
 	*levels = 1;
 	for (largest = width > height ? width : height; largest > 1; largest >>= 1)
 		(*levels)++;
@@ -859,6 +854,11 @@ static unsigned int png_pixels_texture(unsigned char *pixels, unsigned long widt
 		return name;
 	}
 #endif
+	if (!xgpu_gl_ready())
+	{
+		free(pixels);
+		return 0;
+	}
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	xgpu_gl_state_invalidate();

@@ -95,6 +95,7 @@ symbols in this file:
 #include "rasterizer/rasterizer.h"
 #include "render/render_cameras_internal.h"
 #include "render/render_debug.h"
+#include "game/cheats.h"
 #include "objects/objects.h"
 #include "objects/object_definitions.h"
 #include "objects/object_lights.h"
@@ -475,37 +476,53 @@ struct render_lighting *object_get_cached_render_lighting(
 }
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
-/* OpenCE-Forge uses the map's native Monitor biped as the editor avatar.
- * Submit its model through this renderer without creating a simulation unit. */
-static void render_forge_monitor(void)
+static void render_forge_model(long model_index, real_matrix4x3 const *pose, real radius)
 {
-	short local = render.local_player_index;
-	long biped_index = director_forge_monitor_biped(local);
-	struct biped_definition const *biped;
 	struct model const *model;
-	struct observer_result const *view;
-	real_point3d origin;
-	real radius, pixels;
+	real pixels;
+	short index;
 	real_matrix4x3 nodes[MAXIMUM_NODES_PER_MODEL];
 	struct render_lighting lighting;
 
-	if (biped_index == NONE)
+	if (model_index == NONE || !valid_real(radius) || radius <= 0.f ||
+		distance_squared3d(&render.camera.position, &pose->position) <= radius * radius ||
+		!render_frustum_sphere_visible(&render.frustum, &pose->position, radius))
 		return;
-	biped = biped_definition_get(biped_index);
-	model = model_definition_get(biped->object.model.index);
+	model = model_definition_get(model_index);
 	if (!model || model->nodes.count <= 0 || model->nodes.count > NUMBEROF(nodes))
 		return;
-	origin = *observer_get_focus_position(local);
-	radius = biped->object.bounding_radius;
-	if (radius <= 0.f || distance_squared3d(&render.camera.position, &origin) <= radius * radius ||
-		!render_frustum_sphere_visible(&render.frustum, &origin, radius))
+	pixels = render_frustum_sphere_diameter_in_pixels(&render.frustum, &pose->position, radius);
+	model_get_node_matrices(model, nodes, NULL, NULL, NULL);
+	for (index = 0; index < model->nodes.count; index++)
+		matrix4x3_multiply(pose, &nodes[index], &nodes[index]);
+	lights_distant_lighting_at_point(0, &pose->position, &lighting);
+	render_model(model_index, pixels, nodes, NULL, NULL, NULL, &lighting,
+		&pose->position, radius, NULL, NONE, NONE, 0);
+}
+
+/* OpenCE-Forge uses the map's native Monitor biped as the editor avatar.
+ * Submit the avatar and held preview without spawning simulation objects. */
+static void render_forge_models(void)
+{
+	short local = render.local_player_index;
+	long biped_index = director_forge_monitor_biped(local);
+	real_matrix4x3 pose;
+	real radius;
+	long definition_index;
+
+	if (!director_forge_flight_active(local))
 		return;
-	view = observer_get_camera(local);
-	pixels = render_frustum_sphere_diameter_in_pixels(&render.frustum, &origin, radius);
-	model_get_node_matrices(model, nodes, &origin, &view->forward, &view->up);
-	lights_distant_lighting_at_point(0, &origin, &lighting);
-	render_model(biped->object.model.index, pixels, nodes, NULL, NULL, NULL, &lighting,
-		&origin, radius, NULL, NONE, NONE, 0);
+	if (biped_index != NONE)
+	{
+		struct biped_definition const *biped = biped_definition_get(biped_index);
+		struct observer_result const *view = observer_get_camera(local);
+		matrix4x3_from_point_and_vectors(&pose, observer_get_focus_position(local),
+			&view->forward, &view->up);
+		render_forge_model(biped->object.model.index, &pose, biped->object.bounding_radius);
+	}
+	definition_index = cheats_forge_grab_preview(&pose, &radius);
+	if (definition_index != NONE)
+		render_forge_model(object_definition_get(definition_index)->object.model.index, &pose, radius);
 }
 #endif
 
@@ -552,7 +569,7 @@ void render_objects(
 	if (stubbs_mode_active())
 		stubbs_vegetation_render();
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
-	render_forge_monitor();
+	render_forge_models();
 #endif
 
 	rasterizer_models_end();

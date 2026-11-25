@@ -528,6 +528,7 @@ static struct map_family_place const custom_edition_places[] =
 	{ _place_maps, "ce\\", "@ce" },
 	{ _place_data_root, "custom_maps\\", "" },
 	{ _place_maps, "", "@ce" },
+	{ _place_maps, "", "" },
 	{ _place_custom_edition_folder, "", "" },
 	{ _place_custom_edition_folder, "", "@ce" },
 };

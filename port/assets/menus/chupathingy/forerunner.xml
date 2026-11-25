@@ -162,9 +162,9 @@
 		<child widget="forerunner/zombies/join" x="60" y="384" />
 		<child widget="forerunner/zombies/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST FLOOD SURVIVAL" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
-		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
-		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
+	<widget name="forerunner/zombies/extraction_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST ZOMBIE APOCALYPSE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies" />
+		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
 	<widget name="forerunner/zombies/infection_create_inter" type="text" width="244" height="28" bitmap="bitmaps/list_item_bkd" text="HOST INFECTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
@@ -197,7 +197,7 @@
 		<child widget="forerunner/forge/choices" x="0" y="0" />
 	</widget>
 	<widget name="forerunner/forge/title" type="text" width="520" height="35" text="FORGE" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="Press F7 to open tools. In Local Forge, F8 or D-pad Down toggles flight. Use Space/Ctrl or the bumpers for altitude. Press X while flying to open tools." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="F5 / X opens tools. F4 / D-pad Down switches between flight and play. Use Space/Ctrl or the bumpers for altitude. In flight, E / A grabs or drops a copy and R / D-pad Right turns it." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
 		<child widget="forerunner/forge/create_lan_local" x="60" y="350" platform="desktop" />

@@ -60,6 +60,7 @@ symbols in this file:
 #include "network_coop.h" /* port: existing co-op appearance replication */
 #include "hs/hs.h"
 #include "input/input.h"
+#include "interface/hud_messaging.h"
 #include "interface/terminal.h"
 #include "items/items.h"
 #include "items/weapon_definitions.h"
@@ -184,6 +185,9 @@ static boolean forge_move_undone;
 
 void cheats_forge_reset(void)
 {
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	cheats_forge_grab_cancel();
+#endif
 	forge_selection = NONE;
 	forge_last_copy = NONE;
 	forge_last_move.object_index = NONE;
@@ -999,6 +1003,164 @@ static void forge_commit_transform(long object_index, struct object_datum *objec
 	forge_remember_transform(object_index, object, &forge_last_destination);
 	forge_move_undone = FALSE;
 }
+
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+/* OpenCE-Forge (SutlabSol/OpenCE-Forge, 91099ce3) uses a ray-based grab and
+ * snapped rotation. Preview the held pose locally and commit a single edit
+ * through the existing native object, clearance and history paths on drop. */
+static struct
+{
+	long object_index;
+	short bsp_index;
+	short turns;
+	real distance;
+} forge_grab = { NONE };
+
+void cheats_forge_grab_cancel(void)
+{
+	forge_grab.object_index = NONE;
+}
+
+static boolean forge_grab_pose(struct object_datum const *object, long unit_index,
+	real_matrix4x3 *pose, real_point3d *center, real_point3d *origin)
+{
+	real_vector3d ray, center_to_origin;
+	real_vector3d forward = object->object.forward, up = object->object.up;
+	real angle = DEGREES_TO_RADIANS(forge_grab.turns * 15);
+	real sine = sinf(angle), cosine = cosf(angle);
+	real_point3d position;
+
+	if (forge_grab.bsp_index != global_structure_bsp_index ||
+		!director_forge_flight_aim(unit_index, origin, &ray))
+		return FALSE;
+
+	point_from_line3d(origin, &ray, forge_grab.distance, center);
+	vector_from_points3d(&object->object.bounding_sphere_center, &object->object.position, &center_to_origin);
+	rotate_vector_about_axis(&center_to_origin, global_up3d, sine, cosine);
+	rotate_vector_about_axis(&forward, global_up3d, sine, cosine);
+	rotate_vector_about_axis(&up, global_up3d, sine, cosine);
+	point_from_line3d(center, &center_to_origin, 1.f, &position);
+	if (!valid_real_point3d(&position))
+		return FALSE;
+	matrix4x3_from_point_and_vectors(pose, &position, &forward, &up);
+	return TRUE;
+}
+
+long cheats_forge_grab_preview(real_matrix4x3 *pose, real *radius)
+{
+	long object_index = forge_grab.object_index;
+	struct object_datum const *object = forge_placeable_object_get(object_index);
+	real_point3d center, origin;
+	if (!object || !forge_grab_pose(object, player_control_get_unit_index(0), pose, &center, &origin))
+		return NONE;
+	pose->scale = object->object.scale;
+	*radius = object->object.bounding_sphere_radius +
+		distance3d(&object->object.position, &object->object.bounding_sphere_center);
+	return object->definition_index;
+}
+
+static boolean forge_grab_drop(long unit_index, struct object_datum *object)
+{
+	long object_index = forge_grab.object_index;
+	real_matrix4x3 pose;
+	real_point3d center, origin;
+	real_vector3d ray;
+	struct location location;
+	struct collision_result hit;
+	real radius = object->object.bounding_sphere_radius;
+	boolean phased = TEST_FLAG(object->object.flags, _object_forge_phased_bit);
+
+	if (!forge_grab_pose(object, unit_index, &pose, &center, &origin))
+		return FALSE;
+	scenario_location_from_point(&location, &center);
+	if (location.cluster_index == NONE)
+		return FALSE;
+
+	if (!phased)
+	{
+		vector_from_points3d(&origin, &center, &ray);
+		if (collision_test_vector(_collision_test_environment_flags, &origin, &ray, object_index, &hit))
+			return FALSE;
+		if (object->object.type == _object_type_vehicle)
+		{
+			struct physics_instance vehicle;
+			real_matrix4x3 old_pose, world_to_object, local_physics;
+			if (!physics_instance_new(&vehicle, object_index))
+				return FALSE;
+			matrix4x3_from_point_and_vectors(&old_pose, &object->object.position,
+				&object->object.forward, &object->object.up);
+			matrix4x3_inverse(&old_pose, &world_to_object);
+			matrix4x3_multiply(&world_to_object, &vehicle.world_matrix, &local_physics);
+			matrix4x3_multiply(&pose, &local_physics, &vehicle.world_matrix);
+			if (!physics_placement_clear(&vehicle, object_index, TRUE, NULL))
+				return FALSE;
+		}
+		else if (collision_test_sphere(&center, radius, NONE) ||
+			forge_space_occupied(&location, &center, radius, object_index))
+			return FALSE;
+	}
+
+	if (!forge_remember_transform(object_index, object, &forge_last_move))
+		return FALSE;
+	forge_commit_transform(object_index, object, &pose.position, &pose.forward, &pose.up);
+	forge_selection = object_index;
+	return TRUE;
+}
+
+void cheats_forge_grab_input(boolean grab, boolean rotate)
+{
+	long unit_index = player_control_get_unit_index(0);
+	real_point3d origin;
+	real_vector3d ray;
+	struct object_datum *object;
+	boolean was_terminal_command = terminal_command_running;
+
+	if (!grab && !rotate)
+		return;
+	if (!director_forge_flight_aim(unit_index, &origin, &ray))
+	{
+		cheats_forge_grab_cancel();
+		return;
+	}
+	terminal_command_running = TRUE;
+	if (forge_grab.object_index != NONE)
+	{
+		object = forge_editable_copy(forge_grab.object_index);
+		if (!object || forge_grab.bsp_index != global_structure_bsp_index)
+			cheats_forge_grab_cancel();
+		else
+		{
+			if (rotate)
+				forge_grab.turns = (forge_grab.turns + 1) % 24;
+			if (grab)
+			{
+				if (forge_grab_drop(unit_index, object))
+					cheats_forge_grab_cancel();
+				else
+					hud_print_notice(0, "Move the object to a clear position");
+			}
+		}
+	}
+	else if (grab)
+	{
+		long selected = cheats_forge_aimed_object(unit_index);
+		object = forge_editable_copy(selected);
+		if (object && valid_real(object->object.bounding_sphere_radius) &&
+			object->object.bounding_sphere_radius >= 0.f && object->object.bounding_sphere_radius < 19.f)
+		{
+			real_vector3d offset;
+			vector_from_points3d(&origin, &object->object.bounding_sphere_center, &offset);
+			forge_grab.distance = PIN(dot_product3d(&offset, &ray), object->object.bounding_sphere_radius + 0.5f, 20.f);
+			forge_grab.bsp_index = global_structure_bsp_index;
+			forge_grab.turns = 0;
+			forge_grab.object_index = selected;
+		}
+		else
+			hud_print_notice(0, "Aim at an unused Forge copy");
+	}
+	terminal_command_running = was_terminal_command;
+}
+#endif
 
 static boolean forge_move_selected_copy(long unit_index, long object_index)
 {

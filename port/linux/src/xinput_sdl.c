@@ -3317,7 +3317,7 @@ static BOOL debug_cam_middle = FALSE;
 static BOOL debug_cam_up = FALSE;
 static BOOL debug_cam_down = FALSE;
 static float debug_cam_wheel = 0.0f;
-static BOOL forge_tools_key, forge_flight_key;
+static BOOL forge_tools_key, forge_flight_key, forge_grab_key, forge_rotate_key;
 static int forge_vertical_input;
 
 void halo_linux_forge_keys(int *tools, int *flight, int *vertical)
@@ -3329,6 +3329,14 @@ void halo_linux_forge_keys(int *tools, int *flight, int *vertical)
 	pthread_mutex_unlock(&mouse_lock);
 }
 
+void halo_linux_forge_edit_keys(int *grab, int *rotate)
+{
+	pthread_mutex_lock(&mouse_lock);
+	*grab = forge_grab_key;
+	*rotate = forge_rotate_key;
+	pthread_mutex_unlock(&mouse_lock);
+}
+
 static void debug_camera_update(const struct platform_input_state *input, BOOL blocked)
 {
 	pthread_mutex_lock(&mouse_lock);
@@ -3336,8 +3344,10 @@ static void debug_camera_update(const struct platform_input_state *input, BOOL b
 		input->mouse_buttons[SDL_BUTTON_MIDDLE] != 0;
 	debug_cam_up = !blocked && input->keys[SDL_SCANCODE_R] != 0;
 	debug_cam_down = !blocked && input->keys[SDL_SCANCODE_F] != 0;
-	forge_tools_key = !blocked && input->keys[SDL_SCANCODE_F7];
-	forge_flight_key = !blocked && input->keys[SDL_SCANCODE_F8];
+	forge_tools_key = !blocked && (input->keys[SDL_SCANCODE_F5] || input->keys[SDL_SCANCODE_F7]);
+	forge_flight_key = !blocked && (input->keys[SDL_SCANCODE_F4] || input->keys[SDL_SCANCODE_F8]);
+	forge_grab_key = !blocked && input->keys[SDL_SCANCODE_E];
+	forge_rotate_key = !blocked && input->keys[SDL_SCANCODE_R];
 	forge_vertical_input = blocked ? 0 : !!input->keys[SDL_SCANCODE_SPACE] -
 		!!(input->keys[SDL_SCANCODE_LCTRL] || input->keys[SDL_SCANCODE_RCTRL]);
 	if (debug_cam_middle)

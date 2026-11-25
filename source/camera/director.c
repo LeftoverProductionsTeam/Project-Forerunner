@@ -861,8 +861,8 @@ void director_toggle_forge_flight(void)
 		if (forge_monitor_biped != NONE && biped_definition_get(forge_monitor_biped)->object.model.index == NONE)
 			forge_monitor_biped = NONE;
 		hud_print_notice(0, forge_monitor_biped != NONE ?
-			"Monitor  |  F7 / X: tools  |  F8 / D-pad Down: play" :
-			"Forge flight  |  F7 / X: tools  |  F8 / D-pad Down: play");
+			"Monitor  |  F5 / X: tools  |  E / A: grab or drop" :
+			"Forge flight  |  F5 / X: tools  |  E / A: grab or drop");
 	}
 }
 

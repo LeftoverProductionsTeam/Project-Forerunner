@@ -1,5 +1,33 @@
 # Forerunner test evidence
 
+## Windows playtest recovery
+
+The Windows x64 testing executable at `build/windows64/halo.exe` now has SHA-256
+`35b85de487e621b8f353f203ce845133e61164678e034c9ae2307dfbaa9169f1`.
+The exact delivered executable was retained as `halo.before-menu-repair.exe`.
+Both it and the earlier XR baseline reproduced missing Vulkan menu artwork.
+The GL-only readiness gates blocked PNG artwork and the font atlas before either
+could reach Vulkan. Valid CE scenarios in the main maps folder had also reached
+the misplaced-cache dialog before the menu could open.
+
+Visible Win64 menus exercised using native input and disposable saves loaded stock
+A10 and Blood Gulch, spawned in the staged Zombie Apocalypse and fourteen-region
+MegaWorld maps, and started wave 1 on stock B40 with the OpenCE protocol selected.
+The installed executable listed and loaded the unchanged Black Echo CE609 cache
+(`d113e9dbec1bae9554e7d4df3843ecc2bb6d40b4ee2c7cdf5f81831fc7b29b09`) under
+a disposable new filename in `maps` and reached its native Extraction hub with
+Delta disabled. The map picker issued no startup warning. 81 focused checks passed.
+The retained runtime data, maps, previous binaries and user saves were preserved.
+The test does not cover LAN guest stash ownership, a complete Black Echo run,
+physical terminal and boarding acceptance, or consumption of Spark's new export
+mode receipt. Monitor grab compiled and existing Forge regressions passed without
+a full native placement session.
+
+Repeat the applicable visible Windows menu and basic gameplay checks before
+updating the testing installation at each major checkpoint and every ten
+meaningful local commits. Keep the previous tested binary and map available.
+
+
 15 November 2026. Source inspection, compilation, automated native simulation,
 rendered gameplay, human play and cross-platform acceptance are distinct here.
 Bounded native multiplayer, rendering and read-only Spark discovery are verified;

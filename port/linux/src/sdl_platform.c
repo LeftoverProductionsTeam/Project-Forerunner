@@ -458,8 +458,8 @@ void console_setup_after_data(const char *data_root);
 /* the maps folder checked to hold the Xbox maps (platform_maps_folder_check).
 When it holds Halo PC's instead, or no ui.map, the player is told where each
 kind goes and the game quits, rather than failing to load Halo PC's ui.map
-as the Xbox's (game_load). Halo PC maps in maps/ itself, which only play
-from maps_ce, maps_md or maps_pc, are warned of. Then the older folders of
+as the Xbox's (game_load). Playable CE scenarios may share maps/ with the
+Xbox maps. Misplaced PC caches are still reported. Then the older folders of
 Halo PC maps are offered a move into the new ones (game.move_old_map_folders) */
 static void data_check_maps(void)
 {

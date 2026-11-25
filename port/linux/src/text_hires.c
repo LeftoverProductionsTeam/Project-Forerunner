@@ -495,7 +495,7 @@ void text_hires_register_atlas(const unsigned long *texture, unsigned long width
 
 unsigned int text_hires_atlas_texture(unsigned long data)
 {
-	if (!data || data != placeholder_data || !atlas || !xgpu_gl_ready())
+	if (!data || data != placeholder_data || !atlas)
 		return 0;
 #ifdef HALO_BGFX
 	if (xgpu_bgfx)
@@ -561,6 +561,9 @@ unsigned int text_hires_atlas_texture(unsigned long data)
 		return atlas_texture;
 	}
 #endif
+	/* Only the OpenGL upload requires an OpenGL context. */
+	if (!xgpu_gl_ready())
+		return 0;
 	if (!atlas_texture)
 	{
 		glGenTextures(1, &atlas_texture);

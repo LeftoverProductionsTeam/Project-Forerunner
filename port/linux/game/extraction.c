@@ -114,6 +114,7 @@ struct extraction_squad_choice
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
+	boolean native_mode_checked, authored_extraction;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_return_zones[2];
@@ -161,12 +162,39 @@ static boolean extraction_unit_pending_death(struct unit_datum const *unit)
 		FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))) != 0;
 }
 
-static boolean extraction_requested(void)
+static boolean extraction_authoritative_scene(void)
 {
-	return (config_boolean("game.extraction") || coop_enemies_firefight_gear_active()) && global_scenario &&
-		global_scenario->type == _scenario_type_solo &&
+	return global_scenario && global_scenario->type == _scenario_type_solo &&
 		(game_connection() == _game_connection_local ||
 		(game_connection() == _game_connection_network_server && network_coop_active()));
+}
+
+static boolean extraction_mode_selected(void)
+{
+	return extraction.authored_extraction || config_boolean("game.extraction");
+}
+
+static boolean extraction_requested(void)
+{
+	return extraction_authoritative_scene() &&
+		(extraction_mode_selected() || coop_enemies_firefight_gear_active());
+}
+
+static void extraction_check_authored_mode(void)
+{
+	if (extraction.native_mode_checked || !extraction_authoritative_scene())
+		return;
+	extraction.native_mode_checked = TRUE;
+	if (config_boolean("game.extraction") || config_boolean("network.firefight_encounter") ||
+		coop_enemies_authored_round())
+		return;
+
+	/* Existing Spark exports identify timerless Extraction through native
+	 * control names. The ordinary binder still admits every control, zone,
+	 * faction route and spawn before any gear can be reserved. */
+	extraction.authored_extraction =
+		scenario_object_name_index_from_string(global_scenario, "extraction_deploy") != NONE &&
+		scenario_object_name_index_from_string(global_scenario, "extraction_activate") != NONE;
 }
 
 static short extraction_faction(short team)
@@ -177,7 +205,7 @@ static short extraction_faction(short team)
 
 boolean extraction_owns_map(void)
 {
-	return config_boolean("game.extraction") && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
+	return extraction_mode_selected() && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
 }
 
 typedef char extraction_voice_groups_fit_byte[
@@ -2421,10 +2449,11 @@ void extraction_update(void)
 	long now, slot;
 	short index;
 	extraction_medical_update();
+	extraction_check_authored_mode();
 	if (!extraction_requested()) return;
 	if (!extraction.bound)
 	{
-		extraction.survival = !config_boolean("game.extraction");
+		extraction.survival = !extraction_mode_selected();
 		extraction_bind();
 	}
 	if (!extraction.admitted) return;

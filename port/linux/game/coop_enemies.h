@@ -66,6 +66,7 @@ void coop_enemies_update(
 /* The built-in director owns its tracked enemies/lives/result, never the whole
 script scheduler. Recognized Spark native round scripts disable that director. */
 boolean coop_enemies_firefight_active(void);
+char const *coop_enemies_authored_round(void);
 /* main.c: active built-in rounds decide when their result may end the map. */
 boolean coop_enemies_firefight_result_ready(void);
 /* Optional shared gear policy, frozen at map start. Outcome: 0 running,
