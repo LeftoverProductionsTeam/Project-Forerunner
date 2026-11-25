@@ -125,6 +125,7 @@ static struct
 	short dropship_call_groups[2]; /* optional faction-specific evacuation requests */
 	/* Full native handles for this arrival, cleared by actual LZ boarding. */
 	long dropship_evacuating[2], dropship_banked[2], dropship_completed[2];
+	boolean dropship_return_stop[2];
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
@@ -1952,13 +1953,13 @@ static boolean extraction_transport_landed(long vehicle_index)
 	return !recorded_animation_has_thread(vehicle_index) && vehicle_is_landed(vehicle_index);
 }
 
-/* A completed crew can leave a return pad after the hull settles slightly
- * past the arrival angle. Banking and new boarding still require touchdown. */
+/* A stopped hull can serve another operation after its verified return.
+ * The next touchdown still uses the ordinary landing limits. */
 static boolean extraction_transport_completed_return(short faction, long vehicle_index)
 {
 	short zone = extraction.dropship_return_zones[faction];
-	return zone != NONE && extraction.dropship_completed[faction] == vehicle_index &&
-		extraction.dropship_banked[faction] == vehicle_index &&
+	return !extraction.suspended && extraction.dropship_return_stop[faction] &&
+		zone != NONE && extraction.dropship_completed[faction] == vehicle_index &&
 		!recorded_animation_has_thread(vehicle_index) &&
 		extraction_in_hub_volume(zone, vehicle_index) && vehicle_is_settled_on_return(vehicle_index);
 }
@@ -1998,7 +1999,8 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 	/* Crew-only maps still use their authored touchdown rules. Native
 	 * playback must release the aircraft before accepting new passengers. */
 	if ((extraction.dropship_landing_groups[faction] != NONE || extraction.dropship_boarding_groups[faction] != NONE) &&
-		!extraction_transport_arrival_ready(faction, vehicle_index)) return FALSE;
+		!extraction_transport_arrival_ready(faction, vehicle_index) &&
+		!extraction_transport_completed_return(faction, vehicle_index)) return FALSE;
 	if (extraction.dropship_boarding_groups[faction] == NONE) return TRUE;
 	if (!extraction_transport_seat_allowed(vehicle, seat_index, TRUE)) return FALSE;
 
@@ -2065,6 +2067,7 @@ void extraction_transport_recording_started(long unit_index)
 		short boarding_group = extraction.dropship_boarding_groups[faction];
 		if ((landing_group == NONE && boarding_group == NONE) || extraction.dropship_names[faction] == NONE ||
 			object_index_from_name_index(extraction.dropship_names[faction]) != unit_index) continue;
+		extraction.dropship_return_stop[faction] = FALSE;
 		/* HaloScript can read these outputs again before the next tick. */
 		if (landing_group != NONE && device_group_get_value(landing_group) != 0.f)
 			device_group_set_actual_value(landing_group, 0.f);
@@ -2139,6 +2142,7 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 		run->dropship = dropship;
 		run->dropship_team = unit->object.owner_team_index;
 		extraction.dropship_evacuating[faction] = dropship;
+		extraction.dropship_return_stop[faction] = FALSE;
 		extraction.dropship_banked[faction] = extraction.dropship_completed[faction] = NONE;
 		extraction_tell(run, "BOARDED | Stay aboard through departure. Recovery follows arrival and the authored cinematic.");
 		return FALSE;
@@ -2408,12 +2412,18 @@ static void extraction_transport_readiness(void)
 		if (landing_group != NONE || boarding_group != NONE)
 		{
 			long ship = extraction.suspended ? NONE : object_index_from_name_index(extraction.dropship_names[faction]);
-			/* A completed stop remains available for egress. Crew readiness
-			 * still uses the normal touchdown sample when a landing output exists. */
-			boolean touchdown = landing_group != NONE && ship != NONE && extraction_transport_landed(ship);
-			real landed = landing_group != NONE && ship != NONE &&
-				(touchdown || extraction_transport_completed_return(faction, ship)) ? 1.f : 0.f;
-			real ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || touchdown) &&
+			real landed, ready;
+			if (extraction.dropship_return_stop[faction])
+			{
+				struct object_datum const *vehicle = object_try_and_get_and_verify_type(ship, _object_mask_vehicle);
+				if (!vehicle || ship != extraction.dropship_completed[faction] ||
+					!TEST_FLAG(vehicle->object.flags, _object_on_ground_bit) || recorded_animation_has_thread(ship) ||
+					!extraction_in_hub_volume(extraction.dropship_return_zones[faction], ship))
+					extraction.dropship_return_stop[faction] = FALSE;
+			}
+			landed = landing_group != NONE && ship != NONE &&
+				(extraction_transport_landed(ship) || extraction_transport_completed_return(faction, ship)) ? 1.f : 0.f;
+			ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || landed > 0.f) &&
 				extraction_transport_crew_ready(faction, ship) ? 1.f : 0.f;
 			if (landing_group != NONE && device_group_get_value(landing_group) != landed)
 				device_group_set_actual_value(landing_group, landed);
@@ -2462,6 +2472,8 @@ static void extraction_transport_completions(void)
 		extraction.dropship_completed[faction] = ship;
 		if (ship == extraction.dropship_banked[faction])
 		{
+			extraction.dropship_return_stop[faction] = extraction.dropship_return_zones[faction] != NONE &&
+				extraction.dropship_landing_groups[faction] != NONE;
 			if (extraction_wake_mission_script(faction ? "forerunner_spirit_complete" : "forerunner_pelican_complete", TRUE))
 				platform_log("extraction: %s crew banked; authored transport completion woken", faction ? "Spirit" : "Pelican");
 		}

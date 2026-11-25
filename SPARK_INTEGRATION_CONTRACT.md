@@ -106,14 +106,16 @@ so the stopped hull sustains the engine's .950 minimum up.k, with
 clear passenger egress. Covenant and human multiplayer remain open.
 The installed build and cache stayed unchanged.
 
-Forerunner accepts a small settling change for egress after durable banking
-and transport completion at the dedicated return pad. The same craft must
-be grounded and at rest, within the native motion limits, at up.k .940 or
-higher, with native playback finished. Initial touchdown, pickup, new
-boarding and banking still require the normal .950 landing check on maps
-that declare the landing output. The exact .947 Pelican and Spirit cases
-reproduced before the fix and passed with the 101 focused transport checks.
-The Win64 candidate compiled. Live egress on the authored return remains open.
+Forerunner retains a completed, durably banked return as the same stop
+while the craft remains grounded within its dedicated pad. At rest, it
+can keep the landing signal for egress and the next crew's regular
+boarding checks at up.k .940 or higher. Lift-off, leaving the pad,
+replacement and recorded playback invalidate the stop. Fresh touchdown,
+field pickup and banking retain the native .950 check on maps declaring
+a landing output. Other seat, collision, operation and gear gates apply.
+The post-bank boarding regression failed for both craft before the
+change. All 101 focused checks passed and Win64 compiled as
+`824f1633cd4d9d1c5e95c3e822c35f048e54b25f48cb8afc2afc225a0e00295b`.
 
 Spark's grounded squad cache CE609
 `26be7e13c17a368934a3b3ed0b24a309be99310cc0a036fd498a3b7af717b57e`
@@ -127,9 +129,21 @@ woke operation 1 once. A controlled native grenade death before field
 departure woke the authored abort and respawned the player at the hub.
 The checksum-verified stash recorded a loss with zero items, reservations
 or escrow. Normal E at Deploy then woke operation 2 in the same session
-without reselecting the squad. This proves loss and redeployment. The
-successful extraction path, field-readiness reset and private guest
-acceptance remain open on this numbered cache.
+without reselecting the squad.
+
+A separate run on that cache, Win64
+`149d1324f7e4e792b7a956470e8ad216f363fe5fb18775c43cc09acf819693e5`,
+completed UNSC insertion, early evacuation without optional containment,
+pickup seat 1 at tick 10020, and banking by tick 12900. The authored
+Squad 01 completion woke. At tick 13020 the return hull still reported
+ground/rest 1, up.k .947, motion .0012, strict landed 0, and center
+(54.244, -99.715, .671). Normal E started the exit animation and the player
+was on foot at tick 13050. E at Deploy woke operation 2 and reissued both
+exact weapon IDs from the generation-4 bank without duplicates. Approaching
+the second boarding on that executable found no valid seat with the
+authored lock open at up.k .946. The retained-stop fix above was compiled
+and checked in the harness. Its live second boarding and departure,
+field-readiness reset and private guest acceptance remain open.
 
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the

@@ -1722,6 +1722,16 @@ int main(int argc,char **argv)
    ship->object.translational_velocity.i=.0001f;advance(1);
    CHECK(device_groups[11].actual_value==1.f&&extraction_transport_can_disembark(&units[faction]),
     "a banked crew lost egress when the grounded aircraft settled on its return pad");
+   units[faction].object.parent_object_index=NONE;units[faction].object.position.x=7.f;
+   touch(0,faction);CHECK(run(faction)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
+   units[faction].object.position.x=0.f;touch(0,faction);
+   CHECK(run(faction)->phase==_extraction_deployed,"shared hub stopped admitting redeployment");
+   CHECK(unit_can_enter_seat(unit_handles[faction],transport,0,NULL),
+    "second deployment cannot board the same completed return stop");
+   units[faction].object.parent_object_index=transport;
+   advance(1);
+   CHECK(device_groups[10].actual_value==1.f,"a physically seated new crew cannot depart the completed stop");
+
    ship->object.flags&=~FLAG(_object_on_ground_bit);advance(1);
    CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
     "completed return allowed airborne exit");
@@ -1737,12 +1747,9 @@ int main(int argc,char **argv)
    ship->object.up.k=.93f;advance(1);
    CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
     "completed return allowed exit from an excessively tilted hull");
-   ship->object.up.k=1.f;
-
-   units[faction].object.parent_object_index=NONE;units[faction].object.position.x=7.f;
-   touch(0,faction);CHECK(run(faction)->phase==_extraction_returned,"aircraft pad became a foot deployment hub");
-   units[faction].object.position.x=0.f;touch(0,faction);
-   CHECK(run(faction)->phase==_extraction_deployed,"shared hub stopped admitting redeployment");
+   ship->object.up.k=.947f;advance(1);
+   CHECK(!device_groups[11].actual_value&&!extraction_transport_can_disembark(&units[faction]),
+    "new flight reused a prior stop's tolerance");
    extraction_reset();return 0;
   }
   if(!strcmp(case_name,"transport-landed-alias")) {
