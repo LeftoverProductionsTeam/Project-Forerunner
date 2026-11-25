@@ -359,8 +359,13 @@ player in the Spirit and the occupied flight reached its field pad.
 Voluntary E disembarkation put the player on foot at (91.320, -133.829,
 0.741) at tick 11520 with full health and shields. The test used normal
 movement and seat controls, with no placement or forced seating.
-The generic prompt is the native fallback when either the vehicle or seat
-icon-text entry is unusable. Review both labels in the authoring handoff.
+A later isolated Win64 run (executable SHA-256 `2519534acad4be0d65b7095239a2052afd7b7da53f0f774372c1a301e35be1f5`)
+used the same map and displayed “Press [E] to board Spirit.” The normal
+interaction seated the local Elite and the Spirit lifted off. The HUD fallback
+uses the vehicle's authored icon-text when the seat label is absent, or the
+bound `extraction_spirit` or `extraction_pelican` vehicle name when the vehicle
+label is absent. Author both icon-text entries for localized vehicle and seat
+messages. Screenshot: `build/windows64/screenshots/black-echo-spirit-boarding-prompt.png`.
 Field objectives, return boarding and banking were outside this installed
 build's smoke. The original staged UNSC map and resource banks were preserved.
 

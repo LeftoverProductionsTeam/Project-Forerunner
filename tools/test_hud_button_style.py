@@ -58,6 +58,67 @@ int main(void) {
 ''')
 
 
+def test_boarding_prompt_identifies_the_action_target_without_a_seat_label(tmp_path):
+    source = (ROOT / 'source/interface/hud.c').read_text()
+    run_c(tmp_path, r"""
+#include <assert.h>
+#include <string.h>
+#include <wchar.h>
+#define NUMBEROF(a) (sizeof(a) / sizeof((a)[0]))
+#define VALID_INDEX(i,n) ((i)>=0&&(i)<(n))
+#define TAG_BLOCK_GET_ELEMENT(block,i,type) (&(block)->entries[i])
+#define csstrcmp strcmp
+#define _object_type_vehicle 1
+struct scenario_object_name { const char *name; };
+struct scenario {
+    struct { int count; struct scenario_object_name entries[2]; } object_names;
+};
+static struct scenario map = {{2, {{"extraction_spirit"}, {"extraction_pelican"}}}};
+static struct { struct { short name_index; } object; } target;
+static struct { struct { struct { long index; } alternate_icon_text; } messaging; } hud;
+static struct { short local_player_index; } render;
+#define hud_globals (&hud)
+#define object_get(index) (&target)
+#define global_scenario_try_and_get() (&map)
+static long bound_object = 7;
+static const wchar_t *authored_name = L"Warthog";
+static short object_get_type(long index) { return index == 7 ? _object_type_vehicle : 0; }
+static long object_index_from_name_index(short index) { return bound_object; }
+static int hud_action_name_available(short index) { return index == 1; }
+static const wchar_t *unicode_string_list_get_string(long tag, short index) {
+    assert(index == 1);
+    return authored_name;
+}
+static wchar_t actual[96];
+static void hud_set_state_text(short local_player, const wchar_t *prompt) {
+    assert(wcslen(prompt) < NUMBEROF(actual));
+    wcscpy(actual, prompt);
+}
+""" + function(source, 'hud_set_vehicle_boarding_prompt') + r"""
+int main(void) {
+    hud_set_vehicle_boarding_prompt(7, 1);
+    assert(!wcscmp(actual, L"Press %action to board Warthog"));
+
+    hud_set_vehicle_boarding_prompt(7, -1);
+    assert(!wcscmp(actual, L"Press %action to board Spirit"));
+    target.object.name_index = 1;
+    hud_set_vehicle_boarding_prompt(7, -1);
+    assert(!wcscmp(actual, L"Press %action to board Pelican"));
+
+    bound_object = 9;
+    hud_set_vehicle_boarding_prompt(7, -1);
+    assert(!wcscmp(actual, L"Press %action to board"));
+    authored_name = L"Transport %action";
+    hud_set_vehicle_boarding_prompt(7, 1);
+    assert(!wcscmp(actual, L"Press %action to board"));
+    authored_name = L"01234567890123456789012345678901234567890123456789012345678901234567890123456789";
+    hud_set_vehicle_boarding_prompt(7, 1);
+    assert(!wcscmp(actual, L"Press %action to board"));
+    return 0;
+}
+""")
+
+
 def test_custom_vehicle_prompt_draws_control_markup_without_game_engine(tmp_path):
     source = (ROOT / 'source/interface/hud_messaging.c').read_text()
     run_c(tmp_path, r'''

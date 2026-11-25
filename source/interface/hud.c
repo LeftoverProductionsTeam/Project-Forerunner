@@ -110,6 +110,7 @@ symbols in this file:
 #include "render/render_camera_projection.h"
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "sound/game_sound.h"
 #include "tag_files/tag_files.h"
 #include "text/draw_string.h"
@@ -370,6 +371,53 @@ static boolean hud_action_name_available(short index)
 		ustrcmp(text, L"<missing string>");
 }
 
+static void hud_set_vehicle_boarding_prompt(long object_index, short vehicle_name_index)
+{
+	wchar_t prompt[96] = L"Press %action to board";
+	wchar_t const *name = NULL;
+	size_t offset = sizeof(L"Press %action to board") / sizeof(wchar_t) - 1;
+	size_t length = 0;
+
+	if (hud_action_name_available(vehicle_name_index))
+	{
+		name = unicode_string_list_get_string(
+			hud_globals->messaging.alternate_icon_text.index, vehicle_name_index);
+	}
+	else if (object_get_type(object_index) == _object_type_vehicle)
+	{
+		struct scenario const *scenario = global_scenario_try_and_get();
+		short name_index = object_get(object_index)->object.name_index;
+
+		/* The native Extraction vehicle bindings are also available to clients. */
+		if (scenario && VALID_INDEX(name_index, scenario->object_names.count) &&
+			object_index_from_name_index(name_index) == object_index)
+		{
+			struct scenario_object_name const *binding = TAG_BLOCK_GET_ELEMENT(
+				&scenario->object_names, name_index, struct scenario_object_name);
+			if (!csstrcmp(binding->name, "extraction_spirit"))
+				name = L"Spirit";
+			else if (!csstrcmp(binding->name, "extraction_pelican"))
+				name = L"Pelican";
+		}
+	}
+
+	/* Custom prompts interpret action markup. Append only a complete plain-text name. */
+	if (name)
+	{
+		size_t limit = NUMBEROF(prompt) - offset - 2;
+		while (length < limit && name[length] >= L' ' && name[length] != L'%')
+			++length;
+		if (length && !name[length])
+		{
+			prompt[offset++] = L' ';
+			memcpy(prompt + offset, name, (length + 1) * sizeof(wchar_t));
+		}
+	}
+
+	hud_set_state_text(render.local_player_index, prompt);
+}
+
+
 static void hud_show_action_response(
 	long player_index)
 {
@@ -610,7 +658,7 @@ static void hud_show_action_response(
 		if (!hud_action_name_available(item_name_index) || !hud_action_name_available(seat_name_index))
 		{
 			hud_enable_custom_state_message(render.local_player_index, TRUE);
-			hud_set_state_text(render.local_player_index, L"Press %action to board");
+			hud_set_vehicle_boarding_prompt(player->action_object_index, item_name_index);
 			return;
 		}
 		hud_set_state_message(
