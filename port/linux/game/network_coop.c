@@ -661,7 +661,7 @@ static boolean coop_client(
 	return game_connection() == _game_connection_network_client && coop_game();
 }
 
-static boolean regional_surface_sync_active(void)
+static boolean regional_world_sync_active(void)
 {
 	return network_regional_bsp_active() && network_regional_bsp_room_ready();
 }
@@ -778,7 +778,7 @@ static struct distributed_coop_event *event_new(
 	struct distributed_coop_event *event;
 
 	if (!coop_host() && (kind != _coop_event_surface_broken ||
-		game_connection() != _game_connection_network_server || !regional_surface_sync_active()))
+		game_connection() != _game_connection_network_server || !regional_world_sync_active()))
 		return NULL;
 	if (coop_events.count == MAXIMUM_QUEUED_EVENTS)
 	{
@@ -1118,6 +1118,8 @@ static void host_send_device_states(
 		boolean changed;
 
 		if (absolute_index < 0 || absolute_index >= MAXIMUM_OBJECTS_PER_MAP)
+			continue;
+		if (game_engine_object_parked(iterator.index, device->object.type))
 			continue;
 		if (host_sent_devices[absolute_index].object_index != iterator.index)
 		{
@@ -2791,7 +2793,7 @@ boolean network_game_port_vehicle_riding(
 boolean network_coop_devices_remote(
 	void)
 {
-	return coop_client();
+	return coop_client() || (game_connection() == _game_connection_network_client && regional_world_sync_active());
 }
 
 /* units.c: a vehicle left the vehicle carrying it. When a Pelican drops a
@@ -2882,7 +2884,8 @@ boolean network_coop_set_players_vitality(
 void network_coop_note_device_snap(
 	short group_index)
 {
-	if (coop_host() && group_index >= 0 && group_index < MAXIMUM_DEVICE_GROUPS)
+	if ((coop_host() || (game_connection() == _game_connection_network_server && regional_world_sync_active())) &&
+		group_index >= 0 && group_index < MAXIMUM_DEVICE_GROUPS)
 		host_devices.snap_counts[group_index]++;
 }
 
@@ -3728,9 +3731,12 @@ void network_coop_host_tick(
 
 	if (!coop_game())
 	{
-		if (regional_surface_sync_active())
+		if (regional_world_sync_active())
 		{
 			host_resend_update();
+			host_send_device_groups();
+			host_send_device_states();
+			host_resend.scene_refresh = FALSE;
 			host_send_broken_surfaces();
 			host_send_events();
 		}
@@ -3853,7 +3859,7 @@ void network_coop_handle_device_states(
 	struct distributed_coop_device_state const *states = entries;
 	short index;
 
-	if (!coop_client())
+	if (!network_coop_devices_remote())
 		return;
 	for (index = 0; index < count; index++)
 	{
@@ -3866,6 +3872,8 @@ void network_coop_handle_device_states(
 		if (device_index == NONE || !distributed_real_valid(state->position) || !distributed_real_valid(state->power))
 			continue;
 		device = object_get_and_verify_type(device_index, _object_mask_device);
+		if (game_engine_object_parked(device_index, device->object.type))
+			continue;
 		difference = device->device.position - state->position;
 		if (difference < 0.0f)
 			difference = -difference;
@@ -3996,7 +4004,7 @@ void network_coop_handle_device_groups(
 	struct distributed_coop_device_group const *groups = entries;
 	short index;
 
-	if (!coop_client())
+	if (!network_coop_devices_remote())
 		return;
 	for (index = 0; index < count; index++)
 	{
@@ -4079,7 +4087,7 @@ void network_coop_handle_events(
 	short index;
 
 	if (!cooperative && (game_connection() != _game_connection_network_client ||
-		!regional_surface_sync_active()))
+		!regional_world_sync_active()))
 		return;
 	for (index = 0; index < count; index++)
 	{

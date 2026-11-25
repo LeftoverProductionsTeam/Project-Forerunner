@@ -3620,6 +3620,19 @@ surfaces, so actual glass damage and playback across a crossing still
 need a map containing breakable geometry. See
 `build/native-megaworld-f0835f5e-fracture-wire.json`.
 
+Negotiated regional MCC13 multiplayer now uses co-op's native device group
+and position messages. The host decides switch use and device movement.
+Physical snapshots remain bound to the announced BSP and omit parked
+devices. Existing device groups can link switches and machines across the
+scenario. No new content format or packet layout is required.
+
+Win64 candidate `7d54225cb42e7e2e8526947edb8607d33c1fcbcab9e3f0272387f4061be9c896`
+passed 106 focused checks. Two private peers loaded the exact 19-region
+`f0835f5e` cache and agreed on the guest's movement. The surveyed starting
+BSP reported no controls, so live switch activation, door collision and
+late-join device recovery still need a regional cache with an authored
+switch and linked machine. Independent regional simulation remains open.
+
 #### Expanded MCC13 scenario placements
 
 Spark can use the MCC13 discovery fields `max_player_starts` (1,024)

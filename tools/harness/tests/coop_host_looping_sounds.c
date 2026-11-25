@@ -253,6 +253,17 @@ int main(int argc,char **argv)
   scripted_sound_new(SHORT_SOUND,44,.5f);
   CHECK(sent_count==1&&sent[0].object_index==44&&sent[0].reals[0]==.5f&&impulse_plays==1&&scripted_sound_time(SHORT_SOUND)==60,"ordinary native sound path changed");
  }
+ else if(!strcmp(name,"regional-device-authority"))
+ {
+  connection=_game_connection_network_client;
+  CHECK(!network_coop_devices_remote(),"ordinary multiplayer device use changed");
+  regional_match=TRUE;
+  CHECK(!network_coop_devices_remote(),"unnegotiated room changed device authority");
+  regional_negotiated=TRUE;
+  CHECK(network_coop_devices_remote(),"regional client still decides device use");
+  connection=_game_connection_network_server;
+  CHECK(!network_coop_devices_remote(),"regional host lost device authority");
+ }
  else if(!strcmp(name,"regional-fracture-events"))
  {
   struct distributed_coop_event *fracture;
