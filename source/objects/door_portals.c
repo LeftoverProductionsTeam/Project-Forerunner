@@ -48,6 +48,7 @@ Based on work by goatbutt and the OpenH1 team (erin.cena's door portals).
 #include "objects/objects.h"
 #include "devices/devices.h"
 #include "game/game.h"
+#include "game/game_engine.h"
 #include "devices/device_definitions.h"
 #include "devices/device_machines.h"
 #include "physics/collision_bsp.h"
@@ -487,7 +488,8 @@ void door_portals_update(
 		struct door_portals_door *door;
 		short end, index;
 
-		if (machine_definition_get(machine->definition_index)->machine.type != DOOR_PORTALS_MACHINE_TYPE_DOOR)
+		if (game_engine_object_parked(iterator.index, machine->object.type) ||
+			machine_definition_get(machine->definition_index)->machine.type != DOOR_PORTALS_MACHINE_TYPE_DOOR)
 			continue;
 		door = door_portals_door_get(iterator.index);
 		if (!door)

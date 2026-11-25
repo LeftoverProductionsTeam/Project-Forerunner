@@ -4124,11 +4124,18 @@ static boolean object_update(
 {
 	struct object_header_datum *header = object_header_get(object_index);
 	struct object_datum *object = object_get(object_index);
-	struct object_definition *object_definition = object_definition_get(object->definition_index);
+	struct object_definition *object_definition;
 
 	boolean result = TRUE;
 	boolean elevator_sampled = FALSE;
 	real_point3d elevator_sample;
+
+	/* Parked doors and lifts must not advance timers, carry riders, or
+	 * trigger from nearby players in the currently bound BSP. */
+	if (TEST_FLAG(_object_mask_device, object->object.type) &&
+		object->object.parent_object_index == NONE && game_engine_object_parked(object_index, object->object.type))
+		return TRUE;
+	object_definition = object_definition_get(object->definition_index);
 	if (!TEST_FLAG(header->flags, _object_header_do_not_update_bit))
 	{
 		/* port: (vehicle_riding.c) */
