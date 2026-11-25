@@ -3776,6 +3776,39 @@ static unsigned long player_root_bsp_contacts(
 	return collision_structure_blocks_pill(structure, bsp_index, &base, height, width) ? 1UL : 0UL;
 }
 
+static boolean player_root_blocked_in_destination(
+	long root_index,
+	short destination)
+{
+	struct object_datum const *root = object_get(root_index);
+	struct object_iterator iterator;
+	struct object_datum const *blocker;
+
+	object_iterator_new(&iterator, _object_mask_vehicle | _object_mask_machine | _object_mask_control, 0);
+	while ((blocker = object_iterator_next(&iterator)) != NULL)
+	{
+		real reach = root->object.bounding_sphere_radius + blocker->object.bounding_sphere_radius;
+
+		if (iterator.index == root_index || blocker->object.parent_object_index != NONE ||
+			game_engine_object_recorded_bsp(iterator.index, blocker->object.type) != destination ||
+			distance_squared3d(&root->object.bounding_sphere_center, &blocker->object.bounding_sphere_center) > reach * reach)
+			continue;
+
+		if (root->object.type == _object_type_vehicle && physics_vehicle_blocked_by_object(root_index, iterator.index))
+			return TRUE;
+		if (root->object.type == _object_type_biped)
+		{
+			real_point3d base;
+			real height, width;
+
+			biped_get_physics_pill(root_index, &base, &height, &width);
+			if (collision_object_blocks_pill(iterator.index, &base, height, width))
+				return TRUE;
+		}
+	}
+	return FALSE;
+}
+
 /* A cold load replaces the source tag window. Keep the contact mask for
  * each exact crossing root while the world is stopped. */
 void players_capture_bsp_crossing_clearance(
@@ -3847,10 +3880,12 @@ static boolean players_continuous_bsp_crossing_valid(
 			return FALSE;
 		if (regional && structure && (source || clearance))
 		{
-			unsigned long contacts = player_root_bsp_contacts(root_index, volume->destination_structure_bsp_index, structure);
-			unsigned long source_contacts;
+			unsigned long contacts, source_contacts;
 			long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
 
+			if (player_root_blocked_in_destination(root_index, volume->destination_structure_bsp_index))
+				return FALSE;
+			contacts = player_root_bsp_contacts(root_index, volume->destination_structure_bsp_index, structure);
 			if (contacts)
 			{
 				if (source)

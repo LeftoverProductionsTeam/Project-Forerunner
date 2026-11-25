@@ -3317,6 +3317,17 @@ reported BSP 0 again at ticks 1274 and 1281. Both exited zero. The
 same debug approach staging and normal keyboard movement apply.
 Retained copies and receipts are in `build/native-mcc-derelict-71fc1648`.
 
+Seam clearance now checks nearby vehicles, machines and controls with a known
+destination BSP before committing the shared switch. It takes contact from
+native object models and vehicle physics, even while those blockers are
+parked. Windows x64
+`6cdeca16c0648ddd436654890b3e1b344a6bd25def23c411cedf65b3cc64e84a`
+passed 81 focused checks, including refused infantry and vehicle crossings
+against a parked destination door. Two native peers on the fourteen-region
+cache took the same guest-driven Warthog through Chiron and back, keeping
+handle `e26f0000` and driver seat 0 on both machines. Both exited normally.
+Independent occupants and simulation still require their own regional scenes.
+
 Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
 active BSP and up to two previous BSPs inside the existing 64 MiB tag
 window. The loader selects disjoint ranges for retained geometry and can

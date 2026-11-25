@@ -131,6 +131,7 @@ struct structure_bsp;
 boolean collision_structure_bsp_line_clear(
 	short structure_bsp_index, unsigned long flags,
 	real_point3d const *from, real_point3d const *to);
+boolean collision_object_blocks_pill(long object_index, real_point3d const *base, real height, real width);
 boolean collision_structure_blocks_pill(
 	struct structure_bsp const *structure, short structure_bsp_index,
 	real_point3d const *base, real height, real width);

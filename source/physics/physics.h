@@ -41,6 +41,7 @@ struct physics_test_vector_result
 
 boolean physics_instance_new(struct physics_instance *instance, long object_index);
 unsigned long physics_structure_contact_mask(long object_index, struct structure_bsp const *structure, short bsp_index);
+boolean physics_vehicle_blocked_by_object(long vehicle_index, long blocking_object_index);
 boolean physics_resting_placement(long object_index, real_point3d const *contact,
 	real_vector3d const *normal, long ignore_object_index, real_point3d *position);
 boolean physics_placement_lift(struct physics_instance const *instance, real_point3d const *contact,

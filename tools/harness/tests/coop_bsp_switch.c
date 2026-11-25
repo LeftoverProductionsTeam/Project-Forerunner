@@ -66,7 +66,8 @@ struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;};
 struct object_datum {
     struct {long parent_object_index,first_child_object_index,next_object_index;short type;
-        real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;struct location location;} object;
+        real_point3d position,bounding_sphere_center;real bounding_sphere_radius;
+        unsigned long flags,damage_flags;struct location location;} object;
     long weapon;short ammunition;
     struct {long player_index,driver_object_index,gunner_object_index;short parent_seat_index;} unit;
 };
@@ -184,6 +185,19 @@ static real_point3d const *players_checkpoint_position(long player) {return NULL
 static void biped_get_physics_pill(long unit,real_point3d *p,real *height,real *width)
 {*p=objects[slot(unit)].object.position;*height=1;*width=.2f;}
 static struct structure_bsp const *scenario_structure_bsp_try_and_get(short index);
+static long regional_blocker=NONE;
+static int regional_pill_probes, regional_vehicle_probes;
+static boolean collision_object_blocks_pill(long blocker,real_point3d const *base,real height,real width)
+{
+    CHECK(height==1.f&&width==.2f,"destination used the wrong player collision capsule");
+    regional_pill_probes++;
+    return blocker==regional_blocker;
+}
+static boolean physics_vehicle_blocked_by_object(long vehicle,long blocker)
+{
+    regional_vehicle_probes++;
+    return blocker==regional_blocker;
+}
 static boolean bsp_pill_blocked[2];
 static unsigned long bsp_vehicle_contacts[2];
 static unsigned long physics_structure_contact_mask(long object_index,struct structure_bsp const *structure,short index)
@@ -252,6 +266,12 @@ static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d c
 #define HALO_PORT_MAXIMUM_NETWORK_PLAYERS 128
 #define csmemset memset
 #define NUMBEROF(array) ((int)(sizeof(array)/sizeof((array)[0])))
+struct object_iterator {short slot;long index;};
+static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->slot=0;}
+static struct object_datum *object_iterator_next(struct object_iterator *it)
+{if(it->slot==4)return NULL;it->index=units[it->slot];return &objects[it->slot++];}
+static short game_engine_object_recorded_bsp(long index,short type);
+static real distance_squared3d(real_point3d const *a, real_point3d const *b);
 #include "players.inc"
 #undef NUMBEROF
 #undef csmemset
@@ -269,10 +289,6 @@ static struct {
     unsigned long last_active_cluster_bits[1],active_cluster_bits[1];
 } object_state;
 static __typeof__(object_state) *object_globals=&object_state;
-struct object_iterator {short slot;long index;};
-static void object_iterator_new(struct object_iterator *it,unsigned long mask,long flags) {it->slot=0;}
-static struct object_datum *object_iterator_next(struct object_iterator *it)
-{if(it->slot==4)return NULL;it->index=units[it->slot];return &objects[it->slot++];}
 static void object_disconnect_from_map(long index) {objects[slot(index)].object.flags=0;}
 static void object_type_disconnect_from_structure_bsp(long index) {}
 #define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
@@ -1263,7 +1279,34 @@ int main(int argc,char **argv)
                 CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
                       "shared terrain contact refused an otherwise valid crossing");
                 bsp_pill_blocked[0]=bsp_pill_blocked[1]=FALSE;
+
+                struct object_datum *door=&objects[3];
+                door->object.type=_object_type_machine;
+                door->object.parent_object_index=NONE;
+                door->object.flags=FLAG(_object_connected_to_map_bit);
+                door->object.location.cluster_index=0;
+                door->object.bounding_sphere_center=objects[0].object.bounding_sphere_center;
+                door->object.bounding_sphere_radius=1.f;
+                regional_blocker=units[3];
+                game_engine_record_regional_object(regional_blocker,door,old);
+                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      !regional_pill_probes&&!regional_vehicle_probes,
+                      "source collision geometry blocked a destination crossing");
+                game_engine_record_regional_object(regional_blocker,door,destination);
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      regional_pill_probes==1,
+                      "the on-foot player could cross into a known parked door");
                 objects[0].object.parent_object_index=units[2];
+                door->object.bounding_sphere_center=objects[2].object.bounding_sphere_center;
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      regional_vehicle_probes==1,
+                      "the occupied vehicle could cross into a known parked door");
+                door->object.bounding_sphere_center.x+=10.f;
+                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      regional_vehicle_probes==1,
+                      "an out-of-reach blocker reached the vehicle collision test");
+                regional_blocker=NONE;
+
                 bsp_vehicle_contacts[old]=FLAG(0);
                 bsp_vehicle_contacts[destination]=FLAG(0)|FLAG(2);
                 CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),

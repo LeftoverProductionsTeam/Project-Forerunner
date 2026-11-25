@@ -975,6 +975,28 @@ boolean collision_structure_blocks_pill(
 	return collision_features_test_point_with_floor_tolerance(&features, base, 0.001f, &contact);
 }
 
+/* A parked object has no cluster in the active scene. Its native collision
+ * model still supplies contact at the object's authoritative pose. */
+boolean collision_object_blocks_pill(
+	long object_index,
+	real_point3d const *base,
+	real height,
+	real width)
+{
+	struct collision_feature_list features;
+	struct collision_plane contact;
+	real_point3d center = *base;
+	unsigned long flags = FLAG(_collision_test_objects_vehicles_bit) |
+		FLAG(_collision_test_objects_machines_bit) | FLAG(_collision_test_objects_controls_bit) |
+		FLAG(_collision_test_use_vehicle_physics_bit);
+
+	center.z += height * 0.5f;
+	collision_features_new(&features);
+	object_get_features_in_sphere(flags, object_index, &center,
+		height * 0.5f + width + 0.0625f, height, width, NONE, &features);
+	return collision_features_test_point(&features, base, &contact);
+}
+
 boolean collision_get_features_in_sphere(
 	unsigned long flags,
 	real_point3d const *center,

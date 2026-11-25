@@ -630,10 +630,11 @@ boolean physics_resting_placement(long object_index, real_point3d const *contact
 	return physics_placement_clear(&instance, ignore_object_index, TRUE, NULL);
 }
 
-unsigned long physics_structure_contact_mask(
+static unsigned long physics_contact_mask(
 	long object_index,
 	struct structure_bsp const *structure,
-	short bsp_index)
+	short bsp_index,
+	long blocking_object_index)
 {
 	struct physics_instance instance;
 	unsigned long contacts = 0;
@@ -652,10 +653,24 @@ unsigned long physics_structure_contact_mask(
 		if (radius <= 0.f)
 			continue;
 		matrix4x3_transform_point(&instance.world_matrix, &mass_point->position, &center);
-		if (collision_structure_blocks_pill(structure, bsp_index, &center, 0.f, radius))
+		if (structure ? collision_structure_blocks_pill(structure, bsp_index, &center, 0.f, radius) :
+			collision_object_blocks_pill(blocking_object_index, &center, 0.f, radius))
 			contacts |= FLAG(index);
 	}
 	return contacts;
+}
+
+unsigned long physics_structure_contact_mask(
+	long object_index,
+	struct structure_bsp const *structure,
+	short bsp_index)
+{
+	return physics_contact_mask(object_index, structure, bsp_index, NONE);
+}
+
+boolean physics_vehicle_blocked_by_object(long vehicle_index, long blocking_object_index)
+{
+	return physics_contact_mask(vehicle_index, NULL, NONE, blocking_object_index) != 0;
 }
 
 /* Check the native mass-point hull at the supplied pose. A recorded pose may

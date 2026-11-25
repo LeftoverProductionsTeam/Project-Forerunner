@@ -587,6 +587,7 @@ struct tag_block;
 void game_engine_vehicle_placement_begin(
 	void);
 void game_engine_record_regional_object(long object_index, struct object_datum const *object, short source_bsp);
+short game_engine_object_recorded_bsp(long object_index, short object_type);
 boolean game_engine_object_parked(long object_index, short object_type);
 #ifdef HALO_CUSTOM_EDITION
 /* port: whether a Halo PC map's vehicles are chosen by their placements'

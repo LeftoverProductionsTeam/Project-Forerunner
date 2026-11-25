@@ -82,7 +82,8 @@ def generated(fault=None):
         ('regional_equipment.inc', enum_with(read('source/game/game_engine.c'), 'REGIONAL_STATIC_DEVICE_TYPES') +
          '\n' + '\n'.join(function(read('source/game/game_engine.c'), name) for name in
             ('game_engine_equipment_item_at_pad', 'game_engine_equipment_item_parked', 'game_engine_vehicle_empty',
-             'game_engine_record_regional_object', 'game_engine_object_parked', 'game_engine_update_item_spawn'))),
+             'game_engine_record_regional_object', 'game_engine_object_recorded_bsp',
+             'game_engine_object_parked', 'game_engine_update_item_spawn'))),
         ('device_touch.inc', function(read('source/devices/devices.c'), 'device_touched')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +
@@ -95,6 +96,7 @@ def generated(fault=None):
             'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger',
             'player_bsp_continuous_route_contains', 'player_bsp_crossing_root',
             'players_coop_pending_continuous_bsp_switch', 'player_root_bsp_contacts',
+            'player_root_blocked_in_destination',
             'players_capture_bsp_crossing_clearance', 'players_continuous_bsp_crossing_valid',
             'players_coop_can_activate_structure_bsp',
             'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),

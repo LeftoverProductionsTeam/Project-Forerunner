@@ -5496,7 +5496,7 @@ void game_engine_record_regional_object(
 	}
 }
 
-boolean game_engine_object_parked(
+short game_engine_object_recorded_bsp(
 	long object_index,
 	short object_type)
 {
@@ -5505,8 +5505,19 @@ boolean game_engine_object_parked(
 		struct game_engine_regional_object const *region =
 			&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
 		if (region->object_index == object_index)
-			return region->bsp_index != global_structure_bsp_index_get();
+			return region->bsp_index;
 	}
+	return NONE;
+}
+
+boolean game_engine_object_parked(
+	long object_index,
+	short object_type)
+{
+	short bsp = game_engine_object_recorded_bsp(object_index, object_type);
+
+	if (bsp != NONE)
+		return bsp != global_structure_bsp_index_get();
 	if (object_type == _object_type_vehicle)
 		return game_engine_vehicle_parked(object_index);
 	if (TEST_FLAG(_object_mask_item, object_type))
