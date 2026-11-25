@@ -2429,6 +2429,19 @@ record each link's source and destination BSP, 3-D trigger box, and clear
 continuation for a player or its vehicle hull. Vertical position and collision
 belong to the authored BSP. Crossing requires a matching native link.
 
+For separate bases, author auto-placed touched-by-player controls named
+`extraction_unsc_deploy` and `extraction_covenant_deploy`. Optional paired
+base services use `extraction_unsc_loadout`, `extraction_covenant_loadout`,
+`extraction_unsc_debrief` and `extraction_covenant_debrief`. Place each
+service and the existing faction-choice control inside its own hub. Keep
+the shared deploy, loadout and debrief names for the shared-hub layout.
+The runtime validates the native scenario placement and control tag even
+while a base's live objects are absent. Keep each service`s power and
+position groups separate from squad-ready and aircraft output groups.
+Once the control is live, the host checks faction, hub and usability
+before granting gear. On-foot settlement also checks the returning faction's
+hub. Use the distinct field and aircraft return volumes for physical transport.
+
 **Forerunner admission.** The current catalog and authoritative Extraction
 entry still admit solo scenarios. For authored solo Extraction, the optional
 paired hub volumes now filter first spawns and respawns through the existing
@@ -3935,6 +3948,14 @@ in one session. Both the Chiron and Derelict crossings used normal
 keyboard movement after debug staging within BSP 0. Both peers exited
 zero. These checks verify retained geometry and shared switches.
 Independent simulation of occupied regions remains open.
+
+The layered Derelict cache cec966dc2c258bc37e2756c078fc8507d83bb6bb71c9bc3e4db1a27d52dc7df8
+reached BSP 2 with native walking. The native pill hit metal_tall scenery
+placement 550 near (783.9871,104.0056,-31.6987) and deflected into BSP 2
+sidewall surface 8. Compiled placement mask 0x000C includes both BSPs 2 and 3.
+The player stopped before switch 2 to 3, so the full round trip is open.
+Spark received the exact placement, pose and contact for a content clearance
+correction. The current Forerunner physics and retained cache were preserved.
 
 Forerunner records which BSP owns loose equipment and empty vehicles when
 they leave the active scene. Objects stay with their source BSP even when

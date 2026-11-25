@@ -25,7 +25,7 @@ typedef struct {real r,g,b;} real_rgb_color;
 #define NETWORK_RULES_TIME_WINDOW_TICKS 450
 #define csmemset memset
 #define TAG_BLOCK_GET_ELEMENT(block,index,type) (&((type *)(block)->address)[index])
-enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _object_mask_vehicle=8, _object_type_vehicle=1, _object_type_biped=0,
+enum { _object_mask_biped=1, _object_mask_control=2, _object_mask_weapon=4, _object_mask_vehicle=8, _object_type_vehicle=1, _object_type_biped=0, _object_type_control=8,
  _object_mask_unit=_object_mask_biped|_object_mask_vehicle, _object_type_weapon=2,
  _object_dead_bit=0, _unit_grenade_throw_idle=0, _unit_add_weapon_starting=0,
  _object_die_act_of_god_bit=1,
@@ -80,7 +80,7 @@ struct scenario_trigger_volume { char name[32]; short type; };
 #include "mission_types.inc"
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette; };
 struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -131,6 +131,13 @@ static struct scenario_object_name names[11] = { {"extraction_deploy"}, {"extrac
 static struct scenario_starting_profile faction_profiles[2];
 static struct scenario_object_datum body_placements[2];
 static struct scenario_object_palette_entry body_palette[2];
+struct scenario_device_datum { short power_group_index, position_group_index; };
+struct scenario_control_datum { struct scenario_object_datum object; struct scenario_device_datum device; };
+static struct scenario_control_datum placed_controls[7];
+static struct scenario_device_datum const *control_scenario_device_data(struct scenario_control_datum const *control)
+{ return &control->device; }
+static struct scenario_object_palette_entry control_palette[1];
+#define CONTROL_DEFINITION_TAG 0x6374726c
 static struct scenario_trigger_volume volumes[7] = { {"extraction_zone"}, {"extraction_return"} };
 static boolean overlap_hub_starts;
 static struct player_starting_location starts[2];
@@ -158,9 +165,12 @@ static boolean hs_wake_by_name(char const *name)
 static struct scenario *global_scenario = &scenario;
 static struct scenario *global_scenario_get(void) {return global_scenario;}
 static struct tag_block *scenario_get_object_type_scenario_datums(struct scenario *s,short type,long *size)
-{CHECK(type==_object_type_biped,"unexpected template type");*size=sizeof(struct scenario_object_datum);return &s->bipeds;}
+{if(type==_object_type_control){*size=sizeof(struct scenario_control_datum);return &s->controls;}
+ *size=sizeof(struct scenario_object_datum);
+ CHECK(type==_object_type_biped,"unexpected template type");return &s->bipeds;}
 static struct tag_block *scenario_get_object_type_scenario_palette(struct scenario *s,short type)
-{CHECK(type==_object_type_biped,"unexpected template palette");return &s->biped_palette;}
+{if(type==_object_type_control)return &s->control_palette;
+ CHECK(type==_object_type_biped,"unexpected template palette");return &s->biped_palette;}
 static void *tag_block_get_element_with_size(struct tag_block *block,long index,long size)
 {CHECK(VALID_INDEX(index,block->count),"template outside native block");return (byte *)block->address+index*size;}
 #include "device_binding.inc"
@@ -243,9 +253,10 @@ static boolean collision_test_vector(unsigned long flags,real_point3d const *fro
 { result->object_index=NONE; return wall; }
 static boolean weapon_is_flag(long h)
 { short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) return weapons[i].flag; return FALSE; }
-static char const *tag_get_name(long tag) { return tag==4 ? "characters\\human" : tag==5 ? "characters\\covenant" : tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
+static char const *tag_get_name(long tag) { return tag==99 ? "devices\\terminal" : tag==4 ? "characters\\human" : tag==5 ? "characters\\covenant" : tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
 static long tag_loaded(long group,char const *path)
-{ long tag=group==BIPED_DEFINITION_TAG ? (!strcmp(path,tag_get_name(4))?4:!strcmp(path,tag_get_name(5))?5:NONE) :
+{ long tag=group==CONTROL_DEFINITION_TAG ? (!strcmp(path,tag_get_name(99))?99:NONE) :
+  group==BIPED_DEFINITION_TAG ? (!strcmp(path,tag_get_name(4))?4:!strcmp(path,tag_get_name(5))?5:NONE) :
   !strcmp(path,tag_get_name(1)) ? 1 : !strcmp(path,tag_get_name(2)) ? 2 : NONE;
  return tag==missing_tag ? NONE : tag; }
 static struct weapon_definition *weapon_definition_get(long tag) { return &weapon_tag; }
@@ -602,6 +613,65 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strncmp(case_name,"separate-hubs-",14)) {
+  long const parked=control_handles[5];
+  enable_factions(FALSE);
+  strcpy(names[0].name,"extraction_unsc_deploy");
+  strcpy(names[2].name,"extraction_unsc_loadout");
+  strcpy(names[9].name,"extraction_covenant_deploy");
+  strcpy(names[10].name,"extraction_covenant_debrief");
+  names[7].name[0]=names[8].name[0]=0;
+  scenario.object_names.count=11;scenario.trigger_volumes.count=7;
+  strcpy(volumes[5].name,"extraction_unsc_hub");
+  strcpy(volumes[6].name,"extraction_covenant_hub");
+  volumes[5].type=volumes[6].type=_scenario_trigger_volume_type_oriented;
+  volumes[1].name[0]=0;
+  starts[0].position.z=units[0].object.position.z=3.f;
+  starts[1].position.z=units[1].object.position.z=-3.f;
+  players[1].team_index=units[1].object.owner_team_index=_game_team_covenant;
+  scenario.controls=(struct tag_block){7,placed_controls};
+  scenario.control_palette=(struct tag_block){1,control_palette};
+  control_palette[0].reference.index=99;
+  for(i=0;i<7;i++){
+   short name=i>=5 ? i+4 : i>=3 ? i+2 : i;
+   controls[i].object.name_index=placed_controls[i].object.name_index=name;
+   placed_controls[i].device.power_group_index=placed_controls[i].device.position_group_index=NONE;
+   names[name].runtime_object_type=_object_type_control;
+   names[name].runtime_scenario_datum_index=i;
+   placed_controls[i].object.position.z=(i==4||i>=5)?-3.f:3.f;
+  }
+  if(!strcmp(case_name,"separate-hubs-outside"))placed_controls[5].object.position.z=0.f;
+  if(!strcmp(case_name,"separate-hubs-missing"))names[9].name[0]=0;
+  if(!strcmp(case_name,"separate-hubs-alias"))names[9].runtime_scenario_datum_index=0;
+  if(!strcmp(case_name,"separate-hubs-deferred"))placed_controls[5].object.placement_flags=FLAG(_scenario_object_placement_not_automatic_bit);
+  control_handles[5]=NONE; /* auth layout before the other BSP has a live control */
+  advance(1);
+  if(strcmp(case_name,"separate-hubs-control")){
+   CHECK(!extraction_owns_map()&&!file_count,"invalid dual hub admitted");
+   return 0;
+  }
+  CHECK(extraction_owns_map(),"parked faction terminal rejected its authored hub");
+  control_handles[5]=parked;
+  controls[5].device.power_group_index=3;controls[6].device.power_group_index=4;
+  controls[5].device.position_group_index=6;controls[6].device.position_group_index=7;
+  units[0].object.position.z=-3.f;touch(5,0);
+  CHECK(!file_count&&run(0)->phase!=_extraction_deployed,"wrong faction could deploy at the other hub");
+  units[0].object.position.z=3.f;touch(2,0);
+  CHECK(run(0)->loadout_seen,"UNSC loadout terminal did not route to stash");
+  touch(0,0);touch(5,1);
+  CHECK(run(0)->phase==_extraction_deployed&&run(1)->phase==_extraction_deployed,
+   "an owned deploy control did not reserve gear at its hub");
+  units[1].object.position.z=3.f;
+  CHECK(!extraction_at_return(run(1),unit_handles[1]),"opposing hub accepted a Covenant return");
+  units[1].object.position.z=-3.f;
+  pickup(1,1);escape(1);
+  CHECK(run(1)->gear.record.count==2,"Covenant hub did not bank the kit and recovered gear");
+  before=remote_notices;
+  touch(6,1);
+  CHECK(remote_notices==before+4 && strstr(remote_notice_history[before%4],"DEBRIEF"),
+   "Covenant operation report did not route to the debrief");
+  return 0;
+ }
  if(!strncmp(case_name,"faction-hub-",12)) {
   enable_factions(FALSE);
   starts[0].position.z=3.f;

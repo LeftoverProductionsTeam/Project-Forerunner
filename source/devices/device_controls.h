@@ -92,6 +92,8 @@ void control_delete(
 	long control_index);
 boolean control_update(
 	long control_index);
+struct scenario_device_datum const *control_scenario_device_data(
+	struct scenario_control_datum const *control);
 void control_place(
 	long control_index,
 	struct scenario_control_datum *scenario_control);

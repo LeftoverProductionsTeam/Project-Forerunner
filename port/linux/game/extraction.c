@@ -114,9 +114,22 @@ struct extraction_squad_choice
 	boolean remembered;
 };
 
+enum
+{
+	_extraction_hub_deploy_control,
+	_extraction_hub_loadout_control,
+	_extraction_hub_debrief_control,
+	NUMBER_OF_EXTRACTION_HUB_CONTROLS
+};
+
+static char const *const extraction_hub_control_names[2][NUMBER_OF_EXTRACTION_HUB_CONTROLS] = {
+	{ "extraction_unsc_deploy", "extraction_unsc_loadout", "extraction_unsc_debrief" },
+	{ "extraction_covenant_deploy", "extraction_covenant_loadout", "extraction_covenant_debrief" }
+};
+
 static struct
 {
-	boolean bound, admitted, suspended, suspension_announced;
+	boolean bound, admitted, suspended, suspension_announced, separate_hubs;
 	boolean native_mode_checked, authored_extraction, lan_session_gear;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
@@ -132,6 +145,7 @@ static struct
 	boolean dropship_return_stop[2];
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	short faction_hubs[2]; /* paired authored start volumes */
+	short hub_controls[2][NUMBER_OF_EXTRACTION_HUB_CONTROLS];
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
 	long last_tick;
@@ -611,6 +625,7 @@ void extraction_reset(void)
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.faction_hubs[0] = extraction.faction_hubs[1] = NONE;
+	memset(extraction.hub_controls, NONE, sizeof(extraction.hub_controls));
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.last_tick = NONE;
 	gear_world_reset();
@@ -808,7 +823,7 @@ static short extraction_transport_return_zone(short faction)
 static boolean extraction_in_hub_volume(short return_zone, long object)
 {
 	short faction;
-	if (!scenario_trigger_volume_test_object(return_zone, object) ||
+	if (return_zone == NONE || !scenario_trigger_volume_test_object(return_zone, object) ||
 		(extraction.zone != NONE && scenario_trigger_volume_test_object(extraction.zone, object)))
 		return FALSE;
 	for (faction = 0; faction < 2; faction++)
@@ -819,6 +834,9 @@ static boolean extraction_in_hub_volume(short return_zone, long object)
 
 static boolean extraction_at_hub(long object)
 {
+	if (extraction.separate_hubs)
+		return extraction_in_hub_volume(extraction.faction_hubs[0], object) ||
+			extraction_in_hub_volume(extraction.faction_hubs[1], object);
 	return extraction_in_hub_volume(extraction.return_zone, object);
 }
 
@@ -827,8 +845,12 @@ static boolean extraction_transport_at_field(short faction, long ship)
 	short zone = extraction_zone_for_faction(faction);
 	short return_zone = extraction_transport_return_zone(faction);
 	return zone != NONE && scenario_trigger_volume_test_object(zone, ship) &&
-		!scenario_trigger_volume_test_object(extraction.return_zone, ship) &&
-		(return_zone == extraction.return_zone || !scenario_trigger_volume_test_object(return_zone, ship));
+		(extraction.return_zone == NONE || !scenario_trigger_volume_test_object(extraction.return_zone, ship)) &&
+		(!extraction.separate_hubs ||
+		 (!scenario_trigger_volume_test_object(extraction.faction_hubs[0], ship) &&
+		  !scenario_trigger_volume_test_object(extraction.faction_hubs[1], ship))) &&
+		(return_zone == NONE || return_zone == extraction.return_zone ||
+		 !scenario_trigger_volume_test_object(return_zone, ship));
 }
 
 /* The compiled declaration opts in to field hover. It is never executed. */
@@ -849,6 +871,51 @@ static boolean extraction_bind_field_hover(struct scenario const *scenario, shor
 	return TRUE;
 }
 
+/* Resolve the authored object in the scenario. A regional control's live
+ * datum may be absent until the player reaches its BSP. */
+static boolean extraction_authored_control(short index, short volume)
+{
+	struct scenario_object_name const *name;
+	struct scenario_object_datum const *placement;
+	struct scenario_device_datum const *device;
+	struct scenario_object_palette_entry const *entry;
+	struct tag_block *placements, *palette;
+	char const *path;
+	long size, definition;
+	short faction, squad;
+
+	if (!VALID_INDEX(index, global_scenario->object_names.count) || volume == NONE) return FALSE;
+	name = TAG_BLOCK_GET_ELEMENT(&global_scenario->object_names, index, struct scenario_object_name);
+	if (name->runtime_object_type != _object_type_control) return FALSE;
+	placements = scenario_get_object_type_scenario_datums(global_scenario, _object_type_control, &size);
+	palette = scenario_get_object_type_scenario_palette(global_scenario, _object_type_control);
+	if (!VALID_INDEX(name->runtime_scenario_datum_index, placements->count)) return FALSE;
+	placement = tag_block_get_element_with_size(placements, name->runtime_scenario_datum_index, size);
+	if (placement->name_index != index ||
+		TEST_FLAG(placement->placement_flags, _scenario_object_placement_not_automatic_bit) ||
+		!VALID_INDEX(placement->palette_entry_index, palette->count) ||
+		!scenario_trigger_volume_test_point(volume, &placement->position)) return FALSE;
+	entry = TAG_BLOCK_GET_ELEMENT(palette, placement->palette_entry_index, struct scenario_object_palette_entry);
+	device = control_scenario_device_data((struct scenario_control_datum const *)placement);
+	for (faction = 0; faction < 2; faction++)
+	{
+		short groups[] = {extraction.dropship_boarding_groups[faction], extraction.dropship_landing_groups[faction],
+			extraction.dropship_call_groups[faction]};
+		short group;
+		for (group = 0; group < NUMBEROF(groups); group++)
+			if (groups[group] != NONE && (device->power_group_index == groups[group] ||
+				device->position_group_index == groups[group])) return FALSE;
+	}
+	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+		if (extraction.squads[squad].ready_group != NONE &&
+			(device->power_group_index == extraction.squads[squad].ready_group ||
+			 device->position_group_index == extraction.squads[squad].ready_group)) return FALSE;
+	definition = entry->reference.index;
+	path = definition != NONE ? tag_get_name(definition) : NULL;
+	return path && tag_loaded(CONTROL_DEFINITION_TAG, path) == definition &&
+		control_definition_get(definition)->control.triggers_when == 0;
+}
+
 static void extraction_bind(void)
 {
 	short index, faction, squad;
@@ -860,6 +927,7 @@ static void extraction_bind(void)
 
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
+	extraction.separate_hubs = FALSE;
 	extraction.evacuation = FALSE;
 	extraction.lan_session_gear = !config_boolean("network.online");
 #ifdef HALO_GAME_BROWSER
@@ -881,6 +949,7 @@ static void extraction_bind(void)
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.faction_hubs[0] = extraction.faction_hubs[1] = NONE;
+	memset(extraction.hub_controls, NONE, sizeof(extraction.hub_controls));
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
 	if (!extraction.survival && extraction_host_firefight_requested())
@@ -910,6 +979,14 @@ static void extraction_bind(void)
 
 		for (faction = 0; faction < 2; faction++)
 		{
+			short service;
+			for (service = 0; service < NUMBER_OF_EXTRACTION_HUB_CONTROLS; service++)
+				if (!extraction.survival && !strcmp(name->name, extraction_hub_control_names[faction][service]))
+				{
+					if (extraction.hub_controls[faction][service] != NONE) unique = FALSE;
+					extraction.hub_controls[faction][service] = index;
+					extraction.separate_hubs = TRUE;
+				}
 			if (!strcmp(name->name, faction ? "extraction_covenant_body" : "extraction_unsc_body"))
 			{
 				long size;
@@ -1055,8 +1132,28 @@ static void extraction_bind(void)
 	debrief = extraction.debrief_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.debrief_name)) : NULL;
 	/* Match Spark's native touched-by-player tag requirement. Other trigger
 	   kinds never reach extraction_control_touched through control_touched. */
-	extraction.admitted = unique && extraction.return_zone != NONE && deploy &&
-		control_definition_get(deploy->definition_index)->control.triggers_when == 0;
+	extraction.admitted = unique;
+	if (extraction.separate_hubs)
+	{
+		if (extraction.deploy_name != NONE || extraction.loadout_name != NONE || extraction.debrief_name != NONE)
+			extraction.admitted = FALSE;
+		for (faction = 0; faction < 2; faction++)
+		{
+			short service;
+			for (service = 0; service < NUMBER_OF_EXTRACTION_HUB_CONTROLS; service++)
+			{
+				short service_name = extraction.hub_controls[faction][service];
+				if ((service == _extraction_hub_deploy_control || service_name != NONE) &&
+					!extraction_authored_control(service_name, extraction.faction_hubs[faction]))
+					extraction.admitted = FALSE;
+			}
+			if (extraction.dropship_names[faction] != NONE && extraction.dropship_return_zones[faction] == NONE)
+				extraction.admitted = FALSE;
+		}
+	}
+	else
+		extraction.admitted = extraction.admitted && extraction.return_zone != NONE && deploy &&
+			control_definition_get(deploy->definition_index)->control.triggers_when == 0;
 	if (extraction.activate_name != NONE || extraction.zone != NONE)
 	{
 		if (extraction.zone == NONE || !activate || activate == deploy ||
@@ -1075,7 +1172,12 @@ static void extraction_bind(void)
 		if (call_name != NONE || zone != NONE)
 		{
 			struct control_datum *call = faction_calls[faction];
-			if (!call || call->object.name_index != call_name || zone == NONE || extraction.dropship_names[faction] == NONE ||
+			if (extraction.separate_hubs)
+			{
+				if (extraction.dropship_names[faction] == NONE || !extraction_authored_control(call_name, zone))
+					extraction.admitted = FALSE;
+			}
+			else if (!call || call->object.name_index != call_name || zone == NONE || extraction.dropship_names[faction] == NONE ||
 				call == deploy || call == activate || call == loadout || call == debrief ||
 				(faction && call == faction_calls[0]) ||
 				control_definition_get(call->definition_index)->control.triggers_when != 0 ||
@@ -1090,7 +1192,13 @@ static void extraction_bind(void)
 		if (extraction.faction_names[faction] != NONE)
 		{
 			choices[faction] = control_try_and_get(object_index_from_name_index(extraction.faction_names[faction]));
-			if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout || choices[faction] == debrief ||
+			if (extraction.separate_hubs)
+			{
+				if (extraction.faction_profiles[faction] == NONE ||
+					!extraction_authored_control(extraction.faction_names[faction], extraction.faction_hubs[faction]))
+					extraction.admitted = FALSE;
+			}
+			else if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout || choices[faction] == debrief ||
 				choices[faction] == faction_calls[0] || choices[faction] == faction_calls[1] ||
 				(faction && choices[1] == choices[0]) || extraction.faction_profiles[faction] == NONE ||
 				control_definition_get(choices[faction]->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
@@ -1109,7 +1217,8 @@ static void extraction_bind(void)
 		unsigned short hubs = extraction_start_hubs(start);
 		if (hubs == (FLAG(0) | FLAG(1))) extraction.admitted = FALSE;
 		populated_hubs |= hubs;
-		if (!scenario_trigger_volume_test_point(extraction.return_zone, &start->position) ||
+		if ((extraction.separate_hubs ? hubs == 0 :
+			 !scenario_trigger_volume_test_point(extraction.return_zone, &start->position)) ||
 			(extraction.zone != NONE && scenario_trigger_volume_test_point(extraction.zone, &start->position))) extraction.admitted = FALSE;
 		for (faction = 0; faction < 2; faction++)
 			if (extraction.dropship_zones[faction] != NONE &&
@@ -1820,18 +1929,34 @@ static void extraction_begin_squad_activation(struct extraction_run const *calle
 	}
 }
 
+static short extraction_hub_control(short name, short *faction)
+{
+	short side, service;
+
+	for (side = 0; side < 2; side++)
+		for (service = 0; service < NUMBER_OF_EXTRACTION_HUB_CONTROLS; service++)
+			if (name == extraction.hub_controls[side][service])
+			{
+				*faction = side;
+				return service;
+			}
+	return NONE;
+}
+
 static wchar_t const *extraction_control_label(short name, short *squad)
 {
-	short index;
+	short index, faction, service;
 
 	if (name == NONE || (!extraction_owns_map() &&
 		!(extraction.survival && extraction.admitted && extraction.evacuation && extraction_requested()))) return NULL;
 
-	if (name == extraction.deploy_name) return L"Press %action to prepare for deployment";
+	service = extraction_hub_control(name, &faction);
+	if (name == extraction.deploy_name || service == _extraction_hub_deploy_control)
+		return L"Press %action to prepare for deployment";
 	if (name == extraction.activate_name || name == extraction.dropship_activate_names[0] ||
 		name == extraction.dropship_activate_names[1]) return L"Press %action to request evacuation";
-	if (name == extraction.loadout_name) return L"Press %action for loadout and stash";
-	if (name == extraction.debrief_name) return L"Press %action for operation report";
+	if (name == extraction.loadout_name || service == _extraction_hub_loadout_control) return L"Press %action for loadout and stash";
+	if (name == extraction.debrief_name || service == _extraction_hub_debrief_control) return L"Press %action for operation report";
 	if (name == extraction.faction_names[0]) return L"Press %action to choose UNSC";
 	if (name == extraction.faction_names[1]) return L"Press %action to choose Covenant";
 	for (index = 0; index < NUMBEROF(extraction.squads); index++)
@@ -1860,7 +1985,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct player_datum *player;
 	struct extraction_run *run;
 	long slot;
-	short faction, squad = NONE, zone, call_name;
+	short faction, squad = NONE, zone, call_name, hub_faction, hub_service;
 	boolean in_hub, activation;
 
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
@@ -1885,12 +2010,21 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		extraction_run_close(run); run->player = unit->unit.player_index;
 	}
 	in_hub = extraction_at_hub(unit_index);
+	hub_service = extraction_hub_control(control->object.name_index, &hub_faction);
+	if (hub_service != NONE &&
+		(extraction_faction((short)player->team_index) != hub_faction ||
+		 extraction_faction(unit->object.owner_team_index) != hub_faction ||
+		 !extraction_in_hub_volume(extraction.faction_hubs[hub_faction], unit_index)))
+	{
+		extraction_tell(run, "USE YOUR FACTION BASE | This terminal serves the other faction.");
+		return TRUE;
+	}
 	if (squad != NONE)
 	{
 		extraction_squad_choose(run, player, squad, in_hub);
 		return TRUE; /* Membership is per player; do not toggle a shared switch. */
 	}
-	if (extraction.debrief_name != NONE && control->object.name_index == extraction.debrief_name)
+	if (hub_service == _extraction_hub_debrief_control || control->object.name_index == extraction.debrief_name)
 	{
 		if (!in_hub || unit->object.parent_object_index != NONE)
 			extraction_tell(run, "DEBRIEF LOCKED | Read your report on foot at the hub.");
@@ -1980,7 +2114,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			if (dropped) extraction_tell(run, "FACTION SELECTED | Incompatible carried weapons are beside you. Saved gear is unchanged.");
 			return TRUE; /* Per-player choice, not a shared device-position flag. */
 		}
-	if (control->object.name_index == extraction.loadout_name && in_hub &&
+	if ((hub_service == _extraction_hub_loadout_control || control->object.name_index == extraction.loadout_name) && in_hub &&
 		(run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned))
 	{
 		if (extraction_open_gear(run, player))
@@ -2025,7 +2159,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		}
 		return TRUE;
 	}
-	if (control->object.name_index == extraction.deploy_name && in_hub &&
+	if ((hub_service == _extraction_hub_deploy_control || control->object.name_index == extraction.deploy_name) && in_hub &&
 		(run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned))
 	{
 		/* Let the native control transition notify HaloScript only after the
@@ -2275,13 +2409,18 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
 	if (!unit) return FALSE;
-	/* The ship's authored return pad governs banking while aboard. On foot,
-	 * the shared hub still governs deployment and other player services. */
+	/* The ship's authored return pad governs banking while aboard.
+	 * On foot, paired bases each accept only their own faction. */
 	if (run->dropship != NONE && extraction_player_dropship(unit) == run->dropship)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (faction != NONE && !extraction_transport_arrival_ready(faction, run->dropship)) return FALSE;
 		return extraction_in_hub_volume(extraction_transport_return_zone(faction), run->dropship);
+	}
+	if (extraction.separate_hubs)
+	{
+		short faction = extraction_faction(unit->object.owner_team_index);
+		return VALID_INDEX(faction, 2) && extraction_in_hub_volume(extraction.faction_hubs[faction], unit_index);
 	}
 	return extraction_at_hub(unit_index);
 }

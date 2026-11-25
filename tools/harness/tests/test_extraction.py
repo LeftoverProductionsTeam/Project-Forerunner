@@ -99,6 +99,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'biped-first', 'biped-second', 'biped-survival',
                                  'faction-hub-starts', 'faction-hub-overlap', 'faction-hub-unpaired',
                                  'faction-hub-shape', 'faction-hub-empty',
+                                 'separate-hubs-control', 'separate-hubs-outside', 'separate-hubs-missing',
+                                 'separate-hubs-alias', 'separate-hubs-deferred',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
                                  'confirmation-outage', 'confirmation-published',
