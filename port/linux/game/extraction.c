@@ -15,6 +15,7 @@
 #include "hs/object_lists.h"
 #include "hs/hs_scenario_definitions.h"
 #include "networking/network_game_globals.h"
+#include "networking/network_server_manager.h"
 #include "game/game_allegiance.h"
 #include "cutscene/cinematics.h"
 #include "cutscene/recorded_animations.h"
@@ -48,6 +49,7 @@
 #include "coop_scripts.h"
 #include "../include/halo_port_limits.h"
 #include "../src/port_config.h"
+#include "../src/log_address.h"
 #ifdef HALO_GAME_BROWSER
 #include "../src/delta_peer.h"
 #endif
@@ -115,7 +117,7 @@ struct extraction_squad_choice
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced;
-	boolean native_mode_checked, authored_extraction;
+	boolean native_mode_checked, authored_extraction, lan_session_gear;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_return_zones[2];
@@ -625,9 +627,36 @@ void extraction_restored(void)
 }
 
 /* Return the deployment prompt on failure, or fill owner and return NULL. */
-static char const *extraction_resolve_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES])
+static boolean extraction_lan_guest(long machine)
+{
+	unsigned long address;
+	byte octets[4];
+	if (!extraction.lan_session_gear || machine == NONE || config_boolean("network.online"))
+		return FALSE;
+	address = network_game_server_machine_address(machine);
+	octets[0] = (byte)(address >> 24); octets[1] = (byte)(address >> 16);
+	octets[2] = (byte)(address >> 8); octets[3] = (byte)address;
+	/* Zero and Internet Play's virtual range can be treated as local in
+	 * diagnostics. Neither establishes a direct private LAN peer. */
+	return octets[0] != 0 && !(octets[0] == 100 && (octets[1] & 0xc0) == 64) &&
+		log_address_local(octets, sizeof(octets));
+}
+
+static char const *extraction_resolve_owner_mode(struct player_datum const *player, long player_index,
+	byte owner[GEAR_ID_BYTES], boolean *session_only)
 {
 	boolean local = player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS;
+	*session_only = FALSE;
+	if (!local && game_connection() == _game_connection_network_server &&
+#ifdef HALO_GAME_BROWSER
+		!delta_peer_game_on_delta() &&
+#endif
+		extraction_lan_guest(distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index))))
+	{
+		gear_session_owner(player_index, owner);
+		*session_only = TRUE;
+		return NULL;
+	}
 #ifdef HALO_GAME_BROWSER
 	/* Hosting and joining must resolve the same verified account to the same
 	 * stash. A Delta host without its bound proof waits; it must not fall
@@ -658,10 +687,17 @@ static char const *extraction_resolve_owner(struct player_datum const *player, l
 	return "DEPLOYMENT BLOCKED | This session cannot verify a gear owner.";
 }
 
+static char const *extraction_resolve_owner(struct player_datum const *player, long player_index, byte owner[GEAR_ID_BYTES])
+{
+	boolean session_only;
+	return extraction_resolve_owner_mode(player, player_index, owner, &session_only);
+}
+
 static boolean extraction_open_gear(struct extraction_run *run, struct player_datum const *player)
 {
 	byte owner[GEAR_ID_BYTES];
-	char const *blocked = extraction_resolve_owner(player, run->player, owner);
+	boolean session_only;
+	char const *blocked = extraction_resolve_owner_mode(player, run->player, owner, &session_only);
 	if (blocked)
 	{
 		extraction_block(run, blocked);
@@ -681,12 +717,15 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 	}
 	if (!run->gear.opened)
 	{
-		if (!gear_open(&run->gear, owner))
+		if (!(session_only ? gear_open_session(&run->gear, owner) : gear_open(&run->gear, owner)))
 		{
 			extraction_block(run, "STASH UNAVAILABLE | Gear is locked, unreadable or awaiting recovery. Retry at the terminal.");
 			return FALSE;
 		}
-		extraction_reconcile_squad_escrow(&run->gear.record);
+		if (session_only)
+			extraction_tell(run, "LAN SESSION STASH | Recovered gear lasts until you leave or the match ends.");
+		else
+			extraction_reconcile_squad_escrow(&run->gear.record);
 	}
 	memcpy(run->owner, owner, GEAR_ID_BYTES);
 	run->gear.loadout_unit = (extraction.faction_bipeds[0] != NONE || extraction.faction_bipeds[1] != NONE) ? player->unit_index : NONE;
@@ -822,6 +861,10 @@ static void extraction_bind(void)
 	extraction.bound = TRUE;
 	extraction.admitted = FALSE;
 	extraction.evacuation = FALSE;
+	extraction.lan_session_gear = !config_boolean("network.online");
+#ifdef HALO_GAME_BROWSER
+	extraction.lan_session_gear = extraction.lan_session_gear && !delta_peer_game_on_delta();
+#endif
 	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
 		extraction.squads[squad].name = extraction.squads[squad].ready_group = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = NONE;
@@ -2336,7 +2379,8 @@ static void extraction_finish_return(struct extraction_run *run)
 	if (extraction.debrief_name != NONE)
 		snprintf(text, sizeof(text), "GEAR BANKED | Debrief available at the hub.");
 	else
-		snprintf(text, sizeof(text), "GEAR BANKED | Stash %d/%d | Frag %d Plasma %d",
+		snprintf(text, sizeof(text), "%s | Stash %d/%d | Frag %d Plasma %d",
+			run->gear.session_only ? "SESSION GEAR BANKED" : "GEAR BANKED",
 			(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
 	extraction_tell(run, text);
 }

@@ -37,7 +37,7 @@ struct gear_record
 struct gear_session
 {
 	int descriptor;
-	boolean opened, pending;
+	boolean opened, pending, session_only;
 	short grenade_room[2]; /* native capacity minus the currently carried count */
 	long loadout_unit; /* transient native body filter; NONE preserves legacy selection */
 	char path[1024];
@@ -49,6 +49,8 @@ struct gear_session
  * Neither a profile path nor an account supplied by a client is a filename. */
 void gear_profile_owner(char const *profile_directory, byte owner[GEAR_ID_BYTES]);
 void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BYTES]);
+void gear_session_owner(long player_index, byte owner[GEAR_ID_BYTES]);
+boolean gear_open_session(struct gear_session *session, byte const owner[GEAR_ID_BYTES]);
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES]);
 void gear_close(struct gear_session *session);
 /* Read selected gear before reserving it. Default is exact-cache admission;

@@ -2441,12 +2441,21 @@ without treating stock multiplayer starts as hub starts. The host owns
 HaloScript objectives, seating, loot and settlement. The enhanced regional
 network capability must be agreed by each remote peer. Solo uses a saved
 local profile. Authenticated owners keep their existing Delta namespace.
-Private account-free remote banking requires a stable, host-verified owner
-with separate storage. A name, address or temporary machine slot cannot own
-a persistent stash. The ordinary multiplayer engine and campaign paths keep
-their existing rules. Reserve `extraction.megaworld.v1` for this combined mode.
-Advertise it only after both paths
-can launch and the host's capability gate is enforced.
+In a private LAN game with Internet Play disabled, unauthenticated direct
+guests can use the existing gear transactions in memory until disconnect or
+match end. The host's local profile remains persistent. A name, address or
+temporary machine slot cannot own a persistent stash. An authenticated room
+still requires verified Delta owners. Reserve `extraction.megaworld.v1` until
+the MCC13 admission, host capability gate and deployment loop can be tested
+on the authored multiplayer map. Plain multiplayer keeps its existing rules.
+
+Win64 12d31bedb25a0d1c47179cdc8953b72d2b3f8309c72170f8843d3c6160de1d69
+hosted two direct loopback peers with OpenCE protocol and Internet Play off.
+The guest used E at the physical deployment terminal, got the session-only
+stash notice, and deployed in both peers' native state. The host wrote no
+guest gear file. Focused gear tests cover settlement and redeployment within
+the match and clearing the stash on disconnect. Native LAN evacuation and
+banking still need a full playtest.
 
 **Acceptance.** Play the same exact staged cache through the ordinary menu
 with both faction profiles. Verify solo saving, death and redeploy across a
@@ -5363,6 +5372,14 @@ changed only that bit and the CRC header. After death and Elite respawn,
 W+A moved +1.576 X/+1.401 Y and S+D moved -1.401 X/-1.405 Y in the same
 hub. The unexpected Grunt respawn remains open. Source: the player-motion
 branch of source/units/bipeds.c.
+
+Spark's separate authored CE609 cache
+78ddeb4836784622425060401e877bd53a0ccfd1243acc8ceca4a8b7d75035d5
+uses a dedicated player Elite and leaves the AI tag alone. The consolidated
+Win64 playtest candidate loaded it from Extraction → Play Solo. After a
+native grenade death the Elite respawned with its plasma pistol, moved in
+both diagonals and jumped 0.479 units above the hub floor. Spirit boarding
+and human multiplayer acceptance on this cache remain open.
 
 The original cache retains the technology weapon's
 `pp` label, which the imported Elite animation graph has for stand and

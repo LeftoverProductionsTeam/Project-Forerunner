@@ -62,6 +62,11 @@ void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BY
 	gear_id("forerunner account\n", account, GEAR_ID_BYTES, owner);
 }
 
+void gear_session_owner(long player_index, byte owner[GEAR_ID_BYTES])
+{
+	gear_id("forerunner session player\n", &player_index, sizeof(player_index), owner);
+}
+
 static void gear_put16(byte **cursor, unsigned short value)
 {
 	*(*cursor)++ = (byte)value; *(*cursor)++ = (byte)(value >> 8);
@@ -239,7 +244,7 @@ static boolean gear_flush(struct gear_session *session)
 	byte buffer[GEAR_RECORD_BYTES];
 	posix_ulong size;
 	if (!session->opened || !gear_host()) return FALSE;
-	if (!session->pending) return TRUE;
+	if (session->session_only || !session->pending) return TRUE;
 	size = gear_encode(&session->record, buffer);
 	if (!posix_gear_replace(session->path, buffer, size)) return FALSE;
 	session->pending = FALSE;
@@ -254,6 +259,11 @@ static boolean gear_commit(struct gear_session *session, struct gear_record *nex
 
 	if (!gear_flush(session) || session->record.generation == 0xffffffffUL || !gear_record_valid(next)) return FALSE;
 	next->generation = session->record.generation + 1;
+	if (session->session_only)
+	{
+		session->record = *next;
+		return TRUE;
+	}
 	size = gear_encode(next, buffer);
 	written = posix_gear_replace(session->path, buffer, size);
 	/* An OS can report failure after replacement (for example directory sync).
@@ -269,9 +279,19 @@ static boolean gear_commit(struct gear_session *session, struct gear_record *nex
 
 void gear_close(struct gear_session *session)
 {
-	if (session->opened) posix_gear_unlock(session->descriptor);
+	if (session->opened && !session->session_only) posix_gear_unlock(session->descriptor);
 	memset(session, 0, sizeof(*session));
 	session->descriptor = -1;
+}
+
+boolean gear_open_session(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
+{
+	if (session->opened || !gear_host() || !gear_nonzero(owner)) return FALSE;
+	gear_close(session);
+	session->opened = session->session_only = TRUE;
+	session->loadout_unit = NONE;
+	memcpy(session->record.owner, owner, GEAR_ID_BYTES);
+	return TRUE;
 }
 
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES])
@@ -604,6 +624,8 @@ void gear_world_reset(void)
  * filesystems. Keep their existing game modes/builds without new host imports. */
 void gear_profile_owner(char const *directory, byte owner[GEAR_ID_BYTES]) { memset(owner, 0, GEAR_ID_BYTES); }
 void gear_account_owner(byte const account[GEAR_ID_BYTES], byte owner[GEAR_ID_BYTES]) { memset(owner, 0, GEAR_ID_BYTES); }
+void gear_session_owner(long player_index, byte owner[GEAR_ID_BYTES]) { memset(owner, 0, GEAR_ID_BYTES); }
+boolean gear_open_session(struct gear_session *session, byte const owner[GEAR_ID_BYTES]) { return FALSE; }
 boolean gear_open(struct gear_session *session, byte const owner[GEAR_ID_BYTES]) { return FALSE; }
 void gear_close(struct gear_session *session) { memset(session, 0, sizeof(*session)); session->descriptor = -1; }
 boolean gear_loadout(struct gear_session *session, struct game_modes_inventory *inventory, boolean bring_stash) { return FALSE; }

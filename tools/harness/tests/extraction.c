@@ -184,14 +184,19 @@ static int native_kills;
 void platform_log(char const *format, ...) { (void)format; }
 static byte remote_account[16] = {1};
 static byte host_account[16] = {2};
-static boolean delta_session;
+static boolean delta_session, online=TRUE;
+static unsigned long guest_address=0x7f000002UL;
+static unsigned long network_game_server_machine_address(long machine)
+{ CHECK(machine==1,"wrong LAN peer"); return guest_address; }
+static int log_address_local(byte const *address,int size)
+{ CHECK(size==4,"unexpected IP size"); return address[0]==127||address[0]==100; }
 static int local_notices, remote_notices, respawns;
 static char local_notice_history[4][160];
 static char last_remote_notice[160],remote_notice_history[4][160];
 
 static boolean config_boolean(char const *name)
 { CHECK(strcmp(name,"debug.network_test"),"network-test string queried as boolean"); return !strcmp(name,"game.extraction") ? enabled : !strcmp(name,"game.revive") ? medical_setting :
-  !strcmp(name,"game.shared_gear") ? shared_cache : director; }
+  !strcmp(name,"game.shared_gear") ? shared_cache : !strcmp(name,"network.online") ? online : director; }
 static long config_integer(char const *name) { return !strcmp(name,"game.revive_seconds") ? 5 : 30; }
 static char const *config_string(char const *name) { CHECK(!strcmp(name,"debug.network_test"),"unknown string setting"); return ""; }
 static boolean network_coop_active(void) { return TRUE; }
@@ -3412,6 +3417,34 @@ int main(int argc,char **argv)
     CHECK(run(0)->phase==_extraction_deployed&&!memcmp(run(0)->owner,expected,16),"joining changed the same verified account's owner: phase %d, owner mismatch %d, notice %s",run(0)->phase,memcmp(run(0)->owner,expected,16),last_remote_notice);
     CHECK(run(0)->gear.record.reserved_count==1&&!memcmp(run(0)->gear.record.reserved[0].id,item,GEAR_ID_BYTES),"host-to-client role change lost or duplicated banked equipment");
    }
+  }
+ } else if(!strncmp(case_name,"lan-gear-",9)) {
+  byte item[GEAR_ID_BYTES],local_owner[GEAR_ID_BYTES];
+  online=FALSE; verified=FALSE;
+  if(!strcmp(case_name,"lan-gear-delta"))delta_session=TRUE;
+  if(!strcmp(case_name,"lan-gear-virtual"))guest_address=0x64400001UL;
+  extraction_reset();advance(1);
+  touch(0,1);
+  if(strcmp(case_name,"lan-gear-loop")) {
+   CHECK(run(1)->phase==_extraction_hub&&!run(1)->gear.opened&&!file_count,"non-LAN or Delta guest received session gear");
+  } else {
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.session_only&&!file_count,"private LAN guest cannot deploy without disk storage");
+   CHECK(strstr(remote_notice_history[(remote_notices-2)%4],"LAN SESSION STASH"),"guest did not see stash lifetime");
+   pickup(1,1);escape(1);
+   CHECK(run(1)->gear.record.count==1&&!file_count&&strstr(last_remote_notice,"SESSION GEAR BANKED"),"private LAN escape did not bank once in memory");
+   memcpy(item,run(1)->gear.record.items[0].id,sizeof(item));
+   touch(0,1);
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.record.reserved_count==1&&
+    !memcmp(run(1)->gear.record.reserved[0].id,item,sizeof(item))&&!file_count,"session reissue did not reserve the recovered item");
+   gear_profile_owner("owned/profile",local_owner);
+   touch(0,0);
+   CHECK(run(0)->phase==_extraction_deployed&&!run(0)->gear.session_only&&file_count==1&&
+    !memcmp(run(0)->owner,local_owner,sizeof(local_owner)),"LAN host did not retain its separate profile");
+   players[1].quit_out_of_game=TRUE;advance(1);
+   CHECK(!run(1)->gear.opened&&!run(1)->gear.record.count&&file_count==1,"guest exit retained session gear or wrote a file");
+   players[1].quit_out_of_game=FALSE;touch(0,1);
+   CHECK(run(1)->phase==_extraction_deployed&&run(1)->gear.session_only&&
+    !run(1)->gear.record.reserved_count&&file_count==1,"new connection inherited the earlier stash");
   }
  } else if(!strcmp(case_name,"authority")) {
   client=TRUE; connection=_game_connection_network_client; advance(1); CHECK(!extraction_owns_map() && !file_count,"client storage access");
