@@ -109,6 +109,8 @@ void ai_globals_ai_active(
 	boolean enabled);
 void ai_update(
 	void);
+boolean ai_unit_belongs_to_other_bsp(
+	long unit_index);
 void ai_disconnect_from_structure_bsp(
 	void);
 void ai_reconnect_to_structure_bsp(

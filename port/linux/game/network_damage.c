@@ -103,6 +103,7 @@ damage (network_server_message_handler.c) */
 boolean network_game_server_machine_reports_static_damage(long machine_index);
 /* game_engine.c's */
 long game_engine_network_player_score(long player_index);
+boolean game_engine_object_parked(long object_index, short object_type);
 /* physics.c's (world units a tick, each tick) */
 extern real global_gravity;
 /* port_config.c's */
@@ -2697,7 +2698,8 @@ static boolean distributed_report_valid(
 		_object_mask_biped | _object_mask_vehicle | _object_mask_weapon | _object_mask_equipment);
 	if (!target && static_target(report->object_index))
 		target = object_get(report->object_index);
-	if (!target || !tag_index_is_group(report->damage.definition_index, DAMAGE_EFFECT_DEFINITION_TAG))
+	if (!target || game_engine_object_parked(report->object_index, target->object.type) ||
+		!tag_index_is_group(report->damage.definition_index, DAMAGE_EFFECT_DEFINITION_TAG))
 		return FALSE;
 	/* numbers the game can take */
 	if (!distributed_damage_numbers_valid(&report->damage) ||

@@ -1573,6 +1573,36 @@ static void ai_flush_spatial_effects(
 	return;
 }
 
+/* Park actors with their authored encounter even if two BSPs share world
+ * coordinates. Detached actors and vehicle riders use their native routes. */
+boolean ai_unit_belongs_to_other_bsp(
+	long unit_index)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	struct unit_datum const *unit;
+	struct actor_datum const *actor;
+	struct encounter_definition const *definition;
+	long actor_index, encounter_index;
+	short home;
+
+	if (!scenario || !scenario_uses_regional_gameplay(scenario) || !actor_data || !actor_data->valid)
+		return FALSE;
+	unit = unit_try_and_get(unit_index);
+	if (!unit || unit->object.parent_object_index != NONE || unit->unit.player_index != NONE)
+		return FALSE;
+	actor_index = unit->unit.swarm_actor_index != NONE ? unit->unit.swarm_actor_index : unit->unit.actor_index;
+	actor = actor_try_and_get(actor_index);
+	if (!actor || actor->meta.encounterless || actor->meta.encounter_index == NONE)
+		return FALSE;
+	encounter_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(actor->meta.encounter_index);
+	if (!VALID_INDEX(encounter_index, scenario->ai_encounters.count))
+		return FALSE;
+	definition = TAG_BLOCK_GET_ELEMENT(&scenario->ai_encounters, encounter_index, struct encounter_definition);
+	home = definition->runtime_structure_bsp_reference_index;
+	return VALID_INDEX(home, scenario->structure_bsp_references.count) &&
+		home != global_structure_bsp_index_get();
+}
+
 void ai_disconnect_from_structure_bsp(
 	void)
 {

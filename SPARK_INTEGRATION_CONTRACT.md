@@ -3371,6 +3371,16 @@ That legacy smoke and the focused harness leave authored MCC13 AI combat and
 simultaneous squad occupancy open. Host physics, AI updates and general world
 snapshots still follow one active BSP.
 
+Native on-foot actors and swarm bodies now use their attached encounter's
+authored BSP for collision parking and host damage validation. This prevents a
+parked actor from reconnecting into overlapping geometry. Players, riders and
+detached actors keep their native crossing behavior. Spark uses the same native
+encounter assignment. Windows x64
+`ab5fe2d8f79442a60913b38fa47c882c8db11232896c668cb69ba2a39bebfbf5`
+passed 101 focused checks. On the retained fourteen-region map, two private peers
+crossed into Chiron and the host accepted the guest's hits. Native AI combat
+with independent players in different BSPs remains open.
+
 Forerunner can query the active and retained MCC13 geometry by scenario
 BSP index without activating the neighbor. Retained lookup is enabled for
 MCC13 campaign co-op, where glass refresh uses the native per-BSP fracture

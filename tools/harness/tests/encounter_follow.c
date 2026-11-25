@@ -29,8 +29,14 @@ struct scenario { struct tag_block ai_encounters, structure_bsp_references; shor
 struct squad_datum { short current_count; boolean automatic_migration_target; };
 struct platoon_datum { boolean defending; };
 struct encounter_datum { short follow_target_type, squad_count, team_index; long follow_target_unit_index, follow_target_ai_index; real follow_target_distance; short remain_active_timer; long last_active_time; boolean active; };
-struct actor_datum { struct {short squad_index;long unit_index;boolean active;} meta; struct {struct {real_point3d body_position;} position;} input; };
-struct unit_datum { struct { unsigned long damage_flags; real_point3d position; short owner_team_index; } object; struct { long player_index; } unit; };
+struct actor_datum {
+ struct { short squad_index; long unit_index,encounter_index; boolean active,encounterless; } meta;
+ struct { struct { real_point3d body_position; } position; } input;
+};
+struct unit_datum {
+ struct { unsigned long damage_flags; real_point3d position; short owner_team_index; long parent_object_index; } object;
+ struct { long player_index,actor_index,swarm_actor_index; } unit;
+};
 struct player_datum { long unit_index; boolean quit_out_of_game; };
 struct data_iterator { long datum_index, next; };
 struct encounter_actor_iterator { long index, next; };
@@ -54,6 +60,9 @@ static void *player_data;
 static struct { boolean print_automatic_migration; } ai_debug;
 
 static struct scenario *global_scenario_get(void) { return &scenario; }
+#define global_scenario_try_and_get global_scenario_get
+static struct { boolean valid; } fake_actor_data, *actor_data=&fake_actor_data;
+static struct actor_datum *actor_try_and_get(long index) { return index==0x20000 ? &actors[0] : NULL; }
 static boolean extraction_owns_map(void) { return operation; }
 static boolean game_team_is_enemy(short team,short other) { return team!=other; }
 static boolean extraction_medical_incapacitated(long unit_index) { return unit_index==incapacitated_unit; }
@@ -75,6 +84,7 @@ static void test_error(long severity,char const *format,...) { (void)severity;(v
 static void console_printf(boolean warning,char const *format,...) { (void)warning;(void)format; }
 #define error test_error
 static short global_structure_bsp_index;
+static short global_structure_bsp_index_get(void) { return global_structure_bsp_index; }
 static boolean mcc_loaded;
 static boolean mcc_cache_tags_loaded(void) { return mcc_loaded; }
 static long game_time_get(void) { return 100; }
@@ -87,6 +97,45 @@ int main(int argc,char **argv)
 {
  char const *case_name=argc>1?argv[1]:"";short i,expected=0;
  scenario.ai_encounters.count=1;scenario.ai_encounters.address=&definition;
+ if(!strcmp(case_name,"regional-actor-ownership"))
+ {
+  struct unit_datum *unit=&units[0];
+  long handle=0x10000;
+  unit_handles[0]=handle;
+  unit->object.parent_object_index=NONE;
+  unit->unit.player_index=NONE;
+  unit->unit.actor_index=0x20000;
+  unit->unit.swarm_actor_index=NONE;
+  actors[0].meta.encounter_index=0;
+  definition.runtime_structure_bsp_reference_index=0;
+  scenario.type=_scenario_type_multiplayer;
+  scenario.structure_bsp_references.count=2;
+  actor_data->valid=TRUE;
+
+  global_structure_bsp_index=1;
+  CHECK(!ai_unit_belongs_to_other_bsp(handle),"classic actor collision changed");
+  mcc_loaded=TRUE;
+  CHECK(ai_unit_belongs_to_other_bsp(handle),"the parked actor can collide in the wrong BSP");
+  global_structure_bsp_index=0;
+  CHECK(!ai_unit_belongs_to_other_bsp(handle),"the actor did not return to its home BSP");
+  global_structure_bsp_index=1;
+
+  unit->object.parent_object_index=0x30000;
+  CHECK(!ai_unit_belongs_to_other_bsp(handle),"an AI passenger stopped following its vehicle");
+  unit->object.parent_object_index=NONE;
+  actors[0].meta.encounterless=TRUE;
+  CHECK(!ai_unit_belongs_to_other_bsp(handle),"detached AI could not follow the crossing");
+  actors[0].meta.encounterless=FALSE;
+  unit->unit.player_index=0;
+  CHECK(!ai_unit_belongs_to_other_bsp(handle),"a player-controlled unit was parked");
+  unit->unit.player_index=NONE;
+  unit->unit.swarm_actor_index=unit->unit.actor_index;
+  unit->unit.actor_index=NONE;
+  CHECK(ai_unit_belongs_to_other_bsp(handle),"a swarm body ignored its encounter");
+  definition.runtime_structure_bsp_reference_index=2;
+  CHECK(!ai_unit_belongs_to_other_bsp(handle),"an unassigned encounter pinned collision to a missing region");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-reconnect"))
  {
   mcc_loaded=TRUE;

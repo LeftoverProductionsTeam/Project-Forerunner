@@ -710,6 +710,7 @@ static struct game_engine_regional_object {
 #define _object_mask_item FLAG(_object_type_weapon)
 static struct object_datum *unit_get(long index) {return object_get(index);}
 static boolean game_engine_vehicle_parked(long index) {return FALSE;}
+static boolean ai_unit_belongs_to_other_bsp(long index) {return FALSE;}
 #include "regional_equipment.inc"
 
 static void setup(short old,short destination)

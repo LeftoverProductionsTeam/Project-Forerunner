@@ -546,6 +546,7 @@ symbols in this file:
 #include "game_engine.h"
 #include "game_engine_list.h"
 #include "game_engine_place.h"
+#include "ai/ai.h"
 
 #include "bitmaps/bitmap_group.h"
 #include "bitmaps/bitmap_group_lookup.h"
@@ -5499,7 +5500,7 @@ boolean game_engine_object_parked(
 		return game_engine_vehicle_parked(object_index);
 	if (TEST_FLAG(_object_mask_item, object_type))
 		return game_engine_equipment_item_parked(object_index);
-	return FALSE;
+	return object_type == _object_type_biped && ai_unit_belongs_to_other_bsp(object_index);
 }
 
 /* a living vehicle of the home's kind on its pad, but except, that no other
