@@ -133,6 +133,14 @@ static void check_bsp_inputs(void)
  CHECK(update_server_prediction_matches_structure_bsp(player,13),
        "ordinary destination input advanced the transition tick");
  bsp=0;
+ network_coop_clear_structure_bsp_acknowledgments();
+ bsp=1;
+ network_coop_clear_structure_bsp_acknowledgments();
+ CHECK(!network_coop_player_has_structure_bsp(player) &&
+       !update_server_prediction_matches_structure_bsp(player,14),
+       "return to a previously acknowledged BSP restored held input without a new acknowledgment");
+ bsp=0;
+ network_coop_clear_structure_bsp_acknowledgments();
  update_server_handle_distributed_input(player,17,0,&released,latest_buttons,4);
  CHECK(!update_server_prediction_matches_structure_bsp(player,16)&&
        update_server_prediction_matches_structure_bsp(player,17),

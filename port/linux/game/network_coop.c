@@ -3828,6 +3828,13 @@ word network_coop_device_group_entry_size(
 	return sizeof(struct distributed_coop_device_group);
 }
 
+/* A BSP number can be reused on the next visit. Old acknowledgments
+ * must not reactivate queued controls before the client reports again. */
+void network_coop_clear_structure_bsp_acknowledgments(void)
+{
+	csmemset(host_player_structure_bsps, NONE, sizeof(host_player_structure_bsps));
+}
+
 boolean network_coop_note_player_structure_bsp(
 	short player_index,
 	short structure_bsp_index)

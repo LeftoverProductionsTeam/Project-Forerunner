@@ -11,6 +11,7 @@ def generated(fault=None):
     if fault:code=mutated(code,*fault)
     coop=read('port/linux/game/network_coop.c')
     inputs='\n'.join(function(coop,n) for n in (
+        'network_coop_clear_structure_bsp_acknowledgments',
         'network_coop_note_player_structure_bsp','network_coop_player_has_structure_bsp'))
     inputs+='\n'+'\n'.join(function(source,n) for n in (
         'update_queue_make_room','update_server_add_player','update_client_add_player',

@@ -2602,6 +2602,9 @@ static void main_switch_to_structure_bsp_private(
 	main_globals.switch_to_structure_bsp_index = NONE;
 	hud_load(0);
 	players_coop_finish_bsp_switch(from, to, loaded);
+	if (loaded && global_structure_bsp_index_get() == to &&
+		game_connection() == _game_connection_network_server && network_synchronizes_structure_bsp())
+		network_coop_clear_structure_bsp_acknowledgments();
 	return;
 }
 

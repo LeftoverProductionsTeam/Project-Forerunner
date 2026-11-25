@@ -619,7 +619,9 @@ static short host_player_structure_bsps[2]={NONE,NONE};
 static struct {boolean scene_refresh,refresh;} host_resend;
 #define NUMBEROF(array) (sizeof(array) / sizeof(array[0]))
 #define VALID_INDEX(index, count) (index>=0 && index<count)
+#define csmemset memset
 #include "bsp_world_state.inc"
+#undef csmemset
 
 enum {_coop_event_surface_broken, MAXIMUM_QUEUED_EVENTS=128};
 static struct {short count;} coop_events;
