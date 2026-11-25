@@ -5372,7 +5372,7 @@ static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIM
 
 enum
 {
-	REGIONAL_STATIC_OBJECT_TYPES = _object_mask_machine | _object_mask_control | _object_mask_scenery,
+	REGIONAL_STATIC_OBJECT_TYPES = _object_mask_device | _object_mask_scenery | _object_mask_sound_scenery,
 	REGIONAL_TRACKED_OBJECT_TYPES = _object_mask_item | _object_mask_vehicle | REGIONAL_STATIC_OBJECT_TYPES
 };
 
@@ -5473,8 +5473,8 @@ void game_engine_record_regional_object(
 
 	if (!TEST_FLAG(REGIONAL_TRACKED_OBJECT_TYPES, type))
 		return;
-	/* The host owns loose items and vehicles. Map scenery and devices also
-	 * need to keep their collision in the correct BSP on each peer. */
+	/* The host owns loose items and vehicles. Placed geometry, devices and
+	 * sound emitters belong to the same BSP on every peer. */
 	if (!TEST_FLAG(REGIONAL_STATIC_OBJECT_TYPES, type) && network_game_distributed_client())
 		return;
 	region = &game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];

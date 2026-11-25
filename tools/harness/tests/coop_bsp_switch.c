@@ -74,10 +74,13 @@ struct object_datum {
 #define biped_datum object_datum
 #define unit_datum object_datum
 #define _object_mask_vehicle FLAG(_object_type_vehicle)
-enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6, _object_type_scenery=7};
+enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4, _object_type_machine=5, _object_type_control=6, _object_type_scenery=7, _object_type_light_fixture=8, _object_type_sound_scenery=9};
 #define _object_mask_machine FLAG(_object_type_machine)
 #define _object_mask_control FLAG(_object_type_control)
 #define _object_mask_scenery FLAG(_object_type_scenery)
+#define _object_mask_light_fixture FLAG(_object_type_light_fixture)
+#define _object_mask_sound_scenery FLAG(_object_type_sound_scenery)
+#define _object_mask_device (_object_mask_machine | _object_mask_control | _object_mask_light_fixture)
 
 static struct scenario scenario;
 static struct scenario *global_scenario=&scenario;
@@ -1003,6 +1006,33 @@ int main(int argc,char **argv)
               "the same devices did not receive native actions after returning");
         return 0;
     }
+    if (!strcmp(name, "regional-environment"))
+    {
+        struct object_datum *emitter=&objects[2], *fixture=&objects[3];
+        memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
+        scenario.type=_scenario_type_multiplayer;
+        scenario.structure_bsp_references.count=2;
+        mcc_loaded=TRUE;
+        test_equipment_client=TRUE;
+        emitter->object.type=_object_type_sound_scenery;
+        fixture->object.type=_object_type_light_fixture;
+        emitter->object.parent_object_index=fixture->object.parent_object_index=NONE;
+        emitter->object.flags=fixture->object.flags=FLAG(_object_connected_to_map_bit);
+        emitter->object.location.cluster_index=fixture->object.location.cluster_index=0;
+
+        objects_disconnect_from_structure_bsp();
+        global_structure_bsp_index=1;
+        CHECK(game_engine_object_parked(units[2],_object_type_sound_scenery),
+              "an ambient sound emitter followed the client into an overlapping BSP");
+        CHECK(game_engine_object_parked(units[3],_object_type_light_fixture),
+              "a light fixture followed the client into an overlapping BSP");
+
+        global_structure_bsp_index=0;
+        CHECK(!game_engine_object_parked(units[2],_object_type_sound_scenery)&&
+              !game_engine_object_parked(units[3],_object_type_light_fixture),
+              "environment objects failed to resume in their recorded BSP");
+        return 0;
+    }
     if (!strcmp(name, "regional-loose-objects"))
     {
         struct object_datum item={.object={
@@ -1385,6 +1415,11 @@ int main(int argc,char **argv)
                 CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
                       regional_pill_probes==2,
                       "the on-foot player could cross into destination scenery");
+                door->object.type=_object_type_light_fixture;
+                game_engine_record_regional_object(regional_blocker,door,destination);
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL)&&
+                      regional_pill_probes==3,
+                      "the on-foot player could cross into a solid destination light fixture");
                 objects[0].object.parent_object_index=units[2];
                 regional_blocker=NONE;
 

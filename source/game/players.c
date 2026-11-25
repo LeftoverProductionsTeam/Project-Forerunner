@@ -3784,7 +3784,7 @@ static boolean player_root_blocked_in_destination(
 	struct object_iterator iterator;
 	struct object_datum const *blocker;
 
-	object_iterator_new(&iterator, _object_mask_vehicle | _object_mask_machine | _object_mask_control | _object_mask_scenery, 0);
+	object_iterator_new(&iterator, _object_mask_vehicle | _object_mask_device | _object_mask_scenery, 0);
 	while ((blocker = object_iterator_next(&iterator)) != NULL)
 	{
 		real reach = root->object.bounding_sphere_radius + blocker->object.bounding_sphere_radius;

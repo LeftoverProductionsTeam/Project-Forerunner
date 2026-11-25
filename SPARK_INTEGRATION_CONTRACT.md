@@ -3518,6 +3518,14 @@ Split Screen and Select Profile. Selecting this map and starting it through
 that menu, full-length routes and simultaneous regional simulation remain
 open. See `build/native-megaworld-f0835f5e-split-screen.json`.
 
+Placed sound scenery and light fixtures now keep the same regional ownership
+as other native scenery and devices. Two Win64 peers on `f0835f5e` both saw
+40 clustered emitters in BSP 0, all 40 parked without a destination-cluster
+reference in BSP 11, then all 40 reconnected on return. The 83 BSP checks
+cover fixture ownership and refusal of a crossing into solid destination
+fixtures. That exact map had no live light fixtures in this run. See
+`build/native-megaworld-f0835f5e-environment.json`.
+
 The MCC13 cache now protects BSPs held by the native simulation within
 the existing tag budget. If the next BSP would overwrite held geometry,
 the load is refused before the current scene disconnects. The cache can
