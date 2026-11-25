@@ -3317,6 +3317,24 @@ reported BSP 0 again at ticks 1274 and 1281. Both exited zero. The
 same debug approach staging and normal keyboard movement apply.
 Retained copies and receipts are in `build/native-mcc-derelict-71fc1648`.
 
+Spark's fifteen-region Death Island MCC13 handoff is
+`%TEMP%/GuiltySpark-Traversal-Handoff/fifteen-mcc13-AeCOsE/ready/gsmegaroad.map`
+with SHA-256 `4bb73ace7d1b381b627d4fd019e87a98f0d35e2dc580c6a0306169d8b0824a47`.
+The installed Windows executable `cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`
+loaded the exact copied cache on two private loopback peers. Both loaded
+4,808 tags and 12,305,856 runtime tag bytes. Delta negotiated regional
+BSP capability. Debug placement only staged the players before the switch.
+
+On foot, the host and guest approached `bsp0,3`. Its authored box starts
+at (-205.28694, 490.27420, -24.08208), extends 0.9 × 2.1 × 2.0, and faces
+(0.246108, -0.969242, 0). The peers reached (-203.654, 489.756, -23.882)
+and (-203.838, 490.141, -23.882). Both floor positions were inside the
+box. The native per-object trigger query returned true for one player and
+false for the other, and the host stayed in BSP 0 through tick 14460.
+Check the native trigger sample for each replicated biped before changing
+destination clearance or the authored box. Death Island traversal and return
+remain open. The installed fourteen-region map retains its original hash.
+
 Seam clearance now checks nearby vehicles, machines and controls with a known
 destination BSP before committing the shared switch. It takes contact from
 native object models and vehicle physics, even while those blockers are
