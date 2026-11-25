@@ -57,6 +57,11 @@ def generated(fault=None):
             'cluster_partition_reference_bsp',
             'cluster_partition_get_next_datum_in_bsp', 'cluster_partition_get_next_datum',
             'cluster_partition_get_first_datum_in_bsp', 'cluster_partition_get_first_datum'))),
+        ('regional_object_search.inc',
+         '\n'.join(function(read('source/structures/structures.c'), name) for name in (
+             'structure_clusters_in_sphere_recursive', 'structure_bsp_clusters_in_sphere')) + '\n' +
+         '\n'.join(function(read('source/objects/objects.c'), name) for name in (
+             'objects_in_bsp_clusters', 'objects_in_bsp_sphere'))),
         ('bsp_limits.inc', '\n'.join(f'#define {name} {constant(read(path), name)}' for name, path in bsp_limits) +
          '\n' + bsp_verifier.replace('structure_bsp_port_verify', 'native_bsp_limits', 1)),
         ('surface_breaks.inc',

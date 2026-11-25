@@ -70,7 +70,7 @@ int config_boolean(const char *name);
 /* port/linux/src (halo.log) */
 void platform_log(const char *format, ...);
 /* structures.c */
-boolean sphere_intersects_cluster_portal(struct structure_bsp *structure, short portal_index,
+boolean sphere_intersects_cluster_portal(struct structure_bsp const *structure, short portal_index,
 	real_point3d const *point, real radius);
 
 /* ---------- constants */

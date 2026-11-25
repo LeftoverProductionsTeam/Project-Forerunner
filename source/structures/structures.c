@@ -342,7 +342,7 @@ boolean structure_cluster_mark(
 }
 
 boolean sphere_intersects_cluster_portal(
-	struct structure_bsp *structure,
+	struct structure_bsp const *structure,
 	short portal_index,
 	real_point3d const *point,
 	real radius)
@@ -393,10 +393,7 @@ boolean sphere_intersects_cluster_portal(
 		distance_squared3d(point, &portal->centroid) <
 			(portal->bounding_radius + radius) * (portal->bounding_radius + radius))
 	{
-		plane_normal = &TAG_BLOCK_GET_ELEMENT(
-			&global_bsp3d_get()->planes,
-			portal->plane_index,
-			real_plane3d)->n;
+		plane_normal = &collision_plane->n;
 		projection = projection_from_vector3d(plane_normal);
 		projection_sign = projection_sign_from_vector3d(plane_normal, projection);
 		point_from_line3d(
@@ -438,14 +435,14 @@ boolean sphere_intersects_cluster_portal(
 }
 
 static short structure_clusters_in_sphere_recursive(
+	struct structure_bsp const *structure,
 	short cluster_index,
 	real_point3d const *position,
 	real radius,
 	short maximum_count,
 	short *intersected_indices)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
-	struct structure_cluster_graph *cluster = TAG_BLOCK_GET_ELEMENT(
+	struct structure_cluster_graph const *cluster = TAG_BLOCK_GET_ELEMENT(
 		&structure->clusters,
 		cluster_index,
 		struct structure_cluster_graph);
@@ -486,7 +483,8 @@ static short structure_clusters_in_sphere_recursive(
 				? portal->cluster_indices[1]
 				: portal->cluster_indices[0];
 
-		if (adjacent_cluster_index < structure->clusters.count &&
+		if (VALID_INDEX(adjacent_cluster_index, structure->clusters.count) &&
+			adjacent_cluster_index < MAXIMUM_CLUSTERS_PER_STRUCTURE &&
 			structure_cluster_unmarked(adjacent_cluster_index) &&
 			sphere_intersects_cluster_portal(
 				structure,
@@ -495,6 +493,7 @@ static short structure_clusters_in_sphere_recursive(
 				radius))
 		{
 			short added_count = structure_clusters_in_sphere_recursive(
+				structure,
 				adjacent_cluster_index,
 				position,
 				radius,
@@ -502,12 +501,8 @@ static short structure_clusters_in_sphere_recursive(
 				intersected_indices);
 
 			cluster_count += added_count;
+			intersected_indices += MIN(added_count, MAX(0, maximum_count));
 			maximum_count -= added_count;
-			/* BUG (original): January and HCEA advance by every visited cluster,
-			 * even after the output capacity is exhausted, which can form an
-			 * out-of-bounds pointer. A corrected build should advance only by
-			 * the number actually written, clamped to the remaining capacity. */
-			intersected_indices += added_count;
 		}
 	}
 
@@ -683,7 +678,8 @@ void render_debug_fog_planes(
 	return;
 }
 
-short structure_clusters_in_sphere(
+short structure_bsp_clusters_in_sphere(
+	struct structure_bsp const *structure,
 	short cluster_index,
 	real_point3d const *position,
 	real radius,
@@ -711,14 +707,14 @@ short structure_clusters_in_sphere(
 
 	/* port: a cluster index (from the map) that fits no cluster finds none,
 	as NONE does */
-	if (cluster_index >= 0 &&
-		cluster_index < global_structure_bsp_get()->clusters.count &&
+	if (structure && VALID_INDEX(cluster_index, structure->clusters.count) &&
 		cluster_index < MAXIMUM_CLUSTERS_PER_STRUCTURE)
 	{
 		if (radius > 0.0f)
 		{
 			structure_cluster_marker_begin();
 			cluster_count = structure_clusters_in_sphere_recursive(
+				structure,
 				cluster_index,
 				position,
 				radius,
@@ -734,6 +730,17 @@ short structure_clusters_in_sphere(
 	}
 
 	return cluster_count;
+}
+
+short structure_clusters_in_sphere(
+	short cluster_index,
+	real_point3d const *position,
+	real radius,
+	short maximum_count,
+	short *intersected_indices)
+{
+	return structure_bsp_clusters_in_sphere(global_structure_bsp_get(), cluster_index,
+		position, radius, maximum_count, intersected_indices);
 }
 
 short structure_clusters_in_cone(

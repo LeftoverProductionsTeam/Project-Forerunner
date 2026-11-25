@@ -76,6 +76,13 @@ short structure_clusters_in_cone(
 void structure_get_planar_fog(
 	short cluster_index,
 	struct render_fog *fog);
+short structure_bsp_clusters_in_sphere(
+	struct structure_bsp const *structure,
+	short cluster_index,
+	real_point3d const *position,
+	real radius,
+	short maximum_count,
+	short *intersected_indices);
 short structure_clusters_in_sphere(
 	short cluster_index,
 	real_point3d const *position,

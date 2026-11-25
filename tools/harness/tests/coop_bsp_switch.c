@@ -59,7 +59,7 @@ struct bsp3d {int placeholder;};
 struct structure_leaf {long cluster_index;};
 struct location {long leaf_index; short cluster_index,bonus;};
 struct structure_bsp {
-    struct tag_block leaves,collision_bsp,clusters,surfaces,breakable_surfaces;
+    struct tag_block leaves,collision_bsp,clusters,cluster_portals,surfaces,breakable_surfaces;
     struct {long size;} cluster_data,sound_cluster_data;
 };
 struct data_iterator {long datum_index;int slot;};
@@ -648,6 +648,31 @@ static void breakable_surface_effect(short index, struct damage_data *damage, lo
 #define csmemset memset
 #define BIT_VECTOR_SET_FLAG(bits,index,value) SET_FLAG((bits)[(index)/32],(index)%32,value)
 #include "surface_breaks.inc"
+
+#define MAXIMUM_OBJECTS_PER_MAP 4
+struct structure_cluster_graph {struct tag_block portal_indices;};
+struct structure_cluster_portal {short cluster_indices[2];};
+static struct cluster_partition collideable_object_cluster_partition, noncollideable_object_cluster_partition;
+static boolean search_cluster_marks[MAXIMUM_CLUSTERS_PER_STRUCTURE], search_object_marks[MAXIMUM_OBJECTS_PER_MAP];
+static void structure_cluster_marker_begin(void) {memset(search_cluster_marks,0,sizeof(search_cluster_marks));}
+static void structure_cluster_marker_end(void) {}
+static void structure_cluster_mark(short cluster) {search_cluster_marks[cluster]=TRUE;}
+static boolean structure_cluster_unmarked(short cluster) {return !search_cluster_marks[cluster];}
+static boolean sphere_intersects_cluster_portal(struct structure_bsp const *structure, short portal,
+    real_point3d const *point, real radius)
+{return structure!=global_structure_bsp_get()&&portal==0;}
+static void object_marker_begin(void) {memset(search_object_marks,0,sizeof(search_object_marks));}
+static void object_marker_end(void) {}
+static boolean object_mark_function(long object)
+{
+    const int index=slot(object);
+    const boolean first=!search_object_marks[index];
+    search_object_marks[index]=TRUE;
+    return first;
+}
+static boolean point_in_sphere(real_point3d const *point, real_point3d const *center, real radius)
+{return distance_squared3d(point,center)<=radius*radius;}
+#include "regional_object_search.inc"
 
 #include <float.h>
 #define REAL_MAX FLT_MAX
@@ -1745,6 +1770,41 @@ int main(int argc,char **argv)
             CHECK(mcc_cache_bsp_pinned(&regions[2])&&!mcc_preview_bsp&&
                   scenario_structure_bsp_try_and_get(2)==geometry&&global_structure_bsp_index==old,
                   "an occupied preview was not promoted to native resident geometry");
+            {
+                struct structure_bsp *other=&mcc_regions[2].structure;
+                struct tag_block saved_clusters=other->clusters, saved_portals=other->cluster_portals;
+                short portal_index=0;
+                struct structure_cluster_portal portal={{0,1}};
+                struct structure_cluster_graph clusters[2]={{{1,&portal_index}},{{1,&portal_index}}};
+                long heads[MAXIMUM_CLUSTERS_PER_STRUCTURE], output[2], entries[]={units[1],units[2]};
+                struct data_array data={.count=2,.data=(unsigned char *)entries};
+                struct location location={0,0,0};
+                const real_point3d center={0,0,0};
+                short short_output[]={NONE,42};
+                memset(heads,NONE,sizeof(heads));
+                heads[1]=7;
+                collideable_object_cluster_partition=(struct cluster_partition){
+                    .cluster_first_data_references=heads,.data_reference_data=&data,.port_structure_bsp_index=old
+                };
+                regional_test_other_root=units[1];
+                regional_test_other_root_bsp=old;
+                other->clusters=(struct tag_block){2,clusters};
+                other->cluster_portals=(struct tag_block){1,&portal};
+                objects[1].object.type=_object_type_vehicle;
+                objects[1].object.bounding_sphere_center=objects[2].object.bounding_sphere_center=center;
+                CHECK(objects_in_bsp_sphere(2,FLAG(0),_object_mask_vehicle,&location,&center,1,output,2)==1&&
+                      output[0]==units[2]&&global_structure_bsp_index==old,
+                      "regional sphere missed a connected vehicle or borrowed the foreground list");
+                CHECK(objects_in_bsp_sphere(3,FLAG(0),_object_mask_vehicle,&location,&center,1,output,2)==0,
+                      "an unloaded structure fell back to foreground geometry");
+                CHECK(structure_bsp_clusters_in_sphere(other,0,&center,1,1,short_output)==2&&
+                      short_output[0]==0&&short_output[1]==42,
+                      "portal traversal count or bounded output was corrupted");
+                other->clusters=saved_clusters;
+                other->cluster_portals=saved_portals;
+                objects[1].object.type=_object_type_biped;
+                regional_test_other_root=NONE;
+            }
             CHECK(scenario_structure_bsp_prepare(&references[old],&references[2],&prepared)==_scenario_bsp_prepare_ready&&
                   prepared.structure==geometry&&mcc_prepared_loads==2,
                   "the BSP switch failed to reuse the occupied geometry");

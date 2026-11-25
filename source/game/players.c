@@ -5520,7 +5520,8 @@ static void player_examine_nearby_objects(
 		unit = unit_get(player->unit_index);
 		if (unit->object.parent_object_index == NONE)
 		{
-			object_count = objects_in_sphere(
+			object_count = objects_in_bsp_sphere(
+				object_get_regional_bsp(player->unit_index),
 				0,
 				_object_mask_player_interaction,
 				&unit->object.location,

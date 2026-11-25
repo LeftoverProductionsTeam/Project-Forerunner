@@ -1809,7 +1809,8 @@ boolean object_get_function_value(
 	return result;
 }
 
-short objects_in_clusters_by_indices(
+static short objects_in_bsp_clusters(
+	short bsp,
 	unsigned long class_flags,
 	short cluster_count,
 	short const *cluster_indices,
@@ -1827,42 +1828,26 @@ short objects_in_clusters_by_indices(
 
 	object_marker_begin();
 
-	for (cluster_index = 0; cluster_index<cluster_count; ++cluster_index)
+	for (cluster_index = 0; cluster_index < cluster_count; ++cluster_index)
 	{
-		short cluster_num = cluster_indices[cluster_index];
-		if (TEST_FLAG(class_flags, 0))
+		short partition_index;
+		for (partition_index = 0; partition_index < 2; ++partition_index)
 		{
+			struct cluster_partition const *partition = partition_index == 0 ?
+				&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
 			long reference;
 			long object_index;
 
-			for (object_index = cluster_get_first_collideable_object(&reference, cluster_num);
-				object_index!=NONE;
-				object_index = cluster_get_next_collideable_object(&reference))
+			if (!TEST_FLAG(class_flags, partition_index))
+				continue;
+			for (object_index = cluster_partition_get_first_datum_in_bsp(partition, &reference, bsp,
+					cluster_indices[cluster_index]);
+				object_index != NONE;
+				object_index = cluster_partition_get_next_datum_in_bsp(partition, &reference, bsp))
 			{
 				if (object_mark_function(object_index))
 				{
-					if (object_count>=maximum_object_count)
-					{
-						object_marker_end();
-						return object_count;
-					}
-					object_indices[object_count++] = object_index;
-				}
-			}
-		}
-
-		if (TEST_FLAG(class_flags, 1))
-		{
-			long reference;
-			long object_index;
-
-			for (object_index = cluster_get_first_noncollideable_object(&reference, cluster_num);
-				object_index!=NONE;
-				object_index = cluster_get_next_noncollideable_object(&reference))
-			{
-				if (object_mark_function(object_index))
-				{
-					if (object_count>=maximum_object_count)
+					if (object_count >= maximum_object_count)
 					{
 						object_marker_end();
 						return object_count;
@@ -1876,6 +1861,17 @@ short objects_in_clusters_by_indices(
 	object_marker_end();
 
 	return object_count;
+}
+
+short objects_in_clusters_by_indices(
+	unsigned long class_flags,
+	short cluster_count,
+	short const *cluster_indices,
+	short maximum_object_count,
+	long *object_indices)
+{
+	return objects_in_bsp_clusters(global_structure_bsp_index_get(), class_flags, cluster_count,
+		cluster_indices, maximum_object_count, object_indices);
 }
 
 long object_index_from_name_index(
@@ -2458,7 +2454,8 @@ __attribute__((noinline))
 #elif defined(_MSC_VER)
 __declspec(noinline)
 #endif
-short objects_in_sphere(
+short objects_in_bsp_sphere(
+	short bsp,
 	unsigned long class_flags,
 	unsigned long type_flags,
 	struct location const *location,
@@ -2467,6 +2464,7 @@ short objects_in_sphere(
 	long *object_indices,
 	short maximum_count)
 {
+	struct structure_bsp const *structure;
 	long temporary_object_indices[MAXIMUM_OBJECTS_PER_MAP];
 	short cluster_indices[MAXIMUM_CLUSTERS_PER_STRUCTURE];
 
@@ -2485,13 +2483,19 @@ short objects_in_sphere(
 		type_flags = NONE;
 	}
 
-	cluster_count = structure_clusters_in_sphere(
+	if (bsp == NONE)
+		bsp = global_structure_bsp_index_get();
+	structure = bsp == global_structure_bsp_index_get() ? global_structure_bsp_get() :
+		scenario_structure_bsp_try_and_get(bsp);
+	cluster_count = structure_bsp_clusters_in_sphere(
+		structure,
 		location->cluster_index,
 		center,
 		radius,
 		NUMBEROF(cluster_indices),
 		cluster_indices);
-	object_count_in_clusters = objects_in_clusters_by_indices(
+	object_count_in_clusters = objects_in_bsp_clusters(
+		bsp,
 		class_flags,
 		cluster_count,
 		cluster_indices,
@@ -2509,6 +2513,19 @@ short objects_in_sphere(
 	}
 
 	return result;
+}
+
+short objects_in_sphere(
+	unsigned long class_flags,
+	unsigned long type_flags,
+	struct location const *location,
+	real_point3d const *center,
+	real radius,
+	long *object_indices,
+	short maximum_count)
+{
+	return objects_in_bsp_sphere(NONE, class_flags, type_flags, location, center,
+		radius, object_indices, maximum_count);
 }
 
 void objects_bind_cluster_partition_bsp(short structure_bsp_index)
