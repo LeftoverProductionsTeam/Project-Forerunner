@@ -741,7 +741,7 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                         !strcmp(field->name, "players")) {
                         maximum = MCC_SCENARIO_PLAYER_STARTS_MAXIMUM;
                         if (block->count > maximum) {
-                            mcc_problem(context, 1, "player starts exceed MCC's 1024-entry capacity");
+                            mcc_problem(context, 1, "player starts exceed the supported MCC capacity");
                             break;
                         }
                     }

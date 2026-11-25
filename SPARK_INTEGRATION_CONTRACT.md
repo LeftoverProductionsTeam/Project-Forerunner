@@ -4192,7 +4192,7 @@ switch and linked machine. Independent regional simulation remains open.
 
 #### Expanded MCC13 scenario placements
 
-Spark can use the MCC13 discovery fields `max_player_starts` (1,024)
+Spark can use the MCC13 discovery fields `max_player_starts` (1,536)
 and `max_netgame_equipment` (512). These are validated counts for the
 native `scenario.players` and `scenario.netgame_equipment` blocks.
 The MCC loader refuses larger blocks before reading their entries.
