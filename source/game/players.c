@@ -1354,7 +1354,7 @@ long player_new(
 /* Halo's stock spawn score uses a fixed distance between origins. An
  * Extraction hub can use bodies that overlap even when that score is positive. */
 static boolean player_extraction_start_clear(long player_index, long biped,
-	real_point3d const *position)
+	real_point3d const *position, short bsp)
 {
 	struct biped_definition const *definition = biped_definition_get(biped);
 	struct data_iterator players;
@@ -1374,7 +1374,8 @@ static boolean player_extraction_start_clear(long player_index, long biped,
 		real_point3d other_base;
 		real other_height, other_radius, dx, dy, dz, separation;
 
-		if (players.datum_index == player_index || other->unit_index == NONE)
+		if (players.datum_index == player_index ||
+			!game_engine_spawn_observes_unit(other->unit_index, bsp))
 			continue;
 		unit = unit_try_and_get(other->unit_index);
 		if (!unit || unit->object.type != _object_type_biped ||
@@ -1409,8 +1410,10 @@ long find_best_starting_location_index(
 	long extraction_biped = NONE;
 	short faction_profile = NONE, faction_variant = 0;
 	boolean checked_extraction_profile = FALSE;
+	short spawn_bsp;
 
 	scenario = global_scenario_get();
+	spawn_bsp = scenario_uses_regional_gameplay(scenario) ? global_structure_bsp_index_get() : NONE;
 	starting_location_count = scenario->players.count;
 	if (ai_debug.selected_squad_index != NONE)
 	{
@@ -1452,7 +1455,8 @@ long find_best_starting_location_index(
 				checked_extraction_profile = TRUE;
 			}
 			if (extraction_biped != NONE &&
-				!player_extraction_start_clear(player_index, extraction_biped, &starting_location->position))
+				!player_extraction_start_clear(player_index, extraction_biped,
+					&starting_location->position, spawn_bsp))
 				continue;
 
 			best_starting_location_rating = starting_location_rating;

@@ -774,6 +774,7 @@ boolean game_engine_display_team_indicators(
 boolean game_engine_can_score(
 	void);
 
+boolean game_engine_spawn_observes_unit(long unit_index, short bsp);
 real game_engine_get_starting_location_rating(
 	long player_index,
 	struct player_starting_location const *starting_location);

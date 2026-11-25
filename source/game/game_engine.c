@@ -3992,7 +3992,7 @@ static boolean nearby_vehicle(
 	return FALSE;
 }
 
-static boolean game_engine_spawn_observes_unit(long unit_index, short bsp)
+boolean game_engine_spawn_observes_unit(long unit_index, short bsp)
 {
 	short unit_bsp;
 	if (unit_index == NONE)

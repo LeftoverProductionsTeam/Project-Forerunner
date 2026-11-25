@@ -526,6 +526,8 @@ static struct biped_definition *biped_definition_get(long tag)
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
+static short fixture_unit_bsp = NONE;
+static short object_get_regional_bsp(long unit) { (void)unit; return fixture_unit_bsp; }
 #include "spawn_clearance.inc"
 #include "native_seats.inc"
 #include "controls.inc"
@@ -684,14 +686,18 @@ int main(int argc,char **argv)
  if(!strcmp(case_name,"faction-hub-clearance")) {
   real_point3d start={0,0,0};
   units[1].object.position=(real_point3d){.55f,0,0};
-  CHECK(!player_extraction_start_clear(player_handles[0],5,&start),"overlapping Elite and Spartan spawn was clear");
+  CHECK(!player_extraction_start_clear(player_handles[0],5,&start,NONE),"overlapping Elite and Spartan spawn was clear");
+  CHECK(!player_extraction_start_clear(player_handles[0],5,&start,0),"unassigned body did not block");
+  fixture_unit_bsp=1;
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start,0),"different BSP blocked a regional spawn");
+  CHECK(!player_extraction_start_clear(player_handles[0],5,&start,1),"same BSP did not block a regional spawn");
   units[1].object.position.x=.65f;
-  CHECK(player_extraction_start_clear(player_handles[0],5,&start),"non-overlapping neighboring spawn was blocked");
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start,1),"non-overlapping neighboring spawn was blocked");
   units[1].object.position=(real_point3d){0,0,2.f};
-  CHECK(player_extraction_start_clear(player_handles[0],5,&start),"same horizontal coordinates blocked on a different level");
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start,1),"same horizontal coordinates blocked on a different level");
   units[1].object.position.z=0;
   units[1].object.damage_flags=FLAG(_object_dead_bit);
-  CHECK(player_extraction_start_clear(player_handles[0],5,&start),"dead player blocked a replacement spawn");
+  CHECK(player_extraction_start_clear(player_handles[0],5,&start,1),"dead player blocked a replacement spawn");
   return 0;
  }
  if(!strncmp(case_name,"faction-hub-",12)) {

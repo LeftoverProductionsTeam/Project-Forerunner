@@ -37,7 +37,10 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('body_binding.inc', '\n'.join(function(read('source/game/players.c'), name) for name in (
         'network_player_reconcile_coop_team', 'network_player_attach_unit', 'network_player_detach_unit', 'players_set_local_player_unit'))))
     files.append(('body_armor_color.inc', function(read('source/game/players.c'), 'player_apply_profile_color')))
-    files.append(('spawn_clearance.inc', function(read('source/game/players.c'), 'player_extraction_start_clear')))
+    files.append(('spawn_clearance.inc', '\n'.join((
+        function(read('source/game/game_engine.c'), 'game_engine_spawn_observes_unit'),
+        function(read('source/game/players.c'), 'player_extraction_start_clear'),
+    ))))
     files.append(('equipment_ownership.inc', enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit') +
                   '\n' + enum_with(read('source/objects/objects.h'), '_object_connected_to_map_bit')))
     files.append(('mission_types.inc', enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') +
