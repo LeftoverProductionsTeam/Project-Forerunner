@@ -66,6 +66,19 @@ field disembarkation. Field terminal, return flight, settlement and
 two-human acceptance on this executable remain open. Both installed
 hashes matched after the run and the disposable staging was removed.
 
+Spark's deployment-waypoint candidate CE609
+`974e2ffa2d7bc2e125c22e2db48695362f6f86295d8e2ccc14ec420705c3be00`
+loaded through Extraction → Play Solo with Delta disabled on Win64
+`695463627c9256cf4628ce430ba800c008a0e76d9425425ce309f612b0ba4676`.
+The hub waypoint and E prompt were visible near control 3. Normal E
+activated deployment and then boarded a Pelican passenger seat. The
+waypoint was absent while riding and after normal field disembarkation.
+At tick 3780 the occupied craft reported grounded, stationary and landed;
+the player was on foot with full health and shields by tick 3870.
+The terminal still appears low in the grass. Hub reappearance after
+return, the Spirit route and human multiplayer remain open. The installed
+executable and maps stayed on their previous-good hashes.
+
 Local comparisons are pinned in `build/black-echo-transport-baseline/comparison.json`.
 It records the exact preserved `d113e9db` and surveyed `b947dc53` copies, the
 unchanged Windows baseline, the occupied pad-brake variant and the prior
@@ -1784,6 +1797,19 @@ map again with the same local profile. Both rounds reached tick 30 with a
 living Survivor. No sound-cache error or exception appeared. This verifies
 local replay after a manual end. Survival victory and audible Game Over
 playback remain open.
+
+Two private Forerunner OpenCE peers on CE609 `d29437a7` reproduced
+native seat-exit placement refusals. Executable SHA-256
+`695463627c9256cf4628ce430ba800c008a0e76d9425425ce309f612b0ba4676`.
+The added native diagnostic identifies the rider, carrier and search
+center. The host logged 16 Standard and six Alpha refusals. The guest
+logged 12 Standard refusals. The first Alpha refusal was for
+`alpha zombieorig` from `alpha zombie containerorig` at
+(71.432, -150.723, 4.250). A repeated Standard refusal from
+`zombie container` clustered around (51.85, -137.94, 4.75) on both
+peers. No Evolved carrier emitted this warning in the run. Evolved
+release needs its own seat-to-foot evidence. Native clearance and
+unloading rules are unchanged.
 
 Spark `8005860` restored the original five Vorbis payloads at full length.
 The audited recipe reproduced the exact MCC13 export
