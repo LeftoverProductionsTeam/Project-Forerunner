@@ -69,7 +69,8 @@ struct player_datum { long unit_index,team_index,dead_unit_index,action_result,a
 struct weapon_definition { struct { unsigned long flags; struct tag_block magazines; } weapon; };
 struct weapon_magazine_definition { short rounds_loaded_maximum, rounds_total_maximum, rounds_total_initial; };
 struct game_globals_grenade { short maximum_count; };
-struct game_globals { struct tag_block grenades; };
+struct game_globals_player_information { struct tag_reference player_unit; };
+struct game_globals { struct tag_block grenades, player_information; };
 struct control_definition { struct { short triggers_when,type;real call_value;
  struct {long index;} on_effect,off_effect,denied_effect; } control; };
 struct scenario_object_name { char name[32]; short runtime_object_type,runtime_scenario_datum_index; };
@@ -122,7 +123,8 @@ static struct weapon_magazine_definition magazine = { 20, 200, 0 };
 static struct weapon_definition weapon_tag = { { 0, { 1, &magazine } } };
 static long missing_tag = NONE, unusable_tag = NONE;
 static struct game_globals_grenade grenades[2] = { {4}, {4} };
-static struct game_globals globals = { { 2, grenades } };
+static struct game_globals_player_information native_player_body = { {4} };
+static struct game_globals globals = { { 2, grenades }, { 1, &native_player_body } };
 static struct scenario_object_name names[11] = { {"extraction_deploy"}, {"extraction_activate"}, {"extraction_loadout"},
  {"extraction_pelican",_object_type_vehicle},{"extraction_spirit",_object_type_vehicle},
  {"extraction_unsc"},{"extraction_covenant"}, {"extraction_unsc_body",_object_type_biped,0},{"extraction_covenant_body",_object_type_biped,1} };
@@ -1356,6 +1358,7 @@ int main(int argc,char **argv)
   scenario.bipeds.count=scenario.biped_palette.count=2;scenario.bipeds.address=body_placements;scenario.biped_palette.address=body_palette;
   for(i=0;i<2;i++) {body_placements[i].name_index=7+i;body_placements[i].palette_entry_index=i;
    body_placements[i].placement_flags=FLAG(_scenario_object_placement_not_automatic_bit);body_palette[i].reference.index=4+i;}
+  if(!strncmp(case_name,"body-native-",12))names[7].name[0]=0;
   if(!strcmp(case_name,"body-binding"))names[8].runtime_object_type=_object_type_vehicle;
   if(!strcmp(case_name,"body-placement"))body_placements[1].placement_flags=0;
   if(!strcmp(case_name,"body-palette"))body_placements[1].palette_entry_index=2;
@@ -1367,6 +1370,32 @@ int main(int argc,char **argv)
    CHECK(!extraction_owns_map()&&!body_creations,"bad character binding admitted or created a body");return 0;
   }
   CHECK(extraction_owns_map(),"valid native character bindings refused");
+  if(!strncmp(case_name,"body-native-",12)) {
+   a=pickup(0,1);
+   touch(3,0);
+   CHECK(players[0].unit_index==old&&players[0].team_index==_game_team_human&&!body_creations,
+         "choosing the existing native body replaced it");
+   touch(4,0);
+   body=players[0].unit_index;
+   CHECK(body!=old&&unit_get(body)->definition_index==5&&players[0].team_index==_game_team_covenant,
+         "the explicit Covenant body was not possessed");
+   if(!strcmp(case_name,"body-native-missing"))globals.player_information.count=0;
+   touch(3,0);
+   unit=unit_get(players[0].unit_index);
+   if(!strcmp(case_name,"body-native-missing")) {
+    CHECK(players[0].unit_index==body&&players[0].team_index==_game_team_covenant,
+          "a missing default body changed native faction anyway");
+   } else {
+    CHECK(players[0].unit_index!=body&&unit->definition_index==4&&players[0].team_index==_game_team_human,
+          "choosing UNSC retained the Covenant body");
+    CHECK(!extraction_player_spawn_profile(player_handles[0],&definition,&profile,&variant),
+          "a fallback faction stopped using the native respawn body");
+   }
+   CHECK(unit->unit.weapon_object_indices[0]==a&&weapon_try_and_get(a)&&
+         run(0)->gear.record.phase==_gear_idle&&!run(0)->gear.record.reserved_count,
+         "body selection erased carried equipment or reserved gear");
+   return 0;
+  }
   if(!strcmp(case_name,"body-armor-color")) {
    touch(4,0);touch(4,1);
    for(i=0;i<2;i++) {

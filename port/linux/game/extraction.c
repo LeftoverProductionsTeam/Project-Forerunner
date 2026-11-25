@@ -8,6 +8,7 @@
 #include "ai/ai.h"
 #include "ai/actors.h"
 #include "game/game.h"
+#include "game/game_globals.h"
 #include "game/players.h"
 #include "game/player_queues_new.h"
 #include "hs/hs.h"
@@ -1871,6 +1872,9 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			struct game_modes_inventory loadout;
 			short team = faction ? _game_team_covenant : _game_team_human;
 			short dropped = 0;
+			short variant = extraction.faction_variants[faction];
+			long biped = extraction.faction_bipeds[faction];
+			boolean native_body = biped == NONE && extraction.faction_bipeds[1 - faction] != NONE;
 			if (run->squad != NONE && extraction_faction((short)player->team_index) != faction)
 			{
 				extraction_tell(run, "LEAVE SQUAD FIRST | Change faction at the hub, then join a compatible squad."); return TRUE;
@@ -1895,9 +1899,25 @@ boolean extraction_control_touched(long control_index, long unit_index)
 				extraction_block(run, "FACTION UNAVAILABLE | Starter equipment is unavailable or stash recovery is pending. No equipment granted.");
 				return TRUE;
 			}
-			if (extraction.faction_bipeds[faction] != NONE && !game_modes_player_change_biped(run->player,
-				extraction.faction_bipeds[faction], extraction.faction_variants[faction], team,
-				extraction.faction_profiles[faction], &run->gear, &dropped))
+			/* A one-sided body override still needs a way back to the map's
+			 * native player body. The ordinary respawn uses this same tag. */
+			if (native_body)
+			{
+				struct game_globals *globals = scenario_get_game_globals();
+				if (globals && globals->player_information.count > 0)
+				{
+					struct game_globals_player_information const *info =
+						TAG_BLOCK_GET_ELEMENT(&globals->player_information, 0, struct game_globals_player_information);
+					biped = info->player_unit.index;
+				}
+				variant = 0;
+			}
+			if ((native_body && biped == NONE) ||
+				(biped != NONE &&
+				 (!native_body || unit->definition_index != biped ||
+				  extraction_faction(unit->object.owner_team_index) != faction) &&
+				 !game_modes_player_change_biped(run->player, biped, variant, team,
+					extraction.faction_profiles[faction], &run->gear, &dropped)))
 			{
 				extraction_block(run, "CHARACTER UNAVAILABLE | Check compatible loadout. Carried gear remains with you or beside the terminal.");
 				return TRUE;

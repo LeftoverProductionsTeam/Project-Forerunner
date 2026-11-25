@@ -5320,6 +5320,9 @@ Selected stored gear is filtered through native weapon/animation admission befor
 both preview and reservation. Incompatible saved items stay in the same stash,
 available again after a compatible character choice; record version/IDs do not
 change. Native respawn uses the selected faction's body and starting profile.
+On solo maps with a template for just one faction, selecting the other faction
+restores the scenario's native player body. Its ordinary native respawn still
+uses that body.
 Sources: `extraction.c::{extraction_bind,extraction_control_touched,extraction_open_gear,
 extraction_player_spawn_profile}`, `game_modes.c::{game_modes_player_change_biped,
 game_modes_inventory_weapon_for_unit}`, `gear.c::gear_selected`, and
@@ -5347,7 +5350,21 @@ Bind it through the existing extraction_covenant_body placement and pair it
 with a compatible extraction_covenant starting profile. Explicit author
 choices can still bind other species. The current Black Echo cache binds
 `gs_assets_04f1039aa23e4ef98e06328f629bf34a\characters\elite\elite` through
-the native Covenant body placement. It retains the technology weapon's
+the native Covenant body placement. Enable the native **uses player physics**
+flag (bit 1 in the biped flags) on the playable copy of that tag. Preserve
+the NPC tag. The Solo Blood Gulch control cache
+d113e9dbec1bae9554e7d4df3843ecc2bb6d40b4ee2c7cdf5f81831fc7b29b09 resolves
+the Elite flags to 0x200 and the default Spartan flags to 0x202. On Win64
+91e49d30931ff9672d44169f688c352f9b1b132bd9ea0b05fb565ee41a713d88,
+death and native respawn kept the Elite and the original flags produced
+zero lateral travel over the W+A move. The isolated comparison cache
+6181d9e7cbc47b9f69a949afbdeb0b7f792bbc2578a288d7afc17b6db6a096ca
+changed only that bit and the CRC header. After death and Elite respawn,
+W+A moved +1.576 X/+1.401 Y and S+D moved -1.401 X/-1.405 Y in the same
+hub. The unexpected Grunt respawn remains open. Source: the player-motion
+branch of source/units/bipeds.c.
+
+The original cache retains the technology weapon's
 `pp` label, which the imported Elite animation graph has for stand and
 crouch. Spark's seat readback found all eight exact Spirit passenger labels
 in the graph. Verify physical pickup and Spirit boarding in a live match.
