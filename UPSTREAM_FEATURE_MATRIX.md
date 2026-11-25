@@ -27,7 +27,7 @@ component validator. Validation of the resulting tree is recorded separately.
 | [Chupathingy](https://github.com/ChupathingyCE/chupathingyce) | `78d28a70839998775322af8aa571fa494966c0c8` | Shared ancestry is preserved through Fractum; see comparison above | Retain combined implementations; import missing changes individually with author credit. |
 | [FractumSeraph/OpenCE](https://github.com/FractumSeraph/OpenCE) | `eae91445333bc8ebfb1604e08fcedffbd5c3a558` | `1519c65facbb068e44b956da2769198a83a17847` | Selected after repairs, Windows x86 compilation, swapped-host native movement/combat and hidden OpenGL gameplay. Other acceptance gates remain open. |
 | [OpenCE-Faber](https://github.com/SutlabSol/OpenCE-Faber) | `e4ffe0fe9874870b4fca1fca76beb83514c793f4` | `da8d455623cf50002e6a798b1980068fd3ca0292` | Adapt Firefight and object editing incrementally. Whole-branch adoption would replace newer core fixes. |
-| [Watanoge/halo-content-evolved](https://github.com/Watanoge/halo-content-evolved) | `aff7a5d1b8ef592eea1106b64713e2a5d0a74569` | Not computed; source inspected through read-only GitHub access | Mota-recommended Forge/Firefight compatibility reference. Inspect its existing extensions before implementing equivalents; no branch merge, network compatibility or gameplay acceptance is claimed. |
+| [Watanoge/halo-content-evolved](https://github.com/Watanoge/halo-content-evolved) | `61fd80aafc3e1af551124516c4c6915cafd16511` | Pinned commit inspected read-only from the local Git object database | Tag import, bundles, profiles, Forge, Firefight, Floodfection, randomizer and client-side Delta baseline. See the [implementation audit](#halo-content-evolved-at-61fd80aa). |
 | [Mota's OpenCE-Forge, main](https://github.com/SutlabSol/OpenCE-Forge) | `91099ce375632167e425edd7fd40dadf83ab93d2` | Source refresh, 13 commits after the prior `2467e708` pin | Version 2.10.11 source uses Forge protocol `0x4630`, separate from stock sessions. Reused compatible OpenCE transfer commits `ebfa05b7` and `796df195` with original authorship; Forge streaming/placement and live compatibility remain unimplemented/unverified here. |
 | [OpenH1/GOAT H1, dev](https://github.com/OpenH1/goath1) | `baed77571d53abe32b27434b4ba869f11db00fe9` | `6ec42856d73e258e5a8c7e9cd19161f46d89d0e4` | Separate optional VR/renderer adaptation; do not merge its protocol and simulation changes wholesale. |
 | [GulchCE](https://github.com/chestahh/GulchCE) | `66b4df0bc9afeb09189a7f9c0fff0c5b1f5d51b2` | `1519c65facbb068e44b956da2769198a83a17847` | Compare individual MCC fixes against already inherited MCC modules; preserve map-family boundaries. |
@@ -50,6 +50,42 @@ component validator. Validation of the resulting tree is recorded separately.
 | Audio, HUD, input | Inherited SDL3 platform/audio/input and HUD modules | Retain existing implementations and artwork notices. Headless dummy-audio runs prove no audible/spatial audio result. |
 | Recording and replay | Inherited `network_recording.c`, `guide_record.c`; Fractum viewer/service code | Retain source; replay fidelity and production playback acceptance remain open. Do not treat every recording format as deterministic Theater. |
 | Spark adapter and MegaWorld | `server_mode.c` capability contract v1; `tools/spark_runtime.py` reference client | Read-only discovery implemented and tested against real engine. Live editing and connected-world traversal are not implemented. |
+
+## Halo Content Evolved at 61fd80aa
+
+Source audit of [61fd80aafc3e1af551124516c4c6915cafd16511](https://github.com/Watanoge/halo-content-evolved/tree/61fd80aafc3e1af551124516c4c6915cafd16511).
+Reuse individual implementations at the owning milestones. MegaWorld stays first.
+
+| Capability | Upstream source finding | Forerunner and Spark handoff |
+| --- | --- | --- |
+| Native tag import | `port/linux/game/tag_import.c` queues selected roots, walks dependencies and admits loaded tags. Its donor path reads local Xbox v5 caches and compact packs, including compressed Xbox spans. | At the tag-loading milestone, compare the importer with our checked cache schemas and resource ownership. Preserve map, resource and root identity. Spark's current asset library selects an owned source and a root. Keep the loader in Forerunner. |
+| Tag bundles and profiles | `docs/custom_edition_caches.md`, `docs/tag_injector.md`, `tag_bundle.c`, `tag_injector.c`, `mcc_tag_bundle.c`, and `port_tag_profiles.c` implement closure, schema validation, dependency bytes and persistent profile selections. CE uses its external resource maps. MCC has its own donor, texture and audio adapters. Import packs and profile `.tagbundle` files serve different paths. | Reuse the bundle reader/writer and validation in the runtime when adopted. Spark already extracts loose tags through `crates/spark-core/src/tag_exchange.rs`. Expose profile selection in the asset library and preserve creator/source/resource identities. Use a supported runtime operation or validated file exchange. Do not add a second bundle writer or profile database. |
+| Forge injection | `port/forge/src/forge_runtime_tags.c` imports selected profiles into the Forge palette. `forge_network.c` supplies a separate live protocol. `forge_engine.h` selects Forge protocol `0x4777` at this pin. | Reuse compatible importer, catalog and ordering logic behind Forerunner's existing Forge/SparkLink interfaces. Keep HMV and the supported Mota sidecar path for base placements. Require dependency agreement before spawning imported tags, including on late join; accept a live operation only after a private mixed-runtime test. |
+| Standalone map rebaking | `forge_cache_builder.c::forge_export_scenario_map` and `forge_export_mcc_scenario_map` emit native CE and MCC outputs. The MCC path writes a Forge map package and can still rely on the base MCC resource banks. Forge collects saved AI tags before export. | Use those writers where they fit the runtime Forge export milestone. Spark's existing Build & Playtest remains the authoring compiler and can validate a returned map identity, required resources and target support. Test CE and MCC separately. Preserve originals and do not assume a standalone map includes redistribution rights or every resource. |
+| Firefight | `firefight.c`, `firefight_spawner.c`, `firefight_objectives.c`, `firefight_generators.c`, `firefight_network.c` and `forge_ai_routes.c` contain a director, lives, skull/vitality scaling, objective progress and authored routes. | Select compatible objective, wave and scaling code where the existing Forerunner director has a gap. Preserve native HaloScript ownership of authored encounters. Spark exposes supported variants, spawns, routes and objectives through its existing Firefight and scenario editors. |
+| Floodfection | `infection.c` calls `floodfection_forms.c` for player-controlled infected forms. It blends Flood presentation from existing movement and melee state. | Audit and adapt the forms against Forerunner's existing Infection implementation when that milestone is active. Spark exposes the supported form and tag choices under game-mode authoring. Preserve the original Zombie Apocalypse carrier, projectile and survival mechanics as their own workflow. |
+| Campaign randomizer | `randomizer.c` hooks native Xbox, CE and MCC load paths and selects tags for encounters and loadouts. It also exposes pools used by Firefight. | Reuse its reviewed pool selection and actor hooks through the native campaign lifecycle. Spark can author the eligible pool and launch a supported runtime configuration through Build & Playtest. Co-op must prove that the seed, selected content and replacements agree before gameplay. |
+| Delta merge | [Milenko's merged client commit](https://github.com/Watanoge/halo-content-evolved/commit/ce9ea00a441275fc79a25058bc27df6ca1df5415) adds advert detection, a join mark and client HELLO/WELCOME/BYE via `network_delta.c` and the MIT `delta_ref.c/.h`. The game still uses the selected native protocol. | Keep Forerunner's existing Delta implementation. Compare reference behavior only where it fills a gap. Verify compatible ordinary joins separately from Forge/Firefight sessions. The merge alone establishes neither mode interoperability nor authenticated identities. |
+
+**Xbox extraction.** The audited version-5 importer is a starting point for a
+checked Xbox donor adapter, while the upstream profile export UI and
+`tools/ce_tags.c` command cover CE/MCC workflows and CE bundles, respectively.
+Spark already discovers
+Xbox sources and routes selected tags through its Invader extraction workflow.
+First read back one owned v5 weapon with dependencies through that workflow.
+Where the toolchain misses a required Xbox resource, reuse the donor header
+and inflate logic with the bundle schema walker. Verify compressed and
+uncompressed input, tag bounds, bitmap/model/sound resources and unchanged
+source hashes. Record capability separately for each cache family.
+
+**License boundary.** This pin's root license and Forerunner's are AGPLv3.
+Retain WataNoge, Mota/Faber and other authors' notices and relevant history
+when adapting their actual code. The separately marked reference files retain
+Milenko x Horrible Dev's MIT notice and the supplied `LICENSES/MIT.txt`.
+Spark remains MIT and can drive the separately built runtime or consume data
+through its existing interfaces. Keep AGPL engine implementations out of
+Spark's MIT source tree. Tag provenance and permission to distribute assets
+remain separate requirements. This was source inspection only.
 
 ## Licensing and repository rules
 

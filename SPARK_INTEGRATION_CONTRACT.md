@@ -4963,8 +4963,11 @@ record kinds remain outside this placement subset.
 The fork's source selects stock protocol for ordinary games and Forge-specific
 `0x4630` / game kind `0x46` for Forge at the refreshed pin (the README's older
 `0x462A` description is stale); its messages and tag-streaming paths are
-not automatically compatible with Forerunner. Watanoge's separate Forge/Firefight
-snapshot remains pinned in [the upstream matrix](UPSTREAM_FEATURE_MATRIX.md).
+not automatically compatible with Forerunner. The
+[Halo Content Evolved audit](UPSTREAM_FEATURE_MATRIX.md#halo-content-evolved-at-61fd80aa)
+pins `61fd80aa` and records the existing paths Spark should use for asset
+selection, scenario and game-mode authoring, Forge and Build & Playtest as
+Forerunner adopts compatible operations.
 A placement file does not supply missing client gameplay tags: every peer must
 resolve compatible content and dependencies before spawning, including late
 joiners. Existing visual-only loose-tag mods do not meet that requirement.
