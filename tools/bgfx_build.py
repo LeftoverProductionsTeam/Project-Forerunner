@@ -19,6 +19,7 @@ start. On Windows SPIRV-Cross turns the SPIR-V into HLSL for it.
 """
 
 import hashlib
+import os
 import subprocess
 import tarfile
 from dataclasses import dataclass, field
@@ -75,6 +76,23 @@ class BgfxPatchError(RuntimeError):
     quietly leaves bgfx out (bgfx_available lets it through)"""
 
 
+def discard_extracted_archives() -> None:
+    """Discard verified archives once their pinned sources and patches are ready."""
+    if os.environ.get("CI") or download.DOWNLOADS.resolve() != download.DOWNLOADS:
+        return
+    for name, (_, commit) in BGFX_REPOSITORIES.items():
+        revision = BGFX_SOURCES / name / ".halo-revision"
+        archive = download.DOWNLOADS / f"{name}-{commit}.tar.gz"
+        try:
+            if (revision.is_file() and revision.read_text().strip() == commit and
+                    not archive.is_symlink() and archive.is_file() and
+                    download.sha256_of(archive) == BGFX_ARCHIVE_SHA256[name]):
+                archive.unlink(missing_ok=True)
+        except OSError:
+            # An inaccessible archive can be kept without changing the build.
+            continue
+
+
 def fetch_bgfx() -> bool:
     """bgfx's, bx's and bimg's sources at their pinned commits, patched:
     whether they are there"""
@@ -114,6 +132,7 @@ def fetch_bgfx() -> bool:
     patches = [(patch.name, patch.read_bytes().replace(b"\r\n", b"\n")) for patch in BGFX_PATCHES]
     wanted = "".join(f"{name} {hashlib.sha256(text).hexdigest()}\n" for name, text in patches)
     if stamp.is_file() and stamp.read_text() == wanted:
+        discard_extracted_archives()
         return True
     legacy_git = (bgfx / ".git").exists()
     if legacy_git:
@@ -132,6 +151,7 @@ def fetch_bgfx() -> bool:
             raise BgfxPatchError(f"tools/bgfx-patches/{name} does not apply to bgfx at "
                                  f"{BGFX_REPOSITORIES['bgfx'][1][:12]}: fix the patch or the pin (tools/bgfx_build.py)")
     stamp.write_text(wanted)
+    discard_extracted_archives()
     return True
 
 

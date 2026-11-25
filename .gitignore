@@ -64,3 +64,7 @@ port/android/keystore.properties
 # User-supplied Halo 1 MCC maps and resources
 mcc_maps/
 maps_mcc/
+
+# Local validated Windows playtest slots
+/Latest
+/Previous

@@ -58,6 +58,13 @@ existing ignored build/work locations; keep generated binaries, caches and test
 maps out of tracked source. After owned jobs stop, remove their disposable
 runtime/map payloads and scratch files while retaining compact useful evidence.
 Full runtime retention is an explicit debugging choice, not the default.
+Reuse one incremental output per target. The owner launches `Latest\halo.exe`
+and has one rollback under `Previous`. Only promote a focused-smoke-tested
+executable with its compatible map set using `tools/forerunner_playtest.py`.
+Keep saves outside any rotating payload.
+Replace managed payload files atomically; never edit shared rollback map bytes
+in place. Record compact evidence and remove disposable runtimes after each
+trial, including on failure.
 
 Preserve attribution and upstream history. Do not push, publish or submit
 upstream changes without explicit authorization. Build success, source feature
