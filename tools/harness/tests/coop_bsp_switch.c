@@ -62,12 +62,12 @@ struct structure_bsp {
 };
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;};
-struct object_datum {struct {long parent_object_index;real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;} object;
+struct object_datum {struct {long parent_object_index;short type;real_point3d position,bounding_sphere_center;unsigned long flags,damage_flags;} object;
                      long weapon;short ammunition;struct {long player_index;short parent_seat_index;} unit;};
 #define biped_datum object_datum
 #define unit_datum object_datum
 #define _object_mask_vehicle 2
-enum {_object_dead_bit=0};
+enum {_object_dead_bit=0, _object_type_biped=0, _object_type_vehicle=4};
 
 static struct scenario scenario;
 static struct scenario *global_scenario=&scenario;
@@ -177,6 +177,13 @@ static void biped_get_physics_pill(long unit,real_point3d *p,real *height,real *
 {*p=objects[slot(unit)].object.position;*height=1;*width=.2f;}
 static struct structure_bsp const *scenario_structure_bsp_try_and_get(short index);
 static boolean bsp_pill_blocked[2];
+static unsigned long bsp_vehicle_contacts[2];
+static unsigned long physics_structure_contact_mask(long object_index,struct structure_bsp const *structure,short index)
+{
+    CHECK((object_index==units[2]||object_index==units[3])&&structure&&VALID_INDEX(index,2),
+          "invalid vehicle BSP contact query");
+    return bsp_vehicle_contacts[index];
+}
 static boolean collision_structure_blocks_pill(struct structure_bsp const *structure,short index,
                                               real_point3d const *base,real height,real width)
 {
@@ -687,6 +694,7 @@ static void setup(short old,short destination)
     for(int i=0;i<4;i++)
     {
         objects[i].object.parent_object_index=NONE;
+        objects[i].object.type=i<2?_object_type_biped:_object_type_vehicle;
         objects[i].object.position=(real_point3d){10+i,5+i,1};
         objects[i].object.bounding_sphere_center=objects[i].object.position;
         objects[i].weapon=0x70007+i;
@@ -901,7 +909,8 @@ int main(int argc,char **argv)
     if (!strncmp(name, "mcc-prepare-",12))
     {
         boolean extra_above=!strcmp(name,"mcc-prepare-space-above");
-        boolean cold_regional=!strcmp(name,"mcc-prepare-cold-regional-clearance");
+        boolean cold_vehicle=!strcmp(name,"mcc-prepare-cold-vehicle-clearance");
+        boolean cold_regional=!strcmp(name,"mcc-prepare-cold-regional-clearance")||cold_vehicle;
         boolean overlap=!strcmp(name,"mcc-prepare-overlap")||!strcmp(name,"mcc-prepare-cold-crossing")||cold_regional;
         boolean limits=!strcmp(name,"mcc-prepare-limits");
         boolean refused=!strcmp(name,"mcc-prepare-refused");
@@ -968,10 +977,18 @@ int main(int argc,char **argv)
             {
                 coop=FALSE;
                 regional_match=regional_room_ready=TRUE;
-                objects[0].object.parent_object_index=passenger=NONE;
                 objects[1].object.parent_object_index=units[2];
-                objects[0].object.position.x=190;
-                bsp_pill_blocked[destination]=TRUE;
+                if (cold_vehicle)
+                {
+                    bsp_vehicle_contacts[old]=FLAG(0);
+                    bsp_vehicle_contacts[destination]=FLAG(0)|FLAG(2);
+                }
+                else
+                {
+                    objects[0].object.parent_object_index=passenger=NONE;
+                    objects[0].object.position.x=190;
+                    bsp_pill_blocked[destination]=TRUE;
+                }
             }
 
             CHECK(!scenario_switch_structure_bsp(destination),
@@ -984,7 +1001,8 @@ int main(int argc,char **argv)
                   "cold rollback failed to restore the source and passenger");
 
             prepared_crossing_leaf=0;
-            bsp_pill_blocked[old]=cold_regional; /* Shared contact permits the retry. */
+            bsp_pill_blocked[old]=cold_regional&&!cold_vehicle; /* Shared contact permits the retry. */
+            bsp_vehicle_contacts[destination]=bsp_vehicle_contacts[old];
             players_globals->pending_teleport_starting_location_index=0;
             /* The cache boundary stub needs the reloaded source's resident address. */
             mcc_region_live[old]=TRUE;
@@ -1027,6 +1045,14 @@ int main(int argc,char **argv)
                       "shared terrain contact refused an otherwise valid crossing");
                 bsp_pill_blocked[0]=bsp_pill_blocked[1]=FALSE;
                 objects[0].object.parent_object_index=units[2];
+                bsp_vehicle_contacts[old]=FLAG(0);
+                bsp_vehicle_contacts[destination]=FLAG(0)|FLAG(2);
+                CHECK(!players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
+                      "a new contact at a separate mass point was accepted");
+                bsp_vehicle_contacts[destination]=FLAG(0);
+                CHECK(players_coop_can_activate_structure_bsp(old,destination,&mcc_regions[destination].structure,NULL),
+                      "shared wheel contact prevented a native crossing");
+                bsp_vehicle_contacts[old]=bsp_vehicle_contacts[destination]=0;
                 prepared_crossing_leaf=1;
             }
 

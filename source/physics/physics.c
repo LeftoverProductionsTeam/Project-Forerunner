@@ -630,6 +630,34 @@ boolean physics_resting_placement(long object_index, real_point3d const *contact
 	return physics_placement_clear(&instance, ignore_object_index, TRUE, NULL);
 }
 
+unsigned long physics_structure_contact_mask(
+	long object_index,
+	struct structure_bsp const *structure,
+	short bsp_index)
+{
+	struct physics_instance instance;
+	unsigned long contacts = 0;
+	short index, count;
+
+	if (!physics_instance_new(&instance, object_index))
+		return 0;
+	count = physics_mass_point_count(instance.physics);
+	for (index = 0; index < count; index++)
+	{
+		struct mass_point_definition const *mass_point = TAG_BLOCK_GET_ELEMENT(&instance.physics->mass_points,
+			index, struct mass_point_definition);
+		real radius = mass_point->radius * instance.world_matrix.scale;
+		real_point3d center;
+
+		if (radius <= 0.f)
+			continue;
+		matrix4x3_transform_point(&instance.world_matrix, &mass_point->position, &center);
+		if (collision_structure_blocks_pill(structure, bsp_index, &center, 0.f, radius))
+			contacts |= FLAG(index);
+	}
+	return contacts;
+}
+
 /* Check the native mass-point hull at the supplied pose. A recorded pose may
  * already be resting on the BSP and only need clearance from other objects. */
 boolean physics_placement_clear(struct physics_instance const *instance, long ignore_object_index,

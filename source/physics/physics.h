@@ -22,6 +22,7 @@ struct collision_feature_list;
 struct mass_point_datum;
 struct physics_definition;
 struct powered_mass_point_datum;
+struct structure_bsp;
 
 struct physics_instance
 {
@@ -39,6 +40,7 @@ struct physics_test_vector_result
 /* ---------- prototypes/PHYSICS.C */
 
 boolean physics_instance_new(struct physics_instance *instance, long object_index);
+unsigned long physics_structure_contact_mask(long object_index, struct structure_bsp const *structure, short bsp_index);
 boolean physics_resting_placement(long object_index, real_point3d const *contact,
 	real_vector3d const *normal, long ignore_object_index, real_point3d *position);
 boolean physics_placement_lift(struct physics_instance const *instance, real_point3d const *contact,

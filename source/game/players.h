@@ -417,7 +417,11 @@ boolean player_position_switches_bsp(
 struct structure_bsp;
 struct players_bsp_crossing_clearance
 {
-	long source_clear_units[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
+	struct
+	{
+		long root_index;
+		unsigned long contacts;
+	} source[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 };
 void players_capture_bsp_crossing_clearance(
 	short source,

@@ -3227,6 +3227,16 @@ normally. The separate guest vehicle approach showed no native seat action
 at the sampled position 1.153 units from the driver's entrance. Physical
 guest boarding and driving across the seam remain open.
 
+Occupied vehicle roots use the native physics mass points against both
+BSPs. Existing contact can carry across the seam. A destination-only
+contact at any individual mass point refuses the shared switch. A cold
+load keeps the source contact mask and exact root identity through the
+existing rollback path. The Windows x64 executable
+`cbf42951d423987d11e45e87371cf81194d3b56205719cdebe380c53515eb888`
+compiled and passed 76 focused checks, including warm refusal and cold
+rollback with a separate new mass-point contact. Native vehicle
+acceptance on Chiron awaits Spark's retained cache.
+
 Regional MCC13 multiplayer scenarios with three or more BSPs can keep the
 active BSP and up to two previous BSPs inside the existing 64 MiB tag
 window. The loader selects disjoint ranges for retained geometry and can

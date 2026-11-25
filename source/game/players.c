@@ -269,6 +269,7 @@ symbols in this file:
 #include "objects/damage_effect_definitions.h"
 #include "physics/collisions.h"
 #include "physics/collision_usage.h"
+#include "physics/physics.h"
 #include "real_math.h"
 #include "render/render_debug.h"
 #include "players.h"
@@ -3757,20 +3758,26 @@ static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_con
 	return volume;
 }
 
-static boolean player_biped_bsp_obstructed(
-	long unit_index,
+static unsigned long player_root_bsp_contacts(
+	long root_index,
 	short bsp_index,
 	struct structure_bsp const *structure)
 {
+	struct object_datum const *root = object_get(root_index);
 	real_point3d base;
 	real height, width;
 
-	biped_get_physics_pill(unit_index, &base, &height, &width);
-	return collision_structure_blocks_pill(structure, bsp_index, &base, height, width);
+	if (root->object.type == _object_type_vehicle)
+		return physics_structure_contact_mask(root_index, structure, bsp_index);
+	if (root->object.type != _object_type_biped)
+		return 0;
+
+	biped_get_physics_pill(root_index, &base, &height, &width);
+	return collision_structure_blocks_pill(structure, bsp_index, &base, height, width) ? 1UL : 0UL;
 }
 
-/* A cold load replaces the source tag window. Keep only the result for
- * each exact on-foot unit while the world is stopped. */
+/* A cold load replaces the source tag window. Keep the contact mask for
+ * each exact crossing root while the world is stopped. */
 void players_capture_bsp_crossing_clearance(
 	short source,
 	short destination,
@@ -3792,12 +3799,15 @@ void players_capture_bsp_crossing_clearance(
 	while ((player = data_iterator_next(&iterator)) != NULL)
 	{
 		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
-		struct biped_datum const *biped = biped_try_and_get(player->unit_index);
+		struct unit_datum const *unit = unit_try_and_get(player->unit_index);
+		long root_index;
 
-		if (VALID_INDEX(slot, NUMBEROF(clearance->source_clear_units)) && biped &&
-			biped->object.parent_object_index == NONE && !TEST_FLAG(biped->object.damage_flags, _object_dead_bit) &&
-			!player_biped_bsp_obstructed(player->unit_index, source, structure))
-			clearance->source_clear_units[slot] = player->unit_index;
+		if (!VALID_INDEX(slot, NUMBEROF(clearance->source)) || !unit ||
+			TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			continue;
+		root_index = object_get_ultimate_parent(player->unit_index);
+		clearance->source[slot].root_index = root_index;
+		clearance->source[slot].contacts = player_root_bsp_contacts(root_index, source, structure);
 	}
 }
 
@@ -3835,18 +3845,24 @@ static boolean players_continuous_bsp_crossing_valid(
 		if (structure && !scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
 			!scenario_structure_bsp_contains_point(structure, &root->object.position))
 			return FALSE;
-		if (regional && structure && (source || clearance) && root_index == player->unit_index &&
-			biped_try_and_get(root_index))
+		if (regional && structure && (source || clearance))
 		{
+			unsigned long contacts = player_root_bsp_contacts(root_index, volume->destination_structure_bsp_index, structure);
+			unsigned long source_contacts;
 			long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
-			boolean source_clear = clearance && VALID_INDEX(slot, NUMBEROF(clearance->source_clear_units)) &&
-				clearance->source_clear_units[slot] == root_index;
 
-			/* Reject a new obstruction without rejecting shared floor contact. */
-			if ((source || source_clear) &&
-				player_biped_bsp_obstructed(root_index, volume->destination_structure_bsp_index, structure) &&
-				(source_clear || !player_biped_bsp_obstructed(root_index, volume->source_structure_bsp_index, source)))
-				return FALSE;
+			if (contacts)
+			{
+				if (source)
+					source_contacts = player_root_bsp_contacts(root_index, volume->source_structure_bsp_index, source);
+				else if (VALID_INDEX(slot, NUMBEROF(clearance->source)) && clearance->source[slot].root_index == root_index)
+					source_contacts = clearance->source[slot].contacts;
+				else
+					return FALSE;
+				/* Shared floor contact is valid. A new contact at any mass point is not. */
+				if (contacts & ~source_contacts)
+					return FALSE;
+			}
 		}
 		crossing = TRUE;
 	}
