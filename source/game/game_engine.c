@@ -936,6 +936,10 @@ static void game_engine_update_weapons(
 static void game_engine_update_item_spawn(
 	void);
 
+static short game_engine_stocked_equipment_home(
+	long object_index,
+	struct item_datum const *item);
+
 boolean team_has_players(
 	long team_index);
 
@@ -4241,8 +4245,9 @@ static void game_engine_update_purge(
 				!TEST_FLAG(item->item.flags, _item_attached_to_unit_bit))
 			{
 				long item_index = item_iterator.index;
-				if (can_delete_item(item_index))
-					object_delete(item_iterator.index);
+				/* Regional pads keep their current stock while the BSP is inactive. */
+				if (can_delete_item(item_index) && game_engine_stocked_equipment_home(item_index, item) == NONE)
+					object_delete(item_index);
 			}
 		}
 	}
@@ -5409,26 +5414,35 @@ static boolean game_engine_equipment_item_at_pad(
 		distance_squared3d(&item->object.position, &equipment->position) < 0.25f;
 }
 
-static boolean game_engine_equipment_item_parked(
-	long object_index)
+static short game_engine_stocked_equipment_home(
+	long object_index,
+	struct item_datum const *item)
 {
-	struct item_datum const *item = item_get(object_index);
 	struct scenario const *scenario;
 	struct scenario_netgame_equipment const *equipment;
 	short index = item->item.netgame_equipment_index;
 	short home;
 
 	if (!VALID_INDEX(index, NUMBEROF(game_engine_equipment_home_bsp)))
-		return FALSE;
+		return NONE;
 	scenario = global_scenario_get();
 	if (!scenario_uses_regional_gameplay(scenario) || !VALID_INDEX(index, scenario->netgame_equipment.count))
-		return FALSE;
+		return NONE;
 	home = game_engine_equipment_home_bsp[index];
-	if (home == NONE || home == global_structure_bsp_index_get())
-		return FALSE;
+	if (home == NONE)
+		return NONE;
 	equipment = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_equipment, index, struct scenario_netgame_equipment);
-	return equipment->run_time_spawned_item_index == object_index &&
-		game_engine_equipment_item_at_pad(item, equipment);
+	if (equipment->run_time_spawned_item_index == object_index && game_engine_equipment_item_at_pad(item, equipment))
+		return home;
+	return NONE;
+}
+
+static boolean game_engine_equipment_item_parked(
+	long object_index)
+{
+	short home = game_engine_stocked_equipment_home(object_index, item_get(object_index));
+
+	return home != NONE && home != global_structure_bsp_index_get();
 }
 
 /* still on the pad the map put it on: further than this, and empty, it can
@@ -10665,36 +10679,33 @@ static void game_engine_update_item_spawn(
 
 	for (equipment_index = 0; equipment_index < equipment_count; equipment_index++)
 	{
-		struct scenario_netgame_equipment *equipment =
-			TAG_BLOCK_GET_ELEMENT(
+		struct scenario_netgame_equipment *equipment;
+		struct item_datum *previous;
+		short *home = structure ? &game_engine_equipment_home_bsp[equipment_index] : NULL;
+
+		if (home && !first_visit && *home != active_bsp)
+			continue;
+		equipment = TAG_BLOCK_GET_ELEMENT(
 				&scenario->netgame_equipment,
 				equipment_index,
 				struct scenario_netgame_equipment);
 
-		if (structure)
+		if (home)
 		{
-			short *home = &game_engine_equipment_home_bsp[equipment_index];
-
 			if (first_visit && *home == NONE &&
 				scenario_structure_bsp_contains_placement(structure, &equipment->position))
 			{
 				*home = active_bsp;
 				equipment->run_time_spawned_item_index = NONE;
 			}
-			if (*home != NONE)
-			{
-				struct item_datum *previous = item_try_and_get(equipment->run_time_spawned_item_index);
-
-				/* The native purge uses the ownership timer even for
-				 * unclaimed items. Keep pads stocked while their BSP is parked. */
-				if (game_engine_equipment_item_at_pad(previous, equipment))
-				{
-					previous->item.last_owned_time = now;
-					continue;
-				}
-			}
 			if (*home != active_bsp)
 				continue;
+			previous = item_try_and_get(equipment->run_time_spawned_item_index);
+			if (game_engine_equipment_item_at_pad(previous, equipment))
+			{
+				previous->item.last_owned_time = now;
+				continue;
+			}
 		}
 		if (match_game_type(
 			game_engine_get_type(),

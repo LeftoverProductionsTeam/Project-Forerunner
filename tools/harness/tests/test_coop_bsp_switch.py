@@ -91,7 +91,8 @@ def generated(fault=None):
         ('regional_scenery.inc', function(read('source/objects/object_types.c'), 'object_placement_active_in_bsp')),
         ('regional_equipment.inc', enum_with(read('source/game/game_engine.c'), 'REGIONAL_STATIC_OBJECT_TYPES') +
          '\n' + '\n'.join(function(read('source/game/game_engine.c'), name) for name in
-            ('game_engine_equipment_item_at_pad', 'game_engine_equipment_item_parked', 'game_engine_vehicle_empty',
+            ('game_engine_equipment_item_at_pad', 'game_engine_stocked_equipment_home',
+             'game_engine_equipment_item_parked', 'game_engine_vehicle_empty',
              'game_engine_set_regional_projectile_bsp', 'game_engine_record_regional_object',
              'game_engine_object_recorded_bsp',
              'game_engine_object_parked', 'game_engine_update_item_spawn')) + '\n' +

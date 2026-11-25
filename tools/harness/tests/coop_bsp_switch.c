@@ -1434,7 +1434,7 @@ int main(int argc,char **argv)
               equipment[DONOR_EQUIPMENT_ROW].run_time_spawned_item_index==pickup_handle+3&&
               placed_pickups[3].item.netgame_equipment_index==DONOR_EQUIPMENT_ROW,
               "reassigned a shared seam or skipped the expanded equipment row");
-        CHECK(placed_pickups[2].item.last_owned_time==ticks,"parked pad became eligible for cleanup");
+        CHECK(placed_pickups[2].item.last_owned_time==ticks-1,"inactive pad updated the ownership timer");
         CHECK(game_engine_equipment_item_parked(pickup_handle+2)&&
               game_engine_equipment_item_parked(pickup_handle+1)&&
               !game_engine_equipment_item_parked(pickup_handle+3),
@@ -1454,7 +1454,12 @@ int main(int argc,char **argv)
         global_structure_bsp_index=0;
         global_structure_bsp=&structures[0];
         global_collision_bsp=&collisions[0];
-        ticks=3*TICKS_PER_SECOND;
+        ticks+=1000;
+        CHECK(placed_pickups[2].item.last_owned_time<ticks-900&&
+              game_engine_stocked_equipment_home(pickup_handle+2,&placed_pickups[2])==0,
+              "aged regional stock could be purged before the returning pad updates");
+        CHECK(game_engine_stocked_equipment_home(pickup_handle,&placed_pickups[0])==NONE,
+              "superseded stock was protected from cleanup");
         game_engine_update_item_spawn();
         CHECK(placed_pickup_count==4&&equipment[0].run_time_spawned_item_index==pickup_handle+2&&
               !game_engine_equipment_item_parked(pickup_handle+2),
