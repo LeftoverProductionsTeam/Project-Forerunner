@@ -3535,6 +3535,23 @@ exactly one BSP. Reuse channels in separate BSPs with a unique target for each
 local channel. The host and incoming multiplayer corrections use the same
 lookup. CE609, campaign and single-BSP maps retain global teleporter pairing.
 
+Readback of the exact nineteen-region MCC13 cache `f0835f5e` checked all
+136 native teleporter markers against the collision BSP leaf and cluster
+rules. Each marker has one BSP owner and every source has one destination
+in its own BSP. The cache contains 68 such pairs across seven BSPs, using
+30 numeric channel IDs.
+
+Private Win64 executable
+`a086a1cdb47e8fe4e8bcee9014f889b47073d00088293155572aa00ec36fa3d3`
+tested Chiron channels 0 and 1 on that exact cache. After a native
+markerless walk into BSP 1, same-BSP staging put the player outside the
+source radius. Normal movement activated the first pad and placed the
+player at (729.287, 87.762, -16.906) at tick 2010. The player stood at the
+arrival without bouncing back, then walked off and back onto the pad
+and returned to (723.255, 72.201, -16.806) at tick 2520. Both actions
+remained in BSP 1 with the OpenCE protocol and Delta Peer disabled.
+Other pads and multiplayer blockage and synchronization remain open.
+
 The start (256), equipment (200) and BSP (16) ceilings are scenario-wide.
 CTF has two team slots, Race has 32 checkpoints, King has 64 hill IDs and
 Oddball supports 16 balls. These are game-mode limits separate from the
