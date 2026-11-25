@@ -1,8 +1,21 @@
 # Forerunner test evidence
 
+## Windows solo Extraction
+
+The installed Win64 executable SHA-256 is
+`cf6a00e01c2a7f586c2c39e3852961e0d0a9caa9c6ea2f21a148de16cf4917dd`.
+Normal menu input created a local profile, opened Extraction → Play Solo,
+selected Be Native [CE], and launched the unchanged Black Echo cache at
+`d113e9dbec1bae9554e7d4df3843ecc2bb6d40b4ee2c7cdf5f81831fc7b29b09`.
+The native hub admitted the local player with OpenCE protocol selected,
+Delta and public discovery off, and the saved host Firefight setting on.
+The deployed binary retains the prior recovery build as
+`halo.before-solo-menu.exe`. 18 focused menu checks passed. Physical deployment,
+both faction flights, banking and private LAN guest persistence remain open.
+
 ## Windows playtest recovery
 
-The Windows x64 testing executable at `build/windows64/halo.exe` now has SHA-256
+The Windows x64 testing executable at `build/windows64/halo.exe` used SHA-256
 `35b85de487e621b8f353f203ce845133e61164678e034c9ae2307dfbaa9169f1`.
 The exact delivered executable was retained as `halo.before-menu-repair.exe`.
 Both it and the earlier XR baseline reproduced missing Vulkan menu artwork.

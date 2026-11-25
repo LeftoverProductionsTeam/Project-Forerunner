@@ -169,6 +169,11 @@ static boolean extraction_authoritative_scene(void)
 		(game_connection() == _game_connection_network_server && network_coop_active()));
 }
 
+static boolean extraction_host_firefight_requested(void)
+{
+	return game_connection() == _game_connection_network_server && config_boolean("network.firefight_encounter");
+}
+
 static boolean extraction_mode_selected(void)
 {
 	return extraction.authored_extraction || config_boolean("game.extraction");
@@ -185,7 +190,8 @@ static void extraction_check_authored_mode(void)
 	if (extraction.native_mode_checked || !extraction_authoritative_scene())
 		return;
 	extraction.native_mode_checked = TRUE;
-	if (config_boolean("game.extraction") || config_boolean("network.firefight_encounter") ||
+	if (config_boolean("game.extraction") ||
+		extraction_host_firefight_requested() ||
 		coop_enemies_authored_round())
 		return;
 
@@ -777,7 +783,7 @@ static void extraction_bind(void)
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
-	if (!extraction.survival && config_boolean("network.firefight_encounter"))
+	if (!extraction.survival && extraction_host_firefight_requested())
 	{
 		extraction_notice("Extraction unavailable: disable the built-in Firefight director. Authored native AI scripts can keep running.");
 		return;

@@ -2067,12 +2067,16 @@ static short mcc_level_index(short level)
 }
 
 /* "initialize sp level list solo" starts on the level last played */
+static boolean solo_extraction_chooser;
+
 static boolean level_list_initialize(struct widget_instance *list, short controller)
 {
 	struct player_profile profile;
 	short level, last_used;
 	short mcc_kind = level_list.kind;
+	boolean extraction = solo_extraction_chooser;
 
+	solo_extraction_chooser = FALSE;
 	mcc_maps_rescan();
 	mcc_solo_list.first = mcc_solo_list.chosen = 0;
 
@@ -2114,10 +2118,15 @@ static boolean level_list_initialize(struct widget_instance *list, short control
 		level_list.chosen = (short)(count - 1);
 		level_list.first = map_kind_first(level_list.chosen, count);
 	}
+	if (extraction)
+	{
+		level_list.kind = MAP_KIND_CUSTOM_SINGLEPLAYER;
+		level_list.first = level_list.chosen = 0;
+	}
 	map_kind_set(list, level_list.kind);
 	map_kind_focus(list, level_list.first, level_list.chosen);
 	/* MCC keeps its folder when the difficulty screen recreates this list. */
-	if (map_kind_mcc(mcc_kind))
+	if (!extraction && map_kind_mcc(mcc_kind))
 	{
 		level_list.kind = mcc_kind;
 		mcc_solo_list.campaign = mcc_kind == MAP_KIND_MCC_SINGLEPLAYER;
@@ -14161,6 +14170,11 @@ boolean pc_menu_event_function_invoke(
 		else if (!strcmp(name, "port pause moderation"))
 		{
 			return pause_moderation();
+		}
+		else if (!strcmp(name, "port forerunner choose solo extraction"))
+		{
+			solo_extraction_chooser = TRUE;
+			return TRUE;
 		}
 		else if (!strcmp(name, "port forerunner menu init"))
 		{
