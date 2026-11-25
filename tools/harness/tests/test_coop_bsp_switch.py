@@ -107,7 +107,7 @@ def generated(fault=None):
             'player_in_bsp_switch_volume', 'players_coop_bsp_switch_trigger',
             'continuous_bsp_route_contains', 'player_bsp_continuous_route_contains', 'players_position_crosses_bsp_route',
             'player_bsp_crossing_root',
-            'players_coop_pending_continuous_bsp_switch', 'player_root_bsp_contacts',
+            'players_regional_crossing_active', 'players_coop_pending_continuous_bsp_switch', 'player_root_bsp_contacts',
             'player_root_blocked_in_destination',
             'players_capture_bsp_crossing_clearance', 'players_continuous_bsp_crossing_valid',
             'players_coop_can_activate_structure_bsp',

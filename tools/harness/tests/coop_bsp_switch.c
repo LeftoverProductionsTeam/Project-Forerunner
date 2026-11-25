@@ -26,7 +26,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define VALID_INDEX(index, count) (index>=0 && index<count)
-enum {_game_connection_network_server=2};
+enum {_game_connection_local=0, _game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
       _collision_test_structure_bit, _collision_test_objects_scenery_bit,
       _collision_test_back_facing_surfaces_bit, _collision_test_ignore_two_sided_surfaces_bit,
@@ -156,6 +156,8 @@ static boolean players_coop_teammate(long player,long other)
 static void biped_fix_ignore_players(boolean ignore) {ignore_players=ignore;}
 static int game_connection(void) {return connection;}
 static struct scenario *global_scenario_get(void) {return &scenario;}
+static struct scenario *global_scenario_try_and_get(void);
+static boolean scenario_uses_regional_gameplay(struct scenario const *scenario);
 static struct structure_bsp *global_structure_bsp_get(void) {return global_structure_bsp;}
 static short global_structure_bsp_index_get(void);
 static struct collision_bsp *global_collision_bsp_get(void) {return global_collision_bsp;}
@@ -319,7 +321,6 @@ static void object_disconnect_from_map(long index) {objects[slot(index)].object.
 static void object_type_disconnect_from_structure_bsp(long index) {}
 #define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
 static struct scenario *global_scenario_try_and_get(void) {return global_scenario;}
-static boolean scenario_uses_regional_gameplay(struct scenario const *scenario);
 static boolean network_game_distributed_client(void);
 static void game_engine_record_regional_object(long index,struct object_datum const *object,short bsp);
 #pragma clang diagnostic push
@@ -726,7 +727,6 @@ static boolean players_coop_queue_bsp_switch(long unit, short trigger, short des
 {
     return unit == units[0] && trigger >= 0 && main_switch_structure_bsp(destination);
 }
-#include "queue_bsp_switch.inc"
 
 static boolean preview_available;
 static int preview_requests;
@@ -737,6 +737,7 @@ static struct structure_bsp const *scenario_structure_bsp_preview(short index, b
     return preview_available?&structures[index]:NULL;
 }
 #include "queue_regional_bsp_switch.inc"
+#include "queue_bsp_switch.inc"
 
 static long vote_excluded_player = NONE, vote_crossers, voted_players[2];
 static short vote_source, vote_destination;
@@ -1161,6 +1162,32 @@ int main(int argc,char **argv)
               "memory pressure prevented use of the ordinary cold-switch path");
         CHECK(main_globals.switch_to_structure_bsp_index==destination,
               "the valid cold crossing was not queued");
+
+        connection=_game_connection_local;
+        coop=regional_match=regional_room_ready=FALSE;
+        mcc_loaded=TRUE;
+        scenario.type=_scenario_type_multiplayer;
+        struct mcc_cache_bsp checked={.file_offset=4096,.size=1024,.address=0x40001000,
+            .tag_handle=(uint32_t)destination,.structure_address=0x40001018};
+        struct scenario_structure_bsp_reference *ref=&references[destination];
+        mcc_loaded_cache.report.bsp_count=1;
+        mcc_loaded_cache.report.bsps=&checked;
+        ref->file_offset=checked.file_offset;
+        ref->file_size=checked.size;
+        ref->base_address=checked.address;
+        mcc_file_structure.collision_bsp.count=1;
+        mcc_file_structure.clusters.count=2;
+        mcc_file_structure.cluster_data.size=8;
+        mcc_file_structure.sound_cluster_data.size=1;
+        main_globals.switch_to_structure_bsp_index=NONE;
+        preview_available=TRUE;
+        player_queue_structure_bsp_switch(&people[0], units[0]);
+        CHECK(main_globals.switch_to_structure_bsp_index==NONE&&preview_requests==4,
+              "offline play entered the retained BSP without a valid destination leaf");
+        preview_available=FALSE;
+        player_queue_structure_bsp_switch(&people[0], units[0]);
+        CHECK(main_globals.switch_to_structure_bsp_index==destination&&preview_requests==5,
+              "an offline cold crossing incorrectly required a network capability");
         return 0;
     }
     if (!strcmp(name, "regional-projectiles"))

@@ -3805,6 +3805,14 @@ short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d c
 	return neighbor;
 }
 
+static boolean players_regional_crossing_active(void)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+
+	return network_regional_bsp_active() ||
+		(game_connection() == _game_connection_local && scenario && scenario_uses_regional_gameplay(scenario));
+}
+
 static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_continuous_bsp_switch(
 	short source)
 {
@@ -3812,7 +3820,9 @@ static struct scenario_bsp_switch_trigger_volume const *players_coop_pending_con
 	struct scenario *scenario;
 	struct scenario_bsp_switch_trigger_volume const *volume;
 
-	if (!network_synchronizes_structure_bsp() || game_connection() != _game_connection_network_server || pending_index < 0)
+	if (pending_index < 0 ||
+		(game_connection() == _game_connection_local ? !players_regional_crossing_active() :
+			!network_synchronizes_structure_bsp() || game_connection() != _game_connection_network_server))
 		return NULL;
 	scenario = global_scenario_get();
 	if (pending_index >= scenario->bsp_switch_trigger_volumes.count)
@@ -3887,7 +3897,7 @@ void players_capture_bsp_crossing_clearance(
 	struct player_datum *player;
 
 	csmemset(clearance, NONE, sizeof(*clearance));
-	if (!network_regional_bsp_active())
+	if (!players_regional_crossing_active())
 		return;
 	volume = players_coop_pending_continuous_bsp_switch(source);
 	if (!volume || volume->destination_structure_bsp_index != destination)
@@ -3916,7 +3926,7 @@ static boolean players_continuous_bsp_crossing_valid(
 	struct structure_bsp const *structure,
 	struct players_bsp_crossing_clearance const *clearance)
 {
-	boolean regional = network_regional_bsp_active();
+	boolean regional = players_regional_crossing_active();
 	struct structure_bsp const *source = structure && regional && !clearance ?
 		scenario_structure_bsp_try_and_get(volume->source_structure_bsp_index) : NULL;
 	struct data_iterator iterator;
@@ -4170,7 +4180,8 @@ static boolean players_queue_regional_bsp_switch(
 {
 	struct structure_bsp const *destination;
 
-	if (volume->cutscene_flag_index != NONE || !network_regional_bsp_room_ready())
+	if (volume->cutscene_flag_index != NONE ||
+		(game_connection() != _game_connection_local && !network_regional_bsp_room_ready()))
 		return FALSE;
 
 	destination = scenario_structure_bsp_preview(volume->destination_structure_bsp_index, TRUE);
@@ -5965,8 +5976,10 @@ static void player_queue_structure_bsp_switch(
 	struct scenario_bsp_switch_trigger_volume *bsp_switch_trigger_volume;
 	short bsp_switch_trigger_volume_index;
 	boolean synchronized = network_synchronizes_structure_bsp();
+	boolean local_regional;
 
 	scenario = global_scenario_get();
+	local_regional = game_connection() == _game_connection_local && scenario_uses_regional_gameplay(scenario);
 	for (bsp_switch_trigger_volume_index = 0;
 		bsp_switch_trigger_volume_index < scenario->bsp_switch_trigger_volumes.count;
 		bsp_switch_trigger_volume_index++)
@@ -5982,7 +5995,9 @@ static void player_queue_structure_bsp_switch(
 			(synchronized ?
 				players_coop_queue_bsp_switch(player->unit_index, bsp_switch_trigger_volume_index,
 					bsp_switch_trigger_volume->destination_structure_bsp_index) :
-				main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index)))
+				(local_regional && bsp_switch_trigger_volume->cutscene_flag_index == NONE ?
+					players_queue_regional_bsp_switch(bsp_switch_trigger_volume) :
+					main_switch_structure_bsp(bsp_switch_trigger_volume->destination_structure_bsp_index))))
 		{
 			if (players_globals->local_player_triggered_switch !=
 				_local_player_triggered_switch_none &&
@@ -6008,8 +6023,8 @@ static void player_queue_structure_bsp_switch(
 				bsp_switch_trigger_volume_index;
 			players_coop_state.bsp_switch_time = game_time_get();
 
-			/* The first accepted route owns the deferred host load. */
-			if (synchronized)
+			/* The first accepted regional or synchronized route owns the deferred load. */
+			if (synchronized || local_regional)
 				break;
 		}
 	}

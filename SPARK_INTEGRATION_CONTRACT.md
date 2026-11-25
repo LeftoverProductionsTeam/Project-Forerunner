@@ -2399,12 +2399,53 @@ export; conflict detection and undo/redo. None is silently declared implemented.
 
 ## Timerless Extraction and connected MegaWorld requirements
 
-Owner-added flagship milestones complement Firefight and VR. Extraction must
-complete one playable map with original Marathon-inspired terminal/hub UX,
-inventory/loadouts, deploy, AI/optional PvPvE, loot, interaction-based extraction,
-escape, loss, persistent rewards, report and redeployment. No mandatory raid
-timer; an activation countdown is permitted. Spark owns the map/source/UX
-authoring; Forerunner owns authoritative gameplay and durable result settlement.
+The flagship is timerless Extraction inside Spark's full 19-region MegaWorld.
+Standalone maps are useful for testing native controls, combat, loot, flights
+and settlement. Final acceptance requires both faction bases, independent
+squads, physical evacuation and durable redeployment inside the same world.
+
+### MegaWorld multiplayer handoff
+
+**Spark export.** Keep MCC13 (`cacheVersion: 13`, `scenarioType: 1`) and the
+same multiplayer scenario, BSP indices and traversable connections. Use the
+existing hash-paired `.spark-mode.json` schema with mode `extraction`,
+`game.extraction: true` and `network.firefight_encounter: false`. Preserve the
+default plain multiplayer export. The reviewed 19-region world cache
+`456db7543ba50947e89af894785221957b648b75f9915fe82071e2bb302d2ca9`
+is the geometry and placement baseline. It has no Extraction operation.
+
+Author each base, route and objective using the native controls, faction
+profiles/body templates, squad controls and HaloScript interfaces below.
+Keep names unique within the scenario. Supply the native BSP index for each
+base's starts, terminals, clear passenger transfer areas and extraction return
+zones in the handoff readback. Preserve distinct UNSC/Pelican and Covenant/Spirit
+bindings, including explicit authored body templates. For stacked regions,
+record each link's source and destination BSP, 3-D trigger box, and clear
+continuation for a player or its vehicle hull. Vertical position and collision
+belong to the authored BSP. Crossing requires a matching native link.
+
+**Forerunner admission.** The current catalog and authoritative Extraction
+entry still admit solo scenarios. Keep MCC13 Extraction launch unavailable
+until the runtime validates the named controls and faction-owned hub starts
+without treating stock multiplayer starts as hub starts. The host owns
+HaloScript objectives, seating, loot and settlement. The enhanced regional
+network capability must be agreed by each remote peer. Solo uses a saved
+local profile. Authenticated owners keep their existing Delta namespace.
+Private account-free remote banking requires a stable, host-verified owner
+with separate storage. A name, address or temporary machine slot cannot own
+a persistent stash. The ordinary multiplayer engine and campaign paths keep
+their existing rules. Advertise this combined mode only after both paths
+can launch and the host's capability gate is enforced.
+
+**Acceptance.** Play the same exact staged cache through the ordinary menu
+with both faction profiles. Verify solo saving, death and redeploy across a
+restart. Verify private and authenticated two-client settlement, including a
+disconnect before banking. Keep one squad on the surface and another
+underground while the other travels, fights and extracts. Check projectile
+collision, lighting, aircraft clearance and local audio at the connected
+layer boundaries in both directions. Replace previous-good files after this
+candidate passes the applicable playable-delivery checks.
+
 
 `game.extraction` remains off by default and uses the existing native solo-map
 path, locally or on the native co-op host. The existing Server Setup -> Co-op
