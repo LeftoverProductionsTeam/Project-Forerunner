@@ -2430,7 +2430,12 @@ continuation for a player or its vehicle hull. Vertical position and collision
 belong to the authored BSP. Crossing requires a matching native link.
 
 **Forerunner admission.** The current catalog and authoritative Extraction
-entry still admit solo scenarios. Keep MCC13 Extraction launch unavailable
+entry still admit solo scenarios. For authored solo Extraction, the optional
+paired hub volumes now filter first spawns and respawns through the existing
+native start scorer. Each hub needs at least one eligible start and a faction
+control. Malformed or overlapping assignments fail Extraction admission.
+The existing shared return zone still applies to solo maps. Keep MCC13
+Extraction launch unavailable
 until the runtime validates the named controls and faction-owned hub starts
 without treating stock multiplayer starts as hub starts. The host owns
 HaloScript objectives, seating, loot and settlement. The enhanced regional
@@ -2439,7 +2444,8 @@ local profile. Authenticated owners keep their existing Delta namespace.
 Private account-free remote banking requires a stable, host-verified owner
 with separate storage. A name, address or temporary machine slot cannot own
 a persistent stash. The ordinary multiplayer engine and campaign paths keep
-their existing rules. Reserve `extraction.megaworld.v1` for this combined mode. Advertise it only after both paths
+their existing rules. Reserve `extraction.megaworld.v1` for this combined mode.
+Advertise it only after both paths
 can launch and the host's capability gate is enforced.
 
 **Acceptance.** Play the same exact staged cache through the ordinary menu

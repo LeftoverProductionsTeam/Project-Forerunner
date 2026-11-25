@@ -74,7 +74,8 @@ struct control_definition { struct { short triggers_when,type;real call_value;
  struct {long index;} on_effect,off_effect,denied_effect; } control; };
 struct scenario_object_name { char name[32]; short runtime_object_type,runtime_scenario_datum_index; };
 struct unit_definition {struct {struct tag_block seats;} unit;struct {struct tag_reference model,animation_graph;} object;};
-struct scenario_trigger_volume { char name[32]; };
+enum {_scenario_trigger_volume_type_oriented=1};
+struct scenario_trigger_volume { char name[32]; short type; };
 #include "mission_types.inc"
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; };
@@ -128,7 +129,8 @@ static struct scenario_object_name names[11] = { {"extraction_deploy"}, {"extrac
 static struct scenario_starting_profile faction_profiles[2];
 static struct scenario_object_datum body_placements[2];
 static struct scenario_object_palette_entry body_palette[2];
-static struct scenario_trigger_volume volumes[5] = { {"extraction_zone"}, {"extraction_return"} };
+static struct scenario_trigger_volume volumes[7] = { {"extraction_zone"}, {"extraction_return"} };
+static boolean overlap_hub_starts;
 static struct player_starting_location starts[2];
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
 static struct hs_script completion_script;
@@ -368,6 +370,8 @@ static boolean scenario_trigger_volume_test_point(short zone,real_point3d const 
  if(zone==2)return p->x>10.f&&p->x<25.f;
  if(zone==3)return p->x>25.f;
  if(zone==4)return p->x>6.f&&p->x<9.f;
+ if(zone==5)return p->z>0.f;
+ if(zone==6)return p->z<0.f||overlap_hub_starts;
  return zone==0 ? p->x>10.f : p->x<5.f;
 }
 static boolean scenario_trigger_volume_test_object(short zone,long h) { return scenario_trigger_volume_test_point(zone,&unit_get(h)->object.position); }
@@ -591,6 +595,31 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strncmp(case_name,"faction-hub-",12)) {
+  enable_factions(FALSE);
+  starts[0].position.z=3.f;
+  starts[1].position.z=-3.f;
+  strcpy(volumes[5].name,"extraction_unsc_hub");
+  strcpy(volumes[6].name,"extraction_covenant_hub");
+  volumes[5].type=volumes[6].type=_scenario_trigger_volume_type_oriented;
+  scenario.trigger_volumes.count=7;
+  if(!strcmp(case_name,"faction-hub-overlap"))overlap_hub_starts=TRUE;
+  if(!strcmp(case_name,"faction-hub-unpaired"))scenario.trigger_volumes.count=6;
+  if(!strcmp(case_name,"faction-hub-shape"))volumes[6].type=0;
+  if(!strcmp(case_name,"faction-hub-empty"))starts[1].position.z=0.f;
+
+  CHECK(extraction_player_start_allowed(player_handles[0],&starts[0]),"native first UNSC spawn refused");
+  if(strcmp(case_name,"faction-hub-starts")) {
+   CHECK(!extraction_owns_map(),"malformed faction hubs admitted");
+   return 0;
+  }
+  CHECK(extraction_owns_map()&&!extraction_player_start_allowed(player_handles[0],&starts[1]),
+        "UNSC start overlapped Covenant on the vertically separated placement");
+  players[0].team_index=_game_team_covenant;
+  CHECK(extraction_player_start_allowed(player_handles[0],&starts[1])&&
+        !extraction_player_start_allowed(player_handles[0],&starts[0]),"Covenant respawn ignored faction hub");
+  return 0;
+ }
  if(!strncmp(case_name,"resupply-profile-",17)) {
   char const *kind=case_name+17;struct scenario_starting_profile *p=&faction_profiles[0];
   boolean reset=strcmp(kind,"additive")!=0;

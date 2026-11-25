@@ -1374,6 +1374,8 @@ long find_best_starting_location_index(
 		starting_location_index++)
 	{
 		starting_location = player_get_starting_location(starting_location_index);
+		if (!extraction_player_start_allowed(player_index, starting_location))
+			continue;
 		starting_location_rating = game_engine_get_starting_location_rating(
 			player_index,
 			starting_location);

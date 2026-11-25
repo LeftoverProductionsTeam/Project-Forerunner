@@ -128,6 +128,7 @@ static struct
 	long dropship_evacuating[2], dropship_banked[2], dropship_completed[2];
 	boolean dropship_return_stop[2];
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
+	short faction_hubs[2]; /* paired authored start volumes */
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
 	long last_tick;
@@ -150,6 +151,7 @@ static struct
 } medical_players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 static boolean medical_enabled, medical_received, medical_restored;
 static long medical_tick = NONE, medical_seconds = 5, medical_bleed_seconds = 30;
+static void extraction_bind(void);
 static void extraction_medical_reset(void);
 static void extraction_medical_update(void);
 static boolean extraction_players_returned(void);
@@ -214,6 +216,37 @@ static short extraction_faction(short team)
 boolean extraction_owns_map(void)
 {
 	return extraction_mode_selected() && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
+}
+
+static unsigned short extraction_start_hubs(struct player_starting_location const *start)
+{
+	unsigned short hubs = 0;
+	short faction;
+
+	for (faction = 0; faction < NUMBEROF(extraction.faction_hubs); faction++)
+		if (extraction.faction_hubs[faction] != NONE &&
+			scenario_trigger_volume_test_point(extraction.faction_hubs[faction], &start->position))
+			hubs |= FLAG(faction);
+	return hubs;
+}
+
+boolean extraction_player_start_allowed(long player_index, struct player_starting_location const *start)
+{
+	struct player_datum *player;
+	short faction;
+
+	/* The first native spawn can run before the regular Extraction tick. */
+	if (!extraction.bound && extraction_authoritative_scene())
+	{
+		extraction_check_authored_mode();
+		if (extraction_mode_selected())
+			extraction_bind();
+	}
+	if (!extraction_owns_map() || extraction.faction_hubs[0] == NONE)
+		return TRUE;
+	player = player_try_and_get(player_index);
+	faction = player ? extraction_faction((short)player->team_index) : NONE;
+	return faction != NONE && extraction_start_hubs(start) == FLAG(faction);
 }
 
 typedef char extraction_voice_groups_fit_byte[
@@ -574,6 +607,7 @@ void extraction_reset(void)
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
+	extraction.faction_hubs[0] = extraction.faction_hubs[1] = NONE;
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.last_tick = NONE;
 	gear_world_reset();
@@ -778,6 +812,7 @@ static boolean extraction_bind_field_hover(struct scenario const *scenario, shor
 static void extraction_bind(void)
 {
 	short index, faction, squad;
+	unsigned short populated_hubs = 0;
 	boolean unique = TRUE;
 	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL, *debrief = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
@@ -801,6 +836,7 @@ static void extraction_bind(void)
 	extraction.dropship_completed[0] = extraction.dropship_completed[1] = NONE;
 	extraction.faction_names[0] = extraction.faction_names[1] = NONE;
 	extraction.faction_profiles[0] = extraction.faction_profiles[1] = NONE;
+	extraction.faction_hubs[0] = extraction.faction_hubs[1] = NONE;
 	extraction.faction_bipeds[0] = extraction.faction_bipeds[1] = NONE;
 	extraction.zone = extraction.return_zone = NONE;
 	if (!extraction.survival && extraction_host_firefight_requested())
@@ -936,7 +972,14 @@ static void extraction_bind(void)
 
 		for (faction = 0; faction < 2; faction++)
 		{
-			if (!strcmp(volume->name, faction ? "extraction_spirit_zone" : "extraction_pelican_zone"))
+			if (!extraction.survival &&
+				!strcmp(volume->name, faction ? "extraction_covenant_hub" : "extraction_unsc_hub"))
+			{
+				if (extraction.faction_hubs[faction] != NONE || volume->type != _scenario_trigger_volume_type_oriented)
+					unique = FALSE;
+				extraction.faction_hubs[faction] = index;
+			}
+			else if (!strcmp(volume->name, faction ? "extraction_spirit_zone" : "extraction_pelican_zone"))
 			{
 				if (extraction.dropship_zones[faction] != NONE) unique = FALSE;
 				extraction.dropship_zones[faction] = index;
@@ -1019,6 +1062,9 @@ static void extraction_bind(void)
 	{
 		struct player_starting_location *start = TAG_BLOCK_GET_ELEMENT(&global_scenario->players,
 			index, struct player_starting_location);
+		unsigned short hubs = extraction_start_hubs(start);
+		if (hubs == (FLAG(0) | FLAG(1))) extraction.admitted = FALSE;
+		populated_hubs |= hubs;
 		if (!scenario_trigger_volume_test_point(extraction.return_zone, &start->position) ||
 			(extraction.zone != NONE && scenario_trigger_volume_test_point(extraction.zone, &start->position))) extraction.admitted = FALSE;
 		for (faction = 0; faction < 2; faction++)
@@ -1026,6 +1072,10 @@ static void extraction_bind(void)
 				scenario_trigger_volume_test_point(extraction.dropship_zones[faction], &start->position)) extraction.admitted = FALSE;
 	}
 	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
+	if ((extraction.faction_hubs[0] != NONE || extraction.faction_hubs[1] != NONE) &&
+		(populated_hubs != (FLAG(0) | FLAG(1)) ||
+		 extraction.faction_names[0] == NONE || extraction.faction_names[1] == NONE))
+		extraction.admitted = FALSE;
 finished:
 	if (extraction.admitted)
 		for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
