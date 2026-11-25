@@ -15,6 +15,7 @@ build's pointers, which this build's Xbox addresses are not) */
 #endif
 #if !defined(HALO_MCC) || HALO_MCC /* Halo MCC maps (halo_port_features.h, above): a console builds this to nothing */
 #include "cseries.h"
+#include "game/game.h"
 #include "game/game_engine.h"
 #include "mcc_cache.h"
 #include "mcc_objects.h"
@@ -78,7 +79,14 @@ boolean mcc_vehicle_placement_rules(void)
 boolean mcc_vehicle_placement_allowed(struct scenario_object_datum const *placement)
 {
     unsigned short mask = mcc_vehicle_default_mask(), flags;
+    struct game_variant_options const *options;
     if (!mask) return TRUE;
+    options = game_variant_options_get();
+    /* The explicit PC-map vehicle preset includes the map's optional roster.
+     * Ordinary variants still use the native default placement bits. */
+    if (options->vehicle_set[0] == VARIANT_VEHICLE_SET_PC &&
+        options->vehicle_set[1] == VARIANT_VEHICLE_SET_PC)
+        mask |= (unsigned short)(mask << 8);
     /* The independent MCC tag schema checks each 0x78-byte vehicle placement
      * before this entry point; its spawn flags are the word at 0x5A. */
     memcpy(&flags, (unsigned char const *)placement + 0x5A, sizeof(flags));

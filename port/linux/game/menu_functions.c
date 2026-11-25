@@ -5498,6 +5498,7 @@ boolean ui_widget_port_multiplayer_map_choose(short level_index);
 boolean ui_widget_port_cooperative_level_choose(char const *map_name, short difficulty);
 short ui_widget_port_gametypes(long *indices, short maximum, short *last_used);
 boolean ui_widget_port_gametype_choose(long profile_index);
+boolean ui_widget_port_game_variant_set(struct game_variant *variant, struct game_variant_options const *options);
 boolean ui_widget_port_host(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted, boolean campaign_chooser);
 boolean ui_widget_port_host_local(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
 boolean ui_widget_port_browse(struct widget_instance *widget, struct event_record *event, boolean *widget_deleted);
@@ -6160,12 +6161,28 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 	if (map_list.play_mode == _ui_map_mode_survival)
 	{
 		short index = ui_map_list_play_mode_row(_ui_map_mode_survival, chosen);
-#ifdef HALO_SPARK_MODE_RECEIPTS
-		char const *name = index == NONE ? NULL : ui_map_list_names()[index];
-		if (name && mcc_level_name(name))
-			return ui_widget_port_mcc_multiplayer_map_choose(name);
-#endif
-		return index != NONE && ui_widget_port_multiplayer_map_choose(index);
+		struct game_variant variant;
+		struct game_variant_options options;
+		char const *name;
+		boolean mcc;
+
+		if (index == NONE)
+			return campaign_fail();
+		name = ui_map_list_names()[index];
+		mcc = mcc_level_name(name);
+		if (!(mcc ? ui_widget_port_mcc_multiplayer_map_choose(name) : ui_widget_port_multiplayer_map_choose(index)))
+			return campaign_fail();
+		game_engine_get_variant_by_name(&variant, "slayer");
+		ustrncpy(variant.human_readable_game_description, L"Survival",
+			NUMBEROF(variant.human_readable_game_description) - 1);
+		game_variant_options_default(&variant, &options);
+		if (mcc)
+		{
+			options.vehicle_set[0] = options.vehicle_set[1] = VARIANT_VEHICLE_SET_PC;
+			platform_log("survival: using the map's authored vehicle roster");
+		}
+		ui_widget_port_game_variant_set(&variant, &options);
+		return ui_widget_port_open(list, SERVER_SETUP_NAME, widget_deleted);
 	}
 	if (map_list.kind == MAP_KIND_MULTIPLAYER)
 	{
@@ -6326,7 +6343,7 @@ static boolean gametype_list_initialize(struct widget_instance *list)
 	short last, index;
 
 	multiplayer.gametype_count = ui_widget_port_gametypes(multiplayer.gametypes, MAXIMUM_GAMETYPES, &last);
-	if (forerunner_infection_chooser || (HALO_MODE_FILTER && forerunner_map_mode == _ui_map_mode_survival))
+	if (forerunner_infection_chooser)
 	{
 		for (index = 0; index < multiplayer.gametype_count; index++)
 		{
@@ -6338,9 +6355,7 @@ static boolean gametype_list_initialize(struct widget_instance *list)
 				playlist_profile_get(profile, &variant) && playlist_profile_get_options(profile, &options))
 			{
 				short mode = game_modes_variant_mode(&variant, &options);
-				if (forerunner_infection_chooser ? mode == _game_mode_infection :
-					mode == _game_mode_none && variant.game_engine_index == game_engine_slayer &&
-					!variant.universal_variant.teams)
+				if (mode == _game_mode_infection)
 				{
 					last = index;
 					break;
@@ -6681,10 +6696,18 @@ static void server_settings_update(struct widget_instance *list)
 	settings_help(list);
 	{
 		boolean cooperative = hosting_cooperative();
+		boolean extraction = forerunner_map_mode == _ui_map_mode_extraction;
+		boolean survival = forerunner_map_mode == _ui_map_mode_survival;
 		short row;
 
 		for (row = 0; row < NUMBEROF(server_settings_gametype_rows); row++)
-			visible_set(named(list, server_settings_gametype_rows[row], 0), !cooperative);
+		{
+			char const *setting = server_settings_gametype_rows[row];
+			boolean editable = !cooperative && !extraction && (!survival ||
+				!strcmp(setting, "op_player_options") || !strcmp(setting, "op_indicator_options"));
+
+			visible_set(named(list, setting, 0), editable);
+		}
 		/* co-op's options in their place, rows opening their screens
 		(tools/port_settings.py's COOP_SETUP_SCREENS), each its help */
 		{
@@ -6692,7 +6715,7 @@ static void server_settings_update(struct widget_instance *list)
 
 			visible_set(named(list, "op_coop_options", 0), cooperative);
 			visible_set(named(list, "op_voice_options", 0), cooperative);
-			visible_set(named(list, "op_firefight_options", 0), cooperative);
+			visible_set(named(list, "op_firefight_options", 0), cooperative && !extraction);
 			if (help && list->focused_child == named(list, "op_coop_options", 0))
 				help->parameters.text_box.string_list_index = COOPERATIVE_OPTIONS_HELP;
 			else if (help && list->focused_child == named(list, "op_voice_options", 0))
@@ -11039,7 +11062,6 @@ place) */
 
 boolean ui_widget_port_gametype_edit_begin(long profile_index);
 boolean ui_widget_port_gametype_save(struct widget_instance *widget, boolean *widget_deleted);
-boolean ui_widget_port_game_variant_set(struct game_variant *variant, struct game_variant_options const *options);
 boolean ui_widget_port_gametype_delete(long profile_index);
 
 #define GAMETYPE_EDIT_ROWS 11
@@ -11503,6 +11525,13 @@ static void setting_options_each(struct widget_instance *list, boolean save)
 
 			if (!option || option->kind != _option_setting)
 				continue;
+			if (forerunner_map_mode == _ui_map_mode_extraction && !strcmp(option->spinner, "coop_firefight_spinner"))
+			{
+				visible_set(row, FALSE);
+				if (list->focused_child == row)
+					list->focused_child = row->next;
+				continue;
+			}
 			index = (short)PIN(spinner->parameters.list.selected_index, 0, option->count - 1);
 			if (!save)
 			{
@@ -14221,6 +14250,10 @@ boolean pc_menu_event_function_invoke(
 		}
 		else if (!strcmp(name, "port setup edit"))
 		{
+			if (forerunner_map_mode == _ui_map_mode_extraction ||
+				(forerunner_map_mode == _ui_map_mode_survival && strcmp(widget->name, "op_player_options") &&
+					strcmp(widget->name, "op_indicator_options")))
+				return FALSE;
 			return gametype_setup_edit();
 		}
 		/* (co-op's options' screens: their settings shown, and OK's) */

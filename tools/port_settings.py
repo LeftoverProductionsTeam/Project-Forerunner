@@ -2218,7 +2218,7 @@ def _server_settings() -> list:
                                                    ("string_index", 1), ("font", "ui\\large_ui"),
                                                    ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
     extra += _widget(f"{base}/max_players_spinner",
-                     [("type", "spinner"), ("left", 3), ("top", 2), ("width", 147), ("height", 20),
+                     [("type", "spinner"), ("left", 3), ("top", 0), ("width", 147), ("height", 20),
                       ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
                       ("strings", "|".join(str(count) for count in MAXIMUM_PLAYERS)), ("font", "ui\\large_ui"),
                       ("color", "#FF2896FF"), ("align", "center"), ("text_y", 1),
@@ -2238,7 +2238,7 @@ def _server_settings() -> list:
                                                ("string_index", 9), ("font", "ui\\large_ui"),
                                                ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
     extra += _widget(f"{base}/listing_spinner",
-                     [("type", "spinner"), ("left", 3), ("top", 2), ("width", 147), ("height", 20),
+                     [("type", "spinner"), ("left", 3), ("top", 0), ("width", 147), ("height", 20),
                       ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
                       ("strings", "PUBLIC|PRIVATE"), ("font", "ui\\large_ui"),
                       ("color", "#FF2896FF"), ("align", "center"), ("text_y", 1),
@@ -2363,6 +2363,13 @@ def _server_settings() -> list:
              for line in extra]
     lines = _screen(base, spec, rows, ["server settings update"],
                     ['<on event="created" run="server settings init"/>'], extra)
+    # Center the labels and values in the shorter Server Setup rows.
+    lines = [line.replace('bitmap="bitmaps/option_bkds"', 'bitmap="bitmaps/option_bkds_compact"')
+             .replace('text_y="4"', 'text_y="0"')
+             .replace('text_y="5"', 'text_y="2"')
+             .replace(f'<child widget="{base}/max_players_spinner" x="320" y="1"/>',
+                      f'<child widget="{base}/max_players_spinner" x="320" y="0"/>')
+             for line in lines]
     # (co-op's options' screens, and map sharing's)
     for key, title, _, screen_rows in [*COOP_SETUP_SCREENS, MAP_SHARE_SETUP]:
         lines += _setup_option_screen(f"{base}/{key}", key, screen_rows, fit=True,
@@ -2546,6 +2553,7 @@ def _setup_option_screen(base: str, key: str, rows: list, fit: bool = False,
     # OpenCE Options' are not)
     places = len([row_key for row_key, *_ in rows if row_key not in SETUP_OPTION_SAME_PLACE])
     spacing = min(30, (341 - 1 - 73 - 28) // max(1, places - 1)) if fit else 30
+    compact = spacing < 28
     place = -1
     for row_key, *_ in rows:
         if row_key not in SETUP_OPTION_SAME_PLACE:
@@ -2565,15 +2573,16 @@ def _setup_option_screen(base: str, key: str, rows: list, fit: bool = False,
         lines += _widget(f"{base}/op_{row_key}", [("width", 512), ("height", min(28, spacing)),
                                                  ("flags", "pass_unhandled_to_focused_child"),
                                                  ("platform", "desktop" if row_key == "ff_gear" else None),
-                                                 ("bitmap", "bitmaps/option_bkds"), ("color", "#FF2896FF")],
+                                                 ("bitmap", "bitmaps/option_bkds_compact" if compact else "bitmaps/option_bkds"),
+                                                 ("color", "#FF2896FF")],
                          [f'<child widget="{base}/{row_key}_label"/>',
                           f'<child widget="{base}/{row_key}_spinner" x="286" y="1"/>'])
         lines += _widget(f"{base}/{row_key}_label", [("type", "text"), ("controller", 1), ("width", 300),
                                                      ("height", 22), ("string_list", f"{base}/{key}_labels"),
                                                      ("string_index", index), ("font", "ui\\large_ui"),
-                                                     ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 4)], [])
+                                                     ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 1 if compact else 4)], [])
         lines += _widget(f"{base}/{row_key}_spinner",
-                         [("type", "spinner"), ("top", 2), ("width", 206), ("height", 20),
+                         [("type", "spinner"), ("top", 0 if compact else 2), ("width", 206), ("height", 20),
                           ("flags", "pass_unhandled_to_focused_child left_right_tabs_items"),
                           ("string_list", f"{base}/var_{row_key}"), ("font", "ui\\large_ui"),
                           ("color", "#FF2896FF"), ("align", "center"), ("text_y", 4),

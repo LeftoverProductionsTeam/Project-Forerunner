@@ -8,6 +8,8 @@
 
 static boolean loaded, running;
 static struct game_variant variant;
+static struct game_variant_options options;
+struct game_variant_options const *game_variant_options_get(void) { return &options; }
 boolean mcc_cache_tags_loaded(void) { return loaded; }
 boolean game_engine_running(void) { return running; }
 struct game_variant *game_engine_get_variant(void) { return &variant; }
@@ -45,6 +47,18 @@ int main(void) {
             CHECK(mcc_vehicle_placement_allowed(placement) == ((enabled & masks[engine]) != 0));
         }
     }
+    variant.game_engine_index = game_engine_slayer;
+    flags = 0x0F00; /* The original Zombie Apocalypse Demolisher. */
+    memcpy(bytes + 0x5A, &flags, 2);
+    CHECK(!mcc_vehicle_placement_allowed(placement));
+    options.vehicle_set[0] = options.vehicle_set[1] = VARIANT_VEHICLE_SET_PC;
+    CHECK(mcc_vehicle_placement_allowed(placement));
+    flags = 0x0001;
+    memcpy(bytes + 0x5A, &flags, 2);
+    CHECK(mcc_vehicle_placement_allowed(placement));
+    flags = 0x0200;
+    memcpy(bytes + 0x5A, &flags, 2);
+    CHECK(!mcc_vehicle_placement_allowed(placement));
     variant.game_engine_index = game_engine_race;
     CHECK(!mcc_vehicle_placement_rules() && mcc_vehicle_placement_allowed(placement));
     variant.game_engine_index = game_engine_slayer;
