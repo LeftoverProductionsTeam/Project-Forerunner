@@ -141,7 +141,15 @@ static boolean delta_peer_game_host_agreed_regional_bsp(void) {return regional_h
 static boolean network_coop_active(void) {return coop;}
 static boolean network_regional_bsp_active(void) {return regional_match;}
 static boolean network_synchronizes_structure_bsp(void) {return coop||regional_match;}
-static boolean network_regional_bsp_room_ready(void) {return regional_room_ready;}
+static boolean splitscreen_local;
+enum {_delta_capability_regional_bsp};
+static boolean network_game_is_splitscreen_local(void) {return splitscreen_local;}
+static int delta_peer_game_room_has(int capability)
+{
+    CHECK(capability==_delta_capability_regional_bsp,"incorrect capability used for BSP transitions");
+    return regional_room_ready;
+}
+#include "regional_room.inc"
 static boolean extraction_owns_map(void) {return operations;}
 static boolean players_coop_teammate(long player,long other)
 {return other!=NONE&&player!=other&&!opposed;}
@@ -1097,6 +1105,16 @@ int main(int argc,char **argv)
         parked_ai_unit=NONE;
         CHECK(!object_simulation_is_parked(handle,body),
               "an active or unbound actor cannot resume native object updates");
+        return 0;
+    }
+    if (!strcmp(name, "regional-local-room"))
+    {
+        CHECK(!network_regional_bsp_room_ready(),"an unnegotiated remote room enabled regional play");
+        splitscreen_local=TRUE;
+        CHECK(network_regional_bsp_room_ready(),"local split screen required a Delta room");
+        splitscreen_local=FALSE;
+        regional_room_ready=TRUE;
+        CHECK(network_regional_bsp_room_ready(),"a negotiated remote room lost regional play");
         return 0;
     }
     if (!strcmp(name, "regional-projectiles"))

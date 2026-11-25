@@ -75,6 +75,7 @@ def generated(fault=None):
              'breakable_surface_port_break')) + '\n' +
          '\n'.join(function(coop, name) for name in (
              'network_coop_note_surface_broken', 'host_send_broken_surfaces'))),
+        ('regional_room.inc', function(coop, 'network_regional_bsp_room_ready')),
         ('bsp_terrain.inc', '\n'.join(function(read('source/physics/collisions.c'), name) for name in (
             'collision_vector_bsp_flags', 'collision_structure_bsp_line_clear')) + '\n' +
          '\n'.join(function(damage, name) for name in (
@@ -146,7 +147,7 @@ def generated(fault=None):
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
     'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
-    'scripted-selection', 'qualified-object-clusters', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
+    'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-teleporters', 'regional-starts', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',
     'connected-vehicles', 'connected-reverse', 'connected-foot', 'connected-offset-seats',
     'connected-stranded', 'connected-stranded-host', 'connected-unrelated', 'connected-ai-passenger',

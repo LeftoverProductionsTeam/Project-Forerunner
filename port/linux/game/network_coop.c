@@ -2552,7 +2552,8 @@ boolean network_regional_bsp_room_ready(void)
 {
 	extern int delta_peer_game_room_has(int capability);
 
-	return delta_peer_game_room_has(_delta_capability_regional_bsp);
+	/* Split-screen has no remote simulation to negotiate with. */
+	return network_game_is_splitscreen_local() || delta_peer_game_room_has(_delta_capability_regional_bsp);
 }
 
 boolean network_coop_player_collisions(
