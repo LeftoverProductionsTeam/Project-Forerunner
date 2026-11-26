@@ -1,6 +1,32 @@
 # FORERUNNER — PERSISTENT ENGINEERING GOAL
 
-## Product Completion priorities
+## Product Completion V2
+
+- **P0 — Shared foundation.** Complete authoritative AI across campaign,
+  Zombie Survival, Firefight, Extraction and Forge. Extend existing native
+  neighboring-BSP rendering, preloading, collision and residency for Spark's
+  compact MegaWorld. Audit the 16 gameplay slots, 32 reader entries and
+  16-bit membership before any expansion. Share verified limits and fixtures
+  through the existing Spark contract.
+- **P1 — Flagship gameplay.** Preserve released ground Extraction. Build out
+  synchronized combat, independent squads, inventory, loot, objectives and
+  revivals. Restore original Zombie Apocalypse, complete Firefight and
+  Reach-style Forge, finish local ragdolls, third-person aiming and player
+  customization, and reuse native recorded aircraft behavior.
+- **P2 — Unified runtime.** Complete six-player campaign co-op, cinematics,
+  checkpoints, independent Operations, optional graphics and performance,
+  cross-platform rendering, OpenXR, servers, voice, session interoperability,
+  Theater, machinima, 128-player validation and compatible restored content.
+- **P3 — Spark.** Extend existing integration into supported live editing,
+  content loading, gameplay configuration, validation, transactions and
+  runtime readback. Spark owns authored content and Forerunner owns execution.
+
+Keep independent gameplay and creator tracks moving. Batch meaningful changes
+with proportionate native checks, preserve Latest and one Previous rollback,
+and use the existing contract for cross-project coordination. The following
+accepted checks and requirements still apply.
+
+## Prior Product Completion priorities and retained gates
 
 1. **Playable MegaWorld.** Accept Spark's compact hex-cluster world, including
    underground interiors. Prove independent multiplayer traversal, combat, AI,

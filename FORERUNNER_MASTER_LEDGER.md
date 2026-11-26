@@ -1,6 +1,10 @@
 # Forerunner engineering checkpoint
 
-Current priority follows the owner's [Product Completion goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md).
+Current priority follows [Product Completion V2](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md).
+Run native AI synchronization and compact BSP residency as shared foundation
+work. Advance flagship gameplay and Spark authoring in parallel when a
+construction issue or acceptance fixture blocks another track. The previous
+priorities below retain their checkpoints and verification scope.
 
 - P0: independent MegaWorld multiplayer. Use retained corridor caches to isolate
   engine failures. Final acceptance requires the Spark-authored compact

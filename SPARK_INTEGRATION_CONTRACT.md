@@ -32,6 +32,67 @@ surface/underground entry routes for ordinary multiplayer traversal. Extraction
 adds native faction bindings and recorded flights on that world. The remaining
 standalone evidence below is retained for regression diagnosis.
 
+### Compact world boundary construction
+
+Discovery `map_targets` reports `max_scenario_bsps` and `bsp_membership_bits`
+for each target. Both are 16 today. The MCC13 reader can describe 32
+entries, but the gameplay schema, scenario-side cluster partitions,
+breakable surfaces, AI encounter ownership and placement membership use
+the 16-slot model. Keep physical slots in 0–15. Atlas logical regions use
+stable source identity (source cache SHA-256 plus source BSP index) and
+may share a physical slot when Spark verifies their compiled placement,
+collision and portal ownership. A compiler can use fewer physical slots
+than the number of Atlas regions. Use the owned Tool coordinate preflight
+(±1,500 in the reviewed build), including the transformed footprint and
+the connector. Apply the checked limit for the compiler in use.
+
+Use one common, compiled coordinate space. The current native transition
+and preview paths do not apply per-BSP transforms. Retain stock tags when
+their geometry already shares that space. A transformed donor must carry
+consistent render and collision vertices and planes, clusters, portals,
+placements and lighting into the compiler output. Prefer short,
+deterministically matched boundaries and rebuild only affected geometry.
+Independent physical BSPs need native trigger volumes and reciprocal
+source/destination switch rows for two-way continuous travel, with no
+cutscene flag. Keep native portals and cluster links consistent within
+each BSP. Match supported floor and entry height across the full usable
+width. The native infantry contact probe has a 0.001-unit floor
+tolerance. Author for that tolerance and check both directions. For
+vehicles, compare actual hull contact points and the intended occupied
+root's swept path. The current crossing permits existing floor contact
+and rejects new terrain contact or a blocking destination object. Any
+passage width claim must name the vehicle and tested loaded pose.
+
+The look-ahead renderer uses the nearest continuously linked route within
+48 world units, and a warm neighbor can supply its own baked lightmap.
+Preview residency and simulation residency are distinct. Keep each BSP's
+native sky assignment, material/lightmap references and collision intact
+wherever possible. Verify the seam in motion in both directions and from a
+stationary peer in another BSP. Cover lighting, collision, vehicle seats
+and normal input. A rendered preview of an inactive region alone proves
+neither collision nor independent multiplayer simulation.
+
+Add compact construction metadata to the existing SHA-bound mode receipt
+when both editors agree on the shape. Carry the reviewed Atlas region ID,
+source cache hash, source/native BSP indices, applied translation and yaw,
+axis bounds, sky/lightmap ownership, and per-edge boundary samples with
+tolerance, native switch volume indices and directed adjacency. Retain the
+native compiled review as the evidence owner. These fields describe what
+Spark compiled and cannot override the scenario's native geometry or
+feature eligibility. Use existing `requiredNativeFeatures` and the
+negotiated regional capability for runtime admission. No new game message
+is required for this authoring metadata.
+
+Retained four-region compact fixture
+`c00fd4dfd877f95508477edf67e917b042cff2a6f9f3520bdbbb0155a9d355db`
+contains Timberland, Sidewinder, buried Chill Out and Blood Gulch in one
+physical BSP. Spark measured five clusters, twelve portals, 275 starts
+and 651 preserved stock placements. It is a construction and walk-in
+fixture. Use a same-coordinate two-BSP map with one short, reviewed
+transition to measure preview rendering, vehicle crossing and independent
+occupancy. The existing ground Extraction preview remains the playable
+release during this work.
+
 ## Historical standalone Black Echo candidates
 
 The current UNSC dedicated-pad export is

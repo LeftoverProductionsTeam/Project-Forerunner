@@ -12,6 +12,7 @@ header included in hcex build.
 /* ---------- headers */
 
 #include "real_math.h"
+#include "scenario_limits.h"
 #include "sound/sound_environment_definitions.h"
 
 /* ---------- constants */
@@ -30,7 +31,6 @@ enum
 	MAXIMUM_SCENARIO_NETGAME_FLAGS_PER_SCENARIO = 0xC8,
 	MAXIMUM_SCENARIO_NETGAME_EQUIPMENT_PER_SCENARIO = 0xC8,
 	MAXIMUM_SCENARIO_STARTING_EQUIPMDNG_PER_SCENARIO = 0xC8,
-	MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO = 0x10,
 	MAXIMUM_CHILD_SCENARIOS_PER_SCENARIO = 0x10,
 	MAXIMUM_SKIES_PER_SCENARIO = 0x8,
 	MAXIMUM_DECALS_PER_SCENARIO = 0x10000,

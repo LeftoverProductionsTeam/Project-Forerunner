@@ -668,7 +668,8 @@ static void structure_render_prepare_neighbor(void)
 	neighbor_structure = NULL;
 	if (surface_limit <= 0 || render.camera.mirrored)
 		return;
-	neighbor_bsp_index = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward);
+	/* A cold route must not hide another visible, already resident neighbor. */
+	neighbor_bsp_index = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward, TRUE);
 	if (neighbor_bsp_index == NONE)
 		return;
 	neighbor_structure = scenario_structure_bsp_preview(neighbor_bsp_index, FALSE);

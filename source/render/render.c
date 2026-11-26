@@ -893,8 +893,10 @@ void render_frame(
 		window = &windoze[window_index];
 		if (window->console_window || window->local_player_index == NONE || window->render_camera.mirrored)
 			continue;
-		neighbor = players_visible_bsp_neighbor(&window->render_camera.position, &window->render_camera.forward);
-		if (neighbor != NONE)
+		neighbor = players_visible_bsp_neighbor(&window->render_camera.position, &window->render_camera.forward, FALSE);
+		/* A warm neighbor can already be drawn and leaves the prefetch
+		 * opportunity available to another view. */
+		if (neighbor != NONE && !scenario_structure_bsp_preview(neighbor, FALSE))
 		{
 			scenario_structure_bsp_preview(neighbor, TRUE);
 			break;

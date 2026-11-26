@@ -3883,7 +3883,7 @@ boolean players_position_crosses_bsp_route(short source_bsp, short destination_b
 }
 
 /* A marked campaign transition can lead to an unrelated coordinate space. */
-short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d const *forward)
+short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d const *forward, boolean resident_only)
 {
 	struct scenario const *scenario = global_scenario_try_and_get();
 	real nearest_squared = 48.0f * 48.0f;
@@ -3903,7 +3903,8 @@ short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d c
 
 		if (route->cutscene_flag_index != NONE || route->source_structure_bsp_index != global_structure_bsp_index ||
 			route->destination_structure_bsp_index == global_structure_bsp_index ||
-			!VALID_INDEX(route->destination_structure_bsp_index, scenario->structure_bsp_references.count) ||
+			!VALID_INDEX(route->destination_structure_bsp_index,
+				MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO)) ||
 			!VALID_INDEX(route->trigger_volume_index, scenario->trigger_volumes.count))
 			continue;
 		volume = TAG_BLOCK_GET_ELEMENT(&scenario->trigger_volumes, route->trigger_volume_index, struct scenario_trigger_volume);
@@ -3925,7 +3926,8 @@ short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d c
 
 		vector_from_points3d(position, &center, &delta);
 		distance_squared = distance_squared3d(position, &center);
-		if (distance_squared < nearest_squared && dot_product3d(forward, &delta) >= -2.0f)
+		if (distance_squared < nearest_squared && dot_product3d(forward, &delta) >= -2.0f &&
+			(!resident_only || scenario_structure_bsp_preview(route->destination_structure_bsp_index, FALSE)))
 		{
 			nearest_squared = distance_squared;
 			neighbor = route->destination_structure_bsp_index;

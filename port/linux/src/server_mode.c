@@ -31,6 +31,7 @@ without a display to wait for, and its exits.
 #include "delta.h"
 #include "halo_port_features.h"
 #include "../game/mcc_cache_format.h"
+#include "scenario/scenario_limits.h"
 
 #include <SDL3/SDL.h>
 #include <stdio.h>
@@ -245,6 +246,8 @@ static void print_spark_capabilities(void)
 	server_json_integer(&json, "cache_version", 609);
 	server_json_integer(&json, "tag_space_bytes", PLATFORM_CE_TAG_CACHE_SIZE);
 	server_json_integer(&json, "max_sky_references", 8);
+	server_json_integer(&json, "max_scenario_bsps", MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
+	server_json_integer(&json, "bsp_membership_bits", SCENARIO_PLACEMENT_BSP_MEMBERSHIP_BITS);
 	server_json_string(&json, "invader_engine", "gbx-custom");
 	server_json_boolean(&json, "default", TRUE);
 	server_json_object_end(&json);
@@ -256,6 +259,8 @@ static void print_spark_capabilities(void)
 	server_json_integer(&json, "max_netgame_equipment", MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM);
 	server_json_integer(&json, "max_netgame_flags", MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM);
 	server_json_integer(&json, "max_sky_references", MCC_SCENARIO_SKIES_MAXIMUM);
+	server_json_integer(&json, "max_scenario_bsps", MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
+	server_json_integer(&json, "bsp_membership_bits", SCENARIO_PLACEMENT_BSP_MEMBERSHIP_BITS);
 	server_json_string(&json, "invader_engine", "mcc-cea");
 	server_json_string(&json, "required_feature", MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE);
 	server_json_boolean(&json, "default", FALSE);

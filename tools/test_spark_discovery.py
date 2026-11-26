@@ -58,6 +58,7 @@ def test_native_discovery_without_game_data(runtime):
         targets = {target["cache_version"]: target for target in reply["map_targets"]}
         assert targets[609] == {
             "cache_version": 609, "tag_space_bytes": 23 * 1024 * 1024, "max_sky_references": 8,
+            "max_scenario_bsps": 16, "bsp_membership_bits": 16,
             "invader_engine": "gbx-custom", "default": True,
         }
         feature = "maps.mcc13_tag_space_64m.v1"
@@ -65,6 +66,7 @@ def test_native_discovery_without_game_data(runtime):
         assert targets[13] == {
             "cache_version": 13, "tag_space_bytes": 64 * 1024 * 1024, "max_netgame_flags": 4096,
             "max_player_starts": 1536, "max_netgame_equipment": 1024, "max_sky_references": 16,
+            "max_scenario_bsps": 16, "bsp_membership_bits": 16,
             "invader_engine": "mcc-cea", "required_feature": feature, "default": False,
         }
     assert {"OpenCE", "ChupathingyCE", "FractumSeraph/OpenCE"} <= set(reply["upstream_projects"])
