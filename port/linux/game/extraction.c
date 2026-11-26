@@ -104,7 +104,7 @@ struct extraction_run
 	long dropship;
 	short dropship_team;
 	short report_page, start_kills, start_deaths;
-	boolean statistics_started;
+	boolean statistics_started, hub_briefed;
 	short squad;
 	unsigned long squad_operation;
 	struct extraction_report report;
@@ -1514,7 +1514,7 @@ finished:
 			extraction_notice("SURVIVAL GEAR UNAVAILABLE | Endless recovery needs unique native hub controls and extraction/return zones. No stash reserved.");
 		return;
 	}
-	if (extraction.admitted && !extraction.suspended)
+	if (extraction.admitted && !extraction.suspended && global_scenario->type == _scenario_type_solo)
 		extraction_notice("HUB | Use the deployment control to begin. No raid timer.");
 	else if (!extraction.admitted)
 		extraction_notice("Extraction unavailable: check native hub controls/zones, starts, dropships and optional faction controls/profiles.");
@@ -3077,6 +3077,28 @@ static void extraction_transport_completions(void)
 	}
 }
 
+/* Wait for the faction's live spawn so a late joiner sees the host's
+ * instructions at their own hub, after the match-level notice has passed. */
+static void extraction_brief_regional_player(struct extraction_run *run, struct player_datum const *player)
+{
+	struct unit_datum const *unit;
+	short faction;
+
+	if (run->hub_briefed || run->phase != _extraction_hub || cinematic_in_progress()) return;
+	faction = extraction_faction((short)player->team_index);
+	if (faction == NONE) return;
+	unit = (struct unit_datum const *)object_try_and_get_and_verify_type(player->unit_index, _object_mask_unit);
+	if (!unit || unit->unit.player_index != run->player || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+		!(unit->object.body_vitality > 0.0f) || extraction_unit_pending_death(unit) ||
+		extraction_medical_incapacitated(player->unit_index) ||
+		!extraction_in_faction_hub(faction, player->unit_index)) return;
+
+	extraction_tell(run, faction == 0 ?
+		"UNSC | Use Deploy, then board the Pelican." :
+		"Covenant | Use Deploy, then board the Spirit.");
+	run->hub_briefed = TRUE;
+}
+
 void extraction_update(void)
 {
 	struct data_iterator iterator;
@@ -3137,6 +3159,8 @@ void extraction_update(void)
 				if (outcome > 0 && (run->phase == _extraction_deployed || run->phase == _extraction_activating)) run->phase = _extraction_ready;
 				else if (outcome < 0 && (run->phase == _extraction_deployed || run->phase == _extraction_activating || run->phase == _extraction_ready)) extraction_lose_run(run);
 			}
+			else if (global_scenario->type != _scenario_type_solo)
+				extraction_brief_regional_player(run, player);
 			extraction_update_run(run, player, now);
 			if (extraction.suspended)
 			{

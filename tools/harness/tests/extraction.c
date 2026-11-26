@@ -664,6 +664,29 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"regional-hub-briefing")) {
+  struct extraction_run *guest=run(1);
+  int host_before=local_notices, guest_before=remote_notices;
+  guest->player=player_handles[1];
+  players[1].team_index=_game_team_covenant;
+  units[1].object.position.z=1.f;
+  extraction.faction_hubs[1]=5;
+  extraction.faction_hub_bsps[1]=11;
+  fixture_unit_bsp=0;
+  extraction_brief_regional_player(guest,&players[1]);
+  CHECK(remote_notices==guest_before,"coordinates alone triggered a faction briefing");
+  fixture_unit_bsp=11;
+  units[1].object.damage_flags=FLAG(_object_dead_bit);
+  extraction_brief_regional_player(guest,&players[1]);
+  CHECK(remote_notices==guest_before,"dead guest received deployment guidance");
+  units[1].object.damage_flags=0;
+  extraction_brief_regional_player(guest,&players[1]);
+  extraction_brief_regional_player(guest,&players[1]);
+  CHECK(remote_notices==guest_before+1 && local_notices==host_before && strstr(last_remote_notice,"board the Spirit"),
+        "first live Covenant hub briefing repeated or went to the wrong player");
+  CHECK(!guest->gear.opened && !file_count,"briefing reserved gear");
+  return 0;
+ }
  if(!strcmp(case_name,"transport-authored-high-slot")) {
   struct scenario_object_datum vehicles[229]={0};
   struct scenario_object_palette_entry palette[1]={0};
