@@ -1047,12 +1047,23 @@ void object_types_trim_bsp_placements(unsigned long keep_bsps)
 	}
 	if (keep_bsps && (populated_bsp_flags & ~keep_bsps))
 	{
-		object_iterator_new(&iterator, _object_mask_control, 0);
+		object_iterator_new(&iterator, _object_mask_control | _object_mask_vehicle, 0);
 		while ((object = (struct object_datum *)object_iterator_next(&iterator)) != NULL)
 		{
 			short bsp = object_get_regional_bsp(iterator.index);
-			if (object->object.name_index != NONE && bsp != NONE &&
-				TEST_FLAG(populated_bsp_flags & ~keep_bsps, bsp))
+			if (bsp == NONE || !TEST_FLAG(populated_bsp_flags & ~keep_bsps, bsp))
+				continue;
+			if (object->object.type == _object_type_vehicle)
+			{
+				/* Preserve the last scene, even when this vehicle left its home. */
+				game_engine_record_regional_object(iterator.index, object, bsp);
+				if (game_engine_object_recorded_bsp(iterator.index, _object_type_vehicle) == bsp)
+				{
+					object_disconnect_from_map(iterator.index);
+					object_reconnect_to_map(iterator.index, NULL);
+				}
+			}
+			else if (object->object.name_index != NONE)
 				object_disconnect_from_map(iterator.index);
 		}
 	}
@@ -1233,12 +1244,30 @@ static void object_types_connect_regional_controls(short bsp, struct structure_b
 	}
 }
 
+static void object_types_connect_regional_vehicles(short bsp, struct structure_bsp const *structure)
+{
+	struct object_iterator iterator;
+
+	/* The multiplayer initializer creates each eligible authored vehicle once.
+	 * Connect its existing datum when its owning region becomes playable. */
+	object_iterator_new(&iterator, _object_mask_vehicle, 0);
+	while (object_iterator_next(&iterator))
+	{
+		long vehicle = iterator.index;
+		if (game_engine_object_recorded_bsp(vehicle, _object_type_vehicle) == bsp &&
+			object_get_regional_bsp(vehicle) == NONE &&
+			object_connect_to_regional_bsp(vehicle, bsp, structure))
+			object_activate(vehicle);
+	}
+}
+
 void object_types_place_regional_bsp(short bsp, struct structure_bsp const *structure)
 {
 	if (structure && !TEST_FLAG(populated_bsp_flags, bsp))
 	{
 		object_types_place_objects_in_bsp(TRUE, bsp, structure);
 		object_types_connect_regional_controls(bsp, structure);
+		object_types_connect_regional_vehicles(bsp, structure);
 	}
 }
 
