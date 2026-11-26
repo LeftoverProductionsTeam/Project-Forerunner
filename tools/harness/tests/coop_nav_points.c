@@ -5,6 +5,7 @@
 #define VALID_INDEX(i,n) ((i)>=0&&(i)<(n))
 #define _object_mask_all 1
 #define _object_mask_unit 2
+#define _object_mask_item 4
 #define csmemset memset
 #define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
 #define HALO_PORT_MAXIMUM_NETWORK_MACHINES 2
@@ -19,7 +20,7 @@ static long player_handles[3]={0x10000,0x10001,0x10002};
 static struct hud_nav_point_player_datum views[MAXIMUM_LOCAL_PLAYERS];
 static struct {struct {struct tag_block arrows;} waypoint;} hud_definition;
 static struct object_datum {long definition_index;struct {short name_index;} object;} object={0x4001,{NONE}};
-static boolean stale,deleted;
+static boolean stale,deleted,item_replica;
 static int role=1,sent;
 static struct scenario {struct tag_block cutscene_flags;} scenario_state;
 static struct {short objective,nav_point_count,nav_refresh_next,nav_refresh_remaining;struct {short kind,nav_index;long target,marker;real vertical_offset;} nav_points[MAXIMUM_NAV_POINTS];} host_hud_state,checkpoint_hud_state;
@@ -52,9 +53,9 @@ static struct distributed_coop_event *event_new(byte kind)
 #define hud_globals (&hud_definition)
 static void *object_try_and_get_and_verify_type(long index,int mask)
 {int i;for(i=0;i<3;i++)if(index==players[i].unit_index)return &object;
- return mask!=_object_mask_unit&&!deleted&&index==0x9001?&object:NULL;}
+ return mask!=_object_mask_unit&&(mask!=_object_mask_item||item_replica)&&!deleted&&index==0x9001?&object:NULL;}
 struct object_iterator {long index;};
-static long object_index_from_name_index(short name){return name==7&&!deleted?0x9001:NONE;}
+static long object_index_from_name_index(short name){return name==7&&!deleted&&!item_replica?0x9001:NONE;}
 static void object_iterator_new(struct object_iterator *it,unsigned long mask,int flags){it->index=NONE;}
 static struct object_datum *object_iterator_next(struct object_iterator *it){return NULL;}
 static long player_index_from_unit_index(long unit)
@@ -143,6 +144,19 @@ int main(int argc,char **argv)
    CHECK(host_hud_state.nav_point_count==1&&contains(1,0x9001),"host replay did not restore named guidance after creation");
    role=1;queue_used=0;CHECK(send_nav_point(_coop_nav_point_unit_object,0,players[1].unit_index,0x9001,1.f),"named send failed");
    CHECK(events[0].name_index==7&&events[0].definition_index==object.definition_index,"named guidance omitted native identity metadata");
+  }else if(!strcmp(name+9,"item")){
+   item_replica=TRUE;event.name_index=7;event.definition_index=object.definition_index;
+   event.object_index+=0x10000;client_apply_nav_point(&event);
+   CHECK(!host_hud_state.nav_point_count,"named pickup marker accepted a stale salted handle");
+   event.object_index=0x9001;event.definition_index++;client_apply_nav_point(&event);
+   CHECK(!host_hud_state.nav_point_count,"named pickup marker accepted the wrong item tag");
+   event.definition_index--;object.object.name_index=8;client_apply_nav_point(&event);
+   CHECK(!host_hud_state.nav_point_count,"named pickup marker accepted a conflicting local name");
+   object.object.name_index=NONE;client_apply_nav_point(&event);
+   CHECK(host_hud_state.nav_point_count==1&&contains(1,0x9001)&&!contains(0,0x9001),
+         "named replicated pickup marker did not reach only the intended faction");
+   event.value=NONE;client_apply_nav_point(&event);
+   CHECK(!host_hud_state.nav_point_count&&!contains(1,0x9001),"named pickup marker did not clear");
   }else if(!strcmp(name+9,"pending")){
    deleted=TRUE;client_apply_nav_point(&event);
    CHECK(!host_hud_state.nav_point_count&&!contains(1,0x9001),"an event before object creation retained an unreachable marker");

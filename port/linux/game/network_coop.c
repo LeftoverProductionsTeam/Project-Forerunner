@@ -1886,7 +1886,17 @@ static void client_apply_nav_point(
 	 * units/items. Reuse their existing native name/definition resolver. Older
 	 * senders leave definition_index NONE and retain exact-handle behavior. */
 	if (!flag && event->name_index != NONE && event->definition_index != NONE)
+	{
 		marker = object_find(event->name_index, marker, event->definition_index, _object_mask_all);
+		if (marker == NONE)
+		{
+			/* A replicated pickup keeps the host's full handle and tag but
+			 * does not claim its scripted scenario name on the client. */
+			struct object_datum const *item = object_try_and_get_and_verify_type(event->object_index, _object_mask_item);
+			if (item && item->definition_index == event->definition_index && item->object.name_index == NONE)
+				marker = event->object_index;
+		}
+	}
 	/* As for an unavailable viewer, let host replay retry after creation.
 	 * Otherwise a never-created target has no deletion callback to retire it.
 	 * Deactivation must still work after a marker object has disappeared. */

@@ -102,7 +102,7 @@ def test_deleted_marker_negative(fault, case):
     assert status == CHECK_FAILED, output
 
 
-@pytest.mark.parametrize('case', ['pending', 'deactivate', 'named'])
+@pytest.mark.parametrize('case', ['pending', 'deactivate', 'named', 'item'])
 def test_replica_marker_ordering(case):
     status, output = run(build('coop_nav_points', generated()), 'ordering-' + case)
     assert status == 0, output
