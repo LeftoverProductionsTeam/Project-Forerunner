@@ -2507,6 +2507,29 @@ static boolean action_obey_command_begin(
 	return result;
 }
 
+static boolean action_obey_destination_facing(struct actor_datum const *actor,
+	struct obey_individual_complex_control const *command)
+{
+	boolean ground_stop = !command->destination_keep_moving && actor_move_plane_grounded(actor);
+	real_vector3d toward, heading = actor->input.facing_vector;
+
+	vector_from_points3d(&actor->input.position.body_position, &command->destination_facing_point, &toward);
+	/* The native pilot commands a level heading on the ground. Match the
+	 * hull's yaw there so the contact pitch cannot hold the order open. */
+	if (!actor->state.flying || ground_stop)
+		toward.k = 0.f;
+	if (!(normalize3d(&toward) > 0.f))
+		return TRUE;
+	if (ground_stop)
+	{
+		heading = actor->input.position.body_facing;
+		heading.k = 0.f;
+		if (!(normalize3d(&heading) > 0.f))
+			return FALSE;
+	}
+	return dot_product3d(&toward, &heading) >= 0.984f;
+}
+
 static boolean action_obey_command_perform(
 	long actor_index,
 	long unit_index,
@@ -2586,49 +2609,13 @@ static boolean action_obey_command_perform(
 
 				if (done && complex_control->destination_facing)
 				{
-					real facing_dot;
-
 					match_assert(
 						"c:\\halo\\SOURCE\\ai\\action_obey.c",
 						983,
 						current_command->atom_type == _ai_atom_go_to_and_face);
-
-					if (actor->state.flying)
-					{
-						real_vector3d facing;
-
-						vector_from_points3d(
-							&actor->input.position.body_position,
-							&complex_control->destination_facing_point,
-							&facing);
-						if (!(normalize3d(&facing) > 0.0f))
-						{
-							goto facing_done;
-						}
-						facing_dot = dot_product3d(&facing, &actor->input.facing_vector);
-					}
-					else
-					{
-						real_vector2d facing;
-
-						vector_from_points2d(
-							(real_point2d const *)&actor->input.position.body_position,
-							(real_point2d const *)&complex_control->destination_facing_point,
-							&facing);
-						if (!(normalize2d(&facing) > 0.0f))
-						{
-							goto facing_done;
-						}
-						facing_dot = dot_product2d(&facing, (real_vector2d const *)&actor->input.facing_vector);
-					}
-
-					if (facing_dot < 0.984f)
-					{
-						done = FALSE;
-					}
+					done = action_obey_destination_facing(actor, complex_control);
 				}
 
-			facing_done:
 				if (done)
 				{
 					actor_move_halt(actor_index);

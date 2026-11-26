@@ -12,7 +12,7 @@ TEST = 'port/linux/game/network_test.c'
 CASES = ['host-control', 'host-world', 'client-world', 'remember-death', 'deleted-reused',
          'players-duplicates', 'capacity-priority', 'local-reset', 'disabled',
          'cadence-rewind', 'cadence-delayed', 'interval-bounds', 'plane-waypoint-position', 'plane-waypoint-turn',
-         'plane-landing-arrival', 'plane-landing-heading', 'plane-parked-look', 'plane-parked-rest']
+         'plane-landing-arrival', 'plane-landing-heading', 'plane-grounded-command-facing', 'plane-parked-look', 'plane-parked-rest']
 CONTROLS = {
     'client-ai-state': ('if ((host || local) && actor_data && unit->unit.actor_index != NONE)',
                         'if (actor_data && unit->unit.actor_index != NONE)', 'host-control'),
@@ -52,8 +52,9 @@ def generated(control=None):
     code += '\n' + '\n'.join(function(moving, name) for name in
                                   ('actor_move_plane_vehicle_definition', 'actor_move_plane_definition', 'actor_move_sample_plane_position',
                                    'actor_move_plane_approach_scale', 'actor_path_at_destination', 'actor_move_plane_stop_heading',
-                                   'actor_move_plane_pilot_suspended', 'actor_move_plane_is_parked',
+                                   'actor_move_plane_grounded', 'actor_move_plane_pilot_suspended', 'actor_move_plane_is_parked',
                                    'actor_move_plane_parked_facing'))
+    code += '\n' + function(read('source/ai/action_obey.c'), 'action_obey_destination_facing')
     code += '\n' + enum_with(read('source/units/units.h'), '_unit_possessed_by_recording_bit')
     vehicles = read('source/units/vehicles.c')
     code += '\n' + '\n'.join(function(vehicles, name) for name in

@@ -1335,6 +1335,7 @@ boolean actor_path_at_destination(
 	long actor_index);
 void actor_destination_update(
 	long actor_index);
+boolean actor_move_plane_grounded(struct actor_datum const *actor);
 void actor_move_sample_plane_position(
 	long actor_index);
 boolean actor_move_plane_pilot_suspended(

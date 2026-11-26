@@ -34,7 +34,7 @@ struct obey_individual_complex_control {
 static int actor_data=1;
 static struct actor_datum {
  struct {long unit_index;short active,dormant,squad_index;boolean frozen;} meta;
- struct {short action,default_state;
+ struct {short action,default_state; boolean flying;
   struct {struct {struct obey_individual_complex_control complex_control;} obey;} action_data;
  } state;
  struct {boolean moving;real_point3d moving_towards_point;
@@ -131,6 +131,11 @@ static void vector_from_points3d(real_point3d const *a,real_point3d const *b,rea
 {
 	*vector=(real_vector3d){b->x-a->x,b->y-a->y,b->z-a->z};
 }
+static real dot_product3d(real_vector3d const *a, real_vector3d const *b)
+{
+	return a->i*b->i + a->j*b->j + a->k*b->k;
+}
+
 static real normalize3d(real_vector3d *vector)
 {
 	real length = sqrtf(vector->i * vector->i + vector->j * vector->j + vector->k * vector->k);
@@ -313,6 +318,32 @@ int main(int argc,char **argv)
 		order->destination_keep_moving=TRUE;
 		heading=actor_move_plane_stop_heading(actor);
 		CHECK(heading.j==1,"a cruise waypoint took the touchdown heading");
+	}
+	else CASE("plane-grounded-command-facing")
+	{
+		struct obey_individual_complex_control *order=&native_actor.state.action_data.obey.complex_control;
+		long ship=add(1);
+		native_actor.input.vehicle_index=ship;
+		native_actor.input.vehicle_driver_type=_actor_vehicle_driver_directional_flying;
+		native_actor.state.flying=TRUE;
+		native_actor.input.position.body_position=(real_point3d){80,-122,1.85f};
+		order->destination_facing_point=(real_point3d){83,-126,9};
+		native_actor.input.position.body_facing=(real_vector3d){.576f,-.768f,.28f};
+		native_actor.input.facing_vector=(real_vector3d){.6f,-.8f,0};
+		CHECK(!action_obey_destination_facing(&native_actor,order),"in-flight arrival lost pitch validation");
+		vehicle_get(ship)->object.flags=FLAG(_object_on_ground_bit);
+		CHECK(action_obey_destination_facing(&native_actor,order),"a tilted hull facing the correct yaw could not complete a native stop");
+		native_actor.input.position.body_facing=(real_vector3d){-.576f,.768f,.28f};
+		CHECK(!action_obey_destination_facing(&native_actor,order),"pilot aim passed while the grounded hull faced backwards");
+		order->destination_facing_point=(real_point3d){80,-122,9};
+		CHECK(action_obey_destination_facing(&native_actor,order),"vertical-only facing point blocked horizontal arrival");
+		order->destination_facing_point=(real_point3d){83,-126,9};
+		native_actor.input.position.body_facing=(real_vector3d){.576f,-.768f,.28f};
+		order->destination_keep_moving=TRUE;
+		CHECK(!action_obey_destination_facing(&native_actor,order),"a continuing waypoint lost pitch validation");
+		order->destination_keep_moving=FALSE;
+		human_plane=FALSE;
+		CHECK(!action_obey_destination_facing(&native_actor,order),"legacy flying actor lost pitch validation");
 	}
 	else CASE("plane-waypoint-position")
 	{

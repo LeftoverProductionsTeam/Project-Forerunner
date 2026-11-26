@@ -750,6 +750,12 @@ static struct vehicle_definition *actor_move_plane_definition(struct actor_datum
 		actor_move_plane_vehicle_definition(actor->input.vehicle_index) : NULL;
 }
 
+boolean actor_move_plane_grounded(struct actor_datum const *actor)
+{
+	return actor_move_plane_definition(actor) &&
+		TEST_FLAG(vehicle_get(actor->input.vehicle_index)->object.flags, _object_on_ground_bit);
+}
+
 /* Transport routes describe the aircraft, not an offset seat that sweeps
  * around the destination as the pilot turns. Keep native eyes/perception. */
 void actor_move_sample_plane_position(long actor_index)
