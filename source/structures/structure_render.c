@@ -200,13 +200,19 @@ static void structure_render_pass(
 
 static struct structure_render_globals structure_render_globals;
 
-enum { MAXIMUM_NEIGHBOR_SURFACES = 4096 };
+enum { MAXIMUM_NEIGHBOR_SURFACES = 4096, MAXIMUM_RENDERED_NEIGHBORS = 2 };
+struct structure_render_neighbor
+{
+	struct structure_bsp const *structure;
+	long surface_offset;
+	long surface_count;
+	long triangles_index;
+	short bsp_index;
+};
+
+static struct structure_render_neighbor render_neighbors[MAXIMUM_RENDERED_NEIGHBORS];
 static long neighbor_surface_indices[MAXIMUM_NEIGHBOR_SURFACES];
 static unsigned long neighbor_surface_flags[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_SURFACES_PER_STRUCTURE)];
-static long neighbor_surface_count;
-static long neighbor_triangles_index;
-static short neighbor_bsp_index;
-static struct structure_bsp const *neighbor_structure;
 
 long debug_leaf_index = NONE;
 long debug_leaf_portal_index = NONE;
@@ -659,37 +665,56 @@ static void structure_render_pass(
 	return;
 }
 
-static void structure_render_prepare_neighbor(void)
+static void structure_render_prepare_neighbor(struct structure_render_neighbor *neighbor,
+	short bsp_index, long surface_offset, long surface_limit)
+{
+	struct structure_bsp const *structure;
+	long surface, surface_count = 0;
+	long *surfaces = neighbor_surface_indices + surface_offset;
+
+	if (bsp_index == NONE || surface_limit <= 0)
+		return;
+	structure = scenario_structure_bsp_preview(bsp_index, FALSE);
+	if (!structure)
+		return;
+	memset(neighbor_surface_flags, 0, sizeof(neighbor_surface_flags));
+	if (!structure_visibility_neighbor_surfaces(structure, &render.frustum, neighbor_surface_flags, surface_limit))
+		return;
+	for (surface = 0; surface < structure->surfaces.count && surface_count < surface_limit; surface++)
+	{
+		if (BIT_VECTOR_TEST_FLAG(neighbor_surface_flags, surface))
+			surfaces[surface_count++] = surface;
+	}
+
+	neighbor->triangles_index = structure_render_build_dynamic_triangles(structure, surfaces, surface_count, NULL);
+	if (neighbor->triangles_index != NONE)
+	{
+		neighbor->structure = structure;
+		neighbor->bsp_index = bsp_index;
+		neighbor->surface_offset = surface_offset;
+		neighbor->surface_count = surface_count;
+	}
+}
+
+static void structure_render_prepare_neighbors(void)
 {
 	long surface_limit = MIN(MAXIMUM_NEIGHBOR_SURFACES,
 		MAXIMUM_RENDERED_ENVIRONMENT_SURFACES - render.environment_surface_count);
-	long surface;
+	short nearest, other;
+	struct structure_render_neighbor *secondary = &render_neighbors[1];
 
-	neighbor_structure = NULL;
+	memset(render_neighbors, 0, sizeof(render_neighbors));
 	if (surface_limit <= 0 || render.camera.mirrored)
 		return;
-	/* A cold route must not hide another visible, already resident neighbor. */
-	neighbor_bsp_index = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward, TRUE);
-	if (neighbor_bsp_index == NONE)
+	nearest = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward, TRUE, NONE);
+	if (nearest == NONE)
 		return;
-	neighbor_structure = scenario_structure_bsp_preview(neighbor_bsp_index, FALSE);
-	if (!neighbor_structure)
-		return;
-
-	memset(neighbor_surface_flags, 0, sizeof(neighbor_surface_flags));
-	neighbor_surface_count = structure_visibility_neighbor_surfaces(neighbor_structure,
-		&render.frustum, neighbor_surface_flags, surface_limit);
-	neighbor_triangles_index = NONE;
-	if (!neighbor_surface_count)
-		return;
-	neighbor_surface_count = 0;
-	for (surface = 0; surface < neighbor_structure->surfaces.count; surface++)
-	{
-		if (BIT_VECTOR_TEST_FLAG(neighbor_surface_flags, surface))
-			neighbor_surface_indices[neighbor_surface_count++] = surface;
-	}
-	neighbor_triangles_index = structure_render_build_dynamic_triangles(neighbor_structure,
-		neighbor_surface_indices, neighbor_surface_count, NULL);
+	/* Both residents share the existing surface budget. An invisible second
+	 * route leaves all of it to the nearest route. Neither lookup loads a BSP. */
+	other = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward, TRUE, nearest);
+	structure_render_prepare_neighbor(secondary, other, 0, surface_limit / 2);
+	structure_render_prepare_neighbor(&render_neighbors[0], nearest, secondary->surface_count,
+		surface_limit - secondary->surface_count);
 }
 
 /* ---------- public code */
@@ -708,7 +733,7 @@ void structure_render_preprocess(
 			render.environment_surface_count,
 			render.environment_surface_flags);
 
-	structure_render_prepare_neighbor();
+	structure_render_prepare_neighbors();
 	profile_exit(render_structure_build_triangle_arrays_section);
 
 	structure_render_globals.environment_geometry_valid =
@@ -764,22 +789,28 @@ static void structure_render_lightmap_pass(struct structure_bsp const *structure
 void structure_render_lightmaps(
 	void)
 {
+	short index;
 	profile_enter(render_structure_lightmaps_section);
 	if (structure_render_globals.environment_geometry_valid)
 		structure_render_lightmap_pass(global_structure_bsp_get(), global_structure_bsp_index_get(),
 			render.environment_surface_indices, render.environment_surface_count,
 			structure_render_globals.environment_triangles_index);
-	if (neighbor_structure && neighbor_triangles_index != NONE)
-		structure_render_lightmap_pass(neighbor_structure, neighbor_bsp_index,
-			neighbor_surface_indices, neighbor_surface_count, neighbor_triangles_index);
+	for (index = 0; index < MAXIMUM_RENDERED_NEIGHBORS; index++)
+	{
+		struct structure_render_neighbor const *neighbor = &render_neighbors[index];
+		if (neighbor->structure)
+			structure_render_lightmap_pass(neighbor->structure, neighbor->bsp_index,
+				neighbor_surface_indices + neighbor->surface_offset, neighbor->surface_count, neighbor->triangles_index);
+	}
 	profile_exit(render_structure_lightmaps_section);
 }
 
 void structure_render_diffuse_texture(
 	void)
 {
+	short index;
 	profile_enter(render_structure_diffuse_textures_section);
-	if (structure_render_globals.environment_geometry_valid || (neighbor_structure && neighbor_triangles_index != NONE))
+	if (structure_render_globals.environment_geometry_valid || render_neighbors[0].structure || render_neighbors[1].structure)
 	{
 		rasterizer_environment_diffuse_textures_begin();
 		if (structure_render_globals.environment_geometry_valid)
@@ -787,10 +818,14 @@ void structure_render_diffuse_texture(
 				render.environment_surface_indices, render.environment_surface_count,
 				structure_render_globals.environment_triangles_index,
 				NULL, rasterizer_environment_diffuse_texture_draw, NULL, NULL);
-		if (neighbor_structure && neighbor_triangles_index != NONE)
-			structure_render_pass(neighbor_structure, neighbor_bsp_index,
-				neighbor_surface_indices, neighbor_surface_count, neighbor_triangles_index,
-				NULL, rasterizer_environment_diffuse_texture_draw, NULL, NULL);
+		for (index = 0; index < MAXIMUM_RENDERED_NEIGHBORS; index++)
+		{
+			struct structure_render_neighbor const *neighbor = &render_neighbors[index];
+			if (neighbor->structure)
+				structure_render_pass(neighbor->structure, neighbor->bsp_index,
+					neighbor_surface_indices + neighbor->surface_offset, neighbor->surface_count,
+					neighbor->triangles_index, NULL, rasterizer_environment_diffuse_texture_draw, NULL, NULL);
+		}
 		rasterizer_environment_diffuse_textures_end();
 	}
 	profile_exit(render_structure_diffuse_textures_section);

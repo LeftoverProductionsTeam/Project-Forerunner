@@ -36,10 +36,22 @@ A private Windows candidate
 `b8430b21deedf845451022ff70114661cfb38cf6e1412e4648cef762e0bb74a6`
 lets local-only games apply native tag-authored healing without the
 multiplayer wire cap. Focused checks covered local and shared healing,
-and Play Solo booted the exact installed map through normal menus. The
-grenade throw did not produce a sampled heal on the thrower. A positive
-in-game heal, original Demo gameplay comparison and full original match
-remain open. Latest and Previous were preserved.
+and Play Solo booted the exact installed map through normal menus. With
+two local split-screen profiles on `12649191`, the first player collected
+and threw an authored grenade. The second player's normalized vitality rose
+from 1.00 to 166666.02 at tick 1350, matching the original tag's healing
+amount. The thrower stayed at 1.00. This run used no remote client. A native
+original Demo comparison and full original match remain open.
+
+## Private neighboring BSP rendering candidate
+
+Win64 `f2e4d85ee1613d18ad6f010825c27241b61a8c844ddc2b23a0c292293309fe10`
+opened the released MegaWorld ground preview `fcfe9d44` via normal menus
+and spawned in its UNSC hub. The renderer can draw two already-resident
+neighbors using their own lightmaps and a shared 4,096-surface cap. A
+focused check exercised two neighbors, an invisible second neighbor,
+allocation failure, mirror exclusion and low remaining budget. Native
+junction visuals and matched frame times remain open.
 
 ## V2.1 private Forge and ragdoll candidate
 
