@@ -569,7 +569,7 @@ static real distance_squared3d(real_point3d const *a, real_point3d const *b)
 }
 #include "netgame_flags.inc"
 #include "regional_start.inc"
-struct distributed_structure_bsp {short structure_bsp_index,pad;};
+#include "bsp_wire.inc"
 static boolean loading_hud;
 static void hud_load(boolean value) {loading_hud=value;}
 #define console_warning(...) ((void)0)
@@ -812,7 +812,34 @@ static void network_coop_handle_device_states(void const *entries,short count)
 enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably};
 struct distributed_message_header {long game_time;};
 static short distributed_sent_structure_bsp_index=NONE;
+enum { HALO_PORT_MAXIMUM_NETWORK_MACHINES = 9 };
+static boolean independent_bsp_room;
+static boolean network_regional_independent_bsp_ready(void) {return independent_bsp_room;}
+static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static long bsp_machine_players[2][MAXIMUM_LOCAL_PLAYERS];
+static short bsp_player_regions[2];
+static struct distributed_structure_bsp bsp_machine_announcements[2];
 static int bsp_announcement_targeted,bsp_announcement_broadcast;
+static struct player_datum *player_try_and_get(long index) {return player_get(index);}
+static long distributed_living_unit(struct player_datum const *player) {return player->unit_index;}
+static short network_coop_player_authoritative_bsp(long index)
+{
+    CHECK(index==players[0]||index==players[1],"handoff lost the full player datum");
+    return bsp_player_regions[index==players[1]];
+}
+static long *machine_get_player_list(long machine)
+{
+    CHECK(machine==7||machine==8,"invalid BSP recipient");
+    return bsp_machine_players[machine-7];
+}
+static short distributed_client_machines(long *machines,short max)
+{
+    CHECK(max>=2,"no space for BSP recipients");
+    machines[0]=7;
+    machines[1]=8;
+    return 2;
+}
 static struct player_datum *distributed_player(short slot)
 {return slot==0?&people[0]:NULL;}
 static boolean distributed_machine_has_player(long machine, short slot)
@@ -821,8 +848,10 @@ static boolean network_coop_player_has_structure_bsp(long player);
 static boolean check_report_region;
 static void distributed_send_to_machine_reliably(long machine,void const *message,byte type,word count,word size)
 {
-    CHECK(machine==7&&message&&type==_distributed_message_structure_bsp&&count==1&&size,
+    CHECK((machine==7||machine==8)&&message&&type==_distributed_message_structure_bsp&&count==1&&size,
           "invalid targeted BSP message");
+    memcpy(&bsp_machine_announcements[machine-7], (byte const *)message + sizeof(struct distributed_message_header),
+           sizeof(bsp_machine_announcements[0]));
     bsp_announcement_targeted++;
 }
 static void distributed_send(void *message, byte type, word count, word size, int delivery)
@@ -855,9 +884,7 @@ static struct structure_bsp const *scenario_structure_bsp_preview(short index, b
     preview_requests++;
     return preview_available?&structures[index]:NULL;
 }
-static boolean independent_bsp_room;
 static int transferred_roots;
-static boolean network_regional_independent_bsp_ready(void) {return independent_bsp_room;}
 static long player_index_from_unit_index(long unit)
 {
     return unit == units[0] ? players[0] : (unit == units[1] ? players[1] : NONE);
@@ -2819,6 +2846,56 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"independent-bsp-delivery"))
+    {
+        struct distributed_structure_bsp shared={old,0};
+        struct distributed_structure_bsp targeted={destination,DISTRIBUTED_INDEPENDENT_BSP_HANDOFF};
+        regional_match=regional_room_ready=regional_host_agreed=TRUE;
+        bsp_machine_players[0][0]=players[0];
+        bsp_machine_players[1][0]=players[1];
+        bsp_machine_players[0][1]=bsp_machine_players[1][1]=NONE;
+        bsp_player_regions[0]=old;
+        bsp_player_regions[1]=destination;
+        distributed_machine_sent_bsp[7]=distributed_machine_sent_bsp[8]=NONE;
+
+        distributed_send_structure_bsp(NONE);
+        distributed_handle_structure_bsp(89,&targeted);
+        CHECK(bsp_announcement_broadcast==1&&!bsp_announcement_targeted&&
+              distributed_host_structure_bsp_index==NONE,"shared room accepted an independent handoff");
+
+        independent_bsp_room=TRUE;
+        distributed_machine_ready[7]=TRUE;
+        distributed_send_structure_bsp(NONE);
+        CHECK(bsp_announcement_targeted==1&&bsp_machine_announcements[0].structure_bsp_index==old&&
+              bsp_machine_announcements[0].handoff==DISTRIBUTED_INDEPENDENT_BSP_HANDOFF,
+              "ready client did not receive its own BSP");
+        distributed_machine_ready[8]=TRUE;
+        distributed_send_structure_bsp(8);
+        CHECK(bsp_announcement_targeted==2&&bsp_machine_announcements[1].structure_bsp_index==destination&&
+              bsp_machine_announcements[1].handoff==DISTRIBUTED_INDEPENDENT_BSP_HANDOFF,
+              "late client received the host foreground BSP");
+        distributed_send_structure_bsp(NONE);
+        CHECK(bsp_announcement_targeted==2,"unchanged regions were sent again");
+
+        bsp_machine_players[0][1]=players[1];
+        bsp_player_regions[0]=destination;
+        bsp_player_regions[1]=old;
+        distributed_send_structure_bsp(NONE);
+        CHECK(bsp_announcement_targeted==3&&bsp_machine_announcements[0].structure_bsp_index==old&&
+              bsp_machine_announcements[1].structure_bsp_index==old,"split local viewers changed foreground BSP");
+        bsp_machine_players[0][1]=NONE;
+        distributed_send_structure_bsp(NONE);
+        CHECK(bsp_announcement_targeted==4&&bsp_announcement_broadcast==1&&
+              bsp_machine_announcements[0].structure_bsp_index==destination,"crossing was not sent only to its client");
+
+        distributed_handle_structure_bsp(90,&targeted);
+        CHECK(distributed_host_structure_bsp_index==destination,"client rejected its negotiated handoff");
+        distributed_handle_structure_bsp(91,&shared);
+        CHECK(distributed_host_structure_bsp_index==destination,"shared update overrode the independent handoff");
+        main_switch_to_structure_bsp_private();
+        CHECK(global_structure_bsp_index==destination,"client did not load its assigned BSP");
         return 0;
     }
     if(!strcmp(name,"regional-late-join"))

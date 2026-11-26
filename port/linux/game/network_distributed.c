@@ -791,6 +791,7 @@ static long distributed_machine_players[HALO_PORT_MAXIMUM_NETWORK_MACHINES][MAXI
 /* (the host) the client machines that have said their ready this game: a
 co-op revert's checkpoint boundary goes to each */
 static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 /* the host: what each player's unit was last sent as (a change goes to
 every client at once) */
 static struct
@@ -1852,6 +1853,7 @@ static boolean distributed_machine_loaded(
 	csmemcpy(distributed_machine_players[machine_index], player_list,
 		sizeof(distributed_machine_players[machine_index]));
 	distributed_machine_ready[machine_index] = FALSE;
+	distributed_machine_sent_bsp[machine_index] = NONE;
 	for (type = 0; type < NUMBER_OF_DISTRIBUTED_MESSAGES; type++)
 		distributed_received_times[machine_index][type] = NONE;
 	distributed_sender_times[machine_index] = NONE;
@@ -5454,10 +5456,12 @@ up. */
 
 static short distributed_sent_structure_bsp_index = NONE;
 
+enum { DISTRIBUTED_INDEPENDENT_BSP_HANDOFF = 0x4252 };
+
 struct distributed_structure_bsp
 {
 	short structure_bsp_index;
-	short pad;
+	short handoff;
 };
 
 struct distributed_structure_bsp_message
@@ -5502,6 +5506,42 @@ boolean distributed_hit_report_matches_structure_bsp(
 		network_coop_player_has_structure_bsp(DATUM_INDEX_NEW(player_index, player->identifier));
 }
 
+static void distributed_send_independent_structure_bsp(long machine_index, boolean force)
+{
+	struct distributed_structure_bsp_message message;
+	long *players = machine_get_player_list(machine_index);
+	short index = NONE;
+	short slot;
+
+	for (slot = 0; slot < MAXIMUM_LOCAL_PLAYERS; slot++)
+	{
+		struct player_datum *player = players[slot] != NONE ? player_try_and_get(players[slot]) : NULL;
+		short player_bsp;
+
+		if (!player || distributed_living_unit(player) == NONE)
+			continue;
+		player_bsp = network_coop_player_authoritative_bsp(players[slot]);
+		/* A machine has one foreground BSP, even when it has multiple viewers. */
+		if (index != NONE && index != player_bsp)
+			return;
+		index = player_bsp;
+	}
+	if (index == NONE)
+	{
+		index = distributed_machine_sent_bsp[machine_index];
+		if (index == NONE)
+			index = global_structure_bsp_index_get();
+	}
+	if (!force && index == distributed_machine_sent_bsp[machine_index])
+		return;
+
+	message.structure_bsp.structure_bsp_index = index;
+	message.structure_bsp.handoff = DISTRIBUTED_INDEPENDENT_BSP_HANDOFF;
+	distributed_send_to_machine_reliably(machine_index, &message, _distributed_message_structure_bsp,
+		1, (word)sizeof(message));
+	distributed_machine_sent_bsp[machine_index] = index;
+}
+
 static void distributed_send_structure_bsp(
 	long machine_index)
 {
@@ -5509,8 +5549,30 @@ static void distributed_send_structure_bsp(
 	short index = global_structure_bsp_index_get();
 	boolean switched = index != distributed_sent_structure_bsp_index;
 
+	if (network_regional_independent_bsp_ready())
+	{
+		if (machine_index != NONE)
+		{
+			if (VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES))
+				distributed_send_independent_structure_bsp(machine_index, TRUE);
+		}
+		else
+		{
+			long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+			short count = distributed_client_machines(machines, NUMBEROF(machines));
+			short machine;
+
+			for (machine = 0; machine < count; machine++)
+			{
+				if (distributed_machine_ready[machines[machine]])
+					distributed_send_independent_structure_bsp(machines[machine], FALSE);
+			}
+		}
+		return;
+	}
+
 	message.structure_bsp.structure_bsp_index = index;
-	message.structure_bsp.pad = 0;
+	message.structure_bsp.handoff = 0;
 	if (machine_index != NONE)
 	{
 		distributed_send_to_machine_reliably(machine_index, &message, _distributed_message_structure_bsp,
@@ -5531,6 +5593,8 @@ static void distributed_handle_structure_bsp(
 	short index = structure_bsp->structure_bsp_index;
 
 	if (!network_synchronizes_structure_bsp() ||
+		((structure_bsp->handoff == DISTRIBUTED_INDEPENDENT_BSP_HANDOFF) !=
+			network_regional_independent_bsp_ready()) ||
 		!VALID_INDEX(index, MIN(global_scenario_get()->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO)))
 		return;
 
@@ -5712,6 +5776,7 @@ static void distributed_reset_checkpoint_state(boolean reset_received_times)
 	distributed_game_state_time = NONE;
 	distributed_host_update_number = NONE;
 	distributed_sent_structure_bsp_index = NONE;
+	csmemset(distributed_machine_sent_bsp, 0xFF, sizeof(distributed_machine_sent_bsp));
 	if (reset_received_times)
 	{
 		distributed_host_structure_bsp_index = NONE;
@@ -5962,7 +6027,8 @@ void network_distributed_tick(
 		profile_scope(distributed_tick_apply_vehicle_predictions_section, network_objects_apply_vehicle_predictions();)
 		profile_scope(distributed_tick_apply_predictions_section, distributed_apply_predictions(TRUE);)
 		/* Announce the BSP before any new-region position stream. */
-		if (network_synchronizes_structure_bsp() && (global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
+		if (network_synchronizes_structure_bsp() && (network_regional_independent_bsp_ready() ||
+			global_structure_bsp_index_get() != distributed_sent_structure_bsp_index ||
 			game_time_get() % STRUCTURE_BSP_INTERVAL_TICKS == 0))
 		{
 			profile_scope(distributed_tick_send_structure_bsp_section, distributed_send_structure_bsp(NONE);)
@@ -6915,6 +6981,7 @@ void network_distributed_machine_gone(
 	if (machine_index >= 0 && machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES)
 	{
 		distributed_machine_ready[machine_index] = FALSE;
+	distributed_machine_sent_bsp[machine_index] = NONE;
 		csmemset(&distributed_forge_guests[machine_index], 0, sizeof(distributed_forge_guests[machine_index]));
 	}
 }
@@ -8706,6 +8773,7 @@ static boolean distributed_wire_entries(
 		{
 			WIRE_SWAP_FIELD(&structure_bsps[index], struct distributed_structure_bsp, structure_bsp_index,
 				sizeof(short));
+			WIRE_SWAP_FIELD(&structure_bsps[index], struct distributed_structure_bsp, handoff, sizeof(short));
 		}
 		return TRUE;
 	}
