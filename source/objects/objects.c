@@ -2352,6 +2352,11 @@ void object_detach(
 	child_object->object.parent_node_index = NONE;
 	child_object->object.parent_object_index = NONE;
 
+	/* Held grenades may have been created before the holder reached this BSP.
+	 * Their flight must start in the holder's scene, including outside a leaf. */
+	if (child_object->object.type == _object_type_projectile && bsp != NONE &&
+		scenario_uses_regional_gameplay(global_scenario_get()))
+		game_engine_set_regional_projectile_bsp(child_object_index, bsp);
 	object_reconnect_to_map_internal(child_object_index, NULL, structure == NULL, bsp, structure);
 	object_activate(child_object_index);
 
