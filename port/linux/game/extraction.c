@@ -1023,7 +1023,7 @@ static boolean extraction_authored_control(short index, short volume, short bsp)
 }
 
 /* A regional aircraft need not have a live object until its BSP is occupied. */
-static boolean extraction_authored_dropship(short index)
+static boolean extraction_authored_dropship(short index, short home_bsp)
 {
 	struct scenario_object_name const *name;
 	struct tag_block *placements, *palette;
@@ -1040,6 +1040,10 @@ static boolean extraction_authored_dropship(short index)
 	placement = tag_block_get_element_with_size(placements, name->runtime_scenario_datum_index, size);
 	palette = scenario_get_object_type_scenario_palette(global_scenario, _object_type_vehicle);
 	if (placement->name_index != index || !VALID_INDEX(placement->palette_entry_index, palette->count)) return FALSE;
+	/* Regional named creation follows the compiled single-BSP mask. */
+	if (!VALID_INDEX(home_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ||
+		!VALID_INDEX(home_bsp, global_scenario->structure_bsp_references.count) ||
+		placement->on_bsp_flags != FLAG(home_bsp)) return FALSE;
 	entry = TAG_BLOCK_GET_ELEMENT(palette, placement->palette_entry_index, struct scenario_object_palette_entry);
 	path = entry->reference.index != NONE ? tag_get_name(entry->reference.index) : NULL;
 	return path && tag_loaded(VEHICLE_DEFINITION_TAG, path) == entry->reference.index;
@@ -1378,7 +1382,8 @@ static void extraction_bind(void)
 	if (global_scenario->type != _scenario_type_solo)
 	{
 		for (faction = 0; faction < 2; faction++)
-			if (extraction.faction_bipeds[faction] == NONE || !extraction_authored_dropship(extraction.dropship_names[faction]) ||
+			if (extraction.faction_bipeds[faction] == NONE ||
+				!extraction_authored_dropship(extraction.dropship_names[faction], extraction.faction_hub_bsps[faction]) ||
 				extraction.dropship_zones[faction] == NONE || extraction.dropship_activate_names[faction] == NONE)
 				extraction.admitted = FALSE;
 	}

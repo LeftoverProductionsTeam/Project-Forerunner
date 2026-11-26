@@ -674,15 +674,24 @@ int main(int argc,char **argv)
   vehicles[228].name_index=0;
   vehicles[228].palette_entry_index=0;
   palette[0].reference.index=90;
-  CHECK(extraction_authored_dropship(0),"valid named dropship above the classic tool limit did not resolve");
+  scenario.structure_bsp_references.count=12;
+  vehicles[228].on_bsp_flags=FLAG(11);
+  CHECK(extraction_authored_dropship(0,11),"valid named regional dropship above the classic tool limit did not resolve");
+  CHECK(!extraction_authored_dropship(0,NONE),"dropship admitted without an authored faction home");
+  CHECK(!extraction_authored_dropship(0,0),"another region claimed the named dropship");
+  vehicles[228].on_bsp_flags=FLAG(11)|FLAG(0);
+  CHECK(!extraction_authored_dropship(0,11),"an ambiguous aircraft home passed regional admission");
+  vehicles[228].on_bsp_flags=0;
+  CHECK(!extraction_authored_dropship(0,11),"an unassigned aircraft could fall back to the active BSP");
+  vehicles[228].on_bsp_flags=FLAG(11);
   names[0].runtime_scenario_datum_index=229;
-  CHECK(!extraction_authored_dropship(0),"vehicle placement beyond the native block was admitted");
+  CHECK(!extraction_authored_dropship(0,11),"vehicle placement beyond the native block was admitted");
   names[0].runtime_scenario_datum_index=228;
   vehicles[228].name_index=1;
-  CHECK(!extraction_authored_dropship(0),"a different placement claimed the dropship name");
+  CHECK(!extraction_authored_dropship(0,11),"a different placement claimed the dropship name");
   vehicles[228].name_index=0;
   palette[0].reference.index=4;
-  CHECK(!extraction_authored_dropship(0),"non-vehicle tag passed the named dropship check");
+  CHECK(!extraction_authored_dropship(0,11),"non-vehicle tag passed the named dropship check");
   return 0;
  }
  if(!strncmp(case_name,"separate-hubs-",14)) {
