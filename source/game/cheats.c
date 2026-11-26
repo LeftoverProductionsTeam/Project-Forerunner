@@ -1908,7 +1908,7 @@ static boolean forge_hmv_placements(struct forge_file_layout const *layout, stru
 		if (record->kind != _forge_record_object || (record->flags & ~FORGE_RECORD_PHYSICS_MASK) != FORGE_RECORD_PLACE_AT_START ||
 			(physics && !forge_physics_supported()) ||
 			record->game_types || record->variant || record->respawn_seconds || record->ai_team ||
-			record->count != 1 || record->path_index >= layout->path_count)
+			record->ai_behavior || record->ai_route || record->ai_options || record->count != 1 || record->path_index >= layout->path_count)
 			return FALSE;
 		path = &layout->paths[record->path_index];
 		memcpy(position.n, record->position, sizeof(record->position));
@@ -1926,6 +1926,7 @@ boolean cheat_forge_hmv(enum forge_hmv_action action, char const **title, char c
 {
 #ifdef NATIVE_FORGE_SIDECARS
 	char map[FORGE_FILE_MAP_NAME_SIZE], folder[1060], path[1100], lock_path[1105];
+	char why[96];
 	unsigned char *bytes = NULL;
 	struct forge_file_layout *layout = NULL;
 	struct forge_sidecar_placement *placements = NULL;
@@ -1962,9 +1963,21 @@ boolean cheat_forge_hmv(enum forge_hmv_action action, char const **title, char c
 			goto done;
 		read = posix_gear_read(path, bytes, FORGE_FILE_MAXIMUM_SIZE, &size);
 	}
-	if (read < 0 || (read && (forge_file_decode(bytes, (int)size, map, layout, NULL, 0) != _forge_file_ok ||
-		!forge_hmv_placements(layout, placements))))
+	if (read < 0)
 		goto done;
+	if (read)
+	{
+		if (forge_file_decode(bytes, (int)size, map, layout, why, sizeof(why)) != _forge_file_ok)
+		{
+			console_warning("Forge layout refused: %s", why);
+			goto done;
+		}
+		if (!forge_hmv_placements(layout, placements))
+		{
+			console_warning("Forge layout requires matching map content and supported placement records.");
+			goto done;
+		}
+	}
 	if (saving)
 	{
 		/* An edited import owns the save slot only after it has written it
