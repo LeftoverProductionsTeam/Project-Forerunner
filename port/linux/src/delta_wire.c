@@ -331,6 +331,8 @@ int delta_wire_read_roster(const unsigned char *payload, int size, struct delta_
 	roster->room_capabilities = read_u32(payload);
 	roster->room_players = payload[4];
 	roster->count = (unsigned char)count;
+	index = DELTA_WIRE_ROSTER_SIZE + count * DELTA_WIRE_ROSTER_ENTRY_SIZE;
+	roster->regional_protocol = read_regional_protocol(payload + index, size - index);
 	for (index = 0; index < count; index++)
 	{
 		const unsigned char *entry = payload + DELTA_WIRE_ROSTER_SIZE + index * DELTA_WIRE_ROSTER_ENTRY_SIZE;
@@ -352,6 +354,7 @@ int delta_wire_write_roster(unsigned char *data, delta_u32 session, const struct
 {
 	unsigned char *payload = data + DELTA_WIRE_HEADER_SIZE;
 	int count = roster->count;
+	int length;
 	int index;
 
 	if (count > DELTA_WIRE_MAXIMUM_ROSTER_ENTRIES)
@@ -374,9 +377,11 @@ int delta_wire_write_roster(unsigned char *data, delta_u32 session, const struct
 		for (byte = 0; byte < DELTA_WIRE_PLAYER_ID_SIZE; byte++)
 			entry[20 + byte] = in->player_id[byte];
 	}
-	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_roster,
-		DELTA_WIRE_ROSTER_SIZE + count * DELTA_WIRE_ROSTER_ENTRY_SIZE, session);
-	return DELTA_WIRE_HEADER_SIZE + DELTA_WIRE_ROSTER_SIZE + count * DELTA_WIRE_ROSTER_ENTRY_SIZE;
+	length = DELTA_WIRE_ROSTER_SIZE + count * DELTA_WIRE_ROSTER_ENTRY_SIZE;
+	if (length <= DELTA_WIRE_MAXIMUM_PAYLOAD - DELTA_REGIONAL_TRAILER_BYTES)
+		length += write_regional_protocol(payload + length, roster->regional_protocol);
+	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_roster, length, session);
+	return DELTA_WIRE_HEADER_SIZE + length;
 }
 
 /* ---------- PROFILE

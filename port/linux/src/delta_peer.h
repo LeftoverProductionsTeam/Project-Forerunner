@@ -822,6 +822,7 @@ struct delta_peer
 	machine (-1: none) */
 	struct delta_peer_machine machines[DELTA_PEER_MAXIMUM_MACHINES];
 	delta_u32 room_capabilities;
+	delta_u32 room_regional_protocol;
 	unsigned char room_players;
 	signed char player_machines[DELTA_PEER_MAXIMUM_PLAYERS];
 

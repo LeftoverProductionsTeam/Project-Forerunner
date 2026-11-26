@@ -801,6 +801,7 @@ struct delta_wire_roster
 	unsigned char room_players;
 	unsigned char count;
 	struct delta_wire_roster_entry entries[DELTA_WIRE_MAXIMUM_ROSTER_ENTRIES];
+	delta_u32 regional_protocol;
 };
 
 struct delta_wire_mod_challenge

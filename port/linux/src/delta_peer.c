@@ -234,6 +234,7 @@ static void forget_all(struct delta_peer *peer)
 	memset(peer->machine_seen_time, 0, sizeof(peer->machine_seen_time));
 	memset(peer->machines, 0, sizeof(peer->machines));
 	peer->room_capabilities = 0;
+	peer->room_regional_protocol = 0;
 	peer->room_players = DELTA_PEER_NO_LIMIT;
 	memset(peer->player_machines, -1, sizeof(peer->player_machines));
 	memset(peer->chat_muted, 0, sizeof(peer->chat_muted));
@@ -2526,6 +2527,7 @@ static void host_send_rosters(struct delta_peer *peer)
 			continue;
 		memset(&roster, 0, sizeof(roster));
 		roster.room_capabilities = peer->room_capabilities;
+		roster.regional_protocol = peer->room_regional_protocol;
 		roster.room_players = peer->room_players;
 		for (index = 0; index <= peer->game_machine_count; index++)
 		{
@@ -2835,6 +2837,7 @@ void delta_peer_host_frame(struct delta_peer *peer, delta_u32 now, const struct 
 	int count, const signed char *player_machines)
 {
 	delta_u32 room_capabilities;
+	delta_u32 regional_protocol;
 	int room_players;
 	int index;
 
@@ -2886,6 +2889,7 @@ void delta_peer_host_frame(struct delta_peer *peer, delta_u32 now, const struct 
 
 	memset(peer->machines, 0, sizeof(peer->machines));
 	room_capabilities = offered(peer);
+	regional_protocol = peer->local.regional_protocol;
 	room_players = peer->local.ignore_platform_limits ? DELTA_PEER_NO_LIMIT : host_limit(peer);
 	for (index = 0; index < peer->game_machine_count; index++)
 	{
@@ -2920,7 +2924,12 @@ void delta_peer_host_frame(struct delta_peer *peer, delta_u32 now, const struct 
 			}
 		}
 		room_capabilities &= machine->known ? machine->capabilities : 0;
+		if (!peer->game_machines[index].local &&
+			(!client->used || client->hello.regional_protocol != regional_protocol))
+			regional_protocol = 0;
 	}
+	if (!(room_capabilities & CAPABILITY(_delta_capability_regional_bsp)))
+		regional_protocol = 0;
 	/* (said when it limits the game below the protocol's most, or stops) */
 	if ((room_players < DELTA_PEER_MAXIMUM_PLAYERS ? room_players : DELTA_PEER_MAXIMUM_PLAYERS) !=
 		(peer->room_players < DELTA_PEER_MAXIMUM_PLAYERS ? peer->room_players : DELTA_PEER_MAXIMUM_PLAYERS))
@@ -2933,9 +2942,11 @@ void delta_peer_host_frame(struct delta_peer *peer, delta_u32 now, const struct 
 	}
 	if (room_capabilities != peer->room_capabilities)
 		say(peer, "Delta Peer: every machine of the game shares capabilities 0x%x", (unsigned)room_capabilities);
-	if (room_capabilities != peer->room_capabilities || room_players != peer->room_players)
+	if (room_capabilities != peer->room_capabilities || room_players != peer->room_players ||
+		regional_protocol != peer->room_regional_protocol)
 	{
 		peer->room_capabilities = room_capabilities;
+		peer->room_regional_protocol = regional_protocol;
 		peer->room_players = (unsigned char)room_players;
 		peer->roster_dirty = 1;
 	}
@@ -3064,6 +3075,7 @@ static void client_legacy(struct delta_peer *peer, const char *why)
 	memset(&peer->client_badge, 0, sizeof(peer->client_badge));
 	peer->agreed = 0;
 	peer->room_capabilities = 0;
+	peer->room_regional_protocol = 0;
 	peer->room_players = DELTA_PEER_NO_LIMIT;
 	memset(&peer->host_relay, 0, sizeof(peer->host_relay));
 	peer->table_in.active = 0;
@@ -3484,6 +3496,9 @@ static void client_receive(struct delta_peer *peer, delta_u32 now, delta_u32 ipv
 				(unsigned)(roster.room_capabilities & peer->agreed & offered(peer)));
 		}
 		peer->room_capabilities = roster.room_capabilities & peer->agreed & offered(peer);
+		peer->room_regional_protocol =
+			(peer->room_capabilities & CAPABILITY(_delta_capability_regional_bsp)) &&
+			roster.regional_protocol == peer->welcome.regional_protocol ? roster.regional_protocol : 0;
 		peer->room_players = roster.room_players ? roster.room_players : DELTA_PEER_NO_LIMIT;
 		for (index = 0; index < roster.count; index++)
 		{

@@ -2777,6 +2777,16 @@ static void test_wire(void)
 	roster.count = DELTA_WIRE_MAXIMUM_ROSTER_ENTRIES + 1;
 	CHECK(delta_wire_write_roster(data, 5, &roster) == 0);
 
+	roster.count = DELTA_WIRE_MAXIMUM_ROSTER_ENTRIES;
+	roster.regional_protocol = 1;
+	size = delta_wire_write_roster(data, 5, &roster);
+	CHECK(size == 12 + DELTA_WIRE_ROSTER_SIZE + roster.count * DELTA_WIRE_ROSTER_ENTRY_SIZE + 8);
+	CHECK(size <= DELTA_WIRE_MAXIMUM_DATAGRAM);
+	CHECK(delta_wire_read_roster(data + 12, size - 12, &roster_back) && roster_back.regional_protocol == 1);
+	CHECK(roster_back.count == roster.count);
+	CHECK(!memcmp(roster_back.entries, roster.entries, sizeof(roster.entries[0]) * roster.count));
+	CHECK(delta_wire_read_roster(data + 12, size - 13, &roster_back) && roster_back.regional_protocol == 0);
+
 	size = delta_wire_write_empty(data, 2, _delta_message_legacy, 5);
 	CHECK(size == 12 && delta_wire_read_header(data, size, &header) && header.major == 2 && header.length == 0);
 
@@ -2837,6 +2847,26 @@ static void test_regional_handshake(void)
 	CHECK(nodes[3].peer.welcome.regional_protocol == 0);
 	for (step = 1; step < 4; step++)
 		CHECK(nodes[step].peer.agreed & shared);
+	CHECK(nodes[0].peer.room_regional_protocol == 0 && nodes[1].peer.room_regional_protocol == 0);
+
+	game_remove(2);
+	joined[2] = 0;
+	for (step = 0; step < 4; step++, now += 300)
+		frame(now, 4, joined, 1);
+	CHECK(nodes[0].peer.room_regional_protocol == 0 && nodes[1].peer.room_regional_protocol == 0);
+
+	game_remove(3);
+	joined[3] = 0;
+	for (step = 0; step < 4; step++, now += 300)
+		frame(now, 4, joined, 1);
+	CHECK(nodes[0].peer.room_regional_protocol == 1 && nodes[1].peer.room_regional_protocol == 1);
+
+	game_add(2);
+	joined[2] = 1;
+	for (step = 0; step < 4; step++, now += 300)
+		frame(now, 4, joined, 1);
+	CHECK(nodes[0].peer.room_regional_protocol == 0 && nodes[1].peer.room_regional_protocol == 0);
+	CHECK(nodes[1].peer.welcome.regional_protocol == 1 && (nodes[1].peer.agreed & shared));
 }
 
 static void test_handshake(void)
