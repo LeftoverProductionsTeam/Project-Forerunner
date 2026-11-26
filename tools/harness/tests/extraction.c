@@ -47,11 +47,11 @@ struct object_fields { long first_child_object_index, next_object_index; short t
  real_point3d bounding_sphere_center; real body_vitality, shield_vitality; short owner_team_index; real_vector3d forward,up,translational_velocity,angular_velocity;
  real_rgb_color base_change_colors[4], outgoing_change_colors[4]; };
 struct object_datum { long definition_index; struct object_fields object; };
-struct unit_animation_data { short state, seat_index; };
+struct unit_animation { short state, seat_index; };
 struct unit_datum { long definition_index; struct object_fields object;
  struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4], driver_object_index; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags,flags;
-  struct unit_animation_data animation;
+  struct unit_animation animation;
   real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth;
   real_vector3d throttle; } unit;
  struct { unsigned long flags; unsigned char on_ground_ticks; } vehicle; };
@@ -443,6 +443,7 @@ static boolean network_coop_private_sound(long machine,long sound){CHECK(machine
 static void scripted_sound_new_private(long sound,boolean play){CHECK(sound==91,"wrong native radio definition");private_radio_calls++;private_radio_played+=play;}
 #include "notice_hud.inc"
 #include "native_unit_state.inc"
+#include "native_seat_busy.inc"
 static char const *coop_enemies_authored_round(void) { return NULL; }
 static short scenario_object_name_index_from_string(struct scenario *map, char const *name)
 {
@@ -512,7 +513,6 @@ static boolean unit_set_or_test_seat_and_weapon_label(long u,char const *seat,ch
  if(weapon){CHECK(!strcmp(weapon,"unarmed")&&!change,"exit mutated a supported unarmed binding");exit_pose_queries++;return exit_unarmed_supported;}
  CHECK(change,"exit fallback was not applied");exit_pose_fallbacks++;exit_ground_pose=exit_stand_supported;return exit_stand_supported;
 }
-static boolean unit_animation_busy(struct unit_animation_data const *animation){return animation->state==_unit_state_exiting_seat;}
 static void unit_exit_seat_end(long u){unit_get(u)->object.parent_object_index=NONE;}
 static void unit_open(long u){}
 static short animation_choose_random_permutation(long graph,short index){return index;}
@@ -2330,6 +2330,11 @@ int main(int argc,char **argv)
      CHECK(extraction_transport_passenger_prompt(&units[0]) &&
        !wcscmp(extraction_transport_passenger_prompt(&units[0]),L"Press %action to disembark"),
        "landed aircraft did not display a bound disembark action");
+     units[0].unit.animation.state=_unit_state_hard_ping;
+     CHECK(!unit_try_and_exit_seat(unit_handles[0]) &&
+       !wcscmp(extraction_transport_passenger_prompt(&units[0]),L"Stay seated until the exit opens"),
+       "passenger reaction showed a seat exit action the native animation refused");
+     units[0].unit.animation.state=_unit_state_idle;
      CHECK(local_notices==notices+1&&strstr(local_notice_history[notices%4],"LANDED"),"safe arrival did not announce disembarkation");
      advance(1);
      CHECK(local_notices==notices+1,"landing notice repeated while the player remained seated");

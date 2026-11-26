@@ -813,6 +813,8 @@ void unit_impact_melee_damage(
 	struct location const *location);
 void scripting_magic_melee_attack(
 	void);
+boolean unit_animation_busy(
+	struct unit_animation const *animation);
 boolean unit_try_and_exit_seat(
 	long unit_index);
 short vehicle_scripting_unload(

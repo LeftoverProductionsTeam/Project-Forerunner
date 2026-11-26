@@ -2496,7 +2496,7 @@ wchar_t const *extraction_transport_passenger_prompt(struct unit_datum const *pa
 	if (passenger->unit.animation.state == _unit_state_exiting_seat)
 		return NULL;
 	if (!extraction_transport_can_disembark(passenger) ||
-		passenger->unit.animation.state == _unit_state_entering_seat)
+		unit_animation_busy(&passenger->unit.animation))
 		return L"Stay seated until the exit opens";
 	if (extraction_transport_uses_hover_exit(passenger))
 		return L"Press %action to deploy";
@@ -2744,8 +2744,8 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 			run->field_reached = TRUE;
 			if (!run->field_exit_ready && !extraction.survival)
 				extraction_tell(run, extraction.dropship_hover_transfer[faction]
-					? "AT TRANSFER | Use your seat exit to deploy. Find the extraction control when ready to evacuate."
-					: "LANDED | Use your seat exit to disembark. Find the extraction control when ready to evacuate.");
+					? "AT TRANSFER | Follow the seat exit prompt to deploy. Find the extraction control when ready to evacuate."
+					: "LANDED | Follow the seat exit prompt to disembark. Find the extraction control when ready to evacuate.");
 		}
 		else if (run->field_exit_ready && ship != NONE && !extraction.survival &&
 			!extraction_transport_can_disembark(unit))

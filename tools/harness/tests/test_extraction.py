@@ -90,6 +90,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('transport_seat_flags.inc', enum_with(read('source/units/unit_definitions.h'), '_unit_seat_driver_bit')))
     files.append(('native_seat_animation_types.inc', enum_with(read('source/units/units.h'), '_unit_seat_animation_airborne_dead')))
     files.append(('native_unit_state.inc', enum_with(read('source/units/units.h'), '_unit_state_exiting_seat')))
+    files.append(('native_seat_busy.inc', function(read('source/units/units.c'), 'unit_animation_busy')))
     files.append(('native_seats.inc', '\n'.join(function(read('source/units/units.c'), name) for name in (
         'unit_adjust_for_seat_change', 'unit_can_enter_seat', 'unit_get_seat_entrance_point', 'unit_hover_exit_clear', 'unit_try_and_exit_seat'))))
     files.append(('controls.inc', '\n'.join((function(devices, 'device_can_change_position'),

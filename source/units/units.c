@@ -970,7 +970,6 @@ static boolean unit_animation_weapon_ik(
 	struct unit_animation *animation);
 static boolean unit_animation_vehicle_ik(
 	struct unit_animation *animation);
-static boolean unit_animation_busy(struct unit_animation *animation);
 
 static boolean unit_set_or_test_seat_and_weapon_label(
 	long object_index,
@@ -8544,8 +8543,8 @@ static boolean unit_animation_vehicle_ik(
 	return result;
 }
 
-static boolean unit_animation_busy(
-	struct unit_animation *animation)
+boolean unit_animation_busy(
+	struct unit_animation const *animation)
 {
 	boolean result = FALSE;
 
