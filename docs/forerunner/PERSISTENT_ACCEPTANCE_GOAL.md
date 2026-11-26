@@ -1,5 +1,34 @@
 # FORERUNNER — PERSISTENT ENGINEERING GOAL
 
+## Product Completion priorities
+
+1. **Playable MegaWorld.** Accept Spark's compact hex-cluster world, including
+   underground interiors. Prove independent multiplayer traversal, combat, AI,
+   vehicles, spawning, equipment and persistent world state through normal game
+   controls. Keep corridor maps as engineering fixtures.
+2. **Flagship Extraction.** Launch from ordinary menus inside MegaWorld. Verify
+   both factions and chosen colors, intuitive bases, exploration, objectives,
+   loot, revivals, native aircraft evacuation, banking, persistence and
+   redeployment without mandatory raid timers. Black Echo is an operation in
+   MegaWorld. Preserve standalone evidence without tuning or replaying its
+   waypoint routes. Reuse Halo's recorded animation, hover, seat and departure
+   systems, with correctly authored flight recordings. Include Engineers,
+   wildlife, roaming patrols, dynamic faction encounters and Flood threats.
+3. **Survival and Firefight.** Restore the original Fonzie Zombie Apocalypse,
+   then support polished Survival on original maps and MegaWorld. Keep Survival,
+   Firefight and Extraction distinct, with locked modes and editable host rules.
+4. **Unified runtime.** Preserve all remaining engine goals, including
+   interoperability, classic performance, optional graphics, campaign/co-op,
+   Forge, live editing, machinima, VR, dedicated servers, verified 128-player
+   support and cross-platform releases.
+
+Before writing equivalents, review Halo Content Evolved, Faber, OpenCE-Forge,
+Chupathingy, OpenH1, Invader and the Halo Blender toolset as relevant. Validate
+related changes together in normal editor and game workflows. Promote playable
+feature batches through Latest with one Previous rollback. Preserve asset safety,
+licensing, attribution, security and existing platform requirements. No pushes
+or paid CI without authorization.
+
 ## Complete the Unified Halo 1 Engine
 
 Your assignment is to carry Project Forerunner from its current state to a genuinely playable, stable, unified engine.

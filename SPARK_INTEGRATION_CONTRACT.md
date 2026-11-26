@@ -22,7 +22,17 @@ The native map format stays compatible. The CMT Elite FP Arms were
 used in disposable private builds, and public redistribution permission
 remains unverified.
 
-## Current Black Echo candidates
+## Current product handoff
+
+Spark owns the layout-to-BSP Assembly bridge, compact hex-cluster world,
+underground interiors and map-specific recorded flights. Forerunner owns
+runtime execution and in-game acceptance. The compact export needs a matched
+map and mode receipt, native and regional ownership readback, and authored
+surface/underground entry routes for ordinary multiplayer traversal. Extraction
+adds native faction bindings and recorded flights on that world. The remaining
+standalone evidence below is retained for regression diagnosis.
+
+## Historical standalone Black Echo candidates
 
 The current UNSC dedicated-pad export is
 `releases/black-echo-elite-unsc-pelican-pad-20261123/be_native.map`,

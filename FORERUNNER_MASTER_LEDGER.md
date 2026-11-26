@@ -1,6 +1,32 @@
 # Forerunner engineering checkpoint
 
-Updated 26 November 2026. The permanent V2 engine goal remains active.
+Current priority follows the owner's [Product Completion goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md).
+
+- P0: independent MegaWorld multiplayer. Use retained corridor caches to isolate
+  engine failures. Final acceptance requires the Spark-authored compact
+  hex-cluster map with underground interiors. Engine work now focuses on
+  regional simulation, including encounters that keep running with the host
+  and guest in different BSPs. The Win64 candidate routes gunfire and unit
+  sounds through the source's resident BSP and restricts delivery to actors in
+  that BSP. The next native gate is encounter activation, AI reaction and
+  synchronized combat while players occupy different compact-world regions.
+- P1: MegaWorld Extraction through the normal menus. Treat Black Echo as an
+  operation in the compact world. Author native flight recordings in Spark
+  and use existing recorded animation, hover, native seats and departure.
+  Keep regional Extraction capabilities unadvertised until proven.
+- P2: original Zombie Apocalypse fidelity, then polished Survival and Firefight.
+- P3: complete the remaining unified runtime scope and preserve classic support.
+
+Latest: Win64 SHA-256 9262c07219b810c888979022ca86dfcde2f05394a6007e0ed512eba412663bc9.
+The installed 19-region selection is an engineering playtest. Existing evidence
+and previous-good files are retained. Promote coherent feature batches after
+normal-controls verification.
+
+## Historical checkpoints
+
+### Prior V2 priorities and pinned evidence
+
+Updated 26 November 2026. This records the previous V2 checkpoint.
 
 1. **MegaWorld.** Latest still launches the 19-region playtest cache `9eb74c92`
    with Win64 `ce650ad3`. The separate portal cache `8699a81c` has 14 BSPs,
@@ -31,6 +57,7 @@ Updated 26 November 2026. The permanent V2 engine goal remains active.
    campaign co-op, Firefight, upstream interoperability, OpenXR, Forge and
    Spark live editing. Promote only validated combinations in Latest and keep
    one Previous rollback.
+
 
 Previous Black Echo checkpoint.
 Spark's aligned UNSC export `40d2ce85` passed solo physical Pelican boarding,
@@ -220,7 +247,7 @@ device recovery material stay in owner-only ignored storage.
 
 Deferred Extraction option: earn and spend currency on authored vehicle drops
 such as Warthogs and Scorpions. Keep the existing gear, transport and operation
-authority. Begin after the two-faction Black Echo loop passes human acceptance.
+authority. Consider after the two-faction MegaWorld Extraction loop passes human acceptance.
 
 Managed aircraft deployment checks recovery space while players can still use
 the loadout terminal. It counts only the saved weapons selected for the run,

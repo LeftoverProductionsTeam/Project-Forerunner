@@ -1,11 +1,11 @@
 # Forerunner workspace rules
 
-The owner's [Final Master Directive](docs/forerunner/FINAL_MASTER_DIRECTIVE_2026-11-16.md)
-sets the current order: diagnose/repair the hosted CI startup gate, close native
-Pelican/Spirit Extraction and actual two-account Spark Black Echo, then finish
-the complete engine roadmap. Preserve the existing branch/history; do not change
-workflow safeguards to hide a provider/runner failure. Native fixture execution,
-authenticated multiplayer, human gameplay and hardware acceptance stay distinct.
+The owner's [Product Completion goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md)
+sets the current order: playable independent multiplayer in compact MegaWorld,
+flagship Extraction inside that world, Survival and Firefight, then the unified
+runtime. Standalone Black Echo and corridor caches remain engineering evidence.
+Use normal editor or game controls for final acceptance. Work in complete
+user-facing batches and preserve all compatibility, asset and release safeguards.
 
 
 Current scope is the owner's complete Forerunner roadmap, not Firefight only.
