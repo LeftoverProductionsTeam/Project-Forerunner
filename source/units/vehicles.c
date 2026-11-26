@@ -2815,8 +2815,11 @@ boolean vehicle_update(
 			TEST_FLAG(FLAG(_vehicle_type_human_plane) | FLAG(_vehicle_type_alien_fighter),
 				definition->vehicle_type))
 		{
-			real floor = global_structure_bsp_get()->vehicle_floor;
-			real ceiling = global_structure_bsp_get()->vehicle_ceiling;
+			short bsp = object_get_regional_bsp(vehicle_index);
+			struct structure_bsp const *structure = bsp == NONE ? global_structure_bsp_get() :
+				scenario_structure_bsp_try_and_get(bsp);
+			real floor = structure ? structure->vehicle_floor : 0.0f;
+			real ceiling = structure ? structure->vehicle_ceiling : 0.0f;
 
 			if (floor!=0.0f && vehicle->object.position.z<floor)
 			{

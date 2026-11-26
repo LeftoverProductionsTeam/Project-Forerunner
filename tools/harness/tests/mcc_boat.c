@@ -122,17 +122,25 @@ static int mcc_cache_tags_loaded(void) { return loaded; }
 #define _material_ice 1
 enum { _object_at_rest_bit, _object_on_ground_bit, _object_on_media_bit,
        _object_partially_under_media_bit, _object_wholly_under_media_bit };
-static void compute_ground_plane(long index, struct mass_point_datum *point,
+static short test_regional_bsp;
+static short contact_bsp = -2;
+#define object_get_regional_bsp(i) test_regional_bsp
+static void compute_ground_plane(short bsp, long index, struct mass_point_datum *point,
                                  struct mass_point_definition const *definition)
 {
+    contact_bsp = bsp;
     point->ground_depth = 1.0f;
     point->ground_plane.n = up;
 }
-static int collision_test_vector(int flags, real_point3d const *point,
-                                real_vector3d const *vector, long index,
-                                struct collision_result *collision)
+static short sweep_bsp = -2;
+static int collision_test_bsp_vector(short bsp, int flags, real_point3d const *point,
+                                     real_vector3d const *vector, long index,
+                                     struct collision_result *collision)
 {
-    if (flags != _collision_test_for_bipeds_dead_flags) return FALSE;
+    if (flags != _collision_test_for_bipeds_dead_flags) {
+        sweep_bsp = bsp;
+        return FALSE;
+    }
     collision->t = 0.5f;
     collision->plane.n = up;
     return TRUE;
@@ -185,6 +193,7 @@ int main(int argc, char **argv)
     char const *case_name = argv[1];
     char const *count_name = strstr(case_name, "count");
     loaded = strncmp(case_name, "mcc_", 4) == 0;
+    test_regional_bsp = loaded ? 4 : NONE;
     test_physics.powered_mass_points.count = count_name ? atoi(count_name+5) : 3;
     test_physics.powered_mass_points.address = powered_definitions;
     test_physics.mass_points.count = 3;
@@ -235,6 +244,9 @@ int main(int argc, char **argv)
     memcpy(before, state, sizeof(state));
     update_human_boat_physics(0, points, state);
     CHECK(calls == 1);
+    CHECK(contact_bsp == test_regional_bsp);
+    if (test_physics.radius == 0.0f)
+        CHECK(sweep_bsp == test_regional_bsp);
     CHECK(memcmp(state+3, before+3, sizeof(state)-3*sizeof(*state)) == 0);
     if (test_physics.powered_mass_points.count != 3) {
         CHECK(received == NULL && memcmp(state, before, sizeof(state)) == 0);

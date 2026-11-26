@@ -245,9 +245,11 @@ static short physics_powered_mass_point_index(
 	struct physics_definition const *physics,
 	struct mass_point_definition const *mass_point_definition);
 static short get_material_type(
+	short bsp,
 	long object_index,
 	short material_index);
 static void compute_ground_plane(
+	short bsp,
 	long object_index,
 	struct mass_point_datum *mass_point,
 	struct mass_point_definition const *mass_point_definition);
@@ -444,6 +446,7 @@ boolean physics_get_features_in_sphere(
 }
 
 static short get_material_type(
+	short bsp,
 	long object_index,
 	short material_index)
 {
@@ -466,11 +469,11 @@ static short get_material_type(
 		}
 		else
 		{
-			struct structure_bsp *structure_bsp = global_structure_bsp_get();
+			struct structure_bsp const *structure_bsp = bsp == NONE ? global_structure_bsp_get() :
+				scenario_structure_bsp_try_and_get(bsp);
 
-			/* port: a material (from the map) that is no material of the
-			bsp, or whose type is no material type, is none */
-			if (material_index >= 0 && material_index < structure_bsp->collision_materials.count)
+			/* Terrain collision material indices belong to the BSP queried for contact. */
+			if (structure_bsp && VALID_INDEX(material_index, structure_bsp->collision_materials.count))
 			{
 				material_type = TAG_BLOCK_GET_ELEMENT(
 					&structure_bsp->collision_materials,
@@ -799,6 +802,7 @@ boolean physics_test_vector(
 }
 
 static void compute_ground_plane(
+	short bsp,
 	long object_index,
 	struct mass_point_datum *mass_point,
 	struct mass_point_definition const *mass_point_definition)
@@ -811,7 +815,8 @@ static void compute_ground_plane(
 	mass_point->ground_depth = mass_point_definition->radius -
 		plane3d_distance_to_point(&mass_point->ground_plane, &mass_point->position);
 
-	if (collision_get_features_in_sphere(
+	if (collision_get_bsp_features_in_sphere(
+			bsp,
 			_collision_test_for_bipeds_dead_flags,
 			&mass_point->position,
 			mass_point_definition->radius,
@@ -824,6 +829,7 @@ static void compute_ground_plane(
 		mass_point->ground_plane = collision.plane;
 		mass_point->ground_depth = collision.t;
 		mass_point->ground_material_type = get_material_type(
+			bsp,
 			collision.object_index,
 			collision.material_index);
 
@@ -911,6 +917,7 @@ void physics_compute_new(
 {
 	struct object_datum *object = object_get(instance->object_index);
 	struct physics_definition const *physics = instance->physics;
+	short bsp = object_get_regional_bsp(instance->object_index);
 	real gravity = physics->gravity_scale*global_gravity;
 	short mass_point_index;
 	/* port: no more mass points than the caller's arrays hold, nor a
@@ -970,7 +977,7 @@ void physics_compute_new(
 		cross_product3d(&object->object.angular_velocity, &mass_point->radius, &mass_point->velocity);
 		add_vectors3d(&object->object.translational_velocity, &mass_point->velocity, &mass_point->velocity);
 
-		compute_ground_plane(instance->object_index, mass_point, mass_point_definition);
+		compute_ground_plane(bsp, instance->object_index, mass_point, mass_point_definition);
 		mass_point->water_depth = scenario_location_water_depth(&mass_point->location, &mass_point->position);
 
 		if (mass_point->ground_depth > 0.0f)
@@ -1143,7 +1150,8 @@ void physics_compute_new(
 
 				scale_vector3d(global_down3d, probe_length, &probe_vector);
 
-				if (collision_test_vector(
+				if (collision_test_bsp_vector(
+						bsp,
 						_collision_test_for_bipeds_dead_flags,
 						&point,
 						&probe_vector,
@@ -1610,6 +1618,7 @@ void physics_update_new(
 	real_vector3d const *total_torque)
 {
 	struct vehicle_datum *vehicle = vehicle_datum_get(instance->object_index);
+	short bsp = object_get_regional_bsp(instance->object_index);
 	real_vector3d linear_acceleration;
 	real_vector3d linear_velocity;
 	real_point3d position;
@@ -1746,7 +1755,8 @@ void physics_update_new(
 					&swept_position);
 				vector_from_points3d(&mass_point->position, &swept_position, &delta);
 
-				if (collision_test_vector(
+				if (collision_test_bsp_vector(
+						bsp,
 						_collision_test_for_vehicles_flags |
 							FLAG(_collision_test_front_facing_surfaces_bit),
 						&mass_point->position,
@@ -1860,6 +1870,7 @@ static void physics_update_old(
 	struct object_definition const *object_definition = object_definition_get(object->definition_index);
 	struct physics_definition const *physics = physics_definition_get(
 		object_definition->object.physics.index);
+	short bsp = object_get_regional_bsp(object_index);
 	real gravity = physics->gravity_scale*global_gravity;
 	real_matrix4x3 world_matrix;
 	real_vector3d total_force = { 0.0f, 0.0f, -physics->mass*gravity };
@@ -1989,7 +2000,7 @@ static void physics_update_old(
 			&mass_point->velocity,
 			&mass_point->velocity);
 
-		compute_ground_plane(object_index, mass_point, mass_point_definition);
+		compute_ground_plane(bsp, object_index, mass_point, mass_point_definition);
 		mass_point->water_depth = scenario_location_water_depth(
 			&mass_point->location,
 			&mass_point->position);
@@ -2239,7 +2250,8 @@ static void physics_update_old(
 				struct collision_result collision;
 
 				scale_vector3d(global_down3d, probe_length, &probe_vector);
-				if (collision_test_vector(
+				if (collision_test_bsp_vector(
+						bsp,
 						_collision_test_for_bipeds_dead_flags,
 						&point,
 						&probe_vector,
