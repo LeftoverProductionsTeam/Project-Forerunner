@@ -457,6 +457,22 @@ static real distance_squared3d(real_point3d const *p,real_point3d const *q)
 }
 static long regional_vehicle=NONE;
 static short regional_vehicle_bsp=NONE;
+static short replacement_bsp=NONE;
+static unsigned long occupied_vehicle_bsps;
+static short object_get_regional_bsp(long index)
+{
+ return index==regional_vehicle ? regional_vehicle_bsp : NONE;
+}
+static boolean network_regional_independent_bsp_ready(void) {return occupied_vehicle_bsps!=0;}
+static unsigned long players_occupied_regional_bsps(void) {return occupied_vehicle_bsps;}
+static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp)
+{return VALID_INDEX(bsp,2)? &respawn_bsp[bsp]:NULL;}
+static long object_new_in_bsp(struct object_placement_data const *placement,short bsp,struct structure_bsp const *structure)
+{
+ CHECK(structure->index==bsp,"vehicle requested the wrong regional structure");
+ replacement_bsp=bsp;
+ return object_new(placement);
+}
 static short game_engine_object_recorded_bsp(long index,short type)
 {
  return index==regional_vehicle && type==_object_type_vehicle ? regional_vehicle_bsp : NONE;
@@ -595,6 +611,25 @@ static void regional_respawn(void)
        object_index_from_name_index(7)==replacement,"did not respawn at the home with its original name");
  global_structure_bsp_index=1;
  CHECK(game_engine_vehicle_parked(replacement),"replacement lost its native region");
+
+ /* Keep the listen host in BSP 1 while a guest reactivates the pad in BSP 0. */
+ get(replacement)->object.damage_flags=FLAG(_object_dead_bit);
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(replacement)&&new_count==1&&game_engine_vehicle_homes[0].idle_since==NONE,
+       "timed a wreck in an inactive region");
+ occupied_vehicle_bsps=FLAG(0);
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(replacement)&&game_engine_vehicle_homes[0].idle_since==now,
+       "did not start the respawn timer in the guest's region");
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(!get(replacement)&&new_count==2&&replacement_bsp==0,
+       "did not replace the wreck inside the guest's own structure");
+ CHECK(get(game_engine_vehicle_homes[0].object_index)->object.position.x==10&&
+       game_engine_vehicle_homes[0].object_index==object_index_from_name_index(7),
+       "guest-region replacement lost its authored pad or name");
 }
 
 #define MAXIMUM_REGIONS_PER_OBJECT 16

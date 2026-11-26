@@ -5672,9 +5672,12 @@ static long game_engine_vehicle_home_on_pad(
 		/* Different BSPs can contain the same pad coordinates. */
 		if (game_engine_vehicle_homes[home].structure_bsp_index != NONE)
 		{
-			short bsp = game_engine_object_recorded_bsp(iterator.index, object->object.type);
+			short home_bsp = game_engine_vehicle_homes[home].structure_bsp_index;
+			short bsp = object_get_regional_bsp(iterator.index);
 
-			if (bsp != NONE && bsp != game_engine_vehicle_homes[home].structure_bsp_index)
+			if (bsp == NONE)
+				bsp = game_engine_object_recorded_bsp(iterator.index, object->object.type);
+			if (bsp != home_bsp && (bsp != NONE || home_bsp != global_structure_bsp_index_get()))
 				continue;
 		}
 		for (other = 0; other < game_engine_vehicle_home_count; other++)
@@ -5786,20 +5789,23 @@ static void game_engine_update_vehicle_respawn(
 {
 	long respawn_ticks = game_variant_options_get()->vehicle_respawn_time * TICKS_PER_SECOND;
 	long now = game_time_get();
-	struct structure_bsp const *structure = NULL;
-	short active_bsp = NONE;
+	struct structure_bsp const *foreground_structure = NULL;
+	unsigned long occupied = 0;
+	short foreground = NONE;
 	short index;
 
 	if (network_game_distributed_client() || now % TICKS_PER_SECOND)
 		return;
 	if (scenario_uses_regional_gameplay(global_scenario_get()))
 	{
-		active_bsp = global_structure_bsp_index_get();
-		if (!VALID_INDEX(active_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+		foreground = global_structure_bsp_index_get();
+		if (!VALID_INDEX(foreground, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
 			return;
-		structure = global_structure_bsp_get();
+		foreground_structure = global_structure_bsp_get();
+		if (network_regional_independent_bsp_ready())
+			occupied = players_occupied_regional_bsps();
 	}
-	if (!structure && respawn_ticks <= 0)
+	if (!foreground_structure && respawn_ticks <= 0)
 		return;
 
 	/* Keep the stock first-look behavior for homes without a compiled BSP. */
@@ -5823,21 +5829,27 @@ static void game_engine_update_vehicle_respawn(
 	}
 	for (index = 0; index < game_engine_vehicle_home_count; index++)
 	{
+		struct structure_bsp const *structure = foreground_structure;
+		short *home_bsp = &game_engine_vehicle_homes[index].structure_bsp_index;
 		long object_index;
 		struct unit_datum *vehicle;
 		boolean waiting = TRUE;
 
-		if (structure)
+		if (foreground_structure)
 		{
-			short *home_bsp = &game_engine_vehicle_homes[index].structure_bsp_index;
-
 			if (*home_bsp == NONE &&
-				scenario_structure_bsp_contains_placement(structure, &game_engine_vehicle_homes[index].position))
-				*home_bsp = active_bsp;
-			/* Preserve the current vehicle and any timer already armed
-			 * until its authored pad is available again. */
-			if (*home_bsp != active_bsp)
-				continue;
+				scenario_structure_bsp_contains_placement(foreground_structure, &game_engine_vehicle_homes[index].position))
+				*home_bsp = foreground;
+			if (*home_bsp != foreground)
+			{
+				/* An unoccupied region keeps its vehicle and any armed timer. */
+				if (!VALID_INDEX(*home_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ||
+					!TEST_FLAG(occupied, *home_bsp))
+					continue;
+				structure = scenario_structure_bsp_try_and_get(*home_bsp);
+				if (!structure)
+					continue;
+			}
 		}
 		if (respawn_ticks <= 0)
 			continue;
@@ -5845,10 +5857,12 @@ static void game_engine_update_vehicle_respawn(
 		vehicle = unit_try_and_get(object_index);
 		if (vehicle && !TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit))
 		{
-			short bsp = structure ? game_engine_object_recorded_bsp(object_index, _object_type_vehicle) : NONE;
+			short bsp = structure ? object_get_regional_bsp(object_index) : NONE;
 
+			if (structure && bsp == NONE)
+				bsp = game_engine_object_recorded_bsp(object_index, _object_type_vehicle);
 			/* A live vehicle parked in another region can be recovered on return. */
-			waiting = (bsp == NONE || bsp == active_bsp) &&
+			waiting = (bsp == NONE || bsp == *home_bsp) &&
 				game_engine_vehicle_away(index, &vehicle->object.position) && game_engine_vehicle_empty(vehicle);
 		}
 		if (!waiting)
@@ -5884,7 +5898,8 @@ static void game_engine_update_vehicle_respawn(
 				/* Keep the old vehicle if a regional replacement cannot be created. */
 				if (structure)
 				{
-					replacement = object_new(&placement_data);
+					replacement = *home_bsp != foreground ?
+						object_new_in_bsp(&placement_data, *home_bsp, structure) : object_new(&placement_data);
 					if (replacement == NONE)
 						continue;
 				}
