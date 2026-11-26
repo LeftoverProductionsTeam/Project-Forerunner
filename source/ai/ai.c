@@ -2452,9 +2452,7 @@ short ai_test_line_of_sight_in_bsp(
 	{
 		if (structure)
 		{
-			if (!VALID_INDEX(p0_cluster_index, structure->clusters.count) ||
-				!VALID_INDEX(p1_cluster_index, structure->clusters.count) ||
-				!BIT_VECTOR_TEST_FLAG(structure_bsp_get_cluster_pvs(structure, p0_cluster_index), p1_cluster_index))
+			if (!scenario_test_pvs_in_structure(structure, p0_cluster_index, p1_cluster_index))
 				goto obstructed;
 		}
 		else if (!scenario_test_pvs(p0_cluster_index, p1_cluster_index))

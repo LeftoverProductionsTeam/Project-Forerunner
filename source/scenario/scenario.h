@@ -119,6 +119,7 @@ long scenario_leaf_index_from_point(const real_point3d *point);
 long scenario_get_sky_definition_index(short sky_index);
 struct sky *scenario_get_sky(short sky_index);
 boolean scenario_test_pvs(short cluster_index0, short cluster_index1);
+boolean scenario_test_pvs_in_structure(struct structure_bsp const *structure, short source_cluster, short target_cluster);
 boolean scenario_test_pas(short cluster_index0, short cluster_index1);
 boolean scenario_location_potentially_visible_local(const struct location *location);
 boolean scenario_location_potentially_visible(const struct location *location);

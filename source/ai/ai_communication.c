@@ -2870,6 +2870,9 @@ real ai_communication_get_player_rating(
 	real best_rating = 0.0f;
 	real closest_distance = REAL_MAX;
 	boolean any_players = FALSE;
+	boolean regional = scenario_uses_regional_gameplay(global_scenario_get());
+	short bsp = regional ? object_get_regional_bsp(unit_index) : NONE;
+	struct structure_bsp const *structure = regional ? scenario_structure_bsp_try_and_get(bsp) : NULL;
 	real rating;
 
 	unit_get_head_position(unit_index, &position);
@@ -2881,6 +2884,8 @@ real ai_communication_get_player_rating(
 			real distance_squared;
 
 			any_players = TRUE;
+			if (regional && (!structure || object_get_regional_bsp(player->unit_index) != bsp))
+				continue;
 			unit_get_head_position(player->unit_index, &player_position);
 			vector_from_points3d(player_head_position, head_position, &vector);
 			distance_squared = magnitude_squared3d(&vector);
@@ -2903,7 +2908,8 @@ real ai_communication_get_player_rating(
 
 					if (cluster_index != NONE &&
 						player_cluster_index != NONE &&
-						!scenario_test_pvs(cluster_index, player_cluster_index))
+						!(regional ? scenario_test_pvs_in_structure(structure, cluster_index, player_cluster_index) :
+							scenario_test_pvs(cluster_index, player_cluster_index)))
 					{
 						continue;
 					}
@@ -2921,7 +2927,8 @@ real ai_communication_get_player_rating(
 						player_head_position,
 						head_position,
 						&line_of_sight_vector);
-					blocked = collision_test_vector(
+					blocked = collision_test_bsp_vector(
+						bsp,
 						FLAG(_collision_test_front_facing_surfaces_bit) |
 							FLAG(_collision_test_back_facing_surfaces_bit) |
 							FLAG(_collision_test_ignore_two_sided_surfaces_bit) |

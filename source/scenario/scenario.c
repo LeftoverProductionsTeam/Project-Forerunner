@@ -1043,6 +1043,17 @@ boolean scenario_test_pvs(
 	return BIT_VECTOR_TEST_FLAG(pvs, cluster_index1);
 }
 
+boolean scenario_test_pvs_in_structure(
+	struct structure_bsp const *structure,
+	short source_cluster,
+	short target_cluster)
+{
+	return structure &&
+		VALID_INDEX(source_cluster, structure->clusters.count) &&
+		VALID_INDEX(target_cluster, structure->clusters.count) &&
+		BIT_VECTOR_TEST_FLAG(structure_bsp_get_cluster_pvs(structure, source_cluster), target_cluster);
+}
+
 boolean scenario_location_potentially_visible_local(
 	const struct location *location)
 {
