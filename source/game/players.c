@@ -6224,9 +6224,8 @@ static void player_queue_structure_bsp_switch(
 	}
 }
 
-/* Native roots own their collision scene, including when several players
- * share a vehicle. The bound foreground already has a cache hold. */
-static void players_update_regional_bsp_holds(void)
+/* A seated player occupies the same collision scene as the vehicle root. */
+unsigned long players_occupied_regional_bsps(void)
 {
 	struct scenario const *scenario = global_scenario_get();
 	struct data_iterator iterator;
@@ -6235,7 +6234,7 @@ static void players_update_regional_bsp_holds(void)
 	short bsp, count;
 
 	if (!scenario_uses_regional_gameplay(scenario) || network_game_distributed_client())
-		return;
+		return 0;
 	count = MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
 	data_iterator_new(&iterator, player_data);
 	while ((player = data_iterator_next(&iterator)) != NULL)
@@ -6244,11 +6243,26 @@ static void players_update_regional_bsp_holds(void)
 		if (!unit || player->quit_out_of_game || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 			continue;
 		bsp = object_get_regional_bsp(object_get_ultimate_parent(player->unit_index));
-		if (VALID_INDEX(bsp, count) && bsp != global_structure_bsp_index_get())
+		if (VALID_INDEX(bsp, count))
 			occupied |= FLAG(bsp);
 	}
+	return occupied;
+}
+
+static void players_update_regional_bsp_holds(void)
+{
+	struct scenario const *scenario = global_scenario_get();
+	unsigned long occupied = players_occupied_regional_bsps();
+	short bsp, count;
+
+	if (!scenario_uses_regional_gameplay(scenario) || network_game_distributed_client())
+		return;
+	/* The foreground has its own cache hold. */
+	if (global_structure_bsp_index_get() != NONE)
+		occupied &= ~FLAG(global_structure_bsp_index_get());
 	if (!occupied && !mcc_cache_has_simulation_bsp_holds())
 		return;
+	count = MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);
 	for (bsp = 0; bsp < count; bsp++)
 	{
 		struct scenario_structure_bsp_reference const *reference =

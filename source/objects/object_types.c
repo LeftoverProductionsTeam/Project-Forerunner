@@ -480,6 +480,7 @@ struct object_type_definition *first_object_type_definition;
 #pragma bss_seg(".bss")
 #endif
 static word processed_bsp_flags;
+static word populated_bsp_flags;
 #if !defined(HALO_ANDROID) && !defined(__APPLE__)
 #pragma bss_seg()
 #endif
@@ -651,6 +652,7 @@ void object_types_initialize_for_new_map(
 {
 	struct object_type_definition *definition = first_object_type_definition;
 	processed_bsp_flags = 0;
+	populated_bsp_flags = 0;
 
 	while (definition)
 	{
@@ -1029,22 +1031,26 @@ struct tag_block *scenario_get_object_type_scenario_palette(
 	return (struct tag_block *)((byte *)scenario + definition->palette_tag_block_offset);
 }
 
-void object_types_disconnect_from_structure_bsp(
-	void)
+void object_types_trim_bsp_placements(unsigned long keep_bsps)
 {
 	struct object_iterator iterator;
 	struct object_datum *object;
-
 	object_iterator_new(&iterator, _object_mask_remove_on_bsp_switch, 0);
-	while ((object = (struct object_datum *)object_iterator_next(&iterator))!=NULL)
+	while ((object = (struct object_datum *)object_iterator_next(&iterator)) != NULL)
 	{
-		if (object->object.name_index==NONE)
+		if (object->object.name_index == NONE)
 		{
-			object_delete(iterator.index);
+			short bsp = keep_bsps ? object_get_regional_bsp(iterator.index) : NONE;
+			if (bsp == NONE || !TEST_FLAG(keep_bsps, bsp))
+				object_delete(iterator.index);
 		}
 	}
+	populated_bsp_flags &= (word)keep_bsps;
+}
 
-	return;
+void object_types_disconnect_from_structure_bsp(void)
+{
+	object_types_trim_bsp_placements(0);
 }
 
 static boolean object_placement_overlaps_current_bsp(
@@ -1165,9 +1171,17 @@ void object_types_place_objects(
 		}
 
 		processed_bsp_flags |= FLAG(global_structure_bsp_index);
+		if (reconnecting)
+			populated_bsp_flags |= FLAG(global_structure_bsp_index);
 	}
 
 	return;
+}
+
+void object_types_reconnect_foreground(void)
+{
+	if (!TEST_FLAG(populated_bsp_flags, global_structure_bsp_index_get()))
+		object_types_reconnect_to_structure_bsp();
 }
 
 void object_types_reconnect_to_structure_bsp(

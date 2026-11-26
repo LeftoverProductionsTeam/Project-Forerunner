@@ -103,6 +103,8 @@ void object_types_initialize(void);
 void object_types_dispose(void);
 void object_types_initialize_for_new_map(void);
 void object_types_dispose_from_old_map(void);
+void object_types_trim_bsp_placements(unsigned long keep_bsps);
+void object_types_reconnect_foreground(void);
 void object_types_disconnect_from_structure_bsp(
 	void);
 void object_types_reconnect_to_structure_bsp(

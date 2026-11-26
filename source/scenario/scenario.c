@@ -299,7 +299,9 @@ static void scenario_call_disconnect_from_structure_bsp_procs(
 
 	for (proc_index = 0; proc_index < NUMBEROF(scenario_structure_bsp_disconnect_proc_table); proc_index++)
 	{
-		if (!foreground_only || scenario_structure_bsp_disconnect_procs[proc_index] != objects_disconnect_from_structure_bsp)
+		if (foreground_only && scenario_structure_bsp_disconnect_procs[proc_index] == object_types_disconnect_from_structure_bsp)
+			object_types_trim_bsp_placements(players_occupied_regional_bsps());
+		else if (!foreground_only || scenario_structure_bsp_disconnect_procs[proc_index] != objects_disconnect_from_structure_bsp)
 			scenario_structure_bsp_disconnect_procs[proc_index]();
 	}
 
@@ -315,6 +317,8 @@ static void scenario_call_reconnect_to_structure_bsp_procs(
 	{
 		if (foreground_only && scenario_structure_bsp_reconnect_procs[proc_index] == objects_reconnect_to_structure_bsp)
 			objects_refresh_foreground_bsp();
+		else if (foreground_only && scenario_structure_bsp_reconnect_procs[proc_index] == object_types_reconnect_to_structure_bsp)
+			object_types_reconnect_foreground();
 		else
 			scenario_structure_bsp_reconnect_procs[proc_index]();
 	}

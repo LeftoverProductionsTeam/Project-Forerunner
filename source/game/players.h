@@ -490,6 +490,7 @@ void player_set_world_facing( /* port: authored world heading to native input */
 	long player_index,
 	real_vector3d const *world_facing);
 
+unsigned long players_occupied_regional_bsps(void);
 void players_update_before_game(
 	void);
 void players_update_after_game(
