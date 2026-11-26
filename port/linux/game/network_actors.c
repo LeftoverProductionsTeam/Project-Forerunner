@@ -884,7 +884,9 @@ void network_actors_host_tick(
 	void)
 {
 	static struct distributed_actor_state states[MAXIMUM_NETWORK_ACTORS];
-	/* sent to every client this tick, whatever its period */
+	static short regions[MAXIMUM_NETWORK_ACTORS];
+	boolean independent = network_regional_independent_bsp_ready();
+	/* Sent this tick to eligible clients, without distance throttling. */
 	static boolean urgent[MAXIMUM_NETWORK_ACTORS];
 	struct distributed_actor_state_message message;
 	long machine_indices[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
@@ -908,6 +910,8 @@ void network_actors_host_tick(
 			continue;
 		}
 		actor_state_from_unit(actor, &states[state_count]);
+		if (independent)
+			regions[state_count] = object_get_regional_bsp(actor->unit_index);
 		urgent[state_count] = actor->seat_transition_sends > 0 ||
 			states[state_count].impulse != NO_IMPULSE || states[state_count].speech_sound != NONE ||
 			states[state_count].user_animation_graph != NONE ||
@@ -933,8 +937,11 @@ void network_actors_host_tick(
 		for (index = 0; index < state_count; index++)
 		{
 			struct distributed_actor_state const *state = &states[index];
-			short period = network_objects_send_period(machine_index, &state->position);
+			short period;
 
+			if (independent && !distributed_machine_replication_bsp_matches(machine_index, regions[index]))
+				continue;
+			period = network_objects_send_period(machine_index, &state->position);
 			if (!urgent[index] && (now + DATUM_INDEX_TO_ABSOLUTE_INDEX(state->unit_index)) % period != 0)
 				continue;
 			message.states[count++] = *state;

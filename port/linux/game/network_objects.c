@@ -1771,6 +1771,7 @@ static union
 		/* (one come to rest may be in its turn too) */
 		struct distributed_object_state states[MAXIMUM_TRACKED_OBJECTS + RESTING_STATES_PER_TICK];
 		byte kinds[MAXIMUM_TRACKED_OBJECTS + RESTING_STATES_PER_TICK];
+		short regions[MAXIMUM_TRACKED_OBJECTS + RESTING_STATES_PER_TICK];
 	} states;
 	struct
 	{
@@ -1790,6 +1791,8 @@ static void distributed_host_send_states(
 {
 	struct distributed_object_state *states = host_send_lists.states.states;
 	byte *kinds = host_send_lists.states.kinds;
+	short *regions = host_send_lists.states.regions;
+	boolean independent = network_regional_independent_bsp_ready();
 	struct distributed_object_state_message message;
 	short limit = MIN(MAXIMUM_ENTRIES_PER_MESSAGE, DATAGRAM_ENTRIES(struct distributed_object_state));
 	short resting = 0;
@@ -1830,6 +1833,8 @@ static void distributed_host_send_states(
 		if (at_rest && !distributed_host_rest_state_due(absolute_index))
 			continue;
 		distributed_state_from_object(object_index, &states[state_count]);
+		if (independent)
+			regions[state_count] = object_get_regional_bsp(object_index);
 		kinds[state_count++] = at_rest ? _host_state_to_all : _host_state_moving;
 	}
 	/* those at rest from the cursor on, round to it */
@@ -1846,6 +1851,8 @@ static void distributed_host_send_states(
 		resting++;
 		objects_host_resting_cursor = (absolute_index + 1) % told_count;
 		distributed_state_from_object(object_index, &states[state_count]);
+		if (independent)
+			regions[state_count] = object_get_regional_bsp(object_index);
 		kinds[state_count++] = _host_state_to_all;
 	}
 	for (machine_number = 0; machine_number < objects_host_viewers.count; machine_number++)
@@ -1860,6 +1867,8 @@ static void distributed_host_send_states(
 			short own_vehicle = NONE;
 			short vehicle_number;
 
+			if (independent && !distributed_machine_replication_bsp_matches(machine_index, regions[index]))
+				continue;
 			for (vehicle_number = 0; vehicle_number < objects_host_viewers.machines[machine_number].vehicle_count;
 				vehicle_number++)
 			{

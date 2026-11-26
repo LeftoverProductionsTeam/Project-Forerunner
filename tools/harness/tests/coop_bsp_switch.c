@@ -2896,11 +2896,18 @@ int main(int argc,char **argv)
         CHECK(bsp_announcement_targeted==4&&bsp_announcement_broadcast==1&&
               bsp_machine_announcements[0].structure_bsp_index==destination,"crossing was not sent only to its client");
 
-        CHECK(distributed_player_in_replication_bsp(destination,bsp_player_regions[0],TRUE)&&
-              !distributed_player_in_replication_bsp(destination,bsp_player_regions[1],TRUE)&&
-              !distributed_player_in_replication_bsp(NONE,NONE,TRUE)&&
-              distributed_player_in_replication_bsp(destination,NONE,FALSE),
-              "replication admitted a foreign pose or suppressed non-spatial player state");
+        CHECK(distributed_machine_replication_bsp_matches(7,destination)&&
+              !distributed_machine_replication_bsp_matches(7,old)&&
+              distributed_machine_replication_bsp_matches(8,old)&&
+              !distributed_machine_replication_bsp_matches(8,destination),
+              "spatial snapshots crossed assigned BSPs");
+        distributed_machine_sent_bsp[6]=NONE;
+        CHECK(!distributed_machine_replication_bsp_matches(6,old)&&
+              !distributed_machine_replication_bsp_matches(6,NONE)&&
+              !distributed_machine_replication_bsp_matches(7,NONE)&&
+              !distributed_machine_replication_bsp_matches(NONE,destination)&&
+              !distributed_machine_replication_bsp_matches(HALO_PORT_MAXIMUM_NETWORK_MACHINES,destination),
+              "an unassigned machine or unowned object matched a BSP");
         distributed_handle_structure_bsp(90,&targeted);
         CHECK(distributed_host_structure_bsp_index==destination,"client rejected its negotiated handoff");
         distributed_handle_structure_bsp(91,&shared);

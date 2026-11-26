@@ -4704,10 +4704,11 @@ and no dead player's input (it drives nothing). A client whose players are
 dead watches from where they last were alive. Decided before the damage is
 sent (network_damage.c), which goes where the players it hurt do; sent
 after it (distributed_host_send_players). */
-/* An unplaced player's state has no pose or seat to interpret in a BSP. */
-static boolean distributed_player_in_replication_bsp(short recipient_bsp, short player_bsp, boolean placed)
+/* The last reliable assignment is the only region this machine can interpret. */
+boolean distributed_machine_replication_bsp_matches(long machine_index, short object_bsp)
 {
-	return !placed || (recipient_bsp != NONE && recipient_bsp == player_bsp);
+	return object_bsp != NONE && VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES) &&
+		distributed_machine_sent_bsp[machine_index] == object_bsp;
 }
 
 static void distributed_host_plan_players(
@@ -4824,8 +4825,8 @@ static void distributed_host_plan_players(
 			boolean scoped = FALSE;
 
 			if (!VALID_INDEX(viewer_index, MAXIMUM_TRACKED_PLAYERS) ||
-				(independent && !distributed_player_in_replication_bsp(
-					recipient_bsp, regions[viewer_index], placed[viewer_index])))
+				(independent && placed[viewer_index] &&
+					!distributed_machine_replication_bsp_matches(machine_index, regions[viewer_index])))
 				viewer->valid = FALSE;
 			else if (placed[viewer_index])
 			{
@@ -4860,8 +4861,9 @@ static void distributed_host_plan_players(
 
 			if (!present[player_index] || (quit[player_index] && !own && !changed[player_index]))
 				continue;
-			if (independent && !distributed_player_in_replication_bsp(
-				recipient_bsp, regions[player_index], placed[player_index]))
+			/* A dead or unspawned player's state has no pose or seat. */
+			if (independent && placed[player_index] &&
+				!distributed_machine_replication_bsp_matches(machine_index, regions[player_index]))
 			{
 				distributed_seen[machine_index][player_index] = FALSE;
 				continue;
