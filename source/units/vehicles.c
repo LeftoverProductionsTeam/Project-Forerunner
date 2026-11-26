@@ -1280,6 +1280,7 @@ static void create_ghost_effect(
 
 	if (definition->effect.index!=NONE && vehicle->unit.seat_power[0]>0.0f)
 	{
+		short bsp = object_get_regional_bsp(vehicle_index);
 		struct object_marker markers[16];
 		short hover_marker_count = object_get_marker_by_name(vehicle_index, "hover thrusters", markers, 15);
 		short jet_marker_count = 0;
@@ -1302,7 +1303,7 @@ static void create_ghost_effect(
 
 			vector = direction;
 
-			if (collision_test_vector(0x61, &marker->matrix.position, &vector, vehicle_index,
+			if (collision_test_bsp_vector(bsp, 0x61, &marker->matrix.position, &vector, vehicle_index,
 				&collision))
 			{
 				scale = PIN((-marker->matrix.forward.k)*(1.0f-collision.t)*vehicle->unit.seat_power[0],
@@ -1331,7 +1332,7 @@ static void create_ghost_effect(
 
 					reflect_vector3d(&direction, &collision.plane.n, &marker_forwards[3]);
 
-					effect_new_unattached_from_markers(definition->effect.index, NONE, NULL, 4,
+					effect_new_unattached_from_markers_in_bsp(bsp, definition->effect.index, NONE, NULL, 4,
 						marker_names, marker_points, marker_forwards, scale, scale,
 						NULL, NULL, TRUE);
 				}
@@ -1352,6 +1353,7 @@ static void create_pelican_effect(
 
 	if (definition->effect.index!=NONE)
 	{
+		short bsp = object_get_regional_bsp(vehicle_index);
 		struct object_marker markers[16];
 		short marker_count = object_get_marker_by_name(vehicle_index, "hover thrusters", markers, 15);
 		long total_marker_count = marker_count;
@@ -1383,7 +1385,7 @@ static void create_pelican_effect(
 			vector.j = direction.j*length;
 			vector.k = direction.k*length;
 
-			if (collision_test_vector(0x61, &marker->matrix.position, &vector, vehicle_index,
+			if (collision_test_bsp_vector(bsp, 0x61, &marker->matrix.position, &vector, vehicle_index,
 				&collision))
 			{
 				marker_points[0] = collision.point;
@@ -1401,7 +1403,7 @@ static void create_pelican_effect(
 
 				scale = 1.0f-collision.t;
 
-				effect_new_unattached_from_markers(definition->effect.index, NONE, NULL, 3,
+				effect_new_unattached_from_markers_in_bsp(bsp, definition->effect.index, NONE, NULL, 3,
 					marker_names, marker_points, marker_forwards, scale, scale,
 					NULL, NULL, TRUE);
 			}
