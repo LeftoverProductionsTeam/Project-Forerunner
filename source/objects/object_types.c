@@ -1045,6 +1045,17 @@ void object_types_trim_bsp_placements(unsigned long keep_bsps)
 				object_delete(iterator.index);
 		}
 	}
+	if (keep_bsps && (populated_bsp_flags & ~keep_bsps))
+	{
+		object_iterator_new(&iterator, _object_mask_control, 0);
+		while ((object = (struct object_datum *)object_iterator_next(&iterator)) != NULL)
+		{
+			short bsp = object_get_regional_bsp(iterator.index);
+			if (object->object.name_index != NONE && bsp != NONE &&
+				TEST_FLAG(populated_bsp_flags & ~keep_bsps, bsp))
+				object_disconnect_from_map(iterator.index);
+		}
+	}
 	populated_bsp_flags &= (word)keep_bsps;
 }
 
@@ -1194,10 +1205,41 @@ void object_types_place_objects(boolean reconnecting)
 	object_types_place_objects_in_bsp(reconnecting, global_structure_bsp_index_get(), NULL);
 }
 
+static void object_types_connect_regional_controls(short bsp, struct structure_bsp const *structure)
+{
+	struct scenario *scenario = global_scenario_get();
+	long size, index;
+	struct tag_block *controls = scenario_get_object_type_scenario_datums(scenario, _object_type_control, &size);
+
+	for (index = 0; index < controls->count; index++)
+	{
+		struct scenario_object_datum const *placement = tag_block_get_element_with_size(controls, index, size);
+		long object_index;
+		short owner;
+
+		if (placement->name_index == NONE ||
+			(placement->on_bsp_flags && placement->on_bsp_flags != FLAG(bsp)))
+			continue;
+		object_index = object_index_from_name_index(placement->name_index);
+		if (!object_try_and_get_and_verify_type(object_index, _object_mask_control))
+			continue;
+		owner = object_get_regional_bsp(object_index);
+		/* Unqualified control rows use geometry only until first connected. */
+		if (owner == bsp || (!placement->on_bsp_flags && owner != NONE) ||
+			!scenario_structure_bsp_contains_placement(structure, &placement->position))
+			continue;
+		if (object_connect_to_regional_bsp(object_index, bsp, structure))
+			object_activate(object_index);
+	}
+}
+
 void object_types_place_regional_bsp(short bsp, struct structure_bsp const *structure)
 {
 	if (structure && !TEST_FLAG(populated_bsp_flags, bsp))
+	{
 		object_types_place_objects_in_bsp(TRUE, bsp, structure);
+		object_types_connect_regional_controls(bsp, structure);
+	}
 }
 
 void object_types_reconnect_foreground(void)

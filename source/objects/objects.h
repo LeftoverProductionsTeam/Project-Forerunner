@@ -482,6 +482,7 @@ void objects_scripting_detach(long parent_object_index, long child_object_index)
 void object_render_debug(long object_index);
 void object_set_position(long object_index, real_point3d const *position, real_vector3d const *forward, real_vector3d const *up);
 boolean object_transfer_root_to_bsp(long object_index, short destination);
+boolean object_connect_to_regional_bsp(long object_index, short bsp, struct structure_bsp const *structure);
 boolean object_set_physics_pose(long object_index, short bsp, real_point3d const *position, real_vector3d const *forward, real_vector3d const *up);
 void object_translate(long object_index, real_point3d const *new_position, struct location const *new_location);
 long object_new(struct object_placement_data *data);

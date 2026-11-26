@@ -3820,6 +3820,26 @@ boolean object_transfer_root_to_bsp(long object_index, short destination)
 	return TRUE;
 }
 
+boolean object_connect_to_regional_bsp(long object_index, short bsp, struct structure_bsp const *structure)
+{
+	struct object_datum *object = object_try_and_get(object_index);
+
+	if (!object || !structure || object->object.parent_object_index != NONE)
+		return FALSE;
+	if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit))
+		return object_transfer_root_to_bsp(object_index, bsp);
+
+	object->object.location.cluster_index = NONE;
+	object_header_get(object_index)->cluster_index = NONE;
+	object_reconnect_to_map_internal(object_index, NULL, FALSE, bsp, structure);
+	if (object_get_regional_bsp(object_index) != bsp)
+	{
+		object_disconnect_from_map(object_index);
+		return FALSE;
+	}
+	return TRUE;
+}
+
 boolean object_set_physics_pose(
 	long object_index,
 	short bsp,

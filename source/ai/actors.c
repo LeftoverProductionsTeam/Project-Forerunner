@@ -4122,6 +4122,16 @@ void actors_handle_unit_effect(
 	unsigned long audible_clusters[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
 	real_point3d origin;
 	long owner_actor_index;
+	short foreground = global_structure_bsp_index_get();
+	boolean regional = scenario_uses_regional_gameplay(global_scenario_get());
+
+	/* This native AI hearing pass uses the foreground's sound tables. */
+	if (regional)
+	{
+		short bsp = object_get_regional_bsp(unit_index);
+		if (bsp != NONE && bsp != foreground)
+			return;
+	}
 
 	if (unit->unit.swarm_actor_index != NONE)
 	{
@@ -4167,6 +4177,8 @@ void actors_handle_unit_effect(
 	while ((actor = actor_iterator_next(&iterator)) != NULL)
 	{
 		if (iterator.index != owner_actor_index &&
+			(!regional || (object_try_and_get(actor->meta.unit_index) &&
+			 object_get_regional_bsp(actor->meta.unit_index) == foreground)) &&
 			actor->input.position.body_location.cluster_index != NONE &&
 			BIT_VECTOR_TEST_FLAG(audible_clusters, actor->input.position.body_location.cluster_index))
 		{
