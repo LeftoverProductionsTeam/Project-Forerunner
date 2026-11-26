@@ -651,22 +651,25 @@ boolean scenario_ensure_point_within_world(
 	return iteration_count == 0;
 }
 
-short scenario_get_fog_region_index(
+static long scenario_fog_region_get_fog_index_in_structure(
+	struct structure_bsp const *structure_bsp,
+	short fog_region_index);
+
+static short scenario_get_fog_region_index_in_structure(
+	struct structure_bsp const *structure_bsp,
 	const struct location *location,
 	const real_point3d *position)
 {
 	short result = NONE;
 	short fog_reference;
 	real plane_distance;
-	struct structure_bsp *structure_bsp;
 	struct structure_cluster *cluster;
 	struct structure_fog_plane *fog_plane;
 	struct fog_definition *fog;
 	long fog_index;
 
-	if (location->cluster_index != NONE)
+	if (structure_bsp && VALID_INDEX(location->cluster_index, structure_bsp->clusters.count))
 	{
-		structure_bsp = global_structure_bsp_get();
 		cluster = TAG_BLOCK_GET_ELEMENT(
 			&structure_bsp->clusters,
 			location->cluster_index,
@@ -687,7 +690,7 @@ short scenario_get_fog_region_index(
 					&structure_bsp->fog_planes,
 					fog_reference & SHORT_MAX,
 					struct structure_fog_plane);
-				fog_index = scenario_fog_region_get_fog_index(fog_plane->region_index);
+				fog_index = scenario_fog_region_get_fog_index_in_structure(structure_bsp, fog_plane->region_index);
 				plane_distance = 0.0f;
 				if (fog_index != NONE)
 				{
@@ -713,7 +716,16 @@ short scenario_get_fog_region_index(
 	return result;
 }
 
-boolean scenario_location_underwater(
+short scenario_get_fog_region_index(
+	const struct location *location,
+	const real_point3d *position)
+{
+	return location->cluster_index == NONE ? NONE :
+		scenario_get_fog_region_index_in_structure(global_structure_bsp_get(), location, position);
+}
+
+static boolean scenario_location_underwater_in_structure(
+	struct structure_bsp const *structure_bsp,
 	const struct location *location,
 	const real_point3d *position,
 	short *optional_weather_palette_index)
@@ -722,11 +734,10 @@ boolean scenario_location_underwater(
 	short fog_region_index;
 	short weather_palette_index;
 	long fog_index;
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	struct structure_fog_region *fog_region;
 	struct structure_cluster *cluster;
 
-	fog_region_index = scenario_get_fog_region_index(location, position);
+	fog_region_index = scenario_get_fog_region_index_in_structure(structure_bsp, location, position);
 	weather_palette_index = NONE;
 	match_assert("c:\\halo\\SOURCE\\scenario\\scenario.c", 0x258, location);
 	match_assert("c:\\halo\\SOURCE\\scenario\\scenario.c", 0x259, position);
@@ -737,13 +748,14 @@ boolean scenario_location_underwater(
 			&structure_bsp->fog_regions,
 			fog_region_index,
 			struct structure_fog_region);
-		fog_index = scenario_fog_region_get_fog_index(fog_region_index);
+		fog_index = scenario_fog_region_get_fog_index_in_structure(structure_bsp, fog_region_index);
 		if (fog_index != NONE)
 			result = TEST_FLAG(fog_definition_get(fog_index)->flags, 0);
 		weather_palette_index = fog_region->weather_palette_index;
 	}
 
-	if (weather_palette_index == NONE && location->cluster_index != NONE)
+	if (weather_palette_index == NONE && structure_bsp &&
+		VALID_INDEX(location->cluster_index, structure_bsp->clusters.count))
 	{
 		cluster = TAG_BLOCK_GET_ELEMENT(
 			&structure_bsp->clusters,
@@ -753,7 +765,7 @@ boolean scenario_location_underwater(
 	}
 
 	/* port: a weather palette entry the map doesn't have is none */
-	if (!VALID_INDEX(weather_palette_index, structure_bsp->weather_palette.count))
+	if (!structure_bsp || !VALID_INDEX(weather_palette_index, structure_bsp->weather_palette.count))
 		weather_palette_index = NONE;
 
 	if (optional_weather_palette_index)
@@ -762,9 +774,28 @@ boolean scenario_location_underwater(
 	return result;
 }
 
-static long scenario_fog_region_get_fog_index_in_structure(
-	struct structure_bsp const *structure_bsp,
-	short fog_region_index);
+boolean scenario_location_underwater(
+	const struct location *location,
+	const real_point3d *position,
+	short *optional_weather_palette_index)
+{
+	return scenario_location_underwater_in_structure(global_structure_bsp_get(), location, position,
+		optional_weather_palette_index);
+}
+
+boolean scenario_object_location_underwater(
+	long object_index,
+	const struct location *location,
+	const real_point3d *position)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	struct structure_bsp const *structure = global_structure_bsp_get();
+
+	/* Actor locations carry cluster indices, which belong to their root object's BSP. */
+	if (scenario && scenario_uses_regional_gameplay(scenario))
+		structure = scenario_structure_bsp_try_and_get(object_get_regional_bsp(object_index));
+	return scenario_location_underwater_in_structure(structure, location, position, NULL);
+}
 
 real scenario_location_water_depth_in_structure(
 	struct structure_bsp const *structure_bsp,

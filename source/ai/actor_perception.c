@@ -4753,11 +4753,8 @@ void prop_position_refresh(
 			actor_perception_object_get(
 				object_get_ultimate_parent(prop->unit_index))
 				->object.location;
-		prop->underwater =
-			scenario_location_underwater(
-				&prop->body_location,
-				&prop->center_of_mass,
-				NULL);
+		prop->underwater = scenario_object_location_underwater(prop->unit_index,
+			&prop->body_location, &prop->center_of_mass);
 		prop->vehicle_index = NONE;
 		prop->vehicle_gunner = FALSE;
 		prop->dangerous_vehicle_driver = FALSE;

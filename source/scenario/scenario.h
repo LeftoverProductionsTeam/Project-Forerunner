@@ -141,6 +141,8 @@ void scenario_location_from_line(struct location *location, const struct locatio
 boolean scenario_ensure_point_within_world(real_point3d *point);
 short scenario_get_fog_region_index(const struct location *location, const real_point3d *position);
 boolean scenario_location_underwater(const struct location *location, const real_point3d *position, short *optional_weather_palette_index);
+boolean scenario_object_location_underwater(long object_index,
+	const struct location *location, const real_point3d *position);
 real scenario_location_water_depth_in_structure(struct structure_bsp const *structure_bsp,
 	const struct location *location, const real_point3d *position);
 real scenario_location_water_depth(const struct location *location, const real_point3d *position);

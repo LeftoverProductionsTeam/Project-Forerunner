@@ -1588,10 +1588,8 @@ static void actor_input_update(
 			actor->meta.unit_index,
 			&actor->input.position);
 		unit_get_center_of_mass(actor->meta.unit_index, &center_of_mass);
-		actor->input.underwater = scenario_location_underwater(
-			&actor->input.position.body_location,
-			&center_of_mass,
-			NULL);
+		actor->input.underwater = scenario_object_location_underwater(actor->meta.unit_index,
+			&actor->input.position.body_location, &center_of_mass);
 		actor->state.flying =
 			TEST_FLAG(actor_definition->flags, _actor_definition_flying_bit);
 
