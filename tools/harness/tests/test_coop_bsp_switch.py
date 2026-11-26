@@ -134,7 +134,7 @@ def generated(fault=None):
             'player_bsp_crossing_root',
             'players_update_regional_bsp_holds', 'players_regional_crossing_active', 'players_coop_pending_continuous_bsp_switch', 'player_root_bsp_contacts',
             'player_root_blocked_in_destination',
-            'players_capture_bsp_crossing_clearance', 'players_continuous_bsp_crossing_valid',
+            'players_capture_bsp_crossing_clearance', 'player_root_bsp_crossing_clear', 'players_continuous_bsp_crossing_valid',
             'players_coop_can_activate_structure_bsp',
             'players_vehicle_has_living_rider', 'players_coop_vehicle_passenger_crossing_bsp')) + '\n' + reconnect + '\n' + rescue),
         ('region_location.inc', '\n'.join(function(read('source/scenario/scenario.c'), name) for name in

@@ -4002,7 +4002,7 @@ void players_capture_bsp_crossing_clearance(
 		struct unit_datum const *unit = unit_try_and_get(player->unit_index);
 		long root_index;
 
-		if (!VALID_INDEX(slot, NUMBEROF(clearance->source)) || !unit ||
+		if (!VALID_INDEX(slot, NUMBEROF(clearance->source)) || !unit || player->quit_out_of_game ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 			continue;
 		root_index = object_get_ultimate_parent(player->unit_index);
@@ -4011,8 +4011,47 @@ void players_capture_bsp_crossing_clearance(
 	}
 }
 
-/* Competitive maps share one simulated BSP for now. Every living root
- * must reach the overlap before the host can move the world. */
+/* Validate the root against the destination without moving any rider or
+ * consulting the rest of the squad. A cold load can supply captured contacts. */
+static boolean player_root_bsp_crossing_clear(
+	struct scenario_bsp_switch_trigger_volume const *volume,
+	long root_index,
+	struct structure_bsp const *destination,
+	struct structure_bsp const *source,
+	struct players_bsp_crossing_clearance const *clearance,
+	long slot)
+{
+	struct object_datum const *root;
+	unsigned long contacts, source_contacts;
+
+	if (!destination)
+		return TRUE;
+	root = object_get(root_index);
+	if (!scenario_structure_bsp_contains_point(destination, &root->object.bounding_sphere_center) &&
+		!scenario_structure_bsp_contains_point(destination, &root->object.position))
+		return FALSE;
+
+	/* Classic co-op and the preflight of a cold switch may not have contact data yet. */
+	if (!source && !clearance)
+		return TRUE;
+	if (player_root_blocked_in_destination(root_index, volume->destination_structure_bsp_index))
+		return FALSE;
+	contacts = player_root_bsp_contacts(root_index, volume->destination_structure_bsp_index, destination);
+	if (!contacts)
+		return TRUE;
+	if (source)
+		source_contacts = player_root_bsp_contacts(root_index, volume->source_structure_bsp_index, source);
+	else if (VALID_INDEX(slot, NUMBEROF(clearance->source)) && clearance->source[slot].root_index == root_index)
+		source_contacts = clearance->source[slot].contacts;
+	else
+		return FALSE;
+
+	/* Keep shared floor contact while rejecting any new mass-point contact. */
+	return (contacts & ~source_contacts) == 0;
+}
+
+/* The current network path moves a shared world. Require every living root
+ * at the overlap until peers can receive individual region changes. */
 static boolean players_continuous_bsp_crossing_valid(
 	struct scenario_bsp_switch_trigger_volume const *volume,
 	struct structure_bsp const *structure,
@@ -4021,6 +4060,7 @@ static boolean players_continuous_bsp_crossing_valid(
 	boolean regional = players_regional_crossing_active();
 	struct structure_bsp const *source = structure && regional && !clearance ?
 		scenario_structure_bsp_try_and_get(volume->source_structure_bsp_index) : NULL;
+	unsigned long checked_roots[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_OBJECTS_PER_MAP)] = { 0 };
 	struct data_iterator iterator;
 	struct player_datum *player;
 	boolean crossing = FALSE;
@@ -4030,50 +4070,33 @@ static boolean players_continuous_bsp_crossing_valid(
 	{
 		struct unit_datum const *unit = unit_try_and_get(player->unit_index);
 		long root_index;
-		struct object_datum const *root;
+		long root_slot;
 
-		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		if (!unit || (regional && player->quit_out_of_game) || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 			continue;
 		root_index = object_get_ultimate_parent(player->unit_index);
+		root_slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(root_index);
+		if (!VALID_INDEX(root_slot, MAXIMUM_OBJECTS_PER_MAP))
+			return FALSE;
 		if (regional)
 		{
 			short owner = object_get_regional_bsp(root_index);
-			/* Stacked regions can contain the same point. The native root,
-			 * including a shared vehicle, must own the source partition. */
+			/* Overlapping terrain can contain the root's position in two BSPs. */
 			if (owner != NONE && owner != volume->source_structure_bsp_index)
 				return FALSE;
 		}
+		if (BIT_VECTOR_TEST_FLAG(checked_roots, root_slot))
+			continue;
 		if (!player_bsp_continuous_route_contains(volume, root_index))
 		{
 			if (regional)
 				return FALSE;
 			continue;
 		}
-		root = object_get(root_index);
-		if (structure && !scenario_structure_bsp_contains_point(structure, &root->object.bounding_sphere_center) &&
-			!scenario_structure_bsp_contains_point(structure, &root->object.position))
+		if (!player_root_bsp_crossing_clear(volume, root_index, structure, source, regional ? clearance : NULL,
+			DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index)))
 			return FALSE;
-		if (regional && structure && (source || clearance))
-		{
-			unsigned long contacts, source_contacts;
-			long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index);
-
-			if (player_root_blocked_in_destination(root_index, volume->destination_structure_bsp_index))
-				return FALSE;
-			contacts = player_root_bsp_contacts(root_index, volume->destination_structure_bsp_index, structure);
-			if (contacts)
-			{
-				if (source)
-					source_contacts = player_root_bsp_contacts(root_index, volume->source_structure_bsp_index, source);
-				else if (VALID_INDEX(slot, NUMBEROF(clearance->source)) && clearance->source[slot].root_index == root_index)
-					source_contacts = clearance->source[slot].contacts;
-				else
-					return FALSE;
-				/* Shared floor contact is valid. A new contact at any mass point is not. */
-				if (contacts & ~source_contacts)
-					return FALSE;
-			}
-		}
+		BIT_VECTOR_SET_FLAG(checked_roots, root_slot, TRUE);
 		crossing = TRUE;
 	}
 	return crossing;

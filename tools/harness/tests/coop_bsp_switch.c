@@ -320,6 +320,11 @@ static boolean scenario_trigger_volume_test_point(short volume, real_point3d con
 static boolean network_game_distributed_client(void);
 void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use);
 boolean mcc_cache_has_simulation_bsp_holds(void);
+#define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
+#define BIT_VECTOR_TEST_FLAG(bits,index) TEST_FLAG((bits)[0],index)
+#define BIT_VECTOR_SET_FLAG(bits,index,value) SET_FLAG((bits)[(index)/32],(index)%32,value)
+#define MAXIMUM_OBJECTS_PER_MAP 4
+#define BIT_VECTOR_SIZE_IN_LONGS(count) (((count)+31)/32)
 #include "players.inc"
 #undef NUMBEROF
 #undef csmemset
@@ -339,7 +344,6 @@ static struct {
 static __typeof__(object_state) *object_globals=&object_state;
 static void object_disconnect_from_map(long index) {objects[slot(index)].object.flags=0;}
 static void object_type_disconnect_from_structure_bsp(long index) {}
-#define SET_FLAG(value,bit,on) ((value)=(on)?(value)|FLAG(bit):(value)&~FLAG(bit))
 static struct scenario *global_scenario_try_and_get(void) {return global_scenario;}
 static void game_engine_record_regional_object(long index,struct object_datum const *object,short bsp);
 #pragma clang diagnostic push
@@ -365,7 +369,6 @@ static struct {void *data;short count,maximum_count,actual_count;}
 static unsigned activations,deactivations,deletions,decals;
 #define csmemcmp memcmp
 #define BIT_VECTOR_SIZE_IN_BYTES(count) (sizeof(unsigned long))
-#define BIT_VECTOR_TEST_FLAG(bits,index) TEST_FLAG((bits)[0],index)
 static unsigned long const *players_get_combined_pvs(void) {return players_globals->combined_pvs;}
 static void object_activate(long index) {activations|=FLAG(index);}
 static void object_deactivate(long index) {deactivations|=FLAG(index);}
@@ -672,10 +675,8 @@ static void breakable_surface_effect(short index, struct damage_data const *dama
     surface_effects++;
 }
 #define csmemset memset
-#define BIT_VECTOR_SET_FLAG(bits,index,value) SET_FLAG((bits)[(index)/32],(index)%32,value)
 #include "surface_breaks.inc"
 
-#define MAXIMUM_OBJECTS_PER_MAP 4
 struct structure_cluster_graph {struct tag_block portal_indices;};
 struct structure_cluster_portal {short cluster_indices[2];};
 static struct cluster_partition collideable_object_cluster_partition;
@@ -1301,6 +1302,16 @@ int main(int argc,char **argv)
         regional_test_root_bsp=old;
         CHECK(players_queue_regional_bsp_switch(&switches[0])&&main_globals.switch_to_structure_bsp_index==destination,
               "a shared vehicle with native source ownership could not cross");
+
+        main_globals.switch_to_structure_bsp_index=NONE;
+        objects[1].object.parent_object_index=units[2];
+        regional_test_other_root=units[2];
+        regional_test_other_root_bsp=destination;
+        CHECK(!players_queue_regional_bsp_switch(&switches[0]),
+              "a living player in another BSP did not prevent the shared switch");
+        people[1].quit_out_of_game=TRUE;
+        CHECK(players_queue_regional_bsp_switch(&switches[0]),
+              "a departed player's stale unit prevented the shared switch");
         return 0;
     }
     if (!strcmp(name, "regional-preview-admission"))
