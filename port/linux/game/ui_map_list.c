@@ -551,7 +551,8 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 		if (!server_json_get_string(json, token, value, sizeof(value)))
 			return L"Unsupported Spark\r\nnative requirement";
 #if HALO_MCC && defined(HALO_64BIT)
-		if (version == MCC_CACHE_VERSION && !strcmp(value, MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE))
+		if (version == MCC_CACHE_VERSION && (!strcmp(value, MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE) ||
+			!strcmp(value, MCC_CACHE_EXTENDED_SKY_SLOTS_FEATURE)))
 			continue;
 #endif
 		if (!extraction)

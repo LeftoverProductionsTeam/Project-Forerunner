@@ -225,6 +225,7 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "forge.hmv_base_placements.v1");
 #if HALO_MCC && defined(HALO_64BIT)
 	server_json_string(&json, NULL, MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE);
+	server_json_string(&json, NULL, MCC_CACHE_EXTENDED_SKY_SLOTS_FEATURE);
 #endif
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 	server_json_string(&json, NULL, "forge.hmv_local_devices.v1");
@@ -243,6 +244,7 @@ static void print_spark_capabilities(void)
 	server_json_object_begin(&json, NULL);
 	server_json_integer(&json, "cache_version", 609);
 	server_json_integer(&json, "tag_space_bytes", PLATFORM_CE_TAG_CACHE_SIZE);
+	server_json_integer(&json, "max_sky_references", 8);
 	server_json_string(&json, "invader_engine", "gbx-custom");
 	server_json_boolean(&json, "default", TRUE);
 	server_json_object_end(&json);
@@ -253,6 +255,7 @@ static void print_spark_capabilities(void)
 	server_json_integer(&json, "max_player_starts", MCC_SCENARIO_PLAYER_STARTS_MAXIMUM);
 	server_json_integer(&json, "max_netgame_equipment", MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM);
 	server_json_integer(&json, "max_netgame_flags", MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM);
+	server_json_integer(&json, "max_sky_references", MCC_SCENARIO_SKIES_MAXIMUM);
 	server_json_string(&json, "invader_engine", "mcc-cea");
 	server_json_string(&json, "required_feature", MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE);
 	server_json_boolean(&json, "default", FALSE);
