@@ -164,6 +164,7 @@ symbols in this file:
 #include "objects/object_definitions.h"
 #include "objects/object_lights.h"
 #include "objects/objects.h"
+#include "network_coop.h"
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
@@ -2374,6 +2375,15 @@ static void effect_update(
 			effect_delete(effect_index);
 
 			return;
+		}
+
+		/* Attached effects use the scene of their root, even while a listen
+		 * host is viewing a different BSP. Resume with that scene. */
+		if (network_regional_independent_bsp_ready())
+		{
+			short bsp = object_get_regional_bsp(effect->object_index);
+			if (bsp != NONE && bsp != global_structure_bsp_index_get())
+				return;
 		}
 
 		parent_object_index = object_get_ultimate_parent(effect->object_index);

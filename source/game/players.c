@@ -2006,6 +2006,8 @@ static void players_compute_combined_pvs(
 	short activating_cluster_index;
 	long root_object_index;
 	short cluster_index;
+	boolean independent = network_regional_independent_bsp_ready();
+	short foreground = global_structure_bsp_index_get();
 
 	structure_bsp = global_structure_bsp_get();
 	csmemset(combined_pvs, 0, 0x40);
@@ -2023,6 +2025,12 @@ static void players_compute_combined_pvs(
 				root_object_index =
 					object_get_ultimate_parent(player->unit_index);
 				root_object = object_get(root_object_index);
+				/* A live root's cluster is only meaningful in its own structure. */
+				if (independent && object_get_regional_bsp(root_object_index) != foreground)
+				{
+					player->cluster_index = NONE;
+					continue;
+				}
 				if (root_object->object.location.cluster_index != NONE)
 				{
 					player->cluster_index =
@@ -6348,6 +6356,13 @@ void players_update_after_game(
 
 		player_reset_action_result(iterator.datum_index);
 		player_examine_nearby_objects(iterator.datum_index);
+	}
+	if (game_connection() == _game_connection_network_server && network_regional_independent_bsp_ready())
+	{
+		long local_player = local_player_get_player_index(0);
+
+		if (local_player != NONE)
+			main_sync_structure_bsp(network_coop_player_authoritative_bsp(local_player));
 	}
 
 	if (players_globals->local_player_triggered_switch !=

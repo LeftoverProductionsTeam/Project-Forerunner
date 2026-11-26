@@ -26,7 +26,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define VALID_INDEX(index, count) (index>=0 && index<count)
-enum {_game_connection_local=0, _game_connection_network_server=2};
+enum {_game_connection_local=0, _game_connection_network_client=1, _game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
       _collision_test_structure_bit, _collision_test_objects_scenery_bit,
       _collision_test_back_facing_surfaces_bit, _collision_test_ignore_two_sided_surfaces_bit,
@@ -351,8 +351,21 @@ static void game_engine_record_regional_object(long index,struct object_datum co
 static short object_disconnected_bsp=NONE;
 #include "objects.inc"
 #pragma clang diagnostic pop
-static void scenario_call_disconnect_from_structure_bsp_procs(void) {disconnects++;objects_disconnect_from_structure_bsp();}
-static void scenario_call_reconnect_to_structure_bsp_procs(void) {reconnects++;players_reconnect_to_structure_bsp();}
+static int foreground_refreshes;
+static void scenario_call_disconnect_from_structure_bsp_procs(boolean foreground_only)
+{
+    disconnects++;
+    if(!foreground_only) objects_disconnect_from_structure_bsp();
+}
+static void scenario_call_reconnect_to_structure_bsp_procs(boolean foreground_only)
+{
+    reconnects++;
+    if(foreground_only) foreground_refreshes++;
+    players_reconnect_to_structure_bsp();
+}
+static boolean network_regional_independent_bsp_ready(void);
+static short network_coop_player_authoritative_bsp(long index);
+static long local_player_get_player_index(short index) {return index==0?players[0]:NONE;}
 static boolean object_bsp_activation_pending;
 enum {_object_header_automatically_deactivate_bit, _object_header_connected_to_map_bit,
       _object_header_active_bit, _object_header_child_bit};
@@ -1985,6 +1998,7 @@ int main(int argc,char **argv)
         boolean occupied_regions=!strcmp(name,"mcc-prepare-occupied-regions");
         boolean fourth_region=occupied_regions||!strcmp(name,"mcc-prepare-fourth-region");
         boolean occupied_preview=!strcmp(name,"mcc-prepare-occupied-preview");
+        boolean listen_frame=!strcmp(name,"mcc-prepare-listen-frame");
         boolean preview=occupied_preview||!strcmp(name,"mcc-prepare-preview");
         boolean three_regions=fourth_region||!strcmp(name,"mcc-prepare-three-regions");
         short region_count=fourth_region?4:3;
@@ -1997,7 +2011,7 @@ int main(int argc,char **argv)
         mcc_loaded=mcc_prepare_fixture=TRUE;
         mcc_loaded_cache.report.bsp_count=scenario.structure_bsp_references.count=region_count;
         mcc_loaded_cache.report.bsps=regions;
-        if (three_regions||preview) mcc_loaded_cache.report.identity.scenario_type=_scenario_type_multiplayer;
+        if (three_regions||preview||listen_frame) mcc_loaded_cache.report.identity.scenario_type=_scenario_type_multiplayer;
         mcc_loaded_cache.report.tag_base=(uint32_t)(uintptr_t)mcc_regions[0].header;
         cold_crossing=!strcmp(name,"mcc-prepare-cold-crossing")||cold_regional;
         mcc_loaded_cache.capacity=(overlap?2:region_count)*sizeof(mcc_regions[0]);
@@ -2035,6 +2049,22 @@ int main(int argc,char **argv)
         test_tag_instances[old].base_address=global_structure_bsp;
         reject_load[destination]=refused;
         reject_verify[destination]=limits;
+        if (listen_frame)
+        {
+            scenario.type=_scenario_type_multiplayer;
+            connected=regional_match=regional_room_ready=independent_bsp_room=TRUE;
+            connection=_game_connection_network_server;
+            bsp_player_regions[0]=destination;
+            mcc_cache_bsp_set_active(&references[old],TRUE);
+            CHECK(mcc_cache_bsp_preview(&references[destination],TRUE),"foreground destination did not warm");
+            host_player_structure_bsps[1]=old;
+            players_globals->pending_teleport_starting_location_index=NONE;
+            CHECK(scenario_switch_structure_bsp(destination),"listen foreground change failed");
+            CHECK(global_structure_bsp_index==destination&&mcc_cache_bsp_retained_structure(&references[old])&&
+                  foreground_refreshes==1&&object_disconnected_bsp==NONE&&host_player_structure_bsps[1]==old,
+                  "host view disconnected the occupied source or invalidated its client acknowledgment");
+            return 0;
+        }
         if (preview)
         {
             struct scenario_bsp_prepared prepared;
@@ -3182,6 +3212,7 @@ int main(int argc,char **argv)
               !distributed_machine_replication_bsp_matches(NONE,destination)&&
               !distributed_machine_replication_bsp_matches(HALO_PORT_MAXIMUM_NETWORK_MACHINES,destination),
               "an unassigned machine or unowned object matched a BSP");
+        connection=_game_connection_network_client;
         distributed_handle_structure_bsp(90,&targeted);
         CHECK(distributed_host_structure_bsp_index==destination,"client rejected its negotiated handoff");
         distributed_send_structure_bsp_ack();

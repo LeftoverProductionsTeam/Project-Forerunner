@@ -104,6 +104,7 @@ symbols in this file:
 #include "game/players.h"
 #include "memory/data.h"
 #include "objects/objects.h"
+#include "network_coop.h"
 #include "physics/collisions.h"
 #include "physics/collision_usage.h"
 #include "saved games/game_state.h"
@@ -222,6 +223,12 @@ static void compute_combined_pas(
 	void);
 static boolean location_potentially_audible(
 	struct location *location);
+
+static boolean object_sound_in_listener_bsp(long object_index)
+{
+	return !network_regional_independent_bsp_ready() ||
+		object_get_regional_bsp(object_index) == global_structure_bsp_index_get();
+}
 static void update_potentially_audible_looping_sound(
 	long looping_sound_index,
 	struct location const *location);
@@ -937,7 +944,8 @@ void game_sound_update(
 		{
 			struct object_datum *object = object_get(sound->object_index);
 
-			if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit))
+			if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit) &&
+				object_sound_in_listener_bsp(sound->object_index))
 			{
 				object_get_location(sound->object_index, &location);
 				if (location_potentially_audible(&location))
@@ -1239,7 +1247,7 @@ boolean track_object_impulse_sound(
 		795,
 		source);
 
-	if (object)
+	if (object && object_sound_in_listener_bsp(object_index))
 	{
 		object_get_location(object_index, &location);
 		if (location.cluster_index != NONE)

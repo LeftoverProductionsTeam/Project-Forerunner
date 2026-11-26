@@ -293,23 +293,31 @@ struct game_globals *global_game_globals;
 /* ---------- public code */
 
 static void scenario_call_disconnect_from_structure_bsp_procs(
-	void)
+	boolean foreground_only)
 {
 	short proc_index;
 
 	for (proc_index = 0; proc_index < NUMBEROF(scenario_structure_bsp_disconnect_proc_table); proc_index++)
-		scenario_structure_bsp_disconnect_procs[proc_index]();
+	{
+		if (!foreground_only || scenario_structure_bsp_disconnect_procs[proc_index] != objects_disconnect_from_structure_bsp)
+			scenario_structure_bsp_disconnect_procs[proc_index]();
+	}
 
 	return;
 }
 
 static void scenario_call_reconnect_to_structure_bsp_procs(
-	void)
+	boolean foreground_only)
 {
 	short proc_index;
 
 	for (proc_index = 0; proc_index < NUMBEROF(scenario_structure_bsp_reconnect_proc_table); proc_index++)
-		scenario_structure_bsp_reconnect_procs[proc_index]();
+	{
+		if (foreground_only && scenario_structure_bsp_reconnect_procs[proc_index] == objects_reconnect_to_structure_bsp)
+			objects_refresh_foreground_bsp();
+		else
+			scenario_structure_bsp_reconnect_procs[proc_index]();
+	}
 
 	return;
 }
@@ -1222,6 +1230,7 @@ boolean scenario_switch_structure_bsp(
 	boolean result = FALSE;
 	boolean had_old_structure_bsp;
 	boolean loaded;
+	boolean foreground_only = FALSE;
 	struct scenario_structure_bsp_reference *reference;
 	struct scenario_bsp_prepared prepared;
 	struct players_bsp_crossing_clearance clearance;
@@ -1265,8 +1274,18 @@ boolean scenario_switch_structure_bsp(
 				global_structure_bsp_index,
 				struct scenario_structure_bsp_reference);
 
+			if (game_connection() == _game_connection_network_server && network_regional_independent_bsp_ready())
+			{
+				long local_player = local_player_get_player_index(0);
+
+				foreground_only = local_player != NONE &&
+					network_coop_player_authoritative_bsp(local_player) == structure_bsp_index;
+			}
 			preparation = scenario_structure_bsp_prepare(active, reference, &prepared);
-			if (preparation == _scenario_bsp_prepare_ready &&
+			/* A foreground change borrows resident geometry without moving the simulation. */
+			if (foreground_only && preparation != _scenario_bsp_prepare_ready)
+				preparation = _scenario_bsp_prepare_failed;
+			if (!foreground_only && preparation == _scenario_bsp_prepare_ready &&
 				!players_coop_can_activate_structure_bsp(global_structure_bsp_index, structure_bsp_index, prepared.structure, NULL))
 			{
 				/* Keep validated geometry while players approach the seam.
@@ -1284,7 +1303,9 @@ boolean scenario_switch_structure_bsp(
 			}
 			if (preparation == _scenario_bsp_prepare_deferred && mcc_cache_tags_loaded())
 				players_capture_bsp_crossing_clearance(global_structure_bsp_index, structure_bsp_index, &clearance);
-			scenario_call_disconnect_from_structure_bsp_procs();
+			if (foreground_only)
+				mcc_cache_bsp_set_in_use(active, TRUE);
+			scenario_call_disconnect_from_structure_bsp_procs(foreground_only);
 
 			had_old_structure_bsp = TRUE;
 			old_structure_bsp_index = global_structure_bsp_index;
@@ -1394,10 +1415,10 @@ boolean scenario_switch_structure_bsp(
 			result = structure_bsp_index != old_structure_bsp_index;
 			if (had_old_structure_bsp)
 			{
-				if (result && game_connection() == _game_connection_network_server &&
+				if (result && !foreground_only && game_connection() == _game_connection_network_server &&
 					network_synchronizes_structure_bsp())
 					network_coop_clear_structure_bsp_acknowledgments();
-				scenario_call_reconnect_to_structure_bsp_procs();
+				scenario_call_reconnect_to_structure_bsp_procs(foreground_only);
 			}
 		}
 

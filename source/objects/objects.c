@@ -34,6 +34,7 @@ OBJECTS.C
 #include "effects/particle_system_definitions.h"
 #include "effects/particle_systems.h"
 #include "game/game.h"
+#include "network_coop.h"
 #include "game/game_engine.h"
 #include "game/players.h"
 #include "items/weapons.h"
@@ -657,7 +658,8 @@ short objects_get_activating_cluster_index(
 		long index = object_globals->pvs_activation.object_index;
 
 		header = object_header_try_and_get(index);
-		if (header && FLAG(header->type) && header->datum)
+		if (header && FLAG(header->type) && header->datum &&
+			(!network_regional_independent_bsp_ready() || object_get_regional_bsp(index) == global_structure_bsp_index_get()))
 		{
 			struct object_datum *parent_object = object_get(object_get_ultimate_parent(object_globals->pvs_activation.object_index));
 
@@ -2545,6 +2547,13 @@ void objects_bind_cluster_partition_bsp(short structure_bsp_index)
 {
 	collideable_object_cluster_partition.port_structure_bsp_index = structure_bsp_index;
 	noncollideable_object_cluster_partition.port_structure_bsp_index = structure_bsp_index;
+}
+
+void objects_refresh_foreground_bsp(void)
+{
+	if (object_globals->pvs_activation_type == _pvs_activation_cluster)
+		object_pvs_clear();
+	object_bsp_activation_pending = TRUE;
 }
 
 static void object_transfer_regional_projectile(long object_index, struct object_datum const *object,
@@ -5026,6 +5035,8 @@ static void objects_update_cluster_activation(void)
 	unsigned long *last_active_cluster_bits = object_globals->last_active_cluster_bits;
 	unsigned long *active_cluster_bits = object_globals->active_cluster_bits;
 	short cluster_count = global_structure_bsp_get()->clusters.count;
+	short foreground = global_structure_bsp_index_get();
+	boolean independent_host = game_connection() == _game_connection_network_server && network_regional_independent_bsp_ready();
 	boolean refresh = object_bsp_activation_pending;
 	boolean changed;
 	short i;
@@ -5050,6 +5061,13 @@ static void objects_update_cluster_activation(void)
 			!TEST_FLAG(object_header->flags, _object_header_connected_to_map_bit))
 			continue;
 
+		if (independent_host)
+		{
+			short owner = object_get_regional_bsp(DATUM_INDEX_NEW(i, object_header->identifier));
+
+			if (owner != NONE && owner != foreground)
+				continue;
+		}
 		active = TEST_FLAG(object_header->flags, _object_header_active_bit);
 		child = TEST_FLAG(object_header->flags, _object_header_child_bit);
 		/* Switches reconnect roots. Their attached children follow their owners.

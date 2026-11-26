@@ -191,7 +191,7 @@ def generated(fault=None):
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
-    'mcc-prepare-preview', 'mcc-prepare-occupied-preview', 'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
+    'mcc-prepare-preview', 'mcc-prepare-listen-frame', 'mcc-prepare-occupied-preview', 'mcc-prepare-success', 'mcc-prepare-relocated', 'mcc-prepare-fractures', 'mcc-prepare-terrain-sight', 'mcc-prepare-crossing',
     'mcc-prepare-regional-crossing', 'mcc-prepare-three-regions', 'mcc-prepare-fourth-region', 'mcc-prepare-occupied-regions', 'mcc-prepare-evict', 'mcc-prepare-refused', 'mcc-prepare-limits', 'mcc-prepare-overlap',
     'scripted-selection', 'qualified-object-clusters', 'regional-local-room', 'regional-preview-admission', 'independent-host-crossing', 'regional-source-ownership', 'regional-teleporters', 'regional-starts', 'regional-scenery', 'regional-equipment', 'regional-loose-objects', 'regional-bodies', 'regional-projectiles', 'regional-actions', 'regional-triggers', 'regional-devices', 'regional-environment', 'overlapping-coop-routes', 'majority-overlapping-routes',
     'forward', 'reverse', 'split-forward', 'same-vehicle', 'restore-refused', 'retry-refused',

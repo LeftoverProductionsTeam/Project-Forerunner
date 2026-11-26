@@ -85,6 +85,7 @@ symbols in this file:
 #include "memory/data.h"
 #include "objects/object_lights.h"
 #include "objects/objects.h"
+#include "network_coop.h"
 #include "physics/point_physics.h"
 #include "render/render.h"
 #include "render/render_sprite.h"
@@ -271,6 +272,16 @@ void particle_systems_disconnect_from_structure_bsp(
 	return;
 }
 
+static boolean particle_system_in_foreground(struct particle_system_datum const *system)
+{
+	if (network_regional_independent_bsp_ready() && system->object_index != NONE)
+	{
+		short bsp = object_get_regional_bsp(system->object_index);
+		return bsp == global_structure_bsp_index_get();
+	}
+	return TRUE;
+}
+
 void particle_systems_reconnect_to_structure_bsp(
 	void)
 {
@@ -284,6 +295,8 @@ void particle_systems_reconnect_to_structure_bsp(
 		struct particle_system_definition *definition = particle_system_definition_get(system->definition_index);
 		short type_index;
 
+		if (!particle_system_in_foreground(system))
+			continue;
 		if (system->object_index != NONE)
 		{
 			object_get_location(system->object_index, &system->location);
@@ -853,7 +866,8 @@ void particle_systems_update(
 		system_index != NONE;
 		system_index = data_next_index(particle_systems, system_index))
 	{
-		particle_system_update(delta_time, system_index);
+		if (particle_system_in_foreground(particle_system_get(system_index)))
+			particle_system_update(delta_time, system_index);
 	}
 
 	return;
@@ -1751,7 +1765,7 @@ void particle_systems_render(
 		{
 			struct particle_system_datum const *system = particle_system_get(system_index);
 
-			if (system->location.cluster_index != NONE &&
+			if (particle_system_in_foreground(system) && system->location.cluster_index != NONE &&
 				scenario_location_potentially_visible_local(&system->location))
 			{
 				particle_system_render(system_index);
