@@ -23,7 +23,9 @@ build's pointers, which this build's Xbox addresses are not) */
 #include "game/game.h"
 #include "items/weapons.h"
 #include "items/weapon_definitions.h"
+#include "objects/objects.h"
 #include "physics/collisions.h"
+#include "scenario/scenario.h"
 #include "units/units.h"
 #include "units/unit_definitions.h"
 
@@ -44,6 +46,7 @@ boolean mcc_projectile_ray(long weapon_index, long owner, short trigger_index, b
     real_vector3d aim, shot, right, up, ray, assisted_direction, motion;
     struct collision_result collision;
     real assist_level, distance;
+    short bsp = NONE;
 
     if (!mcc_cache_tags_loaded()) return FALSE;
     weapon = weapon_try_and_get(weapon_index);
@@ -63,6 +66,13 @@ boolean mcc_projectile_ray(long weapon_index, long owner, short trigger_index, b
         !TEST_FLAG(unit_definition_get(unit->definition_index)->unit.flags, _unit_fires_from_camera_bit) ||
         mcc_camera_weapon_following(owner)) return FALSE;
 
+    if (scenario_uses_regional_gameplay(global_scenario_get()))
+    {
+        bsp = object_get_regional_bsp(owner);
+        if (bsp == NONE || !collision_bsp_for_region(bsp))
+            return FALSE;
+    }
+
     aim = unit->unit.desired_aiming_vector;
     if (normalize3d(&aim) == 0.0f) return FALSE;
     unit_get_camera_position(owner, &camera);
@@ -80,7 +90,7 @@ boolean mcc_projectile_ray(long weapon_index, long owner, short trigger_index, b
      * object_new, rather than translating an already visible trail. */
     vector_from_points3d(&camera, &spawn, &ray);
     distance = magnitude3d(&ray);
-    if (distance > 0.0f && collision_test_vector(_collision_test_for_projectiles_flags,
+    if (distance > 0.0f && collision_test_bsp_vector(bsp, _collision_test_for_projectiles_flags,
         &camera, &ray, owner, &collision))
         point_from_line3d(&camera, &ray, MAX(0.0f, collision.t - 0.001f / distance), &spawn);
 
@@ -100,7 +110,7 @@ boolean mcc_projectile_ray(long weapon_index, long owner, short trigger_index, b
     }
     scale_vector3d(&shot, 128.0f, &ray);
     point_from_line3d(&camera, &ray, 1.0f, &aim_point);
-    if (collision_test_vector(_collision_test_for_projectiles_flags, &camera, &ray, owner, &collision))
+    if (collision_test_bsp_vector(bsp, _collision_test_for_projectiles_flags, &camera, &ray, owner, &collision))
         aim_point = collision.point;
     vector_from_points3d(&spawn, &aim_point, &ray);
     /* Cover or an authored forward offset can put the target behind the

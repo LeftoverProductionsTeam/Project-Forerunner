@@ -69,6 +69,14 @@ static real_point3d eye;
 static real_vector3d motion, plane_normal;
 static real plane_distance;
 static int loaded, following, valid_weapon, valid_unit, calls, assisted, wall;
+static short owner_bsp;
+static int regional, resident;
+struct scenario { int regional; };
+static struct scenario scenario;
+static struct scenario *global_scenario_get(void) {return &scenario;}
+static int scenario_uses_regional_gameplay(struct scenario const *current) {CHECK(current==&scenario);return regional;}
+static short object_get_regional_bsp(long owner) {CHECK(owner==1);return owner_bsp;}
+static void const *collision_bsp_for_region(short bsp) {CHECK(bsp==owner_bsp);return resident?&scenario:NULL;}
 static real_vector3d z_axis={0,0,1}, y_axis={0,1,0};
 #define global_up3d (&z_axis)
 #define global_left3d (&y_axis)
@@ -94,9 +102,9 @@ static void vector_from_points3d(real_point3d const *a,real_point3d const *b,rea
 static void scale_vector3d(real_vector3d const *a,real s,real_vector3d *v) {v->i=a->i*s;v->j=a->j*s;v->k=a->k*s;}
 static void fast_normals_interpolate(real_vector3d const *a,real_vector3d const *b,real t,real_vector3d *v) {
  v->i=a->i*(1-t)+b->i*t;v->j=a->j*(1-t)+b->j*t;v->k=a->k*(1-t)+b->k*t;normalize3d(v);}
-static int collision_test_vector(int flags,real_point3d const *p,real_vector3d const *v,long ignore,struct collision_result *c) {
+static int collision_test_bsp_vector(short bsp,int flags,real_point3d const *p,real_vector3d const *v,long ignore,struct collision_result *c) {
  real denom=dot_product3d(&plane_normal,v),t=2.0f,d;
- CHECK(flags==123 && ignore==1);calls++;
+ CHECK(flags==123 && ignore==1 && bsp==(regional?owner_bsp:NONE));calls++;
  if(denom!=0) {d=(plane_distance-plane_normal.i*p->x-plane_normal.j*p->y-plane_normal.k*p->z)/denom;if(d>=0 && d<=1)t=d;}
  if(wall && v->j!=0) {d=(-0.05f-p->y)/v->j;if(d>=0 && d<t)t=d;}
  c->t=t;point_from_line3d(p,v,t,&c->point);return t<=1;
@@ -108,6 +116,7 @@ static long player_get_aim_assist_target(long p,real_point3d const *pos,real_vec
 static void reset(void) {
  memset(&unit,0,sizeof(unit));memset(&trigger,0,sizeof(trigger));memset(&motion,0,sizeof(motion));
  eye.x=3;eye.y=0;eye.z=1;loaded=valid_weapon=valid_unit=1;following=calls=assisted=wall=0;
+ regional=0;owner_bsp=3;resident=1;
  unit.object.parent_object_index=unit.unit.gunner_object_index=NONE;unit.unit.player_index=3;
  unit.unit.desired_aiming_vector.i=1;unit.unit.desired_aiming_vector.j=unit.unit.desired_aiming_vector.k=0;
  unit_definition.unit.flags=FLAG(_unit_fires_from_camera_bit);definition.weapon.triggers.count=1;
@@ -154,6 +163,12 @@ int main(int argc,char **argv) {
   assisted=1;motion.i=0.2f;motion.j=0.1f;
   CHECK(mcc_projectile_ray(2,1,0,TRUE,&p,&d,&v,&target));CHECK(target==7 && player.aim_assist_unit_index==7 && player.aim_assist_timestamp==42);
   CHECK(fabs(v-dot_product3d(&unit.unit.desired_aiming_vector,&motion))<0.00001f);CHECK(d.j>0);
+ } else if(!strcmp(argv[1],"regional")) {
+  regional=1;wall=1;
+  CHECK(mcc_projectile_ray(2,1,0,FALSE,&p,&d,&v,&target));
+  CHECK(calls==2 && p.y > -0.05f && p.y < -0.049f);
+  reset();regional=1;owner_bsp=NONE;rejected(0,1);
+  reset();regional=1;resident=0;rejected(0,1);
  } else if(!strcmp(argv[1],"transition")) {
   CHECK(mcc_projectile_ray(2,1,0,FALSE,&p,&d,&v,&target));loaded=0;calls=0;rejected(0,1);
   loaded=1;CHECK(mcc_projectile_ray(2,1,0,FALSE,&p,&d,&v,&target)); /* no retained ray or tag pointers */
@@ -164,7 +179,7 @@ int main(int argc,char **argv) {
     return compile_tool(work, [source])
 
 
-@pytest.mark.parametrize("case", ["guards", "aim", "cover", "assist", "transition"])
+@pytest.mark.parametrize("case", ["guards", "aim", "cover", "assist", "regional", "transition"])
 def test_mcc_projectile_ray(ray_tool, case):
     subprocess.run([str(ray_tool), case], check=True)
 

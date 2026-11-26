@@ -19,6 +19,7 @@ and the deterministic camera used for shooting keeps its original view.
 #include "render/render.h"
 #include "render/render_cameras.h"
 #include "render/render_cameras_internal.h" /* (render_camera_world_to_screen) */
+#include "scenario/scenario.h"
 #include "tag_files/tag_groups.h"
 #include "units/unit_definitions.h"
 #include "units/units.h"
@@ -166,6 +167,7 @@ boolean passenger_camera_reticle_begin(short local_player_index, long weapon_ind
 	real_vector3d direction, ray;
 	real_point2d screen;
 	struct collision_result collision;
+	short bsp = NONE;
 
 	reticle_active = FALSE;
 	if ((!passenger_camera_enabled(local_player_index) && !on_foot_camera_enabled(local_player_index)) ||
@@ -176,8 +178,14 @@ boolean passenger_camera_reticle_begin(short local_player_index, long weapon_ind
 		return FALSE;
 	/* The same finite ray as the shot's aiming reference, before random
 	spread or a projectile's flight. Its origin remains at the weapon. */
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		bsp = object_get_regional_bsp(unit_index);
+		if (bsp == NONE || !collision_bsp_for_region(bsp))
+			return FALSE;
+	}
 	scale_vector3d(&direction, 128.0f, &ray);
-	if (collision_test_vector(_collision_test_for_projectiles_flags, &origin, &ray, unit_index, &collision))
+	if (collision_test_bsp_vector(bsp, _collision_test_for_projectiles_flags, &origin, &ray, unit_index, &collision))
 		target = collision.point;
 	else
 		point_from_line3d(&origin, &direction, 128.0f, &target);

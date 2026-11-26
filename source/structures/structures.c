@@ -743,7 +743,8 @@ short structure_clusters_in_sphere(
 		position, radius, maximum_count, intersected_indices);
 }
 
-short structure_clusters_in_cone(
+short structure_bsp_clusters_in_cone(
+	struct structure_bsp const *structure,
 	short position_cluster_index,
 	real_point3d const *position,
 	real_vector3d const *direction,
@@ -756,11 +757,9 @@ short structure_clusters_in_cone(
 	short cluster_stack[MAXIMUM_CLUSTERS_PER_STRUCTURE];
 	short stack_depth;
 	short cluster_count = 0;
-	struct structure_bsp *structure;
 
-	structure = global_structure_bsp_get();
-	/* port: a cluster index (from the map) that fits no cluster finds none */
-	if (position_cluster_index < 0 ||
+	/* Cluster indices are local to the selected BSP. */
+	if (!structure || position_cluster_index < 0 ||
 		position_cluster_index >= structure->clusters.count ||
 		position_cluster_index >= MAXIMUM_CLUSTERS_PER_STRUCTURE)
 	{
@@ -810,7 +809,8 @@ short structure_clusters_in_cone(
 					? portal->cluster_indices[1]
 					: portal->cluster_indices[0];
 
-			if (adjacent_cluster_index < structure->clusters.count &&
+			if (VALID_INDEX(adjacent_cluster_index, structure->clusters.count) &&
+				adjacent_cluster_index < MAXIMUM_CLUSTERS_PER_STRUCTURE &&
 				structure_cluster_unmarked(adjacent_cluster_index) &&
 				sphere_intersects_cone3d(
 					&portal->centroid,

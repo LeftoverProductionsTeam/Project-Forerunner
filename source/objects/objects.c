@@ -1822,7 +1822,7 @@ boolean object_get_function_value(
 	return result;
 }
 
-static short objects_in_bsp_clusters(
+short objects_in_bsp_clusters(
 	short bsp,
 	unsigned long class_flags,
 	short cluster_count,

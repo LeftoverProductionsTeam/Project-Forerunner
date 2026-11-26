@@ -64,7 +64,8 @@ boolean structure_cluster_mark(
 	short cluster_index);
 void structure_cluster_marker_end(
 	void);
-short structure_clusters_in_cone(
+short structure_bsp_clusters_in_cone(
+	struct structure_bsp const *structure,
 	short position_cluster_index,
 	real_point3d const *position,
 	real_vector3d const *direction,

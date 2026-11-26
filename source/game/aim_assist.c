@@ -131,6 +131,8 @@ static short find_aim_assist_targets_recursive(
 	struct aim_assist_target *targets);
 static short find_aim_assist_targets(
 	struct aim_assist_parameters const *parameters,
+	struct structure_bsp const *structure,
+	short bsp,
 	short cluster_index,
 	real_point3d const *position,
 	real_vector3d const *direction,
@@ -262,6 +264,15 @@ boolean aim_assist_clear_line_of_sight(
 	real_vector3d vector;
 	struct collision_result collision;
 	long ignore_parent_index;
+	short bsp = NONE;
+
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		bsp = object_get_regional_bsp(ignore_object_index);
+		if (bsp == NONE || object_get_regional_bsp(target_object_index) != bsp ||
+			!collision_bsp_for_region(bsp))
+			return FALSE;
+	}
 
 	match_assert(
 		"c:\\halo\\SOURCE\\game\\aim_assist.c",
@@ -274,7 +285,8 @@ boolean aim_assist_clear_line_of_sight(
 	vector.j = point1->y - point0->y;
 	vector.k = point1->z - point0->z;
 
-	if (!collision_test_vector(
+	if (!collision_test_bsp_vector(
+		bsp,
 		_collision_test_for_line_of_sight_flags,
 		point0,
 		&vector,
@@ -484,6 +496,8 @@ static short find_aim_assist_targets_recursive(
 
 static short find_aim_assist_targets(
 	struct aim_assist_parameters const *parameters,
+	struct structure_bsp const *structure,
+	short bsp,
 	short cluster_index,
 	real_point3d const *position,
 	real_vector3d const *direction,
@@ -502,9 +516,9 @@ static short find_aim_assist_targets(
 		real angle_cosine= cosine(angle);
 		short cluster_indices[MAXIMUM_AIM_ASSIST_CLUSTERS];
 		long object_indices[MAXIMUM_AIM_ASSIST_OBJECTS];
-		short cluster_count= structure_clusters_in_cone(cluster_index, position, direction, distance, angle_sine, angle_cosine,
-			NUMBEROF(cluster_indices), cluster_indices);
-		short object_count= objects_in_clusters_by_indices(FLAG(0), cluster_count, cluster_indices,
+		short cluster_count= structure_bsp_clusters_in_cone(structure, cluster_index, position, direction,
+			distance, angle_sine, angle_cosine, NUMBEROF(cluster_indices), cluster_indices);
+		short object_count= objects_in_bsp_clusters(bsp, FLAG(0), cluster_count, cluster_indices,
 			NUMBEROF(object_indices), object_indices); // collideable objects only
 		short object_number;
 
@@ -533,20 +547,36 @@ boolean aim_assist(
 	short ignore_team_index,
 	struct aim_assist_target *target)
 {
+	struct structure_bsp const *structure;
+	struct location location;
+	short bsp;
+
 	/* port: Hardcore has no aim assist: no autoaim, no magnetism */
 	if (game_modes_aim_assist_off())
 		return FALSE;
-	if (scenario_leaf_index_from_point(position)!=NONE)
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
 	{
-		short cluster_index= TAG_BLOCK_GET_ELEMENT(
-			&global_structure_bsp_get()->leaves,
-			scenario_leaf_index_from_point(position) & LONG_MAX,
-			struct structure_leaf)->cluster_index;
+		/* Even at overlapping coordinates, the view belongs to the aiming unit's BSP. */
+		bsp = object_get_regional_bsp(ignore_object_index);
+		if (bsp == NONE)
+			return FALSE;
+		structure = scenario_structure_bsp_try_and_get(bsp);
+		scenario_location_from_point_in_structure(&location, structure, position);
+	}
+	else
+	{
+		bsp = global_structure_bsp_index_get();
+		structure = global_structure_bsp_get();
+		scenario_location_from_point(&location, position);
+	}
+	if (location.leaf_index != NONE)
+	{
+		short cluster_index = location.cluster_index;
 
 		if (cluster_index!=NONE)
 		{
 			struct aim_assist_target targets[MAXIMUM_AIM_ASSIST_TARGETS];
-			short target_count= find_aim_assist_targets(parameters, cluster_index, position, direction,
+			short target_count= find_aim_assist_targets(parameters, structure, bsp, cluster_index, position, direction,
 				ignore_object_index, ignore_team_index, NUMBEROF(targets), targets);
 
 			if (target_count>0)
@@ -581,6 +611,14 @@ long player_aim_projectile_preview(
 	struct player_datum *player= player_get(player_index);
 	long aiming_unit_index= unit_get_aiming_unit_index(player->unit_index);
 	struct aim_assist_parameters parameters;
+	short bsp = NONE;
+
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		bsp = object_get_regional_bsp(player->unit_index);
+		if (bsp == NONE || !collision_bsp_for_region(bsp))
+			return NONE;
+	}
 
 	match_assert_valid_real_normal3d(
 		"c:\\halo\\SOURCE\\game\\aim_assist.c",
@@ -638,7 +676,7 @@ long player_aim_projectile_preview(
 			set_real_point3d(&camera_position, camera_position.x + camera_displacement.i,
 				camera_position.y + camera_displacement.j, camera_position.z + camera_displacement.k);
 			scale_vector3d(&camera_direction, 128.f, &camera_vector);
-			collision_test_vector(_collision_test_for_projectiles_flags, &camera_position, &camera_vector,
+			collision_test_bsp_vector(bsp, _collision_test_for_projectiles_flags, &camera_position, &camera_vector,
 				player->unit_index, &collision);
 
 			vector_from_points3d(position, &collision.point, &collision_direction);
