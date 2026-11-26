@@ -307,6 +307,7 @@ symbols in this file:
 #include "memory/data.h"
 #include "objects/objects.h"
 #include "saved games/game_state.h"
+#include "network_coop.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "structures/structure_bsp_definitions.h"
@@ -575,6 +576,7 @@ static boolean encounter_activate(
 	long encounter_index);
 static void encounter_deactivate(
 	long encounter_index);
+static struct structure_bsp const *encounter_remote_structure(short bsp, unsigned long occupied);
 static void encounter_update_timers(
 	long encounter_index);
 static short squad_get_actor_type(
@@ -642,29 +644,33 @@ void encounters_dispose_from_old_map(
 
 void encounter_compute_activation_cluster_bit_vector(
 	long encounter_index,
+	short bsp,
 	boolean update_actor_dormancy,
 	long bit_vector_size,
 	unsigned long const *active_area,
 	unsigned long *bit_vector)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
+	struct scenario *scenario = global_scenario_get();
+	struct structure_bsp const *structure_bsp = scenario_structure_bsp_try_and_get(bsp);
 	struct encounter_datum *encounter = encounter_get(encounter_index);
 	struct encounter_definition *encounter_definition = TAG_BLOCK_GET_ELEMENT(
-		&global_scenario_get()->ai_encounters,
+		&scenario->ai_encounters,
 		DATUM_INDEX_TO_ABSOLUTE_INDEX(encounter_index),
 		struct encounter_definition);
 	unsigned long active_squad_mask = 0;
 	unsigned long firing_position_group_mask = 0;
+	boolean regional = scenario_uses_regional_gameplay(scenario);
+	short home = encounter_definition->runtime_structure_bsp_reference_index;
 	long actor_index;
+
+	csmemset(bit_vector, 0, BIT_VECTOR_SIZE_IN_BYTES(bit_vector_size));
+	if (!structure_bsp || (regional && home != NONE && home != bsp))
+		return;
 
 	match_assert(
 		"c:\\halo\\SOURCE\\ai\\encounters.c",
 		355,
 		structure_bsp->clusters.count <= bit_vector_size);
-	csmemset(
-		bit_vector,
-		0,
-		BIT_VECTOR_SIZE_IN_BYTES(structure_bsp->clusters.count));
 
 	for (actor_index = encounter->first_actor_index;
 		actor_index != NONE;)
@@ -686,7 +692,8 @@ void encounter_compute_activation_cluster_bit_vector(
 				unit = unit_get(unit_index);
 				ultimate_parent_index = object_get_ultimate_parent(unit_index);
 				parent_object = object_get(ultimate_parent_index);
-				cluster_index = parent_object->object.location.cluster_index;
+				cluster_index = !regional || object_get_regional_bsp(ultimate_parent_index) == bsp ?
+					parent_object->object.location.cluster_index : NONE;
 
 				if (cluster_index != NONE)
 				{
@@ -711,7 +718,8 @@ void encounter_compute_activation_cluster_bit_vector(
 			unit = unit_get(actor->meta.unit_index);
 			ultimate_parent_index = object_get_ultimate_parent(actor->meta.unit_index);
 			parent_object = object_get(ultimate_parent_index);
-			cluster_index = parent_object->object.location.cluster_index;
+			cluster_index = !regional || object_get_regional_bsp(ultimate_parent_index) == bsp ?
+				parent_object->object.location.cluster_index : NONE;
 			if (cluster_index != NONE)
 			{
 				match_assert(
@@ -763,7 +771,8 @@ void encounter_compute_activation_cluster_bit_vector(
 					struct prop_datum *prop = prop_get(actor->target.target_prop_index);
 					short cluster_index = prop->body_location.cluster_index;
 
-					if (cluster_index != NONE)
+					if (cluster_index != NONE && (!regional ||
+						(object_try_and_get(prop->unit_index) && object_get_regional_bsp(prop->unit_index) == bsp)))
 					{
 						match_assert(
 							"c:\\halo\\SOURCE\\ai\\encounters.c",
@@ -2363,6 +2372,10 @@ static void encounters_create_pending_regional(void)
 void encounters_update(
 	void)
 {
+	struct scenario *scenario = global_scenario_get();
+	boolean regional = scenario_uses_regional_gameplay(scenario);
+	unsigned long occupied = regional && network_regional_independent_bsp_ready() ?
+		players_occupied_regional_bsps() : 0;
 	long time = game_time_get();
 	short phase;
 	struct encounter_iterator iterator;
@@ -2379,8 +2392,22 @@ void encounters_update(
 	encounter_iterator_new(&iterator, TRUE);
 	while ((encounter = encounter_iterator_next(&iterator)) != NULL)
 	{
-		short encounter_phase = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index) % ENCOUNTER_UPDATE_INTERVAL;
+		short index = DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index);
+		short encounter_phase = index % ENCOUNTER_UPDATE_INTERVAL;
 
+		if (regional)
+		{
+			struct encounter_definition const *definition = TAG_BLOCK_GET_ELEMENT(
+				&scenario->ai_encounters, index, struct encounter_definition);
+			short home = definition->runtime_structure_bsp_reference_index;
+			if (home != NONE && home != global_structure_bsp_index &&
+				!encounter_remote_structure(home, occupied))
+			{
+				/* Never run an AI tick after its simulation scene is released. */
+				encounter_force_deactivate(iterator.index, TRUE);
+				continue;
+			}
+		}
 		ai_profile.meters[_ai_meter_encounters_updated].accumulator++;
 		if (encounter_phase == phase)
 		{
@@ -2750,15 +2777,24 @@ static void encounter_new(
 	return;
 }
 
+static struct structure_bsp const *encounter_remote_structure(short bsp, unsigned long occupied)
+{
+	return VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) && TEST_FLAG(occupied, bsp) ?
+		scenario_structure_bsp_try_and_get(bsp) : NULL;
+}
+
 static boolean encounter_activate(
 	long encounter_index)
 {
+	struct scenario *scenario = global_scenario_get();
 	struct encounter_datum *encounter = encounter_get(encounter_index);
-	struct encounter_definition *encounter_definition = TAG_BLOCK_GET_ELEMENT(
-		&global_scenario_get()->ai_encounters, DATUM_INDEX_TO_ABSOLUTE_INDEX(encounter_index), struct encounter_definition);
+	struct encounter_definition const *encounter_definition = TAG_BLOCK_GET_ELEMENT(
+		&scenario->ai_encounters, DATUM_INDEX_TO_ABSOLUTE_INDEX(encounter_index), struct encounter_definition);
+	short home = encounter_definition->runtime_structure_bsp_reference_index;
 
-	if (encounter_definition->runtime_structure_bsp_reference_index == NONE ||
-		encounter_definition->runtime_structure_bsp_reference_index == global_structure_bsp_index)
+	if (home == NONE || home == global_structure_bsp_index ||
+		(scenario_uses_regional_gameplay(scenario) && network_regional_independent_bsp_ready() &&
+		 encounter_remote_structure(home, players_occupied_regional_bsps())))
 	{
 		if (!encounter->active)
 		{
@@ -4153,8 +4189,13 @@ static void encounters_test_activation(
 {
 	struct scenario *scenario = global_scenario_get();
 	boolean regional = scenario_uses_regional_gameplay(scenario);
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
-	unsigned long const *combined_pvs = players_get_combined_pvs();
+	struct structure_bsp const *foreground_structure = global_structure_bsp_get();
+	unsigned long const *foreground_pvs = players_get_combined_pvs();
+	unsigned long occupied = regional && network_regional_independent_bsp_ready() ?
+		players_occupied_regional_bsps() : 0;
+	unsigned long regional_pvs[MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO][BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
+	unsigned long computed_pvs = 0;
+	unsigned long const *combined_pvs = foreground_pvs;
 	unsigned long activation_cluster_bit_vector[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
 	struct data_iterator iterator;
 	struct encounter_datum *encounter;
@@ -4250,20 +4291,38 @@ static void encounters_test_activation(
 			&scenario->ai_encounters, DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index), struct encounter_definition);
 		short home = encounter_definition->runtime_structure_bsp_reference_index;
 
-		/* A parked encounter keeps its activation window until its BSP returns. */
-		if (regional && VALID_INDEX(home, scenario->structure_bsp_references.count) &&
-			home != global_structure_bsp_index)
-			continue;
+		short bsp = home == NONE ? global_structure_bsp_index : home;
+		struct structure_bsp const *structure = foreground_structure;
+		boolean remote = bsp != global_structure_bsp_index;
+
+		combined_pvs = foreground_pvs;
+		if (remote)
+		{
+			structure = regional ? encounter_remote_structure(bsp, occupied) : NULL;
+			if (regional && !structure)
+				continue;
+			if (structure)
+			{
+				if (!TEST_FLAG(computed_pvs, bsp))
+				{
+					players_compute_regional_pvs(bsp, structure, regional_pvs[bsp]);
+					computed_pvs |= FLAG(bsp);
+				}
+				combined_pvs = regional_pvs[bsp];
+			}
+		}
 
 		active = encounter->force_active;
 		active |= game_in_editor();
 		active |= encounter->respawn_delay_ticks > 0;
 		active |= ai_debug.force_all_active;
 
-		if (home == NONE || home == global_structure_bsp_index)
+		if (structure)
 		{
-			encounter_compute_activation_cluster_bit_vector(iterator.datum_index, TRUE, MAXIMUM_CLUSTERS_PER_STRUCTURE, combined_pvs, activation_cluster_bit_vector);
-			active |= bit_vector_and(structure_bsp->clusters.count, combined_pvs, activation_cluster_bit_vector, NULL);
+			encounter_compute_activation_cluster_bit_vector(iterator.datum_index, bsp, TRUE,
+				MAXIMUM_CLUSTERS_PER_STRUCTURE, combined_pvs, activation_cluster_bit_vector);
+			active |= bit_vector_and(MIN(structure->clusters.count, MAXIMUM_CLUSTERS_PER_STRUCTURE),
+				combined_pvs, activation_cluster_bit_vector, NULL);
 		}
 		else
 		{
@@ -4275,9 +4334,12 @@ static void encounters_test_activation(
 			encounter->remain_active_timer = ENCOUNTER_REMAIN_ACTIVE_TIME;
 			encounter_activate(iterator.datum_index);
 		}
-		else if (encounter->active && encounter->remain_active_timer > TICKS_PER_SECOND)
+		else if ((encounter->active || (regional && remote)) &&
+			encounter->remain_active_timer > TICKS_PER_SECOND)
 		{
 			encounter->remain_active_timer -= TICKS_PER_SECOND;
+			if (!encounter->active)
+				encounter_activate(iterator.datum_index);
 		}
 		else
 		{

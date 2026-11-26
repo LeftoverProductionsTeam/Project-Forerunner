@@ -297,6 +297,7 @@ static long actor_look_idle_timer(
 	short timer_type,
 	boolean interesting_direction);
 static boolean actor_look_find_random_vector(
+	short bsp,
 	real_point3d const *center_point,
 	real_vector3d const *base_vector,
 	boolean avoid_obstructions,
@@ -905,6 +906,7 @@ static long actor_look_idle_timer(
 }
 
 static boolean actor_look_find_random_vector(
+	short bsp,
 	real_point3d const *center_point,
 	real_vector3d const *base_vector,
 	boolean avoid_obstructions,
@@ -962,7 +964,8 @@ static boolean actor_look_find_random_vector(
 			global_current_collision_users[global_current_collision_user_depth++] =
 				_collision_user_ai_look;
 			scale_vector3d(&direction, 3.0f, &collision_vector);
-			unobstructed = !collision_test_vector(
+			unobstructed = !collision_test_bsp_vector(
+				bsp,
 				FLAG(_collision_test_front_facing_surfaces_bit) |
 					FLAG(_collision_test_structure_bit),
 				center_point,
@@ -1269,6 +1272,7 @@ static boolean actor_look_idle_new_major_direction(
 
 		actor->control.idle_major_direction.type = _direction_specification_vector;
 		found = actor_look_find_random_vector(
+			actor_get_navigation_bsp(actor),
 			&actor->input.position.head_position,
 			&vector,
 			TRUE,
@@ -1326,6 +1330,7 @@ static void actor_look_idle_new_minor_direction(
 		real_vector3d vector;
 
 		found = actor_look_find_random_vector(
+			actor_get_navigation_bsp(actor),
 			&actor->input.position.head_position,
 			base_vector,
 			FALSE,

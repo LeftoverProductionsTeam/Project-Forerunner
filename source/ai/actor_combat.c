@@ -274,6 +274,7 @@ static boolean actor_combat_allow_special_fire_situation(
 static void actor_start_burst(
 	long actor_index);
 static void actor_combat_find_nearby_target(
+	short bsp,
 	real_point3d *target_point,
 	real miss_distance);
 static void actor_get_weapon_vector(
@@ -517,6 +518,7 @@ static struct projectile_definition *actor_get_grenade_definition(
 }
 
 static void actor_combat_find_nearby_target(
+	short bsp,
 	real_point3d *target_point,
 	real miss_distance)
 {
@@ -543,7 +545,8 @@ static void actor_combat_find_nearby_target(
 		collision_vector.i = above.x - target_point->x;
 		collision_vector.j = above.y - target_point->y;
 		collision_vector.k = above.z - target_point->z;
-		if (collision_test_vector(
+		if (collision_test_bsp_vector(
+			bsp,
 			FLAG(_collision_test_front_facing_surfaces_bit) |
 				FLAG(_collision_test_back_facing_surfaces_bit) |
 				FLAG(_collision_test_structure_bit),
@@ -562,7 +565,8 @@ static void actor_combat_find_nearby_target(
 		collision_vector.i = target.x - above.x;
 		collision_vector.j = target.y - above.y;
 		collision_vector.k = target.z - above.z;
-		if (collision_test_vector(
+		if (collision_test_bsp_vector(
+			bsp,
 			FLAG(_collision_test_front_facing_surfaces_bit) |
 				FLAG(_collision_test_back_facing_surfaces_bit) |
 				FLAG(_collision_test_structure_bit),
@@ -833,7 +837,7 @@ boolean actor_combat_find_grenade_target(
 
 			if (actor->external_orders.playfighting)
 			{
-				actor_combat_find_nearby_target(grenade_target, 1.5f);
+				actor_combat_find_nearby_target(actor_get_navigation_bsp(actor), grenade_target, 1.5f);
 			}
 		}
 	}
@@ -1371,6 +1375,7 @@ static void actor_start_burst(
 		if (use_nearby_target)
 		{
 			actor_combat_find_nearby_target(
+				actor_get_navigation_bsp(actor),
 				&target,
 				firing_variant_definition->ranged_combat.weapon_bombardment_range);
 		}

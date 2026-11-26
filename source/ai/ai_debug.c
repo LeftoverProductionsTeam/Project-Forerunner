@@ -423,6 +423,7 @@ boolean ai_debug_highlight_cluster(
 		{
 			encounter_compute_activation_cluster_bit_vector(
 				ai_debug.selected_squad_index,
+				global_structure_bsp_index_get(),
 				FALSE,
 				SIZEOF_BITS(global_ai_debug_activation_cluster_bit_vector),
 				0,

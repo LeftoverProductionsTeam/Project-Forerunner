@@ -113,6 +113,7 @@ boolean ai_unit_belongs_to_other_bsp(
 	long unit_index);
 void ai_disconnect_from_structure_bsp(
 	void);
+void ai_disconnect_from_structure_bsp_for_rebind(void);
 void ai_reconnect_to_structure_bsp(
 	void);
 void ai_globals_dialogue_triggers_enabled(

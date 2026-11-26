@@ -6280,6 +6280,37 @@ unsigned long players_occupied_regional_bsps(void)
 	return occupied;
 }
 
+/* Build a simulation PVS from live roots in this structure only. The
+ * foreground player cluster cache also serves cameras and is left alone. */
+void players_compute_regional_pvs(
+	short bsp,
+	struct structure_bsp const *structure,
+	unsigned long *pvs)
+{
+	struct data_iterator iterator;
+	struct player_datum const *player;
+	short cluster_count = MIN(structure->clusters.count, MAXIMUM_CLUSTERS_PER_STRUCTURE);
+
+	csmemset(pvs, 0, BIT_VECTOR_SIZE_IN_BYTES(MAXIMUM_CLUSTERS_PER_STRUCTURE));
+	data_iterator_new(&iterator, player_data);
+	while ((player = data_iterator_next(&iterator)) != NULL)
+	{
+		struct unit_datum const *unit = unit_try_and_get(player->unit_index);
+		long root_index;
+		short cluster_index;
+
+		if (!unit || player->quit_out_of_game || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			continue;
+		root_index = object_get_ultimate_parent(player->unit_index);
+		if (object_get_regional_bsp(root_index) != bsp)
+			continue;
+		cluster_index = object_get(root_index)->object.location.cluster_index;
+		if (VALID_INDEX(cluster_index, cluster_count))
+			bit_vector_or(cluster_count, pvs,
+				structure_bsp_get_cluster_pvs(structure, cluster_index), pvs);
+	}
+}
+
 static void players_update_regional_bsp_holds(void)
 {
 	struct scenario const *scenario = global_scenario_get();

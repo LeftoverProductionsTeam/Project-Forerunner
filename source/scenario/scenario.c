@@ -301,6 +301,8 @@ static void scenario_call_disconnect_from_structure_bsp_procs(
 	{
 		if (foreground_only && scenario_structure_bsp_disconnect_procs[proc_index] == object_types_disconnect_from_structure_bsp)
 			object_types_trim_bsp_placements(players_occupied_regional_bsps());
+		else if (foreground_only && scenario_structure_bsp_disconnect_procs[proc_index] == ai_disconnect_from_structure_bsp)
+			ai_disconnect_from_structure_bsp_for_rebind();
 		else if (!foreground_only || scenario_structure_bsp_disconnect_procs[proc_index] != objects_disconnect_from_structure_bsp)
 			scenario_structure_bsp_disconnect_procs[proc_index]();
 	}

@@ -868,6 +868,7 @@ static boolean action_charge_valid_melee_destination(
 	if (result)
 	{
 		struct collision_result collision;
+		real_vector3d direction;
 
 		match_assert(
 			"c:\\halo\\SOURCE\\ai\\action_charge.c",
@@ -876,13 +877,15 @@ static boolean action_charge_valid_melee_destination(
 		global_current_collision_users[global_current_collision_user_depth++] =
 			_collision_user_ai_melee;
 
-		collision_test_line(
+		vector_from_points3d(&start_point, melee_target_point, &direction);
+		collision_test_bsp_vector(
+			actor_get_navigation_bsp(actor),
 			FLAG(_collision_test_front_facing_surfaces_bit) |
 				FLAG(_collision_test_back_facing_surfaces_bit) |
 				FLAG(_collision_test_ignore_breakable_surfaces_bit) |
 				FLAG(_collision_test_structure_bit),
 			&start_point,
-			melee_target_point,
+			&direction,
 			NONE,
 			&collision);
 

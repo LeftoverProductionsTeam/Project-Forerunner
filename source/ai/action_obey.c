@@ -487,7 +487,7 @@ boolean action_obey_command_list_setup(
 			}
 		}
 		else if (command_list->runtime_structure_bsp_reference_index != NONE &&
-			command_list->runtime_structure_bsp_reference_index != global_structure_bsp_index)
+			command_list->runtime_structure_bsp_reference_index != actor_get_navigation_bsp(actor))
 		{
 			error(
 				_error_silent,

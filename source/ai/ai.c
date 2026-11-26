@@ -1604,11 +1604,11 @@ boolean ai_unit_belongs_to_other_bsp(
 		home != global_structure_bsp_index_get();
 }
 
-void ai_disconnect_from_structure_bsp(
-	void)
+static void ai_disconnect_from_structure_bsp_internal(boolean foreground_only)
 {
 	struct scenario *scenario = global_scenario_get();
 	boolean regional = scenario_uses_regional_gameplay(scenario);
+	unsigned long occupied = foreground_only && regional ? players_occupied_regional_bsps() : 0;
 	short encounter_index;
 
 	for (encounter_index = 0;
@@ -1625,7 +1625,8 @@ void ai_disconnect_from_structure_bsp(
 			short home = definition->runtime_structure_bsp_reference_index;
 
 			regional_encounter = VALID_INDEX(home, scenario->structure_bsp_references.count);
-			if (regional_encounter && home != global_structure_bsp_index)
+			if (regional_encounter && (home != global_structure_bsp_index ||
+				(VALID_INDEX(home, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) && TEST_FLAG(occupied, home))))
 				continue;
 		}
 
@@ -1869,6 +1870,16 @@ void ai_disconnect_from_structure_bsp(
 	}
 
 	return;
+}
+
+void ai_disconnect_from_structure_bsp(void)
+{
+	ai_disconnect_from_structure_bsp_internal(FALSE);
+}
+
+void ai_disconnect_from_structure_bsp_for_rebind(void)
+{
+	ai_disconnect_from_structure_bsp_internal(TRUE);
 }
 
 void ai_reconnect_to_structure_bsp(
@@ -2207,6 +2218,8 @@ static short ai_find_line_of_fire_friend_pills(
 	struct line_of_fire_pill *pills)
 {
 	struct actor_datum *actor = actor_get(actor_index);
+	boolean regional = scenario_uses_regional_gameplay(global_scenario_get());
+	short bsp = regional ? actor_get_navigation_bsp(actor) : NONE;
 	short pill_count = 0;
 
 	if (actor->meta.encounter_index != NONE)
@@ -2222,7 +2235,8 @@ static short ai_find_line_of_fire_friend_pills(
 			if (iterator.index != actor_index &&
 				pill_count < maximum_pill_count &&
 				friend->meta.unit_index != NONE &&
-				friend->input.vehicle_index == NONE)
+				friend->input.vehicle_index == NONE &&
+				(!regional || object_get_regional_bsp(friend->meta.unit_index) == bsp))
 			{
 				ai_generate_line_of_fire_pill(
 					friend->meta.unit_index,
@@ -2247,7 +2261,8 @@ static short ai_find_line_of_fire_friend_pills(
 			if (!prop->enemy &&
 				!prop->dead &&
 				prop->state == _prop_state_acknowledged &&
-				prop->vehicle_index == NONE)
+				prop->vehicle_index == NONE &&
+				(!regional || (object_try_and_get(prop->unit_index) && object_get_regional_bsp(prop->unit_index) == bsp)))
 			{
 				struct object_datum *object = object_get(prop->unit_index);
 
@@ -2646,6 +2661,7 @@ boolean ai_test_ballistic_line_of_fire(
 	struct line_of_fire_pill friend_pills[MAXIMUM_LINE_OF_FIRE_PILLS];
 	struct collision_result collision;
 	struct actor_datum *actor = actor_get(actor_index);
+	short bsp = actor_get_navigation_bsp(actor);
 	real_point3d current_point;
 	real_point3d end_point;
 	real_vector3d arc_velocity;
@@ -2723,8 +2739,8 @@ boolean ai_test_ballistic_line_of_fire(
 			real_vector3d segment_vector;
 
 			vector_from_points3d(&current_point, &end_point, &segment_vector);
-			line_of_fire = !collision_test_vector(
-				collision_flags,
+			line_of_fire = !collision_test_bsp_vector(
+				bsp, collision_flags,
 				&current_point,
 				&segment_vector,
 				ignore_object_index,

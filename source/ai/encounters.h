@@ -158,6 +158,7 @@ struct actor_datum *actor_iterator_next(
 	struct actor_iterator *iterator);
 void encounter_compute_activation_cluster_bit_vector(
 	long encounter_index,
+	short bsp,
 	boolean update_actor_dormancy,
 	long bit_vector_size,
 	unsigned long const *active_area,
