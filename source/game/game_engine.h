@@ -778,7 +778,7 @@ struct game_engine_spawn_rules
 {
 	long game_type;
 	short bsp;
-	boolean require_team;
+	boolean require_team, extraction_hub;
 };
 struct game_engine_spawn_rules game_engine_prepare_spawn_rules(long player_index, short bsp);
 real game_engine_get_starting_location_rating_in_bsp(

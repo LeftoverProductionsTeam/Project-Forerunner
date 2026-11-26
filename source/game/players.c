@@ -1430,6 +1430,11 @@ static long find_best_starting_location_index(long player_index, short spawn_bsp
 	}
 
 	spawn_rules = game_engine_prepare_spawn_rules(player_index, spawn_bsp);
+	/* The validated native hub membership below owns Extraction faction starts.
+	 * Preserve legacy gametype and team filters in every other spawn path. */
+	spawn_rules.extraction_hub = spawn_bsp != NONE && extraction_owns_map();
+	if (spawn_rules.extraction_hub)
+		spawn_rules.require_team = FALSE;
 	best_starting_location_index = NONE;
 	best_starting_location_rating = 0.0f;
 	for (starting_location_index = 0;

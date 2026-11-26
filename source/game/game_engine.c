@@ -9376,7 +9376,7 @@ real game_engine_get_starting_location_rating_in_bsp(
 {
 	if (rules->bsp != NONE && !player_starting_location_in_bsp(starting_location, rules->bsp))
 		return 0.0f;
-	if (!match_game_type(rules->game_type, 4, starting_location->game_types))
+	if (!rules->extraction_hub && !match_game_type(rules->game_type, 4, starting_location->game_types))
 		return 0.0f;
 	if (nearby_vehicle(player_index, starting_location, rules->bsp))
 		return 0.0f;
