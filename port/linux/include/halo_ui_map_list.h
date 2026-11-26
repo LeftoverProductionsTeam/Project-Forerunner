@@ -41,6 +41,13 @@ void ui_map_list_refresh(char *const *xbox_maps);
 	!defined(HALO_ANDROID) && !defined(HALO_IOS) && !defined(HALO_BROWSER) && !defined(HALO_WEB)
 #define HALO_SPARK_MODE_RECEIPTS
 #endif
+
+/* The ground preview is offered by the Win64 desktop LAN host. */
+#if defined(_WIN64) && HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_GAME_BROWSER)
+#define HALO_REGIONAL_EXTRACTION_PREVIEW
+int ui_map_list_hosting_regional_extraction(void);
+#endif
+
 enum
 {
 	_ui_map_mode_unspecified,

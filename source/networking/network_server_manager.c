@@ -494,6 +494,7 @@ symbols in this file:
 #include "bots.h" /* port: port/linux/game/bots.c */
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
+#include "halo_ui_map_list.h"
 #include "scenario/scenario.h"
 
 #include <time.h>
@@ -4820,7 +4821,13 @@ boolean server_ok_to_countdown(
 	boolean bomb_ready = TRUE;
 #endif
 	boolean map_ready = server_has_a_player_with_the_map(server);
-	boolean ok = enough_machines && teams_full && enough_players && bomb_ready && map_ready;
+	boolean regional_ready = TRUE;
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+	extern int delta_peer_game_room_independent_bsp(void);
+	if (ui_map_list_hosting_regional_extraction())
+		regional_ready = delta_peer_game_room_independent_bsp();
+#endif
+	boolean ok = enough_machines && teams_full && enough_players && bomb_ready && map_ready && regional_ready;
 
 	/* port: a dedicated server's lobby, whose own machine has no player:
 	its director's rules, server.min_players and server.team_start
@@ -4840,13 +4847,14 @@ boolean server_ok_to_countdown(
 	{
 		static int last_reason = -1;
 		int reason = (enough_machines ? 0 : 1) | (a_player_on_each ? 0 : 2) |
-			(teams_full ? 0 : 4) | (enough_players ? 0 : 8) | (bomb_ready ? 0 : 16) | (map_ready ? 0 : 32);
+			(teams_full ? 0 : 4) | (enough_players ? 0 : 8) | (bomb_ready ? 0 : 16) | (map_ready ? 0 : 32) |
+			(regional_ready ? 0 : 64);
 
 		if (reason != last_reason)
 		{
 			last_reason = reason;
 			network_event(
-				"lobby countdown %s: machines %s, a player on each machine %s, teams %s, players %ld of %ld, paused %s%s%s%s%s%s",
+				"lobby countdown %s: machines %s, a player on each machine %s, teams %s, players %ld of %ld, paused %s%s%s%s%s%s%s",
 				ok ? "ready" : "held",
 				enough_machines ? "yes" : "NO",
 				a_player_on_each ? "yes" : "NO",
@@ -4857,6 +4865,7 @@ boolean server_ok_to_countdown(
 				(reason & 1) ? " machines" : "",
 				(reason & 16) ? " bomb handshakes" : "",
 				(reason & 32) ? " every player downloading the map" : "",
+				(reason & 64) ? " regional protocol" : "",
 				!ok ? ")" : "");
 		}
 	}

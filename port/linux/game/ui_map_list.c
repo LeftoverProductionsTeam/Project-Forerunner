@@ -524,8 +524,12 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 
 	extraction = !strcmp(mode, "extraction");
 #if HALO_MCC && defined(HALO_64BIT)
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+	regional = extraction && !campaign && version == MCC_CACHE_VERSION;
+#else
 	regional = extraction && !campaign && version == MCC_CACHE_VERSION &&
 		config_boolean("debug.independent_regional_bsp") && !config_boolean("network.online");
+#endif
 #endif
 	scripted = extraction || !strcmp(mode, "firefight") || !strcmp(mode, "zombieSurvival");
 	if (json->tokens[settings].size != (extraction ? 2 : scripted ? 1 : 0))
@@ -586,8 +590,6 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 		return L"Spark metadata\r\nmap mismatch";
 	if (version == 609 && !map_family_resources_ready(NULL, 0))
 		return L"Spark map needs\r\nCE resource banks";
-	/* The public Extraction picker uses the CE co-op path. The regional
-	 * receipt is consumed by the private MCC host's runtime gate. */
 	if (campaign && extraction && version == 609)
 		*play_mode = _ui_map_mode_extraction;
 	else if (regional)

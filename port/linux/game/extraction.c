@@ -263,7 +263,12 @@ static boolean extraction_authoritative_scene(void)
 		return game_connection() == _game_connection_local ||
 			(game_connection() == _game_connection_network_server && network_coop_active());
 #if HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_64BIT)
-	if (game_connection() == _game_connection_network_server && !config_boolean("network.online") &&
+	if (game_connection() == _game_connection_network_server &&
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+		ui_map_list_hosting_regional_extraction() &&
+#else
+		!config_boolean("network.online") &&
+#endif
 		config_boolean("game.extraction") && network_regional_independent_bsp_ready())
 		return extraction_has_regional_receipt();
 #endif
@@ -781,7 +786,7 @@ static boolean extraction_lan_guest(long machine)
 {
 	unsigned long address;
 	byte octets[4];
-	if (!extraction.lan_session_gear || machine == NONE || config_boolean("network.online"))
+	if (!extraction.lan_session_gear || machine == NONE)
 		return FALSE;
 	address = network_game_server_machine_address(machine);
 	octets[0] = (byte)(address >> 24); octets[1] = (byte)(address >> 16);
@@ -796,8 +801,7 @@ static char const *extraction_resolve_owner_mode(struct player_datum const *play
 	byte owner[GEAR_ID_BYTES], boolean *session_only)
 {
 	boolean local = player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS;
-	boolean private_regional = extraction.regional_receipt_valid && extraction.lan_session_gear &&
-		!config_boolean("network.online");
+	boolean private_regional = extraction.regional_receipt_valid && extraction.lan_session_gear;
 	boolean account_room = FALSE;
 #ifdef HALO_GAME_BROWSER
 	account_room = delta_peer_game_on_delta() && !private_regional;
@@ -1299,11 +1303,10 @@ static void extraction_bind(void)
 	memset(extraction.guidance_flags, NONE, sizeof(extraction.guidance_flags));
 	extraction.lan_session_gear = !config_boolean("network.online");
 #ifdef HALO_GAME_BROWSER
-	/* Negotiated regional transport uses the Delta wire on private LAN too.
-	 * Its exact receipt gate admits only offline rooms. Keep that room's local
-	 * and session owners even when the peers negotiate the newer transport. */
-	extraction.lan_session_gear = extraction.lan_session_gear &&
-		(extraction.regional_receipt_valid || !delta_peer_game_on_delta());
+	/* A verified regional preview is a private LAN room, including when the
+	 * global online setting stays enabled. It uses local and session owners. */
+	extraction.lan_session_gear = extraction.regional_receipt_valid ||
+		(extraction.lan_session_gear && !delta_peer_game_on_delta());
 #endif
 	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
 		extraction.squads[squad].name = extraction.squads[squad].ready_group = NONE;

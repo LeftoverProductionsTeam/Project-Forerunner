@@ -5802,9 +5802,22 @@ static short forerunner_map_mode;
 
 static boolean regional_extraction_private_host(void)
 {
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+	return TRUE;
+#else
 	return HALO_MODE_FILTER && config_boolean("debug.independent_regional_bsp") &&
 		!config_boolean("network.online");
+#endif
 }
+
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+int ui_map_list_hosting_regional_extraction(void)
+{
+	return multiplayer.mode == _multiplayer_mode_host_lan &&
+		forerunner_map_mode == _ui_map_mode_regional_extraction &&
+		global_network_game_server_get() != NULL;
+}
+#endif
 
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
 	boolean *widget_deleted, boolean local_only, boolean campaign_chooser)
@@ -5813,8 +5826,10 @@ static boolean multiplayer_host(struct widget_instance *widget, struct event_rec
 	forerunner_infection_chooser = FALSE;
 	forerunner_map_mode = _ui_map_mode_unspecified;
 	multiplayer_mode_set(widget);
+#ifndef HALO_REGIONAL_EXTRACTION_PREVIEW
 	if (campaign_chooser && strstr(widget->name, "extraction_create_inter") && regional_extraction_private_host())
 		multiplayer.mode = _multiplayer_mode_host_lan;
+#endif
 	if (!multiplayer_player(controller))
 		return FALSE;
 	p2p_set_hosting_allowed(!local_only && multiplayer.mode == _multiplayer_mode_host_internet);
@@ -6208,7 +6223,12 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 			NUMBEROF(variant.human_readable_game_description) - 1);
 		game_variant_options_default(&variant, &options);
 		if (regional)
+		{
 			options.time_limit = 0;
+			multiplayer.mode = _multiplayer_mode_host_lan;
+			p2p_set_hosting_allowed(FALSE);
+			p2p_set_hosting_public(FALSE);
+		}
 		if (mcc)
 		{
 			options.vehicle_set[0] = options.vehicle_set[1] = VARIANT_VEHICLE_SET_PC;

@@ -110,6 +110,7 @@ symbols in this file:
 #include "network_messages.h"
 #include "network_game_manager.h"
 #include "network_game_globals.h"
+#include "halo_ui_map_list.h"
 #include "network_server_manager_internal.h"
 #ifdef HALO_64BIT
 #include "cseries/cseries_windows.h"
@@ -362,6 +363,10 @@ game runs) */
 boolean network_game_solo_game(
 	void)
 {
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+	if (ui_map_list_hosting_regional_extraction())
+		return TRUE;
+#endif
 	return config_boolean("game.start_with_one_player") ? TRUE : FALSE;
 }
 

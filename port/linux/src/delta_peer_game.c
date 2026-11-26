@@ -27,6 +27,10 @@ HALO_GAME_BROWSER; network.protocol = "opence" turns all of it off.
 #include "delta_moderation.h"
 #include "delta_chat_game.h"
 #include "server_badge.h"
+#if defined(_WIN64) && HALO_MCC && defined(HALO_CUSTOM_EDITION) && defined(HALO_GAME_BROWSER) && !defined(HALO_SERVER)
+extern int ui_map_list_hosting_regional_extraction(void);
+#define DELTA_REGIONAL_EXTRACTION_PREVIEW
+#endif
 #ifdef HALO_GAME_BROWSER
 #include "browser.h"
 #include "p2p.h"
@@ -778,6 +782,12 @@ int delta_peer_protocol(void)
 				"other machines' platform limits (for testing)");
 		delta_peer_initialize(&delta_game.peer, &env, &local);
 	}
+#ifdef DELTA_REGIONAL_EXTRACTION_PREVIEW
+	/* The preview opts this direct LAN host into regional negotiation for
+	 * this room only, without rewriting the player's protocol setting. */
+	if (delta_game.protocol == _delta_peer_protocol_opence && ui_map_list_hosting_regional_extraction())
+		return _delta_peer_protocol_auto;
+#endif
 	return delta_game.protocol;
 }
 
@@ -1142,6 +1152,10 @@ void delta_peer_game_host_frame(const struct delta_peer_game_machine *machines, 
 	else if (!delta_game.peer.roster_sent)
 		platform_log("Delta Peer: hosting with Delta on port %d", DELTA_PEER_PORT);
 	delta_game.port_refused = 0;
+#ifdef DELTA_REGIONAL_EXTRACTION_PREVIEW
+	delta_game.peer.local.regional_protocol = ui_map_list_hosting_regional_extraction() ||
+		config_boolean("debug.independent_regional_bsp");
+#endif
 #ifdef HALO_GAME_BROWSER
 	/* (the moderation challenges' binding: the invite's host, read once a
 	second until it has one) */
@@ -1192,6 +1206,9 @@ void delta_peer_game_client_frame(int joined, delta_u32 host_ipv4, int host_spea
 	{
 		stop();
 		delta_game.role = _role_client;
+#ifdef DELTA_REGIONAL_EXTRACTION_PREVIEW
+		delta_game.peer.local.regional_protocol = 1;
+#endif
 	}
 	if (host_speaks_delta && !open_socket(0))
 		host_speaks_delta = 0;

@@ -15,14 +15,15 @@ Current priority follows the owner's [Product Completion goal](docs/forerunner/P
 - P1: MegaWorld Extraction through the normal menus. Treat Black Echo as an
   operation in the compact world. Author native flight recordings in Spark
   and use existing recorded animation, hover, native seats and departure.
-  Keep regional Extraction capabilities unadvertised until proven.
+  Offer the verified ground preview through its exact Win64 LAN mode receipt.
+  Keep authenticated multiplayer and the authored aircraft operation open.
 - P2: original Zombie Apocalypse fidelity, then polished Survival and Firefight.
 - P3: complete the remaining unified runtime scope and preserve classic support.
 
-Latest: Win64 SHA-256 9262c07219b810c888979022ca86dfcde2f05394a6007e0ed512eba412663bc9.
-The installed 19-region selection is an engineering playtest. Existing evidence
-and previous-good files are retained. Promote coherent feature batches after
-normal-controls verification.
+Latest: Win64 SHA-256 659036e994bb5663906207c2008361968769af3b80f43b016777bf7a41d99d9c.
+The single installed MegaWorld selection is the ground Extraction preview on
+the interim 19-region world. Previous retains the prior engine and exploration
+map. Promote coherent feature batches after normal-controls verification.
 
 ### Interim ground Extraction on the existing world
 
@@ -43,9 +44,15 @@ session-only. Native evidence is retained under
 `covenant-field-browser` logs. The Covenant log shows bank at 13:17:21 and
 redeploy at 13:18:53, with grenades and weapon restored at tick 17430.
 
-The ground loop still needs authored combat, first-time route validation and
-resolution of the Hang 'Em High connector overlap before promotion. This is
-interim world evidence; authenticated play and compact world acceptance remain open.
+The promoted cache fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f
+and receipt d7c07e868df9f1158f023cc11b5fdcc025e853dd158b34ab5257cbb08a8366da
+replace the existing catalog entry. The native LAN run on the preceding build
+EA73ECAC verified both faction banks and the corrected Covenant west ramp.
+The promoted executable then passed solo launch, two-machine private LAN
+admission with the host's OpenCE preference, and a UNSC ground bank.
+Evidence is retained under build/megaworld-ground-preview. Guest gear stays
+session-only. Aircraft, synchronized hunts, authenticated play and the compact
+world remain open. The Hang 'Em High overlap remains an authored repair.
 
 ## Historical checkpoints
 
