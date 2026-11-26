@@ -695,6 +695,8 @@ int delta_peer_protocol(void)
 		without MCC maps, as a Windows app package's, says it has none) */
 		local.capabilities |= (delta_u32)1 << _delta_capability_mcc_maps;
 		local.capabilities |= (delta_u32)1 << _delta_capability_regional_bsp;
+		if (config_boolean("debug.independent_regional_bsp"))
+			local.regional_protocol = 1;
 #endif
 #endif
 #ifdef HALO_GAME_BROWSER
@@ -1549,9 +1551,14 @@ int delta_peer_game_machine_legacy_version(int machine_index)
 	return delta_peer_machine_legacy_version(&delta_game.peer, machine_index);
 }
 
+int delta_peer_game_offers_independent_bsp(void)
+{
+	return delta_game.ready && delta_game.peer.local.regional_protocol == 1;
+}
+
 int delta_peer_game_room_independent_bsp(void)
 {
-	/* Revision 1 is reserved until the runtime can send individual handoffs. */
+	/* A room selects revision 1 only when every machine offers it. */
 	return delta_game.ready && delta_game.peer.room_regional_protocol == 1 &&
 		delta_peer_game_room_has(_delta_capability_regional_bsp);
 }

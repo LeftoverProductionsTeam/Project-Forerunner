@@ -3749,6 +3749,7 @@ boolean network_game_server_accepts_late_joins(
 	refused, network_game_server_refuse_late_joiner) */
 	return server->state == _network_game_server_state_ingame &&
 		network_game_server_game_is_open(server) &&
+		!network_regional_bsp_trial_admission_closed() &&
 		network_game_has_free_player_slot(&server->game);
 }
 

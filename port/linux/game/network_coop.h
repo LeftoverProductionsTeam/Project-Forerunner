@@ -46,6 +46,7 @@ enum
 has no game engine) */
 boolean network_coop_active(void);
 boolean network_regional_bsp_active(void);
+boolean network_regional_bsp_trial_admission_closed(void);
 boolean network_synchronizes_structure_bsp(void);
 boolean network_regional_bsp_room_ready(void);
 boolean network_regional_independent_bsp_ready(void);

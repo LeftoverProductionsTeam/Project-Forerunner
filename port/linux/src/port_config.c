@@ -2701,6 +2701,10 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "debug.telnet_console_port", _config_integer, "2323", "HALO_TELNET_CONSOLE_PORT", _environment_value,
 		_platform_all | _platform_server,
 		"The telnet console's port." },
+	{ "debug.independent_regional_bsp", _config_boolean, "false", "HALO_DEBUG_INDEPENDENT_REGIONAL_BSP",
+		_environment_value, _platform_desktop | _platform_server,
+		"Test independent MegaWorld regions. Enable on each peer in a private lobby.\n"
+		"Regional matches started with this option close to mid-match joins." },
 	{ "debug.network_test", _config_string, "\"\"", "HALO_NETWORK_TEST", _environment_value, _platform_all,
 		"Automated system link tests: \"host:<map>\", \"local:<map>\" (split\n"
 		"screen), \"join\", \"browse\" (the server browser's fullest game) or\n"

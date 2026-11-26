@@ -2543,6 +2543,15 @@ boolean network_regional_bsp_active(void)
 		global_scenario->bsp_switch_trigger_volumes.count > 0;
 }
 
+boolean network_regional_bsp_trial_admission_closed(void)
+{
+	extern int delta_peer_game_offers_independent_bsp(void);
+
+	/* Negotiation is still room-wide. A new machine cannot change the
+	 * negotiated revision after players begin using different scenes. */
+	return network_regional_bsp_active() && delta_peer_game_offers_independent_bsp();
+}
+
 boolean network_synchronizes_structure_bsp(void)
 {
 	return network_coop_active() || network_regional_bsp_active();
