@@ -898,6 +898,17 @@ static boolean extraction_transport_at_field(short faction, long ship)
 {
 	short zone = extraction_zone_for_faction(faction);
 	short return_zone = extraction_transport_return_zone(faction);
+
+	if (scenario_uses_regional_gameplay(global_scenario))
+	{
+		short bsp = object_get_regional_bsp(ship);
+		short call = extraction.dropship_activate_names[faction];
+		long control = object_index_from_name_index(call != NONE ? call : extraction.activate_name);
+		/* Overlapping BSPs can contain the same coordinates. The authored
+		 * field control already participates in the native regional partition. */
+		if (bsp == NONE || control == NONE || object_get_regional_bsp(control) != bsp)
+			return FALSE;
+	}
 	return zone != NONE && scenario_trigger_volume_test_object(zone, ship) &&
 		(extraction.return_zone == NONE || !scenario_trigger_volume_test_object(extraction.return_zone, ship)) &&
 		(!extraction.separate_hubs ||

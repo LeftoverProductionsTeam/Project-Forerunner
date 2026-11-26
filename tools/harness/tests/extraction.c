@@ -1933,6 +1933,13 @@ int main(int argc,char **argv)
          "active playback opened a hovering transfer");
    recorded_aircraft=NONE;advance(1);
    CHECK(extraction.dropship_hover_transfer[faction], "compiled hover marker was not bound");
+   scenario.structure_bsp_references.count=11;
+   fixture_unit_bsp=9;fixture_control_bsp=10;
+   CHECK(!extraction_transport_landed(faction,craft), "hover opened in an overlapping but different region");
+   fixture_unit_bsp=10;
+   CHECK(extraction_transport_landed(faction,craft), "hover failed in the native field terminal region");
+   fixture_unit_bsp=fixture_control_bsp=NONE;
+   scenario.structure_bsp_references.count=0;
    CHECK(device_groups[group].actual_value==1.f, "hover readiness was not published");
    CHECK(extraction_transport_can_disembark(&units[faction]) && extraction_transport_uses_hover_exit(&units[faction]),
          "authored field hover did not permit a native passenger transfer");
