@@ -1496,6 +1496,25 @@ static void distributed_host_send_regional_objects(void)
 	for (slot = 0; slot < objects_host_told_count; slot++)
 		regions[slot] = objects_host_told[slot] == NONE ? NONE : object_get_regional_bsp(objects_host_told[slot]);
 
+	/* Stowed weapons are disconnected from the map and may have no parent
+	 * object. Their live inventory slot supplies the regional owner. */
+	for (slot = 0; slot < objects_host_told_count; slot++)
+	{
+		struct unit_datum const *unit = regions[slot] != NONE ? unit_try_and_get(objects_host_told[slot]) : NULL;
+		short weapon_slot;
+
+		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			continue;
+		for (weapon_slot = 0; weapon_slot < MAXIMUM_WEAPONS_PER_UNIT; weapon_slot++)
+		{
+			long weapon = unit->unit.weapon_object_indices[weapon_slot];
+			long index = DATUM_INDEX_TO_ABSOLUTE_INDEX(weapon);
+			if (weapon != NONE && VALID_INDEX(index, objects_host_told_count) &&
+				objects_host_told[index] == weapon && regions[index] == NONE)
+				regions[index] = regions[slot];
+		}
+	}
+
 	for (machine_number = 0; machine_number < machine_count; machine_number++)
 	{
 		long machine = machines[machine_number];

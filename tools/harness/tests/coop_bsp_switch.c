@@ -69,7 +69,7 @@ struct object_datum {
         real_point3d position,bounding_sphere_center;real bounding_sphere_radius;
         unsigned long flags,damage_flags;struct location location;} object;
     long weapon;short ammunition;
-    struct {long player_index,driver_object_index,gunner_object_index;short parent_seat_index;} unit;
+    struct {long player_index,driver_object_index,gunner_object_index;short parent_seat_index;long weapon_object_indices[4];} unit;
 };
 #define biped_datum object_datum
 #define unit_datum object_datum
@@ -1010,7 +1010,15 @@ static void distributed_send(void *message, byte type, word count, word size, in
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
 #include "bsp_sight.inc"
+#define MAXIMUM_WEAPONS_PER_UNIT 4
+static long regional_test_carrier=NONE;
+static struct unit_datum const *regional_fixture_unit(long index)
+{
+    return index==regional_test_carrier?&objects[slot(index)]:NULL;
+}
+#define unit_try_and_get regional_fixture_unit
 #include "bsp_object_lifecycle.inc"
+#undef unit_try_and_get
 #include "bsp_damage_delivery.inc"
 #undef DATUM_INDEX_NEW
 #include "bsp_damage_history.inc"
@@ -3192,6 +3200,19 @@ int main(int argc,char **argv)
         CHECK(checked_change_count[0]==5&&checked_changes[0][4].object_index==units[2]&&
               checked_changes[0][4].change==_object_change_create&&checked_change_count[1]==1,
               "old region did not recreate the same authoritative object on return");
+        regional_test_carrier=units[3];
+        objects[3].unit.weapon_object_indices[1]=0x70002;
+        objects_host_told[2]=0x70002;
+        objects_host_told_count=3;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[0]==5&&checked_change_count[1]==2&&
+              checked_changes[1][1].object_index==0x70002&&checked_changes[1][1].change==_object_change_create,
+              "stowed weapon did not follow its carrier's region");
+        objects[3].unit.weapon_object_indices[1]=0x80002;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[0]==5&&checked_change_count[1]==3&&
+              checked_changes[1][2].object_index==0x70002&&checked_changes[1][2].change==_object_change_delete,
+              "a recycled inventory slot kept an unrelated weapon replica");
         return 0;
     }
     if(!strcmp(name,"independent-bsp-delivery"))
