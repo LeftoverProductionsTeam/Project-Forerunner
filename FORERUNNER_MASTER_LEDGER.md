@@ -8,7 +8,9 @@ Current priority follows the owner's [Product Completion goal](docs/forerunner/P
   regional simulation, including encounters that keep running with the host
   and guest in different BSPs. The Win64 candidate routes gunfire and unit
   sounds through the source's resident BSP and restricts delivery to actors in
-  that BSP. The next native gate is encounter activation, AI reaction and
+  that BSP. The candidate also places an authored encounter and its equipment in
+  their owning BSP, deferring initial placement until that region is occupied and
+  resident. The next native gate is encounter activation, AI reaction and
   synchronized combat while players occupy different compact-world regions.
 - P1: MegaWorld Extraction through the normal menus. Treat Black Echo as an
   operation in the compact world. Author native flight recordings in Spark

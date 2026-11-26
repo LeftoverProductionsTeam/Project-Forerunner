@@ -2407,6 +2407,18 @@ void actor_customize_unit(
 	struct unit_datum *unit = unit_get(unit_index);
 	struct object_placement_data placement_data;
 	short change_color_index;
+	short bsp = NONE;
+	struct structure_bsp const *structure = NULL;
+
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		short owner = object_get_regional_bsp(unit_index);
+		if (owner != NONE && owner != global_structure_bsp_index_get())
+		{
+			bsp = owner;
+			structure = scenario_structure_bsp_try_and_get(bsp);
+		}
+	}
 
 	if (actor_variant_definition->unit.maximum_body_vitality > 0.f ||
 		actor_variant_definition->unit.maximum_shield_vitality > 0.f)
@@ -2456,7 +2468,8 @@ void actor_customize_unit(
 			&placement_data,
 			actor_variant_definition->ranged_combat.reference.index,
 			unit_index);
-		weapon_index = object_new(&placement_data);
+		if (bsp != NONE) placement_data.position = unit->object.position;
+		weapon_index = bsp != NONE && !structure ? NONE : object_new_in_bsp(&placement_data, bsp, structure);
 		if (weapon_index != NONE &&
 			!unit_add_weapon_to_inventory(
 				unit_index,
@@ -2501,7 +2514,8 @@ void actor_customize_unit(
 				&placement_data,
 				actor_variant_definition->items.equipment_reference.index,
 				unit_index);
-			equipment_index = object_new(&placement_data);
+			if (bsp != NONE) placement_data.position = unit->object.position;
+			equipment_index = bsp != NONE && !structure ? NONE : object_new_in_bsp(&placement_data, bsp, structure);
 			if (equipment_index != NONE &&
 				!unit_add_equipment_to_inventory(
 					unit_index,
@@ -2707,11 +2721,31 @@ long actor_place(
 	struct object_placement_data placement_data;
 	char encounter_name[256];
 	long unit_index;
+	short bsp = NONE;
+	struct structure_bsp const *structure = NULL;
 
 	match_assert("c:\\halo\\SOURCE\\ai\\actors.c", 603, starting_location);
 	/* port: none on a client of the distributed netcode (actor_new) */
 	if (network_game_distributed_client())
 		return NONE;
+	if (encounter_index != NONE && scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		struct scenario const *scenario = global_scenario_get();
+		struct encounter_definition const *encounter_definition = TAG_BLOCK_GET_ELEMENT(
+			&scenario->ai_encounters, DATUM_INDEX_TO_ABSOLUTE_INDEX(encounter_index), struct encounter_definition);
+		short home = encounter_definition->runtime_structure_bsp_reference_index;
+		if (VALID_INDEX(home, scenario->structure_bsp_references.count) && home != global_structure_bsp_index_get())
+		{
+			struct location location;
+			bsp = home;
+			structure = scenario_structure_bsp_try_and_get(bsp);
+			if (!structure)
+				return NONE;
+			scenario_location_from_point_in_structure(&location, structure, &starting_location->position);
+			if (!VALID_INDEX(location.cluster_index, structure->clusters.count))
+				return NONE;
+		}
+	}
 	objects_garbage_collection();
 
 	actor_variant_definition =
@@ -2738,7 +2772,7 @@ long actor_place(
 	vector3d_from_angle(&placement_data.forward, starting_location->facing);
 	placement_data.variant_number = initial_variant;
 
-	unit_index = object_new(&placement_data);
+	unit_index = object_new_in_bsp(&placement_data, bsp, structure);
 	if (unit_index == NONE)
 	{
 		if (encounter_index == NONE)

@@ -508,6 +508,9 @@ typedef char encounter_datum_active_offset_assert[
 	offsetof(struct encounter_datum, active) == 0xD ? 1 : -1];
 typedef char encounter_datum_status_dirty_offset_assert[
 	offsetof(struct encounter_datum, status_dirty) == 0x28 ? 1 : -1];
+/* The regional marker uses the reserved alignment byte in the native datum. */
+typedef char encounter_datum_current_count_offset_assert[
+	offsetof(struct encounter_datum, current_count) == 0x2A ? 1 : -1];
 typedef char encounter_datum_first_actor_index_offset_assert[
 	offsetof(struct encounter_datum, first_actor_index) == 0x14 ? 1 : -1];
 typedef char encounter_datum_blind_offset_assert[
@@ -1774,7 +1777,13 @@ void encounters_create_for_new_map(
 
 		if (create)
 		{
-			encounter_create(iterator.index, NONE, NONE);
+			short home = encounter_definition->runtime_structure_bsp_reference_index;
+			if (scenario_uses_regional_gameplay(scenario) &&
+				VALID_INDEX(home, scenario->structure_bsp_references.count) &&
+				home != global_structure_bsp_index_get())
+				encounter->pending_regional_initial_creation = TRUE;
+			else
+				encounter_create(iterator.index, NONE, NONE);
 		}
 	}
 
@@ -2318,6 +2327,39 @@ void encounter_create(
 	return;
 }
 
+/* Native map-start placement is deferred until the authored region can own it.
+ * Visibility caching alone is insufficient to admit a new encounter. */
+static void encounters_create_pending_regional(void)
+{
+	struct scenario *scenario = global_scenario_get();
+	struct encounter_iterator iterator;
+	struct encounter_datum *encounter;
+	unsigned long occupied;
+
+	if (!scenario_uses_regional_gameplay(scenario))
+		return;
+	occupied = players_occupied_regional_bsps();
+	if (!occupied)
+		return;
+	encounter_iterator_new(&iterator, FALSE);
+	while ((encounter = encounter_iterator_next(&iterator)) != NULL)
+	{
+		struct encounter_definition const *definition;
+		short home;
+		if (!encounter->pending_regional_initial_creation)
+			continue;
+		definition = TAG_BLOCK_GET_ELEMENT(&scenario->ai_encounters,
+			DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index), struct encounter_definition);
+		home = definition->runtime_structure_bsp_reference_index;
+		if (VALID_INDEX(home, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) && TEST_FLAG(occupied, home) &&
+			scenario_structure_bsp_try_and_get(home))
+		{
+			encounter->pending_regional_initial_creation = FALSE;
+			encounter_create(iterator.index, NONE, NONE);
+		}
+	}
+}
+
 void encounters_update(
 	void)
 {
@@ -2328,6 +2370,7 @@ void encounters_update(
 
 	if (time % TICKS_PER_SECOND == 0)
 	{
+		encounters_create_pending_regional();
 		encounters_update_dirty_status();
 		encounters_test_activation();
 	}
@@ -2607,6 +2650,7 @@ static void encounter_new(
 		encounter->last_grenade_throw_time = NONE;
 		encounter->link_encounter_count = 0;
 		encounter->last_active_time = NONE;
+		encounter->pending_regional_initial_creation = FALSE;
 
 		match_assert(
 			"c:\\halo\\SOURCE\\ai\\encounters.c",

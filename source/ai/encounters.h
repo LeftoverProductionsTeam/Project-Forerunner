@@ -52,6 +52,7 @@ struct encounter_datum
 	short link_encounter_count;
 	short link_encounter_indices[3];
 	boolean status_dirty;
+	boolean pending_regional_initial_creation;
 	short current_count;
 	short current_swarm_count;
 	short current_in_combat_count;
