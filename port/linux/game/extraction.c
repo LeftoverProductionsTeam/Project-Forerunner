@@ -882,6 +882,13 @@ static boolean extraction_in_field_volume(short zone, short call, long object)
 	return TRUE;
 }
 
+static boolean extraction_at_call_zone(short faction, long object)
+{
+	short call = VALID_INDEX(faction, 2) && extraction.dropship_zones[faction] != NONE ?
+		extraction.dropship_activate_names[faction] : extraction.activate_name;
+	return extraction_in_field_volume(extraction_zone_for_faction(faction), call, object);
+}
+
 static boolean extraction_in_owned_volume(short zone, short bsp, long object)
 {
 	return zone != NONE && (bsp == NONE || object_get_regional_bsp(object) == bsp) &&
@@ -926,13 +933,10 @@ static boolean extraction_transport_at_return(short faction, long ship)
 
 static boolean extraction_transport_at_field(short faction, long ship)
 {
-	short zone = extraction_zone_for_faction(faction);
 	short return_zone = extraction_transport_return_zone(faction);
-	short call = extraction.dropship_zones[faction] != NONE ?
-		extraction.dropship_activate_names[faction] : extraction.activate_name;
 	short hub_bsp = extraction.faction_hub_bsps[faction];
 
-	return extraction_in_field_volume(zone, call, ship) &&
+	return extraction_at_call_zone(faction, ship) &&
 		!extraction_in_owned_volume(extraction.return_zone, hub_bsp, ship) &&
 		(!extraction.separate_hubs ||
 		 (!extraction_in_owned_volume(extraction.faction_hubs[0], extraction.faction_hub_bsps[0], ship) &&
@@ -2073,7 +2077,7 @@ static boolean extraction_begin_activation(struct extraction_run *run, struct pl
 	return TRUE;
 }
 
-static void extraction_begin_squad_activation(struct extraction_run const *caller, short faction, short zone)
+static void extraction_begin_squad_activation(struct extraction_run const *caller, short faction)
 {
 	short index, squad = caller->squad;
 
@@ -2097,7 +2101,7 @@ static void extraction_begin_squad_activation(struct extraction_run const *calle
 			extraction_faction(unit->object.owner_team_index) != faction ||
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
 			extraction_medical_incapacitated(member->unit) ||
-			!scenario_trigger_volume_test_object(zone, member->unit)) continue;
+			!extraction_at_call_zone(faction, member->unit)) continue;
 		extraction_begin_activation(member, player);
 	}
 }
@@ -2158,7 +2162,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct player_datum *player;
 	struct extraction_run *run;
 	long slot;
-	short faction, squad = NONE, zone, call_name, hub_faction, hub_service;
+	short faction, squad = NONE, call_name, hub_faction, hub_service;
 	boolean in_hub, activation;
 
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
@@ -2357,8 +2361,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		extraction_tell(run, "WRONG LANDING ZONE | Use your faction's extraction terminal.");
 		return TRUE;
 	}
-	zone = extraction_zone_for_faction(faction);
-	if (zone == NONE || !scenario_trigger_volume_test_object(zone, unit_index)) return TRUE;
+	if (!extraction_at_call_zone(faction, unit_index)) return TRUE;
 	if (!extraction_squad_objectives_ready(run))
 	{
 		extraction_tell(run, "OBJECTIVES INCOMPLETE | Finish your squad's authored mission before calling extraction."); return TRUE;
@@ -2366,7 +2369,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (run->phase == _extraction_deployed && run->unit == unit_index)
 	{
 		if (!extraction_begin_activation(run, player)) return TRUE;
-		extraction_begin_squad_activation(run, faction, zone);
+		extraction_begin_squad_activation(run, faction);
 		return FALSE;
 	}
 	if (run->phase == _extraction_ready && run->unit == unit_index &&
@@ -2382,7 +2385,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		}
 		if (!extraction_call_owner_current(run, player)) return TRUE;
 		run->dropship = NONE;
-		extraction_begin_squad_activation(run, faction, zone);
+		extraction_begin_squad_activation(run, faction);
 		extraction_tell(run, "TRANSPORT RECALLED | Wait for your assigned dropship, then board at the landing zone. Gear remains at risk.");
 		return FALSE;
 	}
@@ -2847,8 +2850,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 	if (run->phase == _extraction_activating)
 	{
-		short zone = extraction_zone_for_faction(extraction_faction(unit->object.owner_team_index));
-		if (zone == NONE || !scenario_trigger_volume_test_object(zone, run->unit))
+		if (!extraction_at_call_zone(extraction_faction(unit->object.owner_team_index), run->unit))
 		{
 			run->phase = _extraction_deployed; run->activation_ticks = 0;
 			extraction_tell(run, "ACTIVATION CANCELLED | Return and use the extraction control to retry.");
@@ -2991,9 +2993,9 @@ static boolean extraction_transport_called(short faction)
 		if (!extraction.survival && extraction.dropship_boarding_groups[faction] != NONE &&
 			run->phase == _extraction_ready && run->dropship == NONE &&
 			extraction_player_dropship(unit) == NONE && extraction_squad_objectives_ready(run)) return TRUE;
-		if (unit->object.parent_object_index == NONE ? scenario_trigger_volume_test_object(zone, run->unit) :
+		if (unit->object.parent_object_index == NONE ? extraction_at_call_zone(faction, run->unit) :
 			(extraction_player_dropship(unit) == run->dropship && run->dropship != NONE &&
-				scenario_trigger_volume_test_object(zone, run->dropship))) return TRUE;
+				extraction_at_call_zone(faction, run->dropship))) return TRUE;
 	}
 	return FALSE;
 }

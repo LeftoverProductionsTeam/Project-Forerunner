@@ -2281,6 +2281,19 @@ int main(int argc,char **argv)
    touch(1,0);advance(1);
    CHECK(device_groups[10].actual_value==1.f&&!device_groups[11].actual_value,"UNSC request called Spirit or missed Pelican");
    if(managed_call) {
+    scenario.structure_bsp_references.count=12;
+    fixture_control_bsp=11;
+    fixture_unit_bsp=10;
+    extraction_transport_readiness();
+    CHECK(!device_groups[10].actual_value,"matching coordinates in another BSP held the pickup request");
+    advance(1);
+    CHECK(run(0)->phase==_extraction_deployed,"crossing to another BSP kept the extraction countdown");
+    fixture_unit_bsp=11;
+    touch(1,0);advance(1);
+    CHECK(run(0)->phase==_extraction_activating&&device_groups[10].actual_value,
+     "matching the field control's region did not rearm the pickup");
+    scenario.structure_bsp_references.count=0;
+    fixture_control_bsp=fixture_unit_bsp=NONE;
     units[0].object.position.x=7;advance(1);
     CHECK(run(0)->phase==_extraction_deployed&&!device_groups[10].actual_value,
      "unfinished managed countdown survived leaving the landing zone");
