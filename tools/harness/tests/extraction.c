@@ -2358,7 +2358,16 @@ int main(int argc,char **argv)
     CHECK(!device_groups[10].actual_value,"unboarded squadmate permitted departure");
     units[1].object.parent_object_index=craft;units[1].unit.parent_seat_index=1;advance(1);
     CHECK(device_groups[10].actual_value==1.f,"boarded crew could not depart");
+    CHECK(extraction_transport_passenger_prompt(&units[0]) &&
+      !wcscmp(extraction_transport_passenger_prompt(&units[0]),L"Stay aboard to bank your gear"),
+      "evacuation seat prompted the rider to abandon recovery");
+    before=remote_notices;
     dropships[0].object.position.x=0.f;advance(1);
+    boolean guest_released=FALSE;
+    int message;
+    for(message=before;message<remote_notices;message++)
+     if(strstr(remote_notice_history[message%4],"Use your seat exit to disembark"))guest_released=TRUE;
+    CHECK(guest_released,"banked remote passenger did not receive normal exit guidance");
     CHECK(run(0)->phase==_extraction_returned&&run(1)->phase==_extraction_returned,
      "both passengers did not physically return and bank");
     CHECK(!weapon_try_and_get(loot)&&!weapon_try_and_get(guest_loot)&&run(0)->gear.record.count==1&&run(1)->gear.record.count==1,

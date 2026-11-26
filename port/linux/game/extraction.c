@@ -2372,9 +2372,20 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 
 wchar_t const *extraction_transport_passenger_prompt(struct unit_datum const *passenger)
 {
+	struct extraction_run const *run;
+	long slot, ship;
 	if (passenger->object.parent_object_index == NONE || passenger->unit.player_index == NONE ||
-		!extraction_owns_map() || extraction_player_dropship(passenger) == NONE)
+		!extraction_owns_map())
 		return NULL;
+	ship = extraction_player_dropship(passenger);
+	if (ship == NONE) return NULL;
+
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(passenger->unit.player_index);
+	run = VALID_INDEX(slot, NUMBEROF(extraction_runs)) ? &extraction_runs[slot] : NULL;
+	if (run && run->player == passenger->unit.player_index && run->dropship == ship &&
+		(run->phase == _extraction_ready || run->phase == _extraction_settling) &&
+		passenger->unit.animation.state != _unit_state_exiting_seat)
+		return L"Stay aboard to bank your gear";
 
 	if (passenger->unit.animation.state == _unit_state_exiting_seat)
 		return NULL;
@@ -2522,6 +2533,7 @@ static boolean extraction_return_ready(struct extraction_run *run, struct unit_d
 static void extraction_finish_return(struct extraction_run *run)
 {
 	char text[128];
+	char const *exit_hint = "";
 	run->retry_tick = game_time_get();
 	extraction_report_stage(run, _gear_escaped);
 	if (!gear_finish_escape(&run->gear))
@@ -2532,12 +2544,19 @@ static void extraction_finish_return(struct extraction_run *run)
 		!memcmp(run->report.run, run->gear.run, GEAR_ID_BYTES)) run->report.ready = TRUE;
 	extraction_remember_bank(run);
 	run->phase = _extraction_returned; run->blocked = FALSE;
+	if (run->dropship != NONE)
+	{
+		struct unit_datum const *rider = object_try_and_get_and_verify_type(run->unit, _object_mask_biped);
+		if (rider && extraction_player_dropship(rider) == run->dropship &&
+			extraction_transport_can_disembark(rider))
+			exit_hint = " Use your seat exit to disembark at the hub.";
+	}
 	if (extraction.debrief_name != NONE)
-		snprintf(text, sizeof(text), "GEAR BANKED | Debrief available at the hub.");
+		snprintf(text, sizeof(text), "GEAR BANKED | Debrief available at the hub.%s", exit_hint);
 	else
-		snprintf(text, sizeof(text), "%s | Stash %d/%d | Frag %d Plasma %d",
+		snprintf(text, sizeof(text), "%s | Stash %d/%d | Frag %d Plasma %d.%s",
 			run->gear.session_only ? "SESSION GEAR BANKED" : "GEAR BANKED",
-			(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1]);
+			(int)run->gear.record.count, GEAR_CAPACITY, (int)run->gear.record.grenades[0], (int)run->gear.record.grenades[1], exit_hint);
 	extraction_tell(run, text);
 }
 
