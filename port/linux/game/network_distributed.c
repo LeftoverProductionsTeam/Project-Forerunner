@@ -4704,6 +4704,12 @@ and no dead player's input (it drives nothing). A client whose players are
 dead watches from where they last were alive. Decided before the damage is
 sent (network_damage.c), which goes where the players it hurt do; sent
 after it (distributed_host_send_players). */
+/* An unplaced player's state has no pose or seat to interpret in a BSP. */
+static boolean distributed_player_in_replication_bsp(short recipient_bsp, short player_bsp, boolean placed)
+{
+	return !placed || (recipient_bsp != NONE && recipient_bsp == player_bsp);
+}
+
 static void distributed_host_plan_players(
 	void)
 {
@@ -4714,11 +4720,13 @@ static void distributed_host_plan_players(
 	static boolean quit[MAXIMUM_TRACKED_PLAYERS];
 	static real_point3d origins[MAXIMUM_TRACKED_PLAYERS];
 	static short clusters[MAXIMUM_TRACKED_PLAYERS];
+	static short regions[MAXIMUM_TRACKED_PLAYERS];
 	static boolean placed[MAXIMUM_TRACKED_PLAYERS];
 	long machine_indices[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 	short machine_count = distributed_client_machines(machine_indices, HALO_PORT_MAXIMUM_NETWORK_MACHINES);
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
-	short cluster_count = structure_bsp ? (short)structure_bsp->clusters.count : 0;
+	struct structure_bsp const *foreground = global_structure_bsp_get();
+	short foreground_bsp = global_structure_bsp_index_get();
+	boolean independent = network_regional_independent_bsp_ready();
 	long now = game_time_get();
 	struct player_action const *recent[DISTRIBUTED_INPUT_HISTORY];
 	short recent_counts[DISTRIBUTED_INPUT_HISTORY];
@@ -4758,6 +4766,7 @@ static void distributed_host_plan_players(
 
 		present[player_index] = player != NULL;
 		placed[player_index] = FALSE;
+		regions[player_index] = NONE;
 		has_action[player_index] = FALSE;
 		if (!player)
 			continue;
@@ -4768,6 +4777,9 @@ static void distributed_host_plan_players(
 		{
 			object_get_origin(unit_index, &origins[player_index]);
 			clusters[player_index] = distributed_object_cluster(unit_index);
+			if (independent)
+				regions[player_index] = network_coop_player_authoritative_bsp(
+					DATUM_INDEX_NEW(player_index, player->identifier));
 			placed[player_index] = TRUE;
 		}
 		changed[player_index] =
@@ -4791,8 +4803,12 @@ static void distributed_host_plan_players(
 	{
 		long machine_index = machine_indices[machine_number];
 		long *player_list = machine_get_player_list(machine_index);
+		short recipient_bsp = independent ? distributed_machine_sent_bsp[machine_index] : foreground_bsp;
+		struct structure_bsp const *structure_bsp = recipient_bsp == foreground_bsp ? foreground :
+			scenario_structure_bsp_preview(recipient_bsp, FALSE);
+		short cluster_count = structure_bsp ? (short)structure_bsp->clusters.count : 0;
 		real_point3d viewers[MAXIMUM_LOCAL_PLAYERS];
-		unsigned long *viewer_pvs[MAXIMUM_LOCAL_PLAYERS];
+		unsigned long const *viewer_pvs[MAXIMUM_LOCAL_PLAYERS];
 		real_vector3d viewer_aims[MAXIMUM_LOCAL_PLAYERS];
 		boolean viewer_scoped[MAXIMUM_LOCAL_PLAYERS];
 		short viewer_count = 0;
@@ -4807,7 +4823,9 @@ static void distributed_host_plan_players(
 			struct distributed_viewer *viewer = &distributed_viewers[machine_index][index];
 			boolean scoped = FALSE;
 
-			if (viewer_index < 0 || viewer_index >= MAXIMUM_TRACKED_PLAYERS)
+			if (!VALID_INDEX(viewer_index, MAXIMUM_TRACKED_PLAYERS) ||
+				(independent && !distributed_player_in_replication_bsp(
+					recipient_bsp, regions[viewer_index], placed[viewer_index])))
 				viewer->valid = FALSE;
 			else if (placed[viewer_index])
 			{
@@ -4842,6 +4860,12 @@ static void distributed_host_plan_players(
 
 			if (!present[player_index] || (quit[player_index] && !own && !changed[player_index]))
 				continue;
+			if (independent && !distributed_player_in_replication_bsp(
+				recipient_bsp, regions[player_index], placed[player_index]))
+			{
+				distributed_seen[machine_index][player_index] = FALSE;
+				continue;
+			}
 			if (!own && !placed[player_index])
 			{
 				/* (dead, or not yet spawned: a spawn is a change, sent at once) */
@@ -5539,7 +5563,12 @@ static void distributed_send_independent_structure_bsp(long machine_index, boole
 	message.structure_bsp.handoff = DISTRIBUTED_INDEPENDENT_BSP_HANDOFF;
 	distributed_send_to_machine_reliably(machine_index, &message, _distributed_message_structure_bsp,
 		1, (word)sizeof(message));
-	distributed_machine_sent_bsp[machine_index] = index;
+	if (distributed_machine_sent_bsp[machine_index] != index)
+	{
+		csmemset(distributed_viewers[machine_index], 0, sizeof(distributed_viewers[machine_index]));
+		csmemset(distributed_seen[machine_index], 0, sizeof(distributed_seen[machine_index]));
+		distributed_machine_sent_bsp[machine_index] = index;
+	}
 }
 
 static void distributed_send_structure_bsp(
@@ -8409,7 +8438,8 @@ static void distributed_handle_message(
 		distributed_handle_inputs(machine_index, (struct distributed_player_input const *)entries, header.count);
 		break;
 	case _distributed_message_relayed_actions:
-		distributed_handle_actions((byte const *)entries, (byte const *)message + size, header.count);
+		if (!network_regional_independent_bsp_ready() || distributed_can_apply_bsp_snapshot(header.game_time))
+			distributed_handle_actions((byte const *)entries, (byte const *)message + size, header.count);
 		break;
 	case _distributed_message_aim_assist_policy:
 	{

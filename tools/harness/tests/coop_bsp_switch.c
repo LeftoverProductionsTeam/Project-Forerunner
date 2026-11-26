@@ -817,6 +817,8 @@ static boolean independent_bsp_room;
 static boolean network_regional_independent_bsp_ready(void) {return independent_bsp_room;}
 static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static boolean distributed_viewers[HALO_PORT_MAXIMUM_NETWORK_MACHINES][MAXIMUM_LOCAL_PLAYERS];
+static boolean distributed_seen[HALO_PORT_MAXIMUM_NETWORK_MACHINES][2];
 static long bsp_machine_players[2][MAXIMUM_LOCAL_PLAYERS];
 static short bsp_player_regions[2];
 static struct distributed_structure_bsp bsp_machine_announcements[2];
@@ -2886,10 +2888,19 @@ int main(int argc,char **argv)
         CHECK(bsp_announcement_targeted==3&&bsp_machine_announcements[0].structure_bsp_index==old&&
               bsp_machine_announcements[1].structure_bsp_index==old,"split local viewers changed foreground BSP");
         bsp_machine_players[0][1]=NONE;
+        distributed_seen[7][0]=distributed_seen[8][0]=TRUE;
+        distributed_viewers[7][0]=distributed_viewers[8][0]=TRUE;
         distributed_send_structure_bsp(NONE);
+        CHECK(!distributed_seen[7][0]&&!distributed_viewers[7][0]&&
+              distributed_seen[8][0]&&distributed_viewers[8][0],"handoff reused stale PVS or reset another client");
         CHECK(bsp_announcement_targeted==4&&bsp_announcement_broadcast==1&&
               bsp_machine_announcements[0].structure_bsp_index==destination,"crossing was not sent only to its client");
 
+        CHECK(distributed_player_in_replication_bsp(destination,bsp_player_regions[0],TRUE)&&
+              !distributed_player_in_replication_bsp(destination,bsp_player_regions[1],TRUE)&&
+              !distributed_player_in_replication_bsp(NONE,NONE,TRUE)&&
+              distributed_player_in_replication_bsp(destination,NONE,FALSE),
+              "replication admitted a foreign pose or suppressed non-spatial player state");
         distributed_handle_structure_bsp(90,&targeted);
         CHECK(distributed_host_structure_bsp_index==destination,"client rejected its negotiated handoff");
         distributed_handle_structure_bsp(91,&shared);

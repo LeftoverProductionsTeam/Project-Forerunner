@@ -43,7 +43,7 @@ boolean structure_bsp_port_verify(
 }
 
 unsigned long *structure_bsp_get_cluster_pvs(
-	struct structure_bsp *structure_bsp,
+	struct structure_bsp const *structure_bsp,
 	short cluster_index)
 {
 	match_assert("c:\\halo\\SOURCE\\structures\\structure_bsp_definitions.c", 36, cluster_index>=0 && cluster_index<structure_bsp->clusters.count);

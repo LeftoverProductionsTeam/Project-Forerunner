@@ -158,7 +158,8 @@ def generated(fault=None):
                              'distributed_handle_actor_states', 'distributed_handle_bsp_world_snapshot',
                              'distributed_handle_structure_bsp', 'distributed_handle_unit_states',
                              'distributed_combat_sample_matches_bsp', 'distributed_hit_report_matches_structure_bsp',
-                             'distributed_send_independent_structure_bsp', 'distributed_send_structure_bsp'))),
+                             'distributed_player_in_replication_bsp', 'distributed_send_independent_structure_bsp',
+                             'distributed_send_structure_bsp'))),
         ('bsp_damage_history.inc', '\n'.join(structure(damage, name) for name in (
             'damage_sight', 'damage_history_tick', 'damage_trail_point')) + '\n' +
          'static struct damage_history_tick damage_history[TARGET_HISTORY_TICKS];\n' +
