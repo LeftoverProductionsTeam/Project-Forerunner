@@ -447,6 +447,20 @@ static struct
 	/* (the host's checkpoint epoch then: network_distributed_epoch) */
 	unsigned int epoch;
 } objects_host_machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+
+/* A regional client can enter, leave and revisit the same host object. */
+struct regional_object_replica
+{
+	long index;
+	short team;
+};
+static struct
+{
+	long count;
+	short structure_bsp_index;
+	boolean refresh;
+	struct regional_object_replica objects[MAXIMUM_TRACKED_OBJECTS];
+} objects_host_regional[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 /* ... each client's player's latest vehicle prediction, taken at the next
 tick; the vehicle it last took (NONE: none), at which of the client's ticks
 and its own, and where that left the host's copy; and the anchor
@@ -1350,7 +1364,7 @@ static void distributed_change_from_object(
 /* The objects made/deleted or given a new allegiance, to every client. The
    existing reliable description already carries the native team. */
 static void distributed_host_update_objects(
-	void)
+	boolean broadcast)
 {
 	static boolean seen[MAXIMUM_TRACKED_OBJECTS];
 	struct distributed_object_change_message message;
@@ -1372,7 +1386,7 @@ static void distributed_host_update_objects(
 			objects_host_told_team[absolute_index] == object_get(iterator.index)->object.owner_team_index)
 			continue;
 		/* (another object in the same place: that one is gone) */
-		if (objects_host_told[absolute_index] != NONE && objects_host_told[absolute_index] != iterator.index)
+		if (broadcast && objects_host_told[absolute_index] != NONE && objects_host_told[absolute_index] != iterator.index)
 		{
 			csmemset(&message.changes[count], 0, sizeof(message.changes[count]));
 			message.changes[count].change = _object_change_delete;
@@ -1390,6 +1404,8 @@ static void distributed_host_update_objects(
 		objects_host_told_team[absolute_index] = object_get(iterator.index)->object.owner_team_index;
 		if (absolute_index >= objects_host_told_count)
 			objects_host_told_count = absolute_index + 1;
+		if (!broadcast)
+			continue;
 		objects_statistics.creates++;
 		distributed_change_from_object(iterator.index, &message.changes[count]);
 		if (++count == limit)
@@ -1409,6 +1425,8 @@ static void distributed_host_update_objects(
 		message.changes[count].object_index = objects_host_told[absolute_index];
 		objects_host_told[absolute_index] = NONE;
 		objects_host_told_team[absolute_index] = NONE;
+		if (!broadcast)
+			continue;
 		objects_statistics.deletes++;
 		if (++count == limit)
 		{
@@ -1439,6 +1457,88 @@ enum
 };
 
 static void distributed_host_send_inventories_to_machine(long machine_index);
+
+static void distributed_flush_regional_changes(long machine, struct distributed_object_change_message *message,
+	short *count)
+{
+	if (*count)
+		distributed_send_to_machine_reliably(machine, message, _distributed_message_object_changes, *count,
+			(word)(sizeof(message->header) + *count * sizeof(message->changes[0])));
+	*count = 0;
+}
+
+static void distributed_host_send_regional_objects(void)
+{
+	static short regions[MAXIMUM_TRACKED_OBJECTS];
+	long machines[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+	short machine_count = distributed_client_machines(machines, NUMBEROF(machines));
+	short limit = MIN(MAXIMUM_ENTRIES_PER_MESSAGE, RELIABLE_ENTRIES(struct distributed_object_change));
+	short machine_number;
+	long slot;
+
+	for (slot = 0; slot < objects_host_told_count; slot++)
+		regions[slot] = objects_host_told[slot] == NONE ? NONE : object_get_regional_bsp(objects_host_told[slot]);
+
+	for (machine_number = 0; machine_number < machine_count; machine_number++)
+	{
+		long machine = machines[machine_number];
+		struct distributed_object_change_message message;
+		struct regional_object_replica *replicas = objects_host_regional[machine].objects;
+		long previous_count = objects_host_regional[machine].count;
+		boolean refresh = objects_host_regional[machine].refresh;
+		short structure_bsp_index = distributed_machine_replication_bsp(machine);
+		short count = 0;
+
+		if (objects_host_machines[machine].time == NONE || !distributed_machine_replication_bsp_acknowledged(machine))
+			continue;
+
+		/* Send all removals before creating an object that reuses any freed slot. */
+		for (slot = 0; slot < previous_count; slot++)
+		{
+			struct distributed_object_change *change;
+			if (replicas[slot].index == NONE ||
+				(replicas[slot].index == objects_host_told[slot] &&
+				 distributed_machine_replication_bsp_matches(machine, regions[slot])))
+				continue;
+			change = &message.changes[count++];
+			csmemset(change, 0, sizeof(*change));
+			change->change = _object_change_delete;
+			change->object_index = replicas[slot].index;
+			replicas[slot].index = NONE;
+			objects_statistics.deletes++;
+			if (count == limit)
+				distributed_flush_regional_changes(machine, &message, &count);
+		}
+		distributed_flush_regional_changes(machine, &message, &count);
+		for (slot = 0; slot < objects_host_told_count; slot++)
+		{
+			long index = objects_host_told[slot];
+			short team = objects_host_told_team[slot];
+			if (slot >= previous_count)
+				replicas[slot].index = NONE;
+			if (!distributed_machine_replication_bsp_matches(machine, regions[slot]) ||
+				(!refresh && replicas[slot].index == index && replicas[slot].team == team))
+				continue;
+			distributed_change_from_object(index, &message.changes[count++]);
+			replicas[slot].index = index;
+			replicas[slot].team = team;
+			objects_statistics.creates++;
+			if (count == limit)
+				distributed_flush_regional_changes(machine, &message, &count);
+		}
+		distributed_flush_regional_changes(machine, &message, &count);
+		objects_host_regional[machine].count = objects_host_told_count;
+		if (refresh || objects_host_regional[machine].structure_bsp_index != structure_bsp_index)
+			distributed_host_send_inventories_to_machine(machine);
+		objects_host_regional[machine].structure_bsp_index = structure_bsp_index;
+		if (refresh)
+		{
+			distributed_send_to_machine_reliably(machine, &message, _distributed_message_objects_synchronized, 0,
+				(word)sizeof(message.header));
+			objects_host_regional[machine].refresh = FALSE;
+		}
+	}
+}
 
 static short distributed_object_send_rank(
 	long object_index)
@@ -1480,6 +1580,13 @@ void network_objects_client_asked(
 			sizeof(objects_host_machines[machine_index].player_indices)) != 0,
 		objects_host_machines[machine_index].epoch, network_distributed_epoch()))
 	{
+		if (network_regional_independent_bsp_ready())
+		{
+			if (csmemcmp(objects_host_machines[machine_index].player_indices, player_list,
+					sizeof(objects_host_machines[machine_index].player_indices)) != 0)
+				objects_host_regional[machine_index].count = 0;
+			objects_host_regional[machine_index].refresh = TRUE;
+		}
 		objects_host_machines[machine_index].time = game_time_get();
 		objects_host_machines[machine_index].epoch = network_distributed_epoch();
 		error(_error_log, "network: the host's objects (a full snapshot) to machine %ld, epoch %u", machine_index,
@@ -1489,15 +1596,19 @@ void network_objects_client_asked(
 	}
 	else
 	{
+		if (network_regional_independent_bsp_ready() && objects_host_regional[machine_index].refresh)
+			return;
 		distributed_send_to_machine_reliably(machine_index, &message, _distributed_message_objects_synchronized, 0,
 			(word)sizeof(message.header));
 		return;
 	}
+	if (network_regional_independent_bsp_ready())
+		return;
 #ifdef HALO_GAME_BROWSER
 	/* (Delta Peer's object sync: every unit's vitals first) */
 	delta_host_vitals_pass(machine_index);
 #endif
-	distributed_host_update_objects();
+	distributed_host_update_objects(TRUE);
 	for (absolute_index = 0; absolute_index < objects_host_told_count; absolute_index++)
 	{
 		/* (what every unit carries, with the next of them) */
@@ -1778,6 +1889,7 @@ static union
 		struct distributed_inventory inventories[MAXIMUM_TRACKED_OBJECTS];
 		byte kinds[MAXIMUM_TRACKED_OBJECTS];
 		real_point3d origins[MAXIMUM_TRACKED_OBJECTS];
+		short regions[MAXIMUM_TRACKED_OBJECTS];
 	} inventories;
 } host_send_lists;
 
@@ -1976,7 +2088,9 @@ static void distributed_host_send_inventories_to_machine(long machine_index)
 		struct unit_datum *unit = object_index != NONE ?
 			(struct unit_datum *)object_try_and_get_and_verify_type(object_index, _object_mask_unit) : NULL;
 
-		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
+			(network_regional_independent_bsp_ready() && !distributed_machine_replication_bsp_matches(
+				machine_index, object_get_regional_bsp(object_index))))
 			continue;
 		distributed_inventory_from_unit(object_index, &message.inventories[count]);
 		if (++count == limit)
@@ -2031,6 +2145,8 @@ static void distributed_host_send_inventories(
 	struct distributed_inventory *inventories = host_send_lists.inventories.inventories;
 	byte *kinds = host_send_lists.inventories.kinds;
 	real_point3d *origins = host_send_lists.inventories.origins;
+	short *regions = host_send_lists.inventories.regions;
+	boolean independent = network_regional_independent_bsp_ready();
 	struct distributed_inventory_message message;
 	short limit = MIN(MAXIMUM_ENTRIES_PER_MESSAGE, DATAGRAM_ENTRIES(struct distributed_inventory));
 	long inventory_count = 0;
@@ -2101,6 +2217,8 @@ static void distributed_host_send_inventories(
 		objects_host_inventories[absolute_index].weapons_checksum = weapons_checksum;
 		kinds[inventory_count] = kind;
 		object_get_origin(iterator.index, &origins[inventory_count]);
+		if (independent)
+			regions[inventory_count] = object_get_regional_bsp(iterator.index);
 		inventory_count++;
 	}
 	for (machine_number = 0; machine_number < objects_host_viewers.count; machine_number++)
@@ -2111,6 +2229,8 @@ static void distributed_host_send_inventories(
 
 		for (index = 0; index < inventory_count; index++)
 		{
+			if (independent && !distributed_machine_replication_bsp_matches(machine_index, regions[index]))
+				continue;
 			if (kinds[index] != _host_inventory_to_all)
 			{
 				long absolute_index = DATUM_INDEX_TO_ABSOLUTE_INDEX(inventories[index].unit_index);
@@ -3278,7 +3398,12 @@ void network_objects_host_tick(
 	/* (Delta Peer's object sync, before this tick's deletes) */
 	delta_host_objects();
 #endif
-	profile_scope(objects_host_tick_update_objects_section, distributed_host_update_objects();)
+	profile_scope(objects_host_tick_update_objects_section,
+		boolean independent = network_regional_independent_bsp_ready();
+		distributed_host_update_objects(!independent);
+		if (independent)
+			distributed_host_send_regional_objects();
+	)
 	profile_scope(objects_host_tick_find_viewers_section, distributed_host_find_viewers();)
 	profile_scope(objects_host_tick_send_states_section, distributed_host_send_states();)
 	if (game_time_get() % INVENTORY_INTERVAL_TICKS == 0)
@@ -3740,7 +3865,7 @@ void network_objects_handle_changes(
 			objects_client_has[absolute_index] == change->object_index)
 		{
 #ifdef HALO_GAME_BROWSER
-			if (delta_client_defer_delete(change->object_index))
+			if (!network_regional_independent_bsp_ready() && delta_client_defer_delete(change->object_index))
 				continue;
 #endif
 			objects_statistics.deletes++;
@@ -5387,7 +5512,12 @@ void network_objects_new_game(
 	}
 	objects_host_told_count = 0;
 	for (machine_index = 0; machine_index < HALO_PORT_MAXIMUM_NETWORK_MACHINES; machine_index++)
+	{
 		objects_host_machines[machine_index].time = NONE;
+		objects_host_regional[machine_index].count = 0;
+		objects_host_regional[machine_index].refresh = FALSE;
+		objects_host_regional[machine_index].structure_bsp_index = NONE;
+	}
 	objects_client_local_allocation = FALSE;
 	objects_client_creating_index = NONE;
 	objects_client_creating = FALSE;

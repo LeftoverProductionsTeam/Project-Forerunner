@@ -809,8 +809,42 @@ static void network_coop_handle_device_states(void const *entries,short count)
     received_scene_types|=4;
 }
 
-enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably};
+enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably,
+      _distributed_message_object_changes, _distributed_message_objects_synchronized};
+enum {_object_change_delete=1, _object_change_create=2, MAXIMUM_ENTRIES_PER_MESSAGE=4};
+#define RELIABLE_ENTRIES(type) 4
+struct distributed_object_change {long object_index; short change;};
 struct distributed_message_header {long game_time;};
+struct distributed_object_change_message
+{
+    struct distributed_message_header header;
+    struct distributed_object_change changes[MAXIMUM_ENTRIES_PER_MESSAGE];
+};
+static long objects_host_told[MAXIMUM_TRACKED_OBJECTS];
+static short objects_host_told_team[MAXIMUM_TRACKED_OBJECTS];
+static long objects_host_told_count;
+struct regional_object_replica {long index; short team;};
+static struct
+{
+    long count;
+    short structure_bsp_index;
+    boolean refresh;
+    struct regional_object_replica objects[MAXIMUM_TRACKED_OBJECTS];
+} objects_host_regional[9];
+static struct {long time;} objects_host_machines[9];
+static struct {long creates,deletes;} objects_statistics;
+static struct distributed_object_change checked_changes[2][8];
+static short checked_change_count[2], checked_inventories[2], checked_sync[2];
+static boolean bsp_acknowledged[2]={TRUE,TRUE};
+static void distributed_host_send_inventories_to_machine(long machine)
+{
+    CHECK(checked_change_count[machine-7]>0,"inventory preceded object creation");
+    checked_inventories[machine-7]++;
+}
+static void distributed_change_from_object(long index, struct distributed_object_change *change)
+{
+    *change=(struct distributed_object_change){index,_object_change_create};
+}
 static short distributed_sent_structure_bsp_index=NONE;
 enum { HALO_PORT_MAXIMUM_NETWORK_MACHINES = 9 };
 static boolean independent_bsp_room;
@@ -850,6 +884,23 @@ static boolean network_coop_player_has_structure_bsp(long player);
 static boolean check_report_region;
 static void distributed_send_to_machine_reliably(long machine,void const *message,byte type,word count,word size)
 {
+    if (type==_distributed_message_object_changes)
+    {
+        struct distributed_object_change_message const *batch=message;
+        CHECK(machine==7||machine==8,"invalid object recipient");
+        for(short index=0;index<count;index++)
+        {
+            CHECK(checked_change_count[machine-7]<8,"excess object changes");
+            checked_changes[machine-7][checked_change_count[machine-7]++]=batch->changes[index];
+        }
+        return;
+    }
+    if (type==_distributed_message_objects_synchronized)
+    {
+        CHECK(checked_inventories[machine-7]>0,"completion preceded inventory");
+        checked_sync[machine-7]++;
+        return;
+    }
     CHECK((machine==7||machine==8)&&message&&type==_distributed_message_structure_bsp&&count==1&&size,
           "invalid targeted BSP message");
     memcpy(&bsp_machine_announcements[machine-7], (byte const *)message + sizeof(struct distributed_message_header),
@@ -870,6 +921,7 @@ static void distributed_send(void *message, byte type, word count, word size, in
 
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
+#include "bsp_object_lifecycle.inc"
 #undef DATUM_INDEX_NEW
 #include "bsp_damage_history.inc"
 
@@ -908,7 +960,7 @@ static long vote_waiting_player;
 static boolean network_coop_player_has_structure_bsp(long player)
 {
     if (!check_report_region)
-        return TRUE;
+        return bsp_acknowledged[player==players[1]];
     CHECK(player==players[0],"hit report lost the current player identity");
     return host_player_structure_bsps[0]==global_structure_bsp_index;
 }
@@ -2848,6 +2900,48 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"independent-object-lifetimes"))
+    {
+        bsp_machine_players[0][0]=players[0];
+        bsp_machine_players[1][0]=players[1];
+        bsp_machine_players[0][1]=bsp_machine_players[1][1]=NONE;
+        distributed_machine_sent_bsp[7]=bsp_player_regions[0]=old;
+        distributed_machine_sent_bsp[8]=bsp_player_regions[1]=destination;
+        objects_host_machines[7].time=objects_host_machines[8].time=1;
+        objects_host_regional[7].refresh=objects_host_regional[8].refresh=TRUE;
+        regional_test_root=objects_host_told[0]=units[2];
+        regional_test_other_root=objects_host_told[1]=units[3];
+        regional_test_root_bsp=old;
+        regional_test_other_root_bsp=destination;
+        objects_host_told_count=2;
+        bsp_acknowledged[1]=FALSE;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[0]==1&&checked_changes[0][0].object_index==units[2]&&
+              checked_sync[0]==1&&!checked_change_count[1]&&!checked_sync[1],
+              "wrong initial region or object replication before acknowledgment");
+
+        bsp_acknowledged[1]=TRUE;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[1]==1&&checked_changes[1][0].object_index==units[3]&&checked_sync[1]==1,
+              "late client did not receive its regional snapshot after acknowledgment");
+        distributed_machine_sent_bsp[7]=bsp_player_regions[0]=destination;
+        bsp_acknowledged[0]=FALSE;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[0]==1,"handoff changed object lifetimes before acknowledgment");
+
+        bsp_acknowledged[0]=TRUE;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[0]==3&&checked_change_count[1]==1&&checked_inventories[0]==2&&
+              checked_changes[0][1].change==_object_change_delete&&checked_changes[0][1].object_index==units[2]&&
+              checked_changes[0][2].change==_object_change_create&&checked_changes[0][2].object_index==units[3],
+              "handoff did not withdraw old objects before delivering the new region");
+        distributed_machine_sent_bsp[7]=bsp_player_regions[0]=old;
+        distributed_host_send_regional_objects();
+        CHECK(checked_change_count[0]==5&&checked_changes[0][4].object_index==units[2]&&
+              checked_changes[0][4].change==_object_change_create&&checked_change_count[1]==1,
+              "old region did not recreate the same authoritative object on return");
         return 0;
     }
     if(!strcmp(name,"independent-bsp-delivery"))

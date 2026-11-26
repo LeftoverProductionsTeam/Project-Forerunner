@@ -4705,10 +4705,37 @@ dead watches from where they last were alive. Decided before the damage is
 sent (network_damage.c), which goes where the players it hurt do; sent
 after it (distributed_host_send_players). */
 /* The last reliable assignment is the only region this machine can interpret. */
+short distributed_machine_replication_bsp(long machine_index)
+{
+	return VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES) ?
+		distributed_machine_sent_bsp[machine_index] : NONE;
+}
+
 boolean distributed_machine_replication_bsp_matches(long machine_index, short object_bsp)
 {
-	return object_bsp != NONE && VALID_INDEX(machine_index, HALO_PORT_MAXIMUM_NETWORK_MACHINES) &&
-		distributed_machine_sent_bsp[machine_index] == object_bsp;
+	return object_bsp != NONE && distributed_machine_replication_bsp(machine_index) == object_bsp;
+}
+
+boolean distributed_machine_replication_bsp_acknowledged(long machine_index)
+{
+	long *players;
+	short slot;
+	boolean acknowledged = FALSE;
+
+	if (distributed_machine_replication_bsp(machine_index) == NONE)
+		return FALSE;
+	players = machine_get_player_list(machine_index);
+	for (slot = 0; slot < MAXIMUM_LOCAL_PLAYERS; slot++)
+	{
+		if (players[slot] == NONE || !player_try_and_get(players[slot]))
+			continue;
+		if (!distributed_machine_replication_bsp_matches(machine_index,
+				network_coop_player_authoritative_bsp(players[slot])) ||
+			!network_coop_player_has_structure_bsp(players[slot]))
+			return FALSE;
+		acknowledged = TRUE;
+	}
+	return acknowledged;
 }
 
 static void distributed_host_plan_players(
@@ -4804,7 +4831,7 @@ static void distributed_host_plan_players(
 	{
 		long machine_index = machine_indices[machine_number];
 		long *player_list = machine_get_player_list(machine_index);
-		short recipient_bsp = independent ? distributed_machine_sent_bsp[machine_index] : foreground_bsp;
+		short recipient_bsp = independent ? distributed_machine_replication_bsp(machine_index) : foreground_bsp;
 		struct structure_bsp const *structure_bsp = recipient_bsp == foreground_bsp ? foreground :
 			scenario_structure_bsp_preview(recipient_bsp, FALSE);
 		short cluster_count = structure_bsp ? (short)structure_bsp->clusters.count : 0;
@@ -8243,7 +8270,8 @@ static void distributed_handle_message(
 		break;
 	}
 	case _distributed_message_inventories:
-		network_objects_handle_inventories(entries, header.count);
+		if (!network_regional_independent_bsp_ready() || distributed_can_apply_bsp_snapshot(header.game_time))
+			network_objects_handle_inventories(entries, header.count);
 		break;
 	case _distributed_message_mcc_grenades:
 		mcc_network_handle_inventories(entries, header.count);
