@@ -1518,7 +1518,8 @@ static void physics_compute_unit_collisions(
 		return;
 
 	vehicle = vehicle_get(vehicle_index);
-	object_count = objects_in_sphere(
+	object_count = objects_in_bsp_sphere(
+		object_get_regional_bsp(vehicle_index),
 		_object_mask_biped,
 		_object_mask_vehicle + (model_instance_valid ? _object_mask_biped : 0),
 		&vehicle->object.location,

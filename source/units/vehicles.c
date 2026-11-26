@@ -1738,6 +1738,8 @@ static boolean update_suspension(
 			if (animation)
 			{
 
+				short bsp = object_get_regional_bsp(vehicle_index);
+
 				physics = physics_definition_get(definition->unit.object.physics.index);
 
 				maximum_shift = 0.0f;
@@ -1810,7 +1812,7 @@ static boolean update_suspension(
 
 						scale_vector3d(&normal, extent+extent, &vector);
 
-						collision_test_vector(0xc0a0, &start, &vector, vehicle_index, &collision);
+						collision_test_bsp_vector(bsp, 0xc0a0, &start, &vector, vehicle_index, &collision);
 
 						shift = PIN((1.0f-collision.t)+(1.0f-collision.t), 0.0f, 1.0f);
 
