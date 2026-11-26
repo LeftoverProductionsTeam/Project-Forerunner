@@ -124,6 +124,7 @@ symbols in this file:
 #include "items/projectiles.h"
 #include "main/console.h"
 #include "math/periodic_functions.h"
+#include "networking/network_game_globals.h"
 #include "damage_effect_definitions.h"
 #include "object_definitions.h"
 #include "object_types.h"
@@ -149,8 +150,6 @@ symbols in this file:
 #include "stubbs_mode.h" /* port: port/linux/game/stubbs_mode.c */
 #include "stubbs_functions.h" /* port: port/linux/game/stubbs_functions.c */
 
-/* network_game_globals.c's */
-boolean network_game_distributed_client(void);
 /* port/linux/game/network_damage.c's */
 boolean network_damage_deals(struct damage_data const *damage, long object_index, short node_index,
 	short region_index, short material_index, real_vector3d const *object_normal, boolean authorized);
@@ -1283,11 +1282,12 @@ static void object_damage_body(
 		damage_material_type_error(damage_material->material_type);
 	}
 
-	/* Apply healing on the authority within the same range peers receive.
-	 * Keep existing overheal if a script supplied it before this hit. */
+	/* Keep authored healing in local-only play. Shared games use the
+	 * existing wire range and preserve overheal already supplied by a script. */
 	network_biped_healing = actual_damage < 0.f && object->object.type == _object_type_biped &&
 		(game_connection() == _game_connection_network_server || network_game_distributed_client());
-	if (network_biped_healing)
+	if (network_biped_healing &&
+		!(game_connection() == _game_connection_network_server && network_game_port_hosting_local()))
 	{
 		real limit = distributed_vitality_unpack((word)~0u);
 		real headroom = MAX(0.f, limit - object->object.body_vitality);

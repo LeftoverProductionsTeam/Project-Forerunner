@@ -11,6 +11,36 @@ map and user configuration passed exact checksum readback after promotion.
 The experimental camera inside Extraction exposed a clipped spawn view in an
 isolated trial and is outside this release.
 
+## Original Zombie Apocalypse native checks
+
+Windows Latest `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
+loaded installed MCC13 `12649191` and Spark's collider candidate `05a4268a`
+through the ordinary Survival menu. The map-authored vehicle preset placed
+both Undead Demolishers in both runs, with their attached turrets. The
+world pickup at (40.17, -75.32, 0.11) was the exact authored custom weapon.
+Isolated checks of the existing weapon-selection code preserved the stock
+Xbox fallback and explicit weapon-set remaps. Normal Slayer defaults and
+the authored placement flags retain their prior values.
+
+Both maps showed living seated Evolved actors. The opening sample through
+tick 3600 did not capture an Alpha or Evolved live transition from seat
+to foot. Spark's separate `7a0672ff` Hiding Marine diagnostic removed
+the Marine from its spawn, and the separate Play Solo run saw Standard
+riders leave through the native path. The installed-map and collider runs
+used LAN, so this does not establish the effect of the Marine on release.
+The diagnostic's 30-second mixer captured the map music, Slayer and nearby
+effects. Normal input collected and threw an authored grenade. These
+checks do not establish original flame appearance or the complete audio mix.
+
+A private Windows candidate
+`b8430b21deedf845451022ff70114661cfb38cf6e1412e4648cef762e0bb74a6`
+lets local-only games apply native tag-authored healing without the
+multiplayer wire cap. Focused checks covered local and shared healing,
+and Play Solo booted the exact installed map through normal menus. The
+grenade throw did not produce a sampled heal on the thrower. A positive
+in-game heal, original Demo gameplay comparison and full original match
+remain open. Latest and Previous were preserved.
+
 ## V2.1 private Forge and ragdoll candidate
 
 The Win64 candidate `1df2ab6ce735d49eaf82aaad744582dcfe890f42fad1e446e10ed7e8b9a7071e`
