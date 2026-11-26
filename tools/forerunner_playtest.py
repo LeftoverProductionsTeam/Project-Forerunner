@@ -94,12 +94,17 @@ def close_playtest(root, current):
 
 
 def promote(root, stage, pins):
-    current = root / "build" / "windows-playtest-current"
+    build = root / "build"
+    latest = root / "Latest"
     previous = root / "Previous"
-    if not current.is_dir() or linked_path(current) or (root / "Latest").resolve() != current:
-        raise ValueError("Latest must point to the managed Windows playtest")
+    # Older checkouts use a junction to the original managed directory.
+    current = latest.resolve()
+    if current not in (latest, build / "windows-playtest-current") or not current.is_dir():
+        raise ValueError("Latest must be the managed Windows playtest")
+    if linked_path(build) or linked_path(current):
+        raise ValueError("Build and the managed playtest must be physical directories")
     stage = stage.absolute()
-    if stage.parent.resolve() != current.parent or linked_path(stage):
+    if stage.parent.resolve() != build or linked_path(stage):
         raise ValueError("Use a fresh disposable stage directly under build")
     if stage.resolve() == current or "halo.exe" not in pins:
         raise ValueError("Pin the staged executable")
@@ -125,7 +130,7 @@ def promote(root, stage, pins):
             ):
                 raise ValueError(f"Spark receipt does not match the map: {name}")
 
-    temporary = current.parent / "playtest-promotion"
+    temporary = build / "playtest-promotion"
     temporary.mkdir()
     replacement = temporary / "replacement"
     rollback = temporary / "rollback"
@@ -174,7 +179,7 @@ def promote(root, stage, pins):
             raise RuntimeError(f"Restore the interrupted promotion from {temporary}") from restore_error
         raise
     finally:
-        if recoverable and temporary.resolve().parent == current.parent and not linked_path(temporary):
+        if recoverable and temporary.resolve().parent == build and not linked_path(temporary):
             shutil.rmtree(temporary)
     print(root / "Latest" / "halo.exe")
 
