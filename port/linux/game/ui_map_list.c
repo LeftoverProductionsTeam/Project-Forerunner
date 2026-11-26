@@ -76,6 +76,7 @@ is fetched (its page shows the pictures itself: online_client.js).
 
 #ifdef HALO_SPARK_MODE_RECEIPTS
 #include "../src/server_json.h"
+#include "mcc_cache_format.h"
 #include "mcc_sha256.h"
 #endif
 
@@ -547,7 +548,13 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 	for (index = 0; (token = server_json_element(json, native, index)) >= 0; index++)
 	{
 		size_t feature = 0;
-		if (!extraction || !server_json_get_string(json, token, value, sizeof(value)))
+		if (!server_json_get_string(json, token, value, sizeof(value)))
+			return L"Unsupported Spark\r\nnative requirement";
+#if HALO_MCC && defined(HALO_64BIT)
+		if (version == MCC_CACHE_VERSION && !strcmp(value, MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE))
+			continue;
+#endif
+		if (!extraction)
 			return L"Unsupported Spark\r\nnative requirement";
 		while (feature < NUMBEROF(features) && strcmp(features[feature], value))
 			feature++;

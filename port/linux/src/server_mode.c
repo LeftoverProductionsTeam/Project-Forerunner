@@ -224,7 +224,7 @@ static void print_spark_capabilities(void)
 	server_json_string(&json, NULL, "character.biped_hands.v1");
 	server_json_string(&json, NULL, "forge.hmv_base_placements.v1");
 #if HALO_MCC && defined(HALO_64BIT)
-	server_json_string(&json, NULL, "maps.mcc13_tag_space_64m.v1");
+	server_json_string(&json, NULL, MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE);
 #endif
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 	server_json_string(&json, NULL, "forge.hmv_local_devices.v1");
@@ -254,7 +254,7 @@ static void print_spark_capabilities(void)
 	server_json_integer(&json, "max_netgame_equipment", MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM);
 	server_json_integer(&json, "max_netgame_flags", MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM);
 	server_json_string(&json, "invader_engine", "mcc-cea");
-	server_json_string(&json, "required_feature", "maps.mcc13_tag_space_64m.v1");
+	server_json_string(&json, "required_feature", MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE);
 	server_json_boolean(&json, "default", FALSE);
 	server_json_object_end(&json);
 #endif
