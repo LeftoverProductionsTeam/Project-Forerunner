@@ -442,18 +442,8 @@ static boolean actor_state_apply(
 
 	if (!distributed_object_index_valid(state->unit_index) || !network_objects_client_has(state->unit_index))
 		return FALSE;
-	/* (a body the host's unit got back up from: a Flood combat form that
-	feigned death, which it does only once its body is at rest. Left dead,
-	the ragdoll was dragged about by the host's positions. The host sends
-	only living units.) */
-	if (object_try_and_get_and_verify_type(state->unit_index, _object_mask_unit) &&
-		TEST_FLAG(unit_get(state->unit_index)->object.damage_flags, _object_dead_bit) &&
-		TEST_FLAG(unit_get(state->unit_index)->object.flags, _object_at_rest_bit) &&
-		unit_get(state->unit_index)->unit.player_index == NONE && state->body_vitality > 0)
-	{
-		unit_port_resurrect(state->unit_index);
-	}
-	if (!actor_unit_valid(state->unit_index) ||
+	unit = (struct unit_datum *)object_try_and_get_and_verify_type(state->unit_index, _object_mask_unit);
+	if (!unit || unit->unit.player_index != NONE ||
 		state->animation_state >= NUMBER_OF_UNIT_ANIMATION_STATES ||
 		state->aiming_speed >= NUMBER_OF_UNIT_AIMING_SPEEDS ||
 		!VALID_FLAGS(state->control_flags, NUMBER_OF_UNIT_CONTROL_FLAGS) ||
@@ -470,6 +460,16 @@ static boolean actor_state_apply(
 	distributed_vector_unpack(&state->up, DISTRIBUTED_UNIT_SCALE, &up);
 	if (!distributed_axes_make_valid(&forward, &up))
 		return FALSE;
+	if (TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+	{
+		/* A host feign snapshot leaves positive vitality on the dead copy.
+		 * A later living actor snapshot owns the get-up even if local corpse
+		 * physics never went to rest. Older peers can still use the rest path. */
+		if (!state->body_vitality || (unit->object.body_vitality <= 0.f &&
+			!TEST_FLAG(unit->object.flags, _object_at_rest_bit)))
+			return FALSE;
+		unit_port_resurrect(state->unit_index);
+	}
 	actor = client_actor_for(state->unit_index);
 	if (!actor)
 		return TRUE;
