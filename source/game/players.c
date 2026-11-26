@@ -357,17 +357,6 @@ typedef char player_data_maximum_count_assert[
 
 /* ---------- structures */
 
-/* These scenario records are consumed only by Players.  The broader scenario
-   header intentionally cannot own them yet: older consumers still carry their
-   own incompatible partial definitions. */
-struct scenario_bsp_switch_trigger_volume
-{
-	short trigger_volume_index;
-	short source_structure_bsp_index;
-	short destination_structure_bsp_index;
-	short cutscene_flag_index;
-};
-
 struct unit_control_data
 {
 	char animation_state;

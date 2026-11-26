@@ -30,7 +30,7 @@ enum {_game_connection_local=0, _game_connection_network_server=2};
 enum {_collision_test_front_facing_surfaces_bit, _collision_test_ignore_invisible_surfaces_bit,
       _collision_test_structure_bit, _collision_test_objects_scenery_bit,
       _collision_test_back_facing_surfaces_bit, _collision_test_ignore_two_sided_surfaces_bit,
-      _collision_test_ignore_breakable_surfaces_bit};
+      _collision_test_ignore_breakable_surfaces_bit,_collision_test_objects_bit,_collision_test_media_bit};
 
 struct tag_block {long count;void *elements;};
 static void *element(struct tag_block const *block,long index,size_t size)
@@ -47,7 +47,7 @@ struct scenario_structure_bsp_reference {
     long file_offset,file_size;
 };
 struct scenario {
-    struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags,netgame_equipment;
+    struct tag_block bsp_switch_trigger_volumes,cutscene_flags,structure_bsp_references,netgame_flags,netgame_equipment,trigger_volumes;
     short type;
 };
 struct player_starting_location {real_point3d position;short structure_bsp_reference_index;};
@@ -721,7 +721,7 @@ static void collision_log_usage(int function) {}
 #define collision_log_start_time(state) ((void)(state))
 #define collision_log_end_time(function, elapsed) ((void)(elapsed))
 struct collision_bsp_test_vector_result {int unused;};
-struct collision_result {int unused;};
+struct collision_result {short type,bsp_index;real t;real_point3d point;};
 static boolean debug_collision_skip_vectors;
 static int terrain_traces, legacy_traces;
 static boolean collision_bsp_test_vector(unsigned long flags, struct collision_bsp const *bsp,
@@ -746,6 +746,36 @@ static boolean collision_test_line(unsigned long flags,real_point3d const *from,
     return FALSE;
 }
 #include "bsp_terrain.inc"
+
+#define _real_epsilon .00001f
+#define _collision_test_for_projectiles_flags (FLAG(_collision_test_structure_bit)|FLAG(_collision_test_objects_bit)|FLAG(_collision_test_media_bit))
+enum {_scenario_trigger_volume_type_axis_aligned,_scenario_trigger_volume_type_oriented,_collision_result_structure};
+typedef struct {real x0,x1,y0,y1,z0,z1;} real_rectangle3d;
+typedef struct {real_point3d position;real_vector3d forward,up;} real_matrix4x3;
+struct scenario_trigger_volume {short type; real_point3d position; real_vector3d forward,up,extents;real_rectangle3d bounds;};
+static real_vector3d *vector_from_points3d(real_point3d const *a,real_point3d const *b,real_vector3d *out)
+{*out=(real_vector3d){b->x-a->x,b->y-a->y,b->z-a->z};return out;}
+static void matrix4x3_from_point_and_vectors(real_matrix4x3 *m,real_point3d const *p,real_vector3d const *f,real_vector3d const *u)
+{*m=(real_matrix4x3){*p,*f,*u};}
+static void matrix4x3_inverse_transform_point(real_matrix4x3 const *m,real_point3d const *p,real_point3d *out)
+{
+    real_vector3d v;
+    vector_from_points3d(&m->position,p,&v);
+    *out=(real_point3d){v.i*m->forward.i+v.j*m->forward.j,-v.i*m->forward.j+v.j*m->forward.i,v.k};
+}
+static int seam_traces;
+static real seam_impact_t;
+static boolean collision_test_bsp_vector(short bsp,unsigned long flags,real_point3d const *p,
+    real_vector3d const *v,long ignored,struct collision_result *hit)
+{
+    CHECK(bsp!=global_structure_bsp_index_get()&&flags==FLAG(_collision_test_structure_bit),
+          "a foreign trace targeted the active scene, objects or media");
+    seam_traces++;
+    *hit=(struct collision_result){_collision_result_structure,bsp,seam_impact_t,
+        {p->x+v->i*seam_impact_t,p->y+v->j*seam_impact_t,p->z+v->k*seam_impact_t}};
+    return TRUE;
+}
+#include "projectile_seam.inc"
 
 enum {
     _distributed_message_object_states,
@@ -2138,6 +2168,31 @@ int main(int argc,char **argv)
                     CHECK(distributed_report_sight_clear(old,flags,&eye,&target,&target)&&terrain_traces==4&&
                           global_structure_bsp_index==destination&&global_collision_bsp==&collisions[destination],
                           "the retained trace changed the session BSP or read its neighbor's fracture state");
+                    {
+                        struct scenario_trigger_volume seam={
+                            .type=_scenario_trigger_volume_type_oriented,.position={2.5f,-1.f,-1.f},
+                            .forward={0,1,0},.up={0,0,1},.extents={2.f,1.f,2.f}
+                        };
+                        struct collision_result impact={.t=1.f};
+                        const real_point3d outside_upper_level={0,0,3}, upper_end={4,0,3};
+                        scenario.trigger_volumes=(struct tag_block){1,&seam};
+                        switches[0]=(struct scenario_bsp_switch_trigger_volume){0,destination,old,NONE};
+                        scenario.type=_scenario_type_multiplayer;
+                        expected_spatial_tree=(struct bsp3d const *)&collisions[destination];
+                        seam_impact_t=.2f;
+                        CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact)&&seam_traces==1,
+                              "a hit before crossing the authored seam counted");
+                        seam_impact_t=.75f;
+                        CHECK(projectile_trace_resident_seam(destination,&eye,&target,&impact)&&
+                              impact.bsp_index==old&&impact.t==.75f&&seam_traces==2,
+                              "a shot that swept through the rotated seam missed resident terrain");
+                        CHECK(!projectile_trace_resident_seam(destination,&outside_upper_level,&upper_end,&impact)&&seam_traces==2,
+                              "a shot on an overlapping upper level crossed an underground seam");
+                        switches[0].cutscene_flag_index=0;
+                        CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact)&&seam_traces==2,
+                              "a marked teleporter also routed a projectile");
+                        expected_spatial_tree=NULL;
+                    }
                     return 0;
                 }
                 if (fractures)

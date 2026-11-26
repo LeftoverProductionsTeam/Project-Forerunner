@@ -96,7 +96,7 @@ def generated(fault=None):
         ('item_structure_support.inc', '\n'.join(function(read('source/items/items.c'), name)
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_support'))),
         ('bsp_activation.inc', function(read('source/objects/objects.c'), 'objects_update_cluster_activation')),
-        ('switch_type.inc', structure(players, 'scenario_bsp_switch_trigger_volume')),
+        ('switch_type.inc', structure(read('source/scenario/scenario_definitions.h'), 'scenario_bsp_switch_trigger_volume')),
         ('regional_start.inc', '\n'.join(function(players, name) for name in
             ('player_starting_location_in_bsp', 'player_starting_location_in_active_bsp'))),
         ('regional_scenery.inc', function(read('source/objects/object_types.c'), 'object_placement_active_in_bsp')),
@@ -115,6 +115,10 @@ def generated(fault=None):
              'effect_fixed_bsp', 'effect_fixed_bsp_is_current', 'effect_bind_world_bsp'))),
         ('regional_action.inc', function(players, 'player_action_target_in_region')),
         ('regional_trigger.inc', function(read('source/scenario/scenario.c'), 'scenario_trigger_volume_test_object')),
+        ('projectile_seam.inc',
+         function(read('source/math/real_math.c'), 'vector_intersects_rectangle3d') + '\n' +
+         function(read('source/scenario/scenario.c'), 'scenario_trigger_volume_intersects_segment') + '\n' +
+         function(read('source/items/projectiles.c'), 'projectile_trace_resident_seam')),
         ('device_touch.inc', function(read('source/devices/devices.c'), 'device_touched')),
         ('netgame_flags.inc', enum_with(read('source/scenario/scenario_definitions.h'),
              '_netgame_flag_teleporter_source') + '\n' +

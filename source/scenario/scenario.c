@@ -1140,6 +1140,38 @@ boolean scenario_trigger_volume_test_point(
 	}
 }
 
+boolean scenario_trigger_volume_intersects_segment(short index,
+	real_point3d const *from, real_point3d const *to)
+{
+	struct tag_block const *volumes = &global_scenario_get()->trigger_volumes;
+	struct scenario_trigger_volume const *volume;
+	real_vector3d vector;
+
+	if (!VALID_INDEX(index, volumes->count))
+		return FALSE;
+	volume = TAG_BLOCK_GET_ELEMENT(volumes, index, struct scenario_trigger_volume);
+	if (volume->type == _scenario_trigger_volume_type_axis_aligned)
+		return vector_intersects_rectangle3d(from, vector_from_points3d(from, to, &vector), &volume->bounds);
+
+	if (volume->type == _scenario_trigger_volume_type_oriented)
+	{
+		real_matrix4x3 matrix;
+		real_point3d local_from, local_to;
+		real_rectangle3d bounds;
+		bounds.x0 = bounds.y0 = bounds.z0 = 0.f;
+		bounds.x1 = volume->extents.i;
+		bounds.y1 = volume->extents.j;
+		bounds.z1 = volume->extents.k;
+		matrix4x3_from_point_and_vectors(&matrix, &volume->position, &volume->forward, &volume->up);
+		matrix4x3_inverse_transform_point(&matrix, from, &local_from);
+		matrix4x3_inverse_transform_point(&matrix, to, &local_to);
+		return vector_intersects_rectangle3d(&local_from,
+			vector_from_points3d(&local_from, &local_to, &vector), &bounds);
+	}
+
+	return FALSE;
+}
+
 long scenario_fog_region_get_fog_index(
 	short fog_region_index)
 {

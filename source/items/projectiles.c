@@ -137,6 +137,7 @@ symbols in this file:
 #include "physics/collisions.h"
 #include "physics/physics.h"
 #include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "sound/game_sound.h"
 #include "sound/sound_definitions.h"
 #include "units/bipeds.h"
@@ -747,6 +748,7 @@ boolean projectile_update(
 		real_vector3d new_velocity = projectile->object.translational_velocity;
 		real_point3d new_position;
 		struct collision_result collision;
+		boolean foreign_impact = FALSE;
 		boolean moved = FALSE;
 		real gravity_acceleration;
 		real final_speed = speed;
@@ -965,12 +967,20 @@ boolean projectile_update(
 				&new_velocity,
 				time_remaining);
 			collision_count++;
-			ai_handle_spatial_effect(
-				projectile_index,
-				&collision.point,
-				_ai_spatial_effect_weapon_impact,
-				definition->projectile.impact_noise,
-				1);
+			foreign_impact = collision.type == _collision_result_structure &&
+				collision.bsp_index != global_structure_bsp_index_get();
+			if (foreign_impact)
+			{
+				/* Do not pass the foreign leaf to the foreground cluster
+				 * table, or run another movement step in the old scene. */
+				game_engine_set_regional_projectile_bsp(projectile_index, collision.bsp_index);
+				time_remaining = 0.f;
+			}
+			else
+			{
+				ai_handle_spatial_effect(projectile_index, &collision.point,
+					_ai_spatial_effect_weapon_impact, definition->projectile.impact_noise, 1);
+			}
 
 			if (TEST_FLAG(projectile->projectile.flags, _projectile_attached_bit))
 				moved = FALSE;
@@ -995,7 +1005,7 @@ boolean projectile_update(
 			vector_from_points3d(&projectile->object.position, &new_position, &movement);
 			projectile->projectile.odometer += magnitude3d(&movement);
 
-			if (!flyby_sound_played &&
+			if (!foreign_impact && !flyby_sound_played &&
 				definition->projectile.flyby_sound.index != NONE)
 			{
 				short local_player_index;
@@ -1080,7 +1090,7 @@ boolean projectile_update(
 				normalize3d(&projectile->object.up);
 			}
 
-			object_translate(projectile_index, &new_position, &collision.location);
+			object_translate(projectile_index, &new_position, foreign_impact ? NULL : &collision.location);
 			projectile->object.translational_velocity = new_velocity;
 
 			if (time_remaining != 0.0f &&
@@ -1298,6 +1308,54 @@ static void projectile_effect_new(
 	return;
 }
 
+/* Probe only resident terrain along a real, markerless connection. A
+ * nearby or vertically overlapping BSP is not itself a projectile route. */
+static boolean projectile_trace_resident_seam(short source, real_point3d const *from,
+	real_point3d const *to, struct collision_result *collision)
+{
+	struct scenario const *scenario;
+	struct tag_block const *routes;
+	struct structure_bsp const *structure;
+	real_vector3d vector;
+	long index;
+	boolean hit = FALSE;
+
+	if (source == NONE || source != global_structure_bsp_index_get())
+		return FALSE;
+	scenario = global_scenario_try_and_get();
+	if (!scenario || !scenario_uses_regional_gameplay(scenario))
+		return FALSE;
+	routes = &scenario->bsp_switch_trigger_volumes;
+	structure = scenario_structure_bsp_try_and_get(source);
+	if (!routes->count || !structure || scenario_structure_bsp_contains_point(structure, to))
+		return FALSE;
+
+	vector_from_points3d(from, to, &vector);
+	for (index = 0; index < routes->count; ++index)
+	{
+		struct scenario_bsp_switch_trigger_volume const *route =
+			TAG_BLOCK_GET_ELEMENT(routes, index, struct scenario_bsp_switch_trigger_volume);
+		short destination = route->destination_structure_bsp_index;
+		struct collision_result candidate;
+		unsigned long flags = _collision_test_for_projectiles_flags &
+			~(FLAG(_collision_test_objects_bit) | FLAG(_collision_test_media_bit));
+
+		if (route->source_structure_bsp_index != source || destination == source ||
+			route->cutscene_flag_index != NONE || !scenario_structure_bsp_try_and_get(destination) ||
+			!scenario_trigger_volume_intersects_segment(route->trigger_volume_index, from, to))
+			continue;
+
+		if (collision_test_bsp_vector(destination, flags, from, &vector, NONE, &candidate) &&
+			candidate.type == _collision_result_structure && candidate.t < collision->t &&
+			scenario_trigger_volume_intersects_segment(route->trigger_volume_index, from, &candidate.point))
+		{
+			*collision = candidate;
+			hit = TRUE;
+		}
+	}
+	return hit;
+}
+
 static boolean projectile_collision_test_line(
 	long projectile_index,
 	real_point3d const *new_position,
@@ -1315,11 +1373,7 @@ static boolean projectile_collision_test_line(
 	{
 		return TRUE;
 	}
-	else if (definition->projectile.collision_radius < _real_epsilon)
-	{
-		return FALSE;
-	}
-	else
+	if (definition->projectile.collision_radius >= _real_epsilon)
 	{
 		real_vector3d forward;
 		real_vector3d left;
@@ -1354,11 +1408,11 @@ static boolean projectile_collision_test_line(
 		{
 			return TRUE;
 		}
-		else
-		{
-			return FALSE;
-		}
 	}
+
+	return projectile_trace_resident_seam(
+		game_engine_object_recorded_bsp(projectile_index, _object_type_projectile),
+		&projectile->object.position, new_position, collision);
 }
 
 static void projectile_detonate(
@@ -1521,12 +1575,9 @@ static void projectile_detonate(
 			TRUE);
 	}
 
-	ai_handle_spatial_effect(
-		projectile_index,
-		&marker_points[0],
-		_ai_spatial_effect_weapon_detonation,
-		definition->projectile.detonation_noise,
-		1);
+	if (bsp == NONE || bsp == global_structure_bsp_index_get())
+		ai_handle_spatial_effect(projectile_index, &marker_points[0],
+			_ai_spatial_effect_weapon_detonation, definition->projectile.detonation_noise, 1);
 
 	return;
 }

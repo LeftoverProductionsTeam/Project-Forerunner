@@ -156,6 +156,14 @@ struct scenario_structure_bsp_reference
 typedef char scenario_structure_bsp_reference_size_assert[
 	sizeof(struct scenario_structure_bsp_reference) == 0x20 ? 1 : -1];
 
+struct scenario_bsp_switch_trigger_volume
+{
+	short trigger_volume_index;
+	short source_structure_bsp_index;
+	short destination_structure_bsp_index;
+	short cutscene_flag_index;
+};
+
 struct scenario_trigger_volume
 {
 	short type;
