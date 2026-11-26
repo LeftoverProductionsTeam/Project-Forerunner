@@ -2792,6 +2792,20 @@ long actor_place(
 		short initial_state = actor_default_state_none;
 		short default_state = actor_default_state_none;
 
+		/* Multiplayer unit creation leaves unowned units unassigned.
+		 * Native seat actors still need their biped's authored allegiance
+		 * before actor_attach_unit initializes how they see other teams. */
+		if (encounter_index == NONE)
+		{
+			struct biped_datum *biped = biped_try_and_get(unit_index);
+			if (biped && biped->object.owner_team_index == NONE)
+			{
+				short team = unit_definition_get(biped->definition_index)->unit.default_team;
+				if (team > _game_team_default && team < NUMBER_OF_SOLO_CAMPAIGN_TEAMS)
+					biped->object.owner_team_index = team;
+			}
+		}
+
 		actor_customize_unit(actor_variant_definition_index, unit_index);
 
 		if (encounter_index != NONE)
