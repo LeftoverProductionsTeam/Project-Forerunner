@@ -3828,6 +3828,22 @@ void prop_status_refresh(
 		real facing;
 		real facing_distance;
 
+		short bsp = NONE;
+
+		if (scenario_uses_regional_gameplay(global_scenario_get()))
+		{
+			bsp = object_get_regional_bsp(actor->meta.unit_index);
+			if (bsp == NONE || object_get_regional_bsp(prop->unit_index) != bsp)
+			{
+				prop->ignore = TRUE;
+				prop->line_of_sight = _ai_line_of_sight_obstructed;
+				prop->perception = _actor_perception_none;
+				prop->visibility = _actor_perception_none;
+				prop->audibility = _actor_perception_none;
+				prop->ineffability = _actor_perception_none;
+				return;
+			}
+		}
 		prop->ignore = TEST_FLAG(unit->unit.flags, _unit_ignored_by_actors_bit);
 		if (prop->player &&
 			game_connection() == _game_connection_local &&
@@ -4019,7 +4035,8 @@ void prop_status_refresh(
 			prop->state <= _prop_state_inspected_orphan)
 		{
 			prop->line_of_sight =
-				ai_test_line_of_sight(
+				ai_test_line_of_sight_in_bsp(
+					bsp,
 					&position->head_position,
 					position->body_location.cluster_index,
 					&prop->head_position,
@@ -4065,7 +4082,8 @@ void prop_status_refresh(
 			boolean fighting;
 
 			prop->line_of_sight =
-				ai_test_line_of_sight(
+				ai_test_line_of_sight_in_bsp(
+					bsp,
 					&position->head_position,
 					position->body_location.cluster_index,
 					&prop->head_position,
@@ -4281,14 +4299,15 @@ void prop_status_refresh(
 						unit_definition_get(sound_unit->definition_index);
 
 					prop->audibility =
-						actor_audibility_at_point(
+						actor_audibility_at_point_in_structure(
 							actor_index,
 							position,
 							&prop->body_position,
 							&prop->body_location,
 							sound_unit_definition->unit.constant_sound,
 							1.0f,
-							prop->line_of_sight);
+							prop->line_of_sight,
+							bsp == NONE ? global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp));
 				}
 
 				prop->ineffability = _actor_perception_none;
@@ -4911,6 +4930,7 @@ static void actor_perception_refresh_danger_zone(
 	struct actor_position_data position;
 	boolean perceived;
 	boolean attached_to_us;
+	short bsp = NONE;
 
 	if (actor->danger_zone.danger_type <= _actor_danger_zone_none)
 	{
@@ -4927,6 +4947,16 @@ static void actor_perception_refresh_danger_zone(
 #line 3227 "c:\\halo\\SOURCE\\ai\\actor_perception.c"
 	assert((actor->danger_zone.danger_type == _actor_danger_zone_projectile) || (actor->danger_zone.danger_type == _actor_danger_zone_vehicle) || (actor->danger_zone.danger_type == _actor_danger_zone_suicide));
 #line 4986 "source\\ai\\actor_perception.c"
+
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		bsp = object_get_regional_bsp(actor->meta.unit_index);
+		if (bsp == NONE || object_get_regional_bsp(actor->danger_zone.object_index) != bsp)
+		{
+			actor->danger_zone.danger_type = _actor_danger_zone_none;
+			return;
+		}
+	}
 
 	object_get_origin(
 		actor->danger_zone.object_index,
@@ -5019,7 +5049,8 @@ static void actor_perception_refresh_danger_zone(
 					}
 
 					line_of_sight =
-						ai_test_line_of_sight(
+						ai_test_line_of_sight_in_bsp(
+							bsp,
 							&position.head_position,
 							position.body_location.cluster_index,
 							&actor->danger_zone.position,
@@ -5044,14 +5075,15 @@ static void actor_perception_refresh_danger_zone(
 					{
 						perceived = TRUE;
 					}
-					else if (actor_audibility_at_point(
+					else if (actor_audibility_at_point_in_structure(
 							actor_index,
 							&position,
 							&actor->danger_zone.position,
 							location,
 							vehicle_definition->unit.constant_sound,
 							1.0f,
-							line_of_sight) >= _actor_perception_full)
+							line_of_sight,
+							bsp == NONE ? global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp)) >= _actor_perception_full)
 					{
 						perceived = TRUE;
 					}
@@ -5117,7 +5149,8 @@ static void actor_perception_refresh_danger_zone(
 					}
 
 					line_of_sight =
-						ai_test_line_of_sight(
+						ai_test_line_of_sight_in_bsp(
+							bsp,
 							&position.head_position,
 							position.body_location.cluster_index,
 							&actor->danger_zone.position,

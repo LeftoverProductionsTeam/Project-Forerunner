@@ -235,6 +235,7 @@ symbols in this file:
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
+#include "structures/structure_bsp_definitions.h"
 #include "tag_files/tag_files.h"
 #include "tag_files/tag_groups.h"
 
@@ -2348,6 +2349,16 @@ boolean ai_test_line_of_fire(
 	return line_of_fire;
 }
 
+/* All samples of the same sight ray use the same native BSP. */
+static boolean ai_collision_test_bsp_line(
+	short bsp, unsigned long flags, real_point3d const *start, real_point3d const *end,
+	long ignored, struct collision_result *collision)
+{
+	real_vector3d vector;
+	vector_from_points3d(start, end, &vector);
+	return collision_test_bsp_vector(bsp, flags, start, &vector, ignored, collision);
+}
+
 short ai_test_line_of_sight(
 	real_point3d const *p0,
 	short p0_cluster_index,
@@ -2358,12 +2369,31 @@ short ai_test_line_of_sight(
 	long ignore_object_index,
 	boolean ignore_vehicles)
 {
+	return ai_test_line_of_sight_in_bsp(NONE, p0, p0_cluster_index, p1, p1_cluster_index,
+		mode, test_line_of_fire, ignore_object_index, ignore_vehicles);
+}
+
+short ai_test_line_of_sight_in_bsp(
+	short bsp,
+	real_point3d const *p0,
+	short p0_cluster_index,
+	real_point3d const *p1,
+	short p1_cluster_index,
+	short mode,
+	boolean test_line_of_fire,
+	long ignore_object_index,
+	boolean ignore_vehicles)
+{
 	struct collision_result collision;
+	struct structure_bsp const *structure = bsp == NONE ? NULL : scenario_structure_bsp_try_and_get(bsp);
 	real collision_t = 1.0f;
 	unsigned long collision_flags;
 	boolean clear_line_of_sight;
 	boolean blocked;
 	short result;
+
+	if (bsp != NONE && !structure)
+		return _ai_line_of_sight_obstructed;
 
 	if (ai_debug.render_lineofsight)
 		ai_debug_lineofsight(p0, p0_cluster_index, p1, p1_cluster_index);
@@ -2376,8 +2406,18 @@ short ai_test_line_of_sight(
 		_collision_user_ai_lineofsight;
 	ai_profile.meters[_ai_meter_line_of_sight].accumulator++;
 
-	if (p0_cluster_index != NONE && p1_cluster_index != NONE && !scenario_test_pvs(p0_cluster_index, p1_cluster_index))
-		goto obstructed;
+	if (p0_cluster_index != NONE && p1_cluster_index != NONE)
+	{
+		if (structure)
+		{
+			if (!VALID_INDEX(p0_cluster_index, structure->clusters.count) ||
+				!VALID_INDEX(p1_cluster_index, structure->clusters.count) ||
+				!BIT_VECTOR_TEST_FLAG(structure_bsp_get_cluster_pvs(structure, p0_cluster_index), p1_cluster_index))
+				goto obstructed;
+		}
+		else if (!scenario_test_pvs(p0_cluster_index, p1_cluster_index))
+			goto obstructed;
+	}
 
 	collision_flags =
 		FLAG(_collision_test_front_facing_surfaces_bit) |
@@ -2408,8 +2448,8 @@ short ai_test_line_of_sight(
 		ai_profile.meters[_ai_meter_collisions].accumulator++;
 		vector_from_points3d(p0, p1, &vector);
 
-		if (!collision_test_vector(
-			collision_flags,
+		if (!collision_test_bsp_vector(
+			bsp, collision_flags,
 			p0,
 			&vector,
 			ignore_object_index,
@@ -2465,8 +2505,8 @@ short ai_test_line_of_sight(
 			ai_profile.meters[_ai_meter_collisions].accumulator++;
 			if (clear_line_of_sight)
 			{
-				blocked = collision_test_line(
-					collision_flags,
+				blocked = ai_collision_test_bsp_line(
+					bsp, collision_flags,
 					&p0a,
 					p1,
 					ignore_object_index,
@@ -2475,8 +2515,8 @@ short ai_test_line_of_sight(
 				if (!blocked)
 				{
 					ai_profile.meters[_ai_meter_collisions].accumulator++;
-					blocked = collision_test_line(
-						collision_flags,
+					blocked = ai_collision_test_bsp_line(
+						bsp, collision_flags,
 						&p0b,
 						p1,
 						ignore_object_index,
@@ -2485,8 +2525,8 @@ short ai_test_line_of_sight(
 			}
 			else
 			{
-				blocked = !collision_test_line(
-					collision_flags,
+				blocked = !ai_collision_test_bsp_line(
+					bsp, collision_flags,
 					&p0a,
 					p1,
 					ignore_object_index,
@@ -2495,8 +2535,8 @@ short ai_test_line_of_sight(
 				if (!blocked)
 				{
 					ai_profile.meters[_ai_meter_collisions].accumulator++;
-					blocked = !collision_test_line(
-						collision_flags,
+					blocked = !ai_collision_test_bsp_line(
+						bsp, collision_flags,
 						&p0b,
 						p1,
 						ignore_object_index,
@@ -2518,8 +2558,8 @@ short ai_test_line_of_sight(
 			point_from_line3d(p1, global_down3d, 0.1f, &p1c);
 
 			ai_profile.meters[_ai_meter_collisions].accumulator++;
-			blocked = collision_test_line(
-				collision_flags,
+			blocked = ai_collision_test_bsp_line(
+				bsp, collision_flags,
 				&p1a,
 				p0,
 				ignore_object_index,
@@ -2528,8 +2568,8 @@ short ai_test_line_of_sight(
 			if (!blocked)
 			{
 				ai_profile.meters[_ai_meter_collisions].accumulator++;
-				blocked = collision_test_line(
-					collision_flags,
+				blocked = ai_collision_test_bsp_line(
+					bsp, collision_flags,
 					&p1b,
 					p0,
 					ignore_object_index,
@@ -2539,8 +2579,8 @@ short ai_test_line_of_sight(
 			if (!blocked)
 			{
 				ai_profile.meters[_ai_meter_collisions].accumulator++;
-				blocked = collision_test_line(
-					collision_flags,
+				blocked = ai_collision_test_bsp_line(
+					bsp, collision_flags,
 					&p1c,
 					p0,
 					ignore_object_index,

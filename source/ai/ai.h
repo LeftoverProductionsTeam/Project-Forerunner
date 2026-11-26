@@ -200,6 +200,16 @@ short ai_test_line_of_sight(
 	boolean test_line_of_fire,
 	long ignore_object_index,
 	boolean ignore_vehicles);
+short ai_test_line_of_sight_in_bsp(
+	short bsp,
+	union real_point3d const *point0,
+	short cluster0,
+	union real_point3d const *point1,
+	short cluster1,
+	short mode,
+	boolean test_line_of_fire,
+	long ignore_object_index,
+	boolean ignore_vehicles);
 void ai_handle_editing(
 	long encounter_index);
 void ai_handle_spatial_effect(
