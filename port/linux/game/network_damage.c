@@ -2340,6 +2340,29 @@ static boolean distributed_report_paid(
 	return TRUE;
 }
 
+/* A missing foreign collision BSP is unavailable, so it cannot report a clear ray. */
+static boolean distributed_sight_trace(
+	short bsp,
+	unsigned long flags,
+	real_point3d const *from,
+	real_point3d const *to,
+	long ignore_object_index,
+	struct collision_result *collision)
+{
+	real_vector3d vector;
+
+	if (bsp == NONE)
+		return collision_test_line(flags, from, to, ignore_object_index, collision);
+	if (!collision_bsp_for_region(bsp))
+	{
+		collision->t = 0.0f;
+		collision->material_type = NONE;
+		return TRUE;
+	}
+	return collision_test_bsp_vector(bsp, flags, from, vector_from_points3d(from, to, &vector),
+		ignore_object_index, collision);
+}
+
 static boolean distributed_report_terrain_clear(
 	short structure_bsp_index,
 	unsigned long flags,
@@ -2348,9 +2371,9 @@ static boolean distributed_report_terrain_clear(
 {
 	struct collision_result collision;
 
-	if (structure_bsp_index != NONE)
+	if (structure_bsp_index != NONE && !network_regional_independent_bsp_ready())
 		return collision_structure_bsp_line_clear(structure_bsp_index, flags, from, to);
-	return !collision_test_line(flags, from, to, NONE, &collision);
+	return !distributed_sight_trace(structure_bsp_index, flags, from, to, NONE, &collision);
 }
 
 static boolean distributed_report_sight_clear(
@@ -2434,6 +2457,10 @@ static boolean distributed_report_line_of_sight(
 	real_point3d impact = *impact_point;
 	boolean regional = network_regional_bsp_active();
 
+	/* The reported hand origin must also clear scenery in its own region. */
+	if (network_regional_independent_bsp_ready())
+		flags |= FLAG(_collision_test_objects_bit) | FLAG(_collision_test_objects_scenery_bit);
+
 	{
 		real distance = (real)sqrt(distributed_distance_squared(centre, impact_point));
 
@@ -2496,6 +2523,7 @@ struct distributed_sight_context
 {
 	unsigned long flags;
 	long ignore_object_index;
+	short structure_bsp_index;
 	/* (NULL: nothing passable) */
 	unsigned long const *passable_materials;
 };
@@ -2528,7 +2556,8 @@ static void distributed_sight_test(
 
 	start.x = from->x, start.y = from->y, start.z = from->z;
 	end.x = to->x, end.y = to->y, end.z = to->z;
-	hit->hit = collision_test_line(sight->flags, &start, &end, sight->ignore_object_index, &collision) ? 1 : 0;
+	hit->hit = distributed_sight_trace(sight->structure_bsp_index, sight->flags, &start, &end,
+		sight->ignore_object_index, &collision) ? 1 : 0;
 	hit->t = collision.t;
 	hit->passable = 0;
 	if (hit->hit && sight->passable_materials && collision.material_type >= 0 && collision.material_type < 64)
@@ -2644,14 +2673,18 @@ static boolean distributed_report_in_sight(
 	struct line_of_sight_query query;
 	struct line_of_sight_target sight_target;
 	real_point3d origin;
+	boolean independent = network_regional_independent_bsp_ready();
 	int clear;
 
+	context.structure_bsp_index = independent ? object_get_regional_bsp(report->object_index) : NONE;
+	if (independent && (context.structure_bsp_index == NONE || !collision_bsp_for_region(context.structure_bsp_index)))
+		return FALSE;
 	/* (nor the map's scenery and devices: a light set in a wall has its
 	center in it) */
 	if ((!explosion && fired_reach->indirect) || TEST_FLAG(STATIC_TARGET_TYPES, target->object.type))
 		return TRUE;
 	if (global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
-		return TRUE;
+		return !independent;
 	/* (the target's sphere where the shooter saw it: its center as far
 	from its origin as the host has it now) */
 	object_get_origin(report->object_index, &origin);

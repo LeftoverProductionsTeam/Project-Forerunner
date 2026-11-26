@@ -724,7 +724,7 @@ static void collision_log_usage(int function) {}
 #define collision_log_start_time(state) ((void)(state))
 #define collision_log_end_time(function, elapsed) ((void)(elapsed))
 struct collision_bsp_test_vector_result {int unused;};
-struct collision_result {short type,bsp_index;real t;real_point3d point;};
+struct collision_result {short type,bsp_index;real t;real_point3d point;short material_type;};
 static boolean debug_collision_skip_vectors;
 static int terrain_traces, legacy_traces;
 static boolean collision_bsp_test_vector(unsigned long flags, struct collision_bsp const *bsp,
@@ -746,6 +746,7 @@ static boolean collision_test_line(unsigned long flags,real_point3d const *from,
     long ignored,struct collision_result *result)
 {
     legacy_traces++;
+    result->t=1.0f;
     return FALSE;
 }
 #include "bsp_terrain.inc"
@@ -768,11 +769,29 @@ static void matrix4x3_inverse_transform_point(real_matrix4x3 const *m,real_point
 }
 static void point_from_line3d(real_point3d const *p,real_vector3d const *v,real t,real_point3d *out)
 {*out=(real_point3d){p->x+v->i*t,p->y+v->j*t,p->z+v->k*t};}
-static int seam_traces;
+static int seam_traces, combat_traces;
+static boolean combat_trace, combat_region_resident;
+static short combat_region;
 static real seam_impact_t;
+static struct collision_bsp const *collision_bsp_for_region(short bsp)
+{
+    CHECK(bsp==combat_region,"sight queried the wrong region");
+    return combat_region_resident?&collisions[bsp]:NULL;
+}
 static boolean collision_test_bsp_vector(short bsp,unsigned long flags,real_point3d const *p,
     real_vector3d const *v,long ignored,struct collision_result *hit)
 {
+    if (combat_trace)
+    {
+        CHECK(bsp==combat_region&&bsp!=global_structure_bsp_index_get()&&
+              flags==(FLAG(_collision_test_structure_bit)|FLAG(_collision_test_objects_bit)|FLAG(_collision_test_objects_scenery_bit))&&
+              p->x==1.f&&v->i==4.f&&v->j==0.f&&v->k==0.f&&ignored==units[2],
+              "combat lost its region, flags, ignore object or ray");
+        hit->t=.25f;
+        hit->material_type=5;
+        combat_traces++;
+        return TRUE;
+    }
     CHECK((bsp==global_structure_bsp_index_get())==seam_return_to_foreground&&
           flags==FLAG(_collision_test_structure_bit),
           "a seam trace targeted the wrong BSP or included objects or media");
@@ -786,6 +805,8 @@ static boolean collision_test_bsp_vector(short bsp,unsigned long flags,real_poin
     return TRUE;
 }
 #include "projectile_seam.inc"
+struct line_of_sight_point {real x,y,z;};
+struct line_of_sight_hit {int hit;real t;int passable;};
 
 enum {
     _distributed_message_object_states,
@@ -922,6 +943,7 @@ static void distributed_send(void *message, byte type, word count, word size, in
 
 void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
+#include "bsp_sight.inc"
 #include "bsp_object_lifecycle.inc"
 #undef DATUM_INDEX_NEW
 #include "bsp_damage_history.inc"
@@ -2901,6 +2923,28 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"independent-combat-sight"))
+    {
+        struct line_of_sight_point from={1.f,2.f,3.f}, to={5.f,2.f,3.f};
+        struct line_of_sight_hit hit;
+        unsigned long passable[2]={1u<<5,0};
+        struct distributed_sight_context context={
+            FLAG(_collision_test_structure_bit)|FLAG(_collision_test_objects_bit)|FLAG(_collision_test_objects_scenery_bit),
+            units[2],destination,passable};
+        combat_trace=TRUE;
+        combat_region=destination;
+        distributed_sight_test(&context,&from,&to,&hit);
+        CHECK(hit.hit&&hit.t==0.f&&!hit.passable&&!combat_traces&&!legacy_traces,
+              "unavailable region fell back to foreground or reported a passable hit");
+        combat_region_resident=TRUE;
+        distributed_sight_test(&context,&from,&to,&hit);
+        CHECK(hit.hit&&hit.t==.25f&&hit.passable&&combat_traces==1&&!legacy_traces,
+              "regional scenery ray did not preserve its material or hit fraction");
+        context.structure_bsp_index=NONE;
+        distributed_sight_test(&context,&from,&to,&hit);
+        CHECK(!hit.hit&&legacy_traces==1&&combat_traces==1,"classic sight used the regional path");
         return 0;
     }
     if(!strcmp(name,"independent-combat-history"))

@@ -89,9 +89,7 @@ def generated(fault=None):
          function(read('source/objects/damage.c'), 'area_of_effect_cause_damage_in_bsp')),
         ('regional_room.inc', function(coop, 'network_regional_bsp_room_ready')),
         ('bsp_terrain.inc', '\n'.join(function(read('source/physics/collisions.c'), name) for name in (
-            'collision_vector_bsp_flags', 'collision_structure_bsp_line_clear')) + '\n' +
-         '\n'.join(function(damage, name) for name in (
-            'distributed_report_terrain_clear', 'distributed_report_sight_clear'))),
+            'collision_vector_bsp_flags', 'collision_structure_bsp_line_clear'))),
         ('objects.inc', objects),
         ('item_structure_support.inc', '\n'.join(function(read('source/items/items.c'), name)
             for name in ('item_rested_surface_index', 'item_rested_surface', 'item_recheck_support'))),
@@ -165,6 +163,9 @@ def generated(fault=None):
         ('bsp_object_lifecycle.inc', '\n'.join(
             function(read('port/linux/game/network_objects.c'), name) for name in
             ('distributed_flush_regional_changes', 'distributed_host_send_regional_objects'))),
+        ('bsp_sight.inc', structure(damage, 'distributed_sight_context') + '\n' +
+            '\n'.join(function(damage, name) for name in ('distributed_sight_trace',
+                'distributed_report_terrain_clear', 'distributed_report_sight_clear', 'distributed_sight_test'))),
         ('bsp_damage_history.inc', '\n'.join(structure(damage, name) for name in (
             'damage_sight', 'damage_history_tick', 'damage_trail_point', 'damage_bsp_visit')) + '\n' +
          'static struct damage_history_tick damage_history[TARGET_HISTORY_TICKS];\n' +
@@ -181,7 +182,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'independent-bsp-delivery', 'independent-object-lifetimes', 'independent-combat-history', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'independent-bsp-delivery', 'independent-object-lifetimes', 'independent-combat-history', 'independent-combat-sight', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',
