@@ -3932,6 +3932,12 @@ void object_translate(
 		object->object.parent_object_index == NONE &&
 		collideable_object_cluster_partition.port_structure_bsp_index != NONE ?
 		object_get_regional_bsp(object_index) : NONE;
+	/* The regional projectile update owns motion even without foreground clusters.
+	 * Disconnect clears activation, and the parked reconnect cannot use the PVS. */
+	boolean keep_projectile_active = object->object.type == _object_type_projectile &&
+		object->object.parent_object_index == NONE &&
+		TEST_FLAG(object_header_get(object_index)->flags, _object_header_active_bit) &&
+		game_engine_object_parked(object_index, _object_type_projectile);
 	match_assert_valid_real_point3d(
 		"c:\\halo\\SOURCE\\objects\\objects.c",
 		562, 
@@ -3945,6 +3951,8 @@ void object_translate(
 	object_disconnect_from_map(object_index);
 	object->object.position = *new_position;
 	object_reconnect_to_map(object_index, new_location);
+	if (keep_projectile_active)
+		object_activate(object_index);
 
 	return;
 }
