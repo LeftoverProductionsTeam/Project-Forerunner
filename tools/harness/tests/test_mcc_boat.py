@@ -29,7 +29,8 @@ def executable(code):
         "add_vectors3d", "magnitude_squared3d"))
     consumer = "\n".join(function(physics, name) for name in (
         "pin_fraction", "physics_mass_point_count", "physics_powered_mass_point_count",
-        "physics_powered_mass_point_index", "friction_evaluate", "physics_compute_new",
+        "physics_powered_mass_point_index", "friction_evaluate", "physics_mass_point_water_depth",
+        "physics_compute_new",
         "physics_update_old", "physics_update_new"))
     # Rename only the entry point so the harness can observe the passed controls.
     dispatch = function(physics, "physics_update").replace(

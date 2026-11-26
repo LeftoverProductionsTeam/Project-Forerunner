@@ -2221,8 +2221,13 @@ static void update_alien_scout_physics(
 	real water_depth;
 	short mass_point_index;
 
-	water_depth = scenario_location_water_depth(&vehicle->object.location,
-		&vehicle->object.position);
+	short bsp = object_get_regional_bsp(vehicle_index);
+
+	if (bsp == NONE || bsp == global_structure_bsp_index_get())
+		water_depth = scenario_location_water_depth(&vehicle->object.location, &vehicle->object.position);
+	else
+		water_depth = scenario_location_water_depth_in_structure(scenario_structure_bsp_try_and_get(bsp),
+			&vehicle->object.location, &vehicle->object.position);
 
 	magic_force = *global_zero_vector3d;
 	magic_torque = *global_zero_vector3d;

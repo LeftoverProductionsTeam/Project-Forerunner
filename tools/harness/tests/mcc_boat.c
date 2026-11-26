@@ -116,7 +116,25 @@ static short pose_bsp = -2;
 #define object_set_physics_pose(i,b,p,f,u) (pose_bsp = (b), test_vehicle.object.position = *(p), \
     test_vehicle.object.forward = *(f), test_vehicle.object.up = *(u))
 #define physics_compute_unit_collisions(i) ((void)0)
-#define scenario_location_water_depth(l,p) 1.0f
+static struct structure_bsp { short index; } water_bsp = { 4 };
+static short water_depth_bsp = -2;
+static short global_structure_bsp_index_get(void) { return 0; }
+static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp)
+{
+    return bsp == water_bsp.index ? &water_bsp : NULL;
+}
+#define scenario_location_from_point_in_structure(l,s,p) ((void)0)
+static real scenario_location_water_depth(struct location const *location, real_point3d const *point)
+{
+    water_depth_bsp = NONE;
+    return 1.0f;
+}
+static real scenario_location_water_depth_in_structure(struct structure_bsp const *structure,
+    struct location const *location, real_point3d const *point)
+{
+    water_depth_bsp = structure ? structure->index : -2;
+    return 1.0f;
+}
 #define _collision_test_for_bipeds_dead_flags 0
 #define _collision_test_for_vehicles_flags 1
 #define _collision_test_front_facing_surfaces_bit 1
@@ -246,6 +264,7 @@ int main(int argc, char **argv)
     update_human_boat_physics(0, points, state);
     CHECK(calls == 1);
     CHECK(contact_bsp == test_regional_bsp);
+    CHECK(water_depth_bsp == test_regional_bsp);
     if (test_physics.radius == 0.0f) {
         CHECK(sweep_bsp == test_regional_bsp);
         CHECK(pose_bsp == test_regional_bsp);

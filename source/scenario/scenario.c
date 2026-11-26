@@ -746,7 +746,12 @@ boolean scenario_location_underwater(
 	return result;
 }
 
-real scenario_location_water_depth(
+static long scenario_fog_region_get_fog_index_in_structure(
+	struct structure_bsp const *structure_bsp,
+	short fog_region_index);
+
+real scenario_location_water_depth_in_structure(
+	struct structure_bsp const *structure_bsp,
 	const struct location *location,
 	const real_point3d *position)
 {
@@ -754,15 +759,13 @@ real scenario_location_water_depth(
 	short fog_reference;
 	short fog_palette_index;
 	long fog_index;
-	struct structure_bsp *structure_bsp;
 	struct structure_cluster *cluster;
 	struct structure_fog_plane *fog_plane;
 	struct fog_definition *fog;
 	real_plane3d *plane;
 
-	if (location->cluster_index != NONE)
+	if (structure_bsp && VALID_INDEX(location->cluster_index, structure_bsp->clusters.count))
 	{
-		structure_bsp = global_structure_bsp_get();
 		cluster = TAG_BLOCK_GET_ELEMENT(
 			&structure_bsp->clusters,
 			location->cluster_index,
@@ -788,7 +791,7 @@ real scenario_location_water_depth(
 				plane = NULL;
 			}
 
-			fog_index = scenario_fog_region_get_fog_index(fog_palette_index);
+			fog_index = scenario_fog_region_get_fog_index_in_structure(structure_bsp, fog_palette_index);
 			if (fog_index != NONE)
 			{
 				fog = fog_definition_get(fog_index);
@@ -804,6 +807,14 @@ real scenario_location_water_depth(
 	}
 
 	return result;
+}
+
+real scenario_location_water_depth(
+	const struct location *location,
+	const real_point3d *position)
+{
+	return location->cluster_index == NONE ? REAL_MIN :
+		scenario_location_water_depth_in_structure(global_structure_bsp_get(), location, position);
 }
 
 real scenario_fog_at_point(
@@ -1172,11 +1183,10 @@ boolean scenario_trigger_volume_clip_segment(short index,
 	return FALSE;
 }
 
-long scenario_fog_region_get_fog_index(
+static long scenario_fog_region_get_fog_index_in_structure(
+	struct structure_bsp const *structure_bsp,
 	short fog_region_index)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
-
 	/* port: a region or palette entry the map doesn't have is no fog */
 	if (VALID_INDEX(fog_region_index, structure_bsp->fog_regions.count))
 	{
@@ -1198,6 +1208,12 @@ long scenario_fog_region_get_fog_index(
 	}
 
 	return NONE;
+}
+
+long scenario_fog_region_get_fog_index(
+	short fog_region_index)
+{
+	return scenario_fog_region_get_fog_index_in_structure(global_structure_bsp_get(), fog_region_index);
 }
 
 boolean scenario_switch_structure_bsp(

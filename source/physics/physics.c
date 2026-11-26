@@ -908,6 +908,21 @@ static void friction_evaluate(
 	return;
 }
 
+/* A mass-point location is only meaningful to the BSP that supplied it. */
+static real physics_mass_point_water_depth(
+	short bsp,
+	struct structure_bsp const *structure,
+	struct mass_point_datum *mass_point)
+{
+	if (bsp == NONE || bsp == global_structure_bsp_index_get())
+	{
+		scenario_location_from_point(&mass_point->location, &mass_point->position);
+		return scenario_location_water_depth(&mass_point->location, &mass_point->position);
+	}
+	scenario_location_from_point_in_structure(&mass_point->location, structure, &mass_point->position);
+	return scenario_location_water_depth_in_structure(structure, &mass_point->location, &mass_point->position);
+}
+
 void physics_compute_new(
 	struct physics_instance const *instance,
 	struct powered_mass_point_datum const *powered_mass_points,
@@ -918,6 +933,7 @@ void physics_compute_new(
 	struct object_datum *object = object_get(instance->object_index);
 	struct physics_definition const *physics = instance->physics;
 	short bsp = object_get_regional_bsp(instance->object_index);
+	struct structure_bsp const *structure = bsp == NONE ? NULL : scenario_structure_bsp_try_and_get(bsp);
 	real gravity = physics->gravity_scale*global_gravity;
 	short mass_point_index;
 	/* port: no more mass points than the caller's arrays hold, nor a
@@ -971,14 +987,13 @@ void physics_compute_new(
 			matrix4x3_transform_normal(&instance->world_matrix, &mass_point_definition->forward, &mass_point->forward);
 			matrix4x3_transform_normal(&instance->world_matrix, &mass_point_definition->up, &mass_point->up);
 		}
-		scenario_location_from_point(&mass_point->location, &mass_point->position);
 
 		vector_from_points3d(&object->object.position, &mass_point->position, &mass_point->radius);
 		cross_product3d(&object->object.angular_velocity, &mass_point->radius, &mass_point->velocity);
 		add_vectors3d(&object->object.translational_velocity, &mass_point->velocity, &mass_point->velocity);
 
 		compute_ground_plane(bsp, instance->object_index, mass_point, mass_point_definition);
-		mass_point->water_depth = scenario_location_water_depth(&mass_point->location, &mass_point->position);
+		mass_point->water_depth = physics_mass_point_water_depth(bsp, structure, mass_point);
 
 		if (mass_point->ground_depth > 0.0f)
 		{
@@ -1871,6 +1886,7 @@ static void physics_update_old(
 	struct physics_definition const *physics = physics_definition_get(
 		object_definition->object.physics.index);
 	short bsp = object_get_regional_bsp(object_index);
+	struct structure_bsp const *structure = bsp == NONE ? NULL : scenario_structure_bsp_try_and_get(bsp);
 	real gravity = physics->gravity_scale*global_gravity;
 	real_matrix4x3 world_matrix;
 	real_vector3d total_force = { 0.0f, 0.0f, -physics->mass*gravity };
@@ -1992,7 +2008,6 @@ static void physics_update_old(
 				&mass_point->up);
 		}
 
-		scenario_location_from_point(&mass_point->location, &mass_point->position);
 		vector_from_points3d(&object->object.position, &mass_point->position, &mass_point->radius);
 		cross_product3d(&object->object.angular_velocity, &mass_point->radius, &mass_point->velocity);
 		add_vectors3d(
@@ -2001,9 +2016,7 @@ static void physics_update_old(
 			&mass_point->velocity);
 
 		compute_ground_plane(bsp, object_index, mass_point, mass_point_definition);
-		mass_point->water_depth = scenario_location_water_depth(
-			&mass_point->location,
-			&mass_point->position);
+		mass_point->water_depth = physics_mass_point_water_depth(bsp, structure, mass_point);
 
 		if (mass_point->ground_depth > 0.0f && physics->ground_depth > 0.0f)
 		{
