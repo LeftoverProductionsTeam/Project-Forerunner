@@ -187,15 +187,6 @@ struct scenario_device_group
 	long unused[3];
 };
 
-/* players.c */
-struct scenario_bsp_switch_trigger_volume
-{
-	short trigger_volume_index;
-	short source_structure_bsp_index;
-	short destination_structure_bsp_index;
-	short cutscene_flag_index;
-};
-
 /* cinematics.c */
 struct scenario_cutscene_title
 {
