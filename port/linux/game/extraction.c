@@ -2413,11 +2413,14 @@ static boolean extraction_transport_hover_ready(long vehicle_index)
 
 static boolean extraction_transport_landed(short faction, long vehicle_index)
 {
+	boolean at_field;
+
 	/* The last recorded input can have landed while hover or cleanup is
 	 * still pending. Wait for native cleanup before accepting touchdown. */
 	if (recorded_animation_has_thread(vehicle_index))
 		return FALSE;
-	if (extraction.dropship_hover_transfer[faction] && extraction_transport_at_field(faction, vehicle_index))
+	at_field = extraction_transport_at_field(faction, vehicle_index);
+	if (extraction.dropship_hover_transfer[faction] && at_field)
 		return extraction_transport_hover_ready(vehicle_index);
 	if (!vehicle_is_landed(vehicle_index))
 		return FALSE;
@@ -2425,7 +2428,7 @@ static boolean extraction_transport_landed(short faction, long vehicle_index)
 	/* A field-bound Pelican can briefly pass the speed and attitude limits
 	 * during its ground roll. Wait for its native rest flag before opening
 	 * passenger exits or publishing touchdown to HaloScript. */
-	if (vehicle_is_human_plane(vehicle_index) && extraction_transport_at_field(faction, vehicle_index))
+	if (vehicle_is_human_plane(vehicle_index) && at_field)
 	{
 		struct object_datum const *vehicle = object_try_and_get_and_verify_type(vehicle_index, _object_mask_vehicle);
 		return vehicle && TEST_FLAG(vehicle->object.flags, _object_at_rest_bit);
@@ -2442,6 +2445,16 @@ static boolean extraction_transport_completed_return(short faction, long vehicle
 		zone != NONE && extraction.dropship_completed[faction] == vehicle_index &&
 		!recorded_animation_has_thread(vehicle_index) &&
 		extraction_transport_at_return(faction, vehicle_index) && vehicle_is_settled_on_return(vehicle_index);
+}
+
+static boolean extraction_transport_landing_signal(short faction, long ship)
+{
+	/* A safe unscheduled touchdown can allow egress without signaling
+	 * scripted arrival at the operation's assigned site. */
+	if (scenario_uses_regional_gameplay(global_scenario) &&
+		!extraction_transport_at_field(faction, ship) && !extraction_transport_at_return(faction, ship))
+		return FALSE;
+	return extraction_transport_landed(faction, ship) || extraction_transport_completed_return(faction, ship);
 }
 
 static boolean extraction_transport_arrival_ready(short faction, long vehicle_index)
@@ -2989,7 +3002,7 @@ static void extraction_transport_readiness(void)
 					extraction.dropship_return_stop[faction] = FALSE;
 			}
 			landed = landing_group != NONE && ship != NONE &&
-				(extraction_transport_landed(faction, ship) || extraction_transport_completed_return(faction, ship)) ? 1.f : 0.f;
+				extraction_transport_landing_signal(faction, ship) ? 1.f : 0.f;
 			ready = boarding_group != NONE && ship != NONE && (landing_group == NONE || landed > 0.f) &&
 				extraction_transport_crew_ready(faction, ship) ? 1.f : 0.f;
 			if (landing_group != NONE && device_group_get_value(landing_group) != landed)
