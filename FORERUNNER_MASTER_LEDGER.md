@@ -1,37 +1,36 @@
 # Forerunner engineering checkpoint
 
-Updated: 24 November 2026. The persistent engineering goal remains active.
-This is an incomplete engine integration, not a release or gameplay acceptance claim.
+Updated 26 November 2026. The permanent V2 engine goal remains active.
 
-Immediate V2 priorities, 24 November 2026. Permanent requirements continue.
-
-1. MegaWorld. Continue from Spark's fourteen-region MCC13 baseline. The Hang 'Em High
-   tunnel passed two-way native pedestrian traversal in CE609 and MCC13. Keep CE609
-   at 23 MiB and reuse the native MCC13 loader for the optional 64 MiB export.
-   Native Windows x64 private multiplayer passed with 24.46 MiB of loaded
-   tag data. Prioritize simultaneous native BSP residency and independent
-   squad occupancy, with persistent AI, vehicles, pickups and objectives.
-   Two private native Delta peers walked both ways on Spark's exact Chiron
-   `ba57480a` and Derelict `71fc1648` MCC13 caches. MCC13 now admits 1,024
-   starts and 512 equipment rows. Two native peers verified high starts and
-   item replication on a separate 563/485 cache. The
-   [Spark contract](SPARK_INTEGRATION_CONTRACT.md) holds the hashes and evidence.
-   The guest drove Chiron's original Warthog through both native switches.
-   Spark's fifteen-region Death Island handoff passed native 0 → 3 → 4 → 3
-   on foot with two private peers and matching guest collision geometry.
-   The installed build passed the base-side return in a separate short test.
-   An uninterrupted round trip and independent occupancy remain open.
-   Native guest damage resumed after loading Chiron, with prior BSP spatial
-   history cleared at the switch. Independent occupancy and the final five
-   regions remain open. Keep CE609 and MCC13 verification separate.
-2. Original Zombie Apocalypse. Verify the original carrier behavior, native
-   unloading, restored audio, projectile wrappers and a full mixed-runtime
-   survival round.
-3. Black Echo. Verify Spark's native recorded aircraft with persistent,
-   repeatable multiplayer Extraction.
-4. After the flagships, reuse Chupathingy's Forge menu and native placement
-   controls. Requested defaults are F4 for Monitor flight and F5 for the
-   spawn and editing menu.
+1. **MegaWorld.** Latest still launches the 19-region playtest cache `9eb74c92`
+   with Win64 `ce650ad3`. The separate portal cache `8699a81c` has 14 BSPs,
+   1,302 starts, 975 pickups and 227 vehicles. Native Delta-disabled LAN
+   proved separate host and guest occupancy and guest vehicle traversal in
+   Death Island. Verify remaining synchronized regional combat and object
+   persistence. The private `5936546a` successor passed the matched native
+   Infinity lighting comparison and upper return into the connector.
+   Spark owns the lower-shelf return geometry and the confirmed Danger
+   Canyon baked lighting defect. Preserve both private candidates.
+2. **MegaWorld Extraction.** Native private admission checks exist for the
+   MCC13 mode receipt and authored bindings. The hub-only `faa8d78b` loaded
+   in ordinary Delta-disabled multiplayer. Full admission and promotion
+   require the authored aircraft, usable field controls and recorded flights,
+   then native faction deployment, evacuation, banking and redeployment.
+   Keep `extraction.megaworld.v1` reserved.
+3. **Original Zombie Apocalypse.** Preserve the installed `12649191` and
+   tested Survival vehicle rules. Keep collider candidate `05a4268a`
+   separate. The short Slayer comparison observed live standard-carrier
+   release only on the installed baseline. Run matched carrier release and a
+   full mixed-runtime Survival round before replacing the installed cache.
+4. **Black Echo.** Verify both faction transport loops, including the reported
+   Pelican scrape, delayed landing and failed exit. Exact legacy `d4ca73c8`
+   passed Solo Covenant terminal use and Grunt selection. Physical technology
+   pickup and authenticated mission completion remain open. Preserve the
+   newer Elite path and the tested landing and departure evidence.
+5. **Remaining V2 work.** Preserve the complete roadmap below, including
+   campaign co-op, Firefight, upstream interoperability, OpenXR, Forge and
+   Spark live editing. Promote only validated combinations in Latest and keep
+   one Previous rollback.
 
 Previous Black Echo checkpoint.
 Spark's aligned UNSC export `40d2ce85` passed solo physical Pelican boarding,
