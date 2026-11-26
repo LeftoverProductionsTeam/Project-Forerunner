@@ -729,6 +729,17 @@ static void mcc_fields(struct mcc_validation_context *context, byte *address,
                             break;
                         }
                     }
+                    /* Cluster sky indices address this block directly. Keep
+                     * every admitted slot and reject overflow instead of
+                     * silently discarding an authored region's sky. */
+                    if (schema->name && !strcmp(schema->name, "scenario") &&
+                        !strcmp(field->name, "sky_references")) {
+                        maximum = MCC_SCENARIO_SKIES_MAXIMUM;
+                        if (block->count > maximum) {
+                            mcc_problem(context, 1, "scenario skies exceed the supported MCC capacity");
+                            break;
+                        }
+                    }
                     if (schema->name && !strcmp(schema->name, "scenario") &&
                         !strcmp(field->name, "netgame_flags")) {
                         maximum = MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM;

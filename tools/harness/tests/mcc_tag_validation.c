@@ -28,7 +28,7 @@ struct test_root {
     struct tag_block object_names;
     struct tag_block scenery_palette;
     short palette_entry_index;
-    struct tag_block netgame_flags, players, netgame_equipment;
+    struct tag_block netgame_flags, players, netgame_equipment, sky_references;
 };
 struct test_bsp { void *root; long vcount; void *vertices; long icount; void *indices; unsigned long signature; };
 struct test_device { short kind; unsigned short flags; struct tag_data identifier, profile; };
@@ -90,7 +90,9 @@ static struct tag_schema_definition const name_schema = {"object_name",36,name_f
 static struct tag_schema_definition const netgame_flag_schema = {"netgame_flag",148,name_fields};
 static struct tag_schema_definition const player_start_schema = {"player_starting_location",52,name_fields};
 static struct tag_schema_definition const netgame_equipment_schema = {"scenario_netgame_equipment",144,name_fields};
+static struct tag_schema_definition const sky_schema = {"sky_reference",16,name_fields};
 static struct tag_schema_field const root_fields[] = {
+    TAG_SCHEMA_BLOCK(struct test_root, sky_references, sky_schema, 8),
     TAG_SCHEMA_BLOCK(struct test_root, players, player_start_schema, 256),
     TAG_SCHEMA_BLOCK(struct test_root, netgame_equipment, netgame_equipment_schema, 200),
     TAG_SCHEMA_BLOCK(struct test_root, netgame_flags, netgame_flag_schema, 200),
@@ -811,6 +813,20 @@ int main(int argc, char **argv)
         if (count <= MCC_SCENARIO_NETGAME_FLAGS_MAXIMUM) {
             CHECK(tag_validate_tags(header,runtime.used,runtime.source.size,"legacy netgame flags"));
             CHECK(root->netgame_flags.count == MIN(count,200));
+        }
+        mcc_validation_dispose(&runtime); free(runtime.tags); return 0;
+    }
+    if (!strncmp(argv[1], "skies_", 6)) {
+        long count = atoi(argv[1] + 6);
+        byte *rows = runtime.tags + 0x500;
+        root->sky_references.count = count;
+        root->sky_references.address = rows;
+        rows[(count - 1) * sky_schema.size] = 0x71;
+        CHECK(mcc_tags_validate(&runtime) == (count <= MCC_SCENARIO_SKIES_MAXIMUM));
+        CHECK(root->sky_references.count == count && rows[(count - 1) * sky_schema.size] == 0x71);
+        if (count <= MCC_SCENARIO_SKIES_MAXIMUM) {
+            CHECK(tag_validate_tags(header, runtime.used, runtime.source.size, "legacy sky limit"));
+            CHECK(root->sky_references.count == MIN(count, 8));
         }
         mcc_validation_dispose(&runtime); free(runtime.tags); return 0;
     }

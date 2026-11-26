@@ -206,6 +206,7 @@ def test_hud_conversion_preserves_validation(hud_validation_tool, case):
                                      "animation_data", "animation_data_outside",
                                      "file_range", "handle", "unknown_group", "bsp",
                                      "netgame_flags_284", "netgame_flags_4096", "netgame_flags_4097",
+                                     "skies_8", "skies_14", "skies_16", "skies_17",
                                      "starts_563", "starts_1024", "starts_1307", "starts_1536", "starts_1537",
                                      "pickups_485", "pickups_512", "pickups_975", "pickups_1024", "pickups_1025",
                                      "legacy_isolation", "callbacks", "misaligned", "stream_hole",
