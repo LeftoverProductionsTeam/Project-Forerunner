@@ -6098,6 +6098,57 @@ void players_show_telefragged(
 	return;
 }
 
+/* Only the host chooses a destination from an authored continuous seam. */
+static void player_transfer_regional_root(
+	struct scenario const *scenario,
+	struct player_datum const *player,
+	long root_index)
+{
+	short source = object_get_regional_bsp(root_index);
+	struct structure_bsp const *source_structure = scenario_structure_bsp_try_and_get(source);
+	long player_index = player_index_from_unit_index(player->unit_index);
+	short index;
+
+	if (player_index == NONE || !source_structure || !network_coop_player_has_structure_bsp(player_index))
+		return;
+	for (index = 0; index < scenario->bsp_switch_trigger_volumes.count; index++)
+	{
+		struct scenario_bsp_switch_trigger_volume const *route = TAG_BLOCK_GET_ELEMENT(
+			&scenario->bsp_switch_trigger_volumes, index, struct scenario_bsp_switch_trigger_volume);
+		short destination = route->destination_structure_bsp_index;
+		struct structure_bsp const *structure;
+		struct data_iterator iterator;
+		struct player_datum const *rider;
+
+		if (route->cutscene_flag_index != NONE || route->source_structure_bsp_index != source ||
+			destination == source || !VALID_INDEX(destination, scenario->structure_bsp_references.count) ||
+			!player_in_bsp_switch_volume(route, player->unit_index, root_index))
+			continue;
+		structure = destination == global_structure_bsp_index_get() ? global_structure_bsp_get() :
+			scenario_structure_bsp_preview(destination, TRUE);
+		if (!structure ||
+			!player_root_bsp_crossing_clear(route, root_index, structure, source_structure, NULL, NONE))
+			continue;
+		if (destination != global_structure_bsp_index_get())
+		{
+			struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
+				&scenario->structure_bsp_references, destination, struct scenario_structure_bsp_reference);
+			mcc_cache_bsp_set_in_use(reference, TRUE);
+		}
+		if (!object_transfer_root_to_bsp(root_index, destination))
+			continue;
+		data_iterator_new(&iterator, player_data);
+		while ((rider = data_iterator_next(&iterator)) != NULL)
+		{
+			if (unit_try_and_get(rider->unit_index) &&
+				object_get_ultimate_parent(rider->unit_index) == root_index)
+				network_coop_note_player_structure_bsp(
+					(short)DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index), NONE);
+		}
+		return;
+	}
+}
+
 static void player_queue_structure_bsp_switch(
 	struct player_datum const *player,
 	long root_object_index)
@@ -6109,6 +6160,11 @@ static void player_queue_structure_bsp_switch(
 	boolean local_regional;
 
 	scenario = global_scenario_get();
+	if (game_connection() == _game_connection_network_server && network_regional_independent_bsp_ready())
+	{
+		player_transfer_regional_root(scenario, player, root_object_index);
+		return;
+	}
 	local_regional = game_connection() == _game_connection_local && scenario_uses_regional_gameplay(scenario);
 	for (bsp_switch_trigger_volume_index = 0;
 		bsp_switch_trigger_volume_index < scenario->bsp_switch_trigger_volumes.count;
@@ -6283,7 +6339,8 @@ void players_update_after_game(
 			(network_distributed.c), and the host not again until everyone
 			has the new one */
 			if (!TEST_FLAG(root_object->object.flags, _object_outside_of_map_bit) &&
-				!(network_synchronizes_structure_bsp() && (network_game_distributed_client() || !players_coop_bsp_switch_ready())))
+				!(network_synchronizes_structure_bsp() && (network_game_distributed_client() ||
+					(!network_regional_independent_bsp_ready() && !players_coop_bsp_switch_ready()))))
 			{
 				player_queue_structure_bsp_switch(player, root_object_index);
 			}

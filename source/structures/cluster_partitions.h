@@ -59,7 +59,7 @@ holding them is about to be loaded: game_state.c's before-load procs) */
 void cluster_partitions_port_forget(
 	void);
 struct structure_bsp;
-void cluster_partition_reconnect_in_bsp(
+boolean cluster_partition_reconnect_in_bsp(
 	struct cluster_partition *partition,
 	short structure_bsp_index,
 	struct structure_bsp const *structure,

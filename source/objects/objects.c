@@ -3757,6 +3757,45 @@ static void object_reindex_in_bsp(
 		object->object.bounding_sphere_radius, location);
 }
 
+boolean object_transfer_root_to_bsp(long object_index, short destination)
+{
+	struct object_datum *root = object_try_and_get(object_index);
+	struct structure_bsp const *structure;
+	struct cluster_partition *partition;
+	struct location location;
+	long references = NONE;
+
+	if (!root || root->object.parent_object_index != NONE ||
+		!TEST_FLAG(root->object.flags, _object_connected_to_map_bit) ||
+		object_get_regional_bsp(object_index) == destination)
+		return FALSE;
+	structure = scenario_structure_bsp_try_and_get(destination);
+	if (!structure)
+		return FALSE;
+	scenario_location_from_point_in_structure(&location, structure, &root->object.bounding_sphere_center);
+	if (location.cluster_index == NONE)
+		scenario_location_from_point_in_structure(&location, structure, &root->object.position);
+	if (location.cluster_index == NONE)
+		return FALSE;
+
+	partition = TEST_FLAG(root->object.flags, _object_has_collision_model_bit) ?
+		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
+	/* Allocate the destination before disconnecting the source. Attached
+	 * riders inherit the root's membership without changing seats or pose. */
+	if (!cluster_partition_reconnect_in_bsp(partition, destination, structure, object_index,
+		&references, &root->object.bounding_sphere_center, root->object.bounding_sphere_radius, &location))
+	{
+		cluster_partition_disconnect(partition, object_index, &references);
+		return FALSE;
+	}
+	cluster_partition_disconnect(partition, object_index, &root->object.first_cluster_reference_index);
+	root->object.first_cluster_reference_index = references;
+	root->object.location = location;
+	object_header_get(object_index)->cluster_index = location.cluster_index;
+	SET_FLAG(root->object.flags, _object_outside_of_map_bit, FALSE);
+	return TRUE;
+}
+
 void object_set_physics_pose(
 	long object_index,
 	short bsp,

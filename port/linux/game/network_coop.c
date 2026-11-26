@@ -2556,6 +2556,12 @@ boolean network_regional_bsp_room_ready(void)
 	return network_game_is_splitscreen_local() || delta_peer_game_room_has(_delta_capability_regional_bsp);
 }
 
+boolean network_regional_independent_bsp_ready(void)
+{
+	extern int delta_peer_game_room_independent_bsp(void);
+	return network_regional_bsp_active() && delta_peer_game_room_independent_bsp();
+}
+
 boolean network_coop_player_collisions(
 	void)
 {

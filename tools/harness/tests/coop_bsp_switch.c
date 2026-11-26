@@ -855,6 +855,20 @@ static struct structure_bsp const *scenario_structure_bsp_preview(short index, b
     preview_requests++;
     return preview_available?&structures[index]:NULL;
 }
+static boolean independent_bsp_room;
+static int transferred_roots;
+static boolean network_regional_independent_bsp_ready(void) {return independent_bsp_room;}
+static long player_index_from_unit_index(long unit)
+{
+    return unit == units[0] ? players[0] : (unit == units[1] ? players[1] : NONE);
+}
+static boolean object_transfer_root_to_bsp(long root, short bsp)
+{
+    CHECK(root == regional_test_root, "independent handoff selected a different root");
+    regional_test_root_bsp = bsp;
+    transferred_roots++;
+    return TRUE;
+}
 #include "queue_regional_bsp_switch.inc"
 #include "queue_bsp_switch.inc"
 
@@ -1286,6 +1300,37 @@ int main(int argc,char **argv)
         splitscreen_local=FALSE;
         regional_room_ready=TRUE;
         CHECK(network_regional_bsp_room_ready(),"a negotiated remote room lost regional play");
+        return 0;
+    }
+    if (!strcmp(name, "independent-host-crossing"))
+    {
+        regional_match = regional_room_ready = connected = independent_bsp_room = TRUE;
+        connection = _game_connection_network_server;
+        switches[0].cutscene_flag_index = NONE;
+        regional_test_root = units[2];
+        regional_test_root_bsp = old;
+        regional_test_other_root = units[3];
+        regional_test_other_root_bsp = old;
+        host_player_structure_bsps[0] = host_player_structure_bsps[1] = old;
+        main_globals.switch_to_structure_bsp_index = NONE;
+        player_queue_structure_bsp_switch(&people[0], units[2]);
+        CHECK(!transferred_roots && global_structure_bsp_index == old,
+              "host moved the vehicle before destination geometry was available");
+        preview_available = TRUE;
+        structures[destination].clusters.count = 4;
+        bsp_vehicle_contacts[destination] = 1;
+        player_queue_structure_bsp_switch(&people[0], units[2]);
+        CHECK(!transferred_roots && regional_test_root_bsp == old,
+              "blocked vehicle envelope changed the source region");
+        bsp_vehicle_contacts[destination] = 0;
+        player_queue_structure_bsp_switch(&people[0], units[2]);
+        CHECK(transferred_roots == 1 && regional_test_root_bsp == destination &&
+              regional_test_other_root_bsp == old && global_structure_bsp_index == old &&
+              main_globals.switch_to_structure_bsp_index == NONE,
+              "host changed another player's region or requested a shared switch");
+        CHECK(host_player_structure_bsps[0] == NONE && host_player_structure_bsps[1] == old &&
+              objects[0].object.parent_object_index == units[2],
+              "transfer disturbed another client's input readiness or unseated the rider");
         return 0;
     }
     if (!strcmp(name, "regional-source-ownership"))

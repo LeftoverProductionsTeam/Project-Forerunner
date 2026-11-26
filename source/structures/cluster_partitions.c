@@ -451,7 +451,7 @@ long cluster_partition_get_next_cluster(
 	return cluster_partition_local_cluster(key);
 }
 
-void cluster_partition_reconnect_in_bsp(
+boolean cluster_partition_reconnect_in_bsp(
 	struct cluster_partition *partition,
 	short structure_bsp_index,
 	struct structure_bsp const *structure,
@@ -496,21 +496,33 @@ void cluster_partition_reconnect_in_bsp(
 			first_cluster_reference,
 			cluster_key,
 			NULL);
-		long data_reference_index = cluster_partition_port_add(
+		long data_reference_index;
+
+		if (cluster_reference_index == NONE)
+			return FALSE;
+		data_reference_index = cluster_partition_port_add(
 			partition->data_reference_data,
 			cluster_partition_get_first_reference(partition, cluster_key),
 			datum_index,
 			partition->port_previous_references);
 
+		if (data_reference_index == NONE)
+		{
+			struct data_reference *reference = (struct data_reference *)datum_get(
+				partition->cluster_reference_data, cluster_reference_index);
+			*first_cluster_reference = reference->next_reference_index;
+			datum_delete(partition->cluster_reference_data, cluster_reference_index);
+			return FALSE;
+		}
 		partition->port_modification_count++;
-		if (cluster_reference_index != NONE && partition->port_cluster_data_references)
+		if (partition->port_cluster_data_references)
 		{
 			partition->port_cluster_data_references[DATUM_INDEX_TO_ABSOLUTE_INDEX(cluster_reference_index)] =
 				data_reference_index;
 		}
 	}
 
-	return;
+	return cluster_count > 0;
 }
 
 void cluster_partition_reconnect(
