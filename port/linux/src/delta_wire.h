@@ -670,6 +670,7 @@ struct delta_wire_header
 	delta_u32 session;
 };
 
+/* Prefixes and build strings remain identical for legacy peers. */
 struct delta_wire_hello
 {
 	/* capability bits (1 << _delta_capability_...) */
@@ -683,6 +684,7 @@ struct delta_wire_hello
 	delta_u32 legacy_table_serial;
 	struct delta_platform_key key;
 	char build[DELTA_WIRE_BUILD_SIZE + 1];
+	delta_u32 regional_protocol;
 };
 
 struct delta_wire_welcome
@@ -697,6 +699,7 @@ struct delta_wire_welcome
 	delta_u32 legacy_table_serial;
 	struct delta_platform_key key;
 	char build[DELTA_WIRE_BUILD_SIZE + 1];
+	delta_u32 regional_protocol;
 };
 
 enum

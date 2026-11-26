@@ -2690,6 +2690,7 @@ static void test_wire(void)
 	CHECK(hello_back.capabilities == 3 && hello_back.legacy_version == 18 && hello_back.machine_index == 7);
 	CHECK(hello_back.legacy_table_serial == 42 && !strcmp(hello_back.build, hello.build));
 	CHECK(!memcmp(&hello_back.key, &hello.key, sizeof(hello.key)));
+	CHECK(hello_back.regional_protocol == 0);
 	/* (every shorter datagram is refused: the header's length, or the
 	payload's fields) */
 	for (cut = 0; cut < size; cut++)
@@ -2730,6 +2731,18 @@ static void test_wire(void)
 	CHECK(!memcmp(&welcome_back.key, &welcome.key, sizeof(welcome.key)) && !strcmp(welcome_back.build, "server"));
 	for (cut = 0; cut < DELTA_WIRE_WELCOME_SIZE + 6; cut++)
 		CHECK(!delta_wire_read_welcome(data + 12, cut, &welcome_back));
+
+	/* A partial or unrelated trailer leaves legacy fields intact. */
+	hello.regional_protocol = 1;
+	size = delta_wire_write_hello(data, 5, &hello);
+	CHECK(delta_wire_read_hello(data + 12, size - 12, &hello_back) && hello_back.regional_protocol == 1);
+	CHECK(delta_wire_read_hello(data + 12, size - 13, &hello_back) && hello_back.regional_protocol == 0);
+	data[size - 8] = 'X';
+	CHECK(delta_wire_read_hello(data + 12, size - 12, &hello_back) && hello_back.regional_protocol == 0);
+	welcome.regional_protocol = 1;
+	size = delta_wire_write_welcome(data, 5, &welcome);
+	CHECK(delta_wire_read_welcome(data + 12, size - 12, &welcome_back) && welcome_back.regional_protocol == 1);
+	CHECK(delta_wire_read_welcome(data + 12, size - 13, &welcome_back) && welcome_back.regional_protocol == 0);
 
 	profile.revision = 77;
 	for (index = 0; index < DELTA_WIRE_PLAYER_ID_SIZE; index++)
@@ -2793,6 +2806,38 @@ static void test_rate(void)
 }
 
 /* ---------- sessions */
+
+static void test_regional_handshake(void)
+{
+	int joined[4] = { 0, 1, 1, 1 };
+	delta_u32 shared = (delta_u32)1 << _delta_capability_regional_bsp;
+	delta_u32 now = 1000;
+	int step;
+
+	node_start(0, HOST_IPV4, DELTA_PEER_PORT, shared, _delta_platform_pc_windows, 0, 0);
+	node_start(1, 0x0300007F, 40001, shared, _delta_platform_pc_windows, 0, 0);
+	node_start(2, 0x0400007F, 40002, shared, _delta_platform_pc_windows, 0, 0);
+	node_start(3, 0x0500007F, 40003, shared, _delta_platform_pc_windows, 0, 0);
+	nodes[0].peer.local.regional_protocol = 1;
+	nodes[1].peer.local.regional_protocol = 1;
+	/* 2 understands shared BSP switching. 3 offers a different revision. */
+	nodes[3].peer.local.regional_protocol = 2;
+	game_reset();
+	game_add(1);
+	game_add(2);
+	game_add(3);
+	for (step = 0; step < 4; step++, now += 300)
+		frame(now, 4, joined, 1);
+
+	CHECK(nodes[0].peer.peers[1].hello.regional_protocol == 1);
+	CHECK(nodes[0].peer.peers[2].hello.regional_protocol == 0);
+	CHECK(nodes[0].peer.peers[3].hello.regional_protocol == 2);
+	CHECK(nodes[1].peer.welcome.regional_protocol == 1);
+	CHECK(nodes[2].peer.welcome.regional_protocol == 0);
+	CHECK(nodes[3].peer.welcome.regional_protocol == 0);
+	for (step = 1; step < 4; step++)
+		CHECK(nodes[step].peer.agreed & shared);
+}
 
 static void test_handshake(void)
 {
@@ -5252,6 +5297,7 @@ int main(int argc, char **argv)
 		random_state = 1;
 	verbose = getenv("DELTA_TEST_VERBOSE") != NULL;
 	test_wire();
+	test_regional_handshake();
 	test_wire_map();
 	test_rate();
 	test_handshake();

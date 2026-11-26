@@ -590,6 +590,8 @@ struct delta_peer_card
 struct delta_peer_local
 {
 	delta_u32 capabilities;
+	/* Zero until this runtime can execute independent regional handoffs. */
+	delta_u32 regional_protocol;
 	unsigned short legacy_version;
 	/* (with no legacy_table_serial in the env: this, which never changes) */
 	delta_u32 legacy_table_serial;

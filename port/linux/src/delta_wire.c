@@ -186,6 +186,27 @@ int delta_platform_policy_coop(int platform)
 	12 platform key (8)
 	20 build (the length's bytes) */
 
+/* A tagged trailer cannot change the legacy layout. Unknown trailers or
+ * incomplete offers leave the existing shared-world capability intact. */
+enum { DELTA_REGIONAL_TRAILER_BYTES = 8 };
+#define DELTA_REGIONAL_TRAILER_TAG 0x53425246u /* FRBS, little-endian */
+
+static delta_u32 read_regional_protocol(const unsigned char *data, int size)
+{
+	if (size >= DELTA_REGIONAL_TRAILER_BYTES && read_u32(data) == DELTA_REGIONAL_TRAILER_TAG)
+		return read_u32(data + 4);
+	return 0;
+}
+
+static int write_regional_protocol(unsigned char *data, delta_u32 version)
+{
+	if (!version)
+		return 0;
+	write_u32(data, DELTA_REGIONAL_TRAILER_TAG);
+	write_u32(data + 4, version);
+	return DELTA_REGIONAL_TRAILER_BYTES;
+}
+
 int delta_wire_read_hello(const unsigned char *payload, int size, struct delta_wire_hello *hello)
 {
 	int length;
@@ -202,6 +223,8 @@ int delta_wire_read_hello(const unsigned char *payload, int size, struct delta_w
 	hello->legacy_table_serial = read_u32(payload + 8);
 	delta_wire_read_key(payload + 12, &hello->key);
 	read_text(payload + DELTA_WIRE_HELLO_SIZE, length, hello->build);
+	length += DELTA_WIRE_HELLO_SIZE;
+	hello->regional_protocol = read_regional_protocol(payload + length, size - length);
 	return 1;
 }
 
@@ -217,8 +240,10 @@ int delta_wire_write_hello(unsigned char *data, delta_u32 session, const struct 
 	write_u32(payload + 8, hello->legacy_table_serial);
 	delta_wire_write_key(payload + 12, &hello->key);
 	write_text(payload + DELTA_WIRE_HELLO_SIZE, hello->build, length);
-	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_hello, DELTA_WIRE_HELLO_SIZE + length, session);
-	return DELTA_WIRE_HEADER_SIZE + DELTA_WIRE_HELLO_SIZE + length;
+	length += DELTA_WIRE_HELLO_SIZE;
+	length += write_regional_protocol(payload + length, hello->regional_protocol);
+	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_hello, length, session);
+	return DELTA_WIRE_HEADER_SIZE + length;
 }
 
 /* ---------- WELCOME
@@ -248,6 +273,8 @@ int delta_wire_read_welcome(const unsigned char *payload, int size, struct delta
 	welcome->legacy_table_serial = read_u32(payload + 12);
 	delta_wire_read_key(payload + 16, &welcome->key);
 	read_text(payload + DELTA_WIRE_WELCOME_SIZE, length, welcome->build);
+	length += DELTA_WIRE_WELCOME_SIZE;
+	welcome->regional_protocol = read_regional_protocol(payload + length, size - length);
 	return 1;
 }
 
@@ -264,8 +291,10 @@ int delta_wire_write_welcome(unsigned char *data, delta_u32 session, const struc
 	write_u32(payload + 12, welcome->legacy_table_serial);
 	delta_wire_write_key(payload + 16, &welcome->key);
 	write_text(payload + DELTA_WIRE_WELCOME_SIZE, welcome->build, length);
-	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_welcome, DELTA_WIRE_WELCOME_SIZE + length, session);
-	return DELTA_WIRE_HEADER_SIZE + DELTA_WIRE_WELCOME_SIZE + length;
+	length += DELTA_WIRE_WELCOME_SIZE;
+	length += write_regional_protocol(payload + length, welcome->regional_protocol);
+	delta_wire_write_header(data, DELTA_MAJOR, _delta_message_welcome, length, session);
+	return DELTA_WIRE_HEADER_SIZE + length;
 }
 
 /* ---------- ROSTER

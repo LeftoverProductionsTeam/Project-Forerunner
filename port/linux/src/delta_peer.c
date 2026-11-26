@@ -619,6 +619,9 @@ static void host_send_welcome(struct delta_peer *peer, int machine_index)
 	memset(&welcome, 0, sizeof(welcome));
 	welcome.capabilities = offered(peer);
 	welcome.agreed = client->agreed & welcome.capabilities;
+	if ((welcome.agreed & CAPABILITY(_delta_capability_regional_bsp)) &&
+		client->hello.regional_protocol == peer->local.regional_protocol)
+		welcome.regional_protocol = peer->local.regional_protocol;
 	welcome.legacy_version = peer->local.legacy_version;
 	welcome.host_machine_index = DELTA_WIRE_NO_MACHINE;
 	for (index = 0; index < peer->game_machine_count; index++)
@@ -2984,6 +2987,8 @@ static void client_send_hello(struct delta_peer *peer, delta_u32 now)
 
 	memset(&hello, 0, sizeof(hello));
 	hello.capabilities = offered(peer);
+	if (hello.capabilities & CAPABILITY(_delta_capability_regional_bsp))
+		hello.regional_protocol = peer->local.regional_protocol;
 	hello.legacy_version = peer->local.legacy_version;
 	hello.machine_index = peer->machine_index;
 	hello.legacy_table_serial = handshake_serial(peer);
@@ -3434,6 +3439,9 @@ static void client_receive(struct delta_peer *peer, delta_u32 now, delta_u32 ipv
 		peer->welcome = welcome;
 		/* (never more than this machine offered, whatever the host says) */
 		peer->agreed = welcome.agreed & welcome.capabilities & offered(peer);
+		if (!(peer->agreed & CAPABILITY(_delta_capability_regional_bsp)) ||
+			peer->welcome.regional_protocol != peer->local.regional_protocol)
+			peer->welcome.regional_protocol = 0;
 		peer->client_state = _delta_peer_client_delta;
 		say(peer, "Delta Peer: the host speaks Delta (build %s, %s, network version %u); capabilities 0x%x, agreed 0x%x",
 			welcome.build[0] ? welcome.build : "?", platform_name(welcome.key.platform),
