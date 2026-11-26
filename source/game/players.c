@@ -1385,8 +1385,7 @@ static boolean player_extraction_start_clear(long player_index, long biped,
 	return TRUE;
 }
 
-long find_best_starting_location_index(
-	long player_index)
+static long find_best_starting_location_index(long player_index, short spawn_bsp)
 {
 	struct scenario *scenario;
 	struct encounter_definition *encounter;
@@ -1399,11 +1398,10 @@ long find_best_starting_location_index(
 	long extraction_biped = NONE;
 	short faction_profile = NONE, faction_variant = 0;
 	boolean checked_extraction_profile = FALSE;
-	short spawn_bsp;
 	struct game_engine_spawn_rules spawn_rules;
 
 	scenario = global_scenario_get();
-	spawn_bsp = scenario_uses_regional_gameplay(scenario) ? global_structure_bsp_index_get() : NONE;
+	/* The caller selects the authoritative scene for this spawn. */
 	starting_location_count = scenario->players.count;
 	if (ai_debug.selected_squad_index != NONE)
 	{
@@ -1530,6 +1528,8 @@ static void player_spawn_at_location(
 	long unit_index;
 	long starting_equipment_count;
 	short starting_location_index;
+	short respawn_bsp = NONE;
+	struct structure_bsp const *respawn_structure = NULL;
 	short faction_profile = NONE, faction_variant = 0;
 
 	/* port: only the Firefight host limits respawns; ordinary co-op is unchanged. */
@@ -1584,7 +1584,33 @@ static void player_spawn_at_location(
 
 		if (!starting_location)
 		{
-			starting_location_index = (short)find_best_starting_location_index(player_index);
+			short foreground = scenario_uses_regional_gameplay(scenario) ? global_structure_bsp_index_get() : NONE;
+
+			starting_location_index = NONE;
+			if (game_engine_running() && game_connection() == _game_connection_network_server &&
+				network_regional_independent_bsp_ready())
+			{
+				short owned = network_coop_player_authoritative_bsp(player_index);
+				if (owned != foreground && VALID_INDEX(owned, scenario->structure_bsp_references.count) &&
+					scenario_structure_bsp_preview(owned, TRUE))
+				{
+					struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
+						&scenario->structure_bsp_references, owned, struct scenario_structure_bsp_reference);
+					mcc_cache_bsp_set_in_use(reference, TRUE);
+					respawn_structure = scenario_structure_bsp_try_and_get(owned);
+					if (respawn_structure)
+						starting_location_index = (short)find_best_starting_location_index(player_index, owned);
+					if (starting_location_index != NONE)
+					{
+						respawn_bsp = owned;
+						object_types_place_regional_bsp(owned, respawn_structure);
+					}
+					else
+						respawn_structure = NULL;
+				}
+			}
+			if (starting_location_index == NONE)
+				starting_location_index = (short)find_best_starting_location_index(player_index, foreground);
 			/* port: a network co-op respawn starts behind its teammate
 			(players_coop_spawn_location) */
 			starting_location = players_coop_spawn_location(&spawn_location);
@@ -1633,7 +1659,7 @@ static void player_spawn_at_location(
 				placement_data_set_change_color(
 					&placement_data,
 					&change_color);
-				unit_index = object_new(&placement_data);
+				unit_index = object_new_in_bsp(&placement_data, respawn_bsp, respawn_structure);
 				if (unit_index != NONE && (faction_profile != NONE || network_coop_active()))
 					player_apply_profile_color(unit_index, &change_color, faction_profile != NONE);
 				if (unit_index != NONE)
@@ -1646,6 +1672,8 @@ static void player_spawn_at_location(
 						unit->object.owner_team_index = (short)player2->team_index;
 						unit->unit.player_index = player_index;
 						player2->unit_index = unit_index;
+						if (respawn_structure)
+							object_activate(unit_index);
 						unit_set_actively_controlled(unit_index, TRUE);
 						if (player2->local_player_index != NONE)
 						{

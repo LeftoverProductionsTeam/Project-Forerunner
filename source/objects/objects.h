@@ -485,6 +485,7 @@ boolean object_transfer_root_to_bsp(long object_index, short destination);
 boolean object_set_physics_pose(long object_index, short bsp, real_point3d const *position, real_vector3d const *forward, real_vector3d const *up);
 void object_translate(long object_index, real_point3d const *new_position, struct location const *new_location);
 long object_new(struct object_placement_data *data);
+long object_new_in_bsp(struct object_placement_data *data, short bsp, struct structure_bsp const *structure);
 void object_attach_to_node(long parent_object_index, long child_object_index, short parent_node_index);
 boolean object_force_inside_bsp(long object_index, real_point3d const *known_good_point);
 /* port: exclude the shooter when validating a muzzle-origin projectile. */

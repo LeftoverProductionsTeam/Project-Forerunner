@@ -4193,6 +4193,18 @@ long object_new(struct object_placement_data *data)
 	return object_new_internal(data, NONE, NULL);
 }
 
+long object_new_in_bsp(struct object_placement_data *data, short bsp, struct structure_bsp const *structure)
+{
+	long index = object_new_internal(data, bsp, structure);
+
+	if (index != NONE && structure && object_get_regional_bsp(index) != bsp)
+	{
+		object_delete(index);
+		return NONE;
+	}
+	return index;
+}
+
 void object_attach_to_node(
 	long parent_object_index,
 	long child_object_index,
@@ -4538,12 +4550,7 @@ long object_new_from_scenario_in_bsp(
 					&scenario_object->rotation);
 				placement_data.variant_number = scenario_object->variant_number;
 				
-				result = object_new_internal(&placement_data, regional_bsp, regional_structure);
-			if (result != NONE && regional_structure && object_get_regional_bsp(result) != regional_bsp)
-			{
-				object_delete(result);
-				return NONE;
-			}
+				result = object_new_in_bsp(&placement_data, regional_bsp, regional_structure);
 				if (result!=NONE)
 				{
 					object_type_place(result, scenario_object);
