@@ -4350,17 +4350,25 @@ boolean object_force_inside_bsp_ignoring(
 	struct collision_result collision;
 
 	struct object_datum *object = object_get(object_index);
-	boolean result = FALSE;
+	real_vector3d launch;
+	short bsp = object_get_regional_bsp(object_index);
+	boolean remote, hit, result = FALSE;
+
+	/* A projectile can be deliberately outside the foreground clusters. */
+	if (bsp == NONE && object->object.type == _object_type_projectile)
+		bsp = game_engine_object_recorded_bsp(object_index, _object_type_projectile);
+	remote = bsp != NONE && bsp != global_structure_bsp_index_get();
 
 	match_assert("c:\\halo\\SOURCE\\objects\\objects.c", 2365, global_current_collision_user_depth < MAXIMUM_COLLISION_USER_STACK_DEPTH);
 	global_current_collision_users[global_current_collision_user_depth++] = 19;
 	
-	if (collision_test_line(_collision_test_for_projectiles_flags, known_good_point, &object->object.position, ignore_object_index, &collision) ||
-		object->object.location.cluster_index==NONE)
+	hit = collision_test_bsp_vector(bsp, _collision_test_for_projectiles_flags, known_good_point,
+		vector_from_points3d(known_good_point, &object->object.position, &launch), ignore_object_index, &collision);
+	if (hit || (remote ? collision.location.cluster_index : object->object.location.cluster_index) == NONE)
 	{
 		if (collision.location.cluster_index!=NONE)
 		{
-			object_translate(object_index, &collision.point, &collision.location);
+			object_translate(object_index, &collision.point, remote ? NULL : &collision.location);
 			object_compute_node_matrices(object_index);
 			result = TRUE;
 		}
