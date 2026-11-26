@@ -686,9 +686,14 @@ int main(int argc,char **argv)
  if(!strcmp(case_name,"regional-ground-guidance")) {
   struct scenario_cutscene_flag flags[]={
    {.name="gs_unsc_deploy"}, {.name="gs_unsc_resupply",.position={9.f,0.f,0.f}},
-   {.name="gs_unsc_ground_call"}, {.name="gs_unsc_bank"}, {.name="gs_cov_deploy"}};
+   {.name="gs_unsc_ground_call"}, {.name="gs_unsc_bank"}, {.name="gs_cov_deploy"},
+   {.name="gs_unsc_exit_01",.position={1.f,0.f,0.f}},
+   {.name="gs_unsc_exit_02",.position={3.f,0.f,0.f}},
+   {.name="gs_unsc_exit_03",.position={5.f,0.f,0.f}},
+   {.name="gs_unsc_return_01",.position={7.5f,0.f,0.f}},
+   {.name="gs_unsc_return_02",.position={2.f,0.f,0.f}}};
   struct extraction_run *host=run(0);
-  scenario.cutscene_flags=(struct tag_block){NUMBEROF(flags),flags};
+  scenario.cutscene_flags=(struct tag_block){5,flags};
   memset(extraction.guidance_flags,NONE,sizeof(extraction.guidance_flags));
   extraction_bind_guidance();
   host->player=player_handles[0];
@@ -711,6 +716,31 @@ int main(int argc,char **argv)
   units[0].object.damage_flags=FLAG(_object_dead_bit);
   extraction_update_guidance(host,&players[0]);
   CHECK(hud_ground_flag==NONE,"a dead viewer retained its prior marker");
+
+  scenario.cutscene_flags.count=NUMBEROF(flags);
+  extraction_bind_guidance();
+  units[0].object.damage_flags=0;
+  units[0].object.position.x=0.f;
+  host->phase=_extraction_deployed;
+  host->resupply_visited=FALSE;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==5,"deployment did not point to the first route flag");
+  units[0].object.position.x=3.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==7,"a later route point did not advance an alternate approach");
+  units[0].object.position.x=5.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==1,"end of the outbound route did not point to resupply");
+  units[0].object.position.x=9.f;
+  host->phase=_extraction_ready;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==8,"evacuation did not point to the start of its return route");
+  units[0].object.position.x=7.5f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==9,"evacuation did not advance to its next return flag");
+  units[0].object.position.x=2.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==3,"end of the return route did not point to banking");
   return 0;
  }
  if(!strcmp(case_name,"regional-ground-evacuation")) {

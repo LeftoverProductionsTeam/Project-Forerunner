@@ -92,6 +92,16 @@ struct extraction_report
 	struct game_modes_inventory_weapon weapons[GAME_MODES_INVENTORY_WEAPONS];
 };
 
+enum extraction_guidance_route
+{
+	_extraction_guidance_route_outbound,
+	_extraction_guidance_route_return,
+	NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES
+};
+
+#define EXTRACTION_GUIDANCE_ROUTE_FLAGS 12
+#define EXTRACTION_GUIDANCE_ROUTE_REACH .55f
+
 struct extraction_run
 {
 	long player, unit, activation_ticks, retry_tick;
@@ -107,6 +117,7 @@ struct extraction_run
 	short report_page, start_kills, start_deaths;
 	boolean statistics_started, hub_briefed, ground_evacuation;
 	boolean resupply_visited, guidance_active;
+	byte guidance_route_next[NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES];
 	short guidance_flag;
 	long guidance_unit;
 	short squad;
@@ -162,6 +173,8 @@ static struct
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short ground_calls[2], ground_zones[2];
 	short guidance_flags[2][NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS], guidance_arrow;
+	short guidance_routes[2][NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES][EXTRACTION_GUIDANCE_ROUTE_FLAGS];
+	byte guidance_route_counts[2][NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES];
 	short dropship_return_zones[2];
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
@@ -1177,34 +1190,56 @@ static boolean extraction_validate_native_starts(boolean regional)
 		 extraction.faction_names[0] != NONE && extraction.faction_names[1] != NONE);
 }
 
+static short extraction_guidance_binding(char const *name)
+{
+	short binding = NONE;
+	long index;
+	for (index = 0; index < MIN(global_scenario->cutscene_flags.count, SHORT_MAX); index++)
+	{
+		struct scenario_cutscene_flag const *flag =
+			TAG_BLOCK_GET_ELEMENT(&global_scenario->cutscene_flags, index, struct scenario_cutscene_flag);
+		if (strcmp(flag->name, name)) continue;
+		if (binding != NONE) return NONE;
+		binding = index;
+	}
+	return binding;
+}
+
 static void extraction_bind_guidance(void)
 {
 	static char const *const names[2][NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS] = {
 		{ "gs_unsc_deploy", "gs_unsc_resupply", "gs_unsc_ground_call", "gs_unsc_bank" },
 		{ "gs_cov_deploy", "gs_cov_resupply", "gs_cov_ground_call", "gs_cov_bank" }
 	};
+	static char const *const factions[] = { "unsc", "cov" };
+	static char const *const routes[] = { "exit", "return" };
 	boolean bound = FALSE;
-	short faction, stage;
-	long index, count = global_scenario->cutscene_flags.count;
+	short faction, stage, route;
 
 	for (faction = 0; faction < 2; faction++)
+	{
 		for (stage = 0; stage < NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS; stage++)
 		{
-			short *binding = &extraction.guidance_flags[faction][stage];
-			for (index = 0; index < MIN(count, SHORT_MAX); index++)
-			{
-				struct scenario_cutscene_flag const *flag =
-					TAG_BLOCK_GET_ELEMENT(&global_scenario->cutscene_flags, index, struct scenario_cutscene_flag);
-				if (strcmp(flag->name, names[faction][stage])) continue;
-				if (*binding != NONE)
-				{
-					*binding = NONE;
-					break;
-				}
-				*binding = index;
-			}
-			bound |= *binding != NONE;
+			short binding = extraction_guidance_binding(names[faction][stage]);
+			extraction.guidance_flags[faction][stage] = binding;
+			bound |= binding != NONE;
 		}
+
+		for (route = 0; route < NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES; route++)
+		{
+			byte *count = &extraction.guidance_route_counts[faction][route];
+			for (*count = 0; *count < EXTRACTION_GUIDANCE_ROUTE_FLAGS; (*count)++)
+			{
+				char name[32];
+				short binding;
+				snprintf(name, sizeof(name), "gs_%s_%s_%02d", factions[faction], routes[route], *count + 1);
+				binding = extraction_guidance_binding(name);
+				if (binding == NONE) break;
+				extraction.guidance_routes[faction][route][*count] = binding;
+			}
+			bound |= *count > 0;
+		}
+	}
 	if (bound) extraction.guidance_arrow = find_nav_point("default");
 }
 
@@ -2087,6 +2122,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->field_exit_ready = FALSE;
 	run->ground_evacuation = FALSE;
 	run->resupply_visited = FALSE;
+	memset(run->guidance_route_next, 0, sizeof(run->guidance_route_next));
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	run->retry_tick = game_time_get();
 	if (!extraction.survival && starting_squad != NONE)
@@ -3283,6 +3319,25 @@ static void extraction_brief_regional_player(struct extraction_run *run, struct 
 	run->hub_briefed = TRUE;
 }
 
+static short extraction_guidance_next(struct extraction_run *run, short faction,
+	enum extraction_guidance_route route, real_point3d const *position, short destination)
+{
+	short const *flags = extraction.guidance_routes[faction][route];
+	byte count = extraction.guidance_route_counts[faction][route];
+	byte *next = &run->guidance_route_next[route];
+	byte index;
+
+	/* Accept a later point if a player reaches it by a different approach. */
+	for (index = *next; index < count; index++)
+	{
+		struct scenario_cutscene_flag const *flag =
+			TAG_BLOCK_GET_ELEMENT(&global_scenario->cutscene_flags, flags[index], struct scenario_cutscene_flag);
+		if (distance3d(position, &flag->position) <= EXTRACTION_GUIDANCE_ROUTE_REACH)
+			*next = index + 1;
+	}
+	return *next < count ? flags[*next] : destination;
+}
+
 static void extraction_update_guidance(struct extraction_run *run, struct player_datum const *player)
 {
 	short faction, flag = NONE;
@@ -3316,7 +3371,8 @@ static void extraction_update_guidance(struct extraction_run *run, struct player
 				/* Approaching the cache advances guidance. Loot is optional and only
 				 * the real inventory transaction determines what reaches the stash. */
 				if (distance3d(&unit->object.position, &location->position) > 2.f)
-					flag = resupply;
+					flag = extraction_guidance_next(run, faction, _extraction_guidance_route_outbound,
+						&unit->object.position, resupply);
 				else
 				{
 					run->resupply_visited = TRUE;
@@ -3329,7 +3385,9 @@ static void extraction_update_guidance(struct extraction_run *run, struct player
 			break;
 		case _extraction_ready:
 		case _extraction_settling:
-			if (run->ground_evacuation) flag = route[_extraction_guidance_bank];
+			if (run->ground_evacuation)
+				flag = extraction_guidance_next(run, faction, _extraction_guidance_route_return,
+					&unit->object.position, route[_extraction_guidance_bank]);
 			break;
 		default:
 			break;

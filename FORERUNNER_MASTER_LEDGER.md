@@ -24,6 +24,29 @@ The installed 19-region selection is an engineering playtest. Existing evidence
 and previous-good files are retained. Promote coherent feature batches after
 normal-controls verification.
 
+### Interim ground Extraction on the existing world
+
+Private Win64 `340e6ff22fc4f538c40ca596c9989b18d48210720a495ff395d4d4dc2b80153d`,
+map `b4e78ff0076de61d9e0bfbeb5c73b438316b915c110b1bd8aaa8192a538a8856`,
+and mode receipt `d607eb043aff17b5a6efa7db4951bd34a6ec4ca4bfa5842e7f76ba53332631d6`.
+Normal desktop menus opened an offline host and joined through the private LAN
+browser. The host maintained live players in BSP 0 and BSP 11 at once. Both
+factions completed the ground loop through normal controls. UNSC recovered
+and reissued the field plasma pistol; a solo instance also reissued it after
+restarting with the same local profile. Covenant used the upper north bridge and
+west ramp, recovered two plasma grenades at resupply, called evacuation and
+banked one weapon and three plasma grenades. The next manual deployment
+reissued the weapon and all three plasma grenades. LAN guest stashes are
+session-only. Native evidence is retained under
+`build/regional-native-trial/megaworld-guidance-b4e78ff0` in the
+`settle-guest`, `durable-host`, `reopen-host` and
+`covenant-field-browser` logs. The Covenant log shows bank at 13:17:21 and
+redeploy at 13:18:53, with grenades and weapon restored at tick 17430.
+
+The ground loop still needs authored combat, first-time route validation and
+resolution of the Hang 'Em High connector overlap before promotion. This is
+interim world evidence; authenticated play and compact world acceptance remain open.
+
 ## Historical checkpoints
 
 ### Prior V2 priorities and pinned evidence
