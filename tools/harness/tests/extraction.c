@@ -515,7 +515,7 @@ static void biped_get_physics_pill(long unit, real_point3d *base, real *height, 
 {object_get_origin(unit,base);base->z+=.25f;*height=.5f;*width=.25f;}
 static boolean biped_fix_position(long unit,long ship,real_point3d const *position,real_point3d *out,real radius,
  boolean below,boolean dont_teleport,boolean scale)
-{CHECK(dont_teleport,"hover clearance moved the passenger");
+{CHECK(dont_teleport && out,"hover clearance must supply a probe result without moving the passenger");
  CHECK(position->x==13.f && fabsf(position->z-30.1f)<.001f,"hover clearance did not use the native clip and biped capsule base");
  return !wall;}
 enum { _biped_spherical_bit, _biped_pill_centered_at_origin_bit };

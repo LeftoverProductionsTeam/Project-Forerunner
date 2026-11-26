@@ -5135,7 +5135,7 @@ static boolean unit_hover_exit_clear(long unit_index, struct unit_datum const *u
 	struct model_node const *root_node;
 	struct object_marker marker;
 	real_matrix4x3 exit_root;
-	real_point3d exit_point, origin, pill_base;
+	real_point3d exit_point, origin, pill_base, safe_position;
 	real pill_height, pill_width;
 
 	if (!VALID_INDEX(unit->unit.parent_seat_index, ship_definition->unit.seats.count) ||
@@ -5154,7 +5154,7 @@ static boolean unit_hover_exit_clear(long unit_index, struct unit_datum const *u
 	object_get_origin(unit_index, &origin);
 	biped_get_physics_pill(unit_index, &pill_base, &pill_height, &pill_width);
 	exit_point.z += pill_base.z - origin.z - root_node->default_translation.z;
-	return biped_fix_position(unit_index, ship, &exit_point, NULL, 2.f, TRUE, TRUE, TRUE);
+	return biped_fix_position(unit_index, ship, &exit_point, &safe_position, 2.f, TRUE, TRUE, TRUE);
 }
 
 boolean unit_try_and_exit_seat(
