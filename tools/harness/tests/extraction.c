@@ -2455,7 +2455,12 @@ int main(int argc,char **argv)
 
      dropships[0].object.damage_flags=FLAG(_object_die_act_of_god_bit);
      CHECK(extraction_transport_can_disembark(&units[0]),"damaged craft could not release its rider");
-     dropships[0].object.damage_flags=0;recorded_aircraft=NONE;advance(1);
+     dropships[0].object.damage_flags=0;recorded_aircraft=NONE;
+     units[0].unit.animation.state=_unit_state_hard_ping;advance(1);
+     CHECK(run(0)->field_reached&&!run(0)->field_exit_ready&&local_notices==notices,
+       "field arrival told a passenger to exit during a native animation lock");
+     CHECK(!unit_try_and_exit_seat(unit_handles[0]),"native seat accepted an exit during a reaction animation");
+     units[0].unit.animation.state=_unit_state_idle;advance(1);
      CHECK(run(0)->field_reached&&extraction_transport_can_disembark(&units[0]),
        "finished recording did not complete insertion and reopen the exit");
      CHECK(extraction_transport_passenger_prompt(&units[0]) &&
@@ -2466,7 +2471,9 @@ int main(int argc,char **argv)
        !wcscmp(extraction_transport_passenger_prompt(&units[0]),L"Stay seated until the exit opens"),
        "passenger reaction showed a seat exit action the native animation refused");
      units[0].unit.animation.state=_unit_state_idle;
-     CHECK(local_notices==notices+1&&strstr(local_notice_history[notices%4],"LANDED"),"safe arrival did not announce disembarkation");
+     CHECK(local_notices==notices+1&&strstr(local_notice_history[notices%4],"LANDED")&&
+       strstr(local_notice_history[notices%4],"Press your Action button"),
+       "safe arrival did not tell the passenger how to disembark without the local seat prompt");
      advance(1);
      CHECK(local_notices==notices+1,"landing notice repeated while the player remained seated");
 

@@ -2822,19 +2822,20 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		long ship = extraction_player_dropship(unit);
-		boolean exit_ready = ship != NONE && extraction_transport_at_field(faction, ship) &&
+		boolean at_field = ship != NONE && extraction_transport_at_field(faction, ship) &&
 			extraction_transport_arrival_ready(faction, ship);
-		if (exit_ready)
-		{
-			run->field_reached = TRUE;
-			if (!run->field_exit_ready && !extraction.survival)
-				extraction_tell(run, extraction.dropship_hover_transfer[faction]
-					? "AT TRANSFER | Follow the seat exit prompt to deploy. Find the extraction control when ready to evacuate."
-					: "LANDED | Follow the seat exit prompt to disembark. Find the extraction control when ready to evacuate.");
-		}
-		else if (run->field_exit_ready && ship != NONE && !extraction.survival &&
-			!extraction_transport_can_disembark(unit))
-			extraction_tell(run, "WAIT TO DISEMBARK | The dropship is moving. Stay seated until the exit opens.");
+		boolean exiting = unit->unit.animation.state == _unit_state_exiting_seat;
+		boolean exit_ready = at_field && unit->unit.parent_seat_index != NONE &&
+			!exiting && !unit_animation_busy(&unit->unit.animation);
+
+		if (at_field) run->field_reached = TRUE;
+		if (exit_ready && !run->field_exit_ready && !extraction.survival)
+			extraction_tell(run, extraction.dropship_hover_transfer[faction]
+				? "AT TRANSFER | Press your Action button to deploy. Find the extraction control when ready to evacuate."
+				: "LANDED | Press your Action button to disembark. Find the extraction control when ready to evacuate.");
+		else if (!exit_ready && run->field_exit_ready && ship != NONE && !exiting && !extraction.survival &&
+			(!extraction_transport_can_disembark(unit) || (at_field && unit_animation_busy(&unit->unit.animation))))
+			extraction_tell(run, "WAIT TO DISEMBARK | Stay seated until the exit opens.");
 		/* Arrival is an operation milestone. Exit guidance follows the live seat gate. */
 		run->field_exit_ready = exit_ready;
 	}
