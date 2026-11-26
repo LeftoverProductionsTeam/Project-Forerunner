@@ -72,6 +72,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
         structure(hud_messages, 'hud_message_text_definition')))))
     files.append(('notice_hud.inc', function(hud_messages, 'hud_print_notice') + '\n' +
                   function(hud_messages, 'hud_messaging_notice_text')))
+    files.append(('cutscene_flag.inc', structure(read('source/scenario/scenario_definitions.h'), 'scenario_cutscene_flag')))
     files.append(('extraction.inc', extraction))
     files.append(('evacuation.inc', function(director, 'firefight_try_evacuation')))
     hud = read('source/interface/hud_nav_points.c')
@@ -274,7 +275,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
     'transport-hover-pelican', 'transport-hover-spirit', 'transport-landed-loop', 'transport-landed-egress', 'transport-landed-alias', 'transport-spirit-return',
     'transport-pelican-return', 'transport-authored-high-slot', 'regional-hub-briefing',
-    'regional-ground-evacuation',
+    'regional-ground-evacuation', 'regional-ground-guidance', 'regional-lan-ownership',
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-admission-deployment', 'transport-admission-evacuation',

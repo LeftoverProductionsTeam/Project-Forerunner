@@ -81,7 +81,7 @@ struct scenario_trigger_volume { char name[32]; short type; };
 #include "mission_types.inc"
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; short structure_bsp_reference_index; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette, structure_bsp_references, vehicles, vehicle_palette; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette, structure_bsp_references, vehicles, vehicle_palette, cutscene_flags; };
 struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -483,6 +483,26 @@ static struct structure_bsp const *scenario_structure_bsp_preview(short bsp, boo
 {return prefetch&&bsp==fixture_hub_geometry.bsp?&fixture_hub_geometry:NULL;}
 static boolean scenario_structure_bsp_contains_placement(struct structure_bsp const *bsp,real_point3d const *position)
 {return bsp->bsp==10&&position->z==-3.f;}
+typedef struct {real yaw,pitch;} real_euler_angles2d;
+#define TAG_STRING_LENGTH 32
+#include "cutscene_flag.inc"
+static short hud_ground_flag=NONE;
+static short find_nav_point(char const *name){return strcmp(name,"default") ? NONE : 0;}
+static real distance3d(real_point3d const *left,real_point3d const *right)
+{
+ real x=left->x-right->x,y=left->y-right->y,z=left->z-right->z;
+ return sqrtf(x*x+y*y+z*z);
+}
+static void hud_unit_activate_nav_point_with_flag(short style,long unit,short flag,real offset)
+{
+ CHECK(style==0&&unit==unit_handles[0]&&hud_ground_flag==NONE,"wrong viewer, style or uncleared previous guide");
+ hud_ground_flag=flag;
+}
+static void hud_unit_deactivate_nav_point_with_flag(long unit,short flag)
+{
+ CHECK(unit==unit_handles[0]&&flag==hud_ground_flag,"cleared the wrong ground guide");
+ hud_ground_flag=NONE;
+}
 #include "extraction.inc"
 #define vehicle_datum unit_datum
 #include "vehicle_brake.inc"
@@ -494,7 +514,6 @@ static void mcc_player_profile_grenades(long unit,struct scenario_starting_profi
 #include "spawn_equipment_types.inc"
 #include "spawn_equipment.inc"
 #include "native_seat_animation_types.inc"
-#define TAG_STRING_LENGTH 32
 #define csstrncpy strncpy
 #define csstrcat strcat
 typedef struct {real_point3d position;} real_matrix4x3;
@@ -664,6 +683,36 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"regional-ground-guidance")) {
+  struct scenario_cutscene_flag flags[]={
+   {.name="gs_unsc_deploy"}, {.name="gs_unsc_resupply",.position={9.f,0.f,0.f}},
+   {.name="gs_unsc_ground_call"}, {.name="gs_unsc_bank"}, {.name="gs_cov_deploy"}};
+  struct extraction_run *host=run(0);
+  scenario.cutscene_flags=(struct tag_block){NUMBEROF(flags),flags};
+  memset(extraction.guidance_flags,NONE,sizeof(extraction.guidance_flags));
+  extraction_bind_guidance();
+  host->player=player_handles[0];
+  players[0].team_index=units[0].object.owner_team_index=_game_team_player;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==0,"hub guide did not bind to the authored deploy flag");
+  host->phase=_extraction_deployed;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==1,"deployment skipped native resupply guidance");
+  units[0].object.position.x=8.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==2&&host->resupply_visited,"arrival did not advance the guide to the field call");
+  host->phase=_extraction_ready;
+  host->ground_evacuation=TRUE;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==3,"ready ground evacuation did not point to home");
+  host->phase=_extraction_returned;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==0,"settlement did not restore redeploy guidance");
+  units[0].object.damage_flags=FLAG(_object_dead_bit);
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==NONE,"a dead viewer retained its prior marker");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-ground-evacuation")) {
   struct extraction_run *host=run(0);
   touch(0,0);
@@ -3819,6 +3868,23 @@ int main(int argc,char **argv)
     CHECK(run(0)->gear.record.reserved_count==1&&!memcmp(run(0)->gear.record.reserved[0].id,item,GEAR_ID_BYTES),"host-to-client role change lost or duplicated banked equipment");
    }
   }
+ } else if(!strcmp(case_name,"regional-lan-ownership")) {
+  byte owner[GEAR_ID_BYTES], expected[GEAR_ID_BYTES];
+  boolean session_only;
+  online=FALSE;delta_session=TRUE;verified=FALSE;
+  extraction.regional_receipt_valid=extraction.lan_session_gear=TRUE;
+  gear_session_owner(player_handles[1],expected);
+  CHECK(!extraction_resolve_owner_mode(&players[1],player_handles[1],owner,&session_only)&&
+        session_only&&!memcmp(owner,expected,GEAR_ID_BYTES),"private regional guest required a Delta account");
+  gear_profile_owner("owned/profile",expected);
+  CHECK(!extraction_resolve_owner_mode(&players[0],player_handles[0],owner,&session_only)&&
+        !session_only&&!memcmp(owner,expected,GEAR_ID_BYTES),"private regional host lost profile ownership");
+  guest_address=0x64400001UL;
+  CHECK(extraction_resolve_owner_mode(&players[1],player_handles[1],owner,&session_only)&&!session_only,
+        "tunnel peer qualified for private storage");
+  online=TRUE;
+  CHECK(extraction_resolve_owner_mode(&players[0],player_handles[0],owner,&session_only)&&!session_only,
+        "authenticated room fell back to a local owner");
  } else if(!strncmp(case_name,"lan-gear-",9)) {
   byte item[GEAR_ID_BYTES],local_owner[GEAR_ID_BYTES];
   online=FALSE; verified=FALSE;

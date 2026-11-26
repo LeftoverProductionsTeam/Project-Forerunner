@@ -777,8 +777,9 @@ static struct distributed_coop_event *event_new(
 {
 	struct distributed_coop_event *event;
 
-	if (!coop_host() && (kind != _coop_event_surface_broken ||
-		game_connection() != _game_connection_network_server || !regional_world_sync_active()))
+	if (!coop_host() && (game_connection() != _game_connection_network_server ||
+		!((kind == _coop_event_surface_broken && regional_world_sync_active()) ||
+		  (kind == _coop_event_nav_point && network_regional_independent_bsp_ready()))))
 		return NULL;
 	if (coop_events.count == MAXIMUM_QUEUED_EVENTS)
 	{
@@ -3123,10 +3124,26 @@ static boolean send_nav_point(
 	long marker,
 	real vertical_offset)
 {
-	struct distributed_coop_event *event = event_new(_coop_event_nav_point);
+	struct distributed_coop_event *event;
+	long audience = NONE;
 
+	if (!coop_game())
+	{
+		long player_index;
+		struct player_datum const *player;
+
+		if (kind != _coop_nav_point_unit_flag || !network_regional_independent_bsp_ready()) return FALSE;
+		player_index = player_index_from_unit_index(target);
+		player = player_try_and_get(player_index);
+		if (!player || player->quit_out_of_game || player->local_player_index != NONE)
+			return TRUE; /* Local HUD or a retired unit needs no network event. */
+		audience = distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index));
+		if (audience == NONE) return FALSE;
+	}
+	event = event_new(_coop_event_nav_point);
 	if (!event)
 		return FALSE;
+	coop_events.audience[coop_events.count - 1] = audience;
 	event->type = (byte)kind;
 	event->value = nav_index;
 	event->target = target;
@@ -3185,9 +3202,11 @@ void network_coop_note_nav_point(
 {
 	short index;
 
-	if (!coop_host() && !coop_client())
+	if (!coop_host() && !coop_client() &&
+		(kind != _coop_nav_point_unit_flag || !network_regional_independent_bsp_ready()))
 		return;
-	if (coop_host()) send_nav_point(kind, nav_index, target, marker, vertical_offset);
+	if (game_connection() == _game_connection_network_server)
+		send_nav_point(kind, nav_index, target, marker, vertical_offset);
 	for (index = 0; index < host_hud_state.nav_point_count; index++)
 	{
 		if (host_hud_state.nav_points[index].kind == kind && host_hud_state.nav_points[index].target == target &&
@@ -3776,6 +3795,7 @@ void network_coop_host_tick(
 			host_send_device_states();
 			host_resend.scene_refresh = FALSE;
 			host_send_broken_surfaces();
+			if (network_regional_independent_bsp_ready()) host_send_hud_state();
 			host_send_events();
 		}
 		return;
@@ -4166,7 +4186,9 @@ void network_coop_handle_events(
 		return;
 	for (index = 0; index < count; index++)
 	{
-		if (!cooperative && events[index].kind != _coop_event_surface_broken)
+		if (!cooperative && events[index].kind != _coop_event_surface_broken &&
+			!(events[index].kind == _coop_event_nav_point && events[index].type == _coop_nav_point_unit_flag &&
+			  network_regional_independent_bsp_ready()))
 			continue;
 		/* already applied (the comparison handles the number wrapping) */
 		if (coop_events.applied_any && (short)(events[index].number - coop_events.applied_number) <= 0)

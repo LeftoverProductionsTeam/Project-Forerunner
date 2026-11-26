@@ -20,6 +20,7 @@
 #include "cutscene/cinematics.h"
 #include "cutscene/recorded_animations.h"
 #include "game_modes.h"
+#include "interface/hud.h"
 #include "interface/hud_messaging.h"
 #include "sound/game_sound.h"
 #include "sound/sound_definitions.h"
@@ -105,6 +106,9 @@ struct extraction_run
 	short dropship_team;
 	short report_page, start_kills, start_deaths;
 	boolean statistics_started, hub_briefed, ground_evacuation;
+	boolean resupply_visited, guidance_active;
+	short guidance_flag;
+	long guidance_unit;
 	short squad;
 	unsigned long squad_operation;
 	struct extraction_report report;
@@ -140,6 +144,15 @@ static char const *const extraction_ground_zone_names[2] = {
 	"extraction_unsc_ground_zone", "extraction_cov_ground_zone"
 };
 
+enum
+{
+	_extraction_guidance_deploy,
+	_extraction_guidance_resupply,
+	_extraction_guidance_call,
+	_extraction_guidance_bank,
+	NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS
+};
+
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced, separate_hubs;
@@ -148,6 +161,7 @@ static struct
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short ground_calls[2], ground_zones[2];
+	short guidance_flags[2][NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS], guidance_arrow;
 	short dropship_return_zones[2];
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
@@ -624,8 +638,18 @@ static void extraction_reconcile_squad_escrow(struct gear_record const *record)
 	choice->escrow_operation = 0;
 }
 
+static void extraction_clear_guidance(struct extraction_run *run)
+{
+	if (run->guidance_active)
+	{
+		hud_unit_deactivate_nav_point_with_flag(run->guidance_unit, run->guidance_flag);
+		run->guidance_active = FALSE;
+	}
+}
+
 static void extraction_run_close(struct extraction_run *run)
 {
+	extraction_clear_guidance(run);
 	if (run->gear.opened)
 	{
 		/* A failed native grant removed all newly created equipment. Preserve
@@ -720,22 +744,27 @@ static char const *extraction_resolve_owner_mode(struct player_datum const *play
 	byte owner[GEAR_ID_BYTES], boolean *session_only)
 {
 	boolean local = player->local_player_index >= 0 && player->local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS;
-	*session_only = FALSE;
-	if (!local && game_connection() == _game_connection_network_server &&
+	boolean private_regional = extraction.regional_receipt_valid && extraction.lan_session_gear &&
+		!config_boolean("network.online");
+	boolean account_room = FALSE;
 #ifdef HALO_GAME_BROWSER
-		!delta_peer_game_on_delta() &&
+	account_room = delta_peer_game_on_delta() && !private_regional;
 #endif
+	*session_only = FALSE;
+	if (!local && game_connection() == _game_connection_network_server && !account_room &&
 		extraction_lan_guest(distributed_player_machine((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index))))
 	{
 		gear_session_owner(player_index, owner);
 		*session_only = TRUE;
 		return NULL;
 	}
+	if (!local && private_regional)
+		return "DEPLOYMENT BLOCKED | A direct private LAN connection is required for this room.";
 #ifdef HALO_GAME_BROWSER
 	/* Hosting and joining must resolve the same verified account to the same
 	 * stash. A Delta host without its bound proof waits; it must not fall
 	 * back to an unrelated offline profile owner while authentication loads. */
-	if (game_connection() == _game_connection_network_server && (!local || delta_peer_game_on_delta()))
+	if (game_connection() == _game_connection_network_server && (!local || account_room))
 	{
 		struct delta_peer_identity identity;
 		/* The distributed lookup contains remote clients only. The host's
@@ -1148,6 +1177,37 @@ static boolean extraction_validate_native_starts(boolean regional)
 		 extraction.faction_names[0] != NONE && extraction.faction_names[1] != NONE);
 }
 
+static void extraction_bind_guidance(void)
+{
+	static char const *const names[2][NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS] = {
+		{ "gs_unsc_deploy", "gs_unsc_resupply", "gs_unsc_ground_call", "gs_unsc_bank" },
+		{ "gs_cov_deploy", "gs_cov_resupply", "gs_cov_ground_call", "gs_cov_bank" }
+	};
+	boolean bound = FALSE;
+	short faction, stage;
+	long index, count = global_scenario->cutscene_flags.count;
+
+	for (faction = 0; faction < 2; faction++)
+		for (stage = 0; stage < NUMBER_OF_EXTRACTION_GUIDANCE_FLAGS; stage++)
+		{
+			short *binding = &extraction.guidance_flags[faction][stage];
+			for (index = 0; index < MIN(count, SHORT_MAX); index++)
+			{
+				struct scenario_cutscene_flag const *flag =
+					TAG_BLOCK_GET_ELEMENT(&global_scenario->cutscene_flags, index, struct scenario_cutscene_flag);
+				if (strcmp(flag->name, names[faction][stage])) continue;
+				if (*binding != NONE)
+				{
+					*binding = NONE;
+					break;
+				}
+				*binding = index;
+			}
+			bound |= *binding != NONE;
+		}
+	if (bound) extraction.guidance_arrow = find_nav_point("default");
+}
+
 static void extraction_bind(void)
 {
 	short index, faction, squad;
@@ -1161,9 +1221,15 @@ static void extraction_bind(void)
 	extraction.admitted = FALSE;
 	extraction.separate_hubs = FALSE;
 	extraction.evacuation = FALSE;
+	extraction.guidance_arrow = NONE;
+	memset(extraction.guidance_flags, NONE, sizeof(extraction.guidance_flags));
 	extraction.lan_session_gear = !config_boolean("network.online");
 #ifdef HALO_GAME_BROWSER
-	extraction.lan_session_gear = extraction.lan_session_gear && !delta_peer_game_on_delta();
+	/* Negotiated regional transport uses the Delta wire on private LAN too.
+	 * Its exact receipt gate admits only offline rooms. Keep that room's local
+	 * and session owners even when the peers negotiate the newer transport. */
+	extraction.lan_session_gear = extraction.lan_session_gear &&
+		(extraction.regional_receipt_valid || !delta_peer_game_on_delta());
 #endif
 	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
 		extraction.squads[squad].name = extraction.squads[squad].ready_group = NONE;
@@ -1578,6 +1644,7 @@ finished:
 			extraction_notice("SURVIVAL GEAR UNAVAILABLE | Endless recovery needs unique native hub controls and extraction/return zones. No stash reserved.");
 		return;
 	}
+	if (extraction.admitted && ground_routes) extraction_bind_guidance();
 	if (extraction.admitted && !extraction.suspended && global_scenario->type == _scenario_type_solo)
 		extraction_notice("HUB | Use the deployment control to begin. No raid timer.");
 	else if (!extraction.admitted)
@@ -2019,6 +2086,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->field_reached = FALSE;
 	run->field_exit_ready = FALSE;
 	run->ground_evacuation = FALSE;
+	run->resupply_visited = FALSE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	run->retry_tick = game_time_get();
 	if (!extraction.survival && starting_squad != NONE)
@@ -3215,6 +3283,70 @@ static void extraction_brief_regional_player(struct extraction_run *run, struct 
 	run->hub_briefed = TRUE;
 }
 
+static void extraction_update_guidance(struct extraction_run *run, struct player_datum const *player)
+{
+	short faction, flag = NONE;
+	long unit_index = player->unit_index;
+	struct unit_datum const *unit;
+
+	if (extraction.guidance_arrow == NONE) return;
+	faction = extraction_faction((short)player->team_index);
+	unit = object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (VALID_INDEX(faction, 2) && unit && unit->unit.player_index == run->player &&
+		extraction_faction(unit->object.owner_team_index) == faction &&
+		!TEST_FLAG(unit->object.damage_flags, _object_dead_bit) && !extraction_unit_pending_death(unit))
+	{
+		short const *route = extraction.guidance_flags[faction];
+
+		switch (run->phase)
+		{
+		case _extraction_hub:
+		case _extraction_lost:
+		case _extraction_returned:
+			flag = route[_extraction_guidance_deploy];
+			break;
+		case _extraction_deployed:
+			flag = route[_extraction_guidance_call];
+			if (!run->resupply_visited && route[_extraction_guidance_resupply] != NONE)
+			{
+				short resupply = route[_extraction_guidance_resupply];
+				struct scenario_cutscene_flag const *location =
+					TAG_BLOCK_GET_ELEMENT(&global_scenario->cutscene_flags, resupply, struct scenario_cutscene_flag);
+
+				/* Approaching the cache advances guidance. Loot is optional and only
+				 * the real inventory transaction determines what reaches the stash. */
+				if (distance3d(&unit->object.position, &location->position) > 2.f)
+					flag = resupply;
+				else
+				{
+					run->resupply_visited = TRUE;
+					extraction_tell(run, "RESUPPLY SITE | Collect the available gear, then use the marked evacuation terminal.");
+				}
+			}
+			break;
+		case _extraction_activating:
+			if (run->ground_evacuation) flag = route[_extraction_guidance_call];
+			break;
+		case _extraction_ready:
+		case _extraction_settling:
+			if (run->ground_evacuation) flag = route[_extraction_guidance_bank];
+			break;
+		default:
+			break;
+		}
+	}
+	if (run->guidance_active && run->guidance_flag == flag && run->guidance_unit == unit_index)
+		return;
+	extraction_clear_guidance(run);
+	if (flag != NONE)
+	{
+		hud_unit_activate_nav_point_with_flag(extraction.guidance_arrow, unit_index, flag, .35f);
+		run->guidance_flag = flag;
+		run->guidance_unit = unit_index;
+		run->guidance_active = TRUE;
+	}
+}
+
 void extraction_update(void)
 {
 	struct data_iterator iterator;
@@ -3278,6 +3410,7 @@ void extraction_update(void)
 			else if (global_scenario->type != _scenario_type_solo)
 				extraction_brief_regional_player(run, player);
 			extraction_update_run(run, player, now);
+			extraction_update_guidance(run, player);
 			if (extraction.suspended)
 			{
 				/* Clear the published aircraft signals before HaloScript runs
