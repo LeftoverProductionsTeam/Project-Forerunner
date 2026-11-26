@@ -2129,7 +2129,7 @@ static wchar_t const *extraction_control_label(short name, short *squad)
 
 	service = extraction_hub_control(name, &faction);
 	if (name == extraction.deploy_name || service == _extraction_hub_deploy_control)
-		return L"Press %action to prepare for deployment";
+		return L"Press %action to use the deployment terminal";
 	if (name == extraction.activate_name || name == extraction.dropship_activate_names[0] ||
 		name == extraction.dropship_activate_names[1]) return L"Press %action to request evacuation";
 	if (name == extraction.loadout_name || service == _extraction_hub_loadout_control) return L"Press %action for loadout and stash";
@@ -2342,12 +2342,19 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		}
 		return TRUE;
 	}
-	if ((hub_service == _extraction_hub_deploy_control || control->object.name_index == extraction.deploy_name) && in_hub &&
-		(run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned))
+	if (hub_service == _extraction_hub_deploy_control || control->object.name_index == extraction.deploy_name)
 	{
-		/* Let the native control transition notify HaloScript only after the
-		 * host has granted the reserved loadout successfully. */
-		return !extraction_deploy(run, player, !update_client_loadout_modifier_held(unit->unit.player_index));
+		if (in_hub)
+		{
+			if (run->phase == _extraction_hub || run->phase == _extraction_lost || run->phase == _extraction_returned)
+			{
+				/* Signal HaloScript only after granting the reserved loadout. */
+				return !extraction_deploy(run, player, !update_client_loadout_modifier_held(unit->unit.player_index));
+			}
+			if (run->phase == _extraction_deployed || run->phase == _extraction_activating || run->phase == _extraction_ready)
+				extraction_tell(run, "DEPLOYMENT ACTIVE | Finish the current operation.");
+		}
+		return TRUE;
 	}
 	if (!activation) return TRUE;
 	faction = extraction_faction(unit->object.owner_team_index);

@@ -3426,7 +3426,14 @@ int main(int argc,char **argv)
   CHECK(run(0)->phase==_extraction_hub&&!control_updates[0],"failed reservation signaled authored deployment");
   fail_write=FALSE;touch(0,0);
   CHECK(run(0)->phase==_extraction_deployed&&control_updates[0]==1&&device_groups[0].actual_value==1.f&&control_effects[0]==1,"accepted deployment did not reach native state/effects");
-  touch(0,0);CHECK(control_updates[0]==1,"duplicate deployment retriggered authored mission");
+  {
+   int before_notice=local_notices;
+   unsigned long generation=run(0)->gear.record.generation;
+   touch(0,0);
+   CHECK(control_updates[0]==1&&run(0)->gear.record.generation==generation,"duplicate deployment changed authored state or gear");
+   CHECK(local_notices==before_notice+1&&strstr(local_notice_history[before_notice%4],"DEPLOYMENT ACTIVE"),
+    "duplicate deployment did not explain why the terminal was inactive");
+  }
   device_groups[0].flags|=FLAG(_device_group_can_change_only_once_bit);touch(0,1);
   CHECK(run(1)->phase==_extraction_hub&&!run(1)->gear.opened&&control_updates[0]==1,"one-use mission lock reserved another player's gear");
   units[0].object.position.x=20.f;device_groups[4].actual_value=0.f;touch(1,0);
