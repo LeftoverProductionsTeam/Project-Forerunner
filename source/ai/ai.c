@@ -707,18 +707,39 @@ void ai_erase(
 	return;
 }
 
+/* Authored regions keep their live squads between visits. Native pressure
+ * recovery can still release encounterless actors and classic encounters. */
+static boolean ai_encounter_has_regional_home(struct scenario const *scenario, long encounter_index)
+{
+	struct encounter_definition const *definition;
+	long index;
+
+	if (!scenario || encounter_index == NONE)
+		return FALSE;
+	index = DATUM_INDEX_TO_ABSOLUTE_INDEX(encounter_index);
+	if (!VALID_INDEX(index, scenario->ai_encounters.count))
+		return FALSE;
+
+	definition = TAG_BLOCK_GET_ELEMENT(&scenario->ai_encounters, index, struct encounter_definition);
+	return VALID_INDEX(definition->runtime_structure_bsp_reference_index,
+		MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO));
+}
+
 boolean ai_release_inactive_swarms(
 	char *result_description,
 	boolean *more_to_release,
 	byte *working_memory,
 	short working_memory_size)
 {
+	struct scenario const *scenario = global_scenario_try_and_get();
 	struct actor_iterator iterator;
 	short released_unit_count = 0;
 	struct actor_datum *actor;
 
 	match_assert("c:\\halo\\SOURCE\\ai\\ai.c", 0x1F7, result_description && more_to_release);
 
+	if (scenario && !scenario_uses_regional_gameplay(scenario))
+		scenario = NULL;
 	actor_iterator_new(&iterator, FALSE);
 	actor = actor_iterator_next(&iterator);
 
@@ -726,7 +747,8 @@ boolean ai_release_inactive_swarms(
 	{
 		if (actor->meta.swarm &&
 			!actor->meta.active &&
-			actor->meta.last_active_time != NONE)
+			actor->meta.last_active_time != NONE &&
+			!ai_encounter_has_regional_home(scenario, actor->meta.encounter_index))
 		{
 			released_unit_count += actor->meta.swarm_unit_count;
 			actor_erase(iterator.index, TRUE);
@@ -766,6 +788,7 @@ void ai_find_inactive_encounters(
 	byte *working_memory,
 	short working_memory_size)
 {
+	struct scenario const *scenario = global_scenario_try_and_get();
 	struct potentially_releasable_storage *storage;
 
 	match_assert("c:\\halo\\SOURCE\\ai\\ai.c", 0x22E, working_memory_size >= sizeof(struct potentially_releasable_storage));
@@ -773,6 +796,8 @@ void ai_find_inactive_encounters(
 	storage = (struct potentially_releasable_storage *)working_memory;
 	storage->count = 0;
 	storage->cursor = 0;
+	if (scenario && !scenario_uses_regional_gameplay(scenario))
+		scenario = NULL;
 
 	{
 		struct encounter_actor_iterator actor_iterator;
@@ -787,7 +812,8 @@ void ai_find_inactive_encounters(
 				break;
 
 			if (!actor->meta.active &&
-				actor->meta.last_active_time != NONE)
+				actor->meta.last_active_time != NONE &&
+				!ai_encounter_has_regional_home(scenario, actor->meta.encounter_index))
 			{
 				storage->entities[storage->count].is_actor = TRUE;
 				storage->entities[storage->count].entity_index = actor_iterator.index;
@@ -813,7 +839,8 @@ void ai_find_inactive_encounters(
 
 			if (!encounter->active &&
 				encounter->current_count > 0 &&
-				encounter->last_active_time != NONE)
+				encounter->last_active_time != NONE &&
+				!ai_encounter_has_regional_home(scenario, encounter_iterator.index))
 			{
 				storage->entities[storage->count].is_actor = FALSE;
 				storage->entities[storage->count].entity_index = encounter_iterator.index;

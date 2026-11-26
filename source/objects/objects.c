@@ -1944,10 +1944,25 @@ boolean object_visible_to_any_player(
 		TEST_FLAG(object->object.flags, _object_connected_to_map_bit) &&
 		!TEST_FLAG(object->object.flags, _object_outside_of_map_bit))
 	{
+		struct scenario const *scenario = global_scenario_try_and_get();
+		boolean regional = scenario && scenario_uses_regional_gameplay(scenario);
+		short bsp = regional ? object_get_regional_bsp(object_index) : NONE;
 		short cluster_index;
 		struct object_cluster_iterator iterator;
+		unsigned long regional_pvs[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
+		unsigned long const *pvs = players_get_combined_pvs();
 
-		const unsigned long* pvs = players_get_combined_pvs();
+		if (regional)
+		{
+			struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
+			if (!structure)
+				return FALSE;
+			if (bsp != global_structure_bsp_index_get())
+			{
+				players_compute_regional_pvs(bsp, structure, regional_pvs);
+				pvs = regional_pvs;
+			}
+		}
 
 		for (cluster_index = object_get_first_cluster(&iterator, object_index);
 			cluster_index!=NONE && !BIT_VECTOR_TEST_FLAG(pvs, cluster_index);
@@ -1967,7 +1982,8 @@ boolean object_visible_to_any_player(
 			{
 				struct player_datum *player = player_get(player_index);
 				
-				if (player->unit_index!=NONE)
+				if (player->unit_index!=NONE &&
+					(!regional || object_get_regional_bsp(player->unit_index) == bsp))
 				{
 					real player_distance_squared;
 					real_point3d player_position;
