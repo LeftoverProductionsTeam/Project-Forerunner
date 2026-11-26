@@ -118,6 +118,8 @@ their handlers open opens.
 #include "mcc_share.h"
 #include "mcc_share_menu.h"
 #include "mcc_cache.h"
+#include "mcc_package.h"
+#include "mcc_cache_format.h"
 #include "saved games/game_state.h"
 #include "game_modes.h"
 #include "network_map_vote.h"
@@ -1604,7 +1606,7 @@ static void map_mode_empty_description(struct widget_instance *description, shor
 	struct widget_instance *help = named(description, "mcc_folder_help", 0);
 	visible_set(name, TRUE);
 	visible_set(help, TRUE);
-	text_set(name, mode == _ui_map_mode_extraction ? L"No Extraction maps" : L"No Survival maps");
+	text_set(name, (mode == _ui_map_mode_extraction || mode == _ui_map_mode_regional_extraction) ? L"No Extraction maps" : L"No Survival maps");
 	text_set(help, L"Install a compatible Spark export with its mode manifest.");
 }
 
@@ -1617,6 +1619,11 @@ static void map_mode_empty_description(struct widget_instance *description, shor
 static void extraction_map_text(short row, wchar_t *text)
 {
 	custom_campaign_map_text(ui_map_list_play_mode_row(_ui_map_mode_extraction, row), text);
+}
+
+static void regional_extraction_map_text(short row, wchar_t *text)
+{
+	multiplayer_map_text(ui_map_list_play_mode_row(_ui_map_mode_regional_extraction, row), text);
 }
 
 static void survival_map_text(short row, wchar_t *text)
@@ -5793,6 +5800,12 @@ static boolean forerunner_operation_chooser;
 static boolean forerunner_infection_chooser;
 static short forerunner_map_mode;
 
+static boolean regional_extraction_private_host(void)
+{
+	return HALO_MODE_FILTER && config_boolean("debug.independent_regional_bsp") &&
+		!config_boolean("network.online");
+}
+
 static boolean multiplayer_host(struct widget_instance *widget, struct event_record *event, short controller,
 	boolean *widget_deleted, boolean local_only, boolean campaign_chooser)
 {
@@ -5800,6 +5813,8 @@ static boolean multiplayer_host(struct widget_instance *widget, struct event_rec
 	forerunner_infection_chooser = FALSE;
 	forerunner_map_mode = _ui_map_mode_unspecified;
 	multiplayer_mode_set(widget);
+	if (campaign_chooser && strstr(widget->name, "extraction_create_inter") && regional_extraction_private_host())
+		multiplayer.mode = _multiplayer_mode_host_lan;
 	if (!multiplayer_player(controller))
 		return FALSE;
 	p2p_set_hosting_allowed(!local_only && multiplayer.mode == _multiplayer_mode_host_internet);
@@ -5984,9 +5999,13 @@ static boolean map_list_initialize(struct widget_instance *list)
 	/* (the list found first, so that the view knows the sources it has) */
 	ui_widget_port_multiplayer_maps(&names, NULL);
 	map_view_open(&create_game_view);
-	if (map_list.play_mode == _ui_map_mode_survival)
+	if (map_list.play_mode == _ui_map_mode_survival ||
+		(map_list.play_mode == _ui_map_mode_extraction && regional_extraction_private_host()))
 		ui_map_list_view_set(_ui_map_list_source_all, _ui_map_list_sort_default, "");
 	map_list.map_count = ui_widget_port_multiplayer_maps(&names, &last_used);
+	if (map_list.play_mode == _ui_map_mode_extraction && regional_extraction_private_host() &&
+		ui_map_list_play_mode_row(_ui_map_mode_regional_extraction, NONE))
+		forerunner_map_mode = map_list.play_mode = _ui_map_mode_regional_extraction;
 	map_list.kind = MAP_KIND_MULTIPLAYER;
 	/* (a Halo PC map's kind, when it was one: a row past the Xbox's) */
 	if (last_used >= map_list.map_count)
@@ -6088,6 +6107,7 @@ static void map_list_update(struct widget_instance *list)
 	count = map_step_count();
 	entry = map_kind_rows_update(list, &map_list.first, count, map_list.step == MAP_STEP_DIFFICULTIES ?
 		map_difficulty_text : map_list.play_mode == _ui_map_mode_extraction ? extraction_map_text :
+		map_list.play_mode == _ui_map_mode_regional_extraction ? regional_extraction_map_text :
 		map_list.play_mode == _ui_map_mode_survival ? survival_map_text :
 		kind == MAP_KIND_SINGLEPLAYER ? map_level_text :
 		kind == MAP_KIND_MULTIPLAYER ? map_map_row_text : map_kind_text(kind));
@@ -6158,9 +6178,10 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 		}
 		return ui_widget_port_open(list, SERVER_SETUP_NAME, widget_deleted);
 	}
-	if (map_list.play_mode == _ui_map_mode_survival)
+	if (map_list.play_mode == _ui_map_mode_survival || map_list.play_mode == _ui_map_mode_regional_extraction)
 	{
-		short index = ui_map_list_play_mode_row(_ui_map_mode_survival, chosen);
+		boolean regional = map_list.play_mode == _ui_map_mode_regional_extraction;
+		short index = ui_map_list_play_mode_row(map_list.play_mode, chosen);
 		struct game_variant variant;
 		struct game_variant_options options;
 		char const *name;
@@ -6170,16 +6191,28 @@ static boolean map_list_choose(struct widget_instance *list, boolean *widget_del
 			return campaign_fail();
 		name = ui_map_list_names()[index];
 		mcc = mcc_level_name(name);
+		if (regional)
+		{
+			char path[128];
+			wchar_t description[128] = {0};
+
+			if (!mcc || !regional_extraction_private_host() || !mcc_package_map_path(name, path) ||
+				ui_map_list_spark_description(path, MCC_CACHE_VERSION, FALSE, description, NUMBEROF(description)) !=
+					_ui_map_mode_regional_extraction)
+				return campaign_fail();
+		}
 		if (!(mcc ? ui_widget_port_mcc_multiplayer_map_choose(name) : ui_widget_port_multiplayer_map_choose(index)))
 			return campaign_fail();
-		game_engine_get_variant_by_name(&variant, "slayer");
-		ustrncpy(variant.human_readable_game_description, L"Survival",
+		game_engine_get_variant_by_name(&variant, regional ? "team_slayer" : "slayer");
+		ustrncpy(variant.human_readable_game_description, regional ? L"Extraction" : L"Survival",
 			NUMBEROF(variant.human_readable_game_description) - 1);
 		game_variant_options_default(&variant, &options);
+		if (regional)
+			options.time_limit = 0;
 		if (mcc)
 		{
 			options.vehicle_set[0] = options.vehicle_set[1] = VARIANT_VEHICLE_SET_PC;
-			platform_log("survival: using the map's authored vehicle roster");
+			platform_log("%s: using the map's authored vehicle roster", regional ? "extraction" : "survival");
 		}
 		ui_widget_port_game_variant_set(&variant, &options);
 		return ui_widget_port_open(list, SERVER_SETUP_NAME, widget_deleted);
@@ -6696,7 +6729,8 @@ static void server_settings_update(struct widget_instance *list)
 	settings_help(list);
 	{
 		boolean cooperative = hosting_cooperative();
-		boolean extraction = forerunner_map_mode == _ui_map_mode_extraction;
+		boolean extraction = forerunner_map_mode == _ui_map_mode_extraction ||
+			forerunner_map_mode == _ui_map_mode_regional_extraction;
 		boolean survival = forerunner_map_mode == _ui_map_mode_survival;
 		short row;
 
@@ -13166,8 +13200,9 @@ static void host_update(struct widget_instance *list)
 	{
 		host_setup_rows();
 		/* (co-op has no game type to edit: no Y) */
-		visible_set(named(list->parent, "y", 0), !hosting_cooperative());
-		visible_set(named(list->parent, "edit_game_type", 0), !hosting_cooperative());
+		boolean editable = !hosting_cooperative() && forerunner_map_mode != _ui_map_mode_regional_extraction;
+		visible_set(named(list->parent, "y", 0), editable);
+		visible_set(named(list->parent, "edit_game_type", 0), editable);
 	}
 #ifdef HALO_GAME_BROWSER
 	else
@@ -13309,7 +13344,8 @@ static boolean host_row_a(struct widget_instance *row, boolean *widget_deleted)
 		return TRUE;
 	}
 #ifdef HALO_GAME_BROWSER
-	if (setup && shown == _host_row_game_type && hosting_cooperative())
+	if (setup && shown == _host_row_game_type &&
+		(hosting_cooperative() || forerunner_map_mode == _ui_map_mode_regional_extraction))
 		return TRUE;
 	if (setup && shown == _host_row_game_type)
 	{
@@ -13389,8 +13425,8 @@ static boolean host_edit(struct widget_instance *widget, boolean *widget_deleted
 #ifdef HALO_GAME_BROWSER
 	if (text_field_editing(NULL))
 		text_field_end(TRUE);
-	/* (co-op has no game type to edit) */
-	if (hosting_cooperative())
+	/* Co-op and regional Extraction keep their native rules. */
+	if (hosting_cooperative() || forerunner_map_mode == _ui_map_mode_regional_extraction)
 		return campaign_fail();
 	host_setup.editing = FALSE;
 	return ui_widget_port_open(widget, HOST_EDIT_SCREEN, widget_deleted);
@@ -14251,6 +14287,7 @@ boolean pc_menu_event_function_invoke(
 		else if (!strcmp(name, "port setup edit"))
 		{
 			if (forerunner_map_mode == _ui_map_mode_extraction ||
+				forerunner_map_mode == _ui_map_mode_regional_extraction ||
 				(forerunner_map_mode == _ui_map_mode_survival && strcmp(widget->name, "op_player_options") &&
 					strcmp(widget->name, "op_indicator_options")))
 				return FALSE;

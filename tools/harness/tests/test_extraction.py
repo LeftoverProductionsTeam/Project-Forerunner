@@ -274,6 +274,7 @@ def test_native_squad_negative_control(before, after, case):
     'transport-loop', 'transport-covenant', 'transport-binding', 'transport-duplicate',
     'transport-hover-pelican', 'transport-hover-spirit', 'transport-landed-loop', 'transport-landed-egress', 'transport-landed-alias', 'transport-spirit-return',
     'transport-pelican-return', 'transport-authored-high-slot', 'regional-hub-briefing',
+    'regional-ground-evacuation',
     'transport-admission-factions', 'transport-admission-npc', 'transport-admission-authority',
     'transport-admission-owner', 'transport-admission-death', 'transport-admission-ordinary', 'transport-admission-occupied',
     'transport-admission-deployment', 'transport-admission-evacuation',

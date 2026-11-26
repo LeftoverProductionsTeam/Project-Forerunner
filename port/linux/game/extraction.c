@@ -104,7 +104,7 @@ struct extraction_run
 	long dropship;
 	short dropship_team;
 	short report_page, start_kills, start_deaths;
-	boolean statistics_started, hub_briefed;
+	boolean statistics_started, hub_briefed, ground_evacuation;
 	short squad;
 	unsigned long squad_operation;
 	struct extraction_report report;
@@ -133,6 +133,13 @@ static char const *const extraction_hub_control_names[2][NUMBER_OF_EXTRACTION_HU
 	{ "extraction_covenant_deploy", "extraction_covenant_loadout", "extraction_covenant_debrief" }
 };
 
+static char const *const extraction_ground_call_names[2] = {
+	"extraction_unsc_ground_call", "extraction_cov_ground_call"
+};
+static char const *const extraction_ground_zone_names[2] = {
+	"extraction_unsc_ground_zone", "extraction_cov_ground_zone"
+};
+
 static struct
 {
 	boolean bound, admitted, suspended, suspension_announced, separate_hubs;
@@ -140,6 +147,7 @@ static struct
 	boolean regional_receipt_checked, regional_receipt_valid;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
+	short ground_calls[2], ground_zones[2];
 	short dropship_return_zones[2];
 	short dropship_names[2]; /* native named UNSC/Covenant vehicles; optional */
 	short dropship_activate_names[2], dropship_zones[2]; /* optional paired field routes */
@@ -253,6 +261,10 @@ static void extraction_check_authored_mode(void)
 
 static short extraction_faction(short team)
 {
+	/* Native multiplayer player and object teams use the red/blue indices.
+	 * Campaign and co-op keep their independent AI allegiance values. */
+	if (global_scenario && global_scenario->type == _scenario_type_multiplayer)
+		return team == _team_red ? 0 : team == _team_blue ? 1 : NONE;
 	if (team == _game_team_player || team == _game_team_human) return 0;
 	return team == _game_team_covenant ? 1 : NONE;
 }
@@ -889,6 +901,12 @@ static boolean extraction_at_call_zone(short faction, long object)
 	return extraction_in_field_volume(extraction_zone_for_faction(faction), call, object);
 }
 
+static boolean extraction_at_ground_zone(short faction, long object)
+{
+	return VALID_INDEX(faction, 2) && extraction_in_field_volume(extraction.ground_zones[faction],
+		extraction.ground_calls[faction], object);
+}
+
 static boolean extraction_in_owned_volume(short zone, short bsp, long object)
 {
 	return zone != NONE && (bsp == NONE || object_get_regional_bsp(object) == bsp) &&
@@ -902,7 +920,8 @@ static boolean extraction_in_hub_volume(short return_zone, long object)
 		extraction_in_field_volume(extraction.zone, extraction.activate_name, object))
 		return FALSE;
 	for (faction = 0; faction < 2; faction++)
-		if (extraction_in_field_volume(extraction.dropship_zones[faction],
+		if (extraction_at_ground_zone(faction, object) ||
+			extraction_in_field_volume(extraction.dropship_zones[faction],
 			extraction.dropship_activate_names[faction], object)) return FALSE;
 	return TRUE;
 }
@@ -1026,6 +1045,26 @@ static boolean extraction_authored_control(short index, short volume, short bsp)
 		control_definition_get(definition)->control.triggers_when == 0;
 }
 
+static boolean extraction_ground_route_bound(short faction)
+{
+	short call = extraction.ground_calls[faction], zone = extraction.ground_zones[faction];
+	struct scenario_object_name const *name;
+	struct scenario_object_datum const *placement;
+	struct tag_block *placements;
+	long size;
+	short side;
+
+	if (!extraction_authored_control(call, zone, NONE))
+		return FALSE;
+	name = TAG_BLOCK_GET_ELEMENT(&global_scenario->object_names, call, struct scenario_object_name);
+	placements = scenario_get_object_type_scenario_datums(global_scenario, _object_type_control, &size);
+	placement = tag_block_get_element_with_size(placements, name->runtime_scenario_datum_index, size);
+	for (side = 0; side < 2; side++)
+		if (scenario_trigger_volume_test_point(extraction.faction_hubs[side], &placement->position))
+			return FALSE;
+	return TRUE;
+}
+
 /* A regional aircraft need not have a live object until its BSP is occupied. */
 static boolean extraction_authored_dropship(short index, short home_bsp)
 {
@@ -1112,7 +1151,8 @@ static boolean extraction_validate_native_starts(boolean regional)
 static void extraction_bind(void)
 {
 	short index, faction, squad;
-	boolean unique = TRUE;
+	boolean unique = TRUE, ground_routes = FALSE;
+	boolean regional = scenario_uses_regional_gameplay(global_scenario);
 	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL, *debrief = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
 	struct control_datum *faction_calls[2] = {NULL, NULL};
@@ -1128,6 +1168,8 @@ static void extraction_bind(void)
 	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
 		extraction.squads[squad].name = extraction.squads[squad].ready_group = NONE;
 	extraction.deploy_name = extraction.activate_name = extraction.loadout_name = extraction.debrief_name = NONE;
+	extraction.ground_calls[0] = extraction.ground_calls[1] = NONE;
+	extraction.ground_zones[0] = extraction.ground_zones[1] = NONE;
 	extraction.dropship_names[0] = extraction.dropship_names[1] = NONE;
 	extraction.dropship_activate_names[0] = extraction.dropship_activate_names[1] = NONE;
 	extraction.dropship_zones[0] = extraction.dropship_zones[1] = NONE;
@@ -1205,6 +1247,12 @@ static void extraction_bind(void)
 			{
 				if (extraction.faction_names[faction] != NONE) unique = FALSE;
 				extraction.faction_names[faction] = index;
+			}
+			if (regional && !extraction.survival && !strcmp(name->name, extraction_ground_call_names[faction]))
+			{
+				if (extraction.ground_calls[faction] != NONE) unique = FALSE;
+				extraction.ground_calls[faction] = index;
+				ground_routes = TRUE;
 			}
 			if (!strcmp(name->name, faction ? "extraction_spirit_activate" : "extraction_pelican_activate"))
 			{
@@ -1292,6 +1340,13 @@ static void extraction_bind(void)
 					unique = FALSE;
 				extraction.faction_hubs[faction] = index;
 			}
+			else if (regional && !extraction.survival && !strcmp(volume->name, extraction_ground_zone_names[faction]))
+			{
+				if (extraction.ground_zones[faction] != NONE || volume->type != _scenario_trigger_volume_type_oriented)
+					unique = FALSE;
+				extraction.ground_zones[faction] = index;
+				ground_routes = TRUE;
+			}
 			else if (!strcmp(volume->name, faction ? "extraction_spirit_zone" : "extraction_pelican_zone"))
 			{
 				if (extraction.dropship_zones[faction] != NONE) unique = FALSE;
@@ -1324,7 +1379,7 @@ static void extraction_bind(void)
 	debrief = extraction.debrief_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.debrief_name)) : NULL;
 	/* Match Spark's native touched-by-player tag requirement. Other trigger
 	   kinds never reach extraction_control_touched through control_touched. */
-	extraction.admitted = unique && extraction_validate_native_starts(scenario_uses_regional_gameplay(global_scenario));
+	extraction.admitted = unique && extraction_validate_native_starts(regional);
 	if (extraction.separate_hubs)
 	{
 		if (extraction.deploy_name != NONE || extraction.loadout_name != NONE || extraction.debrief_name != NONE)
@@ -1351,7 +1406,7 @@ static void extraction_bind(void)
 		if (extraction.zone == NONE || !activate || activate == deploy ||
 			control_definition_get(activate->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
 	}
-	else if (extraction.dropship_names[0] == NONE && extraction.dropship_names[1] == NONE)
+	else if (!ground_routes && extraction.dropship_names[0] == NONE && extraction.dropship_names[1] == NONE)
 		extraction.admitted = FALSE;
 	for (faction = 0; faction < 2; faction++)
 	{
@@ -1398,8 +1453,13 @@ static void extraction_bind(void)
 	if (global_scenario->type != _scenario_type_solo)
 	{
 		for (faction = 0; faction < 2; faction++)
-			if (extraction.faction_bipeds[faction] == NONE || !extraction_regional_transport_bound(faction))
+		{
+			if (extraction.faction_names[faction] == NONE || extraction.faction_bipeds[faction] == NONE ||
+				(ground_routes && (!extraction.separate_hubs || !extraction_ground_route_bound(faction))) ||
+				((!ground_routes || extraction.dropship_names[faction] != NONE) &&
+				 !extraction_regional_transport_bound(faction)))
 				extraction.admitted = FALSE;
+		}
 	}
 	/* Optional character templates share the existing faction controls/profiles. */
 	for (faction = 0; faction < 2; faction++)
@@ -1931,7 +1991,8 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	/* Native campaign Player and Human are distinct teams. On a map with
 	 * faction selection, the default UNSC run uses the same team as the
 	 * UNSC terminal once the loadout has been durably issued. */
-	if (!extraction.survival && extraction.faction_names[0] != NONE && player->team_index == _game_team_player)
+	if (global_scenario->type == _scenario_type_solo && !extraction.survival &&
+		extraction.faction_names[0] != NONE && player->team_index == _game_team_player)
 	{
 		struct unit_datum *unit = unit_get(player->unit_index);
 		if (unit->object.owner_team_index == _game_team_player)
@@ -1957,6 +2018,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->dropship = NONE;
 	run->field_reached = FALSE;
 	run->field_exit_ready = FALSE;
+	run->ground_evacuation = FALSE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	run->retry_tick = game_time_get();
 	if (!extraction.survival && starting_squad != NONE)
@@ -1970,7 +2032,9 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 			platform_log("extraction: squad %d operation %lu began; authored setup woken",
 				starting_squad + 1, extraction.squads[starting_squad].operation);
 	}
-	if (!extraction.survival && VALID_INDEX(faction, 2) && extraction.dropship_names[faction] != NONE)
+	if (VALID_INDEX(faction, 2) && extraction.ground_calls[faction] != NONE)
+		extraction_tell(run, "DEPLOYED | Proceed on foot or by vehicle. Use your field evacuation terminal, then return to base to bank.");
+	else if (!extraction.survival && VALID_INDEX(faction, 2) && extraction.dropship_names[faction] != NONE)
 		extraction_tell(run, faction == 0 ?
 			"DEPLOYED | Board a Pelican passenger seat." :
 			"DEPLOYED | Board a Spirit passenger seat.");
@@ -2066,11 +2130,12 @@ static boolean extraction_call_owner_current(struct extraction_run const *run, s
 		!memcmp(owner, run->owner, GEAR_ID_BYTES);
 }
 
-static boolean extraction_begin_activation(struct extraction_run *run, struct player_datum const *player)
+static boolean extraction_begin_activation(struct extraction_run *run, struct player_datum const *player, boolean ground)
 {
 	if (run->phase != _extraction_deployed || !extraction_call_owner_current(run, player)) return FALSE;
 
 	run->field_reached = TRUE;
+	run->ground_evacuation = ground;
 	run->phase = _extraction_activating;
 	run->activation_ticks = 10 * TICKS_PER_SECOND;
 	extraction_tell(run, "EXTRACTION ACTIVATED | Hold this zone for ten seconds. Leaving cancels activation.");
@@ -2102,7 +2167,7 @@ static void extraction_begin_squad_activation(struct extraction_run const *calle
 			TEST_FLAG(unit->object.damage_flags, _object_dead_bit) || extraction_unit_pending_death(unit) ||
 			extraction_medical_incapacitated(member->unit) ||
 			!extraction_at_call_zone(faction, member->unit)) continue;
-		extraction_begin_activation(member, player);
+		extraction_begin_activation(member, player, FALSE);
 	}
 }
 
@@ -2132,10 +2197,16 @@ static wchar_t const *extraction_control_label(short name, short *squad)
 		return L"Press %action to use the deployment terminal";
 	if (name == extraction.activate_name || name == extraction.dropship_activate_names[0] ||
 		name == extraction.dropship_activate_names[1]) return L"Press %action to request evacuation";
+	if (name == extraction.ground_calls[0] || name == extraction.ground_calls[1])
+		return L"Press %action to request ground evacuation";
 	if (name == extraction.loadout_name || service == _extraction_hub_loadout_control) return L"Press %action for loadout and stash";
 	if (name == extraction.debrief_name || service == _extraction_hub_debrief_control) return L"Press %action for operation report";
-	if (name == extraction.faction_names[0]) return L"Press %action to choose UNSC";
-	if (name == extraction.faction_names[1]) return L"Press %action to choose Covenant";
+	if (name == extraction.faction_names[0])
+		return global_scenario->type == _scenario_type_multiplayer ?
+			L"Press %action for the UNSC briefing" : L"Press %action to choose UNSC";
+	if (name == extraction.faction_names[1])
+		return global_scenario->type == _scenario_type_multiplayer ?
+			L"Press %action for the Covenant briefing" : L"Press %action to choose Covenant";
 	for (index = 0; index < NUMBEROF(extraction.squads); index++)
 	{
 		if (name == extraction.squads[index].name)
@@ -2163,11 +2234,13 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	struct extraction_run *run;
 	long slot;
 	short faction, squad = NONE, call_name, hub_faction, hub_service;
-	boolean in_hub, activation;
+	boolean in_hub, activation, ground;
 
 	control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	if (!control || !extraction_control_label(control->object.name_index, &squad)) return FALSE;
-	activation = control->object.name_index == extraction.activate_name ||
+	ground = control->object.name_index == extraction.ground_calls[0] ||
+		control->object.name_index == extraction.ground_calls[1];
+	activation = ground || control->object.name_index == extraction.activate_name ||
 		control->object.name_index == extraction.dropship_activate_names[0] ||
 		control->object.name_index == extraction.dropship_activate_names[1];
 	if (extraction.suspended || cinematic_in_progress() ||
@@ -2235,6 +2308,17 @@ boolean extraction_control_touched(long control_index, long unit_index)
 			short variant = extraction.faction_variants[faction];
 			long biped = extraction.faction_bipeds[faction];
 			boolean native_body = biped == NONE && extraction.faction_bipeds[1 - faction] != NONE;
+
+			if (global_scenario->type == _scenario_type_multiplayer)
+			{
+				/* Team selection and body spawn already belong to the native network lobby. */
+				if (extraction_faction((short)player->team_index) != faction)
+					extraction_tell(run, "FACTION | Choose Red (UNSC) or Blue (Covenant) in the lobby.");
+				else
+					extraction_tell(run, faction ? "COVENANT | Use your base's deployment terminal." :
+						"UNSC | Use your base's deployment terminal.");
+				return TRUE;
+			}
 			if (run->squad != NONE && extraction_faction((short)player->team_index) != faction)
 			{
 				extraction_tell(run, "LEAVE SQUAD FIRST | Change faction at the hub, then join a compatible squad."); return TRUE;
@@ -2360,7 +2444,18 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	faction = extraction_faction(unit->object.owner_team_index);
 	call_name = VALID_INDEX(faction, 2) && extraction.dropship_activate_names[faction] != NONE ?
 		extraction.dropship_activate_names[faction] : extraction.activate_name;
-	if (control->object.name_index != call_name ||
+	if (ground)
+	{
+		if (!VALID_INDEX(faction, 2) || faction != extraction_faction((short)player->team_index) ||
+			control->object.name_index != extraction.ground_calls[faction])
+		{
+			extraction_tell(run, "WRONG EVACUATION POINT | Use your faction's ground evacuation terminal.");
+			return TRUE;
+		}
+		if (unit->object.parent_object_index != NONE || !extraction_at_ground_zone(faction, unit_index))
+			return TRUE;
+	}
+	else if (control->object.name_index != call_name ||
 		((extraction.dropship_activate_names[0] != NONE || extraction.dropship_activate_names[1] != NONE) &&
 			(faction == NONE || faction != extraction_faction((short)player->team_index) ||
 				extraction.dropship_names[faction] == NONE)))
@@ -2368,18 +2463,18 @@ boolean extraction_control_touched(long control_index, long unit_index)
 		extraction_tell(run, "WRONG LANDING ZONE | Use your faction's extraction terminal.");
 		return TRUE;
 	}
-	if (!extraction_at_call_zone(faction, unit_index)) return TRUE;
+	if (!ground && !extraction_at_call_zone(faction, unit_index)) return TRUE;
 	if (!extraction_squad_objectives_ready(run))
 	{
 		extraction_tell(run, "OBJECTIVES INCOMPLETE | Finish your squad's authored mission before calling extraction."); return TRUE;
 	}
 	if (run->phase == _extraction_deployed && run->unit == unit_index)
 	{
-		if (!extraction_begin_activation(run, player)) return TRUE;
-		extraction_begin_squad_activation(run, faction);
+		if (!extraction_begin_activation(run, player, ground)) return TRUE;
+		if (!ground) extraction_begin_squad_activation(run, faction);
 		return FALSE;
 	}
-	if (run->phase == _extraction_ready && run->unit == unit_index &&
+	if (!ground && !run->ground_evacuation && run->phase == _extraction_ready && run->unit == unit_index &&
 		unit->object.parent_object_index == NONE &&
 		(extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE))
 	{
@@ -2697,6 +2792,8 @@ boolean extraction_transport_brake_at_pad(long vehicle_index)
 static boolean extraction_return_ready(struct extraction_run *run, struct unit_datum const *unit)
 {
 	long dropship;
+	if (run->ground_evacuation)
+		return unit->object.parent_object_index == NONE && extraction_at_return(run, run->unit);
 	if (extraction.dropship_names[0] == NONE && extraction.dropship_names[1] == NONE)
 		return extraction_at_return(run, run->unit); /* existing hub-only maps */
 	dropship = extraction_player_dropship(unit);
@@ -2857,7 +2954,10 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 	}
 	if (run->phase == _extraction_activating)
 	{
-		if (!extraction_at_call_zone(extraction_faction(unit->object.owner_team_index), run->unit))
+		short faction = extraction_faction(unit->object.owner_team_index);
+		boolean present = run->ground_evacuation ? unit->object.parent_object_index == NONE &&
+			extraction_at_ground_zone(faction, run->unit) : extraction_at_call_zone(faction, run->unit);
+		if (!present)
 		{
 			run->phase = _extraction_deployed; run->activation_ticks = 0;
 			extraction_tell(run, "ACTIVATION CANCELLED | Return and use the extraction control to retry.");
@@ -2865,7 +2965,9 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		else if (--run->activation_ticks <= 0)
 		{
 			run->phase = _extraction_ready;
-			extraction_tell(run, extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE ?
+			extraction_tell(run, run->ground_evacuation ?
+				"GROUND EVACUATION READY | Return to your faction base and dismount to bank your gear." :
+				extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE ?
 				"EVAC SIGNAL READY | Wait for your dropship, then board and stay aboard." :
 				"EXTRACTION SIGNAL READY | Reach the return point alive.");
 			return_ready = extraction_return_ready(run, unit);
@@ -2987,7 +3089,8 @@ static boolean extraction_transport_called(short faction)
 		struct extraction_run const *run = &extraction_runs[index];
 		struct player_datum *player;
 		struct unit_datum *unit;
-		if ((run->phase != _extraction_activating && run->phase != _extraction_ready) || run->gear.pending) continue;
+		if (run->ground_evacuation || (run->phase != _extraction_activating && run->phase != _extraction_ready) ||
+			run->gear.pending) continue;
 		player = player_try_and_get(run->player);
 		if (!player || player->quit_out_of_game || player->unit_index != run->unit ||
 			extraction_faction((short)player->team_index) != faction) continue;
@@ -3103,7 +3206,10 @@ static void extraction_brief_regional_player(struct extraction_run *run, struct 
 		extraction_medical_incapacitated(player->unit_index) ||
 		!extraction_in_faction_hub(faction, player->unit_index)) return;
 
-	extraction_tell(run, faction == 0 ?
+	if (extraction.ground_calls[faction] != NONE)
+		extraction_tell(run, faction == 0 ? "UNSC BASE | Use Deploy to equip and leave by ground." :
+			"COVENANT BASE | Use Deploy to equip and leave by ground.");
+	else extraction_tell(run, faction == 0 ?
 		"UNSC | Use Deploy, then board the Pelican." :
 		"Covenant | Use Deploy, then board the Spirit.");
 	run->hub_briefed = TRUE;

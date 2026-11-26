@@ -664,6 +664,43 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"regional-ground-evacuation")) {
+  struct extraction_run *host=run(0);
+  touch(0,0);
+  CHECK(host->phase==_extraction_deployed,"deployment did not reserve the player's gear");
+  a=pickup(0,2);
+  extraction.separate_hubs=TRUE;
+  extraction.faction_hubs[0]=1; extraction.faction_hub_bsps[0]=0;
+  extraction.faction_hubs[1]=6; extraction.faction_hub_bsps[1]=11;
+  extraction.ground_calls[0]=1; extraction.ground_zones[0]=2;
+  extraction.activate_name=extraction.zone=NONE;
+  scenario.structure_bsp_references.count=12;
+  scenario.type=_scenario_type_multiplayer;
+  CHECK(extraction_faction(_team_red)==0 && extraction_faction(_team_blue)==1 &&
+        extraction_faction(_game_team_covenant)==NONE,"network teams used the campaign team indices");
+  scenario.type=_scenario_type_solo; /* This host fixture has no negotiated native room. */
+  units[0].object.position.x=20.f;
+  fixture_unit_bsp=0; fixture_control_bsp=10;
+  touch(1,0);
+  CHECK(host->phase==_extraction_deployed,"ground call crossed the region boundary");
+  fixture_unit_bsp=10;
+  players[0].team_index=units[0].object.owner_team_index=_game_team_covenant;
+  touch(1,0);
+  CHECK(host->phase==_extraction_deployed,"another faction used the ground call");
+  players[0].team_index=units[0].object.owner_team_index=_game_team_human;
+  touch(1,0); advance(300);
+  CHECK(host->phase==_extraction_ready && host->ground_evacuation,"ground evacuation depended on an aircraft");
+  advance(900); CHECK(host->phase==_extraction_ready,"ground evacuation imposed a raid timer");
+  units[0].object.position.x=0.f; advance(1);
+  CHECK(host->phase==_extraction_ready,"ground evacuation settled in the wrong region");
+  fixture_unit_bsp=0;
+  units[0].object.parent_object_index=dropship_handles[0]; advance(1);
+  CHECK(host->phase==_extraction_ready,"ground evacuation settled before the player dismounted");
+  units[0].object.parent_object_index=NONE; advance(1);
+  CHECK(host->phase==_extraction_returned && !weapon_try_and_get(a) && host->gear.record.count==1,
+        "ground evacuation did not consume and bank the real equipped item once");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-hub-briefing")) {
   struct extraction_run *guest=run(1);
   int host_before=local_notices, guest_before=remote_notices;

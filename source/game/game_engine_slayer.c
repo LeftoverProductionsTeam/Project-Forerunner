@@ -76,6 +76,7 @@ symbols in this file:
 
 #include "cseries/cseries.h"
 
+#include "extraction.h"
 #include "game/game_engine_place.h"
 #include "game/game_engine.h"
 #include "game/game_engine_slayer.h"
@@ -673,8 +674,8 @@ static void slayer_player_update(
 		}
 	}
 
-	/* (a client ends the game when the host has) */
-	if (!network_game_distributed_client() &&
+	/* The admitted Extraction operation settles gear independently of score. */
+	if (!network_game_distributed_client() && !extraction_owns_map() &&
 		slayer_get_score(index, _get_score_team) >=
 		game_engine_get_variant()->universal_variant.score_to_win)
 	{
