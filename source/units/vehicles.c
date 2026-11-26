@@ -918,7 +918,7 @@ long vehicle_find_pathfinding_surface_index(
 		case _vehicle_type_alien_scout:
 		case _vehicle_type_turret:
 		{
-			struct collision_bsp *bsp = global_collision_bsp_get();
+			struct collision_bsp const *bsp = collision_bsp_for_region(object_get_regional_bsp(vehicle_index));
 			struct collision_bsp_test_vector_result result;
 			real_point3d origin;
 			real_vector3d vector;
@@ -929,7 +929,7 @@ long vehicle_find_pathfinding_surface_index(
 
 			add_vectors3d(global_down3d, global_down3d, &vector);
 
-			if (collision_bsp_test_vector(1, bsp, 0, NULL, &origin, &vector, FLT_MAX, &result))
+			if (bsp && collision_bsp_test_vector(1, bsp, 0, NULL, &origin, &vector, FLT_MAX, &result))
 			{
 				surface_index = result.surface_index;
 

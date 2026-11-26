@@ -177,6 +177,7 @@ boolean obstacles_add_disc(
 
 void obstacles_get_discs_in_sphere(
 	struct obstacles *obstacles,
+	short structure_bsp_index,
 	real_point3d const *center,
 	real radius,
 	real_vector3d const *movement_direction,
@@ -195,10 +196,11 @@ void obstacles_get_discs_in_sphere(
 		ignore_source_object_index != NONE,
 		"matt is bad.");
 
-	object_count = objects_in_sphere(
+	object_count = objects_in_bsp_sphere(
+		structure_bsp_index,
 		_object_mask_biped,
 		_object_mask_biped | _object_mask_sightblocking,
-		&object_get(ignore_source_object_index)->object.location,
+		&object_get(object_get_ultimate_parent(ignore_source_object_index))->object.location,
 		center,
 		radius,
 		object_indices,

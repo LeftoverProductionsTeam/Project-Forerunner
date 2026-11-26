@@ -1471,12 +1471,14 @@ static long biped_find_ground_surface(
 	real_point3d *point,
 	real_vector3d *normal)
 {
-	struct biped_datum *biped = biped_get(object_index);
-	struct collision_bsp *collision_bsp = global_collision_bsp_get();
+	struct collision_bsp const *collision_bsp = collision_bsp_for_region(object_get_regional_bsp(object_index));
 	long surface_index = NONE;
 	real_vector3d vector;
 	real_point3d origin;
 	struct collision_bsp_test_vector_result result;
+
+	if (!collision_bsp)
+		return NONE;
 
 	match_assert("c:\\halo\\SOURCE\\units\\bipeds.c", 1146, global_current_collision_user_depth < MAXIMUM_COLLISION_USER_STACK_DEPTH);
 	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_bipeds;
@@ -1521,6 +1523,13 @@ long biped_find_pathfinding_surface_index(
 {
 	struct biped_datum *biped = biped_get(biped_index);
 	struct biped_definition *definition = biped_definition_get(biped->definition_index);
+	struct collision_bsp const *collision_bsp = collision_bsp_for_region(object_get_regional_bsp(biped_index));
+
+	if (!collision_bsp)
+	{
+		object_get_origin(biped_index, pathfinding_point);
+		return NONE;
+	}
 
 	if (TEST_FLAG(definition->biped.flags, _biped_flying_bit) &&
 		!TEST_FLAG(biped->object.damage_flags, _object_dead_bit))
@@ -1534,7 +1543,6 @@ long biped_find_pathfinding_surface_index(
 
 		if (time>biped->biped.last_pathfinding_attempt_time)
 		{
-			struct collision_bsp *collision_bsp = global_collision_bsp_get();
 			real_point3d point = biped->biped.pathfinding_point;
 
 			biped->biped.last_pathfinding_attempt_time = time;

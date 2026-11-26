@@ -1261,6 +1261,7 @@ boolean actor_move_try_evasion_vector(
 		actor_find_pathfinding_location(actor_index);
 		if (!structure_test_pill2d(
 			global_structure_bsp_get(),
+			global_structure_bsp_index_get(),
 			actor->emotions.ignorant_of_broken_surfaces,
 			(real_point2d const *)&actor->input.pathfinding_point,
 			actor->input.pathfinding_surface_index,
@@ -2745,6 +2746,7 @@ static void actor_move_calculate_movement(
 							&test_point);
 						if (structure_test_line2d(
 							global_structure_bsp_get(),
+							global_structure_bsp_index_get(),
 							actor->emotions.ignorant_of_broken_surfaces,
 							(real_point2d const *)&actor->input.position.body_position,
 							pathfinding_surface_index,

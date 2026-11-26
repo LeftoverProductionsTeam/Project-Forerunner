@@ -118,6 +118,7 @@ symbols in this file:
 #include "main/console.h"
 #include "physics/collision_bsp.h"
 #include "physics/collision_bsp_definitions.h"
+#include "physics/collisions.h"
 #include "render/render_debug.h"
 #include "scenario/scenario.h"
 #include "structures/structure_bsp_definitions.h"
@@ -177,6 +178,7 @@ static void path_new(
 	struct obstacle_path *path,
 	struct obstacles const *obstacles,
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real radius,
 	real_point2d const *start,
@@ -187,6 +189,7 @@ static void path_new(
 	boolean ignore_optional);
 static boolean path_test_pill2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	struct obstacles const *obstacles,
 	short ignore_disc_index,
@@ -207,6 +210,8 @@ static boolean path_iterate(
 	struct obstacle_path *path);
 static boolean path_find(
 	struct obstacle_path *path,
+	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	struct obstacles const *obstacles,
 	real radius,
@@ -600,6 +605,7 @@ static void path_new(
 	struct obstacle_path *path,
 	struct obstacles const *obstacles,
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real radius,
 	real_point2d const *start,
@@ -616,6 +622,7 @@ static void path_new(
 	path->obstacles= obstacles;
 	path->radius= radius;
 	path->structure= structure;
+	path->structure_bsp_index= structure_bsp_index;
 	path->ignore_broken_surfaces= ignore_broken_surfaces;
 	path->goal_found_exactly= FALSE;
 	path->goal= *goal;
@@ -636,6 +643,7 @@ static void path_new(
 
 static boolean path_test_pill2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	struct obstacles const *obstacles,
 	short ignore_disc_index,
@@ -671,7 +679,7 @@ static boolean path_test_pill2d(
 		struct structure_test_ray2d_result left_result;
 		struct structure_test_ray2d_result right_result;
 
-		if (structure_test_ray2d(structure, ignore_broken_surfaces, point, surface_index, direction, result->distance, &ray_result) &&
+		if (structure_test_ray2d(structure, structure_bsp_index, ignore_broken_surfaces, point, surface_index, direction, result->distance, &ray_result) &&
 			result->distance>ray_result.distance)
 		{
 			result->distance= ray_result.distance;
@@ -681,8 +689,8 @@ static boolean path_test_pill2d(
 		perpendicular2d(direction, &perpendicular);
 
 		point_from_line2d(point, &perpendicular, radius, &left_point);
-		structure_test_ray2d(structure, ignore_broken_surfaces, point, surface_index, &perpendicular, radius, &left_result);
-		if (structure_test_ray2d(structure, ignore_broken_surfaces, &left_point, left_result.surface_index, direction, result->distance, &left_result) &&
+		structure_test_ray2d(structure, structure_bsp_index, ignore_broken_surfaces, point, surface_index, &perpendicular, radius, &left_result);
+		if (structure_test_ray2d(structure, structure_bsp_index, ignore_broken_surfaces, &left_point, left_result.surface_index, direction, result->distance, &left_result) &&
 			result->distance>left_result.distance)
 		{
 			result->distance= left_result.distance;
@@ -690,8 +698,8 @@ static boolean path_test_pill2d(
 		}
 
 		point_from_line2d(point, &perpendicular, -radius, &right_point);
-		structure_test_ray2d(structure, ignore_broken_surfaces, point, surface_index, &perpendicular, radius, &right_result);
-		if (structure_test_ray2d(structure, ignore_broken_surfaces, &right_point, right_result.surface_index, direction, result->distance, &right_result) &&
+		structure_test_ray2d(structure, structure_bsp_index, ignore_broken_surfaces, point, surface_index, &perpendicular, radius, &right_result);
+		if (structure_test_ray2d(structure, structure_bsp_index, ignore_broken_surfaces, &right_point, right_result.surface_index, direction, result->distance, &right_result) &&
 			result->distance>right_result.distance)
 		{
 			result->distance= right_result.distance;
@@ -722,7 +730,7 @@ static boolean path_test_pill2d(
 		hit= TRUE;
 	}
 
-	structure_test_ray2d(structure, ignore_broken_surfaces, point, surface_index, direction, result->distance, &ray_result);
+	structure_test_ray2d(structure, structure_bsp_index, ignore_broken_surfaces, point, surface_index, direction, result->distance, &ray_result);
 	result->surface_index= ray_result.surface_index;
 
 	return hit;
@@ -771,7 +779,7 @@ static void path_add_steps(
 			real_vector2d const *direction= &directions[side];
 			struct path_test_pill2d_result result;
 
-			path_test_pill2d(path->structure, path->ignore_broken_surfaces, path->obstacles, disc_index,
+			path_test_pill2d(path->structure, path->structure_bsp_index, path->ignore_broken_surfaces, path->obstacles, disc_index,
 				&step->point, step->surface_index, direction, path->radius, 2.f*path->radius+tangent_distance,
 				FALSE, FALSE, path->ignore_optional, &result);
 
@@ -796,7 +804,7 @@ static void path_add_steps(
 				struct structure_test_ray2d_result ray_result;
 				real_point2d midpoint;
 
-				structure_test_ray2d(path->structure, path->ignore_broken_surfaces, &step->point, step->surface_index, direction, midpoint_distance, &ray_result);
+				structure_test_ray2d(path->structure, path->structure_bsp_index, path->ignore_broken_surfaces, &step->point, step->surface_index, direction, midpoint_distance, &ray_result);
 				point_from_line2d(&step->point, direction, midpoint_distance, &midpoint);
 				path_add_step(path, &midpoint, ray_result.surface_index, obstacle_index, (byte)side,
 					step->total_distance-step->distance+midpoint_distance, step_index);
@@ -818,7 +826,7 @@ static boolean path_iterate(
 		struct obstacle_path_step *step= path_get_step(path, step_index);
 		struct path_test_pill2d_result result;
 
-		path_test_pill2d(path->structure, path->ignore_broken_surfaces, path->obstacles, NONE,
+		path_test_pill2d(path->structure, path->structure_bsp_index, path->ignore_broken_surfaces, path->obstacles, NONE,
 			&step->point, step->surface_index, &step->direction, path->radius, step->distance,
 			step->previous_step_index==NONE, TRUE, path->ignore_optional, &result);
 
@@ -853,6 +861,8 @@ static boolean path_iterate(
 
 static boolean path_find(
 	struct obstacle_path *path,
+	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	struct obstacles const *obstacles,
 	real radius,
@@ -863,7 +873,7 @@ static boolean path_find(
 	boolean finishing_path,
 	boolean ignore_optional)
 {
-	path_new(path, obstacles, global_structure_bsp_get(), ignore_broken_surfaces, radius,
+	path_new(path, obstacles, structure, structure_bsp_index, ignore_broken_surfaces, radius,
 		start, start_surface_index, goal, goal_surface_index, finishing_path, ignore_optional);
 	while (path_iterate(path))
 	{
@@ -892,7 +902,7 @@ boolean path_avoid_obstacles(
 	struct path_step *avoided_steps,
 	boolean *steps_finish_path)
 {
-	struct collision_bsp *bsp= global_collision_bsp_get();
+	struct collision_bsp const *bsp= collision_bsp_for_region(state->structure_bsp_index);
 	real radius= MAX(state->input.pathfinding_radius, 0.2f);
 	boolean result= TRUE;
 	struct obstacles local_obstacles;
@@ -901,6 +911,9 @@ boolean path_avoid_obstacles(
 	real_point3d last_step_end_point;
 	long previous_surface_index;
 	short step_index;
+
+	if (!bsp)
+		return FALSE;
 
 	if (state->debug && !state->debug->use_stored_obstacles)
 	{
@@ -952,7 +965,8 @@ boolean path_avoid_obstacles(
 		if (compute_obstacles)
 		{
 			obstacles_new(obstacles);
-			obstacles_get_discs_in_sphere(obstacles, start_point, 4.f, &movement_direction,
+			obstacles_get_discs_in_sphere(obstacles, state->structure_bsp_index,
+				start_point, 4.f, &movement_direction,
 				state->input.ignore_source_object_index, state->input.ignore_target_object_index);
 			if (state->input.attractor_valid)
 			{
@@ -967,12 +981,14 @@ boolean path_avoid_obstacles(
 		}
 
 		/* the search is planar: only x and y of the 3d points are read */
-		path_found= path_find(obstacle_path, state->input.ignore_broken_surfaces, obstacles, radius,
+		path_found= path_find(obstacle_path, state->structure, state->structure_bsp_index,
+			state->input.ignore_broken_surfaces, obstacles, radius,
 			(real_point2d const *)start_point, start_surface_index,
 			(real_point2d const *)goal_point, goal_surface_index, finishing, FALSE);
 		if (!path_found && obstacles->disc_optional_count>0)
 		{
-			path_found= path_find(obstacle_path, state->input.ignore_broken_surfaces, obstacles, radius,
+			path_found= path_find(obstacle_path, state->structure, state->structure_bsp_index,
+				state->input.ignore_broken_surfaces, obstacles, radius,
 				(real_point2d const *)start_point, start_surface_index,
 				(real_point2d const *)goal_point, goal_surface_index, finishing, TRUE);
 		}
@@ -1039,7 +1055,7 @@ boolean path_avoid_obstacles(
 		}
 		else
 		{
-			if (debug_obstacle_path_on_failure)
+			if (debug_obstacle_path_on_failure && state->structure_bsp_index == global_structure_bsp_index_get())
 			{
 				error(_error_silent, "obstacle path failure!");
 				debug_obstacle_path_on_failure= FALSE;
@@ -1066,6 +1082,10 @@ boolean path_avoid_obstacles(
 void render_debug_obstacle_path(
 	void)
 {
+	if (debug_obstacle_path && (debug_path.structure_bsp_index != global_structure_bsp_index_get() ||
+		debug_path.structure != global_structure_bsp_get()))
+		debug_obstacle_path = FALSE;
+
 	if (debug_obstacle_path)
 	{
 		if (!console_is_active())
@@ -1088,6 +1108,7 @@ void render_debug_obstacle_path(
 					&debug_path,
 					&debug_obstacles,
 					global_structure_bsp_get(),
+					global_structure_bsp_index_get(),
 					debug_ignore_broken_surfaces,
 					debug_obstacle_path_radius,
 					(real_point2d const *)&debug_obstacle_path_start_point,

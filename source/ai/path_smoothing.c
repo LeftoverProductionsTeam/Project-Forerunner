@@ -579,6 +579,7 @@ void path_smooth(
 			{
 				if (structure_test_pill2d(
 					state->structure,
+					state->structure_bsp_index,
 					state->input.ignore_broken_surfaces,
 					&current_position,
 					current_surface_index,
@@ -656,6 +657,7 @@ void path_smooth(
 			current_position = avoidance_point;
 			current_surface_index = structure_surface_index_from_point(
 				state->structure,
+				state->structure_bsp_index,
 				state->input.ignore_broken_surfaces,
 				&known_point,
 				current_surface_index,

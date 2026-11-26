@@ -41,6 +41,7 @@ typedef char path_collision_result_t_offset_assert[
 
 boolean structure_test_ray2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *point,
 	long surface_index,
@@ -56,6 +57,7 @@ boolean structure_surfaces_are_equivalent(
 
 boolean structure_test_line2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *p0,
 	long p0_surface_index,
@@ -65,6 +67,7 @@ boolean structure_test_line2d(
 
 boolean structure_test_pill2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *p0,
 	long p0_surface_index,
@@ -76,6 +79,7 @@ boolean structure_test_pill2d(
 
 long structure_surface_index_from_point(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *known_point,
 	long known_surface_index,

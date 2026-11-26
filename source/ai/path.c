@@ -160,6 +160,7 @@ symbols in this file:
 #include "ai/path_structure_bsp.h"
 #include "cseries/errors.h"
 #include "game/game.h"
+#include "objects/objects.h"
 #include "physics/breakable_surfaces.h"
 #include "physics/collision_bsp.h"
 #include "physics/collision_bsp_definitions.h"
@@ -248,7 +249,7 @@ static void path_heap_insert(
 	short node_index,
 	short quantized_cost_estimate);
 static boolean surface_is_broken(
-	struct structure_bsp const *structure,
+	struct path_state const *state,
 	long surface_index);
 static boolean path_state_begin(
 	struct path_state *state);
@@ -354,8 +355,15 @@ void path_state_new(
 	struct path_state *state,
 	struct path_debug_storage *debug)
 {
+	short bsp = NONE;
+
+	if (object_try_and_get(input->ignore_source_object_index))
+		bsp = object_get_regional_bsp(input->ignore_source_object_index);
+
 	csmemset(state, 0, sizeof(*state));
-	state->structure = global_structure_bsp_get();
+	state->structure_bsp_index = bsp == NONE ? global_structure_bsp_index_get() : bsp;
+	state->structure = state->structure_bsp_index == global_structure_bsp_index_get() ?
+		global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
 	state->input = *input;
 	state->debug = debug;
 
@@ -634,11 +642,11 @@ static void path_heap_insert(
 }
 
 static boolean surface_is_broken(
-	struct structure_bsp const *structure,
+	struct path_state const *state,
 	long surface_index)
 {
 	struct collision_bsp const *bsp = TAG_BLOCK_GET_ELEMENT(
-		&structure->collision_bsp,
+		&state->structure->collision_bsp,
 		0,
 		struct collision_bsp);
 	struct collision_surface const *surface = TAG_BLOCK_GET_ELEMENT(
@@ -650,11 +658,8 @@ static boolean surface_is_broken(
 	broken = FALSE;
 	if (TEST_FLAG(surface->flags, _collision_surface_breakable_bit))
 	{
-		long const *breakable_surface_flags =
-			(long const *)breakable_surface_flags_get();
-
-		broken = !BIT_VECTOR_TEST_FLAG(
-			breakable_surface_flags,
+		broken = !breakable_surface_extant_in_bsp(
+			state->structure_bsp_index,
 			surface->breakable_surface_index);
 	}
 
@@ -798,6 +803,7 @@ boolean path_state_approach_point(
 
 			if (structure_test_line2d(
 					state->structure,
+					state->structure_bsp_index,
 					state->input.ignore_broken_surfaces,
 					end_point,
 					end_surface_index,
@@ -1571,7 +1577,7 @@ static boolean path_state_traverse(
 			}
 			if (!state->input.ignore_broken_surfaces &&
 				TEST_FLAG(edge->adjacent_pathfinding_surface, _pathfinding_surface_breakable_bit) &&
-				surface_is_broken(state->structure, adjacent_surface_index))
+				surface_is_broken(state, adjacent_surface_index))
 			{
 				passable = FALSE;
 			}
@@ -1832,7 +1838,7 @@ boolean path_state_find(
 		state->debug->path_traverse_result = _path_traverse_result_none;
 	}
 
-	if (path_state_begin(state))
+	if (state->structure && path_state_begin(state))
 	{
 		result = path_state_traverse(state);
 	}
@@ -1845,7 +1851,7 @@ boolean path_state_find(
 	if (state->debug)
 	{
 		state->debug->path_state = *state;
-		state->debug->structure_bsp_index = global_structure_bsp_index_get();
+		state->debug->structure_bsp_index = state->structure_bsp_index;
 		match_assert(
 			"c:\\halo\\SOURCE\\ai\\path.c",
 			0x32D,

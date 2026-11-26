@@ -144,6 +144,7 @@ struct path_state
 	struct path_destination destination;
 	struct structure_bsp const *structure;
 	short closest_node_index;
+	short structure_bsp_index;
 	real closest_distance;
 	real closest_cost_estimate;
 	real_point3d closest_point;
@@ -191,7 +192,8 @@ struct obstacle_path
 {
 	real radius;
 	boolean ignore_broken_surfaces;
-	byte reserved5[3];
+	byte reserved5;
+	short structure_bsp_index;
 	struct obstacles const *obstacles;
 	struct structure_bsp const *structure;
 	real_point2d goal;
@@ -418,6 +420,7 @@ boolean obstacles_test_pill(
 	struct obstacles_test_pill_result *result);
 void obstacles_get_discs_in_sphere(
 	struct obstacles *obstacles,
+	short structure_bsp_index,
 	real_point3d const *center,
 	real radius,
 	real_vector3d const *movement_direction,

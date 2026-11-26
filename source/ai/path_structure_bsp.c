@@ -94,6 +94,7 @@ static real const quantized_pathfinding_surface_heights[8] =
 
 boolean structure_test_ray2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *point,
 	long surface_index,
@@ -103,11 +104,9 @@ boolean structure_test_ray2d(
 {
 	struct collision_surface_test_line2d_result surface_result;
 	struct collision_bsp const *bsp;
-	byte *breakable_surface_flags;
 	long surface_step_count = 0;
 
 	bsp = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
-	breakable_surface_flags = breakable_surface_flags_get();
 
 	collision_surface_test_line2d(
 		bsp,
@@ -146,8 +145,8 @@ boolean structure_test_ray2d(
 					"c:\\halo\\SOURCE\\ai\\path_structure_bsp.c",
 					105,
 					TEST_FLAG(collision_surface->flags, _collision_surface_breakable_bit));
-				surface_passable = BIT_VECTOR_TEST_FLAG(
-					(long *)breakable_surface_flags,
+				surface_passable = breakable_surface_extant_in_bsp(
+					structure_bsp_index,
 					collision_surface->breakable_surface_index);
 			}
 
@@ -178,8 +177,8 @@ boolean structure_test_ray2d(
 					"c:\\halo\\SOURCE\\ai\\path_structure_bsp.c",
 					126,
 					TEST_FLAG(collision_surface->flags, _collision_surface_breakable_bit));
-				surface_passable = BIT_VECTOR_TEST_FLAG(
-					(long *)breakable_surface_flags,
+				surface_passable = breakable_surface_extant_in_bsp(
+					structure_bsp_index,
 					collision_surface->breakable_surface_index);
 			}
 
@@ -276,6 +275,7 @@ boolean structure_surfaces_are_equivalent(
 
 boolean structure_test_line2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *p0,
 	long p0_surface_index,
@@ -284,7 +284,6 @@ boolean structure_test_line2d(
 	struct path_collision_result *result)
 {
 	struct collision_bsp const *bsp = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
-	long const *breakable_surface_flags = (long const *)breakable_surface_flags_get();
 	long surface_index = p0_surface_index;
 	boolean recursed = FALSE;
 	real_vector2d p0p1;
@@ -420,8 +419,8 @@ boolean structure_test_line2d(
 							"c:\\halo\\SOURCE\\ai\\path_structure_bsp.c",
 							274,
 							TEST_FLAG(collision_surface->flags, _collision_surface_breakable_bit));
-						passable = BIT_VECTOR_TEST_FLAG(
-							breakable_surface_flags,
+						passable = breakable_surface_extant_in_bsp(
+							structure_bsp_index,
 							collision_surface->breakable_surface_index);
 					}
 
@@ -471,6 +470,7 @@ boolean structure_test_line2d(
 						path_pathfinding_surface(structure, surface_index) &&
 						!structure_test_line2d(
 							structure,
+							structure_bsp_index,
 							ignore_broken_surfaces,
 							(real_point2d const *)&point_in_surface,
 							surface_index,
@@ -563,6 +563,7 @@ boolean clip_empty_interval_by_solid_interval(
 
 long structure_surface_index_from_point(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *known_point,
 	long known_surface_index,
@@ -574,6 +575,7 @@ long structure_surface_index_from_point(
 	{
 		structure_test_line2d(
 			structure,
+			structure_bsp_index,
 			ignore_broken_surfaces,
 			known_point,
 			known_surface_index,
@@ -595,6 +597,7 @@ long structure_surface_index_from_point(
 
 boolean structure_test_pill2d(
 	struct structure_bsp const *structure,
+	short structure_bsp_index,
 	boolean ignore_broken_surfaces,
 	real_point2d const *p0,
 	long p0_surface_index,
@@ -627,24 +630,28 @@ boolean structure_test_pill2d(
 
 		left_p0_surface_index = structure_surface_index_from_point(
 			structure,
+			structure_bsp_index,
 			ignore_broken_surfaces,
 			p0,
 			p0_surface_index,
 			point_from_line2d(p0, &perpendicular, radius, &left_p0));
 		left_p1_surface_index = structure_surface_index_from_point(
 			structure,
+			structure_bsp_index,
 			ignore_broken_surfaces,
 			p1,
 			p1_surface_index,
 			point_from_line2d(p1, &perpendicular, radius, &left_p1));
 		right_p0_surface_index = structure_surface_index_from_point(
 			structure,
+			structure_bsp_index,
 			ignore_broken_surfaces,
 			p0,
 			p0_surface_index,
 			point_from_line2d(p0, &perpendicular, -radius, &right_p0));
 		right_p1_surface_index = structure_surface_index_from_point(
 			structure,
+			structure_bsp_index,
 			ignore_broken_surfaces,
 			p1,
 			p1_surface_index,
@@ -656,6 +663,7 @@ boolean structure_test_pill2d(
 		}
 		else if (structure_test_line2d(
 				structure,
+				structure_bsp_index,
 				ignore_broken_surfaces,
 				&left_p0,
 				left_p0_surface_index,
@@ -666,6 +674,7 @@ boolean structure_test_pill2d(
 			!TEST_FLAG(flags, _path_test_pill_endpoint_near_wall_ok_bit) &&
 			!structure_test_line2d(
 				structure,
+				structure_bsp_index,
 				ignore_broken_surfaces,
 				(real_point2d const *)&left_result.point,
 				left_result.surface_index,
@@ -682,6 +691,7 @@ boolean structure_test_pill2d(
 		}
 		else if (structure_test_line2d(
 				structure,
+				structure_bsp_index,
 				ignore_broken_surfaces,
 				&right_p0,
 				right_p0_surface_index,
@@ -692,6 +702,7 @@ boolean structure_test_pill2d(
 			!TEST_FLAG(flags, _path_test_pill_endpoint_near_wall_ok_bit) &&
 			!structure_test_line2d(
 				structure,
+				structure_bsp_index,
 				ignore_broken_surfaces,
 				(real_point2d const *)&right_result.point,
 				right_result.surface_index,
