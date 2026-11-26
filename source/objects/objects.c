@@ -4639,20 +4639,18 @@ long object_new_by_name(
 	struct scenario *scenario = global_scenario_get();
 
 
-	struct scenario_object_name* name = TAG_BLOCK_GET_ELEMENT(
-		&scenario->object_names,
-		name_index,
-		struct scenario_object_name);
-
-	struct tag_block* datum;
+	struct scenario_object_name *name;
+	struct tag_block *datum;
 	struct tag_block *palette;
 	struct scenario_object_datum *object;
 
 	/* port: a name that names no placement (one past the names, or whose
 	type has no placements or whose placement is not there: a map's) makes
 	no object, rather than one of whatever its fields read as */
-	if (!VALID_INDEX(name_index, scenario->object_names.count) ||
-		!VALID_INDEX(name->runtime_object_type, NUMBER_OF_OBJECT_TYPES) ||
+	if (!VALID_INDEX(name_index, scenario->object_names.count))
+		return NONE;
+	name = TAG_BLOCK_GET_ELEMENT(&scenario->object_names, name_index, struct scenario_object_name);
+	if (!VALID_INDEX(name->runtime_object_type, NUMBER_OF_OBJECT_TYPES) ||
 		object_type_definition_get(name->runtime_object_type)->placement_tag_block_offset == NONE ||
 		object_type_definition_get(name->runtime_object_type)->palette_tag_block_offset == NONE)
 	{
@@ -4675,9 +4673,25 @@ long object_new_by_name(
 			name->runtime_scenario_datum_index,
 			placement_tag_block_element_size);
 
-	return object_new_from_scenario(
-		object,
-		palette);
+	/* Scripted vehicles use the compiled region even while a different BSP
+	 * is in the foreground. Legacy games and ambiguous masks keep stock lookup. */
+	if (name->runtime_object_type == _object_type_vehicle && scenario_uses_regional_gameplay(scenario) &&
+		(game_connection() == _game_connection_local ||
+		 (game_connection() == _game_connection_network_server && network_regional_independent_bsp_ready())))
+	{
+		short bsp;
+		for (bsp = 0; bsp < MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO); bsp++)
+		{
+			if (object->on_bsp_flags == FLAG(bsp))
+			{
+				struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
+				if (!structure)
+					structure = scenario_structure_bsp_preview(bsp, TRUE);
+				return structure ? object_new_from_scenario_in_bsp(object, palette, bsp, structure) : NONE;
+			}
+		}
+	}
+	return object_new_from_scenario(object, palette);
 }
 
 void objects_scripting_attach(

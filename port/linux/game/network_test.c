@@ -677,7 +677,7 @@ static void network_test_log_boarding(long player_index, long unit_index)
 		real_point3d entrance, seat, best_entrance = {0}, best_seat = {0};
 		struct unit_definition *definition;
 		if (vehicle_is_human_plane(iterator.index))
-			platform_log("network test: aircraft %ld %ld ground %d rest %d landed %d up %.3f motion %.4f spin %.4f throttle %.3f facing %.3f %.3f %.3f origin %.3f %.3f %.3f center %.3f %.3f %.3f scale %.3f forward %.3f %.3f %.3f",
+			platform_log("network test: aircraft %ld %ld ground %d rest %d landed %d up %.3f motion %.4f spin %.4f throttle %.3f facing %.3f %.3f %.3f origin %.3f %.3f %.3f center %.3f %.3f %.3f scale %.3f forward %.3f %.3f %.3f bsp %d",
 					game_time_get(), DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.index),
 					TEST_FLAG(vehicle->object.flags, _object_on_ground_bit),
 					TEST_FLAG(vehicle->object.flags, _object_at_rest_bit), vehicle_is_landed(iterator.index), vehicle->object.up.k,
@@ -687,7 +687,8 @@ static void network_test_log_boarding(long player_index, long unit_index)
 					vehicle->object.position.x, vehicle->object.position.y, vehicle->object.position.z,
 					vehicle->object.bounding_sphere_center.x, vehicle->object.bounding_sphere_center.y,
 					vehicle->object.bounding_sphere_center.z, vehicle->object.scale,
-					vehicle->object.forward.i, vehicle->object.forward.j, vehicle->object.forward.k);
+					vehicle->object.forward.i, vehicle->object.forward.j, vehicle->object.forward.k,
+					(int)object_get_regional_bsp(iterator.index));
 		if (distance_squared3d(&unit->object.bounding_sphere_center, &vehicle->object.bounding_sphere_center) > 100.0f)
 			continue;
 		definition = unit_definition_get(vehicle->definition_index);
