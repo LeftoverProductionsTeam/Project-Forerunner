@@ -45,7 +45,8 @@ enum
 {
 	_ui_map_mode_unspecified,
 	_ui_map_mode_extraction,
-	_ui_map_mode_survival
+	_ui_map_mode_survival,
+	_ui_map_mode_regional_extraction
 };
 
 short ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,

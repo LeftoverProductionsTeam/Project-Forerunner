@@ -73,6 +73,7 @@ is fetched (its page shows the pictures itself: online_client.js).
 #include "halo_ui_map_list.h"
 #include "halomd_map_names.h"
 #include "mcc_maps.h"
+#include "../src/port_config.h"
 
 #ifdef HALO_SPARK_MODE_RECEIPTS
 #include "../src/server_json.h"
@@ -502,7 +503,7 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 	int native = server_json_member(json, 0, "requiredNativeFeatures");
 	int settings = server_json_member(json, 0, "runtimeSettings");
 	int index, token, enabled;
-	boolean extraction, scripted;
+	boolean extraction, scripted, regional = FALSE, regional_feature = FALSE;
 	wchar_t const *label;
 
 	if (!server_json_get_number(json, server_json_member(json, 0, "schemaVersion"), &schema) || schema != 1 ||
@@ -522,6 +523,10 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 		return L"Invalid Spark\r\nmap metadata";
 
 	extraction = !strcmp(mode, "extraction");
+#if HALO_MCC && defined(HALO_64BIT)
+	regional = extraction && !campaign && version == MCC_CACHE_VERSION &&
+		config_boolean("debug.independent_regional_bsp") && !config_boolean("network.online");
+#endif
 	scripted = extraction || !strcmp(mode, "firefight") || !strcmp(mode, "zombieSurvival");
 	if (json->tokens[settings].size != (extraction ? 2 : scripted ? 1 : 0))
 		return L"Unsupported Spark\r\nmode settings";
@@ -534,6 +539,8 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 
 	if (campaign && extraction)
 		label = L"Spark Extraction";
+	else if (regional)
+		label = L"Spark Regional\r\nExtraction";
 	else if (campaign && !strcmp(mode, "firefight"))
 		label = L"Spark Firefight";
 	else if (!strcmp(mode, "zombieSurvival"))
@@ -555,6 +562,11 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 			!strcmp(value, MCC_CACHE_EXTENDED_SKY_SLOTS_FEATURE)))
 			continue;
 #endif
+		if (regional && !strcmp(value, "extraction.megaworld.v1"))
+		{
+			regional_feature = TRUE;
+			continue;
+		}
 		if (!extraction)
 			return L"Unsupported Spark\r\nnative requirement";
 		while (feature < NUMBEROF(features) && strcmp(features[feature], value))
@@ -568,14 +580,18 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 			(strcmp(value, "bitmaps.map") && strcmp(value, "sounds.map") && strcmp(value, "loc.map")))
 			return L"Unsupported Spark\r\nresource bank";
 	}
+	if (regional && !regional_feature)
+		return L"Regional Extraction\r\nrequires mode metadata";
 	if (!spark_map_matches(path, version, campaign, expected))
 		return L"Spark metadata\r\nmap mismatch";
 	if (version == 609 && !map_family_resources_ready(NULL, 0))
 		return L"Spark map needs\r\nCE resource banks";
-	/* Extraction launches through the current native CE co-op path.
-	 * Survival's chooser is the multiplayer path, including offline local. */
+	/* The public Extraction picker uses the CE co-op path. The regional
+	 * receipt is consumed by the private MCC host's runtime gate. */
 	if (campaign && extraction && version == 609)
 		*play_mode = _ui_map_mode_extraction;
+	else if (regional)
+		*play_mode = _ui_map_mode_regional_extraction;
 	else if (!campaign && !strcmp(mode, "zombieSurvival"))
 		*play_mode = _ui_map_mode_survival;
 	return label;

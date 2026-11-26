@@ -42,6 +42,11 @@
 #include "units/unit_definitions.h"
 #include "extraction.h"
 #include "network_coop.h"
+#include "halo_ui_map_list.h"
+#if HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_64BIT)
+#include "mcc_cache_format.h"
+#include "mcc_package.h"
+#endif
 #include "network_chat.h"
 #include "network_distributed.h"
 #include "network_rules.h"
@@ -131,6 +136,7 @@ static struct
 {
 	boolean bound, admitted, suspended, suspension_announced, separate_hubs;
 	boolean native_mode_checked, authored_extraction, lan_session_gear;
+	boolean regional_receipt_checked, regional_receipt_valid;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short dropship_return_zones[2];
@@ -186,9 +192,28 @@ static boolean extraction_unit_pending_death(struct unit_datum const *unit)
 
 static boolean extraction_authoritative_scene(void)
 {
-	return global_scenario && global_scenario->type == _scenario_type_solo &&
-		(game_connection() == _game_connection_local ||
-		(game_connection() == _game_connection_network_server && network_coop_active()));
+	if (!global_scenario)
+		return FALSE;
+	if (global_scenario->type == _scenario_type_solo)
+		return game_connection() == _game_connection_local ||
+			(game_connection() == _game_connection_network_server && network_coop_active());
+#if HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_64BIT)
+	if (game_connection() == _game_connection_network_server && !config_boolean("network.online") &&
+		config_boolean("game.extraction") && network_regional_independent_bsp_ready())
+	{
+		if (!extraction.regional_receipt_checked)
+		{
+			char path[128];
+			wchar_t description[128] = {0};
+			extraction.regional_receipt_checked = TRUE;
+			extraction.regional_receipt_valid = mcc_package_map_path(tag_get_name(global_scenario_index), path) &&
+				ui_map_list_spark_description(path, MCC_CACHE_VERSION, FALSE, description, NUMBEROF(description)) ==
+					_ui_map_mode_regional_extraction;
+		}
+		return extraction.regional_receipt_valid;
+	}
+#endif
+	return FALSE;
 }
 
 static boolean extraction_host_firefight_requested(void)
@@ -1293,6 +1318,13 @@ static void extraction_bind(void)
 				(faction && choices[1] == choices[0]) || extraction.faction_profiles[faction] == NONE ||
 				control_definition_get(choices[faction]->definition_index)->control.triggers_when != 0) extraction.admitted = FALSE;
 		}
+	if (global_scenario->type != _scenario_type_solo)
+	{
+		for (faction = 0; faction < 2; faction++)
+			if (extraction.faction_bipeds[faction] == NONE || extraction.dropship_names[faction] == NONE ||
+				extraction.dropship_zones[faction] == NONE || extraction.dropship_activate_names[faction] == NONE)
+				extraction.admitted = FALSE;
+	}
 	/* Optional character templates share the existing faction controls/profiles. */
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.faction_bipeds[faction] != NONE &&
