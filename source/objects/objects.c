@@ -3919,7 +3919,7 @@ void object_translate(
 	struct location const *new_location)
 {
 	struct object_datum *object = object_get(object_index);
-	short bsp = TEST_FLAG(_object_mask_biped | _object_mask_vehicle, object->object.type) &&
+	short bsp = TEST_FLAG(_object_mask_biped | _object_mask_vehicle | _object_mask_item, object->object.type) &&
 		object->object.parent_object_index == NONE &&
 		collideable_object_cluster_partition.port_structure_bsp_index != NONE ?
 		object_get_regional_bsp(object_index) : NONE;

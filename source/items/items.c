@@ -109,7 +109,7 @@ stays NONE, and a surface of 65535 or more (NONE's bits) is not kept */
 static long item_rested_surface_index(
 	struct item_datum const *item);
 static struct collision_surface const *item_rested_surface(
-	struct item_datum const *item);
+	struct item_datum const *item, short bsp_index);
 static void item_set_rested_surface(
 	struct item_datum *item,
 	long surface_index);
@@ -304,12 +304,12 @@ static long item_rested_surface_index(
 }
 
 static struct collision_surface const *item_rested_surface(
-	struct item_datum const *item)
+	struct item_datum const *item, short bsp_index)
 {
-	struct collision_bsp const *bsp = global_collision_bsp_get();
+	struct collision_bsp const *bsp = collision_bsp_for_region(bsp_index);
 	long surface_index = item_rested_surface_index(item);
 
-	if (!bsp || item->item.bsp_index != global_structure_bsp_index_get() ||
+	if (!bsp || item->item.bsp_index != bsp_index ||
 		surface_index < 0 || surface_index >= bsp->surfaces.count)
 		return NULL;
 	return TAG_BLOCK_GET_ELEMENT(&bsp->surfaces, surface_index, struct collision_surface);
@@ -401,14 +401,17 @@ void item_accelerate(
 
 			if (object_get_marker_by_name(item_index, "ground point", &marker, 1))
 			{
-				struct collision_bsp *collision_bsp;
+				struct collision_bsp const *collision_bsp;
 				struct collision_surface const *surface;
 				real_point3d new_position;
 				real_plane3d plane;
 				real distance_above;
 
-				collision_bsp = global_collision_bsp_get();
-				surface = item_rested_surface(item);
+				short bsp = object_get_regional_bsp(item_index);
+				if (bsp == NONE)
+					bsp = global_structure_bsp_index_get();
+				collision_bsp = collision_bsp_for_region(bsp);
+				surface = item_rested_surface(item, bsp);
 				if (surface)
 				{
 					bsp3d_get_plane_from_designator(
@@ -586,7 +589,7 @@ static void item_align_to_normal_and_point(
  * it keep their old support until that scene resumes. */
 static void item_recheck_support(
 	struct item_datum *item,
-	struct item_definition const *definition)
+	struct item_definition const *definition, short bsp)
 {
 	if (TEST_FLAG(item->object.flags, _object_outside_of_map_bit) ||
 		TEST_FLAG(item->item.flags, _item_does_not_accelerate_bit) ||
@@ -595,7 +598,7 @@ static void item_recheck_support(
 
 	if (TEST_FLAG(item->item.flags, _item_on_structure_bit))
 	{
-		if (item->item.bsp_index == global_structure_bsp_index_get())
+		if (item->item.bsp_index == bsp)
 			return;
 		SET_FLAG(item->item.flags, _item_on_structure_bit, FALSE);
 		item->item.rested_surface_index = NONE;
@@ -608,7 +611,9 @@ static void item_recheck_support(
 		if (!scenario || !scenario_uses_regional_gameplay(scenario) || !object_try_and_get(support))
 			return;
 		support = object_get_ultimate_parent(support);
-		if (!game_engine_object_parked(support, object_get(support)->object.type))
+		short support_bsp = object_get_regional_bsp(support);
+		if (support_bsp == NONE ? !game_engine_object_parked(support, object_get(support)->object.type) :
+			support_bsp == bsp)
 			return;
 		SET_FLAG(item->item.flags, _item_on_object_bit, FALSE);
 		item->item.item_on_rest_object_index = NONE;
@@ -639,7 +644,11 @@ boolean item_update(
 	if (TEST_FLAG(item->object.flags, _object_connected_to_map_bit) &&
 		item->object.parent_object_index == NONE)
 	{
-		item_recheck_support(item, definition);
+		short bsp = object_get_regional_bsp(item_index);
+		boolean foreground = bsp == NONE || bsp == global_structure_bsp_index_get();
+		if (bsp == NONE)
+			bsp = global_structure_bsp_index_get();
+		item_recheck_support(item, definition, bsp);
 		if (TEST_FLAG(
 				definition->item.flags,
 				_item_definition_always_maintains_z_up_bit) &&
@@ -665,7 +674,7 @@ boolean item_update(
 		if (!TEST_FLAG(item->object.flags, _object_at_rest_bit))
 		{
 			struct collision_result collision;
-			real_vector3d new_velocity;
+			real_vector3d new_velocity, movement;
 			real_point3d new_position;
 
 			new_velocity = item->object.translational_velocity;
@@ -680,10 +689,11 @@ boolean item_update(
 			new_position.y = item->object.position.y + new_velocity.j;
 			new_position.z = item->object.position.z + new_velocity.k;
 
-			if (collision_test_line(
-					ITEM_UPDATE_COLLISION_TEST_FLAGS,
+			vector_from_points3d(&item->object.position, &new_position, &movement);
+			if (collision_test_bsp_vector(
+					bsp, ITEM_UPDATE_COLLISION_TEST_FLAGS,
 					&item->object.position,
-					&new_position,
+					&movement,
 					item->item.ignore_object_index,
 					&collision))
 			{
@@ -707,7 +717,7 @@ boolean item_update(
 					impact_scale = 1.f;
 				}
 
-				if (definition->item.material_effects.index != NONE &&
+				if (foreground && definition->item.material_effects.index != NONE &&
 					material_effect_visible(&collision.point))
 				{
 					material_effect_new(
@@ -721,7 +731,7 @@ boolean item_update(
 				}
 
 				impulse_sound_index = definition->item.collision_sound.index;
-				if (impulse_sound_index != NONE)
+				if (foreground && impulse_sound_index != NONE)
 				{
 					struct sound_location location;
 
@@ -769,8 +779,7 @@ boolean item_update(
 					case _collision_result_structure:
 						SET_FLAG(item->item.flags, _item_on_structure_bit, TRUE);
 						item_set_rested_surface(item, collision.surface_index);
-						item->item.bsp_index =
-							global_structure_bsp_index_get();
+						item->item.bsp_index = bsp;
 						break;
 
 					case _collision_result_object:
@@ -817,8 +826,8 @@ boolean item_update(
 					new_velocity.i += collision.plane.n.i * reflection;
 					new_velocity.j += collision.plane.n.j * reflection;
 					new_velocity.k += collision.plane.n.k * reflection;
-					if (collision_test_point(
-							ITEM_UPDATE_COLLISION_TEST_FLAGS,
+					if (collision_test_bsp_point(
+							bsp, ITEM_UPDATE_COLLISION_TEST_FLAGS,
 							&new_position,
 							item_index))
 					{
@@ -828,8 +837,8 @@ boolean item_update(
 							0.05f,
 							&new_position);
 					}
-					collision_test_point(
-						ITEM_UPDATE_COLLISION_TEST_FLAGS,
+					collision_test_bsp_point(
+						bsp, ITEM_UPDATE_COLLISION_TEST_FLAGS,
 						&new_position,
 						item_index);
 				}
@@ -855,19 +864,18 @@ boolean item_update(
 
 			if (TEST_FLAG(item->item.flags, _item_on_structure_bit) &&
 				item_rested_surface_index(item) != NONE &&
-				item->item.bsp_index == global_structure_bsp_index_get())
+				item->item.bsp_index == bsp)
 			{
 				struct collision_surface const *surface;
 
-				surface = item_rested_surface(item);
+				surface = item_rested_surface(item, bsp);
 				if (!surface)
 				{
 					SET_FLAG(item->item.flags, _item_on_structure_bit, FALSE);
 					item->item.rested_surface_index = NONE;
 				}
 				else if (TEST_FLAG(surface->flags, _collision_surface_breakable_bit) &&
-					!breakable_surface_extant(
-						surface->breakable_surface_index))
+					!breakable_surface_extant_in_bsp(bsp, surface->breakable_surface_index))
 				{
 					real_vector3d gravity;
 

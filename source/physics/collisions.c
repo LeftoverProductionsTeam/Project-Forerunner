@@ -436,11 +436,12 @@ boolean collision_test_sphere(
 	return TRUE;
 }
 
-boolean collision_test_point(
-	unsigned long flags,
-	real_point3d const *point,
-	long ignore_object_index)
+boolean collision_test_bsp_point(
+	short bsp, unsigned long flags, real_point3d const *point, long ignore_object_index)
 {
+	boolean foreground = bsp == NONE || bsp == global_structure_bsp_index_get();
+	struct structure_bsp const *structure;
+	struct collision_bsp const *terrain;
 	long leaf_index;
 	long reference_index;
 	boolean test_objects;
@@ -450,7 +451,11 @@ boolean collision_test_point(
 		goto no_collision;
 	}
 
-	leaf_index = bsp3d_test_point(global_bsp3d_get(), 0, point);
+	structure = foreground ? global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
+	terrain = foreground ? NULL : collision_bsp_for_region(bsp);
+	if (!foreground && !terrain)
+		goto collision;
+	leaf_index = bsp3d_test_point(foreground ? global_bsp3d_get() : &terrain->bsp3d, 0, point);
 	test_objects = TEST_FLAG(flags, _collision_test_objects_bit);
 	if (debug_collision_skip_objects)
 	{
@@ -468,13 +473,13 @@ boolean collision_test_point(
 	}
 
 	{
-		/* port: (collision_cluster_index_from_leaf) */
-		short cluster_index = (short)collision_cluster_index_from_leaf(leaf_index);
+		short cluster_index = (short)collision_bsp_cluster_index_from_leaf(structure, leaf_index);
 		long object_index;
-
-		for (object_index = cluster_get_first_collideable_object(&reference_index, cluster_index);
+		for (object_index = foreground ? cluster_get_first_collideable_object(&reference_index, cluster_index) :
+				cluster_get_first_collideable_object_in_bsp(&reference_index, bsp, cluster_index);
 			object_index != NONE;
-			object_index = cluster_get_next_collideable_object(&reference_index))
+			object_index = foreground ? cluster_get_next_collideable_object(&reference_index) :
+				cluster_get_next_collideable_object_in_bsp(&reference_index, bsp))
 		{
 			if (object_test_point(object_index, flags, point, ignore_object_index))
 			{
@@ -488,6 +493,11 @@ no_collision:
 
 collision:
 	return TRUE;
+}
+
+boolean collision_test_point(unsigned long flags, real_point3d const *point, long ignore_object_index)
+{
+	return collision_test_bsp_point(NONE, flags, point, ignore_object_index);
 }
 
 static unsigned long collision_vector_bsp_flags(unsigned long flags)

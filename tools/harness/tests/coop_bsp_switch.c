@@ -400,6 +400,7 @@ static void structure_decals_update(unsigned long *old,unsigned long *current,sh
 }
 #define DATUM_INDEX_NEW(i,salt) ((long)(((unsigned long)(unsigned short)(salt)<<16)|(i)))
 boolean game_engine_object_parked(long object_index, short type);
+static struct collision_bsp const *collision_bsp_for_region(short bsp);
 #include "item_structure_support.inc"
 #include "bsp_activation.inc"
 static int test_destination_activation(void)
@@ -795,6 +796,8 @@ static short combat_region;
 static real seam_impact_t;
 static struct collision_bsp const *collision_bsp_for_region(short bsp)
 {
+    if (bsp==NONE||bsp==global_structure_bsp_index_get())
+        return global_collision_bsp_get();
     CHECK(bsp==combat_region,"sight queried the wrong region");
     return combat_region_resident?&collisions[bsp]:NULL;
 }
@@ -2712,25 +2715,25 @@ int main(int argc,char **argv)
         item.item.bsp_index=old;
         item.item.flags=FLAG(_item_on_structure_bit);
         item.object.flags=FLAG(_object_at_rest_bit);
-        item_recheck_support(&item,&definition);
-        CHECK(item_rested_surface(&item)==&old_floor&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
+        CHECK(item_rested_surface(&item,global_structure_bsp_index_get())==&old_floor&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
               "a rested weapon lost its own support plane");
         CHECK(scenario_switch_structure_bsp(destination),"destination test BSP failed to load");
-        CHECK(!item_rested_surface(&item),"an impact could snap the weapon to another BSP's ground plane");
+        CHECK(!item_rested_surface(&item,global_structure_bsp_index_get()),"an impact could snap the weapon to another BSP's ground plane");
         item.object.flags|=FLAG(_object_outside_of_map_bit);
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(item.item.bsp_index==old&&TEST_FLAG(item.object.flags,_object_at_rest_bit),
               "a pickup outside the loaded BSP lost its previous support");
         item.object.flags&=~FLAG(_object_outside_of_map_bit);
         definition.item.flags=FLAG(_item_definition_antigravity_bit);
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"an antigravity pickup started falling");
         definition.item.flags=0;
         item.item.flags|=FLAG(_item_does_not_accelerate_bit);
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"an immobile pickup started falling");
         item.item.flags&=~FLAG(_item_does_not_accelerate_bit);
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(item.item.bsp_index==NONE&&item.item.rested_surface_index==NONE&&
               !TEST_FLAG(item.item.flags,_item_on_structure_bit)&&!TEST_FLAG(item.object.flags,_object_at_rest_bit),
               "a mobile pickup inside the new BSP could not settle again");
@@ -2748,17 +2751,22 @@ int main(int argc,char **argv)
         item.item.item_on_rest_object_index=units[2];
         item.object.flags=FLAG(_object_at_rest_bit);
         global_structure_bsp_index=old;
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit)&&item.item.item_on_rest_object_index==units[2],
               "an in-region prop stopped supporting a pickup");
         global_structure_bsp_index=destination;
+        regional_test_root=units[2];
+        regional_test_root_bsp=old;
+        item_recheck_support(&item,&definition,old);
+        CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit),"a live remote prop lost its pickup when the host looked elsewhere");
+        global_structure_bsp_index=destination;
         item.object.flags|=FLAG(_object_outside_of_map_bit);
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(TEST_FLAG(item.object.flags,_object_at_rest_bit)&&item.item.item_on_rest_object_index==units[2],
               "an inactive pickup lost the prop it rests on");
         item.object.flags&=~FLAG(_object_outside_of_map_bit);
         CHECK(game_engine_object_parked(units[2],_object_type_scenery),"fixture support did not park");
-        item_recheck_support(&item,&definition);
+        item_recheck_support(&item,&definition,global_structure_bsp_index_get());
         CHECK(!TEST_FLAG(item.object.flags,_object_at_rest_bit)&&!TEST_FLAG(item.item.flags,_item_on_object_bit)&&
               item.item.item_on_rest_object_index==NONE,
               "an active pickup hung in the air on a prop in another BSP");

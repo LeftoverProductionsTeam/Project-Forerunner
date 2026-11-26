@@ -122,6 +122,8 @@ typedef char collision_result_material_type_offset_assert[
 long collision_model_get_material_type(
 	struct collision_model const *model,
 	short material_index);
+boolean collision_test_bsp_point(short bsp, unsigned long flags,
+	real_point3d const *point, long ignore_object_index);
 boolean collision_test_point(
 	unsigned long flags,
 	real_point3d const *point,
