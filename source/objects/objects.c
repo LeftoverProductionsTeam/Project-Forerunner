@@ -2330,6 +2330,10 @@ void object_detach(
 	struct object_datum *child_object = object_get(child_object_index);
 	struct object_datum *parent_object = object_get(child_object->object.parent_object_index);
 
+	short bsp = object_get_regional_bsp(child_object->object.parent_object_index);
+	struct structure_bsp const *structure = bsp != NONE && bsp != global_structure_bsp_index_get() ?
+		scenario_structure_bsp_try_and_get(bsp) : NULL;
+
 	object_disconnect_from_map(child_object_index);
 	node_matrix = object_get_node_matrix(child_object->object.parent_object_index, child_object->object.parent_node_index);
 
@@ -2348,7 +2352,7 @@ void object_detach(
 	child_object->object.parent_node_index = NONE;
 	child_object->object.parent_object_index = NONE;
 
-	object_reconnect_to_map(child_object_index, NULL);
+	object_reconnect_to_map_internal(child_object_index, NULL, structure == NULL, bsp, structure);
 	object_activate(child_object_index);
 
 	return;

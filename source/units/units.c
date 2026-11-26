@@ -3275,6 +3275,15 @@ boolean unit_enter_seat(
 			unit->unit.parent_seat_index = seat_index;
 			unit->object.parent_object_index = target_unit_index;
 			unit_update_driver_and_gunner(target_unit_index);
+			/* A seated player keeps the carrier and its seat animations
+			 * ticking independently of the host's foreground clusters. */
+			if (unit->unit.player_index != NONE)
+			{
+				long carrier = object_get_ultimate_parent(target_unit_index);
+				short bsp = object_get_regional_bsp(carrier);
+				if (bsp != NONE && bsp != global_structure_bsp_index_get())
+					object_activate(carrier);
+			}
 
 			updated_unit = unit_get(unit_index);
 			updated_unit->unit.desired_weapon_index = unit_weapon_next_index(
@@ -3352,6 +3361,7 @@ void unit_exit_seat_end(
 
 	if (parent_unit_index!=NONE && unit->unit.parent_seat_index!=NONE)
 	{
+		short bsp = object_get_regional_bsp(parent_unit_index);
 		struct unit_datum *parent_unit = unit_get(parent_unit_index);
 		struct unit_definition *parent_unit_definition =
 			unit_definition_get(parent_unit->definition_index);
@@ -3419,7 +3429,10 @@ void unit_exit_seat_end(
 		position.y = relative_position.j + unit->object.position.y;
 		position.z = relative_position.k + unit->object.position.z -
 			root_translation.z;
-		object_set_position(unit_index, &position, NULL, NULL);
+		if (bsp != NONE && bsp != global_structure_bsp_index_get())
+			object_set_physics_pose(unit_index, bsp, &position, &unit->object.forward, &unit->object.up);
+		else
+			object_set_position(unit_index, &position, NULL, NULL);
 
 		updated_unit_node_matrix = object_get_node_matrix(unit_index, 0);
 		matrix4x3_multiply(

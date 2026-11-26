@@ -186,7 +186,7 @@ static void object_get_features_in_sphere(
 	long ignore_object_index,
 	struct collision_feature_list *features);
 static void collision_fix_pill_nudge_collision(
-	unsigned long flags,
+	short bsp, unsigned long flags,
 	real_point3d const *point,
 	real_vector3d const *vector,
 	long ignore_object_index,
@@ -837,22 +837,27 @@ boolean collision_test_vector(
 	return collision_test_bsp_vector(NONE, flags, point, vector, ignore_object_index, collision);
 }
 
-boolean collision_test_pill(
-	unsigned long flags,
+boolean collision_test_bsp_pill(
+	short bsp, unsigned long flags,
 	real_point3d const *point,
 	real_vector3d const *vector,
 	real radius,
 	long ignore_object_index,
 	struct collision_result *collision)
 {
+	struct collision_bsp const *terrain = collision_bsp_for_region(bsp);
+	struct structure_bsp const *structure = bsp == NONE ? global_structure_bsp_get() :
+		scenario_structure_bsp_try_and_get(bsp);
 	boolean hit = FALSE;
 	struct collision_bsp_test_pill_result bsp_result;
 
 	collision->type = NONE;
 	collision->t = REAL_MAX;
 
+	/* Missing resident geometry cannot clear a placement. */
+	if (!terrain || !structure) return TRUE;
 	if (collision_bsp_test_pill(
-		global_collision_bsp_get(),
+		terrain,
 		point,
 		vector,
 		radius,
@@ -881,12 +886,12 @@ boolean collision_test_pill(
 
 		/* port: (collision_cluster_index_from_leaf) */
 		collision->start_location.leaf_index = leaf_index;
-		cluster_index = collision_cluster_index_from_leaf(leaf_index);
+		cluster_index = collision_bsp_cluster_index_from_leaf(structure, leaf_index);
 		collision->start_location.cluster_index = cluster_index;
 
 		leaf_index = bsp_result.leaf_indices[bsp_result.leaf_count - 1];
 		collision->location.leaf_index = leaf_index;
-		cluster_index = collision_cluster_index_from_leaf(leaf_index);
+		cluster_index = collision_bsp_cluster_index_from_leaf(structure, leaf_index);
 		collision->location.cluster_index = cluster_index;
 	}
 
@@ -896,9 +901,16 @@ boolean collision_test_pill(
 	}
 
 	COLLISION_POINT_FROM_LINE3D(point, vector, collision->t, &collision->point);
-	scenario_location_from_point(&collision->location, &collision->point);
+	scenario_location_from_point_in_structure(&collision->location, structure, &collision->point);
 
 	return hit;
+}
+
+boolean collision_test_pill(
+	unsigned long flags, real_point3d const *point, real_vector3d const *vector,
+	real radius, long ignore_object_index, struct collision_result *collision)
+{
+	return collision_test_bsp_pill(NONE, flags, point, vector, radius, ignore_object_index, collision);
 }
 
 boolean collision_test_vector_exit(
@@ -1167,8 +1179,8 @@ boolean collision_get_features_in_sphere(
 		ignore_object_index, features);
 }
 
-boolean collision_fix_pill(
-	unsigned long flags,
+boolean collision_fix_bsp_pill(
+	short bsp, unsigned long flags,
 	real_point3d const *old_position,
 	real distance,
 	real height,
@@ -1219,8 +1231,8 @@ boolean collision_fix_pill(
 			old_position->x,
 			old_position->y,
 			height * 0.5f + old_position->z);
-		collision_get_features_in_sphere(
-			flags,
+		collision_get_bsp_features_in_sphere(
+			bsp, flags,
 			&center,
 			height * 0.5f + distance + width,
 			height,
@@ -1230,7 +1242,7 @@ boolean collision_fix_pill(
 	}
 
 	if (!collision_features_test_point(&features, old_position, &first_collision) &&
-		!collision_test_point(flags, old_position, ignore_object_index))
+		!collision_test_bsp_point(bsp, flags, old_position, ignore_object_index))
 	{
 		*new_position = *old_position;
 		result = TRUE;
@@ -1255,7 +1267,7 @@ boolean collision_fix_pill(
 			candidate.z = offset->k * distance + old_position->z;
 
 			if (!collision_features_test_point(&features, &candidate, &collision) &&
-				!collision_test_point(flags, &candidate, ignore_object_index))
+				!collision_test_bsp_point(bsp, flags, &candidate, ignore_object_index))
 			{
 				real_vector3d ground_vector;
 
@@ -1270,7 +1282,7 @@ boolean collision_fix_pill(
 					collision.plane.n.k > 0.76604444f)
 				{
 					collision_fix_pill_nudge_collision(
-						flags,
+						bsp, flags,
 						&candidate,
 						&ground_vector,
 						ignore_object_index,
@@ -1301,7 +1313,7 @@ boolean collision_fix_pill(
 				&ground_vector,
 				&collision);
 			collision_fix_pill_nudge_collision(
-				flags,
+				bsp, flags,
 				&fallback,
 				&ground_vector,
 				ignore_object_index,
@@ -1318,6 +1330,13 @@ boolean collision_fix_pill(
 	--global_current_collision_user_depth;
 
 	return result;
+}
+
+boolean collision_fix_pill(
+	unsigned long flags, real_point3d const *position, real distance, real height, real width,
+	long ignore_object_index, real_point3d *new_position)
+{
+	return collision_fix_bsp_pill(NONE, flags, position, distance, height, width, ignore_object_index, new_position);
 }
 
 boolean collision_test_pill_new(
@@ -2122,7 +2141,7 @@ static void object_get_features_in_sphere(
 }
 
 static void collision_fix_pill_nudge_collision(
-	unsigned long flags,
+	short bsp, unsigned long flags,
 	real_point3d const *point,
 	real_vector3d const *vector,
 	long ignore_object_index,
@@ -2136,7 +2155,7 @@ static void collision_fix_pill_nudge_collision(
 		{
 			real t;
 
-			if (!collision_test_point(flags, contact, ignore_object_index))
+			if (!collision_test_bsp_point(bsp, flags, contact, ignore_object_index))
 			{
 				break;
 			}

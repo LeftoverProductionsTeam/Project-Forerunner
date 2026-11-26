@@ -1089,7 +1089,16 @@ static boolean biped_fix_position_internal(
 	boolean use_radius_as_multiplier,
 	boolean avoid_player_support)
 {
+	/* A vehicle seat and its exit belong to the carrier's collision scene,
+	 * even when the listen host is playing in another BSP. */
+	short bsp = line_of_sight_object_index != NONE && object_get_type(line_of_sight_object_index) == _object_type_vehicle ?
+		object_get_regional_bsp(line_of_sight_object_index) : NONE;
+	struct structure_bsp const *structure = bsp == NONE ? global_structure_bsp_get() :
+		scenario_structure_bsp_try_and_get(bsp);
 	boolean fixed = FALSE;
+
+	if (!structure)
+		return FALSE;
 
 	match_assert("c:\\halo\\SOURCE\\units\\bipeds.c", 893,
 		final_position || !dont_teleport);
@@ -1192,7 +1201,8 @@ static boolean biped_fix_position_internal(
 				++fudge_vector_index)
 			{
 				real_point3d fixed_position;
-				long cluster_index;
+				struct location fixed_location;
+				real_vector3d sight_vector;
 				struct collision_result pill_collision;
 				struct collision_result line_collision;
 				struct collision_model_test_pill_result model_pill_collision;
@@ -1227,23 +1237,18 @@ static boolean biped_fix_position_internal(
 						maximum_radius_fudge_factor*fudge_vector->k + position.z;
 				}
 
-				cluster_index = scenario_leaf_index_from_point(&fixed_position) == NONE ?
-					NONE :
-					TAG_BLOCK_GET_ELEMENT(
-						&global_structure_bsp_get()->leaves,
-						scenario_leaf_index_from_point(&fixed_position) & LONG_MAX,
-						struct structure_leaf)->cluster_index;
-				if (cluster_index != NONE &&
-					collision_fix_pill(
-						collision_flags,
+				scenario_location_from_point_in_structure(&fixed_location, structure, &fixed_position);
+				if (fixed_location.cluster_index != NONE &&
+					collision_fix_bsp_pill(
+						bsp, collision_flags,
 						&fixed_position,
 						pill_width*2.f,
 						pill_height,
 						pill_width,
 						biped_index,
 						&fixed_position) &&
-					!collision_test_pill(
-						collision_flags,
+					!collision_test_bsp_pill(
+						bsp, collision_flags,
 						&fixed_position,
 						&pill_vector,
 						pill_width,
@@ -1256,26 +1261,25 @@ static boolean biped_fix_position_internal(
 							&pill_vector,
 							pill_width,
 							&model_pill_collision)) &&
-						(!collision_test_line(
-							collision_flags,
+						(!collision_test_bsp_vector(
+							bsp, collision_flags,
 							&fixed_position,
-							&line_of_sight_position,
+							vector_from_points3d(&fixed_position, &line_of_sight_position, &sight_vector),
 							biped_index,
 							&line_collision) ||
 							line_collision.object_index == line_of_sight_object_index) &&
-						(!collision_test_line(
-							collision_flags,
+						(!collision_test_bsp_vector(
+							bsp, collision_flags,
 							&line_of_sight_position,
-							&fixed_position,
+							vector_from_points3d(&line_of_sight_position, &fixed_position, &sight_vector),
 							line_of_sight_object_index,
 							&line_collision) ||
 							line_collision.object_index == biped_index))))
 				{
 					struct biped_definition *definition =
 						biped_definition_get(biped->definition_index);
-					struct location fixed_location;
 
-					scenario_location_from_point(&fixed_location, &fixed_position);
+					scenario_location_from_point_in_structure(&fixed_location, structure, &fixed_position);
 					match_assert("c:\\halo\\SOURCE\\units\\bipeds.c", 1054,
 						fixed_location.cluster_index!=NONE);
 					if (!TEST_FLAG(

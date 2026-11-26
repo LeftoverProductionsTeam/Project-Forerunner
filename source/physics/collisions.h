@@ -137,6 +137,9 @@ boolean collision_object_blocks_pill(long object_index, real_point3d const *base
 boolean collision_structure_blocks_pill(
 	struct structure_bsp const *structure, short structure_bsp_index,
 	real_point3d const *base, real height, real width);
+boolean collision_test_bsp_pill(short bsp, unsigned long flags,
+	real_point3d const *point, real_vector3d const *vector, real radius,
+	long ignore_object_index, struct collision_result *collision);
 boolean collision_test_pill(
 	unsigned long flags,
 	real_point3d const *point,
@@ -165,6 +168,8 @@ boolean collision_test_vector(
 	real_vector3d const *vector,
 	long ignore_object_index,
 	struct collision_result *collision);
+boolean collision_fix_bsp_pill(short bsp, unsigned long flags, real_point3d const *position,
+	real distance, real height, real width, long ignore_object_index, real_point3d *new_position);
 boolean collision_fix_pill(
 	unsigned long flags,
 	real_point3d const *old_position,
