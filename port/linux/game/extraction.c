@@ -894,6 +894,15 @@ static boolean extraction_at_hub(long object)
 	return extraction_in_hub_volume(extraction.return_zone, object);
 }
 
+static boolean extraction_transport_at_return(short faction, long ship)
+{
+	/* Regional return pads belong to the faction's authored hub BSP. */
+	short bsp = extraction.faction_hub_bsps[faction];
+
+	return (bsp == NONE || object_get_regional_bsp(ship) == bsp) &&
+		extraction_in_hub_volume(extraction_transport_return_zone(faction), ship);
+}
+
 static boolean extraction_transport_at_field(short faction, long ship)
 {
 	short zone = extraction_zone_for_faction(faction);
@@ -2419,7 +2428,7 @@ static boolean extraction_transport_completed_return(short faction, long vehicle
 	return !extraction.suspended && extraction.dropship_return_stop[faction] &&
 		zone != NONE && extraction.dropship_completed[faction] == vehicle_index &&
 		!recorded_animation_has_thread(vehicle_index) &&
-		extraction_in_hub_volume(zone, vehicle_index) && vehicle_is_settled_on_return(vehicle_index);
+		extraction_transport_at_return(faction, vehicle_index) && vehicle_is_settled_on_return(vehicle_index);
 }
 
 static boolean extraction_transport_arrival_ready(short faction, long vehicle_index)
@@ -2470,7 +2479,7 @@ boolean extraction_transport_can_board(long unit_index, long vehicle_index, shor
 	run = &extraction_runs[slot];
 	if (run->player != unit->unit.player_index || run->unit != unit_index || !run->gear.opened ||
 		run->gear.pending || run->gear.record.phase != _gear_deployed) return FALSE;
-	if (extraction_in_hub_volume(extraction_transport_return_zone(faction), vehicle_index))
+	if (extraction_transport_at_return(faction, vehicle_index))
 		return run->phase == _extraction_deployed;
 	return run->phase == _extraction_ready && extraction_transport_at_field(faction, vehicle_index) &&
 		extraction_squad_objectives_ready(run);
@@ -2584,7 +2593,7 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		if (faction != NONE && !extraction_transport_arrival_ready(faction, run->dropship)) return FALSE;
-		return extraction_in_hub_volume(extraction_transport_return_zone(faction), run->dropship);
+		return extraction_transport_at_return(faction, run->dropship);
 	}
 	if (extraction.separate_hubs)
 	{
@@ -2618,7 +2627,7 @@ boolean extraction_transport_brake_at_pad(long vehicle_index)
 	{
 		short zone = extraction.dropship_return_zones[faction];
 		if (zone == NONE || extraction.dropship_evacuating[faction] != vehicle_index ||
-			!extraction_in_hub_volume(zone, vehicle_index))
+			!extraction_transport_at_return(faction, vehicle_index))
 			continue;
 		for (index = 0; index < NUMBEROF(extraction_runs); index++)
 		{
@@ -2855,7 +2864,7 @@ static boolean extraction_transport_crew_ready(short faction, long ship)
 	 * flight the playback thread owns departure readiness until cleanup. */
 	if (cinematic_in_progress() || recorded_animation_has_thread(ship) ||
 		!object_try_and_get_and_verify_type(ship, _object_mask_vehicle)) return FALSE;
-	at_hub = extraction_in_hub_volume(extraction_transport_return_zone(faction), ship);
+	at_hub = extraction_transport_at_return(faction, ship);
 	at_lz = extraction_transport_at_field(faction, ship);
 	if (at_hub == at_lz) return FALSE;
 	/* Actual passengers identify participating squads without another flight
@@ -2963,7 +2972,7 @@ static void extraction_transport_readiness(void)
 				struct object_datum const *vehicle = object_try_and_get_and_verify_type(ship, _object_mask_vehicle);
 				if (!vehicle || ship != extraction.dropship_completed[faction] ||
 					!TEST_FLAG(vehicle->object.flags, _object_on_ground_bit) || recorded_animation_has_thread(ship) ||
-					!extraction_in_hub_volume(extraction.dropship_return_zones[faction], ship))
+					!extraction_transport_at_return(faction, ship))
 					extraction.dropship_return_stop[faction] = FALSE;
 			}
 			landed = landing_group != NONE && ship != NONE &&
@@ -2998,7 +3007,7 @@ static void extraction_transport_completions(void)
 		vehicle = (struct unit_datum const *)object_try_and_get_and_verify_type(ship, _object_mask_vehicle);
 		if (!vehicle || TEST_FLAG(vehicle->object.damage_flags, _object_dead_bit) ||
 			extraction_unit_pending_death(vehicle) || !(vehicle->object.body_vitality > 0.0f) ||
-			!extraction_in_hub_volume(extraction_transport_return_zone(faction), ship) || cinematic_in_progress() ||
+			!extraction_transport_at_return(faction, ship) || cinematic_in_progress() ||
 			!extraction_transport_arrival_ready(faction, ship)) continue;
 		/* The durable bank belongs to the arrival even if its owner leaves.
 		 * Other squads and craft do not delay release. A connected boarded

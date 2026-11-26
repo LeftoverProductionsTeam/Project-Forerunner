@@ -2041,6 +2041,12 @@ int main(int argc,char **argv)
    CHECK(extraction_owns_map(),"authored aircraft return rejected the shared hub");
    CHECK(!extraction_transport_brake_at_pad(transport),"empty aircraft acquired evacuation braking");
    ship->object.position.x=7.f;ship->object.first_child_object_index=NONE;
+   extraction.faction_hub_bsps[faction]=10;
+   fixture_unit_bsp=9;
+   CHECK(!extraction_transport_at_return(faction,transport),"aircraft returned in a different BSP with the same coordinates");
+   fixture_unit_bsp=10;
+   CHECK(extraction_transport_at_return(faction,transport),"aircraft was refused at its own regional return pad");
+   fixture_unit_bsp=extraction.faction_hub_bsps[faction]=NONE;
    CHECK(!unit_can_enter_seat(unit_handles[faction],transport,0,NULL),"undeployed player boarded at the aircraft pad");
    touch(0,faction);
    recorded_aircraft=transport;advance(1);
