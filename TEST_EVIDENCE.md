@@ -1,5 +1,29 @@
 # Forerunner test evidence
 
+## Product Completion V2 Windows checkpoint
+
+- Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`
+  hosted Zombie Apocalypse through the normal LAN menu on exact MCC13
+  `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
+  Two observed Flood recoveries from feigned death matched on host and guest.
+  A late-joining third machine received matching common actor movement,
+  vitality, seating and deaths. The baseline showed a recovered Flood alive
+  on the host while both guests still rendered its corpse. See
+  `build/zombie-survival-sync/fixed-actor-comparison.json` and
+  `fixed-late-actor-comparison.json`. Original Demo fidelity and online
+  Survival remain separate acceptance gates.
+- The same Win64 candidate launched the released MegaWorld ground preview
+  `fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f`
+  from the normal Offline Extraction menu. Ordinary controls confirmed UNSC
+  deployment, firing and an authored Plasma Pistol pickup. The revised neighbor
+  rendering still needs a rendered cross-BSP seam check, a vehicle crossing and
+  independent multiplayer occupancy. Latest retains the existing released pair.
+- Private Win64
+  `ec2bf1438219b2faf5cb4cb3ad6da95eb667d22a0e573c545e39993233ec48ad`
+  exposed distance, shoulder and height in Camera & Viewmodels. The settings
+  saved at 800×600. Ordinary controls in Silent Cartographer verified firing
+  with the adjusted reticle. The existing camera mode restrictions remain.
+
 ## Windows solo Extraction
 
 ### Solo Blood Gulch transport replay
