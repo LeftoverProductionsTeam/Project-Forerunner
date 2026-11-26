@@ -8,6 +8,7 @@
 #include "ai/ai.h"
 #include "ai/actors.h"
 #include "game/game.h"
+#include "game/game_engine.h"
 #include "game/game_globals.h"
 #include "game/players.h"
 #include "game/player_queues_new.h"
@@ -148,6 +149,18 @@ static char const *const extraction_hub_control_names[2][NUMBER_OF_EXTRACTION_HU
 	{ "extraction_covenant_deploy", "extraction_covenant_loadout", "extraction_covenant_debrief" }
 };
 
+static wchar_t const *const extraction_hub_prompts[NUMBER_OF_EXTRACTION_HUB_CONTROLS] = {
+	L"Press %action to use the deployment terminal",
+	L"Press %action for loadout and stash",
+	L"Press %action for operation report"
+};
+
+static wchar_t const extraction_ground_call_prompt[] = L"Press %action to request ground evacuation";
+static wchar_t const *const extraction_faction_briefing_prompts[2] = {
+	L"Press %action for the UNSC briefing", L"Press %action for the Covenant briefing"
+};
+static wchar_t const extraction_squad_prompt[] = L"Press %action to choose this squad";
+
 static char const *const extraction_ground_call_names[2] = {
 	"extraction_unsc_ground_call", "extraction_cov_ground_call"
 };
@@ -226,6 +239,22 @@ static boolean extraction_unit_pending_death(struct unit_datum const *unit)
 		FLAG(_object_die_act_of_god_silent_bit) | FLAG(_object_die_act_of_god_no_statistics_bit))) != 0;
 }
 
+#if HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_64BIT)
+static boolean extraction_has_regional_receipt(void)
+{
+	if (!extraction.regional_receipt_checked)
+	{
+		char path[128];
+		wchar_t description[128] = {0};
+		extraction.regional_receipt_checked = TRUE;
+		extraction.regional_receipt_valid = mcc_package_map_path(tag_get_name(global_scenario_index), path) &&
+			ui_map_list_spark_description(path, MCC_CACHE_VERSION, FALSE, description, NUMBEROF(description)) ==
+				_ui_map_mode_regional_extraction;
+	}
+	return extraction.regional_receipt_valid;
+}
+#endif
+
 static boolean extraction_authoritative_scene(void)
 {
 	if (!global_scenario)
@@ -236,18 +265,7 @@ static boolean extraction_authoritative_scene(void)
 #if HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_64BIT)
 	if (game_connection() == _game_connection_network_server && !config_boolean("network.online") &&
 		config_boolean("game.extraction") && network_regional_independent_bsp_ready())
-	{
-		if (!extraction.regional_receipt_checked)
-		{
-			char path[128];
-			wchar_t description[128] = {0};
-			extraction.regional_receipt_checked = TRUE;
-			extraction.regional_receipt_valid = mcc_package_map_path(tag_get_name(global_scenario_index), path) &&
-				ui_map_list_spark_description(path, MCC_CACHE_VERSION, FALSE, description, NUMBEROF(description)) ==
-					_ui_map_mode_regional_extraction;
-		}
-		return extraction.regional_receipt_valid;
-	}
+		return extraction_has_regional_receipt();
 #endif
 	return FALSE;
 }
@@ -299,6 +317,27 @@ static short extraction_faction(short team)
 boolean extraction_owns_map(void)
 {
 	return extraction_mode_selected() && !extraction.survival && extraction_requested() && extraction.bound && extraction.admitted;
+}
+
+boolean extraction_regional_hud_active(void)
+{
+#if HALO_MCC && defined(HALO_SPARK_MODE_RECEIPTS) && defined(HALO_64BIT)
+	struct game_variant const *variant;
+
+	if (!global_scenario || global_scenario->type != _scenario_type_multiplayer)
+		return FALSE;
+	if (game_connection() != _game_connection_network_client)
+		return extraction_owns_map() && extraction.regional_receipt_valid;
+	if (!network_regional_independent_bsp_ready()) return FALSE;
+
+	/* Presentation only. A guest reads the host's existing locked variant and
+	 * its own validated map receipt. Interaction and gear still belong to the host. */
+	variant = game_engine_get_variant();
+	return variant && !wcsncmp(variant->human_readable_game_description, L"Extraction",
+		NUMBEROF(variant->human_readable_game_description)) && extraction_has_regional_receipt();
+#else
+	return FALSE;
+#endif
 }
 
 static unsigned short extraction_start_hubs(struct player_starting_location const *start)
@@ -2298,26 +2337,55 @@ static wchar_t const *extraction_control_label(short name, short *squad)
 
 	service = extraction_hub_control(name, &faction);
 	if (name == extraction.deploy_name || service == _extraction_hub_deploy_control)
-		return L"Press %action to use the deployment terminal";
+		return extraction_hub_prompts[_extraction_hub_deploy_control];
 	if (name == extraction.activate_name || name == extraction.dropship_activate_names[0] ||
 		name == extraction.dropship_activate_names[1]) return L"Press %action to request evacuation";
 	if (name == extraction.ground_calls[0] || name == extraction.ground_calls[1])
-		return L"Press %action to request ground evacuation";
-	if (name == extraction.loadout_name || service == _extraction_hub_loadout_control) return L"Press %action for loadout and stash";
-	if (name == extraction.debrief_name || service == _extraction_hub_debrief_control) return L"Press %action for operation report";
+		return extraction_ground_call_prompt;
+	if (name == extraction.loadout_name || service == _extraction_hub_loadout_control)
+		return extraction_hub_prompts[_extraction_hub_loadout_control];
+	if (name == extraction.debrief_name || service == _extraction_hub_debrief_control)
+		return extraction_hub_prompts[_extraction_hub_debrief_control];
 	if (name == extraction.faction_names[0])
 		return global_scenario->type == _scenario_type_multiplayer ?
-			L"Press %action for the UNSC briefing" : L"Press %action to choose UNSC";
+			extraction_faction_briefing_prompts[0] : L"Press %action to choose UNSC";
 	if (name == extraction.faction_names[1])
 		return global_scenario->type == _scenario_type_multiplayer ?
-			L"Press %action for the Covenant briefing" : L"Press %action to choose Covenant";
+			extraction_faction_briefing_prompts[1] : L"Press %action to choose Covenant";
 	for (index = 0; index < NUMBEROF(extraction.squads); index++)
 	{
 		if (name == extraction.squads[index].name)
 		{
 			*squad = index;
-			return L"Press %action to choose this squad";
+			return extraction_squad_prompt;
 		}
+	}
+	return NULL;
+}
+
+static wchar_t const *extraction_regional_control_prompt(short name_index)
+{
+	struct scenario_object_name const *binding;
+	short faction, service, squad;
+
+	if (!VALID_INDEX(name_index, global_scenario->object_names.count)) return NULL;
+	binding = TAG_BLOCK_GET_ELEMENT(&global_scenario->object_names, name_index, struct scenario_object_name);
+	if (binding->runtime_object_type != _object_type_control) return NULL;
+	for (faction = 0; faction < 2; faction++)
+	{
+		for (service = 0; service < NUMBER_OF_EXTRACTION_HUB_CONTROLS; service++)
+			if (!strcmp(binding->name, extraction_hub_control_names[faction][service]))
+				return extraction_hub_prompts[service];
+		if (!strcmp(binding->name, extraction_ground_call_names[faction]))
+			return extraction_ground_call_prompt;
+		if (!strcmp(binding->name, faction ? "extraction_covenant" : "extraction_unsc"))
+			return extraction_faction_briefing_prompts[faction];
+	}
+	for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
+	{
+		char name[32];
+		snprintf(name, sizeof(name), "extraction_squad_%02d", squad + 1);
+		if (!strcmp(binding->name, name)) return extraction_squad_prompt;
 	}
 	return NULL;
 }
@@ -2327,7 +2395,10 @@ wchar_t const *extraction_control_prompt(long control_index)
 	struct object_datum const *control = object_try_and_get_and_verify_type(control_index, _object_mask_control);
 	short squad = NONE;
 
-	return control ? extraction_control_label(control->object.name_index, &squad) : NULL;
+	if (!control) return NULL;
+	if (game_connection() == _game_connection_network_client && extraction_regional_hud_active())
+		return extraction_regional_control_prompt(control->object.name_index);
+	return extraction_control_label(control->object.name_index, &squad);
 }
 
 boolean extraction_control_touched(long control_index, long unit_index)

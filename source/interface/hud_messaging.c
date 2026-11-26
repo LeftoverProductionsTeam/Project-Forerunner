@@ -116,6 +116,7 @@ symbols in this file:
 
 #include "mcc_hud_draw.h" /* port: port/linux/game/mcc_hud_draw.c */
 #include "mcc_cache.h" /* port: preserve MCC-authored gameplay icons */
+#include "extraction.h"
 #include "cseries/cseries.h"
 
 #include "cseries/errors.h"
@@ -1929,6 +1930,11 @@ void hud_messaging_update(
 			local_player_count() > 1,
 			0.0f,
 			&screen_point);
+		/* Keep the MegaWorld message stack below the wide reserve-ammo HUD. */
+		if (!split_screen && extraction_regional_hud_active())
+			screen_point.y = MAX(screen_point.y,
+				render.camera.window_bounds.y0 - render.camera.viewport_bounds.y0 +
+				(render.camera.window_bounds.y1 - render.camera.window_bounds.y0) / 5);
 		line_top = screen_point.y;
 		font = font_definition_get(font_index);
 		if (split_screen)
