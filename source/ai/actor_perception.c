@@ -5723,8 +5723,11 @@ done:
 static void actor_perception_refresh(
 	long actor_index)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	struct actor_datum *actor = actor_get(actor_index);
+	boolean regional = scenario_uses_regional_gameplay(global_scenario_get());
+	short bsp = regional ? object_get_regional_bsp(actor->meta.swarm ?
+		actor->meta.swarm_unit_index : actor->meta.unit_index) : global_structure_bsp_index_get();
+	struct structure_bsp const *structure_bsp = scenario_structure_bsp_try_and_get(bsp);
 	unsigned long *pvs = NULL;
 	unsigned long swarm_pvs[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
 	struct actor_perception_refresh_list enemies;
@@ -5738,7 +5741,7 @@ static void actor_perception_refresh(
 	friends.entry_count = 0;
 	friends.accepted_count = 0;
 
-	if (actor->meta.swarm)
+	if (structure_bsp && actor->meta.swarm)
 	{
 		struct swarm_datum *swarm = swarm_get(actor->meta.swarm_cache_index);
 		boolean swarm_pvs_valid = FALSE;
@@ -5747,10 +5750,12 @@ static void actor_perception_refresh(
 		csmemset(swarm_pvs, 0, sizeof(swarm_pvs));
 		for (unit_index = 0; unit_index < swarm->unit_count; unit_index++)
 		{
-			struct unit_datum *unit = unit_get(swarm->unit_indices[unit_index]);
+			long swarm_unit_index = swarm->unit_indices[unit_index];
+			struct unit_datum *unit = unit_get(swarm_unit_index);
 			short cluster_index = unit->object.location.cluster_index;
 
-			if (cluster_index != NONE)
+			if ((!regional || object_get_regional_bsp(swarm_unit_index) == bsp) &&
+				VALID_INDEX(cluster_index, structure_bsp->clusters.count))
 			{
 				unsigned long *cluster_pvs =
 					structure_bsp_get_cluster_pvs(structure_bsp, cluster_index);
@@ -5769,11 +5774,11 @@ static void actor_perception_refresh(
 			pvs = swarm_pvs;
 		}
 	}
-	else
+	else if (structure_bsp)
 	{
 		short cluster_index = actor->input.position.body_location.cluster_index;
 
-		if (cluster_index != NONE)
+		if (VALID_INDEX(cluster_index, structure_bsp->clusters.count))
 		{
 			pvs = structure_bsp_get_cluster_pvs(structure_bsp, cluster_index);
 		}
@@ -5790,6 +5795,7 @@ static void actor_perception_refresh(
 			real distance_squared = actor_perception_distance_squared(prop->distance);
 			boolean optional;
 			boolean desired =
+				(!regional || (structure_bsp && object_get_regional_bsp(prop->unit_index) == bsp)) &&
 				actor_perception_desire_prop(
 					actor_index,
 					NONE,
@@ -5815,7 +5821,8 @@ static void actor_perception_refresh(
 					cluster_index != NONE;
 					cluster_index = object_get_next_cluster(&cluster_iterator, prop->unit_index))
 				{
-					if (BIT_VECTOR_TEST_FLAG(pvs, cluster_index))
+					if (VALID_INDEX(cluster_index, structure_bsp->clusters.count) &&
+						BIT_VECTOR_TEST_FLAG(pvs, cluster_index))
 					{
 						desired = TRUE;
 						break;
@@ -5913,21 +5920,24 @@ static void actor_perception_refresh(
 		{
 			if (BIT_VECTOR_TEST_FLAG(pvs, cluster_index))
 			{
-				long reference_index;
-				long object_index;
+				short partition_index;
+				struct cluster_partition const *partitions[] = {
+					&collideable_object_cluster_partition, &noncollideable_object_cluster_partition
+				};
 
-				for (object_index = cluster_get_first_collideable_object(&reference_index, cluster_index);
-					object_index != NONE;
-					object_index = cluster_get_next_collideable_object(&reference_index))
+				for (partition_index = 0; partition_index < NUMBEROF(partitions); partition_index++)
 				{
-					actor_perception_refresh_test_object(actor_index, object_index, &enemies, &friends);
-				}
+					struct cluster_partition const *partition = partitions[partition_index];
+					long reference_index;
+					long object_index;
 
-				for (object_index = cluster_get_first_noncollideable_object(&reference_index, cluster_index);
-					object_index != NONE;
-					object_index = cluster_get_next_noncollideable_object(&reference_index))
-				{
-					actor_perception_refresh_test_object(actor_index, object_index, &enemies, &friends);
+					for (object_index = cluster_partition_get_first_datum_in_bsp(partition,
+							&reference_index, bsp, cluster_index);
+						object_index != NONE;
+						object_index = cluster_partition_get_next_datum_in_bsp(partition, &reference_index, bsp))
+					{
+						actor_perception_refresh_test_object(actor_index, object_index, &enemies, &friends);
+					}
 				}
 			}
 		}
