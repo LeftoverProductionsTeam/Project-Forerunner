@@ -849,11 +849,18 @@ static boolean extraction_in_hub_volume(short return_zone, long object)
 	return TRUE;
 }
 
+static boolean extraction_in_faction_hub(short faction, long object)
+{
+	short bsp = extraction.faction_hub_bsps[faction];
+
+	return (bsp == NONE || object_get_regional_bsp(object) == bsp) &&
+		extraction_in_hub_volume(extraction.faction_hubs[faction], object);
+}
+
 static boolean extraction_at_hub(long object)
 {
 	if (extraction.separate_hubs)
-		return extraction_in_hub_volume(extraction.faction_hubs[0], object) ||
-			extraction_in_hub_volume(extraction.faction_hubs[1], object);
+		return extraction_in_faction_hub(0, object) || extraction_in_faction_hub(1, object);
 	return extraction_in_hub_volume(extraction.return_zone, object);
 }
 
@@ -890,7 +897,25 @@ static boolean extraction_bind_field_hover(struct scenario const *scenario, shor
 
 /* Resolve the authored object in the scenario. A regional control's live
  * datum may be absent until the player reaches its BSP. */
-static boolean extraction_authored_control(short index, short volume)
+static boolean extraction_control_placement_in_bsp(struct scenario_object_datum const *placement, short bsp)
+{
+	struct structure_bsp const *structure;
+
+	if (bsp == NONE)
+		return TRUE;
+	if (!VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+		return FALSE;
+	if (placement->on_bsp_flags)
+		return placement->on_bsp_flags == FLAG(bsp);
+	/* Native MCC control rows can leave their BSP mask unset. Check the
+	 * placement against the hub's scene without switching the host view. */
+	structure = scenario_structure_bsp_try_and_get(bsp);
+	if (!structure)
+		structure = scenario_structure_bsp_preview(bsp, TRUE);
+	return structure && scenario_structure_bsp_contains_placement(structure, &placement->position);
+}
+
+static boolean extraction_authored_control(short index, short volume, short bsp)
 {
 	struct scenario_object_name const *name;
 	struct scenario_object_datum const *placement;
@@ -909,6 +934,7 @@ static boolean extraction_authored_control(short index, short volume)
 	if (!VALID_INDEX(name->runtime_scenario_datum_index, placements->count)) return FALSE;
 	placement = tag_block_get_element_with_size(placements, name->runtime_scenario_datum_index, size);
 	if (placement->name_index != index ||
+		!extraction_control_placement_in_bsp(placement, bsp) ||
 		TEST_FLAG(placement->placement_flags, _scenario_object_placement_not_automatic_bit) ||
 		!VALID_INDEX(placement->palette_entry_index, palette->count) ||
 		!scenario_trigger_volume_test_point(volume, &placement->position)) return FALSE;
@@ -1192,7 +1218,7 @@ static void extraction_bind(void)
 	debrief = extraction.debrief_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.debrief_name)) : NULL;
 	/* Match Spark's native touched-by-player tag requirement. Other trigger
 	   kinds never reach extraction_control_touched through control_touched. */
-	extraction.admitted = unique;
+	extraction.admitted = unique && extraction_validate_native_starts(scenario_uses_regional_gameplay(global_scenario));
 	if (extraction.separate_hubs)
 	{
 		if (extraction.deploy_name != NONE || extraction.loadout_name != NONE || extraction.debrief_name != NONE)
@@ -1204,7 +1230,7 @@ static void extraction_bind(void)
 			{
 				short service_name = extraction.hub_controls[faction][service];
 				if ((service == _extraction_hub_deploy_control || service_name != NONE) &&
-					!extraction_authored_control(service_name, extraction.faction_hubs[faction]))
+					!extraction_authored_control(service_name, extraction.faction_hubs[faction], extraction.faction_hub_bsps[faction]))
 					extraction.admitted = FALSE;
 			}
 			if (extraction.dropship_names[faction] != NONE && extraction.dropship_return_zones[faction] == NONE)
@@ -1234,7 +1260,7 @@ static void extraction_bind(void)
 			struct control_datum *call = faction_calls[faction];
 			if (extraction.separate_hubs)
 			{
-				if (extraction.dropship_names[faction] == NONE || !extraction_authored_control(call_name, zone))
+				if (extraction.dropship_names[faction] == NONE || !extraction_authored_control(call_name, zone, NONE))
 					extraction.admitted = FALSE;
 			}
 			else if (!call || call->object.name_index != call_name || zone == NONE || extraction.dropship_names[faction] == NONE ||
@@ -1255,7 +1281,7 @@ static void extraction_bind(void)
 			if (extraction.separate_hubs)
 			{
 				if (extraction.faction_profiles[faction] == NONE ||
-					!extraction_authored_control(extraction.faction_names[faction], extraction.faction_hubs[faction]))
+					!extraction_authored_control(extraction.faction_names[faction], extraction.faction_hubs[faction], extraction.faction_hub_bsps[faction]))
 					extraction.admitted = FALSE;
 			}
 			else if (!choices[faction] || choices[faction] == deploy || choices[faction] == activate || choices[faction] == loadout || choices[faction] == debrief ||
@@ -1267,8 +1293,6 @@ static void extraction_bind(void)
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.faction_bipeds[faction] != NONE &&
 			(extraction.faction_names[faction] == NONE || extraction.faction_profiles[faction] == NONE)) extraction.admitted = FALSE;
-	if (extraction.admitted)
-		extraction.admitted = extraction_validate_native_starts(scenario_uses_regional_gameplay(global_scenario));
 finished:
 	if (extraction.admitted)
 		for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)
@@ -2042,6 +2066,12 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
 	if (!unit || unit->unit.player_index == NONE || TEST_FLAG(unit->object.damage_flags, _object_dead_bit) ||
 		extraction_unit_pending_death(unit) || extraction_medical_incapacitated(unit_index)) return TRUE;
+	if (scenario_uses_regional_gameplay(global_scenario))
+	{
+		short bsp = object_get_regional_bsp(unit_index);
+		if (bsp == NONE || object_get_regional_bsp(control_index) != bsp)
+			return TRUE;
+	}
 	player = player_try_and_get(unit->unit.player_index);
 	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(unit->unit.player_index);
 	if (!player || player->unit_index != unit_index || player->quit_out_of_game || !VALID_INDEX(slot, NUMBEROF(extraction_runs))) return TRUE;
@@ -2055,7 +2085,7 @@ boolean extraction_control_touched(long control_index, long unit_index)
 	if (hub_service != NONE &&
 		(extraction_faction((short)player->team_index) != hub_faction ||
 		 extraction_faction(unit->object.owner_team_index) != hub_faction ||
-		 !extraction_in_hub_volume(extraction.faction_hubs[hub_faction], unit_index)))
+		 !extraction_in_faction_hub(hub_faction, unit_index)))
 	{
 		extraction_tell(run, "USE YOUR FACTION BASE | This terminal serves the other faction.");
 		return TRUE;
@@ -2488,7 +2518,7 @@ static boolean extraction_at_return(struct extraction_run const *run, long unit_
 	if (extraction.separate_hubs)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
-		return VALID_INDEX(faction, 2) && extraction_in_hub_volume(extraction.faction_hubs[faction], unit_index);
+		return VALID_INDEX(faction, 2) && extraction_in_faction_hub(faction, unit_index);
 	}
 	return extraction_at_hub(unit_index);
 }

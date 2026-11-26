@@ -452,6 +452,16 @@ static short scenario_object_name_index_from_string(struct scenario *map, char c
   if(!strcmp(entries[index].name,name))return index;
  return NONE;
 }
+enum {MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO = 16};
+static short object_get_regional_bsp(long object);
+struct structure_bsp {short bsp;};
+static struct structure_bsp fixture_hub_geometry={10};
+static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp)
+{(void)bsp;return NULL;}
+static struct structure_bsp const *scenario_structure_bsp_preview(short bsp, boolean prefetch)
+{return prefetch&&bsp==fixture_hub_geometry.bsp?&fixture_hub_geometry:NULL;}
+static boolean scenario_structure_bsp_contains_placement(struct structure_bsp const *bsp,real_point3d const *position)
+{return bsp->bsp==10&&position->z==-3.f;}
 #include "extraction.inc"
 #define vehicle_datum unit_datum
 #include "vehicle_brake.inc"
@@ -530,8 +540,14 @@ static struct biped_definition *biped_definition_get(long tag)
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif
-static short fixture_unit_bsp = NONE;
-static short object_get_regional_bsp(long unit) { (void)unit; return fixture_unit_bsp; }
+
+static short fixture_unit_bsp = NONE, fixture_control_bsp = NONE;
+static short object_get_regional_bsp(long object)
+{
+ for(short i=0;i<NUMBEROF(control_handles);i++)
+  if(control_handles[i]!=NONE&&control_handles[i]==object)return fixture_control_bsp;
+ return fixture_unit_bsp;
+}
 #include "spawn_clearance.inc"
 #include "native_seats.inc"
 #include "controls.inc"
@@ -667,6 +683,14 @@ int main(int argc,char **argv)
    starts[1].structure_bsp_reference_index=10;
    starts[2].position.z=0.f;
    starts[2].structure_bsp_reference_index=4;
+   for(i=0;i<7;i++)
+    placed_controls[i].object.on_bsp_flags=(i==4||i>=5)?FLAG(10):FLAG(0);
+   if(!strcmp(case_name,"separate-hubs-regional-control"))
+    placed_controls[5].object.on_bsp_flags=FLAG(0)|FLAG(10);
+   else
+    placed_controls[5].object.on_bsp_flags=0;
+   if(!strcmp(case_name,"separate-hubs-regional-missing-geometry"))
+    fixture_hub_geometry.bsp=NONE;
    if(!strcmp(case_name,"separate-hubs-regional-mixed"))starts[2].position.z=3.f;
    if(!strcmp(case_name,"separate-hubs-regional-unassigned"))starts[1].structure_bsp_reference_index=NONE;
    advance(1);
@@ -680,6 +704,19 @@ int main(int argc,char **argv)
    CHECK(!extraction_player_start_allowed(player_handles[1],&starts[0])&&
          !extraction_player_start_allowed(player_handles[1],&starts[2])&&
          extraction_player_start_allowed(player_handles[1],&starts[1]),"faction start filter escaped the hub");
+   control_handles[5]=parked;
+   controls[5].device.power_group_index=3;
+   controls[5].device.position_group_index=6;
+   fixture_unit_bsp=10;
+   fixture_control_bsp=0;
+   touch(5,1);
+   CHECK(!file_count,"a control in another BSP granted gear");
+   fixture_unit_bsp=0;
+   touch(5,1);
+   CHECK(!file_count,"coordinates alone granted access from another BSP");
+   fixture_unit_bsp=fixture_control_bsp=10;
+   touch(5,1);
+   CHECK(run(1)->phase==_extraction_deployed,"host refused an owned control inside its hub");
    return 0;
   }
   advance(1);

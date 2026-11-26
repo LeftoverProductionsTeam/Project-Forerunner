@@ -105,7 +105,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'faction-hub-shape', 'faction-hub-empty', 'faction-hub-clearance',
                                  'separate-hubs-control', 'separate-hubs-outside', 'separate-hubs-missing',
                                  'separate-hubs-alias', 'separate-hubs-deferred',
-                                 'separate-hubs-regional-starts', 'separate-hubs-regional-mixed', 'separate-hubs-regional-unassigned',
+                                 'separate-hubs-regional-starts', 'separate-hubs-regional-mixed', 'separate-hubs-regional-unassigned', 'separate-hubs-regional-control', 'separate-hubs-regional-missing-geometry',
                                  'initial-ammo', 'refund-disconnect', 'refund-recycled', 'refund-map-exit', 'refund-retry',
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
                                  'confirmation-outage', 'confirmation-published',
