@@ -2616,14 +2616,28 @@ short actor_audibility_at_point(
 	real scale,
 	short line_of_sight)
 {
+	return actor_audibility_at_point_in_structure(actor_index, position, source_position,
+		source_location, source_type, scale, line_of_sight, global_structure_bsp_get());
+}
+
+short actor_audibility_at_point_in_structure(
+	long actor_index,
+	struct actor_position_data const *position,
+	real_point3d const *source_position,
+	struct location const *source_location,
+	short source_type,
+	real scale,
+	short line_of_sight,
+	struct structure_bsp const *structure)
+{
 	struct actor_datum *actor = actor_get(actor_index);
 	struct actor_definition *definition =
 		actor_definition_get(actor->meta.definition_index);
 	short result = 0;
 
-	if (source_type != 0 &&
-		position->body_location.cluster_index != NONE &&
-		source_location->cluster_index != NONE)
+	if (source_type != 0 && structure &&
+		VALID_INDEX(position->body_location.cluster_index, structure->clusters.count) &&
+		VALID_INDEX(source_location->cluster_index, structure->clusters.count))
 	{
 		/* port: farther under MCC's That's Just... Wrong skull (mcc_skulls.c) */
 		real maximum_distance =
@@ -2663,8 +2677,8 @@ short actor_audibility_at_point(
 		else if (source_type == 3)
 			maximum_distance *= 0.7f;
 
-		if (scenario_location_deafening(&position->body_location) ||
-			scenario_location_deafening(source_location))
+		if (scenario_location_deafening_in_structure(&position->body_location, structure) ||
+			scenario_location_deafening_in_structure(source_location, structure))
 		{
 			maximum_distance *= 0.25f;
 		}
@@ -2676,7 +2690,7 @@ short actor_audibility_at_point(
 		{
 			char encoded_sound_distance =
 				(char)structure_bsp_get_cluster_encoded_sound_distance(
-					global_structure_bsp_get(),
+					structure,
 					source_location->cluster_index,
 					position->body_location.cluster_index);
 

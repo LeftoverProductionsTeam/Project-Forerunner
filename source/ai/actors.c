@@ -4130,22 +4130,15 @@ void actors_handle_unit_effect(
 {
 	struct unit_datum *unit = unit_get(unit_index);
 	struct location const *location = &unit->object.location;
-	struct structure_bsp *structure_bsp;
+	struct structure_bsp const *structure_bsp;
 	struct actor_iterator iterator;
 	struct actor_datum *actor;
 	unsigned long audible_clusters[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
 	real_point3d origin;
 	long owner_actor_index;
-	short foreground = global_structure_bsp_index_get();
 	boolean regional = scenario_uses_regional_gameplay(global_scenario_get());
-
-	/* This native AI hearing pass uses the foreground's sound tables. */
-	if (regional)
-	{
-		short bsp = object_get_regional_bsp(unit_index);
-		if (bsp != NONE && bsp != foreground)
-			return;
-	}
+	short bsp = regional ? object_get_regional_bsp(unit_index) : global_structure_bsp_index_get();
+	short cluster_index;
 
 	if (unit->unit.swarm_actor_index != NONE)
 	{
@@ -4163,25 +4156,23 @@ void actors_handle_unit_effect(
 		location = &object_get(ultimate_parent_index)->object.location;
 	}
 
-	structure_bsp = global_structure_bsp_get();
+	/* Sound cluster indices are local to the source's resident BSP. */
+	structure_bsp = scenario_structure_bsp_try_and_get(bsp);
+	if (!structure_bsp || !VALID_INDEX(location->cluster_index, structure_bsp->clusters.count))
+		return;
 	csmemset(audible_clusters, 0, BIT_VECTOR_SIZE_IN_BYTES(structure_bsp->clusters.count));
 
-	if (location->cluster_index != NONE)
+	for (cluster_index = 0; cluster_index < structure_bsp->clusters.count; cluster_index++)
 	{
-		short cluster_index;
+		byte encoded_sound_distance = structure_bsp_get_cluster_encoded_sound_distance(
+			structure_bsp,
+			location->cluster_index,
+			cluster_index);
 
-		for (cluster_index = 0; cluster_index < structure_bsp->clusters.count; cluster_index++)
+		if (!(encoded_sound_distance & FLAG(7)) &&
+			(encoded_sound_distance & ~FLAG(7)) * 2.015748f < 40.f)
 		{
-			byte encoded_sound_distance = structure_bsp_get_cluster_encoded_sound_distance(
-				structure_bsp,
-				location->cluster_index,
-				cluster_index);
-
-			if (!(encoded_sound_distance & FLAG(7)) &&
-				(encoded_sound_distance & ~FLAG(7)) * 2.015748f < 40.f)
-			{
-				BIT_VECTOR_SET_FLAG(audible_clusters, cluster_index, TRUE);
-			}
+			BIT_VECTOR_SET_FLAG(audible_clusters, cluster_index, TRUE);
 		}
 	}
 
@@ -4192,14 +4183,15 @@ void actors_handle_unit_effect(
 	{
 		if (iterator.index != owner_actor_index &&
 			(!regional || (object_try_and_get(actor->meta.unit_index) &&
-			 object_get_regional_bsp(actor->meta.unit_index) == foreground)) &&
-			actor->input.position.body_location.cluster_index != NONE &&
+			 object_get_regional_bsp(actor->meta.unit_index) == bsp)) &&
+			VALID_INDEX(actor->input.position.body_location.cluster_index, structure_bsp->clusters.count) &&
 			BIT_VECTOR_TEST_FLAG(audible_clusters, actor->input.position.body_location.cluster_index))
 		{
 			struct actor_position_data sense_position;
 
 			actor_perception_find_sense_position(iterator.index, &origin, NONE, &sense_position);
-			if (actor_audibility_at_point(iterator.index, &sense_position, &origin, location, volume, 1.f, 0) >=
+			if (actor_audibility_at_point_in_structure(iterator.index, &sense_position, &origin, location,
+				volume, 1.f, 0, structure_bsp) >=
 				_ai_sound_volume_loud)
 			{
 				long prop_index = prop_get_base_by_unit_index(iterator.index, unit_index, TRUE, TRUE);
@@ -4208,14 +4200,14 @@ void actors_handle_unit_effect(
 				{
 					struct prop_datum *prop = prop_get(prop_index);
 
-					if (actor_audibility_at_point(
+					if (actor_audibility_at_point_in_structure(
 						iterator.index,
 						&sense_position,
-						&prop->body_position,
-						&prop->body_location,
+						regional ? &origin : &prop->body_position,
+						regional ? location : &prop->body_location,
 						volume,
 						1.f,
-						prop->line_of_sight) >= _ai_sound_volume_loud)
+						prop->line_of_sight, structure_bsp) >= _ai_sound_volume_loud)
 					{
 						actor_handle_unit_effect(iterator.index, prop_index, effect_type);
 					}

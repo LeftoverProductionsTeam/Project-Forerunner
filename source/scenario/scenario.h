@@ -111,7 +111,8 @@ long global_structure_bsp_tag_index_get(void);
 void scenario_location_award_bonus(struct location *location);
 struct material_definition *default_material_definition_get(void);
 struct material_definition *scenario_material_definition_get(short material_type);
-boolean scenario_location_deafening(const struct location *location);
+boolean scenario_location_deafening_in_structure(const struct location *location,
+	struct structure_bsp const *structure);
 real scenario_fog_at_point(const struct location *viewer_location, const real_point3d *viewer_point, const real_point3d *point);
 boolean scenario_illumination_at_point(const real_point3d *point, real_vector3d *surface_normal, real_vector3d *radiosity_vector, real_rgb_color *radiosity_color, real_rgb_color *diffuse_color);
 long scenario_leaf_index_from_point(const real_point3d *point);

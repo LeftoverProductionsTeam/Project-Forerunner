@@ -543,21 +543,23 @@ struct material_definition *scenario_material_definition_get(
 	return default_material_definition_get();
 }
 
-boolean scenario_location_deafening(
-	const struct location *location)
+boolean scenario_location_deafening_in_structure(
+	const struct location *location,
+	struct structure_bsp const *structure)
 {
-	struct structure_cluster *cluster = TAG_BLOCK_GET_ELEMENT(
-		&global_structure_bsp_get()->clusters,
-		location->cluster_index,
-		struct structure_cluster);
+	struct structure_cluster *cluster;
 	boolean deafening = FALSE;
+
+	if (!structure || !VALID_INDEX(location->cluster_index, structure->clusters.count))
+		return FALSE;
+	cluster = TAG_BLOCK_GET_ELEMENT(&structure->clusters, location->cluster_index, struct structure_cluster);
 
 	/* port: and not below the palette (a map's index) */
 	if (cluster->background_sound_palette_index >= 0 &&
-		cluster->background_sound_palette_index < global_structure_bsp_get()->background_sound_palette.count)
+		cluster->background_sound_palette_index < structure->background_sound_palette.count)
 	{
 		struct structure_background_sound_palette_entry *background_sound = TAG_BLOCK_GET_ELEMENT(
-			&global_structure_bsp_get()->background_sound_palette,
+			&structure->background_sound_palette,
 			cluster->background_sound_palette_index,
 			struct structure_background_sound_palette_entry);
 

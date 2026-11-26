@@ -1446,6 +1446,16 @@ short actor_audibility_at_point(
 	short volume,
 	real perception_factor,
 	short line_of_sight);
+struct structure_bsp;
+short actor_audibility_at_point_in_structure(
+	long actor_index,
+	struct actor_position_data const *position,
+	real_point3d const *source_position,
+	struct location const *source_location,
+	short source_type,
+	real scale,
+	short line_of_sight,
+	struct structure_bsp const *structure);
 void actor_perception_update(
 	long actor_index);
 void actor_situation_update(
