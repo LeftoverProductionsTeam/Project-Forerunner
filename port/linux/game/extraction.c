@@ -1972,8 +1972,8 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	}
 	if (!extraction.survival && VALID_INDEX(faction, 2) && extraction.dropship_names[faction] != NONE)
 		extraction_tell(run, faction == 0 ?
-			"DEPLOYED | Board a Pelican passenger seat. Escape alive to recover your carried gear and loot." :
-			"DEPLOYED | Board a Spirit passenger seat. Escape alive to recover your carried gear and loot.");
+			"DEPLOYED | Board a Pelican passenger seat." :
+			"DEPLOYED | Board a Spirit passenger seat.");
 	else extraction_tell(run, !extraction.survival && !run->gear.record.reserved_count && !run->gear.record.reserved_grenades[0] && !run->gear.record.reserved_grenades[1] ?
 		"DEPLOYED | Stored gear stays safe. Native starters/carried gear and field loot must escape to be recovered. No raid timer." : extraction.survival ?
 		"SURVIVAL DEPLOYED | Gear is at risk. Recover through an available evacuation point or finite victory." :
@@ -2834,8 +2834,8 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		if (at_field) run->field_reached = TRUE;
 		if (exit_ready && !run->field_exit_ready && !extraction.survival)
 			extraction_tell(run, extraction.dropship_hover_transfer[faction]
-				? "AT TRANSFER | Press your Action button to deploy. Find the extraction control when ready to evacuate."
-				: "LANDED | Press your Action button to disembark. Find the extraction control when ready to evacuate.");
+				? "AT TRANSFER | Press Action to exit and deploy."
+				: "LANDED | Press Action to disembark.");
 		else if (!exit_ready && run->field_exit_ready && ship != NONE && !exiting && !extraction.survival &&
 			(!extraction_transport_can_disembark(unit) || (at_field && unit_animation_busy(&unit->unit.animation))))
 			extraction_tell(run, "WAIT TO DISEMBARK | Stay seated until the exit opens.");
@@ -2859,7 +2859,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		{
 			run->phase = _extraction_ready;
 			extraction_tell(run, extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE ?
-				"EXTRACTION SIGNAL READY | Board your assigned dropship in the landing zone and stay aboard through departure." :
+				"EVAC READY | Board your dropship and stay aboard." :
 				"EXTRACTION SIGNAL READY | Reach the return point alive.");
 			return_ready = extraction_return_ready(run, unit);
 		}
