@@ -1938,6 +1938,16 @@ int main(int argc,char **argv)
    CHECK(!extraction_transport_landed(faction,craft), "hover opened in an overlapping but different region");
    fixture_unit_bsp=10;
    CHECK(extraction_transport_landed(faction,craft), "hover failed in the native field terminal region");
+   extraction.faction_hubs[0]=5;extraction.faction_hub_bsps[0]=9;extraction.separate_hubs=TRUE;
+   ship->object.position.z=1.f;
+   CHECK(extraction_transport_at_field(faction,craft),"a different BSP's hub masked the field");
+   fixture_unit_bsp=9;
+   CHECK(extraction_in_faction_hub(0,craft),"a different BSP's field masked the hub");
+   fixture_control_bsp=9;
+   CHECK(!extraction_in_faction_hub(0,craft)&&!extraction_transport_at_field(faction,craft),
+         "overlap exclusions were lost within one BSP");
+   ship->object.position.z=0.f;
+   extraction.faction_hubs[0]=extraction.faction_hub_bsps[0]=NONE;extraction.separate_hubs=FALSE;
    fixture_unit_bsp=fixture_control_bsp=NONE;
    scenario.structure_bsp_references.count=0;
    CHECK(device_groups[group].actual_value==1.f, "hover readiness was not published");

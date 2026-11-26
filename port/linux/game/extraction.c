@@ -867,15 +867,36 @@ static short extraction_transport_return_zone(short faction)
 		? extraction.dropship_return_zones[faction] : extraction.return_zone;
 }
 
+static boolean extraction_in_field_volume(short zone, short call, long object)
+{
+	if (zone == NONE || !scenario_trigger_volume_test_object(zone, object))
+		return FALSE;
+	if (scenario_uses_regional_gameplay(global_scenario))
+	{
+		short bsp = object_get_regional_bsp(object);
+		long control = object_index_from_name_index(call);
+
+		/* The live field control qualifies its trigger when BSPs overlap. */
+		return bsp != NONE && control != NONE && object_get_regional_bsp(control) == bsp;
+	}
+	return TRUE;
+}
+
+static boolean extraction_in_owned_volume(short zone, short bsp, long object)
+{
+	return zone != NONE && (bsp == NONE || object_get_regional_bsp(object) == bsp) &&
+		scenario_trigger_volume_test_object(zone, object);
+}
+
 static boolean extraction_in_hub_volume(short return_zone, long object)
 {
 	short faction;
 	if (return_zone == NONE || !scenario_trigger_volume_test_object(return_zone, object) ||
-		(extraction.zone != NONE && scenario_trigger_volume_test_object(extraction.zone, object)))
+		extraction_in_field_volume(extraction.zone, extraction.activate_name, object))
 		return FALSE;
 	for (faction = 0; faction < 2; faction++)
-		if (extraction.dropship_zones[faction] != NONE &&
-			scenario_trigger_volume_test_object(extraction.dropship_zones[faction], object)) return FALSE;
+		if (extraction_in_field_volume(extraction.dropship_zones[faction],
+			extraction.dropship_activate_names[faction], object)) return FALSE;
 	return TRUE;
 }
 
@@ -907,24 +928,16 @@ static boolean extraction_transport_at_field(short faction, long ship)
 {
 	short zone = extraction_zone_for_faction(faction);
 	short return_zone = extraction_transport_return_zone(faction);
+	short call = extraction.dropship_zones[faction] != NONE ?
+		extraction.dropship_activate_names[faction] : extraction.activate_name;
+	short hub_bsp = extraction.faction_hub_bsps[faction];
 
-	if (scenario_uses_regional_gameplay(global_scenario))
-	{
-		short bsp = object_get_regional_bsp(ship);
-		short call = extraction.dropship_activate_names[faction];
-		long control = object_index_from_name_index(call != NONE ? call : extraction.activate_name);
-		/* Overlapping BSPs can contain the same coordinates. The authored
-		 * field control already participates in the native regional partition. */
-		if (bsp == NONE || control == NONE || object_get_regional_bsp(control) != bsp)
-			return FALSE;
-	}
-	return zone != NONE && scenario_trigger_volume_test_object(zone, ship) &&
-		(extraction.return_zone == NONE || !scenario_trigger_volume_test_object(extraction.return_zone, ship)) &&
+	return extraction_in_field_volume(zone, call, ship) &&
+		!extraction_in_owned_volume(extraction.return_zone, hub_bsp, ship) &&
 		(!extraction.separate_hubs ||
-		 (!scenario_trigger_volume_test_object(extraction.faction_hubs[0], ship) &&
-		  !scenario_trigger_volume_test_object(extraction.faction_hubs[1], ship))) &&
-		(return_zone == NONE || return_zone == extraction.return_zone ||
-		 !scenario_trigger_volume_test_object(return_zone, ship));
+		 (!extraction_in_owned_volume(extraction.faction_hubs[0], extraction.faction_hub_bsps[0], ship) &&
+		  !extraction_in_owned_volume(extraction.faction_hubs[1], extraction.faction_hub_bsps[1], ship))) &&
+		(return_zone == extraction.return_zone || !extraction_in_owned_volume(return_zone, hub_bsp, ship));
 }
 
 /* The compiled declaration opts in to field hover. It is never executed. */
