@@ -259,6 +259,7 @@
   "ce/port_cyborg/main_menu/multiplayer_type_select/lobby/header_lobby.png",
   "ce/port_cyborg/main_menu/multiplayer_type_select/server_settings/header_host_options.png",
   "chupathingy/forerunner.xml",
-  "chupathingy/forerunner/brand.png"
+  "chupathingy/forerunner/brand.png",
+  "chupathingy/forerunner/main_focus.png"
  ]
 }

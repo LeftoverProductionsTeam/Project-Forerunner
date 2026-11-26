@@ -1,68 +1,78 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Forerunner native navigation. Original assets; inherited menu callbacks retained. -->
 <menus>
-	<widget name="forerunner/main" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+	<widget name="forerunner/main" width="640" height="480" flags="pass_unhandled_to_focused_child">
 		<on event="created" run="main menu intialize" label="ring_loop" />
 		<on event="b" open="main_menu/quit_select/quit_screen" />
 		<on event="back" open="main_menu/quit_select/quit_screen" />
-		<child widget="forerunner/banner" x="0" y="14" />
+		<child widget="main_menu/halo_logo" x="0" y="-76" />
+		<child widget="forerunner/main_wordmark" x="0" y="100" />
+		<child widget="forerunner/main_tagline" x="0" y="129" />
 		<child widget="forerunner/main_list" x="0" y="0" />
 		<child widget="main_menu/build_number" x="450" y="444" />
 	</widget>
+
+	<widget name="forerunner/main_wordmark" type="text" width="640" height="28" align="center" text="FORERUNNER" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/main_tagline" type="text" width="640" height="22" align="center" text="ONE ENGINE. EVERY FORK." font="ui\small_ui" color="#FFA6E6F2" />
+	<bitmap name="forerunner/main_focus">
+		<frame png="ce/shell/bitmaps/list_item_bkd__0.png" width="256" height="32" />
+		<frame png="chupathingy/forerunner/main_focus.png" width="256" height="32" />
+	</bitmap>
+
 	<widget name="forerunner/banner" width="640" height="128" bitmap="chupathingy/forerunner/brand" />
 	<bitmap name="chupathingy/forerunner/brand">
 		<frame png="chupathingy/forerunner/brand.png" width="640" height="128" />
 	</bitmap>
 	<widget name="forerunner/main_list" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
-		<child widget="forerunner/campaign" x="60" y="154" />
-		<child widget="forerunner/multiplayer" x="60" y="188" />
-		<child widget="forerunner/extraction" x="60" y="222" />
-		<child widget="forerunner/firefight" x="60" y="256" />
-		<child widget="forerunner/zombies" x="60" y="290" />
-		<child widget="forerunner/forge" x="60" y="324" />
-		<child widget="forerunner/spark" x="60" y="358" />
-		<child widget="forerunner/vr" x="336" y="154" />
-		<child widget="forerunner/profiles" x="336" y="188" />
-		<child widget="forerunner/settings" x="336" y="222" />
-		<child widget="forerunner/mods" x="336" y="256" />
-		<child widget="forerunner/quit" x="336" y="290" />
+		<child widget="forerunner/campaign" x="60" y="168" />
+		<child widget="forerunner/multiplayer" x="60" y="202" />
+		<child widget="forerunner/extraction" x="60" y="236" />
+		<child widget="forerunner/firefight" x="60" y="270" />
+		<child widget="forerunner/zombies" x="60" y="304" />
+		<child widget="forerunner/forge" x="60" y="338" />
+		<child widget="forerunner/spark" x="60" y="372" />
+		<child widget="forerunner/vr" x="336" y="168" />
+		<child widget="forerunner/profiles" x="336" y="202" />
+		<child widget="forerunner/settings" x="336" y="236" />
+		<child widget="forerunner/mods" x="336" y="270" />
+		<child widget="forerunner/quit" x="336" y="304" />
 		<on event="created" run="port forerunner menu init" />
 	</widget>
-	<widget name="forerunner/campaign" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="CAMPAIGN" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/campaign" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="CAMPAIGN" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="new game if no plyr profiles" label="load_campaign" open="main_menu/campaign_select/campaign_menu" branch="true" />
 		<on event="start" run="new game if no plyr profiles" label="load_campaign" open="main_menu/campaign_select/campaign_menu" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<conditional widget="main_menu/new_campaign_creating_profile" if_failed="true" />
 	</widget>
-	<widget name="forerunner/multiplayer" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/multiplayer" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="new game if no plyr profiles" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" branch="true" />
 		<on event="start" run="new game if no plyr profiles" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<conditional widget="main_menu/profile_manager/multiplayer_creating_profile" if_failed="true" />
 	</widget>
-	<widget name="forerunner/profiles" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="PROFILES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/profiles" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="PROFILES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="new game if no plyr profiles" open="main_menu/profile_manager/player_profile_manager" branch="true" />
 		<on event="start" run="new game if no plyr profiles" open="main_menu/profile_manager/player_profile_manager" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<conditional widget="main_menu/profile_manager/pm_entry_creating_profile" if_failed="true" />
 	</widget>
-	<widget name="forerunner/settings" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="SETTINGS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/settings" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="SETTINGS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" run="profile set edit begin" label="settings" open="main_menu/settings_select/player_setup/player_profile_edit/player_profile_edit_screen" branch="true" />
 		<on event="start" run="profile set edit begin" label="settings" open="main_menu/settings_select/player_setup/player_profile_edit/player_profile_edit_screen" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 		<conditional widget="main_menu/profile_manager/settings_creating_profile" if_failed="true" />
 	</widget>
-	<widget name="forerunner/mods" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MODS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/mods" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MODS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/mods/mods_screen" />
 		<on event="start" open="main_menu/mods/mods_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/quit" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="QUIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/quit" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="QUIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/quit_select/quit_screen" />
 		<on event="start" open="main_menu/quit_select/quit_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/extraction" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="EXTRACTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/extraction" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="EXTRACTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="forerunner/extraction/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="start" open="forerunner/extraction/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -104,7 +114,7 @@
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/firefight" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="FIREFIGHT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/firefight" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="FIREFIGHT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="forerunner/firefight/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="start" open="forerunner/firefight/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -146,7 +156,7 @@
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/zombies" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="ZOMBIES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/zombies" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="ZOMBIES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="forerunner/zombies/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="start" open="forerunner/zombies/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -194,7 +204,7 @@
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="FORGE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="FORGE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="forerunner/forge/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="start" open="forerunner/forge/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -346,7 +356,7 @@
 		<on event="start" run="port forge redo move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/spark" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="SPARK MISSIONS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/spark" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="SPARK MISSIONS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="forerunner/spark/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="start" open="forerunner/spark/screen" run="new game if no plyr profiles" branch="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -388,7 +398,7 @@
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/vr" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="VIRTUAL REALITY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/vr" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="VIRTUAL REALITY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="forerunner/vr/screen" />
 		<on event="start" open="forerunner/vr/screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
