@@ -468,8 +468,12 @@ boolean extraction_player_spawn_profile(long player_index, long *biped, short *p
 	if (!player || !biped || !profile || !variant || !extraction.bound || !extraction.admitted ||
 		extraction.suspended || !extraction_requested()) return FALSE;
 	faction = extraction_faction((short)player->team_index);
-	if (faction == NONE || extraction.faction_bipeds[faction] == NONE) return FALSE;
-	*biped = extraction.faction_bipeds[faction]; *profile = extraction.faction_profiles[faction];
+	if (faction == NONE || extraction.faction_profiles[faction] == NONE ||
+		(extraction.faction_bipeds[faction] == NONE && extraction.faction_hub_bsps[faction] == NONE))
+		return FALSE;
+	if (extraction.faction_bipeds[faction] != NONE)
+		*biped = extraction.faction_bipeds[faction];
+	*profile = extraction.faction_profiles[faction];
 	*variant = extraction.faction_variants[faction];
 	return TRUE;
 }

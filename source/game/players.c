@@ -1385,6 +1385,22 @@ static boolean player_extraction_start_clear(long player_index, long biped,
 	return TRUE;
 }
 
+static long player_spawn_default_biped(struct game_globals const *globals)
+{
+	if (game_engine_running())
+	{
+		struct game_globals_multiplayer_information const *info = TAG_BLOCK_GET_ELEMENT(
+			&globals->multiplayer_information, 0, struct game_globals_multiplayer_information);
+		return info->unit.index;
+	}
+	else
+	{
+		struct game_globals_player_information const *info = TAG_BLOCK_GET_ELEMENT(
+			&globals->player_information, 0, struct game_globals_player_information);
+		return info->player_unit.index;
+	}
+}
+
 static long find_best_starting_location_index(long player_index, short spawn_bsp)
 {
 	struct scenario *scenario;
@@ -1435,11 +1451,7 @@ static long find_best_starting_location_index(long player_index, short spawn_bsp
 			/* start_allowed may have bound the operation on this first spawn. */
 			if (!checked_extraction_profile && extraction_owns_map())
 			{
-				struct game_globals *globals = scenario_get_game_globals();
-				struct game_globals_player_information const *information =
-					TAG_BLOCK_GET_ELEMENT(&globals->player_information, 0,
-						struct game_globals_player_information);
-				extraction_biped = information->player_unit.index;
+				extraction_biped = player_spawn_default_biped(scenario_get_game_globals());
 				extraction_player_spawn_profile(player_index, &extraction_biped,
 					&faction_profile, &faction_variant);
 				checked_extraction_profile = TRUE;
@@ -1517,7 +1529,7 @@ static void player_spawn_at_location(
 	struct unit_datum *unit;
 	struct scenario *scenario;
 	struct game_globals_player_information *player_information;
-	struct game_globals_multiplayer_information *multiplayer_information;
+
 	struct player_starting_location spawn_location;
 	struct object_placement_data placement_data;
 	real_rgb_color change_color;
@@ -1626,23 +1638,12 @@ static void player_spawn_at_location(
 				struct game_globals_player_information);
 			if (player_information->player_unit.index != NONE)
 			{
-				if (game_engine_running())
-				{
-					multiplayer_information = TAG_BLOCK_GET_ELEMENT(
-						&game_globals->multiplayer_information,
-						0,
-						struct game_globals_multiplayer_information);
-					unit_definition_index = multiplayer_information->unit.index;
-				}
-				else
-				{
-					unit_definition_index = player_information->player_unit.index;
-				}
+				unit_definition_index = player_spawn_default_biped(game_globals);
 
 				/* port: opt-in Extraction characters reuse native spawn/equipment.
 				 * Other maps and classic multiplayer retain their definitions. */
-				if (!game_engine_running()) extraction_player_spawn_profile(player_index,
-					&unit_definition_index, &faction_profile, &faction_variant);
+				if (!game_engine_running() || extraction_owns_map())
+					extraction_player_spawn_profile(player_index, &unit_definition_index, &faction_profile, &faction_variant);
 				object_placement_data_new(
 					&placement_data,
 					unit_definition_index,
@@ -1682,24 +1683,24 @@ static void player_spawn_at_location(
 								unit_index);
 						}
 
-						if (!game_engine_running())
+						if (faction_profile != NONE)
+						{
+							/* port: these profiles contain equipment only. The
+							 * native reset clears vitality before adding profile
+							 * modifiers; preserve this fresh biped's native values. */
+							real body_vitality = unit->object.body_vitality;
+							real shield_vitality = unit->object.shield_vitality;
+							player_add_equipment(player2->unit_index, faction_profile, TRUE);
+							unit = unit_get(player2->unit_index);
+							unit->object.body_vitality = body_vitality;
+							unit->object.shield_vitality = shield_vitality;
+						}
+						else if (!game_engine_running())
 						{
 							scenario = global_scenario_get();
 							starting_equipment_count =
 								*(long *)((byte *)scenario + 0x348);
-							if (faction_profile != NONE)
-							{
-								/* port: these profiles contain equipment only. The
-								 * native reset clears vitality before adding profile
-								 * modifiers; preserve this fresh biped's native values. */
-								real body_vitality = unit->object.body_vitality;
-								real shield_vitality = unit->object.shield_vitality;
-								player_add_equipment(player2->unit_index, faction_profile, TRUE);
-								unit = unit_get(player2->unit_index);
-								unit->object.body_vitality = body_vitality;
-								unit->object.shield_vitality = shield_vitality;
-							}
-							else if (starting_equipment_count > 1 &&
+							if (starting_equipment_count > 1 &&
 								*(short *)((byte *)player2 + 0xAA) > 0)
 							{
 								player_add_equipment(

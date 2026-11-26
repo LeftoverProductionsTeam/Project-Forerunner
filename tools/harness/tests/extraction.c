@@ -701,6 +701,12 @@ int main(int argc,char **argv)
    CHECK(extraction_owns_map(),"ordinary multiplayer start prevented hub admission");
    CHECK(extraction_player_spawn_bsp(player_handles[0])==0&&
          extraction_player_spawn_bsp(player_handles[1])==10,"faction spawn used the wrong BSP");
+   {
+    long biped=4;
+    short profile=NONE,variant=0;
+    CHECK(extraction_player_spawn_profile(player_handles[1],&biped,&profile,&variant)&&biped==4&&profile==1,
+          "native default body lost its authored regional faction equipment");
+   }
    CHECK(!extraction_player_start_allowed(player_handles[1],&starts[0])&&
          !extraction_player_start_allowed(player_handles[1],&starts[2])&&
          extraction_player_start_allowed(player_handles[1],&starts[1]),"faction start filter escaped the hub");
@@ -797,7 +803,10 @@ int main(int argc,char **argv)
   units[0].object.body_vitality=.75f;units[0].object.shield_vitality=.5f;
   units[0].unit.grenade_counts[0]=2;units[0].unit.grenade_counts[1]=1;
   p->grenade_counts[0]=1;p->grenade_counts[1]=2;pickup(0,2);
-  if(!strcmp(kind,"classic"))firefight.enabled=FALSE;
+  if(!strcmp(kind,"classic")){
+   firefight.enabled=FALSE;
+   enabled=FALSE;
+  }
   else if(!strcmp(kind,"explicit")){p->starting_health_modifier=.4f;p->starting_shield_modifier=.8f;}
   else if(!strcmp(kind,"shield-only"))p->starting_shield_modifier=1.f;
   else if(!strcmp(kind,"unshielded"))units[0].object.shield_vitality=0;

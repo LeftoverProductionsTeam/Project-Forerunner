@@ -538,6 +538,7 @@ symbols in this file:
 
 #include "cseries.h"
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
+#include "extraction.h"
 #include "keyboard_glyphs.h" /* port: port/linux/game/keyboard_glyphs.c */
 #include "infection.h" /* port: port/linux/game/infection.c */
 #include "cseries_windows.h"
@@ -11041,8 +11042,15 @@ void game_engine_postspawn_player_update(
 	struct game_globals_grenade *plasma_grenade;
 	long fragmentation_grenade_count;
 	long plasma_grenade_count;
+	long faction_body;
+	short faction_profile, faction_variant;
 
 	if (!game_engine)
+		return;
+
+	/* The authored faction profile already supplied this spawn's equipment. */
+	if (extraction_owns_map() && extraction_player_spawn_profile(player_index,
+		&faction_body, &faction_profile, &faction_variant) && faction_profile != NONE)
 		return;
 
 	if (game_engine->player_update)
