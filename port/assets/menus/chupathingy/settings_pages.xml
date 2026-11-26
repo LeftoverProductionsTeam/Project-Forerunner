@@ -175,6 +175,9 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_viewmodel_shield" x="54" y="203"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_first_person_legs" x="54" y="229"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_shield_color" x="54" y="255"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_distance" x="54" y="281"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_horizontal" x="54" y="307"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_vertical" x="54" y="333"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/view_extra_effects" x="54" y="73"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_overshield_effect" x="54" y="73"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_shield_glow" x="54" y="99"/>

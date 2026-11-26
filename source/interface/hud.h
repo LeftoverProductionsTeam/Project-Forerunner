@@ -120,6 +120,9 @@ void hud_picked_up_weapon(
 	long weapon_definition_index);
 void hud_render_nav_points(
 	short local_player_index);
+void hud_toggle_combat_readouts(void);
+boolean hud_combat_readouts_hidden(void);
+
 void hud_draw_screen(
 	void);
 

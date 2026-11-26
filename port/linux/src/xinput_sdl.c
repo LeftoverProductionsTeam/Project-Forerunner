@@ -73,6 +73,8 @@ drive the controller.
 #define PORT_COUNT 4
 #define VK_OEM_3_BACKQUOTE 0xc0
 
+void hud_toggle_combat_readouts(void);
+
 /* ---------- game hooks */
 
 /* main/console.c */
@@ -3482,6 +3484,17 @@ DWORD WINAPI XInputGetState(HANDLE device, PXINPUT_STATE state)
 		/* (nothing bound while the console or a chat line, either text
 		chat's, is being typed) */
 		console_active = console_is_active() != 0 || chat_typing || network_chat_typing();
+		/* Backquote toggles only the combat HUD. Shift+backquote still opens
+		   the debug console through its normal key queue. */
+		{
+			static BOOL backquote_held;
+			BOOL down = input.keys[SDL_SCANCODE_GRAVE] != 0;
+
+			if (down && !backquote_held && !console_active && !text_typing &&
+				!input.keys[SDL_SCANCODE_LSHIFT] && !input.keys[SDL_SCANCODE_RSHIFT])
+				hud_toggle_combat_readouts();
+			backquote_held = down;
+		}
 		debug_camera_update(&input, console_active);
 		held = console_active ? 0 : keyboard_bound_actions(&input);
 		/* (what the player last used: a gamepad's button or stick, or a key
@@ -3690,7 +3703,8 @@ DWORD WINAPI XInputDebugGetKeystroke(PXINPUT_DEBUG_KEYSTROKE keystroke)
 		if (guide_capture && !key_up && !console_is_active() && !text_typing)
 			continue;
 #endif
-		if (key_up || next.virtual_key == VK_OEM_3_BACKQUOTE || console_is_active() || chat_typing ||
+		if (key_up || (next.virtual_key == VK_OEM_3_BACKQUOTE &&
+			(next.flags & XINPUT_DEBUG_KEYSTROKE_FLAG_SHIFT)) || console_is_active() || chat_typing ||
 			network_chat_typing() ||
 			(text_typing && next.virtual_key != 0x1B /* escape */))
 		{

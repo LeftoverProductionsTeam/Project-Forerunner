@@ -116,6 +116,8 @@ typedef char unit_camera_track_size_assert[
 
 static struct unit_camera const *unit_camera_get(
 	long unit_index);
+double config_real(char const *name);
+
 static void camera_track_splut(
 	struct unit_camera const *camera,
 	real pitch,
@@ -269,14 +271,7 @@ void following_camera_update(
 			magnitude3d(&command->forward) < 1.0001f,
 			"magnitude3d(&result->forward) > 0.9999f && magnitude3d(&result->forward) < 1.0001f");
 
-		if (on_foot)
-		{
-			/* Halo's observer keeps its normal obstruction checks. Use a
-			 * shoulder offset even for bipeds without a camera track. */
-			set_real_vector3d(&command->offset, 0.f, 0.45f, 0.25f);
-			command->depth = 2.1f;
-		}
-		else
+		if (!on_foot)
 		{
 			camera_track_splut(camera_info.camera, facing.pitch, &track_offset);
 			command->depth = magnitude3d(&track_offset);
@@ -288,6 +283,29 @@ void following_camera_update(
 			command->depth = MAX(
 				(command->depth - 0.6f) * camera->distance_scale + 0.6f,
 				0.6f);
+		}
+		if (on_foot || passenger)
+		{
+			real distance = (real)PIN(config_real("display.third_person_distance"), 0.9, 4.2);
+			real horizontal = (real)PIN(config_real("display.third_person_horizontal"), -0.9, 0.9);
+			real vertical = (real)PIN(config_real("display.third_person_vertical"), -0.5, 1.0);
+
+			if (on_foot)
+			{
+				/* Let the observer resolve obstructions for the adjusted camera. */
+				set_real_vector3d(&command->offset, 0.f, horizontal, vertical);
+				command->depth = distance;
+			}
+			else
+			{
+				/* Preserve the authored passenger track at the default settings. */
+				real scale = distance / 2.1f;
+
+				scale_vector3d(&command->offset, scale, &command->offset);
+				command->offset.j += horizontal - 0.45f;
+				command->offset.k += vertical - 0.25f;
+				command->depth = MAX(command->depth * scale, 0.6f);
+			}
 		}
 
 		object_get_velocities(camera_info.unit_index, &command->velocity, NULL);

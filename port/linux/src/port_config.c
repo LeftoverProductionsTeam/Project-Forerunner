@@ -581,6 +581,12 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 	{ "display.on_foot_third_person", _config_boolean, "false", "HALO_ON_FOOT_THIRD_PERSON", _environment_value, _platform_all,
 		"Follow your own character on foot in campaign or co-op.\n"
 		"Weapon zoom uses first person. Vehicle and cinematic cameras keep their usual behavior." },
+	{ "display.third_person_distance", _config_real, "2.1", "HALO_THIRD_PERSON_DISTANCE", _environment_value, _platform_all,
+		"Distance of the optional third-person camera." },
+	{ "display.third_person_horizontal", _config_real, "0.45", "HALO_THIRD_PERSON_HORIZONTAL", _environment_value, _platform_all,
+		"Negative moves the camera left. Positive moves it right." },
+	{ "display.third_person_vertical", _config_real, "0.25", "HALO_THIRD_PERSON_VERTICAL", _environment_value, _platform_all,
+		"Negative moves the camera down. Positive moves it up." },
 	{ "display.powerup_timers", _config_boolean, "false", "HALO_POWERUP_TIMERS", _environment_value, _platform_all | _platform_xbox,
 		"Show the seconds left on your active camouflage, overshield and\n"
 		"full spectrum vision." },

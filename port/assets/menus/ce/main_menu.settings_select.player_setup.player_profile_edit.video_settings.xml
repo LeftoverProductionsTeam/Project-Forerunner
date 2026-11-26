@@ -97,6 +97,9 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_viewmodel_shield" x="54" y="203"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_first_person_legs" x="54" y="229"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_shield_color" x="54" y="255"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_distance" x="54" y="281"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_horizontal" x="54" y="307"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_vertical" x="54" y="333"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/view_extra_effects" x="54" y="73"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_overshield_effect" x="54" y="73"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_shield_glow" x="54" y="99"/>
@@ -671,6 +674,33 @@
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/hdr_exposure_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="0.25X|0.5X|0.75X|1X|1.25X|1.5X|2X|3X|4X" setting="display.hdr_exposure" values="0.25|0.5|0.75|1|1.25|1.5|2|3|4" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
 		<on event="created" run="port setting load"/>
 	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_distance" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_distance_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_distance_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_distance_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/labels" string_index="77" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_distance_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="0.9|1.2|1.5|1.8|2.1|2.5|3|3.5|4.2" setting="display.third_person_distance" values="0.9|1.2|1.5|1.8|2.1|2.5|3|3.5|4.2" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_horizontal" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_horizontal_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_horizontal_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_horizontal_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/labels" string_index="78" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_horizontal_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="-0.9|-0.675|-0.45|-0.225|0|+0.225|+0.45|+0.675|+0.9" setting="display.third_person_horizontal" values="-0.9|-0.675|-0.45|-0.225|0|0.225|0.45|0.675|0.9" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_third_person_vertical" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_vertical_label"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_vertical_spinner" x="320" y="1"/>
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_vertical_label" type="text" controller="1" width="300" height="22" string_list="main_menu/settings_select/player_setup/player_profile_edit/video_settings/labels" string_index="79" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="4">
+	</widget>
+	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/third_person_vertical_spinner" type="spinner" left="3" top="2" width="147" height="20" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="-0.5|-0.25|0|+0.25|+0.5|+0.75|+1" setting="display.third_person_vertical" values="-0.5|-0.25|0|0.25|0.5|0.75|1" font="ui\large_ui" color="#FF2896FF" align="center" text_y="1" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 150 19 156">
+		<on event="created" run="port setting load"/>
+	</widget>
 	<widget name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_hdr_tone_mapping" width="512" height="28" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/option_bkds" color="#FF2896FF">
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/hdr_tone_mapping_label"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/hdr_tone_mapping_spinner" x="320" y="1"/>
@@ -933,6 +963,9 @@
 		<string text="POWERUP TIMERS:"/>
 		<string text="MATCH TIMER:"/>
 		<string text="FOLLOW CAMERA:"/>
+		<string text="CAMERA DISTANCE:"/>
+		<string text="CAMERA LEFT / RIGHT:"/>
+		<string text="CAMERA UP / DOWN:"/>
 	</strings>
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/video_settings/help_strings">
 		<string text=""/>

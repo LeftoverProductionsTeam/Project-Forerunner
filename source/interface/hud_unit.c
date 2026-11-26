@@ -940,7 +940,7 @@ void hud_render_unit_interface(
 						NONE);
 				}
 
-				if (game_engine_has_shield(player_index) &&
+				if (!hud_combat_readouts_hidden() && game_engine_has_shield(player_index) &&
 					!TEST_FLAG(
 						unit_hud_globals->script_flags,
 						_hud_panel_shield_dont_show_bit))
@@ -1060,7 +1060,8 @@ void hud_render_unit_interface(
 					}
 				}
 
-				if (!TEST_FLAG(
+				if (!hud_combat_readouts_hidden() &&
+					!TEST_FLAG(
 					unit_hud_globals->script_flags,
 					_hud_panel_health_dont_show_bit))
 				{

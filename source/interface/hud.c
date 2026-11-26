@@ -1666,6 +1666,19 @@ static void hud_draw_forge_aim(void)
 }
 #endif
 
+/* Local presentation only. Leave scripts, navigation and viewmodels alone. */
+static boolean combat_readouts_hidden;
+
+void hud_toggle_combat_readouts(void)
+{
+	combat_readouts_hidden = !combat_readouts_hidden;
+}
+
+boolean hud_combat_readouts_hidden(void)
+{
+	return combat_readouts_hidden;
+}
+
 void hud_draw_screen(
 	void)
 {
