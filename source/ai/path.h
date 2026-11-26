@@ -355,14 +355,14 @@ short path_node_from_hash_table(
 	struct path_state *state,
 	long surface_index);
 boolean path_3d_available(
-	struct structure_bsp *structure,
+	struct structure_bsp const *structure,
 	real_point3d const *start_point,
 	real avoidance_distance,
 	real_point3d const *end_point,
 	boolean *finishing_path_reference,
 	real_point3d *path_endpoint);
 boolean path_3d_build_path(
-	struct structure_bsp *structure,
+	struct structure_bsp const *structure,
 	real_point3d const *start_point,
 	real avoidance_distance,
 	real_point3d const *end_point,

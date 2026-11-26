@@ -702,7 +702,7 @@ short path_node_from_hash_table(
 }
 
 boolean path_3d_available(
-	struct structure_bsp *structure,
+	struct structure_bsp const *structure,
 	real_point3d const *start_point,
 	real avoidance_distance,
 	real_point3d const *end_point,
@@ -716,7 +716,7 @@ boolean path_3d_available(
 	struct collision_bsp_test_vector_result result;
 
 	vector_from_points3d(start_point, end_point, &vector);
-	if (!collision_bsp_test_vector(
+	if (structure && (!collision_bsp_test_vector(
 			FLAG(_collision_test_front_facing_surfaces_bit),
 			TAG_BLOCK_GET_ELEMENT(
 				&structure->collision_bsp,
@@ -729,7 +729,7 @@ boolean path_3d_available(
 			REAL_MAX,
 			&result) ||
 		result.t >= 1.0f ||
-		magnitude_squared3d(&vector)*((1.0f - result.t)*(1.0f - result.t)) < 0.1f)
+		magnitude_squared3d(&vector)*((1.0f - result.t)*(1.0f - result.t)) < 0.1f))
 	{
 		available = TRUE;
 		finishing_path = TRUE;
@@ -748,7 +748,7 @@ boolean path_3d_available(
 }
 
 boolean path_3d_build_path(
-	struct structure_bsp *structure,
+	struct structure_bsp const *structure,
 	real_point3d const *start_point,
 	real avoidance_distance,
 	real_point3d const *end_point,

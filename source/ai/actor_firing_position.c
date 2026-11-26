@@ -165,7 +165,9 @@ symbols in this file:
 #include "props.h"
 #include "game/game.h"
 #include "items/weapon_definitions.h"
+#include "objects/objects.h"
 #include "physics/collision_bsp_definitions.h"
+#include "physics/collisions.h"
 #include "units/vehicles.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
@@ -616,7 +618,8 @@ static long post_evaluator_global(
 
 			if (path_available)
 			{
-				path_available= path_3d_available(global_structure_bsp_get(), &actor->input.position.body_position,
+				path_available= path_3d_available(scenario_structure_bsp_try_and_get(actor_get_navigation_bsp(actor)),
+					&actor->input.position.body_position,
 					avoidance_distance, &firing_position->definition->position, NULL, NULL);
 			}
 
@@ -1661,10 +1664,14 @@ boolean actor_nearby_firing_positions(
 {
 	struct actor_datum *actor= actor_get(actor_index);
 	struct actor_definition *definition= actor_definition_get(actor->meta.definition_index);
+	short bsp= actor_get_navigation_bsp(actor);
 
 	if (!actor->state.flying && test_surface_index!=NONE)
 	{
-		struct collision_bsp *collision_bsp= global_collision_bsp_get();
+		struct collision_bsp const *collision_bsp= collision_bsp_for_region(bsp);
+
+		if (!collision_bsp)
+			return FALSE;
 
 		match_assert(
 			"c:\\halo\\SOURCE\\ai\\actor_firing_position.c",
@@ -1693,7 +1700,7 @@ boolean actor_nearby_firing_positions(
 				&input,
 				definition->moving.pathfinding_radius,
 				TRUE,
-				NONE);
+				actor->meta.unit_index);
 			path_input_set_start(&input, test_point, test_surface_index);
 			path_input_set_search_bounds(&input, 4.0f);
 			path_state_new(&input, &state, NULL);
@@ -1715,7 +1722,7 @@ boolean actor_nearby_firing_positions(
 				if (actor->state.flying)
 				{
 					if (path_3d_available(
-						global_structure_bsp_get(),
+						scenario_structure_bsp_try_and_get(bsp),
 						test_point,
 						0.0f,
 						&firing_position->position,
@@ -2183,11 +2190,25 @@ short actor_select_firing_position(
 		}
 		else
 		{
-			if (evaluation_context->has_target && evaluation_context->find_path_distance_to_target)
+			short bsp= actor_get_navigation_bsp(actor);
+			short target_bsp= bsp;
+
+			if (evaluation_context->has_target && evaluation_context->target_prop_index!=NONE)
+			{
+				long target_object_index= prop_get(evaluation_context->target_prop_index)->unit_index;
+				if (object_try_and_get(target_object_index))
+				{
+					short region= object_get_regional_bsp(target_object_index);
+					if (region!=NONE)
+						target_bsp= region;
+				}
+			}
+
+			if (evaluation_context->has_target && evaluation_context->find_path_distance_to_target && target_bsp==bsp)
 			{
 				if (evaluation_context->flying)
 				{
-					struct structure_bsp *structure_bsp= global_structure_bsp_get();
+					struct structure_bsp const *structure_bsp= scenario_structure_bsp_try_and_get(bsp);
 					short index;
 
 					for (index= 0; index<firing_position_count; index++)
@@ -2226,7 +2247,7 @@ short actor_select_firing_position(
 						&input,
 						definition->moving.pathfinding_radius,
 						actor->emotions.ignorant_of_broken_surfaces,
-						NONE);
+						actor->meta.unit_index);
 					path_input_set_start(
 						&input,
 						&evaluation_context->target_pathfinding_point,

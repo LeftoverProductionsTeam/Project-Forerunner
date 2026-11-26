@@ -1013,6 +1013,7 @@ real_argb_color const *actor_activation_debug_color(
 	long actor_index);
 void actor_verify_activation(
 	long actor_index);
+short actor_get_navigation_bsp(struct actor_datum const *actor);
 void actor_set_team(
 	long actor_index,
 	short team_index);

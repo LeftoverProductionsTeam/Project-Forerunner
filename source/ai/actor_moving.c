@@ -774,7 +774,8 @@ static void actor_move_avoidance_setup(
 {
 	long object_indices[2048];
 	struct object_datum *object = object_get(avoidance_data->object_index);
-	short object_count = objects_in_sphere(
+	short object_count = objects_in_bsp_sphere(
+		object_get_regional_bsp(avoidance_data->object_index),
 		_object_mask_biped,
 		_object_mask_sightblocking,
 		&object->object.location,
@@ -1083,6 +1084,15 @@ void actor_move_initialize(
 	return;
 }
 
+short actor_get_navigation_bsp(struct actor_datum const *actor)
+{
+	short bsp = NONE;
+
+	if (object_try_and_get(actor->meta.unit_index))
+		bsp = object_get_regional_bsp(actor->meta.unit_index);
+	return bsp == NONE ? global_structure_bsp_index_get() : bsp;
+}
+
 boolean actor_path_3d_available(
 	long actor_index,
 	real_point3d const *destination,
@@ -1251,7 +1261,16 @@ boolean actor_move_try_evasion_vector(
 
 	if (!actor->state.flying)
 	{
+		short bsp = actor_get_navigation_bsp(actor);
+		struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
 		real_point2d evasion_point;
+
+		if (!structure)
+		{
+			if (evasion_is_ledge_reference)
+				*evasion_is_ledge_reference = FALSE;
+			return FALSE;
+		}
 
 		evasion_point.x = evade_distance * evasion_vector->i +
 			actor->input.position.body_position.x;
@@ -1260,8 +1279,8 @@ boolean actor_move_try_evasion_vector(
 
 		actor_find_pathfinding_location(actor_index);
 		if (!structure_test_pill2d(
-			global_structure_bsp_get(),
-			global_structure_bsp_index_get(),
+			structure,
+			bsp,
 			actor->emotions.ignorant_of_broken_surfaces,
 			(real_point2d const *)&actor->input.pathfinding_point,
 			actor->input.pathfinding_surface_index,
@@ -1287,7 +1306,7 @@ boolean actor_move_try_evasion_vector(
 
 		if (!found && maximum_ledge_height > 0.0f)
 		{
-			struct collision_bsp *collision_bsp = global_collision_bsp_get();
+			struct collision_bsp const *collision_bsp = collision_bsp_for_region(bsp);
 			struct collision_bsp_test_vector_result collision_result;
 			real_point3d actor_midpoint;
 			real_vector3d collision_vector;
@@ -1300,7 +1319,7 @@ boolean actor_move_try_evasion_vector(
 			collision_vector.j = evade_distance * evasion_vector->j;
 			collision_vector.k = 0.0f;
 
-			if (!collision_bsp_test_vector(
+			if (collision_bsp && !collision_bsp_test_vector(
 				FLAG(_collision_test_front_facing_surfaces_bit) |
 					FLAG(_collision_test_back_facing_surfaces_bit),
 				collision_bsp,
@@ -1479,9 +1498,18 @@ static void actor_move_vector_avoidance(
 		short ray_index;
 		boolean sharp_turn = FALSE;
 
+		short bsp = actor_get_navigation_bsp(actor);
+
+		avoidance_data.structure = scenario_structure_bsp_try_and_get(bsp);
+		avoidance_data.bsp = collision_bsp_for_region(bsp);
+		if (!avoidance_data.bsp)
+		{
+			*avoidance_rotation = rotation;
+			*emergency_amount = 1.f;
+			return;
+		}
+
 		debug_info->field_19C = game_time_get();
-		avoidance_data.structure = global_structure_bsp_get();
-		avoidance_data.bsp = global_collision_bsp_get();
 		avoidance_data.object_index = object_index;
 		object_get_origin(object_index, &avoidance_data.origin);
 		avoidance_data.forward = object->object.forward;
@@ -2071,7 +2099,7 @@ boolean actor_path_refresh(
 				if (actor->state.flying)
 				{
 					success = path_3d_build_path(
-						global_structure_bsp_get(),
+						scenario_structure_bsp_try_and_get(actor_get_navigation_bsp(actor)),
 						&actor->input.position.body_position,
 						0.f,
 						&actor->control.path.destination.point,
@@ -2733,7 +2761,10 @@ static void actor_move_calculate_movement(
 
 				if (test_movement_direction)
 				{
-					if (normalize2d((real_vector2d *)&movement_direction) > 0.f)
+					short bsp = actor_get_navigation_bsp(actor);
+					struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
+
+					if (structure && normalize2d((real_vector2d *)&movement_direction) > 0.f)
 					{
 						struct path_collision_result collision;
 						real_point3d test_point;
@@ -2745,8 +2776,8 @@ static void actor_move_calculate_movement(
 							0.4f,
 							&test_point);
 						if (structure_test_line2d(
-							global_structure_bsp_get(),
-							global_structure_bsp_index_get(),
+							structure,
+							bsp,
 							actor->emotions.ignorant_of_broken_surfaces,
 							(real_point2d const *)&actor->input.position.body_position,
 							pathfinding_surface_index,
