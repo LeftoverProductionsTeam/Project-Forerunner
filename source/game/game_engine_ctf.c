@@ -508,6 +508,7 @@ static boolean ctf_engine_initialize_for_new_map(
 	long team_index;
 	short starting_location_count;
 	short starting_location_index;
+	boolean regional;
 
 	if (!game_engine_get_variant()->universal_variant.teams)
 	{
@@ -521,6 +522,7 @@ static boolean ctf_engine_initialize_for_new_map(
 	timeout_for_endgame_sound = CTF_ENDGAME_SOUND_TIMEOUT;
 
 	scenario = global_scenario_get();
+	regional = scenario_uses_regional_gameplay(scenario);
 	for (team_index = 0; team_index < NUMBER_OF_CTF_TEAMS; team_index++)
 	{
 		long flag_index = find_netgame_flag(
@@ -593,7 +595,10 @@ static boolean ctf_engine_initialize_for_new_map(
 				starting_location_index,
 				starting_location->team_index);
 		}
-		else if (match_game_type(game_engine_ctf, 4, starting_location->game_types))
+		/* Regional starts have authored team ownership. A single global
+		 * flag pair cannot classify starts in the other regions or seams. */
+		else if (!regional && ctf_globals.flags[0] && ctf_globals.flags[1] &&
+			match_game_type(game_engine_ctf, 4, starting_location->game_types))
 		{
 			boolean assault = game_engine_get_variant()->game_engine_variant.ctf.assault > 0;
 			long location_team_index = starting_location->team_index;
