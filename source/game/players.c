@@ -1585,35 +1585,35 @@ static void player_spawn_at_location(
 		if (!starting_location)
 		{
 			short foreground = scenario_uses_regional_gameplay(scenario) ? global_structure_bsp_index_get() : NONE;
+			short hub_bsp = extraction_player_spawn_bsp(player_index);
+			short owned = hub_bsp;
 
 			starting_location_index = NONE;
-			if (game_engine_running() && game_connection() == _game_connection_network_server &&
+			if (owned == NONE && game_engine_running() && game_connection() == _game_connection_network_server &&
 				network_regional_independent_bsp_ready())
+				owned = network_coop_player_authoritative_bsp(player_index);
+			if (owned != foreground && VALID_INDEX(owned, scenario->structure_bsp_references.count) &&
+				scenario_structure_bsp_preview(owned, TRUE))
 			{
-				short owned = network_coop_player_authoritative_bsp(player_index);
-				if (owned != foreground && VALID_INDEX(owned, scenario->structure_bsp_references.count) &&
-					scenario_structure_bsp_preview(owned, TRUE))
+				struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
+					&scenario->structure_bsp_references, owned, struct scenario_structure_bsp_reference);
+				mcc_cache_bsp_set_in_use(reference, TRUE);
+				respawn_structure = scenario_structure_bsp_try_and_get(owned);
+				if (respawn_structure)
+					starting_location_index = (short)find_best_starting_location_index(player_index, owned);
+				if (starting_location_index != NONE)
 				{
-					struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
-						&scenario->structure_bsp_references, owned, struct scenario_structure_bsp_reference);
-					mcc_cache_bsp_set_in_use(reference, TRUE);
-					respawn_structure = scenario_structure_bsp_try_and_get(owned);
-					if (respawn_structure)
-						starting_location_index = (short)find_best_starting_location_index(player_index, owned);
-					if (starting_location_index != NONE)
-					{
-						respawn_bsp = owned;
-						object_types_place_regional_bsp(owned, respawn_structure);
-					}
-					else
-						respawn_structure = NULL;
+					respawn_bsp = owned;
+					object_types_place_regional_bsp(owned, respawn_structure);
 				}
+				else
+					respawn_structure = NULL;
 			}
-			if (starting_location_index == NONE)
+			if (starting_location_index == NONE && (hub_bsp == NONE || hub_bsp == foreground))
 				starting_location_index = (short)find_best_starting_location_index(player_index, foreground);
 			/* port: a network co-op respawn starts behind its teammate
 			(players_coop_spawn_location) */
-			starting_location = players_coop_spawn_location(&spawn_location);
+			starting_location = hub_bsp == NONE ? players_coop_spawn_location(&spawn_location) : NULL;
 			if (!starting_location && starting_location_index != NONE)
 				starting_location = player_get_starting_location(starting_location_index);
 		}

@@ -79,8 +79,8 @@ enum {_scenario_trigger_volume_type_oriented=1};
 struct scenario_trigger_volume { char name[32]; short type; };
 #include "mission_types.inc"
 #include "profile_types.inc"
-struct player_starting_location { real_point3d position; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette; };
+struct player_starting_location { real_point3d position; short structure_bsp_reference_index; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette, structure_bsp_references; };
 struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -140,7 +140,11 @@ static struct scenario_object_palette_entry control_palette[1];
 #define CONTROL_DEFINITION_TAG 0x6374726c
 static struct scenario_trigger_volume volumes[7] = { {"extraction_zone"}, {"extraction_return"} };
 static boolean overlap_hub_starts;
-static struct player_starting_location starts[2];
+static struct player_starting_location starts[3];
+static boolean scenario_uses_regional_gameplay(struct scenario const *scenario)
+{
+ return scenario->structure_bsp_references.count > 1;
+}
 static struct scenario scenario = { _scenario_type_solo, {3,names}, {2,volumes}, {2,starts}, {0,NULL} };
 static struct hs_script completion_script;
 static struct hs_script transport_scripts[3];
@@ -656,6 +660,28 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"separate-hubs-alias"))names[9].runtime_scenario_datum_index=0;
   if(!strcmp(case_name,"separate-hubs-deferred"))placed_controls[5].object.placement_flags=FLAG(_scenario_object_placement_not_automatic_bit);
   control_handles[5]=NONE; /* auth layout before the other BSP has a live control */
+  if(!strncmp(case_name,"separate-hubs-regional-",23)){
+   scenario.players.count=3;
+   scenario.structure_bsp_references.count=11;
+   starts[0].structure_bsp_reference_index=0;
+   starts[1].structure_bsp_reference_index=10;
+   starts[2].position.z=0.f;
+   starts[2].structure_bsp_reference_index=4;
+   if(!strcmp(case_name,"separate-hubs-regional-mixed"))starts[2].position.z=3.f;
+   if(!strcmp(case_name,"separate-hubs-regional-unassigned"))starts[1].structure_bsp_reference_index=NONE;
+   advance(1);
+   if(strcmp(case_name,"separate-hubs-regional-starts")){
+    CHECK(!extraction_owns_map(),"invalid regional start ownership admitted");
+    return 0;
+   }
+   CHECK(extraction_owns_map(),"ordinary multiplayer start prevented hub admission");
+   CHECK(extraction_player_spawn_bsp(player_handles[0])==0&&
+         extraction_player_spawn_bsp(player_handles[1])==10,"faction spawn used the wrong BSP");
+   CHECK(!extraction_player_start_allowed(player_handles[1],&starts[0])&&
+         !extraction_player_start_allowed(player_handles[1],&starts[2])&&
+         extraction_player_start_allowed(player_handles[1],&starts[1]),"faction start filter escaped the hub");
+   return 0;
+  }
   advance(1);
   if(strcmp(case_name,"separate-hubs-control")){
    CHECK(!extraction_owns_map()&&!file_count,"invalid dual hub admitted");

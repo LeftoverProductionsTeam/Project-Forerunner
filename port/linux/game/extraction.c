@@ -145,6 +145,7 @@ static struct
 	boolean dropship_return_stop[2];
 	short faction_names[2], faction_profiles[2]; /* optional native hub choices */
 	short faction_hubs[2]; /* paired authored start volumes */
+	short faction_hub_bsps[2]; /* compiled start ownership on regional maps */
 	short hub_controls[2][NUMBER_OF_EXTRACTION_HUB_CONTROLS];
 	long faction_bipeds[2];
 	short faction_variants[2]; /* optional nonautomatic native biped placements */
@@ -247,11 +248,8 @@ static unsigned short extraction_start_hubs(struct player_starting_location cons
 	return hubs;
 }
 
-boolean extraction_player_start_allowed(long player_index, struct player_starting_location const *start)
+static void extraction_prepare_spawn_binding(void)
 {
-	struct player_datum *player;
-	short faction;
-
 	/* The first native spawn can run before the regular Extraction tick. */
 	if (!extraction.bound && extraction_authoritative_scene())
 	{
@@ -259,11 +257,30 @@ boolean extraction_player_start_allowed(long player_index, struct player_startin
 		if (extraction_mode_selected())
 			extraction_bind();
 	}
+}
+
+short extraction_player_spawn_bsp(long player_index)
+{
+	struct player_datum const *player = player_try_and_get(player_index);
+	short faction = player ? extraction_faction((short)player->team_index) : NONE;
+
+	extraction_prepare_spawn_binding();
+	return faction != NONE && extraction_owns_map() ? extraction.faction_hub_bsps[faction] : NONE;
+}
+
+boolean extraction_player_start_allowed(long player_index, struct player_starting_location const *start)
+{
+	struct player_datum const *player;
+	short faction;
+
+	extraction_prepare_spawn_binding();
 	if (!extraction_owns_map() || extraction.faction_hubs[0] == NONE)
 		return TRUE;
 	player = player_try_and_get(player_index);
 	faction = player ? extraction_faction((short)player->team_index) : NONE;
-	return faction != NONE && extraction_start_hubs(start) == FLAG(faction);
+	return faction != NONE && extraction_start_hubs(start) == FLAG(faction) &&
+		(extraction.faction_hub_bsps[faction] == NONE ||
+		 start->structure_bsp_reference_index == extraction.faction_hub_bsps[faction]);
 }
 
 typedef char extraction_voice_groups_fit_byte[
@@ -916,10 +933,53 @@ static boolean extraction_authored_control(short index, short volume)
 		control_definition_get(definition)->control.triggers_when == 0;
 }
 
+static boolean extraction_validate_native_starts(boolean regional)
+{
+	short index, faction;
+	unsigned short populated_hubs = 0;
+
+	extraction.faction_hub_bsps[0] = extraction.faction_hub_bsps[1] = NONE;
+	if (global_scenario->players.count <= 0 || global_scenario->players.count > SHORT_MAX ||
+		(regional && !extraction.separate_hubs))
+		return FALSE;
+
+	for (index = 0; index < global_scenario->players.count; index++)
+	{
+		struct player_starting_location const *start = TAG_BLOCK_GET_ELEMENT(&global_scenario->players,
+			index, struct player_starting_location);
+		unsigned short hubs = extraction_start_hubs(start);
+
+		if (hubs == (FLAG(0) | FLAG(1)))
+			return FALSE;
+		if (regional)
+		{
+			short bsp = start->structure_bsp_reference_index;
+			if (!hubs)
+				continue; /* Ordinary multiplayer starts are outside the operation. */
+			faction = hubs == FLAG(0) ? 0 : 1;
+			if (!VALID_INDEX(bsp, global_scenario->structure_bsp_references.count) ||
+				(extraction.faction_hub_bsps[faction] != NONE && extraction.faction_hub_bsps[faction] != bsp))
+				return FALSE;
+			extraction.faction_hub_bsps[faction] = bsp;
+		}
+		populated_hubs |= hubs;
+		if ((extraction.separate_hubs ? !hubs :
+			 !scenario_trigger_volume_test_point(extraction.return_zone, &start->position)) ||
+			(extraction.zone != NONE && scenario_trigger_volume_test_point(extraction.zone, &start->position)))
+			return FALSE;
+		for (faction = 0; faction < 2; faction++)
+			if (extraction.dropship_zones[faction] != NONE &&
+				scenario_trigger_volume_test_point(extraction.dropship_zones[faction], &start->position))
+				return FALSE;
+	}
+	return (extraction.faction_hubs[0] == NONE && extraction.faction_hubs[1] == NONE) ||
+		(populated_hubs == (FLAG(0) | FLAG(1)) &&
+		 extraction.faction_names[0] != NONE && extraction.faction_names[1] != NONE);
+}
+
 static void extraction_bind(void)
 {
 	short index, faction, squad;
-	unsigned short populated_hubs = 0;
 	boolean unique = TRUE;
 	struct control_datum *deploy = NULL, *activate = NULL, *loadout = NULL, *debrief = NULL;
 	struct control_datum *choices[2] = {NULL, NULL};
@@ -1207,28 +1267,8 @@ static void extraction_bind(void)
 	for (faction = 0; faction < 2; faction++)
 		if (extraction.faction_bipeds[faction] != NONE &&
 			(extraction.faction_names[faction] == NONE || extraction.faction_profiles[faction] == NONE)) extraction.admitted = FALSE;
-	/* Every authored start must return a dead/late-joining player to this hub.
-	   A nonempty encounter map with field starts is not an admitted hub. */
-	if (!global_scenario->players.count) extraction.admitted = FALSE;
-	for (index = 0; extraction.admitted && index < MIN(global_scenario->players.count, SHORT_MAX); index++)
-	{
-		struct player_starting_location *start = TAG_BLOCK_GET_ELEMENT(&global_scenario->players,
-			index, struct player_starting_location);
-		unsigned short hubs = extraction_start_hubs(start);
-		if (hubs == (FLAG(0) | FLAG(1))) extraction.admitted = FALSE;
-		populated_hubs |= hubs;
-		if ((extraction.separate_hubs ? hubs == 0 :
-			 !scenario_trigger_volume_test_point(extraction.return_zone, &start->position)) ||
-			(extraction.zone != NONE && scenario_trigger_volume_test_point(extraction.zone, &start->position))) extraction.admitted = FALSE;
-		for (faction = 0; faction < 2; faction++)
-			if (extraction.dropship_zones[faction] != NONE &&
-				scenario_trigger_volume_test_point(extraction.dropship_zones[faction], &start->position)) extraction.admitted = FALSE;
-	}
-	if (global_scenario->players.count > SHORT_MAX) extraction.admitted = FALSE;
-	if ((extraction.faction_hubs[0] != NONE || extraction.faction_hubs[1] != NONE) &&
-		(populated_hubs != (FLAG(0) | FLAG(1)) ||
-		 extraction.faction_names[0] == NONE || extraction.faction_names[1] == NONE))
-		extraction.admitted = FALSE;
+	if (extraction.admitted)
+		extraction.admitted = extraction_validate_native_starts(scenario_uses_regional_gameplay(global_scenario));
 finished:
 	if (extraction.admitted)
 		for (squad = 0; squad < NUMBEROF(extraction.squads); squad++)

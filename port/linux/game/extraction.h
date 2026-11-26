@@ -39,6 +39,7 @@ boolean extraction_respawn_after_loss(void);
  * False preserves the ordinary campaign/multiplayer spawn definition. */
 boolean extraction_player_spawn_profile(long player_index, long *biped, short *profile, short *variant);
 struct player_starting_location;
+short extraction_player_spawn_bsp(long player_index);
 boolean extraction_player_start_allowed(long player_index, struct player_starting_location const *start);
 /* Called by the native control-use path. TRUE consumes refused or storage
  * actions. FALSE preserves ordinary controls and the authored state/effect
