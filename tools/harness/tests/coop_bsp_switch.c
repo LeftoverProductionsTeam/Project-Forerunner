@@ -271,13 +271,14 @@ static long prepared_crossing_leaf;
 static boolean cold_crossing;
 static boolean test_region_lookup,test_region_overlap;
 static struct bsp3d const *expected_spatial_tree, *another_spatial_tree;
+static boolean seam_return_to_foreground;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
     if (expected_spatial_tree)
     {
         CHECK(node==0&&(tree==expected_spatial_tree||tree==another_spatial_tree),
               "location refresh borrowed an unrelated BSP tree");
-        return 0;
+        return seam_return_to_foreground && tree==another_spatial_tree ? NONE : 0;
     }
     if (test_region_lookup)
     {
@@ -771,9 +772,11 @@ static real seam_impact_t;
 static boolean collision_test_bsp_vector(short bsp,unsigned long flags,real_point3d const *p,
     real_vector3d const *v,long ignored,struct collision_result *hit)
 {
-    CHECK(bsp!=global_structure_bsp_index_get()&&flags==FLAG(_collision_test_structure_bit),
-          "a foreign trace targeted the active scene, objects or media");
-    CHECK(fabsf(p->x-1.5f)<.0001f&&fabsf(v->i-2.5f)<.0001f,
+    CHECK((bsp==global_structure_bsp_index_get())==seam_return_to_foreground&&
+          flags==FLAG(_collision_test_structure_bit),
+          "a seam trace targeted the wrong BSP or included objects or media");
+    CHECK(fabsf(p->x-(seam_return_to_foreground ? 2.5f : 1.5f))<.0001f&&
+          fabsf(v->i-(seam_return_to_foreground ? -2.5f : 2.5f))<.0001f,
           "the neighbor ray was not clipped to the rotated seam entry");
     seam_traces++;
     if(seam_impact_t<0.f) return FALSE;
@@ -2218,6 +2221,15 @@ int main(int argc,char **argv)
                         switches[0].cutscene_flag_index=0;
                         CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact,&transfer)&&
                               transfer==NONE&&seam_traces==2,"a marked teleporter also routed a projectile");
+                        switches[0]=(struct scenario_bsp_switch_trigger_volume){0,old,destination,NONE};
+                        seam_return_to_foreground=TRUE;
+                        seam_impact_t=.6f;
+                        impact.t=1.f;
+                        CHECK(projectile_trace_resident_seam(old,&target,&eye,&impact,&transfer)&&
+                              transfer==destination&&impact.bsp_index==destination&&
+                              fabsf(impact.t-.75f)<.0001f&&seam_traces==3,
+                              "a resident projectile could not hit terrain after returning to the foreground");
+                        seam_return_to_foreground=FALSE;
                         expected_spatial_tree=another_spatial_tree=NULL;
                     }
                     return 0;

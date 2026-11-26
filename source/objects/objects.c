@@ -4189,6 +4189,17 @@ static boolean object_simulation_is_parked(long object_index, struct object_datu
 		game_engine_object_parked(object_index, object->object.type);
 }
 
+/* World projectiles need their own collision scene, but remain outside the
+ * foreground object lists until that scene is activated. Keep generic object
+ * animations, lights and attachments on the normal update path. */
+static void object_update_parked_projectile(long object_index, struct object_header_datum const *header)
+{
+	if (header->datum->object.type == _object_type_projectile &&
+		!TEST_FLAG(header->flags, _object_header_do_not_update_bit) &&
+		scenario_structure_bsp_try_and_get(game_engine_object_recorded_bsp(object_index, _object_type_projectile)))
+		object_type_update(object_index);
+}
+
 static boolean object_update(
 	long object_index)
 {
@@ -4201,7 +4212,10 @@ static boolean object_update(
 	real_point3d elevator_sample;
 
 	if (object_simulation_is_parked(object_index, object))
+	{
+		object_update_parked_projectile(object_index, header);
 		return TRUE;
+	}
 	object_definition = object_definition_get(object->definition_index);
 	if (!TEST_FLAG(header->flags, _object_header_do_not_update_bit))
 	{
