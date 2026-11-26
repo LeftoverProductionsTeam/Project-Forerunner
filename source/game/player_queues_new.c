@@ -1241,6 +1241,11 @@ void update_server_handle_distributed_input(
 	{
 		if (update_server_distributed_inputs[absolute_index].valid &&
 			tick <= update_server_distributed_inputs[absolute_index].tick) return;
+		/* A guest can acknowledge only the region it currently owns on the host.
+		 * Discard guesses so they cannot become ready after a future crossing. */
+		if (network_regional_bsp_active() &&
+			structure_bsp_index != network_coop_player_authoritative_bsp(player_index))
+			structure_bsp_index = NONE;
 		if (network_coop_note_player_structure_bsp((short)absolute_index, structure_bsp_index))
 		{
 			/* Physics samples from before this input still describe the previous BSP. */

@@ -66,8 +66,17 @@ static struct {boolean valid; long update_number; struct player_action action;
 static struct {boolean valid;long tick;short structure_bsp_index;struct player_action action;
  unsigned short control_flags[4];} update_client_local_inputs[MAXIMUM_LOCAL_PLAYERS];
 static short bsp;
-static struct player_datum {short local_player_index;} remote={NONE};
-static struct player_datum *player_try_and_get(long player_index) {(void)player_index;return &remote;}
+static struct player_datum {short local_player_index; long unit_index;} remote[2]={{NONE,NONE},{NONE,NONE}};
+static short host_owned_bsp[2]={NONE,NONE};
+static boolean regional;
+static struct player_datum *player_try_and_get(long player_index)
+{
+ return &remote[DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index)==1];
+}
+static boolean network_regional_bsp_active(void) {return regional;}
+static struct object_datum {int unused;} host_unit;
+static struct object_datum *object_try_and_get(long unit) {return VALID_INDEX(unit,2) ? &host_unit : NULL;}
+static short object_get_regional_bsp(long unit) {return host_owned_bsp[unit];}
 static boolean network_synchronizes_structure_bsp(void) {return TRUE;}
 static struct {boolean scene_refresh;} host_resend;
 static short global_structure_bsp_index_get(void) {return bsp;}
@@ -145,6 +154,41 @@ static void check_bsp_inputs(void)
  CHECK(!update_server_prediction_matches_structure_bsp(player,16)&&
        update_server_prediction_matches_structure_bsp(player,17),
        "return crossing did not replace the transition tick");
+ free(queues->data);
+ free(queues);
+}
+
+static void check_independent_bsp_inputs(void)
+{
+ const long first=DATUM_INDEX_NEW(0,1), second=DATUM_INDEX_NEW(1,2);
+ const struct player_action held={.primary_trigger=1};
+ const unsigned short buttons[]={4,4};
+ struct data_array *queues=game_state_data_new("regional",2,sizeof(struct update_server_queue_datum));
+
+ regional=TRUE;
+ bsp=0;
+ remote[0].unit_index=0;
+ remote[1].unit_index=1;
+ host_owned_bsp[0]=0;
+ host_owned_bsp[1]=4;
+ update_server_globals.queues=queues;
+ update_server_globals.initialized=TRUE;
+ update_server_add_player(first);
+ update_server_add_player(second);
+ update_server_handle_distributed_input(first,10,0,&held,buttons,2);
+ update_server_handle_distributed_input(second,10,0,&held,buttons,2);
+ CHECK(network_coop_player_has_structure_bsp(first),"first client lost foreground controls");
+ CHECK(!network_coop_player_has_structure_bsp(second),"second client's claim overrode host region");
+ update_server_handle_distributed_input(second,11,4,&held,buttons,2);
+ CHECK(network_coop_player_has_structure_bsp(second),"client could not acknowledge its retained region");
+ CHECK(!update_server_prediction_matches_structure_bsp(second,10),"old-region prediction survived acknowledgment");
+ CHECK(network_coop_player_has_structure_bsp(first),"one acknowledgment changed the other client");
+ update_server_handle_distributed_input(second,12,5,&held,buttons,2);
+ host_owned_bsp[1]=5;
+ CHECK(!update_server_prediction_matches_structure_bsp(second,12),"guest pre-acknowledged a future region");
+ update_server_handle_distributed_input(second,13,5,&held,buttons,2);
+ CHECK(update_server_prediction_matches_structure_bsp(second,13),"new host-owned region did not resume input");
+ CHECK(network_coop_player_has_structure_bsp(first)&&bsp==0,"second client changed the foreground scene");
  free(queues->data);
  free(queues);
 }
@@ -234,6 +278,7 @@ int main(int argc,char **argv)
  else CASE("uninitialized")check_reset(1,7,FALSE,FALSE,1200);
  else CASE("early") {check_reset(1,7,TRUE,TRUE,0);check_reset(1,7,TRUE,TRUE,3);}
  else CASE("bsp-input")check_bsp_inputs();
+ else CASE("independent-bsp-input")check_independent_bsp_inputs();
  else CASE("bsp-slot-reuse")check_reused_queue(TRUE);
  else CASE("relay-slot-reuse")check_reused_queue(FALSE);
  else return 2;

@@ -3849,6 +3849,19 @@ boolean network_coop_note_player_structure_bsp(
 	return TRUE;
 }
 
+short network_coop_player_authoritative_bsp(long player_index)
+{
+	struct player_datum const *player = player_try_and_get(player_index);
+
+	if (network_regional_bsp_active() && player && object_try_and_get(player->unit_index))
+	{
+		short owned_bsp = object_get_regional_bsp(player->unit_index);
+		if (owned_bsp != NONE)
+			return owned_bsp;
+	}
+	return global_structure_bsp_index_get();
+}
+
 boolean network_coop_player_has_structure_bsp(
 	long player_index)
 {
@@ -3861,8 +3874,10 @@ boolean network_coop_player_has_structure_bsp(
 	player = player_index != NONE ? player_try_and_get(player_index) : NULL;
 	if (!player || DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index) >= MAXIMUM_TRACKED_PLAYERS)
 		return TRUE;
+	/* Occupied seats inherit the host vehicle's partition. */
 	return player->local_player_index != NONE ||
-		host_player_structure_bsps[DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index)] == global_structure_bsp_index_get();
+		host_player_structure_bsps[DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index)] ==
+			network_coop_player_authoritative_bsp(player_index);
 }
 
 word network_coop_device_state_entry_size(

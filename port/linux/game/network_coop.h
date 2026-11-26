@@ -107,6 +107,7 @@ boolean network_coop_set_players_vitality(long unit_index, boolean maximum, real
 (always outside co-op, and for the host's own players). Until a client has,
 the host takes none of its players' movement, which falls there with no
 floor, and lets them trigger no BSP switch (players.c). */
+short network_coop_player_authoritative_bsp(long player_index);
 boolean network_coop_player_has_structure_bsp(long player_index);
 /* network_distributed.c: the structure BSP a client's input says it has */
 void network_coop_clear_structure_bsp_acknowledgments(void);

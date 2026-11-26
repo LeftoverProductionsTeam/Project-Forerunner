@@ -12,14 +12,15 @@ def generated(fault=None):
     coop=read('port/linux/game/network_coop.c')
     inputs='\n'.join(function(coop,n) for n in (
         'network_coop_clear_structure_bsp_acknowledgments',
-        'network_coop_note_player_structure_bsp','network_coop_player_has_structure_bsp'))
+        'network_coop_note_player_structure_bsp','network_coop_player_authoritative_bsp',
+        'network_coop_player_has_structure_bsp'))
     inputs+='\n'+'\n'.join(function(source,n) for n in (
         'update_queue_make_room','update_server_add_player','update_client_add_player',
         'distributed_add_new_ticks','update_server_prediction_matches_structure_bsp',
         'update_server_handle_distributed_input','update_server_next_update','update_client_distributed_input'))
     return (('under_test.inc',code),('inputs.inc',inputs))
 
-@pytest.mark.parametrize('case',['empty','sparse','slot-zero','eight','full','dedicated','client-only','uninitialized','early','bsp-input','bsp-slot-reuse','relay-slot-reuse'])
+@pytest.mark.parametrize('case',['empty','sparse','slot-zero','eight','full','dedicated','client-only','uninitialized','early','bsp-input','independent-bsp-input','bsp-slot-reuse','relay-slot-reuse'])
 def test_reset(case):
     status,output=run(build('queue_reset',generated()),case)
     assert status==0,output
