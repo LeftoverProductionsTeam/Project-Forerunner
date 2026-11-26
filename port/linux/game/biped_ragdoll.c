@@ -55,6 +55,7 @@ enum
 	_ragdoll_constraint_length = 0,
 	/* no shorter than its length: how far a joint bends */
 	_ragdoll_constraint_minimum,
+	_ragdoll_constraint_clearance,
 };
 
 enum
@@ -95,6 +96,9 @@ cone's cosine), and how much of the way back a joint is put each time */
 #define RAGDOLL_HIP_COSINE 0.087f /* 85 degrees, round a middle tilted forward: */
 #define RAGDOLL_HIP_TILT 0.6f /* 35 degrees (forward to 120, back to 50) */
 #define RAGDOLL_JOINT_STIFFNESS 0.35f
+#define RAGDOLL_HINGE_STIFFNESS 0.65f
+#define RAGDOLL_KNEE_FLEX_COSINE -0.643f /* 130 degrees */
+#define RAGDOLL_ELBOW_FLEX_COSINE -0.819f /* 145 degrees */
 /* halo2: the knees' and elbows' twist, the shoulders' cone tilted forward,
 what a limb's speed keeps of its swing about its joint each half tick and
 along what it lies on, how much harder blows push, how heavy each part is
@@ -111,8 +115,8 @@ and each other */
 #define RAGDOLL_HALO2_HEAD_INVERSE_MASS 0.6f
 #define RAGDOLL_HALO2_UPPER_INVERSE_MASS 0.8f
 #define RAGDOLL_HALO2_END_INVERSE_MASS 1.3f
-#define RAGDOLL_HALO2_TORSO_CLEARANCE 0.055f
-#define RAGDOLL_HALO2_LIMB_CLEARANCE 0.03f
+#define RAGDOLL_HALO2_TORSO_CLEARANCE 0.075f
+#define RAGDOLL_HALO2_LIMB_CLEARANCE 0.055f
 
 /* ---------- structures */
 
@@ -141,6 +145,7 @@ struct ragdoll_joint
 	short child;
 	real_vector3d axis;
 	real limit;
+	real flex_cosine;
 };
 
 struct ragdoll
@@ -532,7 +537,8 @@ static void ragdoll_add_hinge(
 	short parent,
 	short child,
 	real_vector3d const *bend_direction,
-	real twist)
+	real twist,
+	real flex_cosine)
 {
 	short frame_node = ragdoll_frame_node(ragdoll, grandparent);
 	struct ragdoll_rotation frame;
@@ -554,6 +560,7 @@ static void ragdoll_add_hinge(
 	joint->child = child;
 	rotation_untransform(&frame, &axis, &joint->axis);
 	joint->limit = twist;
+	joint->flex_cosine = flex_cosine;
 }
 
 /* a cone the bone from parent to child swings within, round where it
@@ -604,6 +611,7 @@ static void ragdoll_hold_joint(
 	real_vector3d bone;
 	real_vector3d held;
 	real length;
+	real stiffness = RAGDOLL_JOINT_STIFFNESS;
 
 	if (!ragdoll_frame(ragdoll, joint->frame, &frame))
 		return;
@@ -620,6 +628,7 @@ static void ragdoll_hold_joint(
 		real along;
 		real across;
 		real twist;
+		real planar_length;
 		real limit = joint->limit * length;
 
 		vector_from_points3d(&ragdoll->positions[joint->grandparent], parent, &upper);
@@ -637,12 +646,27 @@ static void ragdoll_hold_joint(
 		along = dot_product3d(&bone, &upper);
 		across = dot_product3d(&bone, &bend);
 		twist = dot_product3d(&bone, &axis);
-		if (across >= 0.f && twist >= -limit && twist <= limit)
+		planar_length = square_root(along * along + across * across);
+		if (across >= 0.f && twist >= -limit && twist <= limit &&
+			along >= joint->flex_cosine * planar_length)
 			return;
-		/* (bent the wrong way: straight; twisted: back to the limit) */
-		if (across < 0.f)
-			across = 0.f;
 		twist = ragdoll_clamp(twist, -limit, limit);
+		/* A reversed hinge can have a negative along component. Its safe
+		 * straight pose points along the upper bone, even in that case. */
+		if (across < 0.f || planar_length < 1e-4f)
+		{
+			along = 1.f;
+			across = 0.f;
+		}
+		else
+		{
+			along = ragdoll_clamp(along / planar_length, joint->flex_cosine, 1.f);
+			across = square_root(MAX(0.f, 1.f - along * along));
+		}
+		planar_length = square_root(MAX(0.f, length * length - twist * twist));
+		along *= planar_length;
+		across *= planar_length;
+		stiffness = RAGDOLL_HINGE_STIFFNESS;
 		held.i = upper.i * along + bend.i * across + axis.i * twist;
 		held.j = upper.j * along + bend.j * across + axis.j * twist;
 		held.k = upper.k * along + bend.k * across + axis.k * twist;
@@ -672,9 +696,9 @@ static void ragdoll_hold_joint(
 	}
 	if (normalize3d(&held) < 1e-4f)
 		return;
-	child->x += (parent->x + held.i * length - child->x) * RAGDOLL_JOINT_STIFFNESS;
-	child->y += (parent->y + held.j * length - child->y) * RAGDOLL_JOINT_STIFFNESS;
-	child->z += (parent->z + held.k * length - child->z) * RAGDOLL_JOINT_STIFFNESS;
+	child->x += (parent->x + held.i * length - child->x) * stiffness;
+	child->y += (parent->y + held.j * length - child->y) * stiffness;
+	child->z += (parent->z + held.k * length - child->z) * stiffness;
 }
 
 /* ---------- building */
@@ -878,9 +902,8 @@ static void ragdoll_build_halo2(
 	for (index = 0; index < ragdoll->particle_count; index++)
 	{
 		short other;
-		boolean limb = parts[index] == _ragdoll_part_lower_limb || parts[index] == _ragdoll_part_end;
 
-		if (!limb)
+		if (parts[index] < _ragdoll_part_upper_limb)
 			continue;
 		for (other = 0; other < ragdoll->particle_count; other++)
 		{
@@ -891,15 +914,16 @@ static void ragdoll_build_halo2(
 				continue;
 			if (parts[other] == _ragdoll_part_torso || parts[other] == _ragdoll_part_head)
 				clearance = RAGDOLL_HALO2_TORSO_CLEARANCE;
-			else if ((parts[other] == _ragdoll_part_lower_limb || parts[other] == _ragdoll_part_end) && other > index)
+			else if (parts[other] >= _ragdoll_part_upper_limb && other > index)
 				clearance = RAGDOLL_HALO2_LIMB_CLEARANCE;
 			else
 				continue;
-			if (ragdoll_separation(ragdoll, index, other, 3) <= 3)
+			if (ragdoll_separation(ragdoll, index, other, 2) <= 2)
 				continue;
 			now = distance3d(&ragdoll->positions[index], &ragdoll->positions[other]);
-			ragdoll_add_constraint(ragdoll, index, other, _ragdoll_constraint_minimum,
-				now < clearance ? now : clearance);
+			if (now > 1e-4f)
+				ragdoll_add_constraint(ragdoll, index, other, _ragdoll_constraint_clearance,
+					MIN(now, clearance));
 		}
 	}
 }
@@ -1066,7 +1090,7 @@ static boolean ragdoll_build(
 		{
 			scale_vector3d(&biped->object.forward, -1.f, &bend);
 			ragdoll_add_hinge(ragdoll, grandparent, parent, index, &bend,
-				RAGDOLL_HALO2_KNEE_TWIST);
+				RAGDOLL_HALO2_KNEE_TWIST, RAGDOLL_KNEE_FLEX_COSINE);
 		}
 		else if (name_contains(parent_node->name, "forearm"))
 		{
@@ -1082,7 +1106,7 @@ static boolean ragdoll_build(
 			else
 				bend = biped->object.forward;
 			ragdoll_add_hinge(ragdoll, grandparent, parent, index, &bend,
-				RAGDOLL_HALO2_ELBOW_TWIST);
+				RAGDOLL_HALO2_ELBOW_TWIST, RAGDOLL_ELBOW_FLEX_COSINE);
 		}
 	}
 
@@ -1267,8 +1291,39 @@ static void ragdoll_start(
 
 /* ---------- simulation */
 
+/* Use native sphere sweeps to keep fast-moving particle pairs on the side
+ * of contact they entered from, even if their final points passed through. */
+static real ragdoll_clearance_error(real_vector3d const *previous, real radius,
+	real_vector3d *axis)
+{
+	real_point3d start;
+	real_vector3d motion, normal;
+	real t, distance;
+
+	point_from_line3d(global_origin3d, previous, 1.f, &start);
+	motion.i = axis->i - previous->i;
+	motion.j = axis->j - previous->j;
+	motion.k = axis->k - previous->k;
+	if (magnitude_squared3d(previous) >= radius * radius &&
+		sphere_test_vector3d(global_origin3d, radius, &start, &motion, &t, &normal))
+	{
+		real separation = dot_product3d(axis, &normal);
+		*axis = normal;
+		return MIN(0.f, separation - radius);
+	}
+
+	distance = normalize3d(axis);
+	if (distance < 1e-6f)
+	{
+		*axis = *previous;
+		if (normalize3d(axis) < 1e-6f)
+			*axis = *global_up3d;
+	}
+	return MIN(0.f, distance - radius);
+}
+
 static void ragdoll_solve(
-	struct ragdoll *ragdoll)
+	struct ragdoll *ragdoll, real_point3d const *starts)
 {
 	long iteration;
 
@@ -1291,17 +1346,28 @@ static void ragdoll_solve(
 			real weight_b;
 
 			vector_from_points3d(a, b, &offset);
-			distance = magnitude3d(&offset);
-			if (distance < 1e-6f)
-				continue;
-			if (constraint->type == _ragdoll_constraint_minimum && distance >= constraint->length)
+			if (constraint->type == _ragdoll_constraint_clearance)
+			{
+				real_vector3d previous;
+				vector_from_points3d(&starts[constraint->a], &starts[constraint->b], &previous);
+				correction = ragdoll_clearance_error(&previous, constraint->length, &offset);
+			}
+			else
+			{
+				distance = normalize3d(&offset);
+				if (distance < 1e-6f ||
+					(constraint->type == _ragdoll_constraint_minimum && distance >= constraint->length))
+					continue;
+				correction = distance - constraint->length;
+			}
+			if (correction == 0.f)
 				continue;
 			/* (each end moved as readily as it moves: the lighter further) */
 			weight_a = ragdoll->inverse_masses[constraint->a];
 			weight_b = ragdoll->inverse_masses[constraint->b];
 			if (weight_a + weight_b <= 0.f)
 				continue;
-			correction = (distance - constraint->length) / (distance * (weight_a + weight_b));
+			correction /= weight_a + weight_b;
 			a->x += offset.i * correction * weight_a;
 			a->y += offset.j * correction * weight_a;
 			a->z += offset.k * correction * weight_a;
@@ -1338,7 +1404,7 @@ static void ragdoll_substep(
 		moved[index] = ragdoll->positions[index];
 	}
 
-	ragdoll_solve(ragdoll);
+	ragdoll_solve(ragdoll, starts);
 
 	for (index = 0; index < ragdoll->particle_count; index++)
 	{

@@ -11,6 +11,20 @@ map and user configuration passed exact checksum readback after promotion.
 The experimental camera inside Extraction exposed a clipped spawn view in an
 isolated trial and is outside this release.
 
+## V2.1 private Forge and ragdoll candidate
+
+The Win64 candidate `1df2ab6ce735d49eaf82aaad744582dcfe890f42fad1e446e10ed7e8b9a7071e`
+built with the upstream HMV 16 validator and the revised ragdoll constraints.
+The Windows-compatible portion of Chupathingy's validator tests passed,
+including legacy round trips, new record validation and malformed inputs.
+The native placement backend still refuses unsupported records as one batch.
+Focused C checks passed for reversed knees, excess flexion, crossed and
+coincident limb points, and separated limbs. Silent Cartographer launched
+through its normal menu and ran the beach firefight with ragdolls enabled
+and no runtime exception. Its frame-time trace is diagnostic pending a
+matched baseline. Custom rigs, contact during full falls and performance
+at the current corpse budget remain open. Latest retains the released build.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

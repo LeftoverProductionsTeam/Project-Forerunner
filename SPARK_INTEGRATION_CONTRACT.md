@@ -5884,6 +5884,15 @@ other tools. The Forerunner-only OBJECT_SCALE row retains supported scaled
 copies. Windows LAN verification covers Pelican restoration after restart and
 rollback when a batch exceeds the host object quota. Streamed tags and other
 record kinds remain outside this placement subset.
+The shared HMV reader now comes from
+[Chupathingy b00dc0c98](https://github.com/ChupathingyCE/chupathingyce/tree/b00dc0c98ec167219c2e38176b784c98991b8bfa/port/linux/game)
+and validates the native 1–7 and 11–16 formats. The existing runtime checks
+still accept only supported placements on the exact base cache. A validated
+but unsupported record, AI route or dependency causes whole-layout refusal
+before any edit. Keep the existing discovery tokens scoped to the current
+placement, device and physics support. Full HMV 16, general authoritative
+LiveLink transactions and streamed assets require their own runtime proof.
+
 The fork's source selects stock protocol for ordinary games and Forge-specific
 `0x4630` / game kind `0x46` for Forge at the refreshed pin (the README's older
 `0x462A` description is stale); its messages and tag-streaming paths are
