@@ -466,6 +466,17 @@ static void hud_show_action_response(
 		return;
 	}
 
+	if (player->unit_index != NONE)
+	{
+		wchar_t const *passenger_prompt = extraction_transport_passenger_prompt(unit_get(player->unit_index));
+		if (passenger_prompt)
+		{
+			hud_enable_custom_state_message(render.local_player_index, TRUE);
+			hud_set_state_text(render.local_player_index, passenger_prompt);
+			return;
+		}
+	}
+
 	if (player->action_object_index == NONE)
 	{
 		item_name_index = NONE;

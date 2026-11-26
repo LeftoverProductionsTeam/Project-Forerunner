@@ -2370,6 +2370,22 @@ boolean extraction_transport_can_disembark(struct unit_datum const *passenger)
 	return TRUE;
 }
 
+wchar_t const *extraction_transport_passenger_prompt(struct unit_datum const *passenger)
+{
+	if (passenger->object.parent_object_index == NONE || passenger->unit.player_index == NONE ||
+		!extraction_owns_map() || extraction_player_dropship(passenger) == NONE)
+		return NULL;
+
+	if (passenger->unit.animation.state == _unit_state_exiting_seat)
+		return NULL;
+	if (!extraction_transport_can_disembark(passenger) ||
+		passenger->unit.animation.state == _unit_state_entering_seat)
+		return L"Stay seated until the exit opens";
+	if (extraction_transport_uses_hover_exit(passenger))
+		return L"Press %action to deploy";
+	return L"Press %action to disembark";
+}
+
 void extraction_transport_seat_transition_started(struct unit_datum const *passenger)
 {
 	long ship = passenger->object.parent_object_index;

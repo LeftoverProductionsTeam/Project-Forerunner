@@ -1813,6 +1813,9 @@ int main(int argc,char **argv)
    CHECK(device_groups[group].actual_value==1.f, "hover readiness was not published");
    CHECK(extraction_transport_can_disembark(&units[faction]) && extraction_transport_uses_hover_exit(&units[faction]),
          "authored field hover did not permit a native passenger transfer");
+   CHECK(extraction_transport_passenger_prompt(&units[faction]) &&
+     !wcscmp(extraction_transport_passenger_prompt(&units[faction]),L"Press %action to deploy"),
+     "hover transfer did not display a bound deployment action");
    CHECK(run(faction)->field_reached,"hovering insertion did not mark field arrival");
    native_animation_graph.unit_seats=(struct tag_block){1,&native_animation_seat};
    native_animation_graph.animations=(struct tag_block){2,native_animations};
@@ -2241,6 +2244,9 @@ int main(int argc,char **argv)
      CHECK(notices>0&&strstr(local_notice_history[(notices-1)%4],"Board a Pelican passenger seat"),"deployment did not tell the player how to board");
      units[0].object.parent_object_index=craft;units[0].unit.parent_seat_index=1;
      CHECK(!extraction_transport_can_disembark(&units[0]),"active recording permitted voluntary exit");
+     CHECK(extraction_transport_passenger_prompt(&units[0]) &&
+       !wcscmp(extraction_transport_passenger_prompt(&units[0]),L"Stay seated until the exit opens"),
+       "moving aircraft showed a seat exit action");
      dropships[0].object.position.x=20;advance(1);
      CHECK(!run(0)->field_reached&&local_notices==notices,"recorded fly-through announced a completed insertion");
 
@@ -2249,6 +2255,9 @@ int main(int argc,char **argv)
      dropships[0].object.damage_flags=0;recorded_aircraft=NONE;advance(1);
      CHECK(run(0)->field_reached&&extraction_transport_can_disembark(&units[0]),
        "finished recording did not complete insertion and reopen the exit");
+     CHECK(extraction_transport_passenger_prompt(&units[0]) &&
+       !wcscmp(extraction_transport_passenger_prompt(&units[0]),L"Press %action to disembark"),
+       "landed aircraft did not display a bound disembark action");
      CHECK(local_notices==notices+1&&strstr(local_notice_history[notices%4],"LANDED"),"safe arrival did not announce disembarkation");
      advance(1);
      CHECK(local_notices==notices+1,"landing notice repeated while the player remained seated");
