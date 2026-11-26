@@ -39,6 +39,7 @@
 #include "items/weapon_definitions.h"
 #include "units/units.h"
 #include "units/vehicles.h"
+#include "units/vehicle_definitions.h"
 #include "units/unit_definitions.h"
 #include "extraction.h"
 #include "network_coop.h"
@@ -988,6 +989,29 @@ static boolean extraction_authored_control(short index, short volume, short bsp)
 		control_definition_get(definition)->control.triggers_when == 0;
 }
 
+/* A regional aircraft need not have a live object until its BSP is occupied. */
+static boolean extraction_authored_dropship(short index)
+{
+	struct scenario_object_name const *name;
+	struct tag_block *placements, *palette;
+	struct scenario_object_datum const *placement;
+	struct scenario_object_palette_entry const *entry;
+	char const *path;
+	long size;
+
+	if (!VALID_INDEX(index, global_scenario->object_names.count)) return FALSE;
+	name = TAG_BLOCK_GET_ELEMENT(&global_scenario->object_names, index, struct scenario_object_name);
+	if (name->runtime_object_type != _object_type_vehicle) return FALSE;
+	placements = scenario_get_object_type_scenario_datums(global_scenario, _object_type_vehicle, &size);
+	if (!VALID_INDEX(name->runtime_scenario_datum_index, placements->count)) return FALSE;
+	placement = tag_block_get_element_with_size(placements, name->runtime_scenario_datum_index, size);
+	palette = scenario_get_object_type_scenario_palette(global_scenario, _object_type_vehicle);
+	if (placement->name_index != index || !VALID_INDEX(placement->palette_entry_index, palette->count)) return FALSE;
+	entry = TAG_BLOCK_GET_ELEMENT(palette, placement->palette_entry_index, struct scenario_object_palette_entry);
+	path = entry->reference.index != NONE ? tag_get_name(entry->reference.index) : NULL;
+	return path && tag_loaded(VEHICLE_DEFINITION_TAG, path) == entry->reference.index;
+}
+
 static boolean extraction_validate_native_starts(boolean regional)
 {
 	short index, faction;
@@ -1321,7 +1345,7 @@ static void extraction_bind(void)
 	if (global_scenario->type != _scenario_type_solo)
 	{
 		for (faction = 0; faction < 2; faction++)
-			if (extraction.faction_bipeds[faction] == NONE || extraction.dropship_names[faction] == NONE ||
+			if (extraction.faction_bipeds[faction] == NONE || !extraction_authored_dropship(extraction.dropship_names[faction]) ||
 				extraction.dropship_zones[faction] == NONE || extraction.dropship_activate_names[faction] == NONE)
 				extraction.admitted = FALSE;
 	}

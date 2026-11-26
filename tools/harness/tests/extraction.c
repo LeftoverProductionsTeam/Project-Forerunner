@@ -19,6 +19,7 @@
 #define TICKS_PER_SECOND 30
 #define WEAPON_DEFINITION_TAG 1
 #define BIPED_DEFINITION_TAG 2
+#define VEHICLE_DEFINITION_TAG 0x76656869
 typedef unsigned short word;
 typedef struct {real yaw,pitch,roll;} real_euler_angles3d;
 typedef struct {real r,g,b;} real_rgb_color;
@@ -80,7 +81,7 @@ struct scenario_trigger_volume { char name[32]; short type; };
 #include "mission_types.inc"
 #include "profile_types.inc"
 struct player_starting_location { real_point3d position; short structure_bsp_reference_index; };
-struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette, structure_bsp_references; };
+struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette, structure_bsp_references, vehicles, vehicle_palette; };
 struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
 struct data_iterator { short next; long datum_index; };
@@ -171,9 +172,11 @@ static struct scenario *global_scenario_get(void) {return global_scenario;}
 static struct tag_block *scenario_get_object_type_scenario_datums(struct scenario *s,short type,long *size)
 {if(type==_object_type_control){*size=sizeof(struct scenario_control_datum);return &s->controls;}
  *size=sizeof(struct scenario_object_datum);
+ if(type==_object_type_vehicle)return &s->vehicles;
  CHECK(type==_object_type_biped,"unexpected template type");return &s->bipeds;}
 static struct tag_block *scenario_get_object_type_scenario_palette(struct scenario *s,short type)
 {if(type==_object_type_control)return &s->control_palette;
+ if(type==_object_type_vehicle)return &s->vehicle_palette;
  CHECK(type==_object_type_biped,"unexpected template palette");return &s->biped_palette;}
 static void *tag_block_get_element_with_size(struct tag_block *block,long index,long size)
 {CHECK(VALID_INDEX(index,block->count),"template outside native block");return (byte *)block->address+index*size;}
@@ -257,11 +260,12 @@ static boolean collision_test_vector(unsigned long flags,real_point3d const *fro
 { result->object_index=NONE; return wall; }
 static boolean weapon_is_flag(long h)
 { short i; for(i=0;i<weapon_count;i++) if(weapons[i].handle==h) return weapons[i].flag; return FALSE; }
-static char const *tag_get_name(long tag) { return tag==99 ? "devices\\terminal" : tag==4 ? "characters\\human" : tag==5 ? "characters\\covenant" : tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
+static char const *tag_get_name(long tag) { return tag==90 ? "vehicles\\pelican" : tag==99 ? "devices\\terminal" : tag==4 ? "characters\\human" : tag==5 ? "characters\\covenant" : tag==1 ? "weapons\\rifle\\rifle" : "weapons\\pistol\\pistol"; }
 static long tag_loaded(long group,char const *path)
 { long tag=group==CONTROL_DEFINITION_TAG ? (!strcmp(path,tag_get_name(99))?99:NONE) :
   group==BIPED_DEFINITION_TAG ? (!strcmp(path,tag_get_name(4))?4:!strcmp(path,tag_get_name(5))?5:NONE) :
   !strcmp(path,tag_get_name(1)) ? 1 : !strcmp(path,tag_get_name(2)) ? 2 : NONE;
+ if(group==VEHICLE_DEFINITION_TAG)tag=!strcmp(path,"vehicles\\pelican")?90:NONE;
  return tag==missing_tag ? NONE : tag; }
 static struct weapon_definition *weapon_definition_get(long tag) { return &weapon_tag; }
 static struct game_globals *scenario_get_game_globals(void) { return &globals; }
@@ -644,6 +648,27 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"transport-authored-high-slot")) {
+  struct scenario_object_datum vehicles[229]={0};
+  struct scenario_object_palette_entry palette[1]={0};
+  scenario.vehicles=(struct tag_block){NUMBEROF(vehicles),vehicles};
+  scenario.vehicle_palette=(struct tag_block){NUMBEROF(palette),palette};
+  names[0].runtime_object_type=_object_type_vehicle;
+  names[0].runtime_scenario_datum_index=228;
+  vehicles[228].name_index=0;
+  vehicles[228].palette_entry_index=0;
+  palette[0].reference.index=90;
+  CHECK(extraction_authored_dropship(0),"valid named dropship above the classic tool limit did not resolve");
+  names[0].runtime_scenario_datum_index=229;
+  CHECK(!extraction_authored_dropship(0),"vehicle placement beyond the native block was admitted");
+  names[0].runtime_scenario_datum_index=228;
+  vehicles[228].name_index=1;
+  CHECK(!extraction_authored_dropship(0),"a different placement claimed the dropship name");
+  vehicles[228].name_index=0;
+  palette[0].reference.index=4;
+  CHECK(!extraction_authored_dropship(0),"non-vehicle tag passed the named dropship check");
+  return 0;
+ }
  if(!strncmp(case_name,"separate-hubs-",14)) {
   long const parked=control_handles[5];
   enable_factions(FALSE);
