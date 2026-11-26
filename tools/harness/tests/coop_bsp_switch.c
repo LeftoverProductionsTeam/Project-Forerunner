@@ -270,6 +270,7 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 static long prepared_crossing_leaf;
 static boolean cold_crossing;
 static boolean test_region_lookup,test_region_overlap;
+static short test_region_lookup_bsp=NONE;
 static struct bsp3d const *expected_spatial_tree, *another_spatial_tree;
 static boolean seam_return_to_foreground;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
@@ -282,9 +283,10 @@ static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d c
     }
     if (test_region_lookup)
     {
-        CHECK(node==0&&tree==(struct bsp3d const *)&collisions[global_structure_bsp_index],"incorrect flag collision tree");
+        short bsp=test_region_lookup_bsp==NONE?global_structure_bsp_index:test_region_lookup_bsp;
+        CHECK(node==0&&tree==(struct bsp3d const *)&collisions[bsp],"incorrect flag collision tree");
         boolean shared=test_region_overlap&&point->x>=199&&point->x<=201;
-        return point->z >= 0 && (shared || (point->x < 200)==(global_structure_bsp_index==0)) ? 0 : NONE;
+        return point->z >= 0 && (shared || (point->x < 200)==(bsp==0)) ? 0 : NONE;
     }
     CHECK(tree==(struct bsp3d const *)&collisions[1]&&node==0&&global_collision_bsp==&collisions[0],
           "destination check used the wrong collision tree");
@@ -1107,6 +1109,15 @@ static long object_new(struct object_placement_data const *placement)
     placed_pickups[index].item.netgame_equipment_index=NONE;
     return pickup_handle+index;
 }
+static short test_spawned_pickup_bsp=NONE;
+static long object_new_in_bsp(struct object_placement_data *placement, short bsp, struct structure_bsp const *structure)
+{
+    CHECK(bsp!=global_structure_bsp_index&&structure==&structures[bsp],"pickup used foreground collision");
+    test_spawned_pickup_bsp=bsp;
+    return object_new(placement);
+}
+unsigned long players_occupied_regional_bsps(void);
+
 static struct item_datum *item_try_and_get(long index)
 {return index>=pickup_handle&&index-pickup_handle<placed_pickup_count?&placed_pickups[index-pickup_handle]:NULL;}
 #define item_get(index) item_try_and_get(index)
@@ -1854,17 +1865,21 @@ int main(int argc,char **argv)
         CHECK(placed_pickup_count==3&&equipment[0].run_time_spawned_item_index==pickup_handle+2&&
               placed_pickups[0].object.parent_object_index==units[0],"did not restock while preserving the carried item");
 
-        global_structure_bsp_index=1;
-        global_structure_bsp=&structures[1];
-        global_collision_bsp=&collisions[1];
         ticks++;
+        test_region_lookup_bsp=1;
         object_header_data->actual_count=object_header_data->maximum_count-GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER;
-        game_engine_update_item_spawn();
+        game_engine_update_item_spawn_in_bsp(&scenario,1,&structures[1]);
         CHECK(placed_pickup_count==3&&game_engine_equipment_home_bsp[DONOR_EQUIPMENT_ROW]==1,
               "the cold region consumed the reserved object slots or lost pad ownership");
         object_header_data->actual_count--;
         ticks=3*TICKS_PER_SECOND;
-        game_engine_update_item_spawn();
+        game_engine_update_item_spawn_in_bsp(&scenario,1,&structures[1]);
+        CHECK(global_structure_bsp_index==0&&test_spawned_pickup_bsp==1,
+              "stocking the guest region switched the host world or ignored the guest BSP");
+        test_region_lookup_bsp=NONE;
+        global_structure_bsp_index=1;
+        global_structure_bsp=&structures[1];
+        global_collision_bsp=&collisions[1];
         CHECK(placed_pickup_count==4&&game_engine_equipment_home_bsp[1]==0&&
               equipment[DONOR_EQUIPMENT_ROW].run_time_spawned_item_index==pickup_handle+3&&
               placed_pickups[3].item.netgame_equipment_index==DONOR_EQUIPMENT_ROW,

@@ -631,6 +631,7 @@ boolean cache_file_tags_are_ce(void);
 #endif
 #include "mcc_cache.h" /* port: port/linux/game/mcc_cache.h */
 #include "mcc_cache_format.h"
+#include "network_coop.h"
 #include "mcc_objects.h" /* port: port/linux/game/mcc_objects.h */
 #include "mcc_player.h" /* port: port/linux/game/mcc_player.h */
 #include "mcc_ui_teams.h" /* port: port/linux/game/mcc_ui_teams.c */
@@ -10740,28 +10741,16 @@ static long random_item(
 }
 
 
-static void game_engine_update_item_spawn(
-	void)
+static void game_engine_update_item_spawn_in_bsp(
+	struct scenario *scenario, short active_bsp, struct structure_bsp const *structure)
 {
-	struct scenario *scenario = global_scenario_get();
-	struct structure_bsp const *structure = NULL;
 	boolean first_visit = FALSE;
-	short active_bsp = NONE;
-	long now, equipment_count, equipment_index;
+	long now = game_time_get();
+	long equipment_count = scenario->netgame_equipment.count;
+	long equipment_index;
 
-	/* a client of the distributed netcode has the host's items
-	(port/linux/game/network_distributed.c) */
-	if (network_game_distributed_client())
-		return;
-
-	now = game_time_get();
-	equipment_count = scenario->netgame_equipment.count;
-	if (scenario_uses_regional_gameplay(scenario))
+	if (structure)
 	{
-		active_bsp = global_structure_bsp_index_get();
-		if (!VALID_INDEX(active_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
-			return;
-		structure = global_structure_bsp_get();
 		first_visit = !TEST_FLAG(game_engine_equipment_regions_seen, active_bsp);
 		SET_FLAG(game_engine_equipment_regions_seen, active_bsp, TRUE);
 		equipment_count = MIN(equipment_count, NUMBEROF(game_engine_equipment_home_bsp));
@@ -10855,7 +10844,8 @@ static void game_engine_update_item_spawn(
 				if (cache_file_tags_are_ce())
 					vector3d_from_angle(&placement_data.forward, equipment->facing);
 #endif
-				object_index = object_new(&placement_data);
+				object_index = structure && active_bsp != global_structure_bsp_index_get() ?
+					object_new_in_bsp(&placement_data, active_bsp, structure) : object_new(&placement_data);
 				if (object_index != NONE)
 				{
 					struct item_datum *item = item_get(object_index);
@@ -10881,6 +10871,42 @@ static void game_engine_update_item_spawn(
 	}
 
 	return;
+}
+
+static void game_engine_update_item_spawn(void)
+{
+	struct scenario *scenario = global_scenario_get();
+	unsigned long occupied;
+	short foreground, bsp;
+
+	/* Distributed clients receive authoritative pickups. */
+	if (network_game_distributed_client())
+		return;
+	if (!scenario_uses_regional_gameplay(scenario))
+	{
+		game_engine_update_item_spawn_in_bsp(scenario, NONE, NULL);
+		return;
+	}
+
+	foreground = global_structure_bsp_index_get();
+	if (!VALID_INDEX(foreground, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+		return;
+	game_engine_update_item_spawn_in_bsp(scenario, foreground, global_structure_bsp_get());
+	if (!network_regional_independent_bsp_ready())
+		return;
+
+	/* Each occupied region uses its resident collision and native item schedule. */
+	occupied = players_occupied_regional_bsps() & ~FLAG(foreground);
+	for (bsp = 0; occupied && bsp < MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO; bsp++)
+	{
+		struct structure_bsp const *structure;
+		if (!TEST_FLAG(occupied, bsp))
+			continue;
+		occupied &= ~FLAG(bsp);
+		structure = scenario_structure_bsp_try_and_get(bsp);
+		if (structure)
+			game_engine_update_item_spawn_in_bsp(scenario, bsp, structure);
+	}
 }
 
 static void handle_custom_starting_equipment(

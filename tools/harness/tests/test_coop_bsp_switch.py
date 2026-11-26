@@ -106,7 +106,7 @@ def generated(fault=None):
              'game_engine_set_regional_projectile_bsp', 'game_engine_record_regional_object',
              'game_engine_object_recorded_bsp',
              'game_engine_object_parked', 'game_engine_object_parked_for_unit',
-             'game_engine_update_item_spawn')) + '\n' +
+             'game_engine_update_item_spawn_in_bsp', 'game_engine_update_item_spawn')) + '\n' +
          function(read('source/objects/objects.c'), 'object_simulation_is_parked') + '\n' +
          function(read('source/objects/objects.c'), 'object_transfer_regional_projectile')),
         ('world_effects.inc', enum_with(read('source/effects/effects.c'), '_effect_port_fixed_bsp_bit') + '\n' +
