@@ -1049,6 +1049,18 @@ static boolean extraction_authored_dropship(short index, short home_bsp)
 	return path && tag_loaded(VEHICLE_DEFINITION_TAG, path) == entry->reference.index;
 }
 
+/* Both regional flight controllers depend on these host-published signals.
+ * Solo maps may still use their existing optional signals or timed routes. */
+static boolean extraction_regional_transport_bound(short faction)
+{
+	return extraction.dropship_boarding_groups[faction] != NONE &&
+		extraction.dropship_call_groups[faction] != NONE &&
+		extraction.dropship_landing_groups[faction] != NONE &&
+		extraction.dropship_zones[faction] != NONE &&
+		extraction.dropship_activate_names[faction] != NONE &&
+		extraction_authored_dropship(extraction.dropship_names[faction], extraction.faction_hub_bsps[faction]);
+}
+
 static boolean extraction_validate_native_starts(boolean regional)
 {
 	short index, faction;
@@ -1382,9 +1394,7 @@ static void extraction_bind(void)
 	if (global_scenario->type != _scenario_type_solo)
 	{
 		for (faction = 0; faction < 2; faction++)
-			if (extraction.faction_bipeds[faction] == NONE ||
-				!extraction_authored_dropship(extraction.dropship_names[faction], extraction.faction_hub_bsps[faction]) ||
-				extraction.dropship_zones[faction] == NONE || extraction.dropship_activate_names[faction] == NONE)
+			if (extraction.faction_bipeds[faction] == NONE || !extraction_regional_transport_bound(faction))
 				extraction.admitted = FALSE;
 	}
 	/* Optional character templates share the existing faction controls/profiles. */
