@@ -1277,7 +1277,10 @@ static void projectile_effect_new(
 	}
 	else
 	{
-		effect_new_unattached_from_markers(
+		short bsp = collision->type == _collision_result_structure ? collision->bsp_index :
+			game_engine_object_recorded_bsp(projectile_index, _object_type_projectile);
+		effect_new_unattached_from_markers_in_bsp(
+			bsp,
 			definition_index,
 			projectile_index,
 			NULL,
@@ -1370,8 +1373,12 @@ static void projectile_detonate(
 	real_vector3d marker_forwards[2];
 	real_vector3d up;
 	long effect_definition_index;
+	short bsp;
 
 	projectile = projectile_get(projectile_index);
+	bsp = object_get_regional_bsp(projectile_index);
+	if (bsp == NONE)
+		bsp = game_engine_object_recorded_bsp(projectile_index, _object_type_projectile);
 	definition = projectile_definition_get(projectile->definition_index);
 
 	marker_names[0] = "";
@@ -1456,7 +1463,8 @@ static void projectile_detonate(
 	object_get_orientation(projectile_index, &marker_forwards[0], &up);
 	marker_points[1] = marker_points[0];
 	marker_forwards[1] = *global_down3d;
-	effect_new_unattached_from_markers(
+	effect_new_unattached_from_markers_in_bsp(
+		bsp,
 		effect_definition_index,
 		projectile->object.owner_object_index,
 		NULL,
@@ -1497,7 +1505,8 @@ static void projectile_detonate(
 				struct projectile_material_response_definition) :
 			&default_projectile_material_response;
 
-		effect_new_unattached_from_markers(
+		effect_new_unattached_from_markers_in_bsp(
+			bsp,
 			material_response->detonation_effect.index,
 			projectile->object.owner_object_index,
 			NULL,

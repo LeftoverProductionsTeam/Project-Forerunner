@@ -910,6 +910,8 @@ static boolean scenario_trigger_volume_test_point(short volume, real_point3d con
     return volume==0 && point->x>0.f && point->x<2.f;
 }
 #define scenario_trigger_volume_test_object native_trigger_volume_test_object
+struct effect_datum {struct {word flags;} header;short fixed_bsp;};
+#include "world_effects.inc"
 #include "regional_action.inc"
 #include "regional_trigger.inc"
 #undef scenario_trigger_volume_test_object
@@ -1313,6 +1315,9 @@ int main(int argc,char **argv)
     if (!strcmp(name, "regional-actions"))
     {
         struct object_datum *target=&objects[2];
+        struct effect_datum effect={.fixed_bsp=destination};
+        CHECK(effect_fixed_bsp(&effect)==NONE&&effect_fixed_bsp_is_current(&effect),
+              "a legacy effect acquired ownership from its spare field");
         target->object.type=_object_type_control;
         target->object.flags=FLAG(_object_connected_to_map_bit);
         target->object.location.cluster_index=0;
@@ -1320,6 +1325,17 @@ int main(int argc,char **argv)
         mcc_loaded=TRUE;
         memset(game_engine_regional_objects,NONE,sizeof(game_engine_regional_objects));
         game_engine_record_regional_object(units[2],target,destination);
+        effect_bind_world_bsp(&effect,NONE);
+        CHECK(effect_fixed_bsp(&effect)==old&&effect_fixed_bsp_is_current(&effect),
+              "the world effect did not capture its originating BSP");
+        global_structure_bsp_index=destination;
+        CHECK(!effect_fixed_bsp_is_current(&effect),"the delayed world effect followed the foreground");
+        global_structure_bsp_index=old;
+        CHECK(effect_fixed_bsp_is_current(&effect),"the world effect did not resume on return");
+        effect.header.flags=0;
+        effect_bind_world_bsp(&effect,destination);
+        CHECK(effect_fixed_bsp(&effect)==destination&&!effect_fixed_bsp_is_current(&effect),
+              "an explicit projectile effect used the foreground instead of the impact BSP");
         CHECK(!player_action_target_in_region(units[0],units[2]),
               "a cached interaction crossed into another region");
         regional_test_root=units[0];

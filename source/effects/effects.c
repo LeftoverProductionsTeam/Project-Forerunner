@@ -166,6 +166,7 @@ symbols in this file:
 #include "objects/objects.h"
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "sound/game_sound.h"
 #include "sound/sound_definitions.h"
 #include "tag_files/tag_files.h"
@@ -188,6 +189,7 @@ enum effect_flags
 	/* port: drawn, with its sounds and lights, but dealing no damage
 	(effects_port_harmless) */
 	_effect_port_harmless_bit,
+	_effect_port_fixed_bsp_bit,
 	NUMBER_OF_EFFECT_FLAGS
 };
 
@@ -342,7 +344,7 @@ struct effect_datum
 	short scale_a_function_index;
 	short scale_b_function_index;
 	short change_color_index;
-	short unused0e;
+	short fixed_bsp;
 	struct location location;
 	real_rgb_color color;
 	real_vector3d velocity;
@@ -359,6 +361,33 @@ struct effect_datum
 	long location_datum_indices[MAXIMUM_EFFECT_LOCATIONS];
 	byte particle_counts[MAXIMUM_EFFECT_EVENTS];
 };
+
+/* The flag distinguishes newly created world effects from older saved effects
+ * whose spare field had no meaning. Attached effects still follow the object. */
+static short effect_fixed_bsp(struct effect_datum const *effect)
+{
+	return TEST_FLAG(effect->header.flags, _effect_port_fixed_bsp_bit) ? effect->fixed_bsp : NONE;
+}
+
+static boolean effect_fixed_bsp_is_current(struct effect_datum const *effect)
+{
+	short bsp = effect_fixed_bsp(effect);
+	return bsp == NONE || bsp == global_structure_bsp_index_get();
+}
+
+static void effect_bind_world_bsp(struct effect_datum *effect, short bsp)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	if (!scenario || !scenario_uses_regional_gameplay(scenario))
+		return;
+	if (bsp == NONE)
+		bsp = global_structure_bsp_index_get();
+	if (VALID_INDEX(bsp, scenario->structure_bsp_references.count))
+	{
+		effect->fixed_bsp = bsp;
+		SET_FLAG(effect->header.flags, _effect_port_fixed_bsp_bit, TRUE);
+	}
+}
 
 struct effect_marker_list
 {
@@ -855,7 +884,8 @@ long effect_new_attached_from_markers(
 	return effect_index;
 }
 
-long effect_new_unattached_from_markers(
+long effect_new_unattached_from_markers_in_bsp(
+	short bsp,
 	long definition_index,
 	long owner_object_index,
 	real_vector3d const *translational_velocity,
@@ -918,7 +948,12 @@ long effect_new_unattached_from_markers(
 		marker_list.node_index = NONE;
 		marker_list.node_matrix = NULL;
 
-		scenario_location_from_point(&effect->location, marker_points);
+		effect_bind_world_bsp(effect, bsp);
+		if (effect_fixed_bsp_is_current(effect))
+			scenario_location_from_point(&effect->location, marker_points);
+		else
+			scenario_location_from_point_in_structure(&effect->location,
+				scenario_structure_bsp_try_and_get(effect->fixed_bsp), marker_points);
 
 		effect->velocity = translational_velocity
 			? *translational_velocity
@@ -935,6 +970,25 @@ long effect_new_unattached_from_markers(
 	}
 
 	return effect_index;
+}
+
+long effect_new_unattached_from_markers(
+	long definition_index,
+	long owner_object_index,
+	real_vector3d const *translational_velocity,
+	short marker_count,
+	char const **marker_names,
+	real_point3d const *marker_points,
+	real_vector3d const *marker_forwards,
+	real scale_a,
+	real scale_b,
+	real_rgb_color const *color,
+	struct effect_vector_field const *impulse_field,
+	boolean can_be_deterministic)
+{
+	return effect_new_unattached_from_markers_in_bsp(NONE, definition_index, owner_object_index,
+		translational_velocity, marker_count, marker_names, marker_points, marker_forwards,
+		scale_a, scale_b, color, impulse_field, can_be_deterministic);
 }
 
 long effect_new_from_object(
@@ -1232,7 +1286,7 @@ void effects_reconnect_to_structure_bsp(
 	{
 		struct effect_datum *effect = effect_get(effect_index);
 
-		if (effect->object_index == NONE)
+		if (effect->object_index == NONE && effect_fixed_bsp_is_current(effect))
 		{
 			long location_datum_index = effect->location_datum_indices[0];
 			struct effect_location_datum *instance = NULL;
@@ -1369,7 +1423,8 @@ boolean dangerous_effects_near_player(
 		struct effect_definition *definition =
 			effect_definition_get(effect->definition_index);
 
-		if (!TEST_FLAG(effect->header.flags, _effect_stopped_bit) &&
+		if (effect_fixed_bsp_is_current(effect) &&
+			!TEST_FLAG(effect->header.flags, _effect_stopped_bit) &&
 			definition->runtime_danger_radius != 0.0f)
 		{
 			struct data_iterator iterator;
@@ -1826,7 +1881,7 @@ static void effect_generate_part(
 			damage.epicenter = *world_point;
 			damage.direction = *world_forward;
 
-			area_of_effect_cause_damage(&damage, NONE);
+			area_of_effect_cause_damage_in_bsp(effect_fixed_bsp(effect), &damage);
 			break;
 		}
 
@@ -2297,6 +2352,15 @@ static void effect_update(
 		effect_definition_get(effect->definition_index);
 	boolean visible;
 	short iteration_index;
+
+	/* World effects resume in their own scene. Until effect parts can spawn
+	 * and render against another live scene, keep their native event intact. */
+	if (!effect_fixed_bsp_is_current(effect))
+	{
+		if (!TEST_FLAG(definition->flags, _effect_definition_must_be_deterministic_bit))
+			effect_delete(effect_index);
+		return;
+	}
 
 	if (effect->object_index != NONE)
 	{

@@ -110,6 +110,9 @@ def generated(fault=None):
              'game_engine_update_item_spawn')) + '\n' +
          function(read('source/objects/objects.c'), 'object_simulation_is_parked') + '\n' +
          function(read('source/objects/objects.c'), 'object_transfer_regional_projectile')),
+        ('world_effects.inc', enum_with(read('source/effects/effects.c'), '_effect_port_fixed_bsp_bit') + '\n' +
+         '\n'.join(function(read('source/effects/effects.c'), name) for name in (
+             'effect_fixed_bsp', 'effect_fixed_bsp_is_current', 'effect_bind_world_bsp'))),
         ('regional_action.inc', function(players, 'player_action_target_in_region')),
         ('regional_trigger.inc', function(read('source/scenario/scenario.c'), 'scenario_trigger_volume_test_object')),
         ('device_touch.inc', function(read('source/devices/devices.c'), 'device_touched')),
