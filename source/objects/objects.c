@@ -3737,8 +3737,72 @@ void object_set_position(
 	return;
 }
 
-/* Reindex an already connected root without applying the foreground PVS.
- * The native cluster lists are qualified by the retained BSP. */
+/* Retained roots stay connected and use their own BSP's cluster lists. */
+static void object_reindex_in_bsp(
+	long object_index,
+	struct object_datum *object,
+	short bsp,
+	struct structure_bsp const *structure,
+	struct location const *location)
+{
+	struct cluster_partition *partition = TEST_FLAG(object->object.flags, _object_has_collision_model_bit) ?
+		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
+
+	cluster_partition_disconnect(partition, object_index, &object->object.first_cluster_reference_index);
+	object->object.location = *location;
+	object_header_get(object_index)->cluster_index = location->cluster_index;
+	SET_FLAG(object->object.flags, _object_outside_of_map_bit, FALSE);
+	cluster_partition_reconnect_in_bsp(partition, bsp, structure, object_index,
+		&object->object.first_cluster_reference_index, &object->object.bounding_sphere_center,
+		object->object.bounding_sphere_radius, location);
+}
+
+void object_set_physics_pose(
+	long object_index,
+	short bsp,
+	real_point3d const *position,
+	real_vector3d const *forward,
+	real_vector3d const *up)
+{
+	struct object_datum *object;
+	struct structure_bsp const *structure;
+	struct location location;
+	real_point3d previous_position;
+	real_vector3d previous_forward, previous_up;
+
+	if (bsp == NONE || bsp == global_structure_bsp_index_get())
+	{
+		object_set_position(object_index, position, forward, up);
+		return;
+	}
+
+	structure = scenario_structure_bsp_try_and_get(bsp);
+	if (!structure)
+		return;
+
+	object = object_get(object_index);
+	previous_position = object->object.position;
+	previous_forward = object->object.forward;
+	previous_up = object->object.up;
+	object->object.position = *position;
+	object->object.forward = *forward;
+	object->object.up = *up;
+	object_compute_node_matrices(object_index);
+	scenario_location_from_point_in_structure(&location, structure, &object->object.bounding_sphere_center);
+	if (location.cluster_index == NONE)
+		scenario_location_from_point_in_structure(&location, structure, position);
+	if (location.cluster_index == NONE)
+	{
+		/* Leave the transform and membership intact until the host owns a crossing. */
+		object->object.position = previous_position;
+		object->object.forward = previous_forward;
+		object->object.up = previous_up;
+		object_compute_node_matrices(object_index);
+		return;
+	}
+	object_reindex_in_bsp(object_index, object, bsp, structure, &location);
+}
+
 static void object_translate_in_bsp(
 	long object_index,
 	struct object_datum *object,
@@ -3746,7 +3810,6 @@ static void object_translate_in_bsp(
 	real_point3d const *new_position)
 {
 	struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
-	struct cluster_partition *partition;
 	struct location location;
 	real_point3d center;
 	real_vector3d translation;
@@ -3761,16 +3824,9 @@ static void object_translate_in_bsp(
 	if (location.cluster_index == NONE)
 		return;
 
-	partition = TEST_FLAG(object->object.flags, _object_has_collision_model_bit) ?
-		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
-	cluster_partition_disconnect(partition, object_index, &object->object.first_cluster_reference_index);
 	object->object.position = *new_position;
 	object->object.bounding_sphere_center = center;
-	object->object.location = location;
-	object_header_get(object_index)->cluster_index = location.cluster_index;
-	SET_FLAG(object->object.flags, _object_outside_of_map_bit, FALSE);
-	cluster_partition_reconnect_in_bsp(partition, bsp, structure, object_index,
-		&object->object.first_cluster_reference_index, &center, object->object.bounding_sphere_radius, &location);
+	object_reindex_in_bsp(object_index, object, bsp, structure, &location);
 }
 
 void object_translate(

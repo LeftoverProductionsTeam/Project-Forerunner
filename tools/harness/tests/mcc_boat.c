@@ -112,7 +112,8 @@ static int mcc_cache_tags_loaded(void) { return loaded; }
 #define scenario_location_from_point(l,p) ((void)0)
 #define scenario_location_from_line(l,o,p,n) ((void)0)
 #define object_translate(i,p,l) (test_object.object.position = *(p))
-#define object_set_position(i,p,f,u) (test_vehicle.object.position = *(p), \
+static short pose_bsp = -2;
+#define object_set_physics_pose(i,b,p,f,u) (pose_bsp = (b), test_vehicle.object.position = *(p), \
     test_vehicle.object.forward = *(f), test_vehicle.object.up = *(u))
 #define physics_compute_unit_collisions(i) ((void)0)
 #define scenario_location_water_depth(l,p) 1.0f
@@ -245,8 +246,10 @@ int main(int argc, char **argv)
     update_human_boat_physics(0, points, state);
     CHECK(calls == 1);
     CHECK(contact_bsp == test_regional_bsp);
-    if (test_physics.radius == 0.0f)
+    if (test_physics.radius == 0.0f) {
         CHECK(sweep_bsp == test_regional_bsp);
+        CHECK(pose_bsp == test_regional_bsp);
+    }
     CHECK(memcmp(state+3, before+3, sizeof(state)-3*sizeof(*state)) == 0);
     if (test_physics.powered_mass_points.count != 3) {
         CHECK(received == NULL && memcmp(state, before, sizeof(state)) == 0);

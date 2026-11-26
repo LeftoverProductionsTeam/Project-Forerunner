@@ -1712,7 +1712,7 @@ void physics_update_new(
 
 	if (debug_physics_disable_penetration_freeze)
 	{
-		object_set_position(instance->object_index, &position, &forward, &up);
+		object_set_physics_pose(instance->object_index, bsp, &position, &forward, &up);
 	}
 	else
 	{
@@ -1777,7 +1777,7 @@ void physics_update_new(
 
 			if (!found_collision)
 			{
-				object_set_position(instance->object_index, &position, &forward, &up);
+				object_set_physics_pose(instance->object_index, bsp, &position, &forward, &up);
 				break;
 			}
 			else
