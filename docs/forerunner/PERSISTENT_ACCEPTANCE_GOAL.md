@@ -5,7 +5,10 @@
 1. **Playable MegaWorld.** Accept Spark's compact hex-cluster world, including
    underground interiors. Prove independent multiplayer traversal, combat, AI,
    vehicles, spawning, equipment and persistent world state through normal game
-   controls. Keep corridor maps as engineering fixtures.
+   controls. Review the complete 19-region overhead and underground Atlas
+   before further construction. Pin original BSP identities, transforms, surface
+   cover and connections, and compare native readback with the reviewed plan.
+   Keep corridor maps as engineering fixtures.
 2. **Flagship Extraction.** Launch from ordinary menus inside MegaWorld. Verify
    both factions and chosen colors, intuitive bases, exploration, objectives,
    loot, revivals, native aircraft evacuation, banking, persistence and
@@ -14,13 +17,30 @@
    waypoint routes. Reuse Halo's recorded animation, hover, seat and departure
    systems, with correctly authored flight recordings. Include Engineers,
    wildlife, roaming patrols, dynamic faction encounters and Flood threats.
-3. **Survival and Firefight.** Restore the original Fonzie Zombie Apocalypse,
-   then support polished Survival on original maps and MegaWorld. Keep Survival,
-   Firefight and Extraction distinct, with locked modes and editable host rules.
+3. **Survival and Firefight.** Compare against Fonzie's original Demo before
+   enhancing Survival. Verify Flood behavior, carriers, infection, Demolishers,
+   weapon and flame effects, and audio. Support the original maps and MegaWorld.
+   Firefight needs configurable waves, rounds, sets, factions, bosses, skulls,
+   lives, generator defense and scoring, with host-authoritative AI, damage,
+   animation, deaths and objectives synchronized across clients. Keep Survival,
+   Firefight and Extraction distinct, with locked gametypes and editable host rules.
 4. **Unified runtime.** Preserve all remaining engine goals, including
    interoperability, classic performance, optional graphics, campaign/co-op,
    Forge, live editing, machinima, VR, dedicated servers, verified 128-player
-   support and cross-platform releases.
+   support and cross-platform releases. Reach-style Forge acceptance covers
+   Monitor/player switching, searchable categorized palettes with previews,
+   duplication, deletion, precision transforms and snapping, and normal, fixed
+   and phased physics. Verify AI, vehicles, weapons, objectives, doors,
+   teleporters and gameplay properties through multiplayer editing, save,
+   reopen and immediate playtest.
+5. **Optional ragdolls.** Review Halo Content Evolved's existing implementation
+   before adapting it. Expose the choice in Gameplay across campaign, co-op and
+   multiplayer. Verify the original death animations with it off. Preserve
+   authoritative collision, Flood infection and legacy network compatibility.
+   Halo Content Evolved already uses native collision and separates the
+   displayed pose from host physics. Use its presentation path to keep
+   corpse position and infection authoritative in every mode.
+   [Reviewed upstream implementation](https://github.com/Watanoge/halo-content-evolved/blob/dcdfdd23524cd65b4f7849c238481acdbd416cee/port/linux/game/biped_ragdoll.c)
 
 Before writing equivalents, review Halo Content Evolved, Faber, OpenCE-Forge,
 Chupathingy, OpenH1, Invader and the Halo Blender toolset as relevant. Validate
