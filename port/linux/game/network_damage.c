@@ -582,6 +582,8 @@ static struct
 } damage_fire_origins_sent[MAXIMUM_LOCAL_PLAYERS];
 /* the host: the clients' hits only a hand's line of sight let through */
 static long damage_hand_reports;
+/* Capture the host region when the damage happens, before any handoff that tick. */
+static short damage_event_bsps[MAXIMUM_DAMAGE_EVENTS_PER_TICK];
 /* ... the players each damage event of this tick goes to the machines of
 (NONE for every machine), and the machine of its owner */
 static struct
@@ -998,6 +1000,16 @@ void network_damage_player_effect(
 	{
 		return;
 	}
+	damage_event_bsps[damage_event_count] = NONE;
+	if (network_regional_independent_bsp_ready())
+	{
+		struct player_datum *player = player_try_and_get(player_index);
+		long unit_index = distributed_living_unit(player);
+
+		if (unit_index == NONE && player && object_try_and_get(player->dead_unit_index))
+			unit_index = player->dead_unit_index;
+		damage_event_bsps[damage_event_count] = object_get_regional_bsp(unit_index);
+	}
 	event = &damage_events[damage_event_count++];
 	csmemset(event, 0, sizeof(*event));
 	event->kind = _damage_event_player_effect;
@@ -1024,6 +1036,8 @@ static struct distributed_damage_event *damage_event_new(
 
 	if (damage_event_count >= MAXIMUM_DAMAGE_EVENTS_PER_TICK - (kill ? 0 : RESERVED_KILL_EVENTS))
 		return NULL;
+	damage_event_bsps[damage_event_count] = network_regional_independent_bsp_ready() ?
+		object_get_regional_bsp(object_index) : NONE;
 	event = &damage_events[damage_event_count++];
 	csmemset(event, 0, sizeof(*event));
 	event->kind = kind;
@@ -3183,6 +3197,14 @@ static void distributed_note_event_destinations(
 	}
 }
 
+static boolean distributed_regional_damage_event_goes_to(short event_index, long machine_index)
+{
+	struct distributed_damage_event const *event = &damage_events[event_index];
+
+	return distributed_machine_replication_bsp_matches(machine_index, damage_event_bsps[event_index]) &&
+		(event->kind != _damage_event_player_effect || distributed_player_machine(event->player_index) == machine_index);
+}
+
 /* whether the damage event goes to the machine */
 static boolean distributed_event_goes_to(
 	short event_index,
@@ -3236,11 +3258,18 @@ static void distributed_log_reports(
 	logged_line_of_sight = damage_line_of_sight_reports;
 }
 
-/* the tick's killing blows once more, reliably, to every client: sent with
-the rest they may be lost, and a body killed without its blow falls without
-the death the host's had (a client replays one blow of a unit only) */
-static void distributed_send_kills_reliably(
-	void)
+/* A kill also travels reliably so the body plays the host's death. */
+static void distributed_send_kill_batch(long machine_index, struct distributed_damage_event_message *message, short count)
+{
+	word size = (word)(sizeof(message->header) + count * sizeof(message->events[0]));
+
+	if (machine_index == NONE)
+		distributed_send(message, _distributed_message_damage_events, count, size, _distributed_to_clients_reliably);
+	else
+		distributed_send_to_machine_reliably(machine_index, message, _distributed_message_damage_events, count, size);
+}
+
+static void distributed_send_kills_reliably(long machine_index)
 {
 	struct distributed_damage_event_message message;
 	short limit = MIN(MAXIMUM_ENTRIES_PER_MESSAGE, RELIABLE_ENTRIES(struct distributed_damage_event));
@@ -3249,28 +3278,24 @@ static void distributed_send_kills_reliably(
 
 	for (index = 0; index < damage_event_count; index++)
 	{
-		if (damage_events[index].kind != _damage_event_kill)
+		if (damage_events[index].kind != _damage_event_kill ||
+			(machine_index != NONE && !distributed_regional_damage_event_goes_to(index, machine_index)))
 			continue;
 		message.events[count++] = damage_events[index];
 		if (count == limit)
 		{
-			distributed_send(&message, _distributed_message_damage_events, count,
-				(word)(sizeof(message.header) + count * sizeof(struct distributed_damage_event)),
-				_distributed_to_clients_reliably);
+			distributed_send_kill_batch(machine_index, &message, count);
 			count = 0;
 		}
 	}
 	if (count)
-	{
-		distributed_send(&message, _distributed_message_damage_events, count,
-			(word)(sizeof(message.header) + count * sizeof(struct distributed_damage_event)),
-			_distributed_to_clients_reliably);
-	}
+		distributed_send_kill_batch(machine_index, &message, count);
 }
 
 void network_damage_host_tick(
 	void)
 {
+	boolean independent = network_regional_independent_bsp_ready();
 	struct distributed_damage_event_message message;
 	short limit = MIN(MAXIMUM_ENTRIES_PER_MESSAGE, RELIABLE_ENTRIES(struct distributed_damage_event));
 	long machine_indices[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
@@ -3286,16 +3311,20 @@ void network_damage_host_tick(
 	network_fairplay_host_tick();
 	network_recording_host_tick();
 	distributed_note_stuck_projectiles();
-	distributed_note_event_destinations();
+	if (!independent)
+		distributed_note_event_destinations();
 	for (machine_number = 0; machine_number < machine_count; machine_number++)
 	{
 		long machine_index = machine_indices[machine_number];
 		short index;
 		short count = 0;
 
+		if (independent && !distributed_machine_replication_bsp_acknowledged(machine_index))
+			continue;
 		for (index = 0; index < damage_event_count; index++)
 		{
-			if (!distributed_event_goes_to(index, machine_index))
+			if (!(independent ? distributed_regional_damage_event_goes_to(index, machine_index) :
+					distributed_event_goes_to(index, machine_index)))
 				continue;
 			message.events[count++] = damage_events[index];
 			if (count == limit)
@@ -3310,8 +3339,11 @@ void network_damage_host_tick(
 			distributed_send_to_machine(machine_index, &message, _distributed_message_damage_events, count,
 				(word)(sizeof(message.header) + count * sizeof(struct distributed_damage_event)));
 		}
+		if (independent)
+			distributed_send_kills_reliably(machine_index);
 	}
-	distributed_send_kills_reliably();
+	if (!independent)
+		distributed_send_kills_reliably(NONE);
 	damage_event_count = 0;
 }
 

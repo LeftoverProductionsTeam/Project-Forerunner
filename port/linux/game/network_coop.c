@@ -3859,11 +3859,26 @@ short network_coop_player_authoritative_bsp(long player_index)
 {
 	struct player_datum const *player = player_try_and_get(player_index);
 
-	if (network_regional_bsp_active() && player && object_try_and_get(player->unit_index))
+	if (network_regional_bsp_active() && player)
 	{
-		short owned_bsp = object_get_regional_bsp(player->unit_index);
-		if (owned_bsp != NONE)
-			return owned_bsp;
+		if (object_try_and_get(player->unit_index))
+		{
+			short owned_bsp = object_get_regional_bsp(player->unit_index);
+			if (owned_bsp != NONE)
+				return owned_bsp;
+		}
+		else if (network_regional_independent_bsp_ready())
+		{
+			short slot = (short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+			short corpse_bsp = object_try_and_get(player->dead_unit_index) ?
+				object_get_regional_bsp(player->dead_unit_index) : NONE;
+
+			if (corpse_bsp != NONE)
+				return corpse_bsp;
+			/* Once a body is removed, keep the host-validated region until respawn. */
+			if (VALID_INDEX(slot, MAXIMUM_TRACKED_PLAYERS) && host_player_structure_bsps[slot] != NONE)
+				return host_player_structure_bsps[slot];
+		}
 	}
 	return global_structure_bsp_index_get();
 }

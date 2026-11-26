@@ -166,6 +166,10 @@ def generated(fault=None):
         ('bsp_sight.inc', structure(damage, 'distributed_sight_context') + '\n' +
             '\n'.join(function(damage, name) for name in ('distributed_sight_trace',
                 'distributed_report_terrain_clear', 'distributed_report_sight_clear', 'distributed_sight_test'))),
+        ('bsp_damage_owner.inc', mutated(function(coop, 'network_coop_player_authoritative_bsp'),
+            'network_coop_player_authoritative_bsp', 'runtime_network_coop_player_authoritative_bsp')),
+        ('bsp_damage_delivery.inc', '\n'.join(function(damage, name) for name in (
+            'distributed_regional_damage_event_goes_to', 'distributed_send_kill_batch', 'distributed_send_kills_reliably'))),
         ('bsp_damage_history.inc', '\n'.join(structure(damage, name) for name in (
             'damage_sight', 'damage_history_tick', 'damage_trail_point', 'damage_bsp_visit')) + '\n' +
          'static struct damage_history_tick damage_history[TARGET_HISTORY_TICKS];\n' +
@@ -182,7 +186,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'independent-bsp-delivery', 'independent-object-lifetimes', 'independent-combat-history', 'independent-combat-sight', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'independent-bsp-delivery', 'independent-object-lifetimes', 'independent-combat-history', 'independent-combat-sight', 'independent-damage-delivery', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',

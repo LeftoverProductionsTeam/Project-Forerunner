@@ -8470,7 +8470,8 @@ static void distributed_handle_message(
 		break;
 	}
 	case _distributed_message_damage_events:
-		network_damage_handle_events(entries, header.count);
+		if (!network_regional_independent_bsp_ready() || distributed_can_apply_bsp_snapshot(header.game_time))
+			network_damage_handle_events(entries, header.count);
 		break;
 	case _distributed_message_hit_reports:
 		network_damage_handle_reports(machine_index, entries, header.count);

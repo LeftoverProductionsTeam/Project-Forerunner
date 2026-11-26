@@ -63,7 +63,7 @@ struct structure_bsp {
     struct {long size;} cluster_data,sound_cluster_data;
 };
 struct data_iterator {long datum_index;int slot;};
-struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;boolean quit_out_of_game;};
+struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;boolean quit_out_of_game;long dead_unit_index;};
 struct object_datum {
     struct {long parent_object_index,first_child_object_index,next_object_index,first_cluster_reference_index;short type;
         real_point3d position,bounding_sphere_center;real bounding_sphere_radius;
@@ -831,7 +831,7 @@ static void network_coop_handle_device_states(void const *entries,short count)
 }
 
 enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably,
-      _distributed_message_object_changes, _distributed_message_objects_synchronized};
+      _distributed_message_object_changes, _distributed_message_objects_synchronized, _distributed_message_damage_events};
 enum {_object_change_delete=1, _object_change_create=2, MAXIMUM_ENTRIES_PER_MESSAGE=4};
 #define RELIABLE_ENTRIES(type) 4
 struct distributed_object_change {long object_index; short change;};
@@ -856,6 +856,21 @@ static struct {long time;} objects_host_machines[9];
 static struct {long creates,deletes;} objects_statistics;
 static struct distributed_object_change checked_changes[2][8];
 static short checked_change_count[2], checked_inventories[2], checked_sync[2];
+enum {_damage_event_player_effect, _damage_event_aftermath, _damage_event_kill};
+struct distributed_damage_event {byte kind,player_index;long object_index;};
+struct distributed_damage_event_message
+{
+    struct distributed_message_header header;
+    struct distributed_damage_event events[MAXIMUM_ENTRIES_PER_MESSAGE];
+};
+static struct distributed_damage_event damage_events[8];
+static short damage_event_bsps[8], damage_event_count;
+static long checked_kills[2];
+static int checked_kill_packets, checked_legacy_kills;
+static long distributed_player_machine(short player_index)
+{
+    return player_index==0?7:8;
+}
 static boolean bsp_acknowledged[2]={TRUE,TRUE};
 static void distributed_host_send_inventories_to_machine(long machine)
 {
@@ -881,6 +896,8 @@ static struct distributed_structure_bsp bsp_machine_announcements[2];
 static int bsp_announcement_targeted,bsp_announcement_broadcast;
 static struct player_datum *player_try_and_get(long index) {return player_get(index);}
 static long distributed_living_unit(struct player_datum const *player) {return player->unit_index;}
+#define MAXIMUM_TRACKED_PLAYERS 2
+#include "bsp_damage_owner.inc"
 static short network_coop_player_authoritative_bsp(long index)
 {
     CHECK(index==players[0]||index==players[1],"handoff lost the full player datum");
@@ -917,6 +934,15 @@ static void distributed_send_to_machine_reliably(long machine,void const *messag
         }
         return;
     }
+    if (type==_distributed_message_damage_events)
+    {
+        struct distributed_damage_event_message const *batch=message;
+        CHECK((machine==7||machine==8)&&count==1&&batch->events[0].kind==_damage_event_kill,
+              "invalid regional kill batch");
+        checked_kills[machine-7]=batch->events[0].object_index;
+        checked_kill_packets++;
+        return;
+    }
     if (type==_distributed_message_objects_synchronized)
     {
         CHECK(checked_inventories[machine-7]>0,"completion preceded inventory");
@@ -931,12 +957,17 @@ static void distributed_send_to_machine_reliably(long machine,void const *messag
 }
 static void distributed_send(void *message, byte type, word count, word size, int delivery)
 {
+    if (type==_distributed_message_damage_events)
+    {
+        CHECK(count==2&&delivery==_distributed_to_clients_reliably,"classic kill left the reliable broadcast");
+        checked_legacy_kills++;
+        return;
+    }
     CHECK(message&&type==_distributed_message_structure_bsp&&count==1&&size,
           "invalid broadcast BSP message");
     bsp_announcement_broadcast++;
 }
 #define TARGET_HISTORY_TICKS 4
-#define MAXIMUM_TRACKED_PLAYERS 2
 #define MAXIMUM_SIGHT_POINTS 2
 #define PLAYER_TRAIL_POINTS 4
 #define PLAYER_TRAIL_INTERVAL_TICKS 10
@@ -945,6 +976,7 @@ void players_coop_finish_bsp_switch(short from, short to, boolean loaded);
 #include "bsp_receive.inc"
 #include "bsp_sight.inc"
 #include "bsp_object_lifecycle.inc"
+#include "bsp_damage_delivery.inc"
 #undef DATUM_INDEX_NEW
 #include "bsp_damage_history.inc"
 
@@ -1117,7 +1149,7 @@ static void setup(short old,short destination)
         leaves[i].cluster_index=2+i;
         structures[i].leaves=(struct tag_block){1,&leaves[i]};
         structures[i].collision_bsp=(struct tag_block){1,&collisions[i]};
-        people[i]=(struct player_datum){units[i],8+i,i?NONE:0,0};
+        people[i]=(struct player_datum){units[i],8+i,i?NONE:0,0,FALSE,NONE};
     }
     for(int i=0;i<4;i++)
     {
@@ -2923,6 +2955,53 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"independent-damage-delivery"))
+    {
+        damage_event_count=6;
+        damage_events[0]=(struct distributed_damage_event){_damage_event_kill,0,units[0]};
+        damage_event_bsps[0]=old;
+        damage_events[1]=(struct distributed_damage_event){_damage_event_kill,1,units[1]};
+        damage_event_bsps[1]=destination;
+        damage_events[2]=(struct distributed_damage_event){_damage_event_aftermath,1,units[2]};
+        damage_event_bsps[2]=destination;
+        damage_events[3]=(struct distributed_damage_event){_damage_event_player_effect,0,NONE};
+        damage_event_bsps[3]=old;
+        damage_events[4]=(struct distributed_damage_event){_damage_event_player_effect,1,NONE};
+        damage_event_bsps[4]=old;
+        damage_events[5]=(struct distributed_damage_event){_damage_event_aftermath,0,units[3]};
+        damage_event_bsps[5]=NONE;
+        distributed_machine_sent_bsp[7]=old;
+        distributed_machine_sent_bsp[8]=destination;
+        CHECK(distributed_regional_damage_event_goes_to(2,8)&&!distributed_regional_damage_event_goes_to(2,7),
+              "an observer missed local aftermath or saw foreign damage");
+        CHECK(distributed_regional_damage_event_goes_to(3,7)&&!distributed_regional_damage_event_goes_to(3,8)&&
+              !distributed_regional_damage_event_goes_to(4,7)&&!distributed_regional_damage_event_goes_to(4,8)&&
+              !distributed_regional_damage_event_goes_to(5,7)&&!distributed_regional_damage_event_goes_to(5,8),
+              "a player effect or unowned event leaked outside its destination");
+        distributed_send_kills_reliably(7);
+        distributed_send_kills_reliably(8);
+        CHECK(checked_kill_packets==2&&checked_kills[0]==units[0]&&checked_kills[1]==units[1],
+              "reliable kills crossed the assigned region");
+        distributed_machine_sent_bsp[7]=destination;
+        CHECK(!distributed_regional_damage_event_goes_to(0,7),"old-region kill followed the client after handoff");
+        distributed_send_kills_reliably(NONE);
+        CHECK(checked_legacy_kills==1,"classic reliable delivery was lost");
+        regional_match=independent_bsp_room=TRUE;
+        people[1].dead_unit_index=people[1].unit_index;
+        people[1].unit_index=NONE;
+        regional_test_root=people[1].dead_unit_index;
+        regional_test_root_bsp=destination;
+        CHECK(runtime_network_coop_player_authoritative_bsp(players[1])==destination,
+              "death switched the client back to the host foreground");
+        host_player_structure_bsps[1]=destination;
+        people[1].dead_unit_index=NONE;
+        CHECK(runtime_network_coop_player_authoritative_bsp(players[1])==destination,
+              "body retirement lost the client's acknowledged region");
+        independent_bsp_room=FALSE;
+        CHECK(runtime_network_coop_player_authoritative_bsp(players[1])==old,
+              "classic respawn stopped using the foreground");
         return 0;
     }
     if(!strcmp(name,"independent-combat-sight"))
