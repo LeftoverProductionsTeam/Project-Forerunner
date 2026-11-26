@@ -149,6 +149,7 @@ boolean collision_test_pill_new(
 	real radius,
 	long ignore_object_index,
 	struct collision_result *collision);
+struct collision_bsp const *collision_bsp_for_region(short bsp);
 boolean collision_test_bsp_vector(
 	short bsp,
 	unsigned long flags,
@@ -171,6 +172,18 @@ boolean collision_fix_pill(
 	long ignore_object_index,
 	real_point3d *new_position);
 short collision_move_pill(
+	unsigned long flags,
+	real_point3d const *position,
+	real_vector3d const *velocity,
+	real height,
+	real radius,
+	long ignore_object_index,
+	real_point3d *clipped_position,
+	real_vector3d *clipped_velocity,
+	short maximum_collision_count,
+	struct collision_plane *collisions);
+short collision_move_bsp_pill(
+	short bsp,
 	unsigned long flags,
 	real_point3d const *position,
 	real_vector3d const *velocity,

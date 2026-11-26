@@ -539,6 +539,12 @@ boolean collision_structure_bsp_line_clear(
 	return !blocked;
 }
 
+static struct collision_bsp const *collision_structure_geometry(struct structure_bsp const *structure)
+{
+	return structure && structure->collision_bsp.count > 0 ?
+		TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp) : NULL;
+}
+
 boolean collision_test_bsp_vector(
 	short bsp,
 	unsigned long flags,
@@ -576,9 +582,7 @@ boolean collision_test_bsp_vector(
 
 	if (use_foreground)
 		bsp = foreground;
-	terrain = use_foreground ? global_collision_bsp_get() :
-		structure && structure->collision_bsp.count > 0 ?
-			TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp) : NULL;
+	terrain = use_foreground ? global_collision_bsp_get() : collision_structure_geometry(structure);
 
 	if (test_environment && terrain)
 	{
@@ -1028,7 +1032,14 @@ boolean collision_object_blocks_pill(
 	return collision_features_test_point(&features, base, &contact);
 }
 
-boolean collision_get_features_in_sphere(
+struct collision_bsp const *collision_bsp_for_region(short bsp)
+{
+	return bsp == NONE || bsp == global_structure_bsp_index_get() ? global_collision_bsp_get() :
+		collision_structure_geometry(scenario_structure_bsp_try_and_get(bsp));
+}
+
+boolean collision_get_bsp_features_in_sphere(
+	short bsp,
 	unsigned long flags,
 	real_point3d const *center,
 	real radius,
@@ -1037,6 +1048,8 @@ boolean collision_get_features_in_sphere(
 	long ignore_object_index,
 	struct collision_feature_list *features)
 {
+	short foreground = global_structure_bsp_index_get();
+	boolean use_foreground = bsp == NONE || bsp == foreground;
 	unsigned long structure_flags;
 
 	collision_features_new(features);
@@ -1044,11 +1057,17 @@ boolean collision_get_features_in_sphere(
 	if (structure_flags ||
 		(flags & (FLAG(_collision_test_media_bit) | FLAG(_collision_test_objects_bit))))
 	{
-		struct structure_bsp const *structure_bsp = global_structure_bsp_get();
-		struct collision_bsp const *collision_bsp = global_collision_bsp_get();
+		struct structure_bsp const *structure_bsp = use_foreground ? global_structure_bsp_get() :
+			scenario_structure_bsp_try_and_get(bsp);
+		struct collision_bsp const *collision_bsp = use_foreground ? global_collision_bsp_get() :
+			collision_structure_geometry(structure_bsp);
 		boolean objects = TEST_FLAG(flags, _collision_test_objects_bit);
 		struct collision_bsp_test_sphere_result result;
 
+		if (!collision_bsp)
+			return FALSE;
+		if (use_foreground)
+			bsp = foreground;
 		if (debug_collision_skip_objects)
 		{
 			objects = FALSE;
@@ -1058,7 +1077,8 @@ boolean collision_get_features_in_sphere(
 		collision_log_start_time(&collision_usage_times.features);
 		radius += 0.0625f;
 
-		collision_collect_bsp_features(collision_bsp, breakable_surface_flags_get(),
+		collision_collect_bsp_features(collision_bsp,
+			use_foreground ? breakable_surface_flags_get() : breakable_surface_flags_in_bsp(bsp),
 			structure_flags != 0, center, radius, height, width, &result, features);
 
 		if (objects && result.leaf_count > 0)
@@ -1078,18 +1098,17 @@ boolean collision_get_features_in_sphere(
 			{
 				long leaf_index = result.leaf_indices[leaf_reference_index];
 				/* port: (collision_cluster_index_from_leaf) */
-				short cluster_index = (short)collision_cluster_index_from_leaf(leaf_index);
+				short cluster_index = (short)collision_bsp_cluster_index_from_leaf(structure_bsp, leaf_index);
 
 				if (structure_cluster_mark(cluster_index))
 				{
 					long reference_index;
 					long object_index;
 
-					for (object_index = cluster_get_first_collideable_object(
-							&reference_index,
-							cluster_index);
+					for (object_index = cluster_get_first_collideable_object_in_bsp(
+							&reference_index, bsp, cluster_index);
 						object_index != NONE;
-						object_index = cluster_get_next_collideable_object(&reference_index))
+						object_index = cluster_get_next_collideable_object_in_bsp(&reference_index, bsp))
 					{
 						/* port: (the far ones passed over on a packed copy
 						of their bounding spheres: object_bounds_cache.c;
@@ -1123,6 +1142,19 @@ boolean collision_get_features_in_sphere(
 	return features->count[_collision_feature_sphere] != 0 ||
 		features->count[_collision_feature_cylinder] != 0 ||
 		features->count[_collision_feature_prism] != 0;
+}
+
+boolean collision_get_features_in_sphere(
+	unsigned long flags,
+	real_point3d const *center,
+	real radius,
+	real height,
+	real width,
+	long ignore_object_index,
+	struct collision_feature_list *features)
+{
+	return collision_get_bsp_features_in_sphere(NONE, flags, center, radius, height, width,
+		ignore_object_index, features);
 }
 
 boolean collision_fix_pill(
@@ -1694,7 +1726,8 @@ short collision_move_point(
 	return collision_count;
 }
 
-short collision_move_pill(
+short collision_move_bsp_pill(
+	short bsp,
 	unsigned long flags,
 	real_point3d const *position,
 	real_vector3d const *velocity,
@@ -1710,6 +1743,14 @@ short collision_move_pill(
 	struct collision_feature_list features;
 	real_point3d center;
 
+	/* An explicit foreign scene must supply terrain before any movement. */
+	if (bsp != NONE && bsp != global_structure_bsp_index_get() && !collision_bsp_for_region(bsp))
+	{
+		*clipped_position = *position;
+		*clipped_velocity = *global_zero_vector3d;
+		return 0;
+	}
+
 	match_assert("c:\\halo\\SOURCE\\physics\\collisions.c", 1214, global_current_collision_user_depth < MAXIMUM_COLLISION_USER_STACK_DEPTH);
 	global_current_collision_users[global_current_collision_user_depth++] = 7;
 
@@ -1717,7 +1758,8 @@ short collision_move_pill(
 	center.y = position->y + velocity->j * 0.5f;
 	center.z = height * 0.5f + (position->z + velocity->k * 0.5f);
 
-	if (collision_get_features_in_sphere(
+	if (collision_get_bsp_features_in_sphere(
+		bsp,
 		flags,
 		&center,
 		magnitude3d(velocity) * 0.5f + height * 0.5f + radius,
@@ -1748,6 +1790,22 @@ short collision_move_pill(
 	--global_current_collision_user_depth;
 
 	return result;
+}
+
+short collision_move_pill(
+	unsigned long flags,
+	real_point3d const *position,
+	real_vector3d const *velocity,
+	real height,
+	real radius,
+	long ignore_object_index,
+	real_point3d *clipped_position,
+	real_vector3d *clipped_velocity,
+	short maximum_collision_count,
+	struct collision_plane *collisions)
+{
+	return collision_move_bsp_pill(NONE, flags, position, velocity, height, radius,
+		ignore_object_index, clipped_position, clipped_velocity, maximum_collision_count, collisions);
 }
 
 /* ---------- private code */

@@ -277,6 +277,15 @@ boolean collision_get_features_in_sphere(
 	real radius,
 	long ignore_object_index,
 	struct collision_feature_list *features);
+boolean collision_get_bsp_features_in_sphere(
+	short bsp,
+	unsigned long flags,
+	real_point3d const *center,
+	real enclosing_radius,
+	real height,
+	real radius,
+	long ignore_object_index,
+	struct collision_feature_list *features);
 short collision_move_point(
 	real_point3d const *position,
 	real_vector3d const *velocity,

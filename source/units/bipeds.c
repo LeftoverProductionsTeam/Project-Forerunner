@@ -2403,6 +2403,16 @@ static void biped_update_physics(
 	short collision_count;
 	unsigned long collision_flags;
 
+	short structure_bsp = NONE;
+	struct scenario const *scenario = global_scenario_try_and_get();
+
+	if (scenario && scenario_uses_regional_gameplay(scenario))
+	{
+		structure_bsp = object_get_regional_bsp(physics->biped_index);
+		if (structure_bsp == NONE)
+			structure_bsp = game_engine_object_recorded_bsp(physics->biped_index, _object_type_biped);
+	}
+
 	match_assert_valid_real_point3d("c:\\halo\\SOURCE\\units\\bipeds.c", 0xBCC, &physics->position);
 	match_assert_valid_real_vector3d("c:\\halo\\SOURCE\\units\\bipeds.c", 0xBCD, &physics->velocity);
 
@@ -2687,7 +2697,8 @@ static void biped_update_physics(
 	}
 	else
 	{
-		collision_count = collision_move_pill(
+		collision_count = collision_move_bsp_pill(
+			structure_bsp,
 			collision_flags,
 			&position,
 			&velocity,
@@ -2715,11 +2726,11 @@ static void biped_update_physics(
 	physics->stick_surface_index = NONE;
 	if (!collision_count && physics->existing_support_surface_index != NONE)
 	{
-		struct collision_bsp *bsp = global_collision_bsp_get();
+		struct collision_bsp const *bsp = collision_bsp_for_region(structure_bsp);
 		long best_surface_index = NONE;
 		real best_distance_squared = REAL_MAX;
 
-		if (VALID_INDEX(physics->existing_support_surface_index, bsp->surfaces.count))
+		if (bsp && VALID_INDEX(physics->existing_support_surface_index, bsp->surfaces.count))
 		{
 			struct collision_surface *surface = TAG_BLOCK_GET_ELEMENT(
 				&bsp->surfaces,
@@ -3154,7 +3165,8 @@ static void biped_update_physics(
 				struct collision_feature_list features;
 
 				center.z += radius;
-				if (collision_get_features_in_sphere(
+				if (collision_get_bsp_features_in_sphere(
+					structure_bsp,
 					TEST_FLAG(physics->in_flags, _biped_physics_in_dead_bit) ?
 						_collision_test_for_bipeds_dead_flags :
 						_collision_test_for_bipeds_living_flags,
