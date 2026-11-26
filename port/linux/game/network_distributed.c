@@ -793,6 +793,8 @@ co-op revert's checkpoint boundary goes to each */
 static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static long distributed_machine_bsp_start[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static long distributed_machine_bsp_offer[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static boolean distributed_machine_bsp_ack[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 /* the host: what each player's unit was last sent as (a change goes to
 every client at once) */
 static struct
@@ -899,6 +901,7 @@ static long distributed_host_time = NONE;
 static unsigned long distributed_host_time_received;
 static short distributed_host_structure_bsp_index = NONE;
 static long distributed_host_structure_bsp_start = NONE;
+static long distributed_host_structure_bsp_offer = NONE;
 /* the host: each client's round trip, in ticks, and its jitter; the same
 in milliseconds (the latency meter's); and when the client was last heard
 from (system_milliseconds) */
@@ -1542,7 +1545,8 @@ static boolean distributed_fill_header(
 	/* Until the ordered snapshot finishes, surviving local replicas are
 	still being replaced. They cannot supply new-world input or hit reports. */
 	if (game_in_progress() && game_connection() == _game_connection_network_client &&
-		!distributed_checkpoint_synchronized && type != _distributed_message_client_ready)
+		!distributed_checkpoint_synchronized && type != _distributed_message_client_ready &&
+		(type != _distributed_message_structure_bsp || !network_regional_independent_bsp_ready()))
 		return FALSE;
 	header->type = type;
 	header->count = (byte)count;
@@ -1855,6 +1859,7 @@ static boolean distributed_machine_loaded(
 		sizeof(distributed_machine_players[machine_index]));
 	distributed_machine_ready[machine_index] = FALSE;
 	distributed_machine_sent_bsp[machine_index] = NONE;
+	distributed_machine_bsp_ack[machine_index] = FALSE;
 	for (type = 0; type < NUMBER_OF_DISTRIBUTED_MESSAGES; type++)
 		distributed_received_times[machine_index][type] = NONE;
 	distributed_sender_times[machine_index] = NONE;
@@ -4723,7 +4728,7 @@ boolean distributed_machine_replication_bsp_acknowledged(long machine_index)
 	short slot;
 	boolean acknowledged = FALSE;
 
-	if (distributed_machine_replication_bsp(machine_index) == NONE)
+	if (distributed_machine_replication_bsp(machine_index) == NONE || !distributed_machine_bsp_ack[machine_index])
 		return FALSE;
 	players = machine_get_player_list(machine_index);
 	for (slot = 0; slot < MAXIMUM_LOCAL_PLAYERS; slot++)
@@ -4731,8 +4736,7 @@ boolean distributed_machine_replication_bsp_acknowledged(long machine_index)
 		if (players[slot] == NONE || !player_try_and_get(players[slot]))
 			continue;
 		if (!distributed_machine_replication_bsp_matches(machine_index,
-				network_coop_player_authoritative_bsp(players[slot])) ||
-			!network_coop_player_has_structure_bsp(players[slot]))
+				network_coop_player_authoritative_bsp(players[slot])))
 			return FALSE;
 		acknowledged = TRUE;
 	}
@@ -5606,6 +5610,8 @@ static void distributed_send_independent_structure_bsp(long machine_index, boole
 
 	message.structure_bsp.structure_bsp_index = index;
 	message.structure_bsp.handoff = DISTRIBUTED_INDEPENDENT_BSP_HANDOFF;
+	distributed_machine_bsp_offer[machine_index] = game_time_get();
+	distributed_machine_bsp_ack[machine_index] = FALSE;
 	distributed_send_to_machine_reliably(machine_index, &message, _distributed_message_structure_bsp,
 		1, (word)sizeof(message));
 	if (distributed_machine_sent_bsp[machine_index] != index)
@@ -5683,7 +5689,33 @@ static void distributed_handle_structure_bsp(
 		distributed_host_structure_bsp_index = index;
 		distributed_host_structure_bsp_start = host_time;
 	}
+	if (structure_bsp->handoff == DISTRIBUTED_INDEPENDENT_BSP_HANDOFF)
+		distributed_host_structure_bsp_offer = host_time;
 	main_sync_structure_bsp(index);
+}
+
+/* Geometry readiness travels on the stream, independently of player input.
+ * The host's offer tick distinguishes repeat visits to the same BSP. */
+static void distributed_send_structure_bsp_ack(void)
+{
+	struct distributed_structure_bsp_message message;
+
+	if (distributed_host_structure_bsp_offer == NONE || !network_regional_independent_bsp_ready() ||
+		!distributed_bsp_world_ready())
+		return;
+	message.structure_bsp.structure_bsp_index = distributed_host_structure_bsp_index;
+	message.structure_bsp.handoff = (short)(word)distributed_host_structure_bsp_offer;
+	distributed_send(&message, _distributed_message_structure_bsp, 1, (word)sizeof(message),
+		_distributed_to_host_reliably);
+	distributed_host_structure_bsp_offer = NONE;
+}
+
+static void distributed_handle_structure_bsp_ack(long machine, struct distributed_structure_bsp const *ack)
+{
+	if (!network_regional_independent_bsp_ready() || !distributed_machine_replication_bsp_matches(machine,
+			ack->structure_bsp_index) || (word)ack->handoff != (word)distributed_machine_bsp_offer[machine])
+		return;
+	distributed_machine_bsp_ack[machine] = TRUE;
 }
 
 /* the players' statistics that changed since they were last sent, and when
@@ -5852,10 +5884,12 @@ static void distributed_reset_checkpoint_state(boolean reset_received_times)
 	distributed_host_update_number = NONE;
 	distributed_sent_structure_bsp_index = NONE;
 	csmemset(distributed_machine_sent_bsp, 0xFF, sizeof(distributed_machine_sent_bsp));
+	csmemset(distributed_machine_bsp_ack, 0, sizeof(distributed_machine_bsp_ack));
 	if (reset_received_times)
 	{
 		distributed_host_structure_bsp_index = NONE;
 		distributed_host_structure_bsp_start = NONE;
+		distributed_host_structure_bsp_offer = NONE;
 	}
 	distributed_pickup_count = 0;
 	distributed_machines.valid = FALSE;
@@ -6134,6 +6168,8 @@ void network_distributed_tick(
 	{
 		boolean bsp_ready = distributed_bsp_world_ready();
 
+		if (bsp_ready)
+			distributed_send_structure_bsp_ack();
 		if (bsp_ready)
 			profile_scope(distributed_tick_note_own_positions_section, distributed_note_own_positions();)
 		if (game_time_get() % PING_REFRESH_TICKS == 0 && latency_meter_enabled())
@@ -7057,6 +7093,7 @@ void network_distributed_machine_gone(
 	{
 		distributed_machine_ready[machine_index] = FALSE;
 	distributed_machine_sent_bsp[machine_index] = NONE;
+	distributed_machine_bsp_ack[machine_index] = FALSE;
 		csmemset(&distributed_forge_guests[machine_index], 0, sizeof(distributed_forge_guests[machine_index]));
 	}
 }
@@ -7795,7 +7832,8 @@ static boolean distributed_message_epoch_valid(
 		otherwise that description could resurrect the newly killed copy. */
 		if (!distributed_checkpoint_synchronized)
 			return header->type == _distributed_message_object_changes ||
-				(header->type == _distributed_message_inventories &&
+				((header->type == _distributed_message_inventories ||
+					(header->type == _distributed_message_structure_bsp && network_regional_independent_bsp_ready())) &&
 					!network_connection_last_read_was_unreliable() && !distributed_handling_batch);
 	}
 	return TRUE;
@@ -8099,6 +8137,12 @@ static void distributed_handle_message(
 	/* (each kind from the host, or from a client) */
 	switch (header.type)
 	{
+	case _distributed_message_structure_bsp:
+		if (machine_index == NONE ? game_connection() != _game_connection_network_client :
+			game_connection() != _game_connection_network_server || !distributed_handling_stream_message ||
+			header.count != 1 || size != sizeof(struct distributed_structure_bsp_message))
+			return;
+		break;
 	case _distributed_message_player_prediction:
 	case _distributed_message_client_ready:
 	case _distributed_message_client_identity:
@@ -8184,7 +8228,10 @@ static void distributed_handle_message(
 		distributed_handle_actor_states(header.game_time, entries, header.count);
 		break;
 	case _distributed_message_structure_bsp:
-		distributed_handle_structure_bsp(header.game_time, (struct distributed_structure_bsp const *)entries);
+		if (machine_index == NONE)
+			distributed_handle_structure_bsp(header.game_time, (struct distributed_structure_bsp const *)entries);
+		else
+			distributed_handle_structure_bsp_ack(machine_index, (struct distributed_structure_bsp const *)entries);
 		break;
 	case _distributed_message_coop_presentation:
 		network_coop_handle_presentation(entries, header.game_time);
@@ -8563,6 +8610,7 @@ static void distributed_checkpoint_reset(
 	{
 		distributed_host_structure_bsp_index = NONE;
 		distributed_host_structure_bsp_start = NONE;
+		distributed_host_structure_bsp_offer = NONE;
 	}
 	distributed_last_sent_time = NONE;
 	for (sender = 0; sender < MAXIMUM_SENDERS; sender++)

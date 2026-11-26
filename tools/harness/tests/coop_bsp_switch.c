@@ -830,7 +830,7 @@ static void network_coop_handle_device_states(void const *entries,short count)
     received_scene_types|=4;
 }
 
-enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably,
+enum {_distributed_message_structure_bsp=10, _distributed_to_clients, _distributed_to_clients_reliably, _distributed_to_host_reliably,
       _distributed_message_object_changes, _distributed_message_objects_synchronized, _distributed_message_damage_events};
 enum {_object_change_delete=1, _object_change_create=2, MAXIMUM_ENTRIES_PER_MESSAGE=4};
 #define RELIABLE_ENTRIES(type) 4
@@ -888,6 +888,11 @@ static boolean network_regional_independent_bsp_ready(void) {return independent_
 static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static long distributed_machine_bsp_start[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static long distributed_machine_bsp_offer[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static boolean distributed_machine_bsp_ack[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static long distributed_host_structure_bsp_offer=NONE;
+static int bsp_geometry_acks;
+static struct distributed_structure_bsp checked_geometry_ack;
 static boolean distributed_viewers[HALO_PORT_MAXIMUM_NETWORK_MACHINES][MAXIMUM_LOCAL_PLAYERS];
 static boolean distributed_seen[HALO_PORT_MAXIMUM_NETWORK_MACHINES][2];
 static long bsp_machine_players[2][MAXIMUM_LOCAL_PLAYERS];
@@ -965,6 +970,13 @@ static void distributed_send(void *message, byte type, word count, word size, in
     }
     CHECK(message&&type==_distributed_message_structure_bsp&&count==1&&size,
           "invalid broadcast BSP message");
+    if (delivery==_distributed_to_host_reliably)
+    {
+        memcpy(&checked_geometry_ack,(byte const *)message+sizeof(struct distributed_message_header),
+               sizeof(checked_geometry_ack));
+        bsp_geometry_acks++;
+        return;
+    }
     bsp_announcement_broadcast++;
 }
 #define TARGET_HISTORY_TICKS 4
@@ -3077,22 +3089,29 @@ int main(int argc,char **argv)
         regional_test_root_bsp=old;
         regional_test_other_root_bsp=destination;
         objects_host_told_count=2;
-        bsp_acknowledged[1]=FALSE;
+        independent_bsp_room=TRUE;
+        distributed_machine_bsp_offer[7]=40;
+        distributed_machine_bsp_offer[8]=41;
+        struct distributed_structure_bsp ack={old,40};
+        distributed_handle_structure_bsp_ack(7,&ack);
+        ack=(struct distributed_structure_bsp){destination,40};
+        distributed_handle_structure_bsp_ack(8,&ack);
         distributed_host_send_regional_objects();
         CHECK(checked_change_count[0]==1&&checked_changes[0][0].object_index==units[2]&&
               checked_sync[0]==1&&!checked_change_count[1]&&!checked_sync[1],
               "wrong initial region or object replication before acknowledgment");
 
-        bsp_acknowledged[1]=TRUE;
+        ack.handoff=41;
+        distributed_handle_structure_bsp_ack(8,&ack);
         distributed_host_send_regional_objects();
         CHECK(checked_change_count[1]==1&&checked_changes[1][0].object_index==units[3]&&checked_sync[1]==1,
               "late client did not receive its regional snapshot after acknowledgment");
         distributed_machine_sent_bsp[7]=bsp_player_regions[0]=destination;
-        bsp_acknowledged[0]=FALSE;
+        distributed_machine_bsp_ack[7]=FALSE;
         distributed_host_send_regional_objects();
         CHECK(checked_change_count[0]==1,"handoff changed object lifetimes before acknowledgment");
 
-        bsp_acknowledged[0]=TRUE;
+        distributed_handle_structure_bsp_ack(7,&(struct distributed_structure_bsp){destination,40});
         distributed_host_send_regional_objects();
         CHECK(checked_change_count[0]==3&&checked_change_count[1]==1&&checked_inventories[0]==2&&
               checked_changes[0][1].change==_object_change_delete&&checked_changes[0][1].object_index==units[2]&&
@@ -3165,10 +3184,16 @@ int main(int argc,char **argv)
               "an unassigned machine or unowned object matched a BSP");
         distributed_handle_structure_bsp(90,&targeted);
         CHECK(distributed_host_structure_bsp_index==destination,"client rejected its negotiated handoff");
+        distributed_send_structure_bsp_ack();
+        CHECK(!bsp_geometry_acks,"client acknowledged the BSP before it finished loading");
         distributed_handle_structure_bsp(91,&shared);
         CHECK(distributed_host_structure_bsp_index==destination,"shared update overrode the independent handoff");
         main_switch_to_structure_bsp_private();
         CHECK(global_structure_bsp_index==destination,"client did not load its assigned BSP");
+        distributed_send_structure_bsp_ack();
+        distributed_send_structure_bsp_ack();
+        CHECK(bsp_geometry_acks==1&&checked_geometry_ack.structure_bsp_index==destination&&
+              checked_geometry_ack.handoff==90,"client did not acknowledge installed geometry independently of input");
         return 0;
     }
     if(!strcmp(name,"regional-late-join"))

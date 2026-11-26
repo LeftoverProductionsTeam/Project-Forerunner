@@ -155,9 +155,10 @@ def generated(fault=None):
                             ('distributed_bsp_world_ready', 'distributed_can_apply_bsp_snapshot',
                              'distributed_handle_actor_states', 'distributed_handle_bsp_world_snapshot',
                              'distributed_handle_structure_bsp', 'distributed_handle_unit_states',
+                             'distributed_send_structure_bsp_ack',
                              'distributed_combat_sample_matches_bsp',
                              'distributed_machine_replication_bsp', 'distributed_machine_replication_bsp_matches',
-                             'distributed_hit_report_matches_structure_bsp',
+                             'distributed_hit_report_matches_structure_bsp', 'distributed_handle_structure_bsp_ack',
                              'distributed_machine_replication_bsp_acknowledged', 'distributed_send_independent_structure_bsp',
                              'distributed_send_structure_bsp'))),
         ('bsp_object_lifecycle.inc', '\n'.join(
