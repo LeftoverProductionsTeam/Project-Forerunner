@@ -17,6 +17,7 @@ struct _object_datum
 	real_point3d position;
 	real_vector3d forward, up, translational_velocity, angular_velocity;
 	unsigned long flags, damage_flags;
+	long parent_object_index;
 	short type;
 };
 struct _unit_datum { short unused; };
@@ -29,6 +30,8 @@ static struct biped_definition definition;
 static boolean debug_biped_limp_body_disable;
 static real_point3d node;
 static int interpolations;
+static boolean independent;
+static short pose_bsp;
 
 static struct biped_datum *object_get(long index) { CHECK(index == BODY, "not the body"); return &body; }
 static void *object_get_and_verify_type(long index, unsigned long mask)
@@ -57,6 +60,17 @@ static void object_set_position(long index, real_point3d const *position, real_v
 	body.object.forward = *forward;
 	body.object.up = *up;
 	pose_compute();
+}
+static boolean network_regional_independent_bsp_ready(void) { return independent; }
+static short object_get_regional_bsp(long index) { CHECK(index == BODY, "not the body"); return 12; }
+static boolean object_set_physics_pose(long index, short bsp, real_point3d const *position,
+	real_vector3d const *forward, real_vector3d const *up)
+{
+	pose_bsp = bsp;
+	if (bsp == 12 && position->x > 4.0f)
+		return FALSE;
+	object_set_position(index, position, forward, up);
+	return TRUE;
 }
 static void render_interpolation_correct_object(long index, real_vector3d const *offset) { interpolations++; }
 static boolean distributed_vehicle_unsteered(long index) { return FALSE; }
@@ -174,6 +188,28 @@ int main(int argc, char **argv)
 	/* An explosion this machine does not hear of pushes the host's body: it
 	moves, each word of the host's close enough to this copy's own physics
 	not to be corrected, and comes to rest a few metres away. */
+	CASE("regional-pose")
+	{
+		real_point3d position = {3.0f, 0.0f, 0.0f};
+		real_vector3d forward = {1.0f, 0.0f, 0.0f}, up = {0.0f, 0.0f, 1.0f};
+		real_vector3d velocity = {1.0f, 0.0f, 0.0f};
+		lying(0.0f, 0.0f);
+		body.object.parent_object_index = NONE;
+		independent = TRUE;
+		CHECK(network_objects_reconcile(BODY, &position, &forward, &up, &velocity, NULL, 1.0f, 0)
+			&& pose_bsp == 12 && body.object.position.x == 3.0f, "hard correction lost its assigned BSP");
+		position.x = 3.5f;
+		network_objects_reconcile(BODY, &position, &forward, &up, &velocity, NULL, 1.0f, 0);
+		CHECK(pose_bsp == 12 && body.object.position.x == 3.25f, "blended correction lost its assigned BSP");
+		position.x = 8.0f;
+		velocity.i = 4.0f;
+		CHECK(!network_objects_reconcile(BODY, &position, &forward, &up, &velocity, NULL, 1.0f, 0)
+			&& pose_bsp == 12 && body.object.position.x == 3.25f && body.object.translational_velocity.i == 1.0f,
+			"invalid regional correction changed pose or velocity");
+		independent = FALSE;
+		CHECK(network_objects_reconcile(BODY, &position, &forward, &up, &velocity, NULL, 1.0f, 0)
+			&& pose_bsp == NONE, "classic correction acquired a regional BSP");
+	}
 	CASE("pushed")
 	{
 		lying(0.0f, 0.0f);

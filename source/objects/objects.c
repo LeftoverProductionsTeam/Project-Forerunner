@@ -3796,7 +3796,7 @@ boolean object_transfer_root_to_bsp(long object_index, short destination)
 	return TRUE;
 }
 
-void object_set_physics_pose(
+boolean object_set_physics_pose(
 	long object_index,
 	short bsp,
 	real_point3d const *position,
@@ -3812,12 +3812,12 @@ void object_set_physics_pose(
 	if (bsp == NONE || bsp == global_structure_bsp_index_get())
 	{
 		object_set_position(object_index, position, forward, up);
-		return;
+		return TRUE;
 	}
 
 	structure = scenario_structure_bsp_try_and_get(bsp);
 	if (!structure)
-		return;
+		return FALSE;
 
 	object = object_get(object_index);
 	previous_position = object->object.position;
@@ -3837,9 +3837,10 @@ void object_set_physics_pose(
 		object->object.forward = previous_forward;
 		object->object.up = previous_up;
 		object_compute_node_matrices(object_index);
-		return;
+		return FALSE;
 	}
 	object_reindex_in_bsp(object_index, object, bsp, structure, &location);
+	return TRUE;
 }
 
 static void object_translate_in_bsp(

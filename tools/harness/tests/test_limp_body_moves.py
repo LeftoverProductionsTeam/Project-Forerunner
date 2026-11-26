@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run
 
-CASES = ['pushed', 'landed', 'moved', 'blended', 'living']
+CASES = ['pushed', 'landed', 'moved', 'blended', 'living', 'regional-pose']
 CONTROLS = [
     ('if (!at_rest)\n\t\tdistributed_body_unfix_pose(object_index);', 'if (!at_rest)\n\t\t;', 'pushed'),
     ('SET_FLAG(biped->biped.flags, _biped_airborne_bit, FALSE);', ';', 'landed'),
@@ -41,6 +41,7 @@ def generated(fault=None):
         function(network, 'distributed_body_get'),
         function(network, 'distributed_body_unfix_pose'),
         function(network, 'distributed_body_set_at_rest'),
+        function(network, 'distributed_write_object_pose'),
         function(network, 'distributed_object_move'),
         function(network, 'network_objects_reconcile'),
     ])

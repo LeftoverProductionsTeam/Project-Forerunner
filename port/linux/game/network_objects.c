@@ -952,8 +952,19 @@ static void network_objects_vehicle_writing(
 		biped_riding_vehicle_writing(object_index);
 }
 
+static boolean distributed_write_object_pose(long object_index, struct object_datum const *object,
+	real_point3d const *position, real_vector3d const *forward, real_vector3d const *up)
+{
+	short bsp = NONE;
+
+	/* Prediction reconciles a pose inside its region. The authored portal owns transfers. */
+	if (network_regional_independent_bsp_ready() && object->object.parent_object_index == NONE)
+		bsp = object_get_regional_bsp(object_index);
+	return object_set_physics_pose(object_index, bsp, position, forward, up);
+}
+
 /* (the transform checked) */
-static void distributed_object_move(
+static boolean distributed_object_move(
 	long object_index,
 	real_point3d const *position,
 	real_vector3d const *forward,
@@ -967,6 +978,7 @@ static void distributed_object_move(
 	real_vector3d before_forward = object->object.forward;
 	real_vector3d before_up = object->object.up;
 	real_vector3d offset;
+	boolean written;
 
 	/* (drawn from where it was, the difference fading over a few ticks) */
 	offset.i = object->object.position.x - position->x;
@@ -974,8 +986,10 @@ static void distributed_object_move(
 	offset.k = object->object.position.z - position->z;
 	distributed_body_unfix_pose(object_index);
 	network_objects_vehicle_writing(object_index, kind);
-	object_set_position(object_index, position, forward, up);
+	written = distributed_write_object_pose(object_index, object, position, forward, up);
 	network_objects_vehicle_written(object_index, &before, &before_forward, &before_up, kind);
+	if (!written)
+		return FALSE;
 	if (velocity)
 		object->object.translational_velocity = *velocity;
 	if (angular_velocity)
@@ -984,6 +998,7 @@ static void distributed_object_move(
 		render_interpolation_correct_object(object_index, &offset);
 	if (distributed_vehicle_unsteered(object_index))
 		SET_FLAG(object->object.flags, _object_at_rest_bit, TRUE);
+	return TRUE;
 }
 
 void network_objects_correct(
@@ -1027,8 +1042,7 @@ boolean network_objects_reconcile(
 	right) */
 	if (!(dx * dx + dy * dy + dz * dz <= blend_distance * blend_distance))
 	{
-		distributed_object_move(object_index, position, &valid_forward, &valid_up, velocity, angular_velocity, kind);
-		return TRUE;
+		return distributed_object_move(object_index, position, &valid_forward, &valid_up, velocity, angular_velocity, kind);
 	}
 	/* Move halfway, and draw the move as a glide over the next few frames,
 	as larger corrections are. Drawn as one step, a unit corrected every tick
@@ -1046,14 +1060,17 @@ boolean network_objects_reconcile(
 		real_vector3d before_forward = object->object.forward;
 		real_vector3d before_up = object->object.up;
 		real_vector3d offset;
+		boolean written;
 
 		offset.i = object->object.position.x - blended.x;
 		offset.j = object->object.position.y - blended.y;
 		offset.k = object->object.position.z - blended.z;
 		distributed_body_unfix_pose(object_index);
 		network_objects_vehicle_writing(object_index, kind);
-		object_set_position(object_index, &blended, &valid_forward, &valid_up);
+		written = distributed_write_object_pose(object_index, object, &blended, &valid_forward, &valid_up);
 		network_objects_vehicle_written(object_index, &before, &before_forward, &before_up, kind);
+		if (!written)
+			return FALSE;
 		if (!distributed_object_follows_host(object_index))
 			render_interpolation_correct_object(object_index, &offset);
 	}
