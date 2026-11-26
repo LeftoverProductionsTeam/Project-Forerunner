@@ -3943,7 +3943,8 @@ static boolean goal_matches_player(
 
 static boolean nearby_vehicle(
 	long player_index,
-	struct player_starting_location const *starting_location)
+	struct player_starting_location const *starting_location,
+	short bsp)
 {
 	struct location location;
 	long object_indices[16];
@@ -3951,8 +3952,13 @@ static boolean nearby_vehicle(
 	short object_index;
 
 	player_get(player_index);
-	scenario_location_from_point(&location, &starting_location->position);
-	object_count = objects_in_sphere(
+	if (bsp == NONE || bsp == global_structure_bsp_index_get())
+		scenario_location_from_point(&location, &starting_location->position);
+	else
+		scenario_location_from_point_in_structure(&location,
+			scenario_structure_bsp_try_and_get(bsp), &starting_location->position);
+	object_count = objects_in_bsp_sphere(
+		bsp,
 		0,
 		0x11F,
 		&location,
@@ -4005,13 +4011,13 @@ boolean game_engine_spawn_observes_unit(long unit_index, short bsp)
 
 static real game_engine_get_friendly_bonus(
 	long player_index,
-	real_point3d const *position)
+	real_point3d const *position,
+	short bsp)
 {
 	struct player_datum *player = player_get(player_index);
 	struct data_iterator iterator;
 	struct player_datum *other_player;
 	real rating = 0.0f;
-	short bsp = scenario_uses_regional_gameplay(global_scenario_get()) ? global_structure_bsp_index_get() : NONE;
 
 	data_iterator_new(&iterator, player_data);
 	other_player = (struct player_datum *)data_iterator_next(&iterator);
@@ -4051,7 +4057,8 @@ static long game_engine_get_type(
 	void);
 
 static boolean game_engine_force_team_spawns(
-	long player_index)
+	long player_index,
+	short bsp)
 {
 	struct player_datum *player = player_get(player_index);
 	boolean team_has_spawn[2] = { FALSE, FALSE };
@@ -4078,7 +4085,7 @@ static boolean game_engine_force_team_spawns(
 		if ((starting_location->team_index == _team_red ||
 				starting_location->team_index == _team_blue) &&
 			match_game_type(game_engine_ctf, 4, starting_location->game_types) &&
-			player_starting_location_in_active_bsp(starting_location))
+			(bsp == NONE || player_starting_location_in_bsp(starting_location, bsp)))
 		{
 			team_has_spawn[starting_location->team_index] = TRUE;
 			if (team_has_spawn[_team_red] && team_has_spawn[_team_blue])
@@ -4089,15 +4096,19 @@ static boolean game_engine_force_team_spawns(
 	return FALSE;
 }
 
+static real game_engine_get_distance_rating_for_spawn(
+	long player_index, real_point3d const *position, short bsp);
+
 static real default_starting_location_rate_function(
 	long player_index,
-	struct player_starting_location const *starting_location)
+	struct player_starting_location const *starting_location,
+	struct game_engine_spawn_rules const *rules)
 {
 	struct player_datum *player = player_get(player_index);
 	real rating = 1.0f;
 
 	if (game_engine_running() &&
-		(game_engine_test_flag(0) || game_engine_force_team_spawns(player_index)) &&
+		rules->require_team &&
 		player->team_index != starting_location->team_index)
 	{
 		rating = 0.0f;
@@ -4107,14 +4118,16 @@ static real default_starting_location_rate_function(
 	{
 		rating *= game_engine_get_distance_rating_for_spawn(
 			player_index,
-			&starting_location->position);
+			&starting_location->position,
+			rules->bsp);
 	}
 
 	if (game_engine_running() && rating > 0.0f && game_engine_has_teams())
 	{
 		rating *= game_engine_get_friendly_bonus(
 			player_index,
-			&starting_location->position);
+			&starting_location->position,
+			rules->bsp);
 	}
 
 	if (game_engine_running() && game_engine->starting_location_rating)
@@ -9245,16 +9258,16 @@ void game_engine_player_added(
 	return;
 }
 
-real game_engine_get_distance_rating_for_spawn(
+static real game_engine_get_distance_rating_for_spawn(
 	long player_index,
-	real_point3d const *position)
+	real_point3d const *position,
+	short bsp)
 {
 	boolean has_teams = game_engine ? global_variant.universal_variant.teams : FALSE;
 	struct player_datum *player;
 	struct data_iterator iterator;
 	struct player_datum *other_player;
 	real rating;
-	short bsp = scenario_uses_regional_gameplay(global_scenario_get()) ? global_structure_bsp_index_get() : NONE;
 
 	player = player_get(player_index);
 	rating = 1.0f;
@@ -9296,26 +9309,38 @@ real game_engine_get_distance_rating_for_spawn(
 }
 
 
+struct game_engine_spawn_rules game_engine_prepare_spawn_rules(long player_index, short bsp)
+{
+	boolean force_team = game_engine_force_team_spawns(player_index, bsp);
+	struct game_engine_spawn_rules rules = {
+		.game_type = force_team ? game_engine_ctf : game_engine_get_type(),
+		.bsp = bsp,
+		.require_team = game_engine_running() && (force_team || game_engine_test_flag(0))
+	};
+	return rules;
+}
+
+real game_engine_get_starting_location_rating_in_bsp(
+	long player_index,
+	struct player_starting_location const *starting_location,
+	struct game_engine_spawn_rules const *rules)
+{
+	if (rules->bsp != NONE && !player_starting_location_in_bsp(starting_location, rules->bsp))
+		return 0.0f;
+	if (!match_game_type(rules->game_type, 4, starting_location->game_types))
+		return 0.0f;
+	if (nearby_vehicle(player_index, starting_location, rules->bsp))
+		return 0.0f;
+	return default_starting_location_rate_function(player_index, starting_location, rules);
+}
+
 real game_engine_get_starting_location_rating(
 	long player_index,
 	struct player_starting_location const *starting_location)
 {
-	if (!player_starting_location_in_active_bsp(starting_location))
-		return 0.0f;
-
-	/* port: (or CTF's: game_engine_force_team_spawns) */
-	if (!match_game_type(
-		game_engine_force_team_spawns(player_index) ? game_engine_ctf : game_engine_get_type(),
-		4,
-		starting_location->game_types))
-	{
-		return 0.0f;
-	}
-
-	if (nearby_vehicle(player_index, starting_location))
-		return 0.0f;
-
-	return default_starting_location_rate_function(player_index, starting_location);
+	short bsp = scenario_uses_regional_gameplay(global_scenario_get()) ? global_structure_bsp_index_get() : NONE;
+	struct game_engine_spawn_rules rules = game_engine_prepare_spawn_rules(player_index, bsp);
+	return game_engine_get_starting_location_rating_in_bsp(player_index, starting_location, &rules);
 }
 
 /* port: the gametype's vehicles of each team (game_variant_options) */

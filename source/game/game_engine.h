@@ -762,10 +762,6 @@ void game_engine_initialize_for_new_map(
 void game_engine_player_added(
 	long player_index);
 
-real game_engine_get_distance_rating_for_spawn(
-	long player_index,
-	union real_point3d const *position);
-
 void game_engine_variant_cleanup(
 	struct game_variant *variant);
 
@@ -776,6 +772,17 @@ boolean game_engine_can_score(
 	void);
 
 boolean game_engine_spawn_observes_unit(long unit_index, short bsp);
+struct game_engine_spawn_rules
+{
+	long game_type;
+	short bsp;
+	boolean require_team;
+};
+struct game_engine_spawn_rules game_engine_prepare_spawn_rules(long player_index, short bsp);
+real game_engine_get_starting_location_rating_in_bsp(
+	long player_index,
+	struct player_starting_location const *starting_location,
+	struct game_engine_spawn_rules const *rules);
 real game_engine_get_starting_location_rating(
 	long player_index,
 	struct player_starting_location const *starting_location);

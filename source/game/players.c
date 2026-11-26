@@ -1400,6 +1400,7 @@ long find_best_starting_location_index(
 	short faction_profile = NONE, faction_variant = 0;
 	boolean checked_extraction_profile = FALSE;
 	short spawn_bsp;
+	struct game_engine_spawn_rules spawn_rules;
 
 	scenario = global_scenario_get();
 	spawn_bsp = scenario_uses_regional_gameplay(scenario) ? global_structure_bsp_index_get() : NONE;
@@ -1414,6 +1415,7 @@ long find_best_starting_location_index(
 			starting_location_count = encounter->player_starting_locations.count;
 	}
 
+	spawn_rules = game_engine_prepare_spawn_rules(player_index, spawn_bsp);
 	best_starting_location_index = NONE;
 	best_starting_location_rating = 0.0f;
 	for (starting_location_index = 0;
@@ -1423,9 +1425,10 @@ long find_best_starting_location_index(
 		starting_location = player_get_starting_location(starting_location_index);
 		if (!extraction_player_start_allowed(player_index, starting_location))
 			continue;
-		starting_location_rating = game_engine_get_starting_location_rating(
+		starting_location_rating = game_engine_get_starting_location_rating_in_bsp(
 			player_index,
-			starting_location);
+			starting_location,
+			&spawn_rules);
 		starting_location_rating *= (real)pow(
 			(double)real_random_range(0.0f, 1.0f),
 			0.5);
