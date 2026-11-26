@@ -417,6 +417,12 @@ static struct object_definition armor_model={{{2,armor_channels}}};
 static struct object_definition *object_definition_get(long definition){return &armor_model;}
 static struct object_datum *object_get(long index);
 #include "body_armor_color.inc"
+struct structure_bsp;
+static short object_get_regional_bsp(long object);
+static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp);
+static short global_structure_bsp_index_get(void) {return 0;}
+static long object_new_in_bsp(struct object_placement_data *placement,short bsp,struct structure_bsp const *structure);
+static void object_activate(long object);
 #include "equipment.inc"
 /* Native object-list adapters; list allocation/provenance itself is exercised
  * with the real pool code in coop_gate and script_stale_objects. */
@@ -458,11 +464,20 @@ static short scenario_object_name_index_from_string(struct scenario *map, char c
  return NONE;
 }
 enum {MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO = 16};
-static short object_get_regional_bsp(long object);
 struct structure_bsp {short bsp;};
 static struct structure_bsp fixture_hub_geometry={10};
+static boolean body_region_loaded;
+static short body_created_bsp=NONE;
+static long activated_body=NONE;
 static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp)
-{(void)bsp;return NULL;}
+{return body_region_loaded&&bsp==fixture_hub_geometry.bsp?&fixture_hub_geometry:NULL;}
+static long object_new_in_bsp(struct object_placement_data *placement,short bsp,struct structure_bsp const *structure)
+{
+ CHECK(structure ? bsp==structure->bsp : bsp==NONE,"body placement got the wrong region geometry");
+ body_created_bsp=bsp;
+ return object_new(placement);
+}
+static void object_activate(long object){activated_body=object;}
 static struct structure_bsp const *scenario_structure_bsp_preview(short bsp, boolean prefetch)
 {return prefetch&&bsp==fixture_hub_geometry.bsp?&fixture_hub_geometry:NULL;}
 static boolean scenario_structure_bsp_contains_placement(struct structure_bsp const *bsp,real_point3d const *position)
@@ -1633,14 +1648,21 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"body-transfer"))fail_attach=1;
   if(!strcmp(case_name,"body-flag"))weapons[0].flag=TRUE;
   if(!strcmp(case_name,"body-item"))units[0].unit.equipment_object_index=0x700;
+  if(!strncmp(case_name,"body-region-",12)) {
+   scenario.structure_bsp_references.count=11;
+   fixture_unit_bsp=fixture_control_bsp=10;
+   body_region_loaded=!strcmp(case_name,"body-region-loaded");
+  }
   incompatible_body_weapon=1;touch(4,0);
-  if(!strcmp(case_name,"body-allocation")||!strcmp(case_name,"body-preview")||!strcmp(case_name,"body-transfer")||
+  if(!strcmp(case_name,"body-region-unavailable")||!strcmp(case_name,"body-allocation")||!strcmp(case_name,"body-preview")||!strcmp(case_name,"body-transfer")||
      !strcmp(case_name,"body-flag")||!strcmp(case_name,"body-item")) {
    CHECK(players[0].unit_index==old&&players[0].team_index==_game_team_player&&!original_deleted[0],"failed model change replaced original player");
    CHECK(weapon_try_and_get(a)&&weapon_try_and_get(b)&&run(0)->gear.record.phase==_gear_idle&&!run(0)->gear.record.reserved_count,
     "failed model change erased originals or reserved gear");extraction_reset();return 0;
   }
   body=players[0].unit_index;unit=unit_get(body);
+  if(!strcmp(case_name,"body-region-loaded"))
+   CHECK(body_created_bsp==10&&activated_body==body,"character change did not attach and activate in the player's own region");
   CHECK(body!=old&&unit->definition_index==5&&unit->unit.player_index==player_handles[0]&&players[0].team_index==_game_team_covenant&&original_deleted[0],"native player did not adopt selected body");
   CHECK(weapon_get(a)->object.parent_object_index==NONE&&unit->unit.weapon_object_indices[0]==b&&weapon_get(b)->object.owner_player_index==player_handles[0],"character change copied, erased or misowned actual weapons");
   CHECK(weapon_get(a)->weapon.magazines[0].rounds_loaded==7&&weapon_get(b)->weapon.magazines[0].rounds_total==63&&

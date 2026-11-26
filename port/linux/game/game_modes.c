@@ -354,7 +354,8 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 	struct object_placement_data placement;
 	long previous, replacement, selected, old_filter, weapons[GAME_MODES_INVENTORY_WEAPONS], preview[GAME_MODES_INVENTORY_WEAPONS];
 	real_rgb_color color;
-	short powerups[NUMBER_OF_PLAYER_POWERUPS], index, slot;
+	short powerups[NUMBER_OF_PLAYER_POWERUPS], index, slot, bsp = NONE;
+	struct structure_bsp const *structure = NULL;
 	char const *path;
 	void network_player_detach_unit(long player);
 	void network_player_attach_unit(long player, long unit);
@@ -379,7 +380,17 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 	placement.forward = old->object.forward; placement.up = old->object.up;
 	placement.owner_player_index = player_index; placement.owner_team_index = team; placement.variant_number = variant;
 	placement_data_set_change_color(&placement, game_engine_player_get_change_color(&color, player_index));
-	replacement = object_new(&placement);
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		short owner = object_get_regional_bsp(previous);
+		if (owner != NONE && owner != global_structure_bsp_index_get())
+		{
+			structure = scenario_structure_bsp_try_and_get(owner);
+			if (!structure) return FALSE;
+			bsp = owner;
+		}
+	}
+	replacement = object_new_in_bsp(&placement, bsp, structure);
 	if (replacement == NONE) return FALSE;
 	next = (struct unit_datum *)object_try_and_get_and_verify_type(replacement, _object_mask_biped);
 	if (!next) { object_delete(replacement); return FALSE; }
@@ -429,6 +440,7 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 		network_player_detach_unit(player_index);
 		network_player_attach_unit(player_index, replacement);
 	}
+	if (structure) object_activate(replacement);
 	player->dead_unit_index = NONE;
 	memcpy(player->powerup_durations, powerups, sizeof(powerups));
 	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++)

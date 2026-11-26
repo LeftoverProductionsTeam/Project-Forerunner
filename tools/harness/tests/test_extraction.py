@@ -467,6 +467,7 @@ def test_native_faction_workflow(case):
 
 @pytest.mark.parametrize('case', [
     'body-loop', 'body-local', 'body-allocation', 'body-preview', 'body-transfer',
+    'body-region-loaded', 'body-region-unavailable',
     'body-binding', 'body-placement', 'body-palette', 'body-duplicate', 'body-profile',
     'body-spawn', 'body-flag', 'body-item', 'body-stash', 'body-armor-color', 'body-native-fallback', 'body-native-missing',
 ])
