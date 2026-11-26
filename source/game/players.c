@@ -6255,13 +6255,18 @@ static void players_update_regional_bsp_holds(void)
 {
 	struct scenario const *scenario = global_scenario_get();
 	unsigned long occupied = players_occupied_regional_bsps();
+	short foreground = global_structure_bsp_index_get();
 	short bsp, count;
 
 	if (!scenario_uses_regional_gameplay(scenario) || network_game_distributed_client())
 		return;
-	/* The foreground has its own cache hold. */
-	if (global_structure_bsp_index_get() != NONE)
-		occupied &= ~FLAG(global_structure_bsp_index_get());
+	/* Release unused placements before their resident collision can be evicted.
+	 * The foreground remains populated even when no player is alive there. */
+	if (foreground != NONE)
+	{
+		object_types_trim_unused_regional_bsps(occupied | FLAG(foreground));
+		occupied &= ~FLAG(foreground);
+	}
 	if (!occupied && !mcc_cache_has_simulation_bsp_holds())
 		return;
 	count = MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO);

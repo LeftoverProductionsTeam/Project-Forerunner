@@ -1048,6 +1048,12 @@ void object_types_trim_bsp_placements(unsigned long keep_bsps)
 	populated_bsp_flags &= (word)keep_bsps;
 }
 
+void object_types_trim_unused_regional_bsps(unsigned long keep_bsps)
+{
+	if (populated_bsp_flags & ~keep_bsps)
+		object_types_trim_bsp_placements(keep_bsps);
+}
+
 void object_types_disconnect_from_structure_bsp(void)
 {
 	object_types_trim_bsp_placements(0);

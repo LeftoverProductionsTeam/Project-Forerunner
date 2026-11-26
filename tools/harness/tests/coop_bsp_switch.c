@@ -325,6 +325,11 @@ boolean mcc_cache_has_simulation_bsp_holds(void);
 #define BIT_VECTOR_SET_FLAG(bits,index,value) SET_FLAG((bits)[(index)/32],(index)%32,value)
 #define MAXIMUM_OBJECTS_PER_MAP 4
 #define BIT_VECTOR_SIZE_IN_LONGS(count) (((count)+31)/32)
+static unsigned long retained_placement_bsps;
+static void object_types_trim_unused_regional_bsps(unsigned long keep_bsps)
+{
+    retained_placement_bsps=keep_bsps;
+}
 #include "players.inc"
 #undef NUMBEROF
 #undef csmemset
@@ -2125,6 +2130,8 @@ int main(int argc,char **argv)
             regional_test_root_bsp=2;
             objects[0].object.parent_object_index=units[2];
             players_update_regional_bsp_holds();
+            CHECK(retained_placement_bsps==(FLAG(old)|FLAG(2)),
+                  "occupied placements must be retained along with the foreground");
             CHECK(mcc_cache_bsp_pinned(&regions[2])&&!mcc_preview_bsp&&
                   scenario_structure_bsp_try_and_get(2)==geometry&&global_structure_bsp_index==old,
                   "an occupied preview was not promoted to native resident geometry");
@@ -2185,6 +2192,8 @@ int main(int argc,char **argv)
                   "the BSP switch failed to reuse the occupied geometry");
             objects[0].object.damage_flags|=FLAG(_object_dead_bit);
             players_update_regional_bsp_holds();
+            CHECK(retained_placement_bsps==FLAG(old),
+                  "vacated regional placements were retained");
             CHECK(!mcc_cache_bsp_pinned(&regions[2])&&!mcc_region_live[2]&&mcc_region_live[old],
                   "a deceased occupant leaked its regional hold or released the foreground");
             return 0;
