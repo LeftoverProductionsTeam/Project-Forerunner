@@ -4685,9 +4685,15 @@ long object_new_by_name(
 			if (object->on_bsp_flags == FLAG(bsp))
 			{
 				struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
+				long vehicle;
 				if (!structure)
 					structure = scenario_structure_bsp_preview(bsp, TRUE);
-				return structure ? object_new_from_scenario_in_bsp(object, palette, bsp, structure) : NONE;
+				if (!structure)
+					return NONE;
+				vehicle = object_new_from_scenario_in_bsp(object, palette, bsp, structure);
+				if (vehicle != NONE && TEST_FLAG(players_occupied_regional_bsps(), bsp))
+					object_activate(vehicle);
+				return vehicle;
 			}
 		}
 	}

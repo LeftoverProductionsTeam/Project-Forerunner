@@ -1248,13 +1248,13 @@ static void object_types_connect_regional_vehicles(short bsp, struct structure_b
 {
 	struct object_iterator iterator;
 
-	/* The multiplayer initializer creates each eligible authored vehicle once.
-	 * Connect its existing datum when its owning region becomes playable. */
+	/* Wake stock and scripted vehicles when their owning region becomes playable. */
 	object_iterator_new(&iterator, _object_mask_vehicle, 0);
 	while (object_iterator_next(&iterator))
 	{
 		long vehicle = iterator.index;
-		if (game_engine_connect_regional_vehicle(vehicle, bsp, structure))
+		if (object_get_regional_bsp(vehicle) == bsp ||
+			game_engine_connect_regional_vehicle(vehicle, bsp, structure))
 			object_activate(vehicle);
 	}
 }
