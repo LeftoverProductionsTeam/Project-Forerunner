@@ -80,7 +80,12 @@ Updated 26 November 2026. This records the previous V2 checkpoint.
    then native faction deployment, evacuation, banking and redeployment.
    Keep `extraction.megaworld.v1` reserved.
 3. **Original Zombie Apocalypse.** Preserve the installed `12649191` and
-   tested Survival vehicle rules. Keep collider candidate `05a4268a`
+   tested Survival vehicle rules. Compare the exact original Demo
+   `b38f35508188` against the installed map through native menus. Keep the
+   weapon-driven carriers, mounted actors and grounded rollover ejection.
+   The original map has no HaloScript or authored encounters. Enhanced
+   Survival remains a separate configurable mode. Verify Evolved and Alpha
+   release, both Demolishers, weapon effects, healing grenades and audio. Keep collider candidate `05a4268a`
    separate. The short Slayer comparison observed live standard-carrier
    release only on the installed baseline. Run matched carrier release and a
    full mixed-runtime Survival round before replacing the installed cache.

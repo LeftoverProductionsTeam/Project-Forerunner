@@ -1,5 +1,19 @@
 # FORERUNNER — PERSISTENT ENGINEERING GOAL
 
+## Product Completion V2.1
+
+Keep Product Completion V2 and its accepted behavior. Verify the shared actor
+replication path for campaign, Zombie Survival, Firefight, Extraction and Forge.
+Expand neighbor residency and rendering to real multi-region junctions within a
+measured budget. Keep independent occupancy and native BSP compatibility.
+Refresh Forge from Chupathingy, including HMV 16, and reuse compatible
+OpenCE-Forge dependency and late-join behavior through existing networking.
+Use the current ragdoll solver to strengthen hinge, cone and limb contacts.
+Verify custom rigs and profile the current corpse count before raising it.
+Promote verified batches independently of unrelated outstanding checks.
+Keep all P2 capabilities and expose only verified authoritative editing,
+transactions and runtime readback through the existing Spark contract.
+
 ## Product Completion V2
 
 - **P0 — Shared foundation.** Complete authoritative AI across campaign,

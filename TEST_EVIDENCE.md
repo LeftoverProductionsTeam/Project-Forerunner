@@ -1,5 +1,16 @@
 # Forerunner test evidence
 
+## Product Completion V2.1 Windows release
+
+Latest Win64 `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
+opened campaign and a normal-menu two-player Zombie Survival LAN match. The
+local Ragdolls choice rendered in Gameplay settings. Earlier focused checks
+below cover actual Flood get-up replication and third-person aim. The prior
+executable is in Previous. The released MegaWorld map, mode receipt, Survivor
+map and user configuration passed exact checksum readback after promotion.
+The experimental camera inside Extraction exposed a clipped spawn view in an
+isolated trial and is outside this release.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`
