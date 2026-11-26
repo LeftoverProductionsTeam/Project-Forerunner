@@ -6145,6 +6145,8 @@ static void player_transfer_regional_root(
 		}
 		if (!object_transfer_root_to_bsp(root_index, destination))
 			continue;
+		if (destination != global_structure_bsp_index_get())
+			object_types_place_regional_bsp(destination, structure);
 		data_iterator_new(&iterator, player_data);
 		while ((rider = data_iterator_next(&iterator)) != NULL)
 		{

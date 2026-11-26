@@ -1055,7 +1055,8 @@ void object_types_disconnect_from_structure_bsp(void)
 
 static boolean object_placement_overlaps_current_bsp(
 	struct scenario_object_datum const *placement,
-	struct tag_block *palette)
+	struct tag_block *palette,
+	struct structure_bsp const *regional_structure)
 {
 	struct scenario_object_palette_entry *entry;
 	struct object_definition *definition;
@@ -1072,6 +1073,9 @@ static boolean object_placement_overlaps_current_bsp(
 		placement->rotation.pitch, placement->rotation.roll);
 	matrix.position = placement->position;
 	matrix4x3_transform_point(&matrix, &definition->object.bounding_offset, &transformed);
+	if (regional_structure)
+		return scenario_structure_bsp_contains_point(regional_structure, &placement->position) ||
+			scenario_structure_bsp_contains_point(regional_structure, &transformed);
 	return scenario_leaf_index_from_point(&placement->position) != NONE ||
 		scenario_leaf_index_from_point(&transformed) != NONE;
 }
@@ -1079,18 +1083,19 @@ static boolean object_placement_overlaps_current_bsp(
 /* Preserve valid compiled MCC13 ownership even if geometry overlaps.
  * A zero or out-of-range mask still gets the native placement test. */
 static boolean object_placement_active_in_bsp(
-	struct scenario_object_datum const *placement, struct tag_block *palette, word regional_mask)
+	struct scenario_object_datum const *placement, struct tag_block *palette, word regional_mask,
+	short bsp, struct structure_bsp const *regional_structure)
 {
 	word flags = placement->on_bsp_flags;
 	if (!regional_mask || (flags && !(flags & ~regional_mask)))
-		return TEST_FLAG(flags, global_structure_bsp_index);
-	return object_placement_overlaps_current_bsp(placement, palette);
+		return TEST_FLAG(flags, bsp);
+	return object_placement_overlaps_current_bsp(placement, palette, regional_structure);
 }
 
-void object_types_place_objects(
-	boolean reconnecting)
+static void object_types_place_objects_in_bsp(
+	boolean reconnecting, short bsp, struct structure_bsp const *regional_structure)
 {
-	if (!game_in_editor() && global_structure_bsp_index!=NONE)
+	if (!game_in_editor() && bsp != NONE)
 	{
 		short object_type;
 		struct scenario *scenario = global_scenario_get();
@@ -1137,7 +1142,7 @@ void object_types_place_objects(
 								element_size);
 
 						SET_FLAG(scenario_object->on_bsp_flags, global_structure_bsp_index,
-							object_placement_overlaps_current_bsp(scenario_object, scenario_palette));
+							object_placement_overlaps_current_bsp(scenario_object, scenario_palette, NULL));
 					}
 				}
 
@@ -1160,9 +1165,9 @@ void object_types_place_objects(
 						if ((scenario_object->name_index==NONE ||
 							object_index_from_name_index(scenario_object->name_index)==NONE) &&
 							!TEST_FLAG(scenario_object->placement_flags, _scenario_object_placement_not_automatic_bit) &&
-							object_placement_active_in_bsp(scenario_object, scenario_palette, regional_mask))
+							object_placement_active_in_bsp(scenario_object, scenario_palette, regional_mask, bsp, regional_structure))
 						{
-							object_new_from_scenario(scenario_object, scenario_palette);
+							object_new_from_scenario_in_bsp(scenario_object, scenario_palette, bsp, regional_structure);
 							objects_garbage_collection();
 						}
 					}
@@ -1170,12 +1175,23 @@ void object_types_place_objects(
 			}
 		}
 
-		processed_bsp_flags |= FLAG(global_structure_bsp_index);
+		processed_bsp_flags |= FLAG(bsp);
 		if (reconnecting)
-			populated_bsp_flags |= FLAG(global_structure_bsp_index);
+			populated_bsp_flags |= FLAG(bsp);
 	}
 
 	return;
+}
+
+void object_types_place_objects(boolean reconnecting)
+{
+	object_types_place_objects_in_bsp(reconnecting, global_structure_bsp_index_get(), NULL);
+}
+
+void object_types_place_regional_bsp(short bsp, struct structure_bsp const *structure)
+{
+	if (structure && !TEST_FLAG(populated_bsp_flags, bsp))
+		object_types_place_objects_in_bsp(TRUE, bsp, structure);
 }
 
 void object_types_reconnect_foreground(void)

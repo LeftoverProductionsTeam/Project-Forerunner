@@ -491,6 +491,8 @@ boolean object_force_inside_bsp(long object_index, real_point3d const *known_goo
 boolean object_force_inside_bsp_ignoring(long object_index, real_point3d const *known_good_point, long ignore_object_index);
 void object_compute_node_matrices_recursive(long object_index);
 long object_new_from_scenario(struct scenario_object_datum *scenario_object, struct tag_block *palette);
+long object_new_from_scenario_in_bsp(struct scenario_object_datum *scenario_object, struct tag_block *palette,
+	short regional_bsp, struct structure_bsp const *regional_structure);
 void object_attach_to_marker(long parent_object_index, char const *parent_marker_name, long child_object_index, char const *child_marker_name);
 long object_new_by_name(short name_index);
 void objects_scripting_attach(long parent_object_index, char const *parent_marker_name, long child_object_index, char const *child_marker_name);

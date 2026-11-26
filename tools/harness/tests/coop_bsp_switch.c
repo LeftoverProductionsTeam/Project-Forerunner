@@ -1030,6 +1030,8 @@ static boolean object_transfer_root_to_bsp(long root, short bsp)
     transferred_roots++;
     return TRUE;
 }
+static void object_types_place_regional_bsp(short bsp, struct structure_bsp const *structure)
+{CHECK(structure != NULL && bsp != global_structure_bsp_index,"invalid regional placement request");}
 #include "queue_regional_bsp_switch.inc"
 #include "queue_bsp_switch.inc"
 
@@ -1138,6 +1140,12 @@ static void object_delete(long object) {deletions|=FLAG(slot(object));}
 static void cluster_partition_reconnect(struct cluster_partition *partition, long object, long *reference,
     real_point3d const *center, real radius, struct location const *location)
 {CHECK(location->cluster_index==NONE,"parked projectile borrowed the foreground cluster list");}
+static boolean cluster_partition_reconnect_in_bsp(struct cluster_partition *partition, short bsp,
+    struct structure_bsp const *structure, long object, long *reference,
+    real_point3d const *center, real radius, struct location const *location)
+{CHECK(FALSE,"parked projectile requested regional placement");return FALSE;}
+static void cluster_partition_disconnect(struct cluster_partition *partition,long object,long *reference)
+{CHECK(FALSE,"parked projectile discarded regional placement references");}
 #include "object_reconnect.inc"
 #include "regional_trigger.inc"
 #undef scenario_trigger_volume_test_object
@@ -1157,7 +1165,7 @@ static void control_touched(long device,long unit) {regional_control_touches++;}
 struct scenario_object_datum {word on_bsp_flags;};
 static boolean mock_placement_geometry;
 static boolean object_placement_overlaps_current_bsp(
-    struct scenario_object_datum const *placement,struct tag_block *palette)
+    struct scenario_object_datum const *placement,struct tag_block *palette,struct structure_bsp const *structure)
 {return mock_placement_geometry;}
 #include "regional_scenery.inc"
 
@@ -1681,7 +1689,7 @@ int main(int argc,char **argv)
         activation_headers[3].datum=parked;
         activation_headers[3].flags=FLAG(_object_header_automatically_deactivate_bit);
         SET_FLAG(parked->object.flags,_object_connected_to_map_bit,FALSE);
-        object_reconnect_to_map_internal(units[3],&destination_location,TRUE);
+        object_reconnect_to_map_internal(units[3],&destination_location,TRUE,NONE,NULL);
         CHECK(!deletions&&!activations&&activation_headers[3].cluster_index==NONE&&
               TEST_FLAG(activation_headers[3].flags,_object_header_connected_to_map_bit),
               "ordinary movement reconnect deleted or activated a foreign projectile");
@@ -1894,17 +1902,17 @@ int main(int argc,char **argv)
         word mask=FLAG(0)|FLAG(1)|FLAG(2)|FLAG(3);
         global_structure_bsp_index=2;
         mock_placement_geometry=TRUE;
-        CHECK(!object_placement_active_in_bsp(&placement,NULL,mask),"overlapping BSP claimed authored scenery");
+        CHECK(!object_placement_active_in_bsp(&placement,NULL,mask,2,NULL),"overlapping BSP claimed authored scenery");
         placement.on_bsp_flags|=FLAG(2);
         mock_placement_geometry=FALSE;
-        CHECK(object_placement_active_in_bsp(&placement,NULL,mask),"lost compiled two-BSP placement");
+        CHECK(object_placement_active_in_bsp(&placement,NULL,mask,2,NULL),"lost compiled two-BSP placement");
         placement.on_bsp_flags=0;
-        CHECK(!object_placement_active_in_bsp(&placement,NULL,mask),"geometry rejected a missing authored mask");
+        CHECK(!object_placement_active_in_bsp(&placement,NULL,mask,2,NULL),"geometry rejected a missing authored mask");
         mock_placement_geometry=TRUE;
-        CHECK(object_placement_active_in_bsp(&placement,NULL,mask),"unassigned scenery lost its geometry fallback");
+        CHECK(object_placement_active_in_bsp(&placement,NULL,mask,2,NULL),"unassigned scenery lost its geometry fallback");
         placement.on_bsp_flags=FLAG(9);
-        CHECK(object_placement_active_in_bsp(&placement,NULL,mask),"invalid scenery membership lost its fallback");
-        CHECK(!object_placement_active_in_bsp(&placement,NULL,0),"classic BSP flags no longer drive placement");
+        CHECK(object_placement_active_in_bsp(&placement,NULL,mask,2,NULL),"invalid scenery membership lost its fallback");
+        CHECK(!object_placement_active_in_bsp(&placement,NULL,0,2,NULL),"classic BSP flags no longer drive placement");
         CHECK(placement.on_bsp_flags==FLAG(9),"readback altered original membership");
         return 0;
     }

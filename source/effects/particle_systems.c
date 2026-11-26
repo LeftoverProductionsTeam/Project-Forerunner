@@ -637,6 +637,9 @@ static void particle_system_update_default(
 
 	if (system->object_index == NONE && definition->system_update_point_physics.index != NONE)
 	{
+		/* A detached system can still have an attachment's old BSP location. */
+		if (network_regional_independent_bsp_ready())
+			scenario_location_from_point(&system->location, &system->position);
 		point_physics_update(
 			0,
 			point_physics_definition_get(definition->system_update_point_physics.index),

@@ -2085,7 +2085,9 @@ void object_delete(
 static void object_reconnect_to_map_internal(
 	long object_index,
 	struct location const *location,
-	boolean update_activation)
+	boolean update_activation,
+	short regional_bsp,
+	struct structure_bsp const *regional_structure)
 {
 	struct object_header_datum *header = object_header_get(object_index);
 	struct object_datum *object = header->datum;
@@ -2110,7 +2112,16 @@ static void object_reconnect_to_map_internal(
 		struct location bounding_sphere_location;
 		boolean parked = game_engine_object_parked(object_index, object->object.type);
 
-		if (parked)
+		if (regional_structure)
+		{
+			scenario_location_from_point_in_structure(&bounding_sphere_location, regional_structure,
+				&object->object.bounding_sphere_center);
+			if (bounding_sphere_location.cluster_index == NONE)
+				scenario_location_from_point_in_structure(&bounding_sphere_location, regional_structure,
+					&object->object.position);
+			location = &bounding_sphere_location;
+		}
+		else if (parked)
 		{
 			object->object.location.leaf_index = NONE;
 			object->object.location.cluster_index = NONE;
@@ -2143,16 +2154,20 @@ static void object_reconnect_to_map_internal(
 
 		SET_FLAG(header->flags, _object_header_child_bit, FALSE);
 
-		cluster_partition_reconnect(
-			(TEST_FLAG(object_get(object_index)->object.flags, _object_has_collision_model_bit) ?
-				&collideable_object_cluster_partition :
-				&noncollideable_object_cluster_partition
-			),
-			object_index,
-			&object->object.first_cluster_reference_index,
-			&object->object.bounding_sphere_center,
-			object->object.bounding_sphere_radius,
-			&object->object.location);
+		struct cluster_partition *partition = TEST_FLAG(object->object.flags, _object_has_collision_model_bit) ?
+			&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
+		if (regional_structure)
+		{
+			if (!cluster_partition_reconnect_in_bsp(partition, regional_bsp, regional_structure, object_index,
+				&object->object.first_cluster_reference_index, &object->object.bounding_sphere_center,
+				object->object.bounding_sphere_radius, &object->object.location))
+				cluster_partition_disconnect(partition, object_index, &object->object.first_cluster_reference_index);
+		}
+		else
+		{
+			cluster_partition_reconnect(partition, object_index, &object->object.first_cluster_reference_index,
+				&object->object.bounding_sphere_center, object->object.bounding_sphere_radius, &object->object.location);
+		}
 
 		/* A parked root is waiting for its own PVS, not leaving the world. */
 		if (update_activation && !parked && TEST_FLAG(header->flags, _object_header_automatically_deactivate_bit))
@@ -2181,7 +2196,7 @@ void object_reconnect_to_map(
 	long object_index,
 	struct location const *location)
 {
-	object_reconnect_to_map_internal(object_index, location, TRUE);
+	object_reconnect_to_map_internal(object_index, location, TRUE, NONE, NULL);
 }
 
 real_matrix4x3 *object_get_node_matrix(
@@ -2623,7 +2638,7 @@ void objects_reconnect_to_structure_bsp(
 			}
 			/* The players move and rebuild their PVS after all roots are linked.
 			 * A projectile must not be discarded using the old BSP's mask. */
-			object_reconnect_to_map_internal(iterator.index, &scenario_location, FALSE);
+			object_reconnect_to_map_internal(iterator.index, &scenario_location, FALSE, NONE, NULL);
 		}
 	}
 	
@@ -3905,8 +3920,10 @@ void object_translate(
 	return;
 }
 
-long object_new(
-	struct object_placement_data *data)
+static long object_new_internal(
+	struct object_placement_data *data,
+	short regional_bsp,
+	struct structure_bsp const *regional_structure)
 {
 	long object_index = NONE;
 	long definition_index = data->definition_index;
@@ -4100,7 +4117,8 @@ long object_new(
 				object_choose_random_region_permutations(object_index);
 				object_initialize_vitality(object_index, NULL, NULL);
 				object_compute_node_matrices(object_index);
-				object_reconnect_to_map(object_index, NULL);
+				object_reconnect_to_map_internal(object_index, NULL, regional_structure == NULL,
+					regional_bsp, regional_structure);
 				object_postprocess_node_matrices(object_index);
 				object_type_export_function_values(object_index);
 				object_compute_function_values(object_index);
@@ -4169,6 +4187,11 @@ long object_new(
 	return object_index;
 }
 
+
+long object_new(struct object_placement_data *data)
+{
+	return object_new_internal(data, NONE, NULL);
+}
 
 void object_attach_to_node(
 	long parent_object_index,
@@ -4478,9 +4501,11 @@ void object_compute_node_matrices_recursive(
 	return;
 }
 
-long object_new_from_scenario(
+long object_new_from_scenario_in_bsp(
 	struct scenario_object_datum *scenario_object,
-	struct tag_block *palette)
+	struct tag_block *palette,
+	short regional_bsp,
+	struct structure_bsp const *regional_structure)
 {
 	struct object_placement_data placement_data;
 	
@@ -4513,7 +4538,12 @@ long object_new_from_scenario(
 					&scenario_object->rotation);
 				placement_data.variant_number = scenario_object->variant_number;
 				
-				result = object_new(&placement_data);
+				result = object_new_internal(&placement_data, regional_bsp, regional_structure);
+			if (result != NONE && regional_structure && object_get_regional_bsp(result) != regional_bsp)
+			{
+				object_delete(result);
+				return NONE;
+			}
 				if (result!=NONE)
 				{
 					object_type_place(result, scenario_object);
@@ -4530,6 +4560,11 @@ long object_new_from_scenario(
 	}
 
 	return result;
+}
+
+long object_new_from_scenario(struct scenario_object_datum *scenario_object, struct tag_block *palette)
+{
+	return object_new_from_scenario_in_bsp(scenario_object, palette, NONE, NULL);
 }
 
 void object_attach_to_marker(
