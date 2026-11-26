@@ -2,7 +2,7 @@
 
 ## Product Completion V2.1 Windows release
 
-Latest Win64 `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
+The prior Win64 `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
 opened campaign and a normal-menu two-player Zombie Survival LAN match. The
 local Ragdolls choice rendered in Gameplay settings. Earlier focused checks
 below cover actual Flood get-up replication and third-person aim. The prior
@@ -42,6 +42,15 @@ and threw an authored grenade. The second player's normalized vitality rose
 from 1.00 to 166666.02 at tick 1350, matching the original tag's healing
 amount. The thrower stayed at 1.00. This run used no remote client. A native
 original Demo comparison and full original match remain open.
+
+Latest Win64 `f99076756e2251cb57a2b917a7343e53d112557eda5e1667c2de52a3952fef5c`
+uses the previously released runtime sources plus the `42fab1256` local
+healing change. A second normal-menu split-screen run on exact `12649191`
+reproduced the same heal at tick 1380. The stock Xbox fallback, CE and MCC
+weapon selection, and local/shared healing decisions passed a focused
+rule check. Only the executable was promoted. MegaWorld and Zombie maps,
+mode receipts, and the installed configuration matched their pre-promotion
+hashes. Previous holds `eecbbd64`.
 
 ## Private neighboring BSP rendering candidate
 
