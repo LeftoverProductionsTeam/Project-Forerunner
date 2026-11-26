@@ -58,7 +58,7 @@ enum join_reason
 #define JOIN_REASON_OTHER_VERSION "The host is on another version."
 /* %s: the map's file, as the player finds it ("maps_ce/bloodgulch.map") */
 #define JOIN_REASON_MAP_MISSING "Map not installed: %s."
-#define JOIN_REASON_MAP_DOWNLOAD "Map not installed: %s. Join to download it."
+#define JOIN_REASON_MAP_DOWNLOAD "Map not installed: %s. Join to check for a download."
 /* %s: one of Halo PC's own maps ("bloodgulch.map"), never downloaded */
 #define JOIN_REASON_MAP_FROM_HALO_PC "Map not installed: %s. Copy it from Halo PC into maps_pc or maps_ce."
 /* %s: the family, "Halo PC" or "HaloMD" */

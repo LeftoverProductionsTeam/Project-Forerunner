@@ -1119,6 +1119,7 @@ static boolean map_unapproved_told(
 	browser_screen.offer = _offer_none;
 	browser_screen.connecting = FALSE;
 	browser_screen.rejoin_pending = FALSE;
+	set_status("Map download blocked: this version is not approved for peer sharing.");
 	display_error_text_deferred(message, NONE);
 	return TRUE;
 }
