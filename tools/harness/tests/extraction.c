@@ -2435,6 +2435,7 @@ int main(int argc,char **argv)
     touch(1,0);
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"unfinished countdown admitted evacuation boarding");
     advance(300);
+    CHECK(strstr(local_notice_history[(local_notices-1)%4],"Wait for your dropship"),"confirmed signal said to board before the craft could arrive");
     CHECK(unit_can_enter_seat(unit_handles[0],craft,0,NULL),"ready crew could not board at its landing zone");
     dropships[0].object.position.x=0;
     CHECK(!unit_can_enter_seat(unit_handles[0],craft,0,NULL),"ready field crew could acquire a seat at the destination");

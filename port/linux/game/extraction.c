@@ -2866,7 +2866,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		{
 			run->phase = _extraction_ready;
 			extraction_tell(run, extraction.dropship_names[0] != NONE || extraction.dropship_names[1] != NONE ?
-				"EVAC READY | Board your dropship and stay aboard." :
+				"EVAC SIGNAL READY | Wait for your dropship, then board and stay aboard." :
 				"EXTRACTION SIGNAL READY | Reach the return point alive.");
 			return_ready = extraction_return_ready(run, unit);
 		}
