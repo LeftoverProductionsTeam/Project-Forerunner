@@ -451,8 +451,10 @@ long cluster_partition_get_next_cluster(
 	return cluster_partition_local_cluster(key);
 }
 
-void cluster_partition_reconnect(
+void cluster_partition_reconnect_in_bsp(
 	struct cluster_partition *partition,
+	short structure_bsp_index,
+	struct structure_bsp const *structure,
 	long datum_index,
 	long *first_cluster_reference,
 	real_point3d const *position,
@@ -469,7 +471,8 @@ void cluster_partition_reconnect(
 	match_assert("c:\\halo\\SOURCE\\structures\\cluster_partitions.c", 0x72, position);
 	match_assert("c:\\halo\\SOURCE\\structures\\cluster_partitions.c", 0x73, location);
 
-	cluster_count = structure_clusters_in_sphere(
+	cluster_count = structure_bsp_clusters_in_sphere(
+		structure,
 		location->cluster_index,
 		position,
 		radius,
@@ -484,7 +487,9 @@ void cluster_partition_reconnect(
 
 	for (cluster_index_index = 0; cluster_index_index < cluster_count; cluster_index_index++)
 	{
-		long cluster_key = cluster_partition_key(partition, cluster_indices[cluster_index_index]);
+		short cluster_index = cluster_indices[cluster_index_index];
+		long cluster_key = structure_bsp_index == NONE ? cluster_index :
+			((long)structure_bsp_index + 1) * MAXIMUM_CLUSTERS_PER_STRUCTURE + cluster_index;
 		/* port: reference_list_add's, noting where the references are */
 		long cluster_reference_index = cluster_partition_port_add(
 			partition->cluster_reference_data,
@@ -506,6 +511,18 @@ void cluster_partition_reconnect(
 	}
 
 	return;
+}
+
+void cluster_partition_reconnect(
+	struct cluster_partition *partition,
+	long datum_index,
+	long *first_cluster_reference,
+	real_point3d const *position,
+	float radius,
+	struct location const *location)
+{
+	cluster_partition_reconnect_in_bsp(partition, partition->port_structure_bsp_index,
+		global_structure_bsp_get(), datum_index, first_cluster_reference, position, radius, location);
 }
 
 void cluster_partition_disconnect(

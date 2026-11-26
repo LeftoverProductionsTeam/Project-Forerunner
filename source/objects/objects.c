@@ -3737,18 +3737,62 @@ void object_set_position(
 	return;
 }
 
+/* Reindex an already connected root without applying the foreground PVS.
+ * The native cluster lists are qualified by the retained BSP. */
+static void object_translate_in_bsp(
+	long object_index,
+	struct object_datum *object,
+	short bsp,
+	real_point3d const *new_position)
+{
+	struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
+	struct cluster_partition *partition;
+	struct location location;
+	real_point3d center;
+	real_vector3d translation;
+
+	if (!structure)
+		return;
+	vector_from_points3d(&object->object.position, new_position, &translation);
+	point_from_line3d(&object->object.bounding_sphere_center, &translation, 1.0f, &center);
+	scenario_location_from_point_in_structure(&location, structure, &center);
+	if (location.cluster_index == NONE)
+		scenario_location_from_point_in_structure(&location, structure, new_position);
+	if (location.cluster_index == NONE)
+		return;
+
+	partition = TEST_FLAG(object->object.flags, _object_has_collision_model_bit) ?
+		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
+	cluster_partition_disconnect(partition, object_index, &object->object.first_cluster_reference_index);
+	object->object.position = *new_position;
+	object->object.bounding_sphere_center = center;
+	object->object.location = location;
+	object_header_get(object_index)->cluster_index = location.cluster_index;
+	SET_FLAG(object->object.flags, _object_outside_of_map_bit, FALSE);
+	cluster_partition_reconnect_in_bsp(partition, bsp, structure, object_index,
+		&object->object.first_cluster_reference_index, &center, object->object.bounding_sphere_radius, &location);
+}
+
 void object_translate(
 	long object_index,
 	real_point3d const *new_position,
 	struct location const *new_location)
 {
 	struct object_datum *object = object_get(object_index);
-
+	short bsp = TEST_FLAG(_object_mask_biped | _object_mask_vehicle, object->object.type) &&
+		object->object.parent_object_index == NONE &&
+		collideable_object_cluster_partition.port_structure_bsp_index != NONE ?
+		object_get_regional_bsp(object_index) : NONE;
 	match_assert_valid_real_point3d(
 		"c:\\halo\\SOURCE\\objects\\objects.c",
 		562, 
 		new_position);
 
+	if (bsp != NONE && bsp != global_structure_bsp_index_get())
+	{
+		object_translate_in_bsp(object_index, object, bsp, new_position);
+		return;
+	}
 	object_disconnect_from_map(object_index);
 	object->object.position = *new_position;
 	object_reconnect_to_map(object_index, new_location);
