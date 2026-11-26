@@ -1891,10 +1891,11 @@ boolean vector_intersects_triangle3d(
 	return intersects;
 }
 
-boolean vector_intersects_rectangle3d(
+boolean vector_clip_to_rectangle3d(
 	real_point3d const *point,
 	real_vector3d const *vector,
-	real_rectangle3d const *bounds)
+	real_rectangle3d const *bounds,
+	real *entry)
 {
 	real t_in = -FLT_MAX;
 	real t_out = FLT_MAX;
@@ -1987,7 +1988,19 @@ boolean vector_intersects_rectangle3d(
 		}
 	}
 
-	return t_out >= 0.f && t_in <= 1.f;
+	if (t_out < 0.f || t_in > 1.f)
+		return FALSE;
+	if (entry)
+		*entry = MAX(0.f, t_in);
+	return TRUE;
+}
+
+boolean vector_intersects_rectangle3d(
+	real_point3d const *point,
+	real_vector3d const *vector,
+	real_rectangle3d const *bounds)
+{
+	return vector_clip_to_rectangle3d(point, vector, bounds, NULL);
 }
 
 boolean pill_intersects_rectangle3d(

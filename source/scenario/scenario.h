@@ -127,7 +127,7 @@ boolean scenario_switch_structure_bsp(short structure_bsp_index);
 void scenario_reload_structure_bsp_if_necessary(void);
 short scenario_get_structure_reference_index_from_tag_index(struct scenario *scenario, long structure_bsp_index);
 boolean scenario_trigger_volume_test_point(short trigger_volume_index, const real_point3d *position);
-boolean scenario_trigger_volume_intersects_segment(short index, real_point3d const *from, real_point3d const *to);
+boolean scenario_trigger_volume_clip_segment(short index, real_point3d const *from, real_point3d const *to, real *entry);
 boolean scenario_trigger_volume_test_object(short trigger_volume_index, long object_index);
 void scenario_debug_to_file(FILE *stream);
 short global_structure_bsp_index_get(void);

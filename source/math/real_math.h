@@ -701,6 +701,7 @@ long vector_intersects_pill3d(
 	real_point3d const *pill_base,
 	real_vector3d const *pill_height,
 	real pill_width);
+boolean vector_clip_to_rectangle3d(real_point3d const *point, real_vector3d const *vector, real_rectangle3d const *bounds, real *entry);
 boolean vector_intersects_rectangle3d(real_point3d const *point, real_vector3d const *vector, real_rectangle3d const *bounds);
 boolean pill_intersects_rectangle3d(real_point3d const *base, real_vector3d const *height, real width, real_rectangle3d const *bounds);
 

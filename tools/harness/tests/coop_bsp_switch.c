@@ -65,7 +65,7 @@ struct structure_bsp {
 struct data_iterator {long datum_index;int slot;};
 struct player_datum {long unit_index,cluster_index;short local_player_index,identifier;boolean quit_out_of_game;};
 struct object_datum {
-    struct {long parent_object_index,first_child_object_index,next_object_index;short type;
+    struct {long parent_object_index,first_child_object_index,next_object_index,first_cluster_reference_index;short type;
         real_point3d position,bounding_sphere_center;real bounding_sphere_radius;
         unsigned long flags,damage_flags;struct location location;} object;
     long weapon;short ammunition;
@@ -270,12 +270,13 @@ static void players_compute_combined_pvs(unsigned long *pvs, boolean local)
 static long prepared_crossing_leaf;
 static boolean cold_crossing;
 static boolean test_region_lookup,test_region_overlap;
-static struct bsp3d const *expected_spatial_tree;
+static struct bsp3d const *expected_spatial_tree, *another_spatial_tree;
 static long bsp3d_test_point(struct bsp3d const *tree, long node, real_point3d const *point)
 {
     if (expected_spatial_tree)
     {
-        CHECK(node==0&&tree==expected_spatial_tree,"location refresh borrowed the foreground BSP tree");
+        CHECK(node==0&&(tree==expected_spatial_tree||tree==another_spatial_tree),
+              "location refresh borrowed an unrelated BSP tree");
         return 0;
     }
     if (test_region_lookup)
@@ -763,6 +764,8 @@ static void matrix4x3_inverse_transform_point(real_matrix4x3 const *m,real_point
     vector_from_points3d(&m->position,p,&v);
     *out=(real_point3d){v.i*m->forward.i+v.j*m->forward.j,-v.i*m->forward.j+v.j*m->forward.i,v.k};
 }
+static void point_from_line3d(real_point3d const *p,real_vector3d const *v,real t,real_point3d *out)
+{*out=(real_point3d){p->x+v->i*t,p->y+v->j*t,p->z+v->k*t};}
 static int seam_traces;
 static real seam_impact_t;
 static boolean collision_test_bsp_vector(short bsp,unsigned long flags,real_point3d const *p,
@@ -770,7 +773,10 @@ static boolean collision_test_bsp_vector(short bsp,unsigned long flags,real_poin
 {
     CHECK(bsp!=global_structure_bsp_index_get()&&flags==FLAG(_collision_test_structure_bit),
           "a foreign trace targeted the active scene, objects or media");
+    CHECK(fabsf(p->x-1.5f)<.0001f&&fabsf(v->i-2.5f)<.0001f,
+          "the neighbor ray was not clipped to the rotated seam entry");
     seam_traces++;
+    if(seam_impact_t<0.f) return FALSE;
     *hit=(struct collision_result){_collision_result_structure,bsp,seam_impact_t,
         {p->x+v->i*seam_impact_t,p->y+v->j*seam_impact_t,p->z+v->k*seam_impact_t}};
     return TRUE;
@@ -943,6 +949,17 @@ static boolean scenario_trigger_volume_test_point(short volume, real_point3d con
 struct effect_datum {struct {word flags;} header;short fixed_bsp;};
 #include "world_effects.inc"
 #include "regional_action.inc"
+
+#define DATUM_INDEX_TO_IDENTIFIER(index) ((index)>>16)
+enum {_object_has_collision_model_bit=29};
+static struct object_header_datum *object_header_get(long object) {return &activation_headers[slot(object)];}
+static void object_add_to_list(long *first, long object) {CHECK(FALSE,"fixture only reconnects roots");}
+static void scenario_location_award_bonus(struct location *location) {location->bonus=NONE;}
+static void object_delete(long object) {deletions|=FLAG(slot(object));}
+static void cluster_partition_reconnect(struct cluster_partition *partition, long object, long *reference,
+    real_point3d const *center, real radius, struct location const *location)
+{CHECK(location->cluster_index==NONE,"parked projectile borrowed the foreground cluster list");}
+#include "object_reconnect.inc"
 #include "regional_trigger.inc"
 #undef scenario_trigger_volume_test_object
 
@@ -1442,7 +1459,12 @@ int main(int argc,char **argv)
         activation_headers[3].identifier=(short)(units[3]>>16);
         activation_headers[3].cluster_index=NONE;
         activation_headers[3].datum=parked;
-        activation_headers[3].flags=FLAG(_object_header_automatically_deactivate_bit)|FLAG(_object_header_connected_to_map_bit);
+        activation_headers[3].flags=FLAG(_object_header_automatically_deactivate_bit);
+        SET_FLAG(parked->object.flags,_object_connected_to_map_bit,FALSE);
+        object_reconnect_to_map_internal(units[3],&destination_location,TRUE);
+        CHECK(!deletions&&!activations&&activation_headers[3].cluster_index==NONE&&
+              TEST_FLAG(activation_headers[3].flags,_object_header_connected_to_map_bit),
+              "ordinary movement reconnect deleted or activated a foreign projectile");
         global_structure_bsp=&structures[0];
         structures[0].clusters.count=2;
         players_globals->combined_pvs[0]=2;
@@ -2179,19 +2201,24 @@ int main(int argc,char **argv)
                         switches[0]=(struct scenario_bsp_switch_trigger_volume){0,destination,old,NONE};
                         scenario.type=_scenario_type_multiplayer;
                         expected_spatial_tree=(struct bsp3d const *)&collisions[destination];
-                        seam_impact_t=.2f;
-                        CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact)&&seam_traces==1,
-                              "a hit before crossing the authored seam counted");
-                        seam_impact_t=.75f;
-                        CHECK(projectile_trace_resident_seam(destination,&eye,&target,&impact)&&
-                              impact.bsp_index==old&&impact.t==.75f&&seam_traces==2,
-                              "a shot that swept through the rotated seam missed resident terrain");
-                        CHECK(!projectile_trace_resident_seam(destination,&outside_upper_level,&upper_end,&impact)&&seam_traces==2,
+                        short transfer=NONE;
+                        seam_impact_t=.6f;
+                        CHECK(projectile_trace_resident_seam(destination,&eye,&target,&impact,&transfer)&&
+                              transfer==old&&impact.bsp_index==old&&fabsf(impact.t-.75f)<.0001f&&seam_traces==1,
+                              "a shot lost its whole-segment impact time or destination BSP");
+                        impact.t=1.f;
+                        seam_impact_t=-1.f;
+                        another_spatial_tree=(struct bsp3d const *)&collisions[old];
+                        CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact,&transfer)&&
+                              transfer==old&&seam_traces==2,
+                              "a clear projectile crossing lost the resident destination owner");
+                        CHECK(!projectile_trace_resident_seam(destination,&outside_upper_level,&upper_end,&impact,&transfer)&&
+                              transfer==NONE&&seam_traces==2,
                               "a shot on an overlapping upper level crossed an underground seam");
                         switches[0].cutscene_flag_index=0;
-                        CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact)&&seam_traces==2,
-                              "a marked teleporter also routed a projectile");
-                        expected_spatial_tree=NULL;
+                        CHECK(!projectile_trace_resident_seam(destination,&eye,&target,&impact,&transfer)&&
+                              transfer==NONE&&seam_traces==2,"a marked teleporter also routed a projectile");
+                        expected_spatial_tree=another_spatial_tree=NULL;
                     }
                     return 0;
                 }

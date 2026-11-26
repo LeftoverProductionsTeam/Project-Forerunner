@@ -2106,8 +2106,9 @@ static void object_reconnect_to_map_internal(
 		optimising compiler is free to break (release builds crashed placing
 		objects at level start, reading a stack slot reused meanwhile) */
 		struct location bounding_sphere_location;
+		boolean parked = game_engine_object_parked(object_index, object->object.type);
 
-		if (game_engine_object_parked(object_index, object->object.type))
+		if (parked)
 		{
 			object->object.location.leaf_index = NONE;
 			object->object.location.cluster_index = NONE;
@@ -2151,7 +2152,8 @@ static void object_reconnect_to_map_internal(
 			object->object.bounding_sphere_radius,
 			&object->object.location);
 
-		if (update_activation && TEST_FLAG(header->flags, _object_header_automatically_deactivate_bit))
+		/* A parked root is waiting for its own PVS, not leaving the world. */
+		if (update_activation && !parked && TEST_FLAG(header->flags, _object_header_automatically_deactivate_bit))
 		{
 			if (header->cluster_index==NONE || !BIT_VECTOR_TEST_FLAG(players_get_combined_pvs(), header->cluster_index))
 			{

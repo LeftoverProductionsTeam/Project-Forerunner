@@ -1140,8 +1140,8 @@ boolean scenario_trigger_volume_test_point(
 	}
 }
 
-boolean scenario_trigger_volume_intersects_segment(short index,
-	real_point3d const *from, real_point3d const *to)
+boolean scenario_trigger_volume_clip_segment(short index,
+	real_point3d const *from, real_point3d const *to, real *entry)
 {
 	struct tag_block const *volumes = &global_scenario_get()->trigger_volumes;
 	struct scenario_trigger_volume const *volume;
@@ -1151,7 +1151,7 @@ boolean scenario_trigger_volume_intersects_segment(short index,
 		return FALSE;
 	volume = TAG_BLOCK_GET_ELEMENT(volumes, index, struct scenario_trigger_volume);
 	if (volume->type == _scenario_trigger_volume_type_axis_aligned)
-		return vector_intersects_rectangle3d(from, vector_from_points3d(from, to, &vector), &volume->bounds);
+		return vector_clip_to_rectangle3d(from, vector_from_points3d(from, to, &vector), &volume->bounds, entry);
 
 	if (volume->type == _scenario_trigger_volume_type_oriented)
 	{
@@ -1165,8 +1165,8 @@ boolean scenario_trigger_volume_intersects_segment(short index,
 		matrix4x3_from_point_and_vectors(&matrix, &volume->position, &volume->forward, &volume->up);
 		matrix4x3_inverse_transform_point(&matrix, from, &local_from);
 		matrix4x3_inverse_transform_point(&matrix, to, &local_to);
-		return vector_intersects_rectangle3d(&local_from,
-			vector_from_points3d(&local_from, &local_to, &vector), &bounds);
+		return vector_clip_to_rectangle3d(&local_from,
+			vector_from_points3d(&local_from, &local_to, &vector), &bounds, entry);
 	}
 
 	return FALSE;
