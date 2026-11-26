@@ -30,8 +30,11 @@ setup_entry.xml's. -->
 		<child widget="chupathingy/settings/display_item"/>
 		<child widget="chupathingy/settings/audio_settings_item"/>
 		<child widget="chupathingy/settings/online_item"/>
-		<child widget="main_menu/settings_select/player_setup/player_profile_edit/about_item" y="-64"/>
-		<child widget="chupathingy/settings/setup_entry"/>
+		<child widget="chupathingy/settings/gameplay_item" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/about_item" y="-36" platform="desktop"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/about_item" y="-64" platform="android web switch console x360 wiiu"/>
+		<child widget="chupathingy/settings/setup_entry" y="28" platform="desktop"/>
+		<child widget="chupathingy/settings/setup_entry" platform="android web switch console x360 wiiu"/>
 		<child widget="chupathingy/settings/save_item"/>
 	</widget>
 	<!-- (the rows that open a list of pages or a page: chupathingy/settings_pages.xml) -->
@@ -53,6 +56,11 @@ setup_entry.xml's. -->
 	<widget name="chupathingy/settings/online_item" type="text" left="51" top="218" width="232" height="32" bitmap="bitmaps/list_item_bkd" string_list="main_menu/settings_select/player_setup/player_profile_edit/profile_edit_options" string_index="15" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="5">
 		<on event="a" open="chupathingy/settings/network_setup_screen"/>
 		<on event="start" open="chupathingy/settings/network_setup_screen"/>
+		<on event="left_mouse" run="mouse emit accept event"/>
+	</widget>
+	<widget name="chupathingy/settings/gameplay_item" type="text" left="51" top="246" width="232" height="32" bitmap="bitmaps/list_item_bkd" text="GAMEPLAY" font="ui\large_ui" color="#FF2896FF" text_x="13" text_y="5" platform="desktop">
+		<on event="a" open="chupathingy/settings/gameplay_settings_screen"/>
+		<on event="start" open="chupathingy/settings/gameplay_settings_screen"/>
 		<on event="left_mouse" run="mouse emit accept event"/>
 	</widget>
 	<!-- (the Xbox's SAVE CHANGES, under its line: its frame's bottom on the
@@ -91,6 +99,7 @@ setup_entry.xml's. -->
 		<frame png="ce/port/blank__0.png" width="4" height="4"/>
 		<frame png="ce/port/blank__0.png" width="4" height="4"/>
 		<frame png="ce/port/blank__0.png" width="4" height="4"/>
+		<frame png="ce/port/blank__0.png" width="4" height="4" platform="desktop"/>
 		<frame map="ui\shell\main_menu\settings_select\player_setup\player_profile_edit\profile_options" index="4"/>
 		<frame map="ui\shell\main_menu\settings_select\player_setup\player_profile_edit\controller_edit\config_controller" index="4" width="279" height="279" y="34"/>
 		<frame map="ui\shell\main_menu\settings_select\player_setup\player_profile_edit\controller_edit\config_controller" index="5" width="279" height="279" y="34"/>
@@ -111,6 +120,7 @@ setup_entry.xml's. -->
 		<string text="Adjust the audio settings.\n\n\nCurrent Profile:"/>
 		<string text="Adjust the network, chat\nand privacy settings.\n\nCurrent Profile:" platform="desktop android switch"/>
 		<string text="Adjust the network\nsettings.\n\nCurrent Profile:" platform="console"/>
+		<string text="Choose how players and AI\nfall when they die.\n\nCurrent Profile:" platform="desktop"/>
 		<string text="About Forerunner.\n\n\nCurrent Profile:"/>
 		<string text="Opens the setup screen.\nChupathingy restarts.\n\nCurrent Profile:"/>
 		<string text="Save the changes made\nto this profile.\n\nCurrent Profile:"/>

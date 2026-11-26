@@ -644,6 +644,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "biped_ragdoll.h"
 #include "infection.h" /* port: port/linux/game/infection.c */
 #include "extraction.h" /* port: incapacitated bodies cannot pick up weapons */
 #include "units.h"
@@ -7645,6 +7646,11 @@ void unit_damage_aftermath(
 
 	if (lethal || feigned)
 	{
+#ifdef HALO_PRESENTATION_RAGDOLLS
+		if (lethal && unit->object.type == _object_type_biped)
+			biped_ragdoll_note_killing_blow(unit_index, &damage_data->epicenter,
+				&damage_data->direction, damage_definition->instantaneous_acceleration);
+#endif
 #if defined(HALO_MAP_LIST) && !defined(HALO_XBOX_CONSOLE)
 		if (lethal)
 			stubbs_horde_unit_damaged_to_death(unit_index, damage_data); /* port: Stubbs mode only */

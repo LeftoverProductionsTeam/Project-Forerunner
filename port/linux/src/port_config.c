@@ -1438,6 +1438,9 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Held biofoam treatment seconds, 1 to 30; fixed at map start." },
 	{ "game.revive_bleed_seconds", _config_integer, "30", "HALO_REVIVE_BLEED_SECONDS", _environment_value, _platform_desktop,
 		"Incapacitation seconds before actual native death, 5 to 180; fixed at map start." },
+	{ "game.ragdolls", _config_boolean, "false", "HALO_RAGDOLLS", _environment_value, _platform_desktop,
+		"Show physics-driven deaths for players and AI. Off uses classic death animations.\n"
+		"This is a local visual setting for campaign, co-op, and multiplayer." },
 	{ "game.extraction", _config_boolean, "false", "HALO_EXTRACTION", _environment_value, _platform_desktop,
 		"Extraction gameplay remains unverified. Requires a native solo map\n"
 		"with extraction_deploy/extraction_activate controls, extraction_zone\n"

@@ -355,6 +355,17 @@ SCREENS = {
             ]),
         ],
     },
+    "gameplay_settings": {
+        "screen": "gameplay_settings_screen",
+        "header": ("gameplay_header", None),
+        "header_text": "GAMEPLAY",
+        "spacing": 30,
+        "help_font": "ui\\small_ui",
+        "rows": [
+            ("RAGDOLLS", "game.ragdolls", ON_OFF,
+             "Physics-driven falls for players and AI.\nOff uses the classic death animations.\nThis setting only changes your view.", "desktop"),
+        ],
+    },
     "audio_settings": {
         "screen": "audio_settings_screen",
         "header": ("header_profile_audio_settings", f"{PE}/audio_settings/header_profile_audio_settings"),
@@ -838,8 +849,13 @@ def _screen(folder: str, spec: dict, rows: list, list_inputs: list, list_handler
                      [*_back_handlers(spec),
                       f'<child{attributes([("widget", f"{base}/{header}")])}/>',
                       f'<child{attributes([("widget", f"{base}/options_menu")])}/>'])
-    lines += _widget(f"{base}/{header}", [("controller", 1), ("left", 35), ("top", 11), ("width", 605), ("height", 59),
-                                          ("bitmap", header_bitmap)], [])
+    header_attributes = [("controller", 1), ("left", 35), ("top", 11), ("width", 605), ("height", 59)]
+    if spec.get("header_text"):
+        header_attributes += [("type", "text"), ("text", spec["header_text"]),
+                              ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_y", 12)]
+    else:
+        header_attributes.append(("bitmap", header_bitmap))
+    lines += _widget(f"{base}/{header}", header_attributes, [])
     # (a help of its own text, set by its screen's function: help_text)
     lines += _widget(f"{base}/help", [("type", "text"), ("controller", 1), ("left", 68),
                                       ("top", spec.get("help_top", 350)), ("width", 482),
@@ -1348,6 +1364,7 @@ def _controls_screen() -> list:
 PROFILE_ROWS = {
     "display": (13, 177, "video_settings"),
     "online": (15, 243, "network_setup"),
+    "gameplay": (None, 309, "gameplay_settings"),
 }
 
 
@@ -1356,9 +1373,11 @@ def _profile_row(name: str) -> list:
     screen = f"{PE}/{folder}/{SCREENS[folder]['screen']}"
     return _widget(f"{PE}/{name}_profile_item",
                    [("type", "text"), ("left", 51), ("top", top), ("width", 232), ("height", 32),
-                    ("bitmap", "bitmaps/list_item_bkd"), ("string_list", f"{PE}/profile_edit_options"),
-                    ("string_index", string_index), ("font", "ui\\large_ui"), ("color", "#FF2896FF"),
-                    ("text_x", 13), ("text_y", 5)],
+                    ("bitmap", "bitmaps/list_item_bkd"),
+                    ("string_list", f"{PE}/profile_edit_options" if string_index is not None else None),
+                    ("string_index", string_index), ("text", "GAMEPLAY" if name == "gameplay" else None),
+                    ("font", "ui\\large_ui"), ("color", "#FF2896FF"), ("text_x", 13), ("text_y", 5),
+                    ("platform", "desktop" if name == "gameplay" else None)],
                    [f'<on event="a" open="{screen}"/>', f'<on event="start" open="{screen}"/>',
                     '<on event="left_mouse" run="mouse emit accept event"/>'])
 
@@ -1799,6 +1818,8 @@ WIDGET_PATCHES = {
                  f"{PE}/video_settings_profile_item": f"{PE}/online_profile_item",
                  f"{PE}/network_settings_profile_item": f"{PE}/about_item"},
         "leave_out": [f"{PE}/color_profile_item", f"{PE}/about_item"],
+        "insert_before": {f"{PE}/profile_edit_button_bar": [
+            f'<child widget="{PE}/gameplay_profile_item" platform="desktop"/>']},
         "offsets": {f"{PE}/controller_setup_profile_item": (0, -166), f"{PE}/gamepads_profile_item": (0, 33),
                     f"{PE}/network_settings_profile_item": (0, -34)},
     },

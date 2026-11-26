@@ -85,6 +85,7 @@ their handlers open opens.
 */
 
 #include "cseries.h"
+#include "biped_ragdoll.h"
 #include "game/cheats.h"
 #include "math/real_math.h"
 #include "network_distributed.h"
@@ -3524,9 +3525,13 @@ profile's button settings as the Xbox's Controller Setup shows them */
 /* the picture's frames (the bitmap's: tools/port_settings.py's
 BITMAP_FRAMES): CONTROLS' row's, as the list numbers its rows
 (player_profile_edit_select_menu_update_extended_description), and after
-the seven rows' (FRAME_ORDERS) the Xbox's five of the button settings */
+the settings rows the Xbox's five controller layouts */
 #define PROFILE_GAMEPAD_FRAME 2
+#ifdef HALO_PRESENTATION_RAGDOLLS
+#define PROFILE_FIRST_LAYOUT_FRAME 8
+#else
 #define PROFILE_FIRST_LAYOUT_FRAME 7
+#endif
 #define PROFILE_LAYOUT_FRAMES (_button_preset_swap_b_and_right_thumb + 1)
 
 /* "port gamepad layout preview" (the picture's own): on CONTROLS' row, the
@@ -3552,14 +3557,15 @@ static void profile_gamepad_layout(struct widget_instance *picture)
 /* the Chupathingy menus' settings picture (port/assets/menus/chupathingy):
 a frame for each of its nine rows (SETUP's last), then the Xbox's five button settings,
 which CONTROLS' row shows for the edited profile */
-#define CHUPATHINGY_FIRST_LAYOUT_FRAME 9
-/* SETUP's frame, and its words in the descriptions (after ABOUT's) */
-#define CHUPATHINGY_SETUP_FRAME 7
-#define CHUPATHINGY_SETUP_DESCRIPTION 7
-
-/* ABOUT's row (the picture's frame for it is blank): this build and the
-project, in the picture's place (its about_text) */
+#ifdef HALO_PRESENTATION_RAGDOLLS
+#define CHUPATHINGY_ABOUT_FRAME 7
+#else
 #define CHUPATHINGY_ABOUT_FRAME 6
+#endif
+/* SETUP and SAVE follow About. The controller preview frames follow Save. */
+#define CHUPATHINGY_SETUP_FRAME (CHUPATHINGY_ABOUT_FRAME + 1)
+#define CHUPATHINGY_SETUP_DESCRIPTION CHUPATHINGY_SETUP_FRAME
+#define CHUPATHINGY_FIRST_LAYOUT_FRAME (CHUPATHINGY_SETUP_FRAME + 2)
 #define CHUPATHINGY_ABOUT_LENGTH 512
 
 /* (a line's width in the font the draw mode has) */

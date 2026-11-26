@@ -102,6 +102,7 @@ symbols in this file:
 #include "objects/object_lights_rendering.h"
 #include "objects/widgets/widgets.h"
 #include "units/units.h"
+#include "biped_ragdoll.h"
 #include "models/models.h"
 #include "shaders/shader_definitions.h"
 #include "shaders/shaders.h"
@@ -732,6 +733,15 @@ static void render_object_list(
 		(overshield_effect.c), so they are not copied again */
 		real const *shown_functions = object->object.outgoing_function_values;
 
+#ifdef HALO_PRESENTATION_RAGDOLLS
+		if (!legs && object->object.type == _object_type_biped &&
+			TEST_FLAG(object->object.damage_flags, _object_dead_bit))
+		{
+			real_matrix4x3 const *ragdoll_nodes = biped_ragdoll_drawn_nodes(object_index);
+			if (ragdoll_nodes)
+				node_matrices = ragdoll_nodes;
+		}
+#endif
 		if (!object_is_first_person_camera(object_index) || render.camera.mirrored || (legs && node_matrices))
 		{
 			struct render_model_effect model_effect;

@@ -95,6 +95,7 @@ symbols in this file:
 /* ---------- headers */
 
 #include "cseries.h"
+#include "biped_ragdoll.h"
 #include "cseries_windows.h"
 #include "cseries/errors.h"
 #include "real_math.h"
@@ -283,6 +284,9 @@ static void game_state_call_before_load_procs(
 	game_state_before_load_proc *proc = before_load_procs;
 	long i;
 
+#ifdef HALO_PRESENTATION_RAGDOLLS
+	biped_ragdoll_reset();
+#endif
 	for (i =NUMBEROF(before_load_procs); i>0; i--, proc++)
 	{
 		(*proc)();

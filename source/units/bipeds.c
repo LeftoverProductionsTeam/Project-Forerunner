@@ -260,6 +260,7 @@ symbols in this file:
 #include "units/biped_limp_noodle.h"
 #include "units/biped_definitions.h"
 #include "units/bipeds.h"
+#include "biped_ragdoll.h"
 #include "units/vehicle_definitions.h"
 #include "units/vehicles.h"
 #include "vehicle_riding_bipeds.h" /* port: port/linux/game/vehicle_riding_bipeds.c */
@@ -4515,6 +4516,9 @@ boolean biped_update(
 
 		if (TEST_FLAG(biped->object.damage_flags, _object_dead_bit))
 		{
+#ifdef HALO_PRESENTATION_RAGDOLLS
+			biped_ragdoll_update(biped_index);
+#endif
 			biped_update_dead(biped_index, &animation);
 		}
 		else if (TEST_FLAG(biped->biped.flags, _biped_airborne_bit))

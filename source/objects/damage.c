@@ -139,6 +139,7 @@ symbols in this file:
 #include "text/draw_string.h"
 #include "units/unit_definitions.h"
 #include "units/bipeds.h"
+#include "biped_ragdoll.h"
 #include "units/units.h"
 #include "units/vehicles.h"
 #include "mcc_damage.h" /* port: port/linux/game/mcc_damage.c */
@@ -1112,6 +1113,10 @@ static void object_damage_aftermath(
 				{
 					if (object->object.type == _object_type_biped)
 					{
+#ifdef HALO_PRESENTATION_RAGDOLLS
+						if (TEST_FLAG(object->object.damage_flags, _object_dead_bit))
+							biped_ragdoll_note_impact(object_index, &damage->epicenter, &acceleration);
+#endif
 						biped_accelerate(object_index, &acceleration);
 					}
 					else if (object->object.type == _object_type_vehicle)

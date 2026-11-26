@@ -190,6 +190,7 @@ struct game_options;
 #include "rasterizer/common/rasterizer_common.h"
 #endif
 #include "units/bipeds.h" /* port: bipeds_riding_latch */
+#include "biped_ragdoll.h"
 #include "mcc_loading.h" /* port: port/linux/game/mcc_loading.c */
 #include "mcc_cache.h" /* port: mcc_level_name */
 #include "network_coop.h" /* port: port/linux/game/network_coop.c */
@@ -747,6 +748,9 @@ void game_initialize_for_new_map(
 	the host's indices, not its own objects' of the last game's */
 	network_distributed_new_game();
 	render_interpolation_reset();
+#ifdef HALO_PRESENTATION_RAGDOLLS
+	biped_ragdoll_reset();
+#endif
 	render_initialize_for_new_map();
 	structures_initialize_for_new_map();
 	breakable_surfaces_initialize_for_new_map();

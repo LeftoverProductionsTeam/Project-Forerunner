@@ -218,6 +218,25 @@
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_follow_camera" x="54" y="255" platform="desktop android web switch"/>
 		<child widget="main_menu/settings_select/player_setup/player_profile_edit/video_settings/op_follow_camera" x="54" y="203" platform="console"/>
 	</widget>
+	<widget name="chupathingy/settings/gameplay_settings_screen" width="640" height="480" flags="pass_unhandled_to_focused_child pause_game" bitmap="bitmaps/gradient">
+		<on event="b" back="true"/>
+		<on event="back" back="true"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/gameplay_settings/gameplay_header"/>
+		<child widget="chupathingy/settings/gameplay_settings_list"/>
+		<child widget="chupathingy/prompts/y" x="60" y="414"/>
+		<child widget="chupathingy/prompts/defaults" x="82" y="414"/>
+		<child widget="chupathingy/prompts/a" x="490" y="414"/>
+		<child widget="chupathingy/prompts/accept" x="512" y="414"/>
+		<child widget="chupathingy/prompts/b" x="360" y="414"/>
+		<child widget="chupathingy/prompts/cancel" x="382" y="414"/>
+	</widget>
+	<widget name="chupathingy/settings/gameplay_settings_list" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_children" description="main_menu/settings_select/player_setup/player_profile_edit/gameplay_settings/help">
+		<data input="port settings help"/>
+		<on event="a" run="port settings save" back="true"/>
+		<on event="start" run="port settings save" back="true"/>
+		<on event="y" run="port settings defaults"/>
+		<child widget="main_menu/settings_select/player_setup/player_profile_edit/gameplay_settings/op_ragdolls" x="54" y="73" platform="desktop"/>
+	</widget>
 	<widget name="chupathingy/settings/audio_settings_screen" width="640" height="480" flags="pass_unhandled_to_focused_child pause_game" bitmap="bitmaps/gradient">
 		<on event="b" run="port settings back"/>
 		<on event="back" run="port settings back"/>

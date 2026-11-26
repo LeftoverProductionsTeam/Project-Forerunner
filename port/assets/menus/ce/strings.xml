@@ -1408,6 +1408,7 @@
 		<string text="Adjust the audio settings.\n\n\nProfile:"/>
 		<string text="Adjust the network, chat\nand privacy settings.\n\nProfile:"/>
 		<string text="About Forerunner.\n\n\nProfile:"/>
+		<string text="Choose how players and AI\nfall when they die.\n\nProfile:" platform="desktop"/>
 	</strings>
 	<strings name="main_menu/settings_select/player_setup/player_profile_edit/profile_edit_options" map="ui\shell\main_menu\settings_select\player_setup\player_profile_edit\profile_edit_options">
 		<string text="CHANGE NAME" map="0"/>

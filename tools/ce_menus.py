@@ -335,6 +335,9 @@ def strings_xml(lists: dict) -> str:
         lines.append(f"\t<strings{attributes([('name', our_name(tag)), ('map', tag)])}>")
         lines += [f"\t\t<string{attributes([('text', text), ('map', original)])}/>"
                   for text, original in zip(strings, originals)]
+        if our_name(tag) == f"{port_settings.PE}/profile_edit_descriptions":
+            help_text = r"Choose how players and AI\nfall when they die.\n\nProfile:"
+            lines.append(f"\t\t<string{attributes([('text', help_text), ('platform', 'desktop')])}/>")
         lines.append("\t</strings>")
     lines.append("</menus>")
     return "\n".join(lines) + "\n"
@@ -447,6 +450,9 @@ class Art:
         order = port_settings.FRAME_ORDERS.get(our_name(tag))
         if order:
             lines[1:] = [lines[1 + frame] for frame in order]
+        # The desktop Gameplay row needs a preview frame before the controller layouts.
+        if our_name(tag) == f"{port_settings.PE}/profile_options":
+            lines.append('\t\t<frame png="ce/port/blank__0.png" width="4" height="4" platform="desktop"/>')
         # (the port's frames after them: the Xbox map's, scaled)
         for source, index, width, height, x, y in port_settings.BITMAP_FRAMES.get(our_name(tag), []):
             self.added_frames.append((our_name(tag), source, index))
