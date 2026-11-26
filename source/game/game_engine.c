@@ -5490,7 +5490,7 @@ static boolean game_engine_vehicle_away(
 	return distance_squared3d(position, &game_engine_vehicle_homes[home].position) > VEHICLE_HOME_AWAY_SQUARED;
 }
 
-static short game_engine_vehicle_home_bsp(long object_index)
+static short game_engine_vehicle_home_at_pad(long object_index)
 {
 	struct unit_datum const *vehicle = unit_try_and_get(object_index);
 	long home = vehicle ? vehicle->object.vehicle_home_index : NONE;
@@ -5501,7 +5501,13 @@ static short game_engine_vehicle_home_bsp(long object_index)
 		game_engine_vehicle_away((short)home, &vehicle->object.position) ||
 		!game_engine_vehicle_empty(vehicle))
 		return NONE;
-	return game_engine_vehicle_homes[home].structure_bsp_index;
+	return (short)home;
+}
+
+static short game_engine_vehicle_home_bsp(long object_index)
+{
+	short home = game_engine_vehicle_home_at_pad(object_index);
+	return home == NONE ? NONE : game_engine_vehicle_homes[home].structure_bsp_index;
 }
 
 void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index)
@@ -5579,6 +5585,32 @@ short game_engine_object_recorded_bsp(
 	/* A vehicle at an authored home can have no cluster or saved region
 	 * before its BSP is first entered. Keep it in seam clearance checks. */
 	return object_type == _object_type_vehicle ? game_engine_vehicle_home_bsp(object_index) : NONE;
+}
+
+boolean game_engine_connect_regional_vehicle(long object_index, short bsp, struct structure_bsp const *structure)
+{
+	short owner, home = NONE;
+
+	if (object_get_regional_bsp(object_index) != NONE)
+		return FALSE;
+	owner = game_engine_object_recorded_bsp(object_index, _object_type_vehicle);
+	if (owner == NONE)
+	{
+		/* Stock placements can omit the compiled BSP mask. Resolve their
+		 * original pad in this scene, as the foreground respawner does. */
+		home = game_engine_vehicle_home_at_pad(object_index);
+		if (home == NONE ||
+			!scenario_structure_bsp_contains_placement(structure, &game_engine_vehicle_homes[home].position))
+			return FALSE;
+	}
+	else if (owner != bsp)
+		return FALSE;
+
+	if (!object_connect_to_regional_bsp(object_index, bsp, structure))
+		return FALSE;
+	if (home != NONE)
+		game_engine_vehicle_homes[home].structure_bsp_index = bsp;
+	return TRUE;
 }
 
 boolean game_engine_object_parked(

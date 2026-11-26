@@ -1243,7 +1243,7 @@ static void slowly_stop_vehicle(
 		*angular_velocity = *global_zero_vector3d;
 	}
 
-	object_set_position(vehicle_index, &position, &forward, &up);
+	object_set_physics_pose(vehicle_index, object_get_regional_bsp(vehicle_index), &position, &forward, &up);
 
 	return;
 }

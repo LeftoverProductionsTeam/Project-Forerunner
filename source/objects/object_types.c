@@ -1254,9 +1254,7 @@ static void object_types_connect_regional_vehicles(short bsp, struct structure_b
 	while (object_iterator_next(&iterator))
 	{
 		long vehicle = iterator.index;
-		if (game_engine_object_recorded_bsp(vehicle, _object_type_vehicle) == bsp &&
-			object_get_regional_bsp(vehicle) == NONE &&
-			object_connect_to_regional_bsp(vehicle, bsp, structure))
+		if (game_engine_connect_regional_vehicle(vehicle, bsp, structure))
 			object_activate(vehicle);
 	}
 }

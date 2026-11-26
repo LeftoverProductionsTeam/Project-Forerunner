@@ -38,7 +38,7 @@ def generated(fault=None):
         enum_with(engine, 'MAXIMUM_VEHICLE_HOMES ='), home_table,
         re.search(r'^#define VEHICLE_HOME_AWAY_SQUARED .+$', engine, re.M).group(0),
         *(function(engine, name) for name in (
-            'game_engine_vehicle_empty', 'game_engine_vehicle_away', 'game_engine_vehicle_home_bsp',
+            'game_engine_vehicle_empty', 'game_engine_vehicle_away', 'game_engine_vehicle_home_at_pad', 'game_engine_vehicle_home_bsp',
             'game_engine_vehicle_home_on_pad', 'game_engine_vehicle_home_track',
             'game_engine_vehicle_home_add', 'game_engine_register_regional_vehicle_home',
             'game_engine_vehicle_home_follow', 'game_engine_vehicle_home_current',
