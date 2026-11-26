@@ -90,7 +90,7 @@ struct extraction_run
 	long player, unit, activation_ticks, retry_tick;
 	short local_player;
 	enum extraction_phase phase;
-	boolean blocked, loadout_seen, stash_preview, discard_stash, field_reached;
+	boolean blocked, loadout_seen, stash_preview, discard_stash, field_reached, field_exit_ready;
 	byte owner[GEAR_ID_BYTES];
 	byte discard_id[GEAR_ID_BYTES];
 	unsigned long discard_generation;
@@ -1780,6 +1780,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->dropship = NONE;
 	run->field_reached = FALSE;
+	run->field_exit_ready = FALSE;
 	run->phase = _extraction_deployed; run->activation_ticks = 0; run->blocked = FALSE; run->loadout_seen = FALSE;
 	run->retry_tick = game_time_get();
 	if (!extraction.survival && starting_squad != NONE)
@@ -2591,19 +2592,25 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		}
 		return; /* Retain owned gear while alive; an incapacitated body cannot escape. */
 	}
-	if (run->phase == _extraction_deployed && !run->field_reached && unit->object.parent_object_index != NONE)
+	if (run->phase == _extraction_deployed)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
 		long ship = extraction_player_dropship(unit);
-		if (ship != NONE && extraction_transport_at_field(faction, ship) &&
-			extraction_transport_arrival_ready(faction, ship))
+		boolean exit_ready = ship != NONE && extraction_transport_at_field(faction, ship) &&
+			extraction_transport_arrival_ready(faction, ship);
+		if (exit_ready)
 		{
 			run->field_reached = TRUE;
-			if (!extraction.survival)
+			if (!run->field_exit_ready && !extraction.survival)
 				extraction_tell(run, extraction.dropship_hover_transfer[faction]
 					? "AT TRANSFER | Use your seat exit to deploy. Find the extraction control when ready to evacuate."
 					: "LANDED | Use your seat exit to disembark. Find the extraction control when ready to evacuate.");
 		}
+		else if (run->field_exit_ready && ship != NONE && !extraction.survival &&
+			!extraction_transport_can_disembark(unit))
+			extraction_tell(run, "WAIT TO DISEMBARK | The dropship is moving. Stay seated until the exit opens.");
+		/* Arrival is an operation milestone. Exit guidance follows the live seat gate. */
+		run->field_exit_ready = exit_ready;
 	}
 	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&
 		!extraction_squad_objectives_ready(run))

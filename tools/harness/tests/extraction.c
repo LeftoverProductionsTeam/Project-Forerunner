@@ -2253,6 +2253,18 @@ int main(int argc,char **argv)
      advance(1);
      CHECK(local_notices==notices+1,"landing notice repeated while the player remained seated");
 
+     recorded_aircraft=craft;advance(1);
+     CHECK(run(0)->field_reached&&!run(0)->field_exit_ready&&!extraction_transport_can_disembark(&units[0]),
+       "resumed movement either forgot arrival or left the exit ready");
+     CHECK(local_notices==notices+2&&strstr(local_notice_history[(notices+1)%4],"WAIT TO DISEMBARK"),
+       "resumed movement left the landing notice active");
+     advance(1);
+     CHECK(local_notices==notices+2,"moving notice repeated while the player remained seated");
+     recorded_aircraft=NONE;advance(1);
+     CHECK(run(0)->field_exit_ready&&extraction_transport_can_disembark(&units[0])&&
+       local_notices==notices+3&&strstr(local_notice_history[(notices+2)%4],"LANDED"),
+       "the reopened seat exit did not restore landing guidance");
+
      units[0].object.parent_object_index=NONE;units[0].object.position.x=20;
      touch(1,0);advance(300);
      CHECK(run(0)->phase==_extraction_ready,"fixture did not activate an evacuation");
