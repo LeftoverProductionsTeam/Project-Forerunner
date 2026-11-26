@@ -467,14 +467,15 @@ enum {MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO = 16};
 struct structure_bsp {short bsp;};
 static struct structure_bsp fixture_hub_geometry={10};
 static boolean body_region_loaded;
-static short body_created_bsp=NONE;
+static short body_created_bsp=NONE, weapon_created_bsp=NONE;
 static long activated_body=NONE;
 static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp)
 {return body_region_loaded&&bsp==fixture_hub_geometry.bsp?&fixture_hub_geometry:NULL;}
 static long object_new_in_bsp(struct object_placement_data *placement,short bsp,struct structure_bsp const *structure)
 {
- CHECK(structure ? bsp==structure->bsp : bsp==NONE,"body placement got the wrong region geometry");
- body_created_bsp=bsp;
+ CHECK(structure ? bsp==structure->bsp : bsp==NONE,"object placement got the wrong region geometry");
+ if(placement->definition_index==4||placement->definition_index==5)body_created_bsp=bsp;
+ else weapon_created_bsp=bsp;
  return object_new(placement);
 }
 static void object_activate(long object){activated_body=object;}
@@ -1678,7 +1679,10 @@ int main(int argc,char **argv)
    CHECK(!extraction_player_spawn_profile(player_handles[0],&definition,&profile,&variant),"client overrode native spawn profile");
    client=FALSE;connection=_game_connection_network_server;
   } else {
-   touch(0,0);escape(0);CHECK(run(0)->gear.record.count==1,"selected character failed to bank native kit");
+   touch(0,0);
+   if(!strcmp(case_name,"body-region-loaded"))
+    CHECK(weapon_created_bsp==10,"deployed weapon was not created in the player's own region");
+   escape(0);CHECK(run(0)->gear.record.count==1,"selected character failed to bank native kit");
    memcpy(saved_id,run(0)->gear.record.items[0].id,GEAR_ID_BYTES);
    touch(3,0);CHECK(unit_get(players[0].unit_index)->definition_index==4,"UNSC body could not be restored");
    touch(0,0);CHECK(run(0)->gear.record.reserved_count==1&&!memcmp(saved_id,run(0)->gear.record.reserved[0].id,GEAR_ID_BYTES),"body change lost banked item identity");

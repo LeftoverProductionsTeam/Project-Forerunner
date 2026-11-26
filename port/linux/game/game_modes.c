@@ -296,21 +296,38 @@ boolean game_modes_inventory_starting_profile(short profile_index, short maximum
 	return TRUE;
 }
 
+/* New objects associated with a player must use that player's live region. */
+static boolean game_modes_unit_placement_region(long unit_index, short *bsp, struct structure_bsp const **structure)
+{
+	short owner;
+	*bsp = NONE;
+	*structure = NULL;
+	if (!scenario_uses_regional_gameplay(global_scenario_get())) return TRUE;
+	owner = object_get_regional_bsp(unit_index);
+	if (owner == NONE || owner == global_structure_bsp_index_get()) return TRUE;
+	*structure = scenario_structure_bsp_try_and_get(owner);
+	*bsp = owner;
+	return *structure != NULL;
+}
+
 static boolean game_modes_inventory_stage(long unit_index, struct game_modes_inventory const *inventory,
 	long created[GAME_MODES_INVENTORY_WEAPONS])
 {
 	struct unit_datum *unit = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
 	struct object_placement_data placement;
-	short index, magazine;
+	struct structure_bsp const *structure;
+	short index, magazine, bsp;
 	for (index = 0; index < GAME_MODES_INVENTORY_WEAPONS; index++) created[index] = NONE;
 	if (!unit || !game_modes_inventory_loadout_valid(inventory)) return FALSE;
+	if (!inventory->weapon_count) return TRUE;
+	if (!game_modes_unit_placement_region(unit_index, &bsp, &structure)) return FALSE;
 	for (index = 0; index < inventory->weapon_count; index++)
 	{
 		struct weapon_datum *weapon;
 		struct weapon_definition const *definition;
 		object_placement_data_new(&placement, tag_loaded(WEAPON_DEFINITION_TAG, inventory->weapons[index].tag_path), NONE);
 		placement.position = unit_get(unit_index)->object.position;
-		created[index] = object_new(&placement);
+		created[index] = object_new_in_bsp(&placement, bsp, structure);
 		if (created[index] == NONE || weapon_is_flag(created[index]) || !unit_can_use_weapon(unit_index, created[index])) goto failed;
 		weapon = weapon_get(created[index]);
 		weapon->weapon.age = inventory->weapons[index].age;
@@ -354,8 +371,8 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 	struct object_placement_data placement;
 	long previous, replacement, selected, old_filter, weapons[GAME_MODES_INVENTORY_WEAPONS], preview[GAME_MODES_INVENTORY_WEAPONS];
 	real_rgb_color color;
-	short powerups[NUMBER_OF_PLAYER_POWERUPS], index, slot, bsp = NONE;
-	struct structure_bsp const *structure = NULL;
+	short powerups[NUMBER_OF_PLAYER_POWERUPS], index, slot, bsp;
+	struct structure_bsp const *structure;
 	char const *path;
 	void network_player_detach_unit(long player);
 	void network_player_attach_unit(long player, long unit);
@@ -380,16 +397,7 @@ boolean game_modes_player_change_biped(long player_index, long definition_index,
 	placement.forward = old->object.forward; placement.up = old->object.up;
 	placement.owner_player_index = player_index; placement.owner_team_index = team; placement.variant_number = variant;
 	placement_data_set_change_color(&placement, game_engine_player_get_change_color(&color, player_index));
-	if (scenario_uses_regional_gameplay(global_scenario_get()))
-	{
-		short owner = object_get_regional_bsp(previous);
-		if (owner != NONE && owner != global_structure_bsp_index_get())
-		{
-			structure = scenario_structure_bsp_try_and_get(owner);
-			if (!structure) return FALSE;
-			bsp = owner;
-		}
-	}
+	if (!game_modes_unit_placement_region(previous, &bsp, &structure)) return FALSE;
 	replacement = object_new_in_bsp(&placement, bsp, structure);
 	if (replacement == NONE) return FALSE;
 	next = (struct unit_datum *)object_try_and_get_and_verify_type(replacement, _object_mask_biped);

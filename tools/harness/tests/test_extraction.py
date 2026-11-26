@@ -16,6 +16,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     inventory = read('port/linux/game/game_modes.c')
     names = ('battery_placeholder', 'capture', 'grenade_room', 'weapon_compatible', 'loadout_valid', 'starting_profile', 'stage', 'weapon_for_unit', 'apply', 'revoke', 'consume')
     equipment = '\n'.join(function(inventory, 'game_modes_inventory_' + name) for name in names)
+    equipment = function(inventory, 'game_modes_unit_placement_region') + '\n' + equipment
     equipment += '\n' + function(inventory, 'game_modes_player_change_biped')
     if fault:
         equipment = mutated(equipment, *fault)
