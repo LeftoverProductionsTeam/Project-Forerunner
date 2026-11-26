@@ -157,17 +157,20 @@ def generated(fault=None):
                             ('distributed_bsp_world_ready', 'distributed_can_apply_bsp_snapshot',
                              'distributed_handle_actor_states', 'distributed_handle_bsp_world_snapshot',
                              'distributed_handle_structure_bsp', 'distributed_handle_unit_states',
-                             'distributed_combat_sample_matches_bsp', 'distributed_hit_report_matches_structure_bsp',
+                             'distributed_combat_sample_matches_bsp',
                              'distributed_machine_replication_bsp', 'distributed_machine_replication_bsp_matches',
+                             'distributed_hit_report_matches_structure_bsp',
                              'distributed_machine_replication_bsp_acknowledged', 'distributed_send_independent_structure_bsp',
                              'distributed_send_structure_bsp'))),
         ('bsp_object_lifecycle.inc', '\n'.join(
             function(read('port/linux/game/network_objects.c'), name) for name in
             ('distributed_flush_regional_changes', 'distributed_host_send_regional_objects'))),
         ('bsp_damage_history.inc', '\n'.join(structure(damage, name) for name in (
-            'damage_sight', 'damage_history_tick', 'damage_trail_point')) + '\n' +
+            'damage_sight', 'damage_history_tick', 'damage_trail_point', 'damage_bsp_visit')) + '\n' +
          'static struct damage_history_tick damage_history[TARGET_HISTORY_TICKS];\n' +
          'static struct damage_trail_point damage_trails[MAXIMUM_TRACKED_PLAYERS][PLAYER_TRAIL_POINTS];\n' +
+         'static struct damage_bsp_visit damage_bsp_visits[MAXIMUM_TRACKED_PLAYERS];\n' +
+         function(damage, 'distributed_player_damage_sample_matches_bsp') + '\n' +
          function(damage, 'distributed_sight_at')),
         ('bsp_actor_controls.inc', function(read('port/linux/game/network_actors.c'), 'network_actors_client_bsp_changed')),
         ('bsp_world_state.inc', '\n'.join(function(read('port/linux/game/network_objects.c'), name) for name in
@@ -178,7 +181,7 @@ def generated(fault=None):
 
 
 @pytest.mark.parametrize('case', [
-    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'independent-bsp-delivery', 'independent-object-lifetimes', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
+    'host-superseded', 'regional-host-superseded', 'regional-late-join', 'independent-bsp-delivery', 'independent-object-lifetimes', 'independent-combat-history', 'host-refused-neighbor', 'host-snapshot-before-load', 'host-snapshot-after-rollback', 'host-actor-snapshot-boundary', 'host-object-snapshot-boundary', 'regional-hit-boundary', 'reference-refused', 'mcc-reference-refused', 'load-refused',
     'verify-refused', 'split-refused', 'reverse-refused',
     'mcc-neighbor-geometry', 'mcc-neighbor-visibility', 'mcc-neighbor-truncated', 'mcc-neighbor-range',
     'mcc-prepare-space-above', 'mcc-prepare-space-below', 'mcc-prepare-cold-crossing', 'mcc-prepare-cold-regional-clearance', 'mcc-prepare-cold-vehicle-clearance',

@@ -851,6 +851,7 @@ static boolean independent_bsp_room;
 static boolean network_regional_independent_bsp_ready(void) {return independent_bsp_room;}
 static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static long distributed_machine_bsp_start[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static boolean distributed_viewers[HALO_PORT_MAXIMUM_NETWORK_MACHINES][MAXIMUM_LOCAL_PLAYERS];
 static boolean distributed_seen[HALO_PORT_MAXIMUM_NETWORK_MACHINES][2];
 static long bsp_machine_players[2][MAXIMUM_LOCAL_PLAYERS];
@@ -877,9 +878,9 @@ static short distributed_client_machines(long *machines,short max)
     return 2;
 }
 static struct player_datum *distributed_player(short slot)
-{return slot==0?&people[0]:NULL;}
+{return slot>=0&&slot<2?&people[slot]:NULL;}
 static boolean distributed_machine_has_player(long machine, short slot)
-{return machine==7&&slot==0;}
+{return (machine==7&&slot==0)||(machine==8&&slot==1);}
 static boolean network_coop_player_has_structure_bsp(long player);
 static boolean check_report_region;
 static void distributed_send_to_machine_reliably(long machine,void const *message,byte type,word count,word size)
@@ -1188,7 +1189,7 @@ int main(int argc,char **argv)
         people[0].identifier=(unsigned long)players[0]>>16;
         ticks=10;
         original->time=old_trail->time=ticks;
-        original->structure_bsp_index=old_trail->structure_bsp_index=old;
+        original->player_bsps[0]=original->structure_bsp_index=old_trail->structure_bsp_index=old;
         original->sight[0].count=old_trail->sight.count=1;
         distributed_send_structure_bsp(NONE);
         CHECK(distributed_hit_report_matches_structure_bsp(7,0,10)&&
@@ -2900,6 +2901,43 @@ int main(int argc,char **argv)
         distributed_handle_unit_states(109,&entry,&entry+1,1);
         CHECK(actor_snapshots_applied==3&&unit_snapshots_applied==1&&
             actor_controls_released==1,"periodic BSP confirmation moved the boundary");
+        return 0;
+    }
+    if(!strcmp(name,"independent-combat-history"))
+    {
+        struct damage_history_tick *previous=&damage_history[111 & (TARGET_HISTORY_TICKS - 1)];
+        struct damage_history_tick *current=&damage_history[121 & (TARGET_HISTORY_TICKS - 1)];
+        regional_match=regional_room_ready=independent_bsp_room=TRUE;
+        ticks=121;
+        people[0].identifier=(unsigned long)players[0]>>16;
+        people[1].identifier=(unsigned long)players[1]>>16;
+        previous->time=111;
+        current->time=121;
+        previous->structure_bsp_index=current->structure_bsp_index=old;
+        previous->player_bsps[0]=current->player_bsps[0]=destination;
+        previous->player_bsps[1]=current->player_bsps[1]=old;
+        previous->sight[0].count=previous->sight[1].count=current->sight[0].count=1;
+        damage_bsp_visits[0]=(struct damage_bsp_visit){120,destination};
+        damage_bsp_visits[1]=(struct damage_bsp_visit){100,old};
+        distributed_machine_sent_bsp[7]=bsp_player_regions[0]=destination;
+        distributed_machine_sent_bsp[8]=bsp_player_regions[1]=old;
+        distributed_machine_bsp_start[7]=120;
+        distributed_machine_bsp_start[8]=100;
+
+        CHECK(!distributed_sight_at(0,111)&&distributed_sight_at(0,121)==&current->sight[0]&&
+              distributed_sight_at(1,111)==&previous->sight[1],
+              "return reused prior-visit history or invalidated another player's history");
+        CHECK(!distributed_hit_report_matches_structure_bsp(7,0,120)&&
+              distributed_hit_report_matches_structure_bsp(7,0,121)&&
+              distributed_hit_report_matches_structure_bsp(8,1,111),
+              "combat report used the wrong region boundary");
+        bsp_acknowledged[0]=FALSE;
+        CHECK(!distributed_hit_report_matches_structure_bsp(7,0,121),
+              "combat report passed before the client acknowledged the handoff");
+        bsp_acknowledged[0]=TRUE;
+        bsp_player_regions[0]=old;
+        CHECK(!distributed_hit_report_matches_structure_bsp(7,0,121),
+              "combat report passed against a superseded assignment");
         return 0;
     }
     if(!strcmp(name,"independent-object-lifetimes"))

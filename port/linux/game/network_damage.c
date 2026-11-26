@@ -513,6 +513,7 @@ struct damage_history_tick
 {
 	long time;
 	short structure_bsp_index;
+	short player_bsps[MAXIMUM_TRACKED_PLAYERS];
 	struct
 	{
 		long object_index;
@@ -1749,12 +1750,28 @@ static void distributed_note_sight(
 	}
 }
 
+struct damage_bsp_visit
+{
+	long start;
+	short index;
+};
+static struct damage_bsp_visit damage_bsp_visits[MAXIMUM_TRACKED_PLAYERS];
+
+static boolean distributed_player_damage_sample_matches_bsp(short player_index, short sample_bsp, long time)
+{
+	if (!network_regional_independent_bsp_ready())
+		return distributed_combat_sample_matches_bsp(sample_bsp, time);
+	return sample_bsp != NONE && damage_bsp_visits[player_index].index == sample_bsp &&
+		time > damage_bsp_visits[player_index].start;
+}
+
 /* where each player's unit and vehicle are this tick (and whether they
 drive it), noted; and every few ticks where their unit is */
 static void distributed_note_targets(
 	void)
 {
 	struct damage_history_tick *tick = &damage_history[game_time_get() & (TARGET_HISTORY_TICKS - 1)];
+	boolean independent = network_regional_independent_bsp_ready();
 	short player_index;
 
 	tick->time = game_time_get();
@@ -1762,8 +1779,18 @@ static void distributed_note_targets(
 	for (player_index = 0; player_index < MAXIMUM_TRACKED_PLAYERS; player_index++)
 	{
 		long unit_index = distributed_living_unit(distributed_player(player_index));
+		short bsp = independent && unit_index != NONE ? object_get_regional_bsp(unit_index) : tick->structure_bsp_index;
 		short slot;
 
+		if (independent && unit_index == NONE)
+			bsp = NONE;
+		tick->player_bsps[player_index] = bsp;
+		if (independent && damage_bsp_visits[player_index].index != bsp)
+		{
+			damage_bsp_visits[player_index].index = bsp;
+			damage_bsp_visits[player_index].start = tick->time;
+			damage_fire_origins[player_index].time = NONE;
+		}
 		tick->objects[player_index][0].object_index = unit_index;
 		tick->objects[player_index][1].object_index = unit_index != NONE ?
 			object_get(unit_index)->object.parent_object_index : NONE;
@@ -1795,7 +1822,7 @@ static void distributed_note_targets(
 				&damage_history[(game_time_get() - 1) & (TARGET_HISTORY_TICKS - 1)];
 			boolean appeared = unit_index != NONE &&
 				(last->time != game_time_get() - 1 || last->objects[player_index][0].object_index == NONE ||
-				 !distributed_combat_sample_matches_bsp(last->structure_bsp_index, last->time));
+				 !distributed_player_damage_sample_matches_bsp(player_index, last->player_bsps[player_index], last->time));
 
 			if (game_time_get() % PLAYER_TRAIL_INTERVAL_TICKS == 0 || appeared)
 			{
@@ -1803,7 +1830,7 @@ static void distributed_note_targets(
 					&damage_trails[player_index][(game_time_get() / PLAYER_TRAIL_INTERVAL_TICKS) & (PLAYER_TRAIL_POINTS - 1)];
 
 				point->time = unit_index != NONE ? game_time_get() : NONE;
-				point->structure_bsp_index = tick->structure_bsp_index;
+				point->structure_bsp_index = bsp;
 				if (unit_index != NONE)
 				{
 					real_point3d camera;
@@ -1967,7 +1994,8 @@ static short distributed_target_seen(
 		real reach;
 		real distance;
 
-		if (tick->time != time || !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
+		if (tick->time != time ||
+			(!network_regional_independent_bsp_ready() && !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time)))
 			break;
 		if (column_player_index == NONE ||
 			tick->objects[column_player_index][column_slot].object_index != object_index)
@@ -1993,6 +2021,8 @@ static short distributed_target_seen(
 			if (column_player_index == NONE)
 				continue;
 		}
+		if (!distributed_player_damage_sample_matches_bsp(column_player_index, tick->player_bsps[column_player_index], time))
+			break;
 		if (back == 0)
 			latest = TRUE;
 		reach = REPORT_HISTORY_TOLERANCE +
@@ -2025,7 +2055,7 @@ static boolean distributed_player_was_near(
 		long time = game_time_get() - back;
 		struct damage_history_tick const *tick = &damage_history[time & (TARGET_HISTORY_TICKS - 1)];
 
-		if (tick->time != time || !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
+		if (tick->time != time || !distributed_player_damage_sample_matches_bsp(player_index, tick->player_bsps[player_index], time))
 			break;
 		if (tick->objects[player_index][0].object_index != NONE &&
 			distributed_history_near(&tick->objects[player_index][0].position, tick->objects[player_index][0].speed,
@@ -2058,7 +2088,7 @@ static boolean distributed_player_drove_into(
 		struct object_datum *vehicle;
 		real reach;
 
-		if (tick->time != time || !distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
+		if (tick->time != time || !distributed_player_damage_sample_matches_bsp(player_index, tick->player_bsps[player_index], time))
 			break;
 		if (tick->objects[player_index][1].object_index == NONE || !tick->objects[player_index][1].driving ||
 			!(vehicle = object_try_and_get(tick->objects[player_index][1].object_index)))
@@ -2107,7 +2137,7 @@ static boolean distributed_player_could_fire(
 		real distance;
 
 		if (trail_point->time == NONE || trail_point->time < earliest || trail_point->time > game_time_get() ||
-			!distributed_combat_sample_matches_bsp(trail_point->structure_bsp_index, trail_point->time))
+			!distributed_player_damage_sample_matches_bsp(player_index, trail_point->structure_bsp_index, trail_point->time))
 			continue;
 		distance = reach->distance + REPORT_RANGE_TOLERANCE + trail_point->radius + trail_point->speed *
 			(reach->carried_ticks + PLAYER_TRAIL_INTERVAL_TICKS + TARGET_HISTORY_SLACK_TICKS);
@@ -2435,7 +2465,7 @@ static boolean distributed_report_line_of_sight(
 			real_point3d eye;
 
 			if (trail_point->time == NONE || trail_point->time / PLAYER_TRAIL_INTERVAL_TICKS != bucket ||
-				!distributed_combat_sample_matches_bsp(trail_point->structure_bsp_index, trail_point->time))
+				!distributed_player_damage_sample_matches_bsp(player_index, trail_point->structure_bsp_index, trail_point->time))
 				continue;
 			traced++;
 			eye = trail_point->position;
@@ -2520,12 +2550,12 @@ static struct damage_sight const *distributed_sight_at(
 
 	if (time > game_time_get())
 		return NULL;
-	if (tick->time == time && distributed_combat_sample_matches_bsp(tick->structure_bsp_index, time))
+	if (tick->time == time && distributed_player_damage_sample_matches_bsp(player_index, tick->player_bsps[player_index], time))
 		return tick->sight[player_index].count > 0 ? &tick->sight[player_index] : NULL;
 	trail_time = time - time % PLAYER_TRAIL_INTERVAL_TICKS;
 	point = &damage_trails[player_index][(trail_time / PLAYER_TRAIL_INTERVAL_TICKS) & (PLAYER_TRAIL_POINTS - 1)];
 	if (point->time != trail_time || point->time == NONE ||
-		!distributed_combat_sample_matches_bsp(point->structure_bsp_index, point->time))
+		!distributed_player_damage_sample_matches_bsp(player_index, point->structure_bsp_index, point->time))
 		return NULL;
 	return point->sight.count > 0 ? &point->sight : NULL;
 }
@@ -2720,7 +2750,9 @@ static boolean distributed_report_valid(
 		_object_mask_biped | _object_mask_vehicle | _object_mask_weapon | _object_mask_equipment);
 	if (!target && static_target(report->object_index))
 		target = object_get(report->object_index);
-	if (!target || game_engine_object_parked(report->object_index, target->object.type) ||
+	if (!target || (network_regional_independent_bsp_ready() &&
+			!distributed_machine_replication_bsp_matches(machine_index, object_get_regional_bsp(report->object_index))) ||
+		game_engine_object_parked(report->object_index, target->object.type) ||
 		!tag_index_is_group(report->damage.definition_index, DAMAGE_EFFECT_DEFINITION_TAG))
 		return FALSE;
 	/* numbers the game can take */
@@ -3548,6 +3580,8 @@ static void network_damage_clear_spatial_history(
 		damage_history[index].time = NONE;
 	for (player_index = 0; player_index < MAXIMUM_TRACKED_PLAYERS; player_index++)
 	{
+		damage_bsp_visits[player_index].index = NONE;
+		damage_bsp_visits[player_index].start = NONE;
 		for (index = 0; index < PLAYER_TRAIL_POINTS; index++)
 			damage_trails[player_index][index].time = NONE;
 	}

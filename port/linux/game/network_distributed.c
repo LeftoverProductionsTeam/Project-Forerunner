@@ -792,6 +792,7 @@ static long distributed_machine_players[HALO_PORT_MAXIMUM_NETWORK_MACHINES][MAXI
 co-op revert's checkpoint boundary goes to each */
 static boolean distributed_machine_ready[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 static short distributed_machine_sent_bsp[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
+static long distributed_machine_bsp_start[HALO_PORT_MAXIMUM_NETWORK_MACHINES];
 /* the host: what each player's unit was last sent as (a change goes to
 every client at once) */
 static struct
@@ -5543,6 +5544,21 @@ boolean distributed_hit_report_matches_structure_bsp(
 
 	if (!network_regional_bsp_active() || !network_regional_bsp_room_ready())
 		return TRUE;
+	if (network_regional_independent_bsp_ready())
+	{
+		long owner;
+
+		if (distributed_machine_replication_bsp(machine_index) == NONE ||
+			host_time <= distributed_machine_bsp_start[machine_index])
+			return FALSE;
+		player = distributed_player(player_index);
+		/* The report validator handles bad ownership and its diagnostics. */
+		if (!player || !distributed_machine_has_player(machine_index, player_index))
+			return TRUE;
+		owner = DATUM_INDEX_NEW(player_index, player->identifier);
+		return distributed_machine_replication_bsp_matches(machine_index, network_coop_player_authoritative_bsp(owner)) &&
+			network_coop_player_has_structure_bsp(owner);
+	}
 	if (distributed_sent_structure_bsp_index == NONE)
 		return global_structure_bsp_index_get() == 0;
 	if (distributed_sent_structure_bsp_index != global_structure_bsp_index_get())
@@ -5597,6 +5613,7 @@ static void distributed_send_independent_structure_bsp(long machine_index, boole
 		csmemset(distributed_viewers[machine_index], 0, sizeof(distributed_viewers[machine_index]));
 		csmemset(distributed_seen[machine_index], 0, sizeof(distributed_seen[machine_index]));
 		distributed_machine_sent_bsp[machine_index] = index;
+		distributed_machine_bsp_start[machine_index] = game_time_get();
 	}
 }
 
