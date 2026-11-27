@@ -1,5 +1,19 @@
 # Forerunner test evidence
 
+## MegaWorld map chooser filtering
+
+Private Win64 `76e82e3b4de2c9476845c94bfbf6d4c9176a4bb4bd7afc0865d3e4203e41b7dc`
+with exact `d0c4c13b` / `36e2d953` ran both ordinary MCC chooser flows.
+After switching Show from Xbox to MCC, Create LAN and Play Solo each displayed
+one MegaWorld result with no campaign rows. Both selections loaded the map and
+rendered a first-person spawn. OpenGL inputs, captures and exact hashes are in
+`build/map-view-76e82e3b`. The prior runtime showed campaign rows below the
+same MegaWorld result (`build/carousel-spartan-d08ec305/window09228.bmp`).
+The retained Spartan Slayer starts were in BSP 0. The compiled route to the
+vehicle-capable ramp is 0→2→3, with the first switch near (662.02, -0.02,
+-68.21). A playable Spartan approach to that switch and the Warthog trip
+remain open. Existing Ghost and infantry proofs are independent of this menu fix.
+
 ## First activation of unmasked regional stock vehicles
 
 Win64 `D08EC305D454B94B79F456CFA840A695E282D221D2115130DD2BA19918683D2C`

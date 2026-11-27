@@ -1991,9 +1991,8 @@ static void map_view_activate(struct map_view *view, short row)
 }
 
 /* each frame the chooser shows, its row chosen (NONE: none): the on-screen
-keyboard's words taken, the keys typed into Search while its row is chosen.
-TRUE when the view changed (the maps are others) */
-static boolean map_view_update(struct map_view *view, short chosen)
+keyboard's words taken, the keys typed into Search while its row is chosen. */
+static void map_view_update(struct map_view *view, short chosen)
 {
 	boolean changed = FALSE, typing;
 	struct key_stroke key;
@@ -2046,7 +2045,26 @@ static boolean map_view_update(struct map_view *view, short chosen)
 	}
 	if (changed)
 		map_view_apply(view);
-	return changed;
+}
+
+static void map_view_update_rows(struct map_view *view, struct widget_instance *list,
+	short *map_count, short *chosen, short *first)
+{
+	short count, old_chosen = *chosen, old_first = *first;
+
+	map_view_update(view, *chosen);
+	count = (short)ui_map_list_count();
+	if (count == *map_count)
+		return;
+
+	/* Show applies its filter outside the Search input path. Use the live
+	 * multiplayer count so a shorter view cannot expose its campaign tail. */
+	*map_count = count;
+	count += MAP_VIEW_ROWS;
+	*chosen = (short)MIN(*chosen, count - 1);
+	*first = (short)MIN(*first, MAX(count - MAP_KIND_ROWS, 0));
+	if (*chosen != old_chosen || *first != old_first)
+		map_kind_focus(list, *first, *chosen);
 }
 
 /* the keys given back once a typing view's screen has gone (or a game starts) */
@@ -2244,13 +2262,9 @@ static void level_list_update(struct widget_instance *list)
 		mcc_solo_list_update(list);
 		return;
 	}
-	if (kind == MAP_KIND_MULTIPLAYER && map_view_update(&new_game_view, level_list.chosen))
-	{
-		level_list.map_count = (short)ui_map_list_count();
-		level_list.chosen = (short)MIN(level_list.chosen, MAP_VIEW_ROWS + MAX(level_list.map_count, 1) - 1);
-		level_list.first = (short)MIN(level_list.first, level_list.chosen);
-	}
-	else if (kind != MAP_KIND_MULTIPLAYER)
+	if (kind == MAP_KIND_MULTIPLAYER)
+		map_view_update_rows(&new_game_view, list, &level_list.map_count, &level_list.chosen, &level_list.first);
+	else
 		map_view_update(&new_game_view, NONE);
 	/* (SINGLEPLAYER's levels, then the MCC catalog's campaign maps) */
 	count = level_list.extraction && HALO_MODE_FILTER ? ui_map_list_play_mode_row(_ui_map_mode_extraction, NONE) :
@@ -6175,14 +6189,7 @@ static void map_list_update(struct widget_instance *list)
 	}
 	if (map_list.step == MAP_STEP_MAPS && kind == MAP_KIND_MULTIPLAYER &&
 		map_list.play_mode == _ui_map_mode_unspecified)
-	{
-		if (map_view_update(&create_game_view, map_list.chosen))
-		{
-			map_list.map_count = (short)ui_map_list_count();
-			map_list.chosen = (short)MIN(map_list.chosen, MAP_VIEW_ROWS + MAX(map_list.map_count, 1) - 1);
-			map_list.first = (short)MIN(map_list.first, map_list.chosen);
-		}
-	}
+		map_view_update_rows(&create_game_view, list, &map_list.map_count, &map_list.chosen, &map_list.first);
 	else
 		map_view_update(&create_game_view, NONE);
 	count = map_step_count();
