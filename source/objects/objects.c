@@ -2208,6 +2208,21 @@ static void object_reconnect_to_map_internal(
 	return;
 }
 
+/* Release the spatial references even if this region is still the foreground
+ * during a switch. Keep the world root for the region's next activation. */
+void object_park_regional_root(long object_index)
+{
+	struct object_datum *object = object_get(object_index);
+
+	object_disconnect_from_map(object_index);
+	object_deactivate(object_index);
+	object->object.location.leaf_index = NONE;
+	object->object.location.cluster_index = NONE;
+	scenario_location_award_bonus(&object->object.location);
+	object_header_get(object_index)->cluster_index = NONE;
+	object_reconnect_to_map_internal(object_index, &object->object.location, FALSE, NONE, NULL);
+}
+
 void object_reconnect_to_map(
 	long object_index,
 	struct location const *location)
@@ -5179,25 +5194,30 @@ static void objects_update_cluster_activation(void)
 	for (i = 0; i < object_header_data->count; ++i, ++object_header)
 	{
 		boolean active, child, in_pvs;
+		long object_index;
+		short type;
+
 		if (!object_header->identifier ||
 			!TEST_FLAG(object_header->flags, _object_header_automatically_deactivate_bit) ||
 			!TEST_FLAG(object_header->flags, _object_header_connected_to_map_bit))
 			continue;
 
+		object_index = DATUM_INDEX_NEW(i, object_header->identifier);
+		type = object_header->datum->object.type;
 		if (independent_host)
 		{
-			short owner = object_get_regional_bsp(DATUM_INDEX_NEW(i, object_header->identifier));
+			short owner = object_get_regional_bsp(object_index);
 
 			if (owner != NONE && owner != foreground)
 				continue;
 		}
 		active = TEST_FLAG(object_header->flags, _object_header_active_bit);
 		child = TEST_FLAG(object_header->flags, _object_header_child_bit);
-		/* Switches reconnect roots. Their attached children follow their owners.
-		 * Parked projectiles have no active cluster and retain their native timers. */
+		/* A foreground PVS refresh must leave inactive regional roots parked. */
 		if ((refresh && child) ||
-			(object_header->datum->object.type == _object_type_projectile &&
-			 game_engine_object_parked(DATUM_INDEX_NEW(i, object_header->identifier), _object_type_projectile)))
+			(type == _object_type_projectile && game_engine_object_parked(object_index, type)) ||
+			(TEST_FLAG(_object_mask_weapon | _object_mask_equipment | _object_mask_vehicle, type) &&
+			 object_simulation_is_parked(object_index, object_header->datum)))
 			continue;
 		in_pvs = object_header->cluster_index >= 0 && object_header->cluster_index < cluster_count &&
 			BIT_VECTOR_TEST_FLAG(active_cluster_bits, object_header->cluster_index);

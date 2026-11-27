@@ -229,6 +229,24 @@ combat in multiple regions still open. Logs are in the `v3-death-fixed-host`
 and `v3-death-fixed-guest` runs under
 `build/regional-native-trial/megaworld-hunt-bf748855`.
 
+## Regional drop persistence
+
+On the installed MegaWorld map `fcfe9d44`, a private Win64 run `370bae30`
+used Play Solo and normal movement through the Infinity entrance. A grenade
+death in BSP 12 dropped assault rifle 927. The player respawned in BSP 0 at
+tick 16980. The same ground item was still present at tick 21450, over two
+minutes later. The return to BSP 12 at tick 21600 raised the player's rifle
+ammo from 240 to 600 and consumed the ground item. The plasma cannon from
+the same death stopped appearing at tick 17400. Its drop ownership is open.
+
+The component check covers valid regional ownership, rejected and retried
+spatial registration, recycled handles, and preserving the remaining
+lifetime of parked gear. Native evidence is under
+`build/megaworld-ground-preview/v3-loot-native`. The promoted build `6fa0c1e3`
+retains the existing projectile activation rule and passed a native map-launch
+smoke before promotion. Destroyed and transported vehicles and independent
+guest loot recovery have separate acceptance gates.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

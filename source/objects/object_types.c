@@ -1047,22 +1047,16 @@ void object_types_trim_bsp_placements(unsigned long keep_bsps)
 	}
 	if (keep_bsps && (populated_bsp_flags & ~keep_bsps))
 	{
-		object_iterator_new(&iterator, _object_mask_control | _object_mask_vehicle, 0);
+		object_iterator_new(&iterator, _object_mask_control | _object_mask_vehicle |
+			_object_mask_weapon | _object_mask_equipment, 0);
 		while ((object = (struct object_datum *)object_iterator_next(&iterator)) != NULL)
 		{
 			short bsp = object_get_regional_bsp(iterator.index);
-			if (bsp == NONE || !TEST_FLAG(populated_bsp_flags & ~keep_bsps, bsp))
+			if (object->object.parent_object_index != NONE || bsp == NONE ||
+				!TEST_FLAG(populated_bsp_flags & ~keep_bsps, bsp))
 				continue;
-			if (object->object.type == _object_type_vehicle)
-			{
-				/* Preserve the last scene, even when this vehicle left its home. */
-				game_engine_record_regional_object(iterator.index, object, bsp);
-				if (game_engine_object_recorded_bsp(iterator.index, _object_type_vehicle) == bsp)
-				{
-					object_disconnect_from_map(iterator.index);
-					object_reconnect_to_map(iterator.index, NULL);
-				}
-			}
+			if (object->object.type != _object_type_control)
+				game_engine_park_regional_root(iterator.index, object, bsp);
 			else if (object->object.name_index != NONE)
 				object_disconnect_from_map(iterator.index);
 		}
@@ -1244,6 +1238,18 @@ static void object_types_connect_regional_controls(short bsp, struct structure_b
 	}
 }
 
+static void object_types_connect_regional_items(short bsp, struct structure_bsp const *structure)
+{
+	struct object_iterator iterator;
+
+	object_iterator_new(&iterator, _object_mask_weapon | _object_mask_equipment, 0);
+	while (object_iterator_next(&iterator))
+	{
+		if (game_engine_connect_regional_item(iterator.index, bsp, structure))
+			object_activate(iterator.index);
+	}
+}
+
 static void object_types_connect_regional_vehicles(short bsp, struct structure_bsp const *structure)
 {
 	struct object_iterator iterator;
@@ -1266,13 +1272,20 @@ void object_types_place_regional_bsp(short bsp, struct structure_bsp const *stru
 		object_types_place_objects_in_bsp(TRUE, bsp, structure);
 		object_types_connect_regional_controls(bsp, structure);
 		object_types_connect_regional_vehicles(bsp, structure);
+		object_types_connect_regional_items(bsp, structure);
 	}
 }
 
 void object_types_reconnect_foreground(void)
 {
-	if (!TEST_FLAG(populated_bsp_flags, global_structure_bsp_index_get()))
+	short bsp = global_structure_bsp_index_get();
+
+	if (!TEST_FLAG(populated_bsp_flags, bsp))
+	{
 		object_types_reconnect_to_structure_bsp();
+		object_types_connect_regional_items(bsp, global_structure_bsp_get());
+		object_types_connect_regional_vehicles(bsp, global_structure_bsp_get());
+	}
 }
 
 void object_types_reconnect_to_structure_bsp(

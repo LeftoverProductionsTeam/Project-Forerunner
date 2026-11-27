@@ -588,6 +588,8 @@ void game_engine_vehicle_placement_begin(
 	void);
 void game_engine_register_regional_vehicle_home(long object_index, struct scenario_object_datum const *placement);
 struct structure_bsp;
+void game_engine_park_regional_root(long object_index, struct object_datum const *object, short bsp);
+boolean game_engine_connect_regional_item(long object_index, short bsp, struct structure_bsp const *structure);
 boolean game_engine_connect_regional_vehicle(long object_index, short bsp, struct structure_bsp const *structure);
 void game_engine_record_regional_object(long object_index, struct object_datum const *object, short source_bsp);
 void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index);

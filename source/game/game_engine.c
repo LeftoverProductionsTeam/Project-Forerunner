@@ -941,6 +941,7 @@ static void game_engine_update_item_spawn(
 static short game_engine_stocked_equipment_home(
 	long object_index,
 	struct item_datum const *item);
+static boolean game_engine_item_suspended(long object_index);
 
 boolean team_has_players(
 	long team_index);
@@ -4261,7 +4262,8 @@ static void game_engine_update_purge(
 			{
 				long item_index = item_iterator.index;
 				/* Regional pads keep their current stock while the BSP is inactive. */
-				if (can_delete_item(item_index) && game_engine_stocked_equipment_home(item_index, item) == NONE)
+				if (!game_engine_item_suspended(item_index) && can_delete_item(item_index) &&
+					game_engine_stocked_equipment_home(item_index, item) == NONE)
 					object_delete(item_index);
 			}
 		}
@@ -5419,7 +5421,16 @@ static struct game_engine_regional_object
 {
 	long object_index;
 	short bsp_index;
+	long suspended_at;
 } game_engine_regional_objects[MAXIMUM_OBJECTS_PER_MAP];
+
+static boolean game_engine_item_suspended(long object_index)
+{
+	struct game_engine_regional_object const *region =
+		&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
+
+	return region->object_index == object_index && region->suspended_at != NONE;
+}
 
 static boolean game_engine_equipment_item_at_pad(
 	struct item_datum const *item,
@@ -5437,7 +5448,7 @@ static short game_engine_stocked_equipment_home(
 	struct scenario const *scenario;
 	struct scenario_netgame_equipment const *equipment;
 	short index = item->item.netgame_equipment_index;
-	short home;
+	short home, owner;
 
 	if (!VALID_INDEX(index, NUMBEROF(game_engine_equipment_home_bsp)))
 		return NONE;
@@ -5448,9 +5459,12 @@ static short game_engine_stocked_equipment_home(
 	if (home == NONE)
 		return NONE;
 	equipment = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_equipment, index, struct scenario_netgame_equipment);
-	if (equipment->run_time_spawned_item_index == object_index && game_engine_equipment_item_at_pad(item, equipment))
-		return home;
-	return NONE;
+	if (equipment->run_time_spawned_item_index != object_index || !game_engine_equipment_item_at_pad(item, equipment))
+		return NONE;
+	owner = object_get_regional_bsp(object_index);
+	if (owner == NONE)
+		owner = game_engine_object_recorded_bsp(object_index, item->object.type);
+	return owner == NONE || owner == home ? home : NONE;
 }
 
 static boolean game_engine_equipment_item_parked(
@@ -5517,6 +5531,7 @@ void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index)
 
 	region->object_index = object_index;
 	region->bsp_index = bsp_index;
+	region->suspended_at = NONE;
 }
 
 /* Capture ownership before the source BSP loses its clusters. Carried items
@@ -5558,6 +5573,7 @@ void game_engine_record_regional_object(
 		short bsp = object_get_regional_bsp(object_index);
 		region->object_index = object_index;
 		region->bsp_index = bsp != NONE ? bsp : source_bsp;
+		region->suspended_at = NONE;
 	}
 }
 
@@ -5585,6 +5601,39 @@ short game_engine_object_recorded_bsp(
 	/* A vehicle at an authored home can have no cluster or saved region
 	 * before its BSP is first entered. Keep it in seam clearance checks. */
 	return object_type == _object_type_vehicle ? game_engine_vehicle_home_bsp(object_index) : NONE;
+}
+
+void game_engine_park_regional_root(long object_index, struct object_datum const *object, short bsp)
+{
+	short type = object->object.type;
+
+	game_engine_record_regional_object(object_index, object, bsp);
+	if (game_engine_object_recorded_bsp(object_index, type) != bsp)
+		return;
+	if (type == _object_type_weapon || type == _object_type_equipment)
+		game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)].suspended_at = game_time_get();
+	object_park_regional_root(object_index);
+}
+
+boolean game_engine_connect_regional_item(long object_index, short bsp, struct structure_bsp const *structure)
+{
+	struct game_engine_regional_object *region =
+		&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];
+	struct item_datum *item;
+	short owner;
+
+	if (!game_engine_item_suspended(object_index) || region->bsp_index != bsp)
+		return FALSE;
+	owner = object_get_regional_bsp(object_index);
+	if (owner != NONE && owner != bsp)
+		return FALSE;
+	item = item_get(object_index);
+	if (item->object.parent_object_index != NONE || TEST_FLAG(item->item.flags, _item_attached_to_unit_bit) ||
+		(owner == NONE && !object_connect_to_regional_bsp(object_index, bsp, structure)))
+		return FALSE;
+	item->item.last_owned_time += game_time_get() - region->suspended_at;
+	region->suspended_at = NONE;
+	return TRUE;
 }
 
 boolean game_engine_connect_regional_vehicle(long object_index, short bsp, struct structure_bsp const *structure)
@@ -10825,7 +10874,7 @@ static void game_engine_update_item_spawn_in_bsp(
 			if (*home != active_bsp)
 				continue;
 			previous = item_try_and_get(equipment->run_time_spawned_item_index);
-			if (game_engine_equipment_item_at_pad(previous, equipment))
+			if (previous && game_engine_stocked_equipment_home(equipment->run_time_spawned_item_index, previous) == active_bsp)
 			{
 				previous->item.last_owned_time = now;
 				continue;
