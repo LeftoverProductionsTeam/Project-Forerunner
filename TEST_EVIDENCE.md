@@ -45,8 +45,13 @@ seated at the row-10 carrier. These samples establish on-foot Evolved
 delivery at one automatic spawner and preserve the other as a separate
 case. A normal-input run found the moving row-9 weapon on the ground at
 (88.00, -169.46, 0.08), but the Survivor died while trying to leave the base.
-There is no verified handheld pickup, shot or sampled physical rollover on
-the exact installed pair.
+The native debug file from the second installed-cache launch records the
+physical transition. Carrier `e3530085` invoked grounded rollover at tick 1,
+with up.z -0.026. Its exact riders `e36100f0`, `e36300f2` and `e36400f3`
+were alive and on foot at tick 2. It also recorded all three Alpha exits at
+tick 1 and the refreshed three at tick 1801, with the same refreshed riders
+alive on foot by tick 1806. The run enabled existing rollover logging only.
+Handheld pickup, firing and the original Demo comparison remain open.
 
 The diagnostic's 30-second mixer captured the map music, Slayer and nearby
 effects. Normal input collected and threw an authored grenade. These
@@ -103,6 +108,12 @@ paths diverged slightly and the trace measures whole frames, so the
 tail difference does not isolate solver cost. Custom rigs, contact during
 full falls and solver performance at the current corpse budget remain
 open. Latest retains the released build.
+
+The existing engine profiler now records a separate `ragdoll_step` section
+around awake-corpse updates, including collision gathering, both substeps,
+pose reconstruction and the sleep decision. The Win64 candidate
+`e64c7fbee` compiled successfully. Direct scope timing at the corpse cap,
+custom skeleton acceptance and release validation remain open.
 
 ## Product Completion V2 Windows checkpoint
 

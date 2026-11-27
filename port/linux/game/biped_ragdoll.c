@@ -12,6 +12,7 @@
 #include "biped_ragdoll.h"
 
 #ifdef HALO_PRESENTATION_RAGDOLLS
+#include "cseries/profile.h"
 #include "cutscene/cinematics.h"
 #include "game/game.h"
 #include "math/real_math.h"
@@ -1527,6 +1528,8 @@ static void ragdoll_pose(
 	}
 }
 
+static struct profile_section ragdoll_step_section = {"ragdoll_step", NONE, TRUE};
+
 static void ragdoll_step(
 	struct ragdoll *ragdoll,
 	long biped_index)
@@ -1535,6 +1538,7 @@ static void ragdoll_step(
 	real fastest = 0.f;
 	short index;
 
+	profile_enter(ragdoll_step_section);
 	match_assert(__FILE__, __LINE__, global_current_collision_user_depth < MAXIMUM_COLLISION_USER_STACK_DEPTH);
 	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_limp_body_physics;
 
@@ -1559,6 +1563,7 @@ static void ragdoll_step(
 	ragdoll->ticks++;
 	if (ragdoll->still_ticks >= RAGDOLL_SLEEP_TICKS || ragdoll->ticks >= RAGDOLL_MAXIMUM_TICKS)
 		ragdoll_sleep(ragdoll);
+	profile_exit(ragdoll_step_section);
 }
 
 void biped_ragdoll_update(long biped_index)
