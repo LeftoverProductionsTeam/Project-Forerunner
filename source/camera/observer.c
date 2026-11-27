@@ -114,6 +114,7 @@ symbols in this file:
 #include "physics/collisions.h"
 #include "physics/collision_usage.h"
 #include "scenario/scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "structures/structure_bsp_definitions.h"
 
 /* ---------- constants */
@@ -1300,6 +1301,36 @@ static short observer_followed_remote_bsp(short local_player_index)
 	return NONE;
 }
 
+/* Followed units own their view even at overlapping boundaries. A detached
+ * view uses the loaded structure that contains its eye. This never loads a BSP. */
+short observer_get_camera_bsp(short local_player_index, real_point3d const *position, boolean allow_preview)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	short foreground = global_structure_bsp_index_get(), bsp;
+	long unit;
+
+	if (!scenario || local_player_index == NONE || !scenario_uses_regional_gameplay(scenario))
+		return foreground;
+	unit = director_get_followed_unit(local_player_index);
+	if (object_try_and_get(unit))
+	{
+		bsp = object_get_regional_bsp(unit);
+		/* A listener whose followed unit has no loaded geometry must not
+		 * accidentally acquire another region's sound sources. */
+		if (bsp != NONE && (!allow_preview || bsp == foreground || scenario_structure_bsp_preview(bsp, FALSE)))
+			return bsp;
+	}
+	if (scenario_structure_bsp_contains_point(global_structure_bsp_get(), position))
+		return foreground;
+	for (bsp = 0; bsp < MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO); bsp++)
+	{
+		if (bsp != foreground && scenario_structure_bsp_contains_point(allow_preview ?
+			scenario_structure_bsp_preview(bsp, FALSE) : scenario_structure_bsp_try_and_get(bsp), position))
+			return bsp;
+	}
+	return foreground;
+}
+
 /* Pair a listener location with the structure it indexes. Keep the legacy
  * observer result unchanged for callers that still expect foreground indices. */
 struct structure_bsp const *observer_get_camera_structure(
@@ -1308,13 +1339,14 @@ struct structure_bsp const *observer_get_camera_structure(
 	struct location *location,
 	short *bsp_index)
 {
-	short bsp = observer_followed_remote_bsp(local_player_index);
-	struct structure_bsp const *structure = bsp == NONE ?
+	short bsp = observer_get_camera_bsp(local_player_index, &camera->position, FALSE);
+	boolean foreground = bsp == global_structure_bsp_index_get();
+	struct structure_bsp const *structure = foreground ?
 		global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
 
 	if (bsp_index)
-		*bsp_index = bsp == NONE ? global_structure_bsp_index_get() : bsp;
-	if (bsp == NONE)
+		*bsp_index = bsp;
+	if (foreground)
 		*location = camera->location;
 	else
 		scenario_location_from_point_in_structure(location, structure, &camera->position);

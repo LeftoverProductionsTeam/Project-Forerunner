@@ -106,6 +106,7 @@ void observer_update(
 struct observer_result const *observer_get_camera(
 	short local_player_index);
 struct structure_bsp;
+short observer_get_camera_bsp(short local_player_index, real_point3d const *position, boolean allow_preview);
 struct structure_bsp const *observer_get_camera_structure(
 	short local_player_index,
 	struct observer_result const *camera,

@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run, structure
 from harness.audio import manager_types
 
-CASES = ['moving', 'next-tick', 'listener', 'region', 'regional-listeners', 'regional-source-move', 'tracked-origin', 'slot', 'impulse', 'out-of-range']
+CASES = ['moving', 'next-tick', 'listener', 'region', 'regional-listeners', 'regional-source-move',
+         'tracked-origin', 'slot', 'impulse', 'out-of-range', 'detached-listener', 'unloaded-followed-unit']
 NEGATIVE_CONTROLS = {
     'keyed-on-position': ('entry->local_player_index != local_player_index)',
                           'entry->local_player_index != local_player_index ||\n\t\tsource->location.position.x != 2.f)',
@@ -34,6 +35,7 @@ def generated(fault=None):
     code += '\n'.join(function(manager, name) for name in [
         'sound_obstruction_cache_entry', 'sound_obstruction_cache_recall', 'sound_obstruction_cache_store',
         'source_audible'])
+    code += '\n' + function(read('source/camera/observer.c'), 'observer_get_camera_bsp')
     if fault:
         code = mutated(code, fault[0], fault[1])
     return (('types.inc', types), ('under_test.inc', code))

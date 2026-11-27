@@ -398,6 +398,15 @@ Live two-region party testing still needs a native gameplay session.
 
 ## Regional positional sound and Ice Fields opacity
 
+Camera rendering and sound now share region selection. Detached audio picks
+resident simulation geometry, while rendering can still use preview geometry.
+The focused harness covers both paths and followed-unit precedence. Win64
+`8b27ed9e` ran the released `fcfe9d44` through the normal Extraction menus
+with two test-assisted local profiles in BSPs 0 and 11. The mixer emitted
+positional effects and nonzero stereo output while UNSC fired and moved.
+See `build/regional-split-audio-capture-8b27ed9e` for hashes, logs and mixer
+readback. Detached gameplay and tracked VR audio still require native proof.
+
 Private Win64 build `118F03B83C7038DE926CDC14525D944C0F6D7A9AE7AC422E319C7E29A87E1383`
 compiled the regional positional sound changes. The existing native sound
 harness verifies matching-BSP listener selection, suppression when only

@@ -29,6 +29,35 @@ static void compute_sound_obstruction(short listener_index, struct sound_source 
 	source->obstruction = 0.25f * (real)tests;
 	source->occlusion = 0.f;
 }
+/* Three native scene slots: foreground, render preview, and simulation hold. */
+#define MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO 3
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+struct structure_bsp { real min_x, max_x; };
+struct scenario { struct { long count; } structure_bsp_references; };
+static struct scenario camera_scenario = {{3}};
+static struct structure_bsp camera_regions[] = {{0.f, 1.f}, {1.f, 2.f}, {2.f, 3.f}};
+static short followed_bsp = NONE;
+static boolean regional_scene = TRUE;
+static struct scenario const *global_scenario_try_and_get(void) { return &camera_scenario; }
+static boolean scenario_uses_regional_gameplay(struct scenario const *scenario) { return scenario && regional_scene; }
+static short global_structure_bsp_index_get(void) { return global_structure_bsp_index; }
+static struct structure_bsp const *global_structure_bsp_get(void) { return &camera_regions[0]; }
+static long director_get_followed_unit(short player) { (void)player; return followed_bsp == NONE ? NONE : 1; }
+static boolean object_try_and_get(long unit) { return unit != NONE; }
+static short object_get_regional_bsp(long unit) { (void)unit; return followed_bsp; }
+static struct structure_bsp const *scenario_structure_bsp_preview(short bsp, boolean prefetch)
+{
+	CHECK(!prefetch, "a camera query loaded a BSP");
+	return &camera_regions[bsp];
+}
+static struct structure_bsp const *scenario_structure_bsp_try_and_get(short bsp)
+{
+	return bsp == 1 ? NULL : &camera_regions[bsp];
+}
+static boolean scenario_structure_bsp_contains_point(struct structure_bsp const *structure, real_point3d const *point)
+{
+	return structure && point->x >= structure->min_x && point->x <= structure->max_x;
+}
 #include "under_test.inc"
 
 static struct sound_source at(real x)
@@ -50,6 +79,25 @@ int main(int argc, char **argv)
 
 	listeners[0].valid = TRUE;
 	now = 10;
+	CASE("detached-listener")
+	{
+		real_point3d position = {.x = 2.5f};
+		CHECK(observer_get_camera_bsp(0, &position, FALSE) == 2, "detached audio stayed in foreground");
+		CHECK(observer_get_camera_bsp(0, &position, TRUE) == 2, "detached rendering disagrees with loaded audio scene");
+		position.x = 1.5f;
+		CHECK(observer_get_camera_bsp(0, &position, FALSE) == 0, "audio used a render preview");
+		CHECK(observer_get_camera_bsp(0, &position, TRUE) == 1, "detached rendering lost the preview");
+		regional_scene = FALSE;
+		CHECK(observer_get_camera_bsp(0, &position, TRUE) == 0, "classic camera lost foreground");
+	}
+	CASE("unloaded-followed-unit")
+	{
+		real_point3d position = {.x = 2.5f};
+		followed_bsp = 1;
+		CHECK(observer_get_camera_bsp(0, &position, FALSE) == 1, "unloaded follower adopted another BSP's audio");
+		followed_bsp = 0;
+		CHECK(observer_get_camera_bsp(0, &position, FALSE) == 0, "foreground follower lost its own BSP");
+	}
 	CASE("moving")
 	{
 		/* four frames of a tick, the source's interpolated position moving */

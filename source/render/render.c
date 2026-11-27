@@ -75,6 +75,7 @@ symbols in this file:
 #include "structures/structure_visibility.h"
 #include "structures/structure_bsp_definitions.h"
 #include "camera/director.h"
+#include "camera/observer.h"
 #ifdef HALO_SHADER_PREP
 #include "render_enumerate.h" /* port: port/linux/game/render_enumerate.c */
 #endif
@@ -673,34 +674,6 @@ static void render_window(
 	return;
 }
 
-/* Prefer the followed unit where regions overlap. A detached view can use
- * any resident render BSP containing the eye, without transferring a unit. */
-static short render_player_structure_bsp(struct render_window const *window)
-{
-	struct scenario const *scenario = global_scenario_try_and_get();
-	short foreground = global_structure_bsp_index_get();
-	short bsp;
-	long unit;
-
-	if (!scenario || window->local_player_index == NONE || !scenario_uses_regional_gameplay(scenario))
-		return foreground;
-	unit = director_get_followed_unit(window->local_player_index);
-	if (object_try_and_get(unit))
-	{
-		bsp = object_get_regional_bsp(unit);
-		if (bsp != NONE && (bsp == foreground || scenario_structure_bsp_preview(bsp, FALSE)))
-			return bsp;
-	}
-	if (scenario_structure_bsp_contains_point(global_structure_bsp_get(), &window->render_camera.position))
-		return foreground;
-	for (bsp = 0; bsp < MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO); bsp++)
-	{
-		if (bsp != foreground && scenario_structure_bsp_contains_point(
-			scenario_structure_bsp_preview(bsp, FALSE), &window->render_camera.position))
-			return bsp;
-	}
-	return foreground;
-}
 
 /* Leaves are local to the current structure. A camera outside it can keep its
  * last valid leaf, but a different view or player must never supply it. */
@@ -745,7 +718,7 @@ static void render_player_frame(
 	has_mirror = FALSE;
 
 	HALO_PERF_RENDER_PART(_halo_perf_render_setup);
-	render_view_bsp = render_player_structure_bsp(window);
+	render_view_bsp = observer_get_camera_bsp(window->local_player_index, &window->render_camera.position, TRUE);
 	if (render_view_bsp == global_structure_bsp_index_get())
 		render_view_bsp = NONE;
 	render_locate_player_camera(window);
@@ -1008,7 +981,7 @@ void render_frame(
 		window = &windoze[window_index];
 		if (window->console_window || window->local_player_index == NONE || window->render_camera.mirrored)
 			continue;
-		source_bsp = render_player_structure_bsp(window);
+		source_bsp = observer_get_camera_bsp(window->local_player_index, &window->render_camera.position, TRUE);
 		if (VALID_INDEX(source_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
 			visible |= 1UL << source_bsp;
 		first = players_visible_bsp_neighbor(source_bsp, &window->render_camera.position, &window->render_camera.forward, FALSE, NONE);
