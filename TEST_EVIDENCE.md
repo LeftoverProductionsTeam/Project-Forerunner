@@ -62,6 +62,13 @@ ground preview and its published mode receipt.
   synchronized kills, and authored objective credit remain unverified.
   Logs are under `build/regional-native-trial/megaworld-hunt-bf748855/v3-two-hunts-host`
   and `v3-two-hunts-guest`.
+- Win64 candidate `cfb7f039` keeps the destroyed pooled vehicle out of
+  ordinary corpse cleanup. The focused Windows pool check verified that the
+  same dead vehicle remains through regional deactivation and reactivation,
+  that stale object handles and invalid home indices get no protection, and
+  that manual removal does not replenish the pool. The classic vehicle
+  respawn regression passed. Live combat, cleanup pressure and returning to
+  the visible wreck with a guest still need native verification.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

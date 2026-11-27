@@ -5978,6 +5978,15 @@ static short game_engine_vehicle_home_add(
 	return home;
 }
 
+/* A pooled vehicle is a bounded, one-per-region match object. Retaining its
+ * wreck keeps the destroyed state visible when players return to the scene. */
+boolean game_engine_extraction_keeps_vehicle_wreck(long object_index, long home)
+{
+	return VALID_INDEX(home, game_engine_vehicle_home_count) &&
+		game_engine_vehicle_homes[home].object_index == object_index &&
+		game_engine_vehicle_homes[home].extraction_once;
+}
+
 /* Bind unambiguous compiled pads before the foreground geometry can claim
  * an overlapping home. Older or unspecified placements still use the scan. */
 void game_engine_register_regional_vehicle_home(

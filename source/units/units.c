@@ -2889,7 +2889,9 @@ void unit_died(
 
 	if (!feigned)
 	{
-		object_set_garbage(unit_index, TRUE);
+		if (unit->object.type != _object_type_vehicle ||
+			!game_engine_extraction_keeps_vehicle_wreck(unit_index, unit->object.vehicle_home_index))
+			object_set_garbage(unit_index, TRUE);
 		if (unit->unit.player_index != NONE)
 		{
 #if defined(HALO_MAP_LIST) && !defined(HALO_XBOX_CONSOLE)

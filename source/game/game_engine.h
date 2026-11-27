@@ -591,6 +591,7 @@ short game_engine_extraction_pool_start(short region, short choice);
 boolean game_engine_extraction_pools_valid(void);
 void game_engine_vehicle_placement_begin(
 	void);
+boolean game_engine_extraction_keeps_vehicle_wreck(long object_index, long home);
 void game_engine_register_regional_vehicle_home(long object_index, struct scenario_object_datum const *placement);
 struct structure_bsp;
 void game_engine_park_regional_root(long object_index, struct object_datum const *object, short bsp);

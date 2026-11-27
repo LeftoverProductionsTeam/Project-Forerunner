@@ -633,13 +633,27 @@ static void extraction_vehicle_once(void)
  CHECK(new_count==1&&get(issued)&&replacement_bsp==1&&game_engine_vehicle_homes[0].extraction_once,
        "pool did not bind its one vehicle to the guest's region");
  get(issued)->object.damage_flags=FLAG(_object_dead_bit);
+ CHECK(game_engine_extraction_keeps_vehicle_wreck(issued,get(issued)->object.vehicle_home_index),
+       "issued wreck was eligible for death garbage collection");
+ CHECK(!game_engine_extraction_keeps_vehicle_wreck(issued+0x10000,get(issued)->object.vehicle_home_index),
+       "recycled object identity inherited wreck protection");
+ CHECK(!game_engine_extraction_keeps_vehicle_wreck(issued,0x10000L),
+       "invalid home aliased the first vehicle home");
+ game_engine_vehicle_homes[0].extraction_once=FALSE;
+ CHECK(!game_engine_extraction_keeps_vehicle_wreck(issued,get(issued)->object.vehicle_home_index),
+       "classic vehicle inherited wreck protection");
+ game_engine_vehicle_homes[0].extraction_once=TRUE;
  occupied_vehicle_bsps=0;
  now+=2*TICKS_PER_SECOND;
  game_engine_update_vehicle_respawn();
  CHECK(get(issued)&&new_count==1,"an inactive region replaced a wreck");
 
- object_delete(issued);
  occupied_vehicle_bsps=FLAG(1);
+ game_engine_update_vehicle_respawn();
+ CHECK(get(issued)&&TEST_FLAG(get(issued)->object.damage_flags,_object_dead_bit)&&new_count==1,
+       "returning to the region replaced or revived its pooled wreck");
+
+ object_delete(issued);
  now+=2*TICKS_PER_SECOND;
  game_engine_update_vehicle_respawn();
  now+=2*TICKS_PER_SECOND;
