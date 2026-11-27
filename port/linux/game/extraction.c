@@ -119,6 +119,7 @@ struct extraction_run
 	short report_page, start_kills, start_deaths;
 	boolean statistics_started, hub_briefed, ground_evacuation;
 	boolean resupply_visited, guidance_active;
+	boolean field_exit_notice_pending, field_exit_notice_sent;
 	byte guidance_route_next[NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES];
 	short guidance_flag;
 	long guidance_unit;
@@ -2266,6 +2267,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	run->dropship = NONE;
 	run->field_reached = FALSE;
 	run->field_exit_ready = FALSE;
+	run->field_exit_notice_pending = run->field_exit_notice_sent = FALSE;
 	run->ground_evacuation = FALSE;
 	run->resupply_visited = FALSE;
 	memset(run->guidance_route_next, 0, sizeof(run->guidance_route_next));
@@ -2978,9 +2980,20 @@ wchar_t const *extraction_transport_passenger_prompt(struct unit_datum const *pa
 void extraction_transport_seat_transition_started(struct unit_datum const *passenger)
 {
 	long ship = passenger->object.parent_object_index;
+	long slot;
 	short faction;
 	if (!extraction.bound || !extraction.admitted || network_game_distributed_client() ||
 		passenger->unit.player_index == NONE || ship == NONE || passenger->unit.parent_seat_index == NONE) return;
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(passenger->unit.player_index);
+	faction = extraction_faction(passenger->object.owner_team_index);
+	if (!extraction.survival && VALID_INDEX(slot, NUMBEROF(extraction_runs)) && VALID_INDEX(faction, 2))
+	{
+		struct extraction_run *run = &extraction_runs[slot];
+		if (run->player == passenger->unit.player_index && run->phase == _extraction_deployed &&
+			!run->field_exit_notice_sent && extraction_player_dropship(passenger) == ship &&
+			extraction_transport_at_field(faction, ship) && extraction_transport_arrival_ready(faction, ship))
+			run->field_exit_notice_pending = TRUE;
+	}
 	/* Invalidate the attached craft even if its rider or hull lost eligibility
 	 * before a forced exit. HaloScript can read the group again this tick. */
 	for (faction = 0; faction < NUMBEROF(extraction.dropship_names); faction++)
@@ -3225,6 +3238,14 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		else if (!exit_ready && run->field_exit_ready && ship != NONE && !exiting && !extraction.survival &&
 			(!extraction_transport_can_disembark(unit) || (at_field && unit_animation_busy(&unit->unit.animation))))
 			extraction_tell(run, "WAIT TO DISEMBARK | Stay seated until the exit opens.");
+		/* The transition hook runs before detach. Wait for actual on-foot control. */
+		if (run->field_exit_notice_pending && unit->object.parent_object_index == NONE)
+		{
+			run->field_exit_notice_pending = FALSE;
+			run->field_exit_notice_sent = TRUE;
+			run->field_reached = TRUE;
+			extraction_tell(run, "ON FOOT | Follow your mission objectives. Use the field terminal to call evacuation.");
+		}
 		/* Arrival is an operation milestone. Exit guidance follows the live seat gate. */
 		run->field_exit_ready = exit_ready;
 	}
