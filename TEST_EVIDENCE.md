@@ -342,6 +342,44 @@ gameplay tick before resuming.
   Continue from the verified encounter setup, then confirm synchronized
   kills and objective credit for both squads.
 
+**03:29 update.** Spark supplied a correction limited to Ice Fields BSP 11
+and its lightmaps. The private handoff is
+`build/regional-pressure-profile/megaworld-compact-native-f5a4ca22`.
+Map SHA-256
+`f5a4ca228b001d891eacade5844e80c8ea34cd20cee6c700150379a6295796b7`,
+receipt `4a095213100ee52d50bc6630c5683ce4b858b8a3fdf51012ace841dea94d4ddf`,
+and native readback
+`7ead0299a743bb79ff70561ba226eaa063d1405fefac098364cd4c2ba7eea37b`
+were rehashed. The same Latest executable above admitted the exact map
+through Extraction, with a natural Covenant spawn in BSP 11 at
+(924.929, 184.432, -14.350). The private process, PID 50108, uses
+`compact-corrected-route/logs/debug.txt`, config and input feed in that
+run folder, and the isolated `compact-data-f5a4ca22` game data.
+
+Native visual acceptance failed at the lower Ice Fields base. Frame
+`compact-corrected-route/screens/window21286.bmp` shows an open snow view
+through the location where ordinary walking stops against collision.
+The sampled camera was (928.6, 183.1, -15.1), yaw -92 degrees, pitch zero,
+BSP 11, around ticks 6210–6360, on OpenGL 4.5 NVIDIA 621.40 at 800×600.
+Spark has the exact reproduction for matched stock and authoring checks.
+The corrected switch crossings remain unverified in this build. Next
+reach the established Ice Fields approach from a normal spawn and test
+both directions, including the corrected outer lane. The Carousel
+vehicle round trip waits for Spark's vehicle-capable lower landing.
+
+The full-world LAN host and guest both reached their configured one-hour
+test limit and logged `exiting after debug.exit_after`. Their final tick
+106410 agrees on the live UNSC guest at (-76.708, 150.665, -16.272) in Rat
+Race after dismounting Ghost `e83405c5`. Neither log contains a bank for
+that operation. The private wreck trial also expired at tick 79530. Its
+last pose was (83.231, 46.900, -21.075), before reaching the Beaver Creek
+Ghost. These processes are no longer resumable. Reopen exact `fd7a49fa`
+in a paired normal-menu LAN run with no test timer. Finish one UNSC field
+call, hub return and bank and check both logs. The Covenant bank, same
+loose item recovery, real private wreck return, and synchronized hunt
+kills and objective credit remain separate open gates. No previous proof
+was withdrawn.
+
 No acceptance in this checkpoint promotes a map or runtime.
 
 ## Product Completion V2.1 Windows release
