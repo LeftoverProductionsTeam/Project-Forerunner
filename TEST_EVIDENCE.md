@@ -84,8 +84,19 @@ ground preview and its published mode receipt.
   host-owned replica stays off the list, a local object can still be
   collected, a recycled slot is checked by full handle, and ownership
   changes still allow a stale garbage mark to be cleared. The old path
-  failed the reproduction. A rendered host and guest still need to verify
-  a destroyed vehicle and dropped gear together on a region round trip.
+  failed the reproduction. The same executable hosted exact released map
+  `fcfe9d44` plus the retained private two-region pool receipt via normal
+  LAN menus. It issued one vehicle and three weapons in each occupied BSP.
+  At tick 450 both peers reported Scorpion slot 1438 in BSP 11, and the
+  guest did not receive the BSP 0 Warthog. A normal grenade throw killed the
+  Covenant guest while the host remained healthy in BSP 0. Plasma pistol
+  slot 1079 remained on the host during the guest's death (ticks 3600 and
+  4050), then was present unowned at the same position on both peers after
+  the guest respawned (ticks 4500 and 4950). This proves continuity through
+  the remote occupant's death and respawn. The Scorpion was not confirmed
+  destroyed. A physical switch round trip and visible wreck recovery remain
+  open. Logs are under `build/regional-pool-authority/pool-roundtrip-host`
+  and `pool-roundtrip-guest`.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance
