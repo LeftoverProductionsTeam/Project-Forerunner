@@ -50,7 +50,7 @@ struct object_fields { long first_child_object_index, next_object_index; short t
 struct object_datum { long definition_index; struct object_fields object; };
 struct unit_animation { short state, seat_index; };
 struct unit_datum { long definition_index; struct object_fields object;
- struct { long player_index, actor_index, equipment_object_index, weapon_object_indices[4], driver_object_index; short current_weapon_index, desired_weapon_index, parent_seat_index;
+ struct { long player_index, actor_index, swarm_actor_index, equipment_object_index, weapon_object_indices[4], driver_object_index; short current_weapon_index, desired_weapon_index, parent_seat_index;
   signed char grenade_counts[2]; short grenade_throw_state; unsigned long control_flags,flags;
   struct unit_animation animation;
   real active_camouflage,active_camouflage_super_amount;long cause_for_camo_regrowth;
@@ -1752,6 +1752,41 @@ int main(int argc,char **argv)
   if(!strcmp(case_name,"debrief-empty")) {
    touch(2,0);CHECK(run(0)->gear.record.count==0&&!run(0)->report.ready,"empty debrief created a reward");
    for(j=0;j<4;j++)CHECK(!strstr(local_notice_history[j],"RECOVERED"),"empty report claimed recovery");
+   return 0;
+  }
+  if(!strcmp(case_name,"debrief-npc-credit")) {
+   struct unit_datum *victim = &model_bodies[0];
+   const long npc = 2000;
+   model_handles[0] = npc;
+   victim->unit.player_index = NONE;
+   victim->unit.actor_index = 1;
+   victim->unit.swarm_actor_index = NONE;
+   victim->object.owner_team_index = _game_team_covenant;
+   victim->object.damage_flags = FLAG(_object_dead_bit);
+   extraction_npc_eliminated(npc,player_handles[1]);
+   CHECK(!run(1)->npc_kills,"hub kill credited");
+   touch(0,1);pickup(1,2);
+   r=run(1);
+   extraction_npc_eliminated(npc,NONE);
+   victim->object.damage_flags = 0;
+   extraction_npc_eliminated(npc,player_handles[1]);
+   victim->object.damage_flags = FLAG(_object_dead_bit);
+   victim->object.owner_team_index = (short)players[1].team_index;
+   extraction_npc_eliminated(npc,player_handles[1]);
+   victim->object.owner_team_index = _game_team_covenant;
+   connection = _game_connection_network_client;
+   extraction_npc_eliminated(npc,player_handles[1]);
+   connection = _game_connection_network_server;
+   CHECK(!r->npc_kills,"environmental, living, allied or replica kill credited");
+   extraction_npc_eliminated(npc,player_handles[1]);
+   victim->unit.actor_index = NONE;
+   extraction_npc_eliminated(npc,player_handles[1]);
+   CHECK(r->npc_kills==1 && !run(0)->npc_kills,"final kill duplicated or credited to another player");
+   CHECK(!players[1].statistics.kills[0],"NPC kill changed the native player kill counter");
+   escape(1);
+   CHECK(r->report.ready && r->report.statistics && r->report.kills==1,"remote debrief lost the NPC elimination");
+   touch(0,1);
+   CHECK(r->phase==_extraction_deployed && !r->npc_kills,"redeployment retained NPC credit from the preceding operation");
    return 0;
   }
   if(!strcmp(case_name,"debrief-remote")) {

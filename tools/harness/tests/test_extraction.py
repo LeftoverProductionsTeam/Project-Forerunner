@@ -409,7 +409,7 @@ def test_native_stash_preview_negative_control():
 
 @pytest.mark.parametrize('case', [
     'debrief-empty', 'debrief-success', 'debrief-loss', 'debrief-pending', 'debrief-auto',
-    'debrief-stats-reset', 'debrief-owner', 'debrief-remote', 'debrief-restart',
+    'debrief-stats-reset', 'debrief-owner', 'debrief-remote', 'debrief-restart', 'debrief-npc-credit',
     'debrief-redeploy', 'debrief-field', 'debrief-battery', 'debrief-fallback',
 ])
 def test_native_debrief_workflow(case):

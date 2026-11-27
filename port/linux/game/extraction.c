@@ -116,7 +116,7 @@ struct extraction_run
 	long discard_unit, discard_after, discard_deadline;
 	long dropship;
 	short dropship_team;
-	short report_page, start_kills, start_deaths;
+	short report_page, start_kills, start_deaths, npc_kills;
 	boolean statistics_started, hub_briefed, ground_evacuation;
 	boolean resupply_visited, guidance_active;
 	boolean field_exit_notice_pending, field_exit_notice_sent;
@@ -900,6 +900,37 @@ static boolean extraction_open_gear(struct extraction_run *run, struct player_da
 	return TRUE;
 }
 
+/* Native lethal damage still has an actor binding here. Script removals,
+ * respawns and replica death presentation never award a personal kill. */
+void extraction_npc_eliminated(long unit_index, long player_index)
+{
+	struct extraction_run *run;
+	struct player_datum *player;
+	struct unit_datum *victim;
+	long slot;
+
+	if (player_index == NONE || game_connection() == _game_connection_network_client ||
+		!extraction_owns_map() || extraction.suspended) return;
+	slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+	if (!VALID_INDEX(slot, NUMBEROF(extraction_runs))) return;
+	run = &extraction_runs[slot];
+	if (run->player != player_index || !run->statistics_started || !run->gear.opened ||
+		run->gear.record.phase != _gear_deployed ||
+		(run->phase != _extraction_deployed && run->phase != _extraction_activating && run->phase != _extraction_ready) ||
+		run->npc_kills == SHORT_MAX) return;
+
+	player = player_try_and_get(player_index);
+	victim = (struct unit_datum *)object_try_and_get_and_verify_type(unit_index, _object_mask_biped);
+	if (!player || player->quit_out_of_game || !victim || victim->unit.player_index != NONE ||
+		!TEST_FLAG(victim->object.damage_flags, _object_dead_bit) ||
+		(victim->unit.actor_index == NONE && victim->unit.swarm_actor_index == NONE) ||
+		!game_team_is_enemy((short)player->team_index, victim->object.owner_team_index)) return;
+
+	run->npc_kills++;
+	platform_log("extraction: player %08lx eliminated NPC %08lx, operation NPC kills %d",
+		(unsigned long)player_index, (unsigned long)unit_index, (int)run->npc_kills);
+}
+
 static void extraction_report_stage(struct extraction_run *run, short outcome)
 {
 	struct extraction_report *report = &run->report;
@@ -921,7 +952,7 @@ static void extraction_report_stage(struct extraction_run *run, short outcome)
 		player->statistics.kills[0] >= run->start_kills && player->statistics.deaths >= run->start_deaths)
 	{
 		report->statistics = TRUE;
-		report->kills = player->statistics.kills[0] - run->start_kills;
+		report->kills = (short)MIN(SHORT_MAX, player->statistics.kills[0] - run->start_kills + run->npc_kills);
 		report->deaths = player->statistics.deaths - run->start_deaths;
 	}
 }
@@ -2262,7 +2293,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		run->squad_operation = extraction.squads[run->squad].operation;
 	}
 	run->start_kills = player->statistics.kills[0]; run->start_deaths = player->statistics.deaths;
-	run->statistics_started = TRUE; run->report_page = 0;
+	run->statistics_started = TRUE; run->npc_kills = 0; run->report_page = 0;
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->dropship = NONE;
 	run->field_reached = FALSE;

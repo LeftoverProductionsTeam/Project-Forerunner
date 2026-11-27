@@ -7657,6 +7657,8 @@ void unit_damage_aftermath(
 		if (lethal)
 			stubbs_horde_unit_damaged_to_death(unit_index, damage_data); /* port: Stubbs mode only */
 #endif
+		if (lethal && !TEST_FLAG(damage_data->flags, _damage_no_statistics_bit))
+			extraction_npc_eliminated(unit_index, damage_data->owner_player_index);
 		unit_died(unit_index, feigned);
 	}
 

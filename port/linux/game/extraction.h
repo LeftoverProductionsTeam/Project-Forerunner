@@ -111,6 +111,7 @@ boolean extraction_medical_network_enabled(void);
 void extraction_medical_network_state(long unit_index, boolean downed, unsigned int epoch, unsigned short tick);
 void extraction_medical_control(long player_index, struct player_action *action);
 boolean extraction_medical_lethal(long unit_index);
+void extraction_npc_eliminated(long unit_index, long player_index);
 void extraction_medical_damaged(long unit_index);
 
 #endif
