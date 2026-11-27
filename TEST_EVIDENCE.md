@@ -9,6 +9,16 @@ artwork. The executable resource contains all nine requested sizes, and the
 This candidate also contains the private regional changes awaiting gameplay
 verification, so the installed Latest remains the released ground preview.
 
+## LAN Extraction browser label
+
+Win64 candidate `d22a998a` advertised the retained MegaWorld Extraction
+preview through the normal LAN menus. The guest's 800×600 browser displayed
+“Extraction” in full and joined the host using the existing version-44
+session. The game still uses Slayer internally. The focused Windows
+gametype checks covered the new label and the fallback for standard Slayer,
+CTF and unknown kinds. Rendered evidence is
+`build/regional-pool-authority/extraction-label-final-guest/screens/window01920.bmp`.
+
 ## Product Completion V3 regional Extraction and combat
 
 Private Win64 candidate `351701a5fa23a9b9fbe3dd2365986f4b78f336e3cf78b191bdc28a19609287d5`

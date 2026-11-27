@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run, structure
+from harness import CHECK_FAILED, build, constant, enum_with, function, mutated, read, run, structure
 
 
 def generated(fault=None):
@@ -32,7 +32,9 @@ def generated(fault=None):
     code = '\n'.join([
         defaults, function(modes, 'game_modes_option'), function(modes, 'game_modes_options_default'),
         function(modes, 'game_modes_options_sanitize'), function(modes, 'game_modes_player_killed'),
-        function(modes, 'game_modes_variant_mode'), '#define GAME_MODES_KIND_HARDCORE 0x80',
+        function(modes, 'game_modes_variant_mode'),
+        *(f"#define {name} {constant(read('port/linux/game/game_modes.h'), name)}"
+          for name in ('GAME_MODES_KIND_HARDCORE', 'GAME_MODES_KIND_EXTRACTION')),
         function(modes, 'game_modes_kind'), function(modes, 'game_modes_kind_name'),
         function(infection, 'infection_round_result'),
         function(infection, 'infection_state_valid'), order,

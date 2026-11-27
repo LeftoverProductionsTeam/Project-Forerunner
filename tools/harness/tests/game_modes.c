@@ -227,8 +227,14 @@ int main(int argc,char **argv)
   variant.game_engine_index=game_engine_ctf;options.mode=_game_mode_none;
   CHECK(!wcscmp(game_modes_kind_name(game_engine_ctf,game_modes_kind(&variant,&options),TRUE),L"HC CTF"),"HC CTF");
   CHECK(!wcscmp(game_modes_kind_name(game_engine_slayer,_game_mode_swat,TRUE),L"SWAT"),"SWAT");
+  CHECK(game_modes_kind_name(game_engine_slayer,GAME_MODES_KIND_EXTRACTION,TRUE) &&
+        !wcscmp(game_modes_kind_name(game_engine_slayer,GAME_MODES_KIND_EXTRACTION,TRUE),L"Extraction") &&
+        !wcscmp(game_modes_kind_name(game_engine_slayer,GAME_MODES_KIND_EXTRACTION,FALSE),L"EXTRACTION"),
+        "regional Extraction fits the row and uses the full label in details");
  } else CASE("kind_untrusted") {
   CHECK(game_modes_kind_name(game_engine_ctf,_game_mode_swat,TRUE)==NULL,"a mode of CTF is none");
+  CHECK(game_modes_kind_name(game_engine_ctf,GAME_MODES_KIND_EXTRACTION,TRUE)==NULL,
+        "the Extraction label cannot override another engine");
   CHECK(!wcscmp(game_modes_kind_name(game_engine_oddball,_game_mode_infection|0x80,TRUE),L"HC ODDBALL"),
    "Hardcore kept, the mode not");
   CHECK(game_modes_kind_name(game_engine_slayer,0x7F,TRUE)==NULL,"a mode this build does not know");

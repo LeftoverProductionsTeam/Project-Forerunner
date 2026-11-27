@@ -832,6 +832,9 @@ wchar_t const *game_modes_kind_name(
 	boolean hardcore = (kind & GAME_MODES_KIND_HARDCORE) != 0;
 	short mode = (short)(kind & ~GAME_MODES_KIND_HARDCORE);
 
+	if (game_engine_index == game_engine_slayer && kind == GAME_MODES_KIND_EXTRACTION)
+		return abbreviated ? L"Extraction" : L"EXTRACTION";
+
 	/* (another machine's: a mode of Slayer only, and one this build knows) */
 	if (game_engine_index == game_engine_slayer && mode > _game_mode_none && mode < NUMBER_OF_GAME_MODES)
 		return mode_names[mode][hardcore][abbreviated != FALSE];

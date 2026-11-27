@@ -250,6 +250,7 @@ symbols in this file:
 #include "cseries.h"
 #include "halo_map_families.h" /* port: map_family_wire_name */
 #include "game_modes.h" /* port: port/linux/game/game_modes.c */
+#include "halo_ui_map_list.h"
 #include "network_chat.h" /* port: port/linux/game/network_chat.c */
 #include "bungie_net/common/message_header.h"
 #include "bungie_net/network/transport.h"
@@ -2462,6 +2463,10 @@ static boolean network_game_server_handle_message_client_broadcast_game_search(
 			{
 				advertisement.reserved[HALO_PORT_ADVERTISED_KIND_OFFSET] = game_modes_kind(&game->variant,
 					&game->variant_options);
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+				if (game->variant.game_engine_index == game_engine_slayer && ui_map_list_hosting_regional_extraction())
+					advertisement.reserved[HALO_PORT_ADVERTISED_KIND_OFFSET] = GAME_MODES_KIND_EXTRACTION;
+#endif
 			}
 			/* (open to joins: not while the machines load the game, nor
 			once it is over, nor in progress when no player can join it) */
