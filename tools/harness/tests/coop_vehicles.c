@@ -433,10 +433,11 @@ static short global_structure_bsp_index_get(void) {return global_structure_bsp_i
 static struct structure_bsp *global_structure_bsp_get(void)
 {return &respawn_bsp[global_structure_bsp_index];}
 static unsigned long occupied_vehicle_bsps;
+static short forced_pad_bsp=NONE;
 static boolean scenario_structure_bsp_contains_placement(struct structure_bsp const *bsp,real_point3d const *point)
 {
  CHECK(bsp->index==global_structure_bsp_index || TEST_FLAG(occupied_vehicle_bsps,bsp->index),"used the wrong BSP to bind the home");
- return point->x<=20;
+ return point->x<=20 && (forced_pad_bsp==NONE || bsp->index==forced_pad_bsp);
 }
 #define game_variant_options_get() (&respawn_options)
 static void object_get_orientation(long object,real_vector3d *forward,real_vector3d *up)
@@ -556,6 +557,34 @@ static boolean game_engine_vehicle_parked(long index)
 {
  short bsp=game_engine_vehicle_home_bsp(index);
  return bsp!=NONE && bsp!=global_structure_bsp_index;
+}
+
+static void untagged_vehicle_first_activation(void)
+{
+ struct scenario_object_datum placement={.position={10,0,0}};
+ long vehicle=regional_vehicle=path_vehicle=make(1,0);
+ get(vehicle)->object.type=_object_type_vehicle;
+ get(vehicle)->object.position=placement.position;
+ rider_scenario.type=_scenario_type_multiplayer;
+ rider_scenario.structure_bsp_references.count=2;
+ respawn_mcc=TRUE;
+ forced_pad_bsp=1;
+ connection=1;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ CHECK(game_engine_vehicle_home_count==NONE,"a client registered the unresolved pad");
+ connection=2;
+ game_engine_register_regional_vehicle_home(vehicle,&placement);
+ CHECK(game_engine_vehicle_home_count==1 && game_engine_vehicle_home_bsp(vehicle)==NONE,
+       "the authored pad was lost or assigned a BSP before native containment");
+ CHECK(!game_engine_connect_regional_vehicle(vehicle,0,&respawn_bsp[0]),
+       "the initial BSP incorrectly claimed a foreign pad");
+ occupied_vehicle_bsps=FLAG(1);
+ CHECK(game_engine_connect_regional_vehicle(vehicle,1,&respawn_bsp[1]),
+       "the first activation could not bind the unmasked stock vehicle");
+ CHECK(game_engine_vehicle_home_bsp(vehicle)==1 && regional_vehicle_bsp==1,
+       "native containment did not retain the resolved home");
+ game_engine_update_vehicle_respawn();
+ CHECK(game_engine_vehicle_home_count==1,"the later scan duplicated the home");
 }
 
 static void compiled_regional_home(void)
@@ -867,6 +896,7 @@ static void unsteered_path(char const *name) {
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
  if(!strcmp(argv[1],"compiled-regional-home")) {compiled_regional_home();return 0;}
+ if(!strcmp(argv[1],"untagged-first-activation")) {untagged_vehicle_first_activation();return 0;}
  if(!strcmp(argv[1],"regional-drop-recovers")) {regional_drop_recovers();return 0;}
  if(!strcmp(argv[1],"extraction-vehicle-once")) {extraction_vehicle_once();return 0;}
  if(!strcmp(argv[1],"regional-respawn")) {regional_respawn();return 0;}

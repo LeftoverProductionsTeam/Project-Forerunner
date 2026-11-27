@@ -1,5 +1,42 @@
 # Forerunner test evidence
 
+## First activation of unmasked regional stock vehicles
+
+Win64 `D08EC305D454B94B79F456CFA840A695E282D221D2115130DD2BA19918683D2C`
+ran exact unchanged `d0c4c13b9bf3863be0d28fa30c417877756588df4b241092bbe98320cd7958f5`
+with mode receipt `36e2d953d53d7772f11e9295b9140cc9ec7208bf626b8d5de8c245b04d7b87fb`.
+Normal Covenant deployment rendered the west rocket Warthog and nearby
+Ghost. The Elite boarded and drove the same Ghost (`e3950126`) through
+11→10 at tick 12922, 10→3 at 14754, 3→10 at 15199, and 10→11 at
+16639. It turned on the lower Carousel approach near (787.210, -23.581,
+-30.740) and returned to Ice Fields seated, with full health and shields.
+Normal driving and the four recorded root transfers establish the Ghost
+round trip. The local vehicle regression checks cover untagged first activation,
+explicit BSP ownership, Extraction vehicle selection and drop recovery.
+
+The exact map's Elite animation graph provides Ghost driver entry/exit
+clips but no Warthog driver or gunner entry/exit clips. Both Warthogs
+have valid driver markers. Keep the ordinary native seat checks and
+use a Spartan driver for the outstanding Warthog round trip. Run evidence
+is in `build/carousel-vehicle-home-d08ec305`.
+
+## Full Ice Fields–Carousel loop on foot
+
+Exact private `d0c4c13b` with mode receipt `36e2d953` and readback `a57a0fbc`
+ran from the normal Extraction menus on Win64 `02AA847E`. Covenant unit
+`e6a00431` crossed 11→10 at tick 16133 and 10→3 at 19630. It descended the
+ramp to (785.714, -21.041, -31.404), climbed it, then crossed 3→10 at
+20462 and 10→11 at 23411. It finished at (952.895, 142.653, -15.743) with
+full health and shields. The restored Ice Fields lighting was readable in
+first person. No teleporter or scripted reposition was used.
+
+The east Warthog pad was empty on this build. Normal movement crossed its
+authored position and Use did not board a vehicle. Spark confirmed row 164
+at (931.804688, 181.796799, -15.921726), valid stock spawn flags, zero BSP
+mask and native containment in BSP 11. The baseline and complete foot
+route are retained in `build/carousel-warthog-d0c4c13b/{debug.log,buttons.txt,receipt.json}`.
+Latest and Previous were preserved.
+
 ## Direct Carousel ramp on foot
 
 Exact private `2d365ba8` with mode receipt `46a5753c` and authoring readback

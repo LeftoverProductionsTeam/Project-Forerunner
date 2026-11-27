@@ -6014,8 +6014,17 @@ void game_engine_register_regional_vehicle_home(
 		extraction_match_pools.stock_vehicles[extraction_match_pools.stock_vehicle_count++] = object_index;
 		return;
 	}
-	if (!flags || (flags & (flags - 1)) || !scenario_uses_regional_gameplay(scenario) ||
-		network_game_distributed_client())
+	if (!scenario_uses_regional_gameplay(scenario) || network_game_distributed_client())
+		return;
+	if (!flags)
+	{
+		/* Arriving in a hub can activate its BSP before the first periodic
+		 * home scan. Register the pad now so the native containment fallback
+		 * can connect this vehicle on the first activation. */
+		game_engine_vehicle_home_add(object_index, &placement->position, NONE);
+		return;
+	}
+	if (flags & (flags - 1))
 		return;
 	for (bsp = 0; bsp < MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO); bsp++)
 	{

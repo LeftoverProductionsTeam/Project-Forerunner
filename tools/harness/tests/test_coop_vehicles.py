@@ -101,8 +101,9 @@ def test_cinematic_path_negative_control():
     assert status == CHECK_FAILED, output
 
 
-def test_mcc_compiled_regional_vehicle_home():
-    status, output = run(build('coop_vehicles', generated()), 'compiled-regional-home')
+@pytest.mark.parametrize('case', ['compiled-regional-home', 'untagged-first-activation'])
+def test_mcc_compiled_regional_vehicle_home(case):
+    status, output = run(build('coop_vehicles', generated()), case)
     assert status == 0, output
 
 
