@@ -269,6 +269,25 @@ ground preview and its published mode receipt.
   reported restriction. No restricted operation was retried. Latest and
   Previous were preserved.
 
+## Compact Ice Fields to Carousel infantry route
+
+Exact private MCC13 map `919fbcce` with receipt `204b37f6` loaded through
+Extraction on installed Win64 `2757225e`, using a private data and save root.
+The normal lobby Switch Team control selected Covenant and spawned the Elite
+in BSP 11. Ordinary movement took the western approach around the Ice Fields
+obstacle, then crossed 11 → 10 at tick 12300 and 10 → 3 by tick 15750.
+The connector interior rendered with visible floor, walls and ceiling.
+
+The player landed on lower Carousel and the direct return stopped on the
+-32.206 floor beneath the connector. Walking into the stock teleporter
+334 → 335 put the player on the -29.704 upper deck by tick 18480. From there,
+ordinary movement crossed 3 → 10 by tick 19200 and 10 → 11 by tick 22650.
+The player reached (950.319, 141.497, -15.401) at full body and shield.
+Logs and frames are in `build/regional-pressure-profile/compact-native-route`.
+This verifies the infantry round trip via the stock teleporter. The direct
+Carousel approach and Warthog round trip are open. The private map stayed
+out of Latest.
+
 ## Product Completion V2.1 Windows release
 
 The prior Win64 `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
