@@ -2066,11 +2066,20 @@ static real ai_communication_actor_talk_weight(
 {
 	struct actor_datum *actor;
 	boolean has_target;
+	boolean subject_local = subject_unit_index != NONE;
+	boolean cause_local = cause_unit_index != NONE;
 	boolean passes;
 	real weight;
 
 	actor = actor_get(actor_index);
-	has_target = subject_unit_index != NONE || cause_unit_index != NONE;
+	has_target = subject_local || cause_local;
+	if (has_target && actor->meta.unit_index != NONE &&
+		scenario_uses_regional_gameplay(global_scenario_get()))
+	{
+		short bsp = object_get_regional_bsp(actor->meta.unit_index);
+		subject_local = subject_local && bsp != NONE && object_get_regional_bsp(subject_unit_index) == bsp;
+		cause_local = cause_local && bsp != NONE && object_get_regional_bsp(cause_unit_index) == bsp;
+	}
 	passes = TRUE;
 	weight = 10.0f;
 	if (actor->meta.unit_index == NONE)
@@ -2082,7 +2091,7 @@ static real ai_communication_actor_talk_weight(
 	{
 		if (has_target)
 		{
-			if (subject_unit_index != NONE)
+			if (subject_local)
 			{
 				real dx;
 				real dy;
@@ -2104,7 +2113,7 @@ static real ai_communication_actor_talk_weight(
 				passes = FALSE;
 			}
 
-			if (!passes && cause_unit_index != NONE)
+			if (!passes && cause_local)
 			{
 				passes = distance_squared3d(
 					&actor->input.position.head_position,
@@ -2189,7 +2198,7 @@ static real ai_communication_actor_talk_weight(
 
 			subject_matches = FALSE;
 			cause_matches = FALSE;
-			if (subject_unit_index != NONE)
+			if (subject_local)
 			{
 				if (actor->meta.unit_index == subject_unit_index)
 				{
@@ -2260,7 +2269,7 @@ static real ai_communication_actor_talk_weight(
 				}
 			}
 
-			if (cause_unit_index != NONE)
+			if (cause_local)
 			{
 				if (actor->meta.unit_index == cause_unit_index)
 				{
@@ -3910,6 +3919,14 @@ void ai_communication_notify(
 	if (ai_information->information_type != 0 ||
 		ai_information->look_priority > 0)
 	{
+		boolean regional = scenario_uses_regional_gameplay(global_scenario_get());
+		short bsp = regional ? object_get_regional_bsp(unit_index) : NONE;
+		struct structure_bsp const *structure = regional ?
+			scenario_structure_bsp_try_and_get(bsp) : global_structure_bsp_get();
+
+		if (!structure)
+			return;
+
 		unit = unit_get(unit_index);
 		sound_location = &unit->object.location;
 		speaker_team = unit->object.owner_team_index;
@@ -3940,6 +3957,8 @@ void ai_communication_notify(
 		while (actor)
 		{
 			if (actor->meta.unit_index != unit_index &&
+				(!regional || (actor->meta.unit_index != NONE &&
+				 object_get_regional_bsp(actor->meta.unit_index) == bsp)) &&
 				!game_team_is_enemy(actor->meta.team_index, speaker_team) &&
 				!(distance_squared3d(
 					&actor->input.position.head_position,
@@ -3958,14 +3977,15 @@ void ai_communication_notify(
 						&speaker_head,
 						prop_index,
 						&sense_position);
-					if (actor_audibility_at_point(
+					if (actor_audibility_at_point_in_structure(
 						actors.index,
 						&sense_position,
 						&speaker_head,
 						sound_location,
 						(short)sound_volume,
 						1.0f,
-						prop->line_of_sight) >= _ai_sound_volume_loud)
+						prop->line_of_sight,
+						structure) >= _ai_sound_volume_loud)
 					{
 						actor_handle_communication(
 							actors.index,
