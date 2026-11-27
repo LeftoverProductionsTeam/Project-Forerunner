@@ -643,7 +643,9 @@ static void structure_render_pass(
 						TEST_FLAG(material->flags, _structure_material_coplanar_bit)
 							? &material->plane
 							: NULL,
-						TEST_FLAG(material->flags, _structure_material_fog_plane_bit)
+						/* The offset belongs to this window's foreground fog plane. */
+						bsp_index == global_structure_bsp_index_get() &&
+							TEST_FLAG(material->flags, _structure_material_fog_plane_bit)
 							? &structure_render_globals.fog_offset_vector
 							: global_zero_vector3d,
 						&material->lighting,
@@ -852,38 +854,39 @@ void structure_render_diffuse_texture(
 	profile_exit(render_structure_diffuse_textures_section);
 }
 
+static void structure_render_specular_lightmap_pass(struct structure_bsp const *structure_bsp,
+	short bsp_index, long *surface_indices, long surface_count, long triangles_index)
+{
+	short saved_lightmap_mode = rasterizer_globals.lightmap_mode;
+
+	if (structure_bsp->lightmap_group.index == NONE && !saved_lightmap_mode)
+		rasterizer_globals.lightmap_mode = _rasterizer_lightmap_mode_no_lightmap;
+
+	rasterizer_environment_specular_lightmaps_begin();
+	structure_render_pass(structure_bsp, bsp_index, surface_indices, surface_count, triangles_index,
+		rasterizer_environment_specular_lightmap_begin,
+		rasterizer_environment_specular_lightmap_draw,
+		rasterizer_environment_specular_lightmap_end, NULL);
+	rasterizer_environment_specular_lightmaps_end();
+	rasterizer_globals.lightmap_mode = saved_lightmap_mode;
+}
+
 void structure_render_specular_lightmaps(
 	void)
 {
+	short index;
+
 	if (structure_render_globals.environment_geometry_valid)
+		structure_render_specular_lightmap_pass(global_structure_bsp_get(), global_structure_bsp_index_get(),
+			render.environment_surface_indices, render.environment_surface_count,
+			structure_render_globals.environment_triangles_index);
+	for (index = 0; index < MAXIMUM_RENDERED_NEIGHBORS; index++)
 	{
-		short saved_lightmap_mode = rasterizer_globals.lightmap_mode;
-
-		if (global_structure_bsp_get()->lightmap_group.index == NONE
-			&& !rasterizer_globals.lightmap_mode)
-		{
-			rasterizer_globals.lightmap_mode = _rasterizer_lightmap_mode_no_lightmap;
-		}
-
-		rasterizer_environment_specular_lightmaps_begin();
-
-		structure_render_pass(
-			global_structure_bsp_get(),
-			global_structure_bsp_index_get(),
-			render.environment_surface_indices,
-			render.environment_surface_count,
-			structure_render_globals.environment_triangles_index,
-			rasterizer_environment_specular_lightmap_begin,
-			rasterizer_environment_specular_lightmap_draw,
-			rasterizer_environment_specular_lightmap_end,
-			NULL);
-
-		rasterizer_environment_specular_lightmaps_end();
-
-		rasterizer_globals.lightmap_mode = saved_lightmap_mode;
+		struct structure_render_neighbor const *neighbor = &render_neighbors[index];
+		if (neighbor->structure)
+			structure_render_specular_lightmap_pass(neighbor->structure, neighbor->bsp_index,
+				neighbor_surface_indices + neighbor->surface_offset, neighbor->surface_count, neighbor->triangles_index);
 	}
-
-	return;
 }
 
 void structure_render_reflection_lightmap_masks(
@@ -965,29 +968,28 @@ void structure_render_reflections(
 void structure_render_transparent_geometry(
 	void)
 {
-	profile_enter(render_structure_transparent_geometry_section);
+	short index;
 
-	if (structure_render_globals.environment_geometry_valid)
+	profile_enter(render_structure_transparent_geometry_section);
+	if (structure_render_globals.environment_geometry_valid || render_neighbors[0].structure || render_neighbors[1].structure)
 	{
 		rasterizer_environment_transparent_geometry_begin();
-
-		structure_render_pass(
-			global_structure_bsp_get(),
-			global_structure_bsp_index_get(),
-			render.environment_surface_indices,
-			render.environment_surface_count,
-			structure_render_globals.environment_triangles_index,
-			NULL,
-			NULL,
-			NULL,
-			rasterizer_environment_transparent_geometry_submit);
-
+		if (structure_render_globals.environment_geometry_valid)
+			structure_render_pass(global_structure_bsp_get(), global_structure_bsp_index_get(),
+				render.environment_surface_indices, render.environment_surface_count,
+				structure_render_globals.environment_triangles_index, NULL, NULL, NULL,
+				rasterizer_environment_transparent_geometry_submit);
+		for (index = 0; index < MAXIMUM_RENDERED_NEIGHBORS; index++)
+		{
+			struct structure_render_neighbor const *neighbor = &render_neighbors[index];
+			if (neighbor->structure)
+				structure_render_pass(neighbor->structure, neighbor->bsp_index,
+					neighbor_surface_indices + neighbor->surface_offset, neighbor->surface_count,
+					neighbor->triangles_index, NULL, NULL, NULL, rasterizer_environment_transparent_geometry_submit);
+		}
 		rasterizer_environment_transparent_geometry_end();
 	}
-
 	profile_exit(render_structure_transparent_geometry_section);
-
-	return;
 }
 
 void structure_render_fog(

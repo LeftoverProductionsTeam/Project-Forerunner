@@ -1,5 +1,20 @@
 # Forerunner test evidence
 
+## Neighbor BSP material passes
+
+Private Win64 `5797C58E04C8E746C836AEFA7D99C143DF03E0D7E18E15DED6043052B0708FCC`
+submits specular lightmaps and transparent surfaces for each prepared
+neighbor through the existing material renderer. The compiled routing probe
+covered classic foreground, two neighbors with different lightmap modes,
+and neighbor-only submission into one transparency queue.
+
+On private `6804a24b`, a controlled OpenGL camera in Ice Fields drew the
+connector mouth with BSP 10 resident as a 5,844-byte preview through tick
+300. See `build/regional-neighbor-materials-5797c58e/{receipt.json,debug.log,view.png}`.
+The fixture did not isolate a known transparent or specular neighbor surface.
+The native check covers a single visible connector. Junctions, separate
+player cameras, and ordinary traversal remain open. Latest stays unchanged.
+
 ## Regional proximity voice
 
 Private Win64 `EA146200336746A7A2939C1DE3EC5949034AAB48C2B63E9701D45CC203B7D191`
