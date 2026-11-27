@@ -1,5 +1,14 @@
 # FORERUNNER — PERSISTENT ENGINEERING GOAL
 
+## Product Completion V3
+
+V3 is the active product goal. It retains the requirements and accepted behavior
+below. Complete the shared regional engine, flagship gameplay, Forge, Machinima
+and Theater, platform capabilities, upstream integration and ordinary Spark
+workflows. Use the focused [active test checkpoint](../../TEST_EVIDENCE.md)
+and the owner’s current priorities for work order. Earlier priority labels
+below describe their original milestones.
+
 ## Product Completion V2.1
 
 Keep Product Completion V2 and its accepted behavior. Verify the shared actor

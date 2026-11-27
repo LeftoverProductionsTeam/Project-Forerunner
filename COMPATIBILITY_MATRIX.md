@@ -52,7 +52,7 @@ No new authoring/export workflow has passed an end-to-end acceptance test here.
 | MCC | MCC cache/package/resource formats, independent of Xbox/CE | Loader/adapter source retained, with documented limits. No new exporter or official-runtime gameplay acceptance. |
 | Chupathingy | Its supported map families plus optional protocol features | No Forerunner export acceptance. Engine-specific sidecars need an explicitly implemented consumer. |
 | OpenCE | Xbox/CE and supported MCC paths, version-specific capabilities | No Forerunner export acceptance. Stock supported data must remain independently usable. |
-| Forerunner | Inherited native formats; future versioned sidecars for extensions | Baseline execution under validation. Firefight, Extraction, live-editor transactions, and MegaWorld sidecars are not implemented. |
+| Forerunner | Native formats, versioned Spark mode receipts, existing Forge transactions and capability discovery | Latest Win64 runs the released MegaWorld ground preview. Private Win64 LAN gameplay verified the full-world UNSC bank on fd7a49fa. Selected Forge and Firefight operations have separate native evidence. Full editor coverage, Covenant banking and the compact vehicle route remain unfinished. |
 
 An extended configuration may only be offered for a runtime that advertises and
 implements it. Unsupported exports must report the missing capability; they may

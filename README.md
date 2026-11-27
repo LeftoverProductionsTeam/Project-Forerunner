@@ -19,7 +19,13 @@ If you're another Halo developer, here's what we've been working on.
 | **Campaign co-op and Extraction** | The engine has 128 network player slots and networked campaign co-op systems, including synced cinematics, devices and checkpoints. We've also tested two-client Extraction objectives, gear, dropships, banking and redeployment. The full Black Echo mission and large campaign games still need more testing. |
 | **Firefight and Infection** | We have working native Firefight tests and two-client Infection games. I'm also bringing back my original Zombie Apocalypse mod, which has a lot more to it than ordinary Infection. |
 | **HaloScript, AI and engine fixes** | We're improving scripting, AI, physics and performance while keeping credit with the Chupathingy and other upstream developers whose fixes we use. |
-| **Guilty Spark integration** | [Guilty Spark](https://github.com/LeftoverProductionsTeam/Project-Guilty-Spark) can exchange Forge layouts and native map work with Forerunner. I want the whole build, edit and play workflow to work together, including live editing. |
+| **Guilty Spark integration** | [Guilty Spark](https://github.com/LeftoverProductionsTeam/Project-Guilty-Spark) can exchange Forge layouts and native map work with Forerunner. Existing workflows use native capability discovery and exact build validation. Full editor-to-runtime launch, loaded-map readback and live editing coverage remain unfinished. |
+
+The managed Windows **Latest** playtest contains the released MegaWorld ground
+preview. In a separate full-world LAN trial, the UNSC host completed a field call,
+returned to base and banked gear. Covenant banking and the compact vehicle route
+remain open. Private authoring and runtime candidates require their own acceptance
+before release.
 
 If you want to dig into the details, check the [development notes](FORERUNNER_MASTER_LEDGER.md), [test results](TEST_EVIDENCE.md), [Spark integration notes](SPARK_INTEGRATION_CONTRACT.md) and [compatibility matrix](COMPATIBILITY_MATRIX.md).
 

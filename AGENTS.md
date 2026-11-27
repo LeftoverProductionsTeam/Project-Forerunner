@@ -1,9 +1,10 @@
 # Forerunner workspace rules
 
-The owner's [Product Completion goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md)
-sets the current order: playable independent multiplayer in compact MegaWorld,
-flagship Extraction inside that world, Survival and Firefight, then the unified
-runtime. Standalone Black Echo and corridor caches remain engineering evidence.
+Follow the owner’s current Product Completion V3 instructions. The
+[persistent acceptance goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md)
+retains requirements for compact MegaWorld multiplayer, flagship Extraction,
+Survival, Firefight and the unified runtime. Standalone Black Echo and corridor
+caches remain engineering evidence.
 Use normal editor or game controls for final acceptance. Work in complete
 user-facing batches and preserve all compatibility, asset and release safeguards.
 
@@ -18,10 +19,16 @@ not established capabilities. Reuse compatible OpenCE/Chupathingy/Faber/OpenH1
 and Spark implementations before writing equivalents. Prefer small changes to
 existing code; no duplicate editors, storage/VOIP systems or unrelated rewrites.
 Use focused compilation/tests and isolated native smoke checks under the policy below.
-After two unsuccessful approaches, reassess the cause. Substantial new subsystems,
+After two unsuccessful approaches, reassess the cause. Avoid repeating a failed
+approach unless the relevant code, data, or conditions changed. Advance independent
+implementation when another task is blocked. Substantial new subsystems,
 frameworks or extensive test infrastructure require the user's approval after
 explaining why existing code and simpler alternatives are insufficient.
-Judge progress by gameplay and necessary repairs, not infrastructure volume.
+Judge progress by completed workflows and verified gameplay. Keep the active
+checkpoint under 8 KiB where practical, with historical evidence in the existing
+records and Git. Read relevant ledger sections, batch related fixes, reuse verified
+dependencies and incremental builds, and keep cross-project handoffs to concise
+artifact receipts.
 
 Current owner instruction supersedes the earlier code-only restriction: keep
 implementation primary, compile and run focused automated tests after meaningful
@@ -40,8 +47,13 @@ The owner forbids billable hosted work. Keep automatic Forerunner runner request
 disabled; do not dispatch/rerun hosted jobs or raise budgets. Local focused checks
 remain authorized. Repository source cannot verify or enforce account-wide billing;
 the owner must retain a $0 Actions budget with Stop usage enabled in GitHub settings.
-Read `FORERUNNER_MASTER_LEDGER.md` and `TEST_EVIDENCE.md`, then reconcile them
-with actual Git status, source and running owned jobs before continuing.
+Retrieve only the relevant sections of `FORERUNNER_MASTER_LEDGER.md` and
+`TEST_EVIDENCE.md`. Verify current Git status, source and owned jobs before
+relying on historical evidence. Keep documentation changes proportional to
+implementation and finished creator or player workflows.
+Every supported creator operation must work through Spark’s ordinary editor
+workflow, using existing discovery, validation, launch and readback. Manual
+receipt edits and developer-only commands do not constitute workflow support.
 The complete user directive is preserved under `docs/forerunner/`.
 The anti-overengineering directive restrains complexity and infrastructure.
 The owner's later full-engine, Extraction, MegaWorld, shared-loot, voice and VR

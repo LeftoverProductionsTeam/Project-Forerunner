@@ -288,176 +288,64 @@ This verifies the infantry round trip via the stock teleporter. The direct
 Carousel approach and Warthog round trip are open. The private map stayed
 out of Latest.
 
-## Resumable MegaWorld acceptance checkpoint — 2026-11-27 03:22 local
+## Active MegaWorld checkpoint — 2026-11-27
 
-Exact SHA-256 pins. All maps use their adjacent Spark mode receipts.
+All SHA-256 pins below are exact. Earlier detailed checkpoints remain in
+local Git, including e8fb86f2e. Existing accepted evidence above stays in place.
 
-| Pairing | Executable | Map | Receipt |
+| Pair | Executable | Cache | Spark receipt |
 | --- | --- | --- | --- |
-| Latest ground preview | `2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93` | `fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f` | `d7c07e868df9f1158f023cc11b5fdcc025e853dd158b34ab5257cbb08a8366da` |
-| Compact infantry trial | Latest executable above | `919fbcce7722ccc32b19f3a541c8bb14916b373f2ae16f353bc48c0691ae915d` | `204b37f6bbe95da0ea4dca2130e326455490b1ea5dd1639a30e4670bb776aa09` |
-| Full-world paired Extraction | `1bbcc126dd51016596fd2910035be5fc149c69d76ce6047414b157f85ed47204` | `fd7a49faf877d9565b8472d82beceaf726af74ea6142b9f07e550576f09646ca` | `868a8adfbaab27b9a14f5d1edfc3ab641a14516646e0156f08bb51dfff297855` |
-| Private damageable Ghost | Same `1bbcc126` executable above | `4719a713cb7bc29e9371a925a7f4fb074c0e2221ed6ff7a33063f10d25019ddb` | `213b2d85d35423e867e32740f6d2e9adb6d3acbb17c888c22f72c0767bec835c` |
-| Retained two-hunt trial | Prior `7fdae7fe` from test record | `bf748855e1d748823638ec4caeb9f7db113c18cac45789ef1973f07c64fc297e` | `796c12cfd3ee21ab8ef92f318617ab837ccdf0632551ec62dca49de8ea42773a` |
+| Latest ground preview | 2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93 | fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f | d7c07e868df9f1158f023cc11b5fdcc025e853dd158b34ab5257cbb08a8366da |
+| Full-world LAN | 1bbcc126dd51016596fd2910035be5fc149c69d76ce6047414b157f85ed47204 | fd7a49faf877d9565b8472d82beceaf726af74ea6142b9f07e550576f09646ca | 868a8adfbaab27b9a14f5d1edfc3ab641a14516646e0156f08bb51dfff297855 |
+| Private damageable Ghost | Same 1bbcc126 | 4719a713cb7bc29e9371a925a7f4fb074c0e2221ed6ff7a33063f10d25019ddb | 213b2d85d35423e867e32740f6d2e9adb6d3acbb17c888c22f72c0767bec835c |
+| Retained hunt fixture | Earlier 7fdae7fe prefix in test record | bf748855e1d748823638ec4caeb9f7db113c18cac45789ef1973f07c64fc297e | 796c12cfd3ee21ab8ef92f318617ab837ccdf0632551ec62dca49de8ea42773a |
+| Compact art and ramp candidate | 2beae96af735a98f1b64c89a4e39895851f384d213cbe7d0af3849baedef62ac | b5178c77a6844595c41d5e000e1bdcc90058d18e7388ab856e55b12c9838400b | 4a7f6920c00e3d19b63df483cead1385a798a282408140300a6dba11caf75c91 |
 
-Previous executable remains
-`6fa0c1e3552b60496d07ad80674c59bb6d24367799adff25fae0c5983c9ac3ab`.
-Private folders are under `build/regional-pressure-profile`. Each run has
-`logs/debug.txt`, `screens`, `pid.txt` and its own `buttons.txt` normal input
-feed. PIDs were live at capture. Recheck PID, executable path and the last
-gameplay tick before resuming.
+Previous remains 6fa0c1e3552b60496d07ad80674c59bb6d24367799adff25fae0c5983c9ac3ab.
+Private run folders under build/regional-pressure-profile retain logs/debug.txt,
+screens, pid.txt and each private input feed. Reverify PID and path before use.
 
-- **Compact, PID 43656, `compact-native-route`.** Both directions verified on
-  foot in one session via the stock Carousel teleporter on the return.
-  At tick 32760 the Covenant Elite was alive in Ice Fields at
-  (951.152, 141.936, -14.905), full health and shields. The direct lower
-  Carousel approach stops beneath the tunnel. Spark has the position and
-  requested combined candidate. Once its exact corrected map and receipt
-  arrive, verify the changed approach on foot and by Warthog both ways.
-- **Full world, PIDs 23260/59128, `full-pools-reconnect-host` and
-  `full-pools-reconnect-guest`.** Accepted evidence covers both players
-  deploying in one match, shared host-selected loot, and the same Beaver
-  Creek Ghost reboard after BSP 0 unloaded and returned. A new UNSC run
-  went to pool 4 and boarded Rat Race Ghost `e83405c5` seat 0. At tick
-  93960, the UNSC guest waited aboard at (-84.802, 151.990, -15.605).
-  The Covenant host respawned at base and waited at the foot of the east
-  ladder (1317.967, 577.677, -15.650). First finish one complete route:
-  drive the active UNSC run to its authored field terminal, use it on
-  foot, return to the UNSC hub and verify the bank and region return in
-  both logs. Repeat for Covenant after normal deployment. Recovery of the
-  same loose dropped datum still requires exact pickup evidence.
-- **Wreck fixture, PID 42048, `wreck-native-solo`.** The campaign Ghost
-  at Beaver Creek row 229 materialized. At tick 67470 the player was alive
-  on the Timberland–Sidewinder approach at (78.192, 37.479, -21.075).
-  Straight walking stopped at the snow wall shown in `window216409.bmp`.
-  Next use a reachable ground approach to the pad at (464.412, -38.136,
-  -18.026), confirm genuine body destruction on row 229, leave its
-  simulation region, then return and verify the same damaged/dead datum.
-  The stock Ghost reboard is independent evidence.
-- **Hunts, retired sessions `two-hunts-live-host` and
-  `two-hunts-live-guest`.** Both hunts spawned and dealt damage in the
-  paired match. Exact fixture is under
-  `build/regional-native-trial/megaworld-hunt-bf748855/mcc_maps`.
-  The old executable's hash is retained as a prefix in the test record.
-  Continue from the verified encounter setup, then confirm synchronized
-  kills and objective credit for both squads.
+- **Accepted full-world results.** Both factions deployed in the same LAN
+  match. Pool selection stayed shared, and the Beaver Creek Ghost could be
+  reboarded after true regional unload and return. On the timerless pair
+  full-pools-bank-host and full-pools-bank-guest, the UNSC host walked from
+  Blood Gulch through Sidewinder, collected field plasma slot 1134, used
+  terminal slot 382, and returned on foot. Host phase 5 at 03:51:33 read
+  GEAR BANKED | Stash 1/32 | Frag 1 Plasma 3. At tick 35340 the equipment
+  was gone from the live host. Both logs stayed in the LAN match and the
+  Covenant guest remained alive. The bank notice is private to the owner.
+  The read-only Sidewinder bypass and Timberland routes are in the host's
+  route folder. Remote receipt of an UNSC bank remains unverified.
+- **Covenant guest.** Deployed normally into pool 7, BSP 0, and the guest
+  received the host's deployment message. Both logs show the Elite at
+  (-127.706, 247.444, -17.113) at tick 48120. Both owned windows then
+  closed at 03:58:40–41. There is no live match to resume and no field
+  call or bank receipt for this run. Next start a private timerless pair
+  and finish one remote-owned Covenant field call, hub return and bank.
+- **Compact world.** The 919fbcce infantry round trip via Carousel's stock
+  teleporter remains accepted. Spark isolated f5a4ca22's missing wall to
+  authored winding. Separate d05638dd ramp and e55f3851 opacity builds
+  passed Spark's compiled checks. Combined b5178c77 loaded normally in
+  the isolated compact-native-diagnostics run, PID 37812 at capture.
+  Reproduced the old Ice Fields collision stop at (928.481, 183.101, -15.650),
+  yaw -92, pitch 0, BSP 11, OpenGL 800×600. The corrected wall now visibly
+  occludes the exterior in screens/window16560.bmp near tick 4350. Broader
+  terrain/props and native foot and Warthog crossings remain open.
+  This geometry candidate still lacks the sealed full-world pools.
+- **Reusable runtime diagnostics.** The private 2beae96a executable
+  compiled, advertised playtest.regional_transition_log.v1 in discovery,
+  and admitted b5178c77 from ordinary menus. The native transition log
+  implementation preserves crossing validation. A live seam emission and
+  editor presentation remain open. The older BSP fixture is stale against
+  current residency interfaces. Its unfinished changes were kept outside
+  the source commit.
+- **Other gameplay gates.** Observe recovery of the same loose datum,
+  destroy row 229 in private 4719a713 and return to the same wreck, and
+  verify synchronized kills/objective credit on bf748855. Both hunts
+  spawning and dealing damage are already recorded. Retain separate
+  candidates until the exact visible compact route and merged pools pass.
 
-**03:29 update.** Spark supplied a correction limited to Ice Fields BSP 11
-and its lightmaps. The private handoff is
-`build/regional-pressure-profile/megaworld-compact-native-f5a4ca22`.
-Map SHA-256
-`f5a4ca228b001d891eacade5844e80c8ea34cd20cee6c700150379a6295796b7`,
-receipt `4a095213100ee52d50bc6630c5683ce4b858b8a3fdf51012ace841dea94d4ddf`,
-and native readback
-`7ead0299a743bb79ff70561ba226eaa063d1405fefac098364cd4c2ba7eea37b`
-were rehashed. The same Latest executable above admitted the exact map
-through Extraction, with a natural Covenant spawn in BSP 11 at
-(924.929, 184.432, -14.350). The private process, PID 50108, uses
-`compact-corrected-route/logs/debug.txt`, config and input feed in that
-run folder, and the isolated `compact-data-f5a4ca22` game data.
-
-Native visual acceptance failed at the lower Ice Fields base. Frame
-`compact-corrected-route/screens/window21286.bmp` shows an open snow view
-through the location where ordinary walking stops against collision.
-The sampled camera was (928.6, 183.1, -15.1), yaw -92 degrees, pitch zero,
-BSP 11, around ticks 6210–6360, on OpenGL 4.5 NVIDIA 621.40 at 800×600.
-Spark has the exact reproduction for matched stock and authoring checks.
-The corrected switch crossings remain unverified in this build. Next
-reach the established Ice Fields approach from a normal spawn and test
-both directions, including the corrected outer lane. The Carousel
-vehicle round trip waits for Spark's vehicle-capable lower landing.
-
-The full-world LAN host and guest both reached their configured one-hour
-test limit and logged `exiting after debug.exit_after`. Their final tick
-106410 agrees on the live UNSC guest at (-76.708, 150.665, -16.272) in Rat
-Race after dismounting Ghost `e83405c5`. Neither log contains a bank for
-that operation. The private wreck trial also expired at tick 79530. Its
-last pose was (83.231, 46.900, -21.075), before reaching the Beaver Creek
-Ghost. These processes are no longer resumable. Reopen exact `fd7a49fa`
-in a paired normal-menu LAN run with no test timer. Finish one UNSC field
-call, hub return and bank and check both logs. The Covenant bank, same
-loose item recovery, real private wreck return, and synchronized hunt
-kills and objective credit remain separate open gates. No previous proof
-was withdrawn.
-
-**03:38 update.** The fresh exact `1bbcc126` / `fd7a49fa` / `868a8adf`
-pair is live with the test timer disabled. Host PID 50152 and guest PID
-6992 both resolved the matching map through ordinary LAN menus. Use
-`build/regional-pressure-profile/full-pools-bank-host` and
-`full-pools-bank-guest`, each with its own `logs/debug.txt`,
-`buttons.txt`, screenshots and isolated profile. The UNSC host
-deployed to pool 2 at (351.798, -64.514, -18.160) and walked west from
-Blood Gulch through the y≈27.25 passage to Sidewinder. At tick 14340 the
-host was alive at (131.482, -22.763, -21.075), near the central obstruction.
-The guest remained alive in the Covenant hub (1318.768, 578.205, -14.350)
-at the same tick. There is no field-call or bank acknowledgement yet.
-
-Resume that UNSC run by finding the stock up-route to the Sidewinder
-teleporter rather than walking farther into the same wall. Independent
-compiled readback of this exact map gives entrance row 150
-(80.087433, -24.852142, -16.674025) and exit row 151
-(61.738407, 31.973919, -17.073898). The native bypass is unproven.
-Once in Timberland, use the UNSC field terminal from its northwest
-approach near (-9.4, 46.4), then enter the UNSC hub on foot and confirm
-the host's committed bank and corresponding scoped guest session evidence.
-The operation notice is sent to its owning client. The pair should also
-check the run with a remote UNSC owner if the receiving-client bank
-notice is required.
-
-Spark's matched compiled readback isolated the Ice Fields render
-rejection to authored surface winding. The ten rays from the captured
-eye hit the same opaque wall on f5, 919 and the inverse-translated stock
-control, about 0.20 world units away, with render and collision agreeing
-within 0.000005. The rebuilt surfaces have opposite facing to stock.
-Spark is correcting the rebuilt surface winding. No Forerunner culling
-change or additional repeat of the rejected approach. Keep the private
-f5 and verified 919 infantry evidence. Retest the compact route when
-Spark's visible, vehicle-capable Carousel candidate is available.
-
-**03:52 update — UNSC bank completed.** The same timerless normal-menu
-pair stayed live on `1bbcc126` / `fd7a49fa` / `868a8adf` through
-settlement. The UNSC host walked from the Blood Gulch deployment to
-Sidewinder, bypassed the wall on foot, crossed to Timberland, used the
-field terminal and returned to the UNSC hub. The bypass followed x≈132.5
-north to y≈17.5, then via (112.8, 33.5), (92.5, 33.5), (80.5, 24.5) and
-(70, 34.5). This worked without the stock teleporter. Exact static
-route sampling is retained in `full-pools-bank-host/route`. It includes
-the separate Timberland approach from the passage to the terminal.
-The host passed the Timberland mouth (37.891, 34.500, -21.279) at tick
-29760. Plasma pickup slot 1134 was present at tick 29100 and gone by
-29550, when the host had gained a plasma grenade.
-
-Host reported a valid terminal interaction (action 10, slot 382) at
-tick 33150, then phase 2 activation and phase 3 ground evacuation
-ready at 03:50:42. The same run walked into the hub on foot. At tick
-35100 the host still had the rifle, one frag and three plasma grenades.
-Phase 5 at 03:51:33 reported `GEAR BANKED | Stash 1/32 | Frag 1 Plasma 3`.
-At tick 35340 the host was alive in the hub with that gear consumed.
-Both logs matched the cache SHA-256 and stayed in the same LAN match
-through tick 35550. The guest remained alive in the Covenant hub at
-(1318.768, 578.205, -14.350). Its cross-region scope did not include the
-UNSC body or the owner's private bank notice. This proves the host-owned
-UNSC operation and the guest's uninterrupted scoped session. A remote
-UNSC owner's receipt of the bank notice is still open.
-
-Host PID 50152 and guest PID 6992 were both still live at capture, without
-a test timer. The host waited banked at (-15.982, 63.313, -17.752), the
-guest at the Covenant position above. Next use the Covenant guest's
-normal Deploy control and verify its own field call, return and bank,
-including the host-authoritative result and guest's receipt. The same
-loose dropped datum, confirmed wreck return in private `4719a713`, and
-synchronized kills and objective credit on `bf748855` remain open.
-
-The isolated Carousel ramp `d05638dd` passed Spark's compiled clearance
-check. The separate `e55f3851` Ice Fields opacity correction passed
-Spark's exact compiled stock-winding and switch checks. Neither includes
-both fixes and the sealed full-world Extraction pools. The opacity map
-and receipt rehashed to
-`e55f38519886dddf84acb67e5ee4dd228410b97b6debeb1f7484e4fc20b50fde`
-and `981fb84bc7406ac11e8eb4dbac5eda442ecbe9274839339025f8ea857da3229a`.
-Neither private compact correction has native visual/vehicle acceptance.
-
-No acceptance in this checkpoint promotes a map or runtime.
+No promotion or push occurred.
 
 ## Product Completion V2.1 Windows release
 

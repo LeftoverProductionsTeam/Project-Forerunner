@@ -1,8 +1,10 @@
 # Spark–Forerunner integration contract status
 
-Version 1 discovery, 14 November 2026. Spark owns authoring; Forerunner owns
-execution. Native read-only discovery is implemented and tested on the Windows
-x86 desktop/headless executable. Live editing is not implemented yet.
+Spark owns authoring and Forerunner owns execution. Version 1 read-only discovery
+is verified on Windows x86 and x64. The managed Latest playtest ships the ground
+preview. A private x64 build advertises regional transfer log context through
+existing discovery. Verify each operation on its exact runtime. Full editor
+launch, loaded-map readback and live editing coverage remain unfinished.
 
 Authoritative source: `D:\Project Forerunner`, local `master`. Spark is
 `D:\Project Guilty Spark`, inspected read-only. This existing document is the

@@ -6,7 +6,7 @@ work. Advance flagship gameplay and Spark authoring in parallel when a
 construction issue or acceptance fixture blocks another track. The previous
 priorities below retain their checkpoints and verification scope.
 
-- P0: independent MegaWorld multiplayer. Use retained corridor caches to isolate
+- **Earlier independent MegaWorld multiplayer checkpoint.** Use retained corridor caches to isolate
   engine failures. Final acceptance requires the Spark-authored compact
   hex-cluster map with underground interiors. Engine work now focuses on
   regional simulation, including encounters that keep running with the host
@@ -16,13 +16,13 @@ priorities below retain their checkpoints and verification scope.
   their owning BSP, deferring initial placement until that region is occupied and
   resident. The next native gate is encounter activation, AI reaction and
   synchronized combat while players occupy different compact-world regions.
-- P1: MegaWorld Extraction through the normal menus. Treat Black Echo as an
+- **Earlier MegaWorld Extraction checkpoint.** Use normal menus. Treat Black Echo as an
   operation in the compact world. Author native flight recordings in Spark
   and use existing recorded animation, hover, native seats and departure.
   Offer the verified ground preview through its exact Win64 LAN mode receipt.
   Keep authenticated multiplayer and the authored aircraft operation open.
-- P2: original Zombie Apocalypse fidelity, then polished Survival and Firefight.
-- P3: complete the remaining unified runtime scope and preserve classic support.
+- **Earlier Survival and Firefight checkpoint.** Preserve original Zombie Apocalypse fidelity, then polish Survival and Firefight.
+- **Unified runtime checkpoint.** Complete the remaining scope and preserve classic support.
 
 Latest runs Win64 SHA-256
 `2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93`
@@ -2894,10 +2894,10 @@ none of its unaccepted requirements is superseded by this checkpoint.
   [test evidence](TEST_EVIDENCE.md), [limitations](KNOWN_LIMITATIONS.md),
   [Spark contract status](SPARK_INTEGRATION_CONTRACT.md).
 
-## Current engineering gate
+## Earlier host and local Extraction milestone
 
-Current primary milestone: the connected host/local Extraction weapon/grenade
-loop is implemented using native pickup ownership, a shared owner gear record,
+At this checkpoint, the connected host/local Extraction weapon/grenade
+loop was implemented using native pickup ownership, a shared owner gear record,
 hub loadout selection, reserve-before-grant deployment, physical escape,
 consume-before-bank settlement, loss, hub respawn and redeployment. The owner
 explicitly approved native gear records and locking. Verified remote account
