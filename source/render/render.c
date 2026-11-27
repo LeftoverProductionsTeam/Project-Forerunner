@@ -428,9 +428,7 @@ static void render_window(
 {
 	struct rasterizer_window_begin_parameters parameters;
 	short rendered_cluster_index;
-#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
 	boolean has_pathtrace_frame = FALSE;
-#endif
 
 	profile_render_window_start(TRUE);
 	render.scene_index++;
@@ -520,7 +518,11 @@ static void render_window(
 		}
 		rasterizer_decals_end();
 
-		structure_render_diffuse_texture();
+		structure_render_diffuse_texture(has_pathtrace_frame);
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+		if (has_pathtrace_frame)
+			halo_pathtrace_composite();
+#endif
 
 		rasterizer_decals_begin(_decal_layer_primary);
 		for (rendered_cluster_index = 0;
@@ -601,10 +603,6 @@ static void render_window(
 				rasterizer_camera->viewport_bounds.x1,
 				rasterizer_camera->viewport_bounds.y1);
 		}
-#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
-		if (has_pathtrace_frame)
-			halo_pathtrace_composite();
-#endif
 		HALO_PERF_RENDER_PART(_halo_perf_render_hud);
 		{
 			rectangle2d bounds;

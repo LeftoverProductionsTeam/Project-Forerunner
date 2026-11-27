@@ -87,6 +87,7 @@ symbols in this file:
 #include "structure_render.h"
 #if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
 #include "pathtrace_scene.h"
+#include "pathtrace_preview.h"
 #endif
 
 #include "bitmaps/bitmap_group_runtime.h"
@@ -812,18 +813,32 @@ void structure_render_lightmaps(
 }
 
 void structure_render_diffuse_texture(
-	void)
+	boolean mark_traced_world)
 {
 	short index;
+
+#if !(defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER))
+	(void)mark_traced_world;
+#endif
 	profile_enter(render_structure_diffuse_textures_section);
 	if (structure_render_globals.environment_geometry_valid || render_neighbors[0].structure || render_neighbors[1].structure)
 	{
 		rasterizer_environment_diffuse_textures_begin();
 		if (structure_render_globals.environment_geometry_valid)
+		{
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+			if (mark_traced_world)
+				halo_pathtrace_bsp_coverage(TRUE);
+#endif
 			structure_render_pass(global_structure_bsp_get(), global_structure_bsp_index_get(),
 				render.environment_surface_indices, render.environment_surface_count,
 				structure_render_globals.environment_triangles_index,
 				NULL, rasterizer_environment_diffuse_texture_draw, NULL, NULL);
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+			if (mark_traced_world)
+				halo_pathtrace_bsp_coverage(FALSE);
+#endif
+		}
 		for (index = 0; index < MAXIMUM_RENDERED_NEIGHBORS; index++)
 		{
 			struct structure_render_neighbor const *neighbor = &render_neighbors[index];

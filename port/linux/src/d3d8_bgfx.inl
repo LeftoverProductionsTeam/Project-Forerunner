@@ -2075,6 +2075,14 @@ static uint64_t bg_blend_operation(DWORD operation)
 /* the draw's state from the render states (apply_raster_state's), and its
 stencil (the back's read mask carries the write mask, bgfx's convention); the blend
 constant in *rgba */
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+/* Native stencil bits 0 and 1 belong to the weapon and alpha-tested
+ * decals. Bit 2 records visible foreground BSP diffuse samples. */
+enum { bg_pathtrace_coverage_bit = 4 };
+static BOOL bg_pathtrace_coverage_active;
+static unsigned int bg_pathtrace_coverage_draws;
+#endif
+
 static uint64_t bg_state(BOOL has_depth, uint32_t *stencil, uint32_t *back_stencil, uint32_t *rgba)
 {
 	DWORD *rs = D3D__RenderState;
@@ -2112,6 +2120,20 @@ static uint64_t bg_state(BOOL has_depth, uint32_t *stencil, uint32_t *back_stenc
 			((uint32_t)pass << BGFX_STENCIL_OP_PASS_Z_SHIFT);
 		if (mask && mask != 0xff)
 			*back_stencil = BGFX_STENCIL_FUNC_RMASK(mask);
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+		/* Only the primary BSP's diffuse pass enters this scope. Equal depth
+		 * and native stencil rejection still decide which fragments pass. */
+		if (bg_pathtrace_coverage_active && !mask && (state & BGFX_STATE_WRITE_RGB) &&
+			rs[D3DRS_STENCILFUNC] == D3DCMP_EQUAL && !(rs[D3DRS_STENCILREF] & 0xff) &&
+			!(rs[D3DRS_STENCILMASK] & bg_pathtrace_coverage_bit) &&
+			rs[D3DRS_ZENABLE] && rs[D3DRS_ZFUNC] == D3DCMP_EQUAL && !rs[D3DRS_ZWRITEENABLE])
+		{
+			*stencil = (*stencil & ~BGFX_STENCIL_OP_PASS_Z_MASK) |
+				BGFX_STENCIL_FUNC_REF(bg_pathtrace_coverage_bit) | BGFX_STENCIL_OP_PASS_Z_REPLACE;
+			*back_stencil = BGFX_STENCIL_FUNC_RMASK(bg_pathtrace_coverage_bit);
+			bg_pathtrace_coverage_draws++;
+		}
+#endif
 	}
 	if (rs[D3DRS_ALPHABLENDENABLE])
 	{
@@ -4669,6 +4691,7 @@ static int bg_pathtrace_prepare(const struct structure_bsp *structure, short bsp
 		bg_pathtrace.creating = FALSE;
 		platform_log("OpenRemix preview: the Vulkan renderer imported the shared frame");
 	}
+	bg_pathtrace_coverage_draws = 0;
 	frame = pathtrace_provider_draw(structure, bsp, sky, camera);
 	if (frame == pathtrace_provider_no_sky)
 		return FALSE;
@@ -4692,7 +4715,8 @@ static void bg_pathtrace_composite(void)
 	bgfx_frame_buffer_handle_t framebuffer;
 	unsigned short viewport[4];
 
-	if (!target || target->pixel_width != bg_pathtrace.width || target->pixel_height != bg_pathtrace.height ||
+	if (!bg_pathtrace_coverage_draws || !target ||
+		target->pixel_width != bg_pathtrace.width || target->pixel_height != bg_pathtrace.height ||
 		!depth || !depth->depth || depth->pixel_width != target->pixel_width ||
 		depth->pixel_height != target->pixel_height || depth->samples != target->samples ||
 		bg_target_get(device.render_target) != target || bg.view + 3 >= BG_MAXIMUM_VIEWS)
@@ -4707,9 +4731,10 @@ static void bg_pathtrace_composite(void)
 	bg_view_set(framebuffer, viewport, TRUE);
 	bgfx_set_vertex_buffer(0, bg.full_quad, 0, 4);
 	bgfx_set_texture(0, bg.samplers[0], bg_pathtrace.texture, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
-	/* Halo marks the opaque first-person draw in stencil bit 0. Keep those
-	 * pixels, including the ammo display already blended into the weapon. */
-	bgfx_set_stencil(BGFX_STENCIL_TEST_EQUAL | BGFX_STENCIL_FUNC_REF(0) | BGFX_STENCIL_FUNC_RMASK(1) |
+	/* Replace only fragments owned by the traced foreground BSP, with the
+	 * native first-person stencil still eligible to protect its pixels. */
+	bgfx_set_stencil(BGFX_STENCIL_TEST_EQUAL | BGFX_STENCIL_FUNC_REF(bg_pathtrace_coverage_bit) |
+		BGFX_STENCIL_FUNC_RMASK(bg_pathtrace_coverage_bit | 1) |
 		BGFX_STENCIL_OP_FAIL_S_KEEP | BGFX_STENCIL_OP_FAIL_Z_KEEP | BGFX_STENCIL_OP_PASS_Z_KEEP,
 		BGFX_STENCIL_NONE);
 	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_GREATER | BGFX_STATE_PT_TRISTRIP, 0);
@@ -4720,8 +4745,8 @@ static void bg_pathtrace_composite(void)
 	if (!bg_pathtrace.shown)
 	{
 		bg_pathtrace.shown = TRUE;
-		platform_log("OpenRemix preview: live BSP composited before the HUD at %ux%u",
-			bg_pathtrace.width, bg_pathtrace.height);
+		platform_log("OpenRemix preview: live BSP composited before the HUD at %ux%u (%u BSP coverage draws)",
+			bg_pathtrace.width, bg_pathtrace.height, bg_pathtrace_coverage_draws);
 		if (*config_string("debug.screenshot_directory"))
 			halo_test_screenshot();
 	}

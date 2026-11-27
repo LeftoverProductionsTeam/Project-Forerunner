@@ -299,6 +299,9 @@ static int upload_surface(void *context, const struct pathtrace_material *materi
 	uint32_t *indices;
 	long i;
 
+	/* Native transparency is drawn over the traced opaque frame. */
+	if (!material->opaque)
+		return TRUE;
 	if (mesh->count >= maximum_preview_material_sections)
 		return FALSE;
 
@@ -356,7 +359,7 @@ static int upload_bsp(const struct structure_bsp *structure)
 		return FALSE;
 	++preview.mesh_generation;
 	memset(upload, 0, sizeof(*upload));
-	if (pathtrace_scene_visit(structure, upload_surface, upload))
+	if (pathtrace_scene_visit(structure, upload_surface, upload) && upload->count)
 	{
 		geometry.sType = REMIXAPI_STRUCT_TYPE_MESH_INFO;
 		geometry.hash = 0x10000 + preview.mesh_generation;

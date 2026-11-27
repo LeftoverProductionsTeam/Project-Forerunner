@@ -60,6 +60,7 @@ int pathtrace_scene_visit(const struct structure_bsp *structure, pathtrace_mater
 			long lightmap_count = material->lightmap_vertices.count;
 			long bytes = material->compressed_vertex_data.size;
 			long index;
+			const struct shader *shader;
 			boolean alpha_tested;
 			struct pathtrace_material section;
 
@@ -78,8 +79,9 @@ int pathtrace_scene_visit(const struct structure_bsp *structure, pathtrace_mater
 			section.vertex_count = vertex_count;
 			section.surface_count = count;
 			section.shader = material->shader.index;
-			section.diffuse_group = shader_environment_base_bitmap_group(
-				section.shader == NONE ? NULL : shader_definition_get(section.shader), &alpha_tested);
+			shader = section.shader == NONE ? NULL : shader_definition_get(section.shader);
+			section.opaque = shader && !shader_type_is_transparent(shader->base.type);
+			section.diffuse_group = shader_environment_base_bitmap_group(shader, &alpha_tested);
 			section.alpha_tested = alpha_tested;
 			section.diffuse_bitmap = NONE;
 			if (section.diffuse_group != NONE)

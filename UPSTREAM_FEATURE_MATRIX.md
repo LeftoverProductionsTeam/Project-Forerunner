@@ -269,6 +269,18 @@ open. Sidewinder showed white scenery silhouettes at the sky edge where the
 current depth-based composite needs a BSP coverage mask.
 [Invader HEK sky tag layout](https://github.com/SnowyMouse/invader/blob/master/src/tag/hek/definition/sky.json)
 
+**Opaque BSP coverage.** The private preview now composites over the visible
+opaque foreground BSP depth owner. Native scenery, vehicles, sky, viewmodels,
+and later transparency and decals keep their existing raster passes. In the
+matched stock Sidewinder pair under `build/native-bsp-pathtrace-stock-bloodgulch`,
+tree-trunk and Ghost pixel samples matched the native image exactly while the
+snow showed traced lighting. The final Win64 executable
+`5b63063e2ed96b4ba0ecef1a5b86c4f8daee4c2383482bb3221b7660245ba7ca`
+also captured these elements with 2× MSAA in
+`live-pathtrace-coverage-sidewinder-msaa/window00149.bmp`. These are private
+renderer smoke checks. Dynamic objects still do not participate in traced
+lighting, and baked indoor lighting, regional scenes and performance remain open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

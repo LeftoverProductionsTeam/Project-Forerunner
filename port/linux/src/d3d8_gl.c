@@ -10597,6 +10597,15 @@ int halo_pathtrace_prepare(const struct structure_bsp *structure, short bsp, sho
 #endif
 }
 
+void halo_pathtrace_bsp_coverage(int enabled)
+{
+#ifdef HALO_BGFX
+	bg_pathtrace_coverage_active = enabled != 0;
+#else
+	(void)enabled;
+#endif
+}
+
 void halo_pathtrace_composite(void)
 {
 #ifdef HALO_BGFX

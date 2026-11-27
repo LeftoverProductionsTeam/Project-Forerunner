@@ -25,7 +25,7 @@ void structure_render_preprocess(
 void structure_render_lightmaps(
 	void);
 void structure_render_diffuse_texture(
-	void);
+	boolean mark_traced_world);
 void structure_render_specular_lightmaps(
 	void);
 void structure_render_reflection_lightmap_masks(

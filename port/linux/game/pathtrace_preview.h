@@ -9,6 +9,7 @@ struct structure_bsp;
  * for this camera is ready. */
 int halo_pathtrace_prepare(const struct structure_bsp *structure, short bsp, short sky,
 	const struct render_camera *camera, short x0, short y0, short x1, short y1);
+void halo_pathtrace_bsp_coverage(int enabled);
 void halo_pathtrace_composite(void);
 #endif
 

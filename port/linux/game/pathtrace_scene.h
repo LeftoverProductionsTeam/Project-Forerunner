@@ -14,7 +14,7 @@ struct pathtrace_material
 	long vertex_count, surface_count;
 	long shader, lightmap_group, diffuse_group;
 	short diffuse_bitmap;
-	int alpha_tested;
+	int alpha_tested, opaque;
 	short permutation, lightmap_bitmap;
 };
 
