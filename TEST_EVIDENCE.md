@@ -1,5 +1,45 @@
 # Forerunner test evidence
 
+## Ice Fields connector floor lighting
+
+Spark's `867b8ec7` / `11572552` uses the same boulder-corrected
+geometry as `9c6c1ddf`. Readback `908d71e1` verifies the localized
+RGB565 bake change. The matched Win64 `0344214C` OpenGL view from BSP 10
+replaced the blue-black band with a neutral grey join. The median of
+screen pixels x396–404/y322–329 moved from RGB (19, 26, 35) to (66,
+66, 68). A stock snow patch at x317–326/y299–302 stayed (184.5, 196.5,
+224). Compare `build/icefields-join-lighting-867b8ec7/window03862.bmp`
+with `build/icefields-boulder-9c6c1ddf/window03756.bmp`. The exact
+candidate launched through Extraction menus. The matched camera check
+does not establish traversal or fix the lower deck ladders.
+
+## Compact Ice Fields lower deck climb regression
+
+A normal Extraction start on exact `9c6c1ddf` / `91bd1a86` using Win64
+`0344214C` placed the Covenant player at (924.928, 189.978, -14.350).
+A normal southward step dropped to the lower deck at Z -15.650. Neither
+visible ladder raised the player at the aligned east-facing west
+approach (925.624, 187.141) or west-facing east approach (927.064,
+187.214). The normal test ended before reaching the revised tunnel.
+See input, log and ladder frames in `build/icefields-boulder-foot-9c6c1ddf`.
+
+Spark found that both `9c6c1ddf` and its parent `d0c4c13b` retain normal
+solid wall faces at these positions but lost the four two-sided
+climbable collision polygons. Stock Ice Fields and the earlier
+`BF748855` cache have these faces with flags `0x05`. The rock move is
+independent of this existing rebuild defect. Lower-deck escape and
+the revised tunnel's ordinary lane clearance remain open on that cache.
+
+The separate control `dd1c47f7` / `ea87f750` / `da6945ca` changes only
+the two active ladder faces' flag and the native checksum. On the same
+Win64 build an ordinary start reached the west ladder on foot, at
+(925.604, 187.124, -15.650). Look up and forward climbed onto the upper
+deck at (926.718, 187.142, -14.350) by tick 3510, retaining full body
+and shields. See `window12448.bmp` and `window13815.bmp` under
+`build/icefields-ladder-control-dd1c47f7`. The east ladder, normal
+authoring preservation, combined cache and revised tunnel traversal
+are still pending. Latest and Previous were preserved.
+
 ## Ice Fields connector boulder visual clearance
 
 The exact `9c6c1ddf` cache and `91bd1a86` mode with readback
