@@ -1,10 +1,6 @@
 # Forerunner engineering checkpoint
 
-Current priority follows Product Completion V3 and the [persistent acceptance goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md).
-Run native AI synchronization and compact BSP residency as shared foundation
-work. Advance flagship gameplay and Spark authoring in parallel when a
-construction issue or acceptance fixture blocks another track. The previous
-priorities below retain their checkpoints and verification scope.
+Product Completion V3 and the [persistent acceptance goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md) preserve the original Master Engineering Prompts #04–#28. The checkpoints below retain their requirements and verified scope. Advance campaign and co-op, Forge, Firefight, Zombie Survival, graphics and VR, Machinima and Theater, platform support, and Spark creator workflows alongside regional gameplay. Accept and deliver each track on its own working user flow. Use the [test evidence](TEST_EVIDENCE.md) for the latest proven behavior.
 
 - **Earlier independent MegaWorld multiplayer checkpoint.** Use retained corridor caches to isolate
   engine failures. Final acceptance requires the Spark-authored compact
