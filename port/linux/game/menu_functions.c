@@ -112,6 +112,7 @@ their handlers open opens.
 #include "halo_menus.h"
 #include "controller_remap.h"
 #include "mcc_ui.h"
+#include "mcc_ui_network.h"
 #include "mcc_pause.h"
 #include "mcc_maps.h"
 #include "mcc_progress.h"
@@ -6737,6 +6738,9 @@ static void server_settings_update(struct widget_instance *list)
 	struct widget_instance *row = named(list, "op_server_name", 0);
 	char text[TEXT_FIELD_LENGTH];
 
+	text_set(named(list, "button_ok", 0), mcc_ui_network_map_pending(global_network_game_server_get()) ?
+		L"CHECKING MAP" : L"START GAME");
+
 	if (spinner)
 		*server_settings_maximum_players_index() = (short)PIN(spinner->parameters.list.selected_index, 0,
 			maximum_players_choices() - 1);
@@ -6926,6 +6930,10 @@ void ui_widget_port_cooperative_settings_apply(void)
 
 static boolean server_start(void)
 {
+	/* The existing MCC admission owns validation and reports rejection.
+	 * While it is pending, keep Server Setup's settings editable. */
+	if (mcc_ui_network_map_pending(global_network_game_server_get()))
+		return FALSE;
 	if (text_field_editing(NULL))
 		text_field_end(TRUE);
 	network_game_server_port_set_settings(multiplayer.game_name,

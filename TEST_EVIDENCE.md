@@ -297,13 +297,13 @@ local Git, including e8fb86f2e. Existing accepted evidence above stays in place.
 
 | Pair | Executable | Cache | Spark receipt |
 | --- | --- | --- | --- |
-| Latest ground preview | 2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93 | fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f | d7c07e868df9f1158f023cc11b5fdcc025e853dd158b34ab5257cbb08a8366da |
+| Pre-purge ground preview | 2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93 | fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f | d7c07e868df9f1158f023cc11b5fdcc025e853dd158b34ab5257cbb08a8366da |
 | Full-world LAN | 1bbcc126dd51016596fd2910035be5fc149c69d76ce6047414b157f85ed47204 | fd7a49faf877d9565b8472d82beceaf726af74ea6142b9f07e550576f09646ca | 868a8adfbaab27b9a14f5d1edfc3ab641a14516646e0156f08bb51dfff297855 |
 | Private damageable Ghost | Same 1bbcc126 | 4719a713cb7bc29e9371a925a7f4fb074c0e2221ed6ff7a33063f10d25019ddb | 213b2d85d35423e867e32740f6d2e9adb6d3acbb17c888c22f72c0767bec835c |
 | Retained hunt fixture | Earlier 7fdae7fe prefix in test record | bf748855e1d748823638ec4caeb9f7db113c18cac45789ef1973f07c64fc297e | 796c12cfd3ee21ab8ef92f318617ab837ccdf0632551ec62dca49de8ea42773a |
 | Compact art and ramp candidate | 2beae96af735a98f1b64c89a4e39895851f384d213cbe7d0af3849baedef62ac | b5178c77a6844595c41d5e000e1bdcc90058d18e7388ab856e55b12c9838400b | 4a7f6920c00e3d19b63df483cead1385a798a282408140300a6dba11caf75c91 |
 
-Previous remains 6fa0c1e3552b60496d07ad80674c59bb6d24367799adff25fae0c5983c9ac3ab.
+Pre-purge Previous was 6fa0c1e3552b60496d07ad80674c59bb6d24367799adff25fae0c5983c9ac3ab.
 Private run folders under build/regional-pressure-profile retain logs/debug.txt,
 screens, pid.txt and each private input feed. Reverify PID and path before use.
 
