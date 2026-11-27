@@ -414,6 +414,49 @@ change or additional repeat of the rejected approach. Keep the private
 f5 and verified 919 infantry evidence. Retest the compact route when
 Spark's visible, vehicle-capable Carousel candidate is available.
 
+**03:52 update — UNSC bank completed.** The same timerless normal-menu
+pair stayed live on `1bbcc126` / `fd7a49fa` / `868a8adf` through
+settlement. The UNSC host walked from the Blood Gulch deployment to
+Sidewinder, bypassed the wall on foot, crossed to Timberland, used the
+field terminal and returned to the UNSC hub. The bypass followed x≈132.5
+north to y≈17.5, then via (112.8, 33.5), (92.5, 33.5), (80.5, 24.5) and
+(70, 34.5). This worked without the stock teleporter. Exact static
+route sampling is retained in `full-pools-bank-host/route`. It includes
+the separate Timberland approach from the passage to the terminal.
+The host passed the Timberland mouth (37.891, 34.500, -21.279) at tick
+29760. Plasma pickup slot 1134 was present at tick 29100 and gone by
+29550, when the host had gained a plasma grenade.
+
+Host reported a valid terminal interaction (action 10, slot 382) at
+tick 33150, then phase 2 activation and phase 3 ground evacuation
+ready at 03:50:42. The same run walked into the hub on foot. At tick
+35100 the host still had the rifle, one frag and three plasma grenades.
+Phase 5 at 03:51:33 reported `GEAR BANKED | Stash 1/32 | Frag 1 Plasma 3`.
+At tick 35340 the host was alive in the hub with that gear consumed.
+Both logs matched the cache SHA-256 and stayed in the same LAN match
+through tick 35550. The guest remained alive in the Covenant hub at
+(1318.768, 578.205, -14.350). Its cross-region scope did not include the
+UNSC body or the owner's private bank notice. This proves the host-owned
+UNSC operation and the guest's uninterrupted scoped session. A remote
+UNSC owner's receipt of the bank notice is still open.
+
+Host PID 50152 and guest PID 6992 were both still live at capture, without
+a test timer. The host waited banked at (-15.982, 63.313, -17.752), the
+guest at the Covenant position above. Next use the Covenant guest's
+normal Deploy control and verify its own field call, return and bank,
+including the host-authoritative result and guest's receipt. The same
+loose dropped datum, confirmed wreck return in private `4719a713`, and
+synchronized kills and objective credit on `bf748855` remain open.
+
+The isolated Carousel ramp `d05638dd` passed Spark's compiled clearance
+check. The separate `e55f3851` Ice Fields opacity correction passed
+Spark's exact compiled stock-winding and switch checks. Neither includes
+both fixes and the sealed full-world Extraction pools. The opacity map
+and receipt rehashed to
+`e55f38519886dddf84acb67e5ee4dd228410b97b6debeb1f7484e4fc20b50fde`
+and `981fb84bc7406ac11e8eb4dbac5eda442ecbe9274839339025f8ea857da3229a`.
+Neither private compact correction has native visual/vehicle acceptance.
+
 No acceptance in this checkpoint promotes a map or runtime.
 
 ## Product Completion V2.1 Windows release
