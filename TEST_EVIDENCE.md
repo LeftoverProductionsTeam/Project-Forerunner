@@ -1,5 +1,35 @@
 # Forerunner test evidence
 
+## Ice Fields connector boulder visual clearance
+
+The exact `9c6c1ddf` cache and `91bd1a86` mode with readback
+`aeffebe9` loaded in the private Win64 `0344214C` OpenGL run.
+Spark moved Scenery-761 off the tunnel wall. At the matched detached
+BSP 10 camera (938, 129.561, -15.45), the interior boulder protrusion
+is gone, with the Ice Fields player in BSP 11 and the other exterior
+models still visible. Compare `window03756.bmp` and its hash receipt
+in `build/icefields-boulder-9c6c1ddf` against `window03741.bmp` in
+`build/regional-neighbor-models-0344214c`. The dark baked floor band
+remains. This checks the changed scene from the retained view.
+Ordinary travel and vehicle clearance on the revised map remain open.
+
+## Sidewinder–Timberland road on foot
+
+Spark CE609 map `bc6dcb5844b2b8c51f8e80e18cb6e4fc674f519147b3afe077a610f106dbbf9e`
+and receipt `18e0a941fad475ddf037ce115cf159f3d887b132173c726546f95b6e2416cf2e`
+loaded in private Win64 `0344214C` via Multiplayer > Create LAN > Slayer.
+The normal Sidewinder spawn (108.073, -3.373, -17.060) reached the road
+via (90.621, 17.168) and (75.228, 25.762). Body `e3720103` walked to
+Timberland (35.471, 35.962, -21.416) and returned to Sidewinder (77.152,
+36.312, -21.075) at full health and shields. See the exact receipt,
+inputs, log and `window36836.bmp` in `build/sidewinder-timberland-native-bc6dcb58`.
+
+Spark identified the two unsupported fixtures above the road as
+scenery rows 204 and 205 of the exact map. Their old donor heights are
+about 4.01 units above the new road. Map art is still open. Cave travel,
+Warthog round trips and preserved teleporter function remain unverified.
+This is the private two-map road candidate. Latest and Previous stayed put.
+
 ## Resident models visible across BSP openings
 
 Private Win64 `0344214C81089576D01EC2B34A45A4A9538FFE0190D7C06C55779A9C8CABEBFA`
