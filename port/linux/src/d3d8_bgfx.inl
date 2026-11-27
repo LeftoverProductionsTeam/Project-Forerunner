@@ -4574,10 +4574,24 @@ static void bg_screen_anti_alias(short x0, short y0, short x1, short y1)
 #include "../game/pathtrace_preview.h"
 #include "../../windows/include/pathtrace_provider.h"
 
+/* Sit at native far depth. The Vulkan depth test can keep native sky
+ * pixels where the game's world left the depth buffer at its clear value. */
+static const char bg_pathtrace_vertex_source[] =
+	"layout(location = 0) in vec4 a_position;\n"
+	"layout(location = 1) in vec4 a_normal;\n"
+	"out vec4 xT0;\n"
+	"void main()\n"
+	"{\n"
+	"\txT0 = a_normal;\n"
+	"\tgl_Position = vec4(a_position.xy, 1.0, 1.0);\n"
+	"}\n";
+
 static struct
 {
 	struct win32_shared_frame imported;
 	bgfx_texture_handle_t texture;
+	struct bg_shader *vertex, *fragment;
+	bgfx_program_handle_t program;
 	BOOL creating, disabled, shown;
 	unsigned int width, height;
 } bg_pathtrace = { .texture = BGFX_INVALID_HANDLE };
@@ -4596,16 +4610,14 @@ static void bg_pathtrace_release(void)
 	bg_pathtrace.creating = bg_pathtrace.shown = FALSE;
 }
 
-static int bg_pathtrace_before_hud(const struct structure_bsp *structure, short bsp,
+static int bg_pathtrace_prepare(const struct structure_bsp *structure, short bsp,
 	const struct render_camera *camera, short x0, short y0, short x1, short y1)
 {
 	const char *path = config_string("debug.pathtrace_provider");
 	struct bg_target *target;
-	bgfx_frame_buffer_handle_t framebuffer;
-	unsigned short viewport[4];
 	int frame;
 
-	if (!path || !*path || bg_pathtrace.disabled || !bg_active() ||
+	if (!path || !*path || bg_pathtrace.disabled || !bg_active() || !bg.depth_stencil ||
 		bgfx_get_renderer_type() != BGFX_RENDERER_TYPE_VULKAN)
 		return FALSE;
 #ifdef HALO_OPENXR
@@ -4615,10 +4627,16 @@ static int bg_pathtrace_before_hud(const struct structure_bsp *structure, short 
 	target = bg_target_get(&device.back_buffer);
 	if (!target || x0 != 0 || y0 != 0 || x1 != target->width || y1 != target->height ||
 		!target->pixel_width || !target->pixel_height || target->pixel_width > 3840 || target->pixel_height > 2160 ||
-		bg.view + 3 >= BG_MAXIMUM_VIEWS || !BGFX_HANDLE_IS_VALID(bg.blit) || !BGFX_HANDLE_IS_VALID(bg.full_quad))
+		bg.view + 3 >= BG_MAXIMUM_VIEWS || !BGFX_HANDLE_IS_VALID(bg.full_quad))
 		return FALSE;
-	framebuffer = bg_framebuffer_get(target, NULL);
-	if (!BGFX_HANDLE_IS_VALID(framebuffer))
+	if (!bg_pathtrace.vertex)
+		bg_pathtrace.vertex = bg_shader_get(bg_pathtrace_vertex_source, FALSE, 0, "traced world vertex", FALSE);
+	if (!bg_pathtrace.fragment)
+		bg_pathtrace.fragment = bg_shader_get(bg_blit_fragment_source, TRUE, 0, "traced world color", FALSE);
+	if (!bg_shader_ready(bg_pathtrace.vertex) || !bg_shader_ready(bg_pathtrace.fragment))
+		return FALSE;
+	bg_pathtrace.program = bg_program_get(bg_pathtrace.vertex, bg_pathtrace.fragment);
+	if (!BGFX_HANDLE_IS_VALID(bg_pathtrace.program))
 		return FALSE;
 
 	if (bg_pathtrace.width != target->pixel_width || bg_pathtrace.height != target->pixel_height ||
@@ -4656,8 +4674,30 @@ static int bg_pathtrace_before_hud(const struct structure_bsp *structure, short 
 		!bgfx_vk_shared_frame_copy(&bg_pathtrace.imported, bg_pathtrace.texture.idx) ||
 		frame == pathtrace_provider_unavailable)
 		goto failed;
-	if (frame == pathtrace_provider_warming_up)
-		return FALSE;
+	return frame == pathtrace_provider_traced;
+
+failed:
+	bg_pathtrace_release();
+	bg_pathtrace.disabled = TRUE;
+	platform_log("OpenRemix preview: continuing with the native raster view");
+	return FALSE;
+}
+
+static void bg_pathtrace_composite(void)
+{
+	struct bg_target *target = bg_target_get(&device.back_buffer);
+	struct bg_target *depth = bg_target_get(device.depth_stencil);
+	bgfx_frame_buffer_handle_t framebuffer;
+	unsigned short viewport[4];
+
+	if (!target || target->pixel_width != bg_pathtrace.width || target->pixel_height != bg_pathtrace.height ||
+		!depth || !depth->depth || depth->pixel_width != target->pixel_width ||
+		depth->pixel_height != target->pixel_height || depth->samples != target->samples ||
+		bg_target_get(device.render_target) != target || bg.view + 3 >= BG_MAXIMUM_VIEWS)
+		return;
+	framebuffer = bg_framebuffer_get(target, depth);
+	if (!BGFX_HANDLE_IS_VALID(framebuffer))
+		return;
 
 	viewport[0] = viewport[1] = 0;
 	viewport[2] = (unsigned short)target->pixel_width;
@@ -4665,10 +4705,16 @@ static int bg_pathtrace_before_hud(const struct structure_bsp *structure, short 
 	bg_view_set(framebuffer, viewport, TRUE);
 	bgfx_set_vertex_buffer(0, bg.full_quad, 0, 4);
 	bgfx_set_texture(0, bg.samplers[0], bg_pathtrace.texture, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
-	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_PT_TRISTRIP, 0);
-	bgfx_submit(bg.view, bg.blit, 0, BGFX_DISCARD_ALL);
+	/* Halo marks the opaque first-person draw in stencil bit 0. Keep those
+	 * pixels, including the ammo display already blended into the weapon. */
+	bgfx_set_stencil(BGFX_STENCIL_TEST_EQUAL | BGFX_STENCIL_FUNC_REF(0) | BGFX_STENCIL_FUNC_RMASK(1) |
+		BGFX_STENCIL_OP_FAIL_S_KEEP | BGFX_STENCIL_OP_FAIL_Z_KEEP | BGFX_STENCIL_OP_PASS_Z_KEEP,
+		BGFX_STENCIL_NONE);
+	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_DEPTH_TEST_GREATER | BGFX_STATE_PT_TRISTRIP, 0);
+	bgfx_submit(bg.view, bg_pathtrace.program, 0, BGFX_DISCARD_ALL);
 	bg.view_used = TRUE;
 	target->written = ++bg.write_serial;
+
 	if (!bg_pathtrace.shown)
 	{
 		bg_pathtrace.shown = TRUE;
@@ -4677,13 +4723,6 @@ static int bg_pathtrace_before_hud(const struct structure_bsp *structure, short 
 		if (*config_string("debug.screenshot_directory"))
 			halo_test_screenshot();
 	}
-	return TRUE;
-
-failed:
-	bg_pathtrace_release();
-	bg_pathtrace.disabled = TRUE;
-	platform_log("OpenRemix preview: continuing with the native raster view");
-	return FALSE;
 }
 #endif
 

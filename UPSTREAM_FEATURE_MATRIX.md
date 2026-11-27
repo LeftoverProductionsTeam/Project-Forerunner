@@ -238,6 +238,21 @@ Alternate GPUs, motion fidelity, performance, VRAM usage, resize and
 long-run acceptance remain separate gates for a supported mode. Latest,
 Previous and Spark are unchanged.
 
+**Native sky and first person.** Windows64 build
+`E84F12A5E1CBE2071A17857B136811F660E5A5C2F66FB5B581B784AF71C7BB38`
+keeps the original draw order. The preview uses the native first-person
+stencil and far-depth coverage, painting the traced color only over
+covered world pixels. Blood Gulch shows the stock sky, weapon, hands, ammo
+display and HUD around the traced terrain. It was visually verified
+with antialiasing off and with 2× MSAA. The viewmodel visibility setting
+still hides the weapon over the traced scene. The final runtime log is
+`build/native-bsp-pathtrace-stock-bloodgulch/process-live-pathtrace-vulkan-layer-verified.log`
+and its visible frame is
+`live-pathtrace-vulkan-layer-verified/window00156.bmp` in the same folder.
+The sky is raster-composited. It still needs to illuminate the traced
+world alongside the baked lightmaps and native lights. Dynamic scene
+coverage and performance certification are still open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

@@ -428,6 +428,9 @@ static void render_window(
 {
 	struct rasterizer_window_begin_parameters parameters;
 	short rendered_cluster_index;
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+	boolean has_pathtrace_frame = FALSE;
+#endif
 
 	profile_render_window_start(TRUE);
 	render.scene_index++;
@@ -476,6 +479,13 @@ static void render_window(
 		HALO_PERF_RENDER_PART(_halo_perf_render_world);
 		lights_preprocess_scene();
 		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+		if (rasterizer_target == _render_target_primary && !render.camera.mirrored &&
+			game_in_progress() && game_time_get() >= 30)
+			has_pathtrace_frame = halo_pathtrace_prepare(global_structure_bsp_get(), global_structure_bsp_index_get(),
+				&render.camera, rasterizer_camera->viewport_bounds.x0, rasterizer_camera->viewport_bounds.y0,
+				rasterizer_camera->viewport_bounds.x1, rasterizer_camera->viewport_bounds.y1);
+#endif
 		render_objects();
 #ifdef HALO_SHADER_PREP
 		/* port: and through every model's parts */
@@ -591,11 +601,8 @@ static void render_window(
 				rasterizer_camera->viewport_bounds.y1);
 		}
 #if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
-		if (rasterizer_target == _render_target_primary && !render.camera.mirrored &&
-			game_in_progress() && game_time_get() >= 30)
-			halo_pathtrace_before_hud(global_structure_bsp_get(), global_structure_bsp_index_get(),
-				&render.camera, rasterizer_camera->viewport_bounds.x0, rasterizer_camera->viewport_bounds.y0,
-				rasterizer_camera->viewport_bounds.x1, rasterizer_camera->viewport_bounds.y1);
+		if (has_pathtrace_frame)
+			halo_pathtrace_composite();
 #endif
 		HALO_PERF_RENDER_PART(_halo_perf_render_hud);
 		{
