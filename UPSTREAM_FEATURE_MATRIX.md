@@ -294,6 +294,34 @@ in the `pathtrace-radiosity-chillout-{traced,raster}` trial sets. This does
 not transfer baked irradiance or shader-animation masks. An indoor BSP with
 no supported emitters still uses the native raster frame.
 
+**Native-resolution sample budget.** Private Win64 preview
+`91a8700dec8531a6193eb9ce43b989d5a1f1495e72957cd63dd725f6d8ceb3e9`
+exposes `debug.pathtrace_samples` (1–16, default 1) through the existing
+runtime config. It forwards the value to OpenRemix without changing native
+resolution. The originally retained provider was configured with `nrd=false`.
+NRD 4.18.0 carries a separate NVIDIA RTX SDK license. It remains disabled
+pending license review and native validation.
+
+Stock Chill Out at the same fixed spawn on Windows Vulkan, RTX 4070 Ti,
+VSync off and a 200 FPS ceiling. FPS is the existing engine frame-time log
+over eight steady-state seconds. Memory is Windows process dedicated GPU
+usage (peak of six one-second samples), with working set recorded separately.
+These private renderer runs do not cover combat, camera motion or simultaneous
+regions. Four samples still leave visible noise.
+
+| Resolution | Mode | Mean FPS | Median / p95 ms | Dedicated GPU MiB |
+|---|---|---:|---:|---:|
+| 800×600 | Classic | 200.0 | 5.000 / 5.019 | 422 |
+| 800×600 | Traced, 1 sample | 199.6 | 4.991 / 5.406 | 1053 |
+| 800×600 | Traced, 4 samples | 103.3 | 9.607 / 10.395 | 1110 |
+| 1920×1080 | Classic | 200.0 | 5.000 / 5.006 | 471 |
+| 1920×1080 | Traced, 1 sample | 48.3 | 16.050 / 40.479 | 1642 |
+| 1920×1080 | Traced, 4 samples | 28.8 | 34.605 / 35.286 | 1696 |
+
+Raw frame times, memory samples, logs and captures are retained under
+`build/native-bsp-pathtrace-stock-bloodgulch` in the `pathtrace-performance-*`
+trial sets. [Pinned NRD license](https://github.com/NVIDIA-RTX/NRD/blob/fca9486957dececb7a7d5b5646d0829c667a01cf/LICENSE.txt)
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

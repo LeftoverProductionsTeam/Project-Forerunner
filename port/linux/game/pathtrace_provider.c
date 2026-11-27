@@ -35,6 +35,7 @@ __declspec(dllimport) remixapi_loader_PROC __stdcall GetProcAddress(remixapi_HMO
 __declspec(dllimport) int __stdcall FreeLibrary(remixapi_HMODULE);
 __declspec(dllimport) unsigned long __stdcall GetFullPathNameA(const char *, unsigned long, char *, char **);
 
+extern long config_integer(const char *name);
 extern void platform_log(const char *format, ...);
 
 enum
@@ -142,7 +143,8 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	remixapi_MaterialInfo material = {0};
 	PFN_remixapi_InitializeLibrary initialize;
 	win32_configure_frame configure;
-	char full_path[1024];
+	char full_path[1024], samples_setting[8];
+	long samples = PIN(config_integer("debug.pathtrace_samples"), 1, 16);
 	unsigned long length = GetFullPathNameA(path, sizeof(full_path), full_path, NULL);
 
 	if (!length || length >= sizeof(full_path))
@@ -179,7 +181,9 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	if (!status(preview.api.Startup(&startup), "start"))
 		return FALSE;
 	preview.started = TRUE;
+	snprintf(samples_setting, sizeof(samples_setting), "%ld", samples);
 	if (!status(preview.api.SetConfigVariable("rtx.native.backend", "pathtrace"), "select path tracing") ||
+		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.samples", samples_setting), "set samples per pixel") ||
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.upscaler", "off"), "select native resolution") ||
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.denoiser", "off"), "disable denoising"))
 		return FALSE;
@@ -198,7 +202,8 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	frame.version = 1;
 	frame.width = width;
 	frame.height = height;
-	platform_log("OpenRemix preview: exporting the provider image");
+	platform_log("OpenRemix preview: exporting %ux%u at %ld samples per pixel per frame, native resolution",
+		width, height, samples);
 	if (configure(&frame))
 		return FALSE;
 	description->width = frame.width;
