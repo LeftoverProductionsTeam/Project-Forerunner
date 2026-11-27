@@ -235,12 +235,7 @@ reach them, on a host of either (`docs/delta.md`, Chat).
 
 ## Download
 
-**The game for Windows, Mac, Linux and Android**, this fork's builds of the
-latest `main` (each push that builds on every platform is a release,
-`v<version>-fs.<run>` (the run's number in five digits, as `v0.7.1e-fs.00057`); the game updates itself from these releases). At the
-first start it offers to download the game's maps (see
-[Game data](#game-data)), and it downloads Custom Edition maps as a game
-needs them ([docs/map_torrents.md](docs/map_torrents.md)):
+**Upstream FractumSeraph builds for Windows, Mac, Linux and Android.** The downloads below belong to the upstream fork. The managed Forerunner Windows playtest uses its own Latest and Previous folders.
 
 | Platform | Release | Debug |
 | --- | --- | --- |

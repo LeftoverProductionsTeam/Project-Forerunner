@@ -335,7 +335,9 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
 - **Reusable runtime diagnostics.** The private 2beae96a executable
   compiled, advertised playtest.regional_transition_log.v1 in discovery,
   and admitted b5178c77 from ordinary menus. The native transition log
-  implementation preserves crossing validation. A live seam emission and
+  implementation preserves crossing validation. A focused compiled probe verified
+  context fields, per-player throttling and immediate success output. Live seam
+  emission and
   editor presentation remain open. The older BSP fixture is stale against
   current residency interfaces. Its unfinished changes were kept outside
   the source commit.
