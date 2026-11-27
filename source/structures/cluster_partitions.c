@@ -461,6 +461,22 @@ long cluster_partition_get_next_cluster(
 	return cluster_partition_local_cluster(key);
 }
 
+long cluster_partition_get_next_cluster_in_bsp(
+	struct cluster_partition const *partition,
+	long *reference_index,
+	short bsp)
+{
+	if (partition->port_structure_bsp_index == NONE || bsp == partition->port_structure_bsp_index)
+		return cluster_partition_get_next_cluster(partition, reference_index);
+	if (cluster_partition_reference_bsp(partition, *reference_index) != bsp)
+	{
+		*reference_index = NONE;
+		return NONE;
+	}
+	return cluster_partition_local_cluster(
+		reference_list_get_next_datum_index(partition->cluster_reference_data, reference_index));
+}
+
 boolean cluster_partition_reconnect_in_bsp(
 	struct cluster_partition *partition,
 	short structure_bsp_index,

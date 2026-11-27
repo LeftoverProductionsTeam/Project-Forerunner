@@ -1,5 +1,23 @@
 # Forerunner test evidence
 
+## View-qualified regional lights and door occlusion
+
+Private Win64 `9e66c83d458604677ad667af44b88bfbb08d4cf4e21961086d60f8d394f64d34`
+links point lights against the owning resident structure and selects by
+the viewport BSP. Native cluster iteration retains the same reference
+pools and qualifies the reverse object references. Door portal pairing
+and authored lens flare markers now use the viewport structure.
+
+The compiled two-BSP fixture covered identical cluster IDs, each view's
+lights, a shut portal in only the second BSP, clearing on view switch,
+and the classic path. Removing light ownership made the same fixture
+fail. Normal Extraction menus on exact `d0c4c13b` / `36e2d953` rendered
+the Covenant spawn. A separate controlled camera rendered BSP 10 while
+only BSP 11 was held for simulation. OpenGL receipt and frames are in
+`build/regional-light-view-9e66c83d`. That view did not isolate a live
+closed-door or dynamic-light sample. Paired and split-screen visuals and
+secondary BSP environment diffuse/specular passes remain open.
+
 ## Named devices in occupied neighboring BSPs
 
 Win64 `B9CECFFF90BCD6FA5F8F35175EF36BE80C25D205D174818422F5CCC13B9CA9A3`

@@ -56,6 +56,7 @@ Based on work by goatbutt and the OpenH1 team (erin.cena's door portals).
 #include "physics/collision_model_definitions.h"
 #include "physics/collision_models.h"
 #include "rasterizer/rasterizer.h"
+#include "render/render.h"
 #include "scenario/scenario.h"
 #include "structures/structures.h"
 #include "structures/structure_bsp_definitions.h"
@@ -159,7 +160,8 @@ struct door_portals_door
 	long object_index;
 	long definition_index;
 	real_point3d position;
-	void const *structure;
+	struct structure_bsp const *structure;
+	short bsp;
 	/* the frame it was last seen in */
 	unsigned long frame;
 	boolean paired[2];
@@ -387,15 +389,18 @@ static void door_portals_pair(
 	struct door_portals_door *door,
 	short end)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
-	struct bsp3d *bsp = global_bsp3d_get();
+	struct structure_bsp const *structure = door->structure;
+	struct collision_bsp const *collision;
+	struct bsp3d const *bsp;
 	struct object_datum *object = object_get(object_index);
 	short polygon_count = door_portals_polygons(object_index);
 	long portal_index;
 
 	door->portal_count[end] = 0;
-	if (!polygon_count || !structure || !bsp)
+	if (!polygon_count || !structure || !structure->collision_bsp.count)
 		return;
+	collision = TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp);
+	bsp = &collision->bsp3d;
 	for (portal_index = 0; portal_index < MIN(structure->cluster_portals.count, DOOR_PORTALS_MAXIMUM_PORTALS);
 		portal_index++)
 	{
@@ -466,7 +471,10 @@ void door_portals_new_map(
 void door_portals_update(
 	void)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
+	struct structure_bsp const *structure = render_structure_bsp();
+	struct scenario const *scenario = global_scenario_try_and_get();
+	boolean regional = scenario && scenario_uses_regional_gameplay(scenario);
+	short view_bsp = render_structure_bsp_index();
 	struct object_iterator iterator;
 	struct machine_datum *machine;
 
@@ -488,7 +496,8 @@ void door_portals_update(
 		struct door_portals_door *door;
 		short end, index;
 
-		if (game_engine_object_parked(iterator.index, machine->object.type) ||
+		if ((regional ? object_get_regional_bsp(iterator.index) != view_bsp :
+				game_engine_object_parked(iterator.index, machine->object.type)) ||
 			machine_definition_get(machine->definition_index)->machine.type != DOOR_PORTALS_MACHINE_TYPE_DOOR)
 			continue;
 		door = door_portals_door_get(iterator.index);
@@ -497,13 +506,15 @@ void door_portals_update(
 		/* (another object, or this one moved or in another level, is paired
 		again) */
 		if (door->object_index != iterator.index || door->definition_index != machine->definition_index ||
-			door->structure != structure || memcmp(&door->position, &machine->object.position, sizeof(door->position)))
+			door->bsp != view_bsp || door->structure != structure ||
+			memcmp(&door->position, &machine->object.position, sizeof(door->position)))
 		{
 			memset(door, 0, sizeof(*door));
 			door->object_index = iterator.index;
 			door->definition_index = machine->definition_index;
 			door->position = machine->object.position;
 			door->structure = structure;
+			door->bsp = view_bsp;
 			door->rest_end = NONE;
 		}
 		door->frame = door_portals.frame;
@@ -558,7 +569,7 @@ static void door_portals_flood(
 	unsigned long *reached,
 	boolean *met_shut)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
+	struct structure_bsp const *structure = render_structure_bsp();
 	short stack[MAXIMUM_CLUSTERS_PER_STRUCTURE];
 	short next[MAXIMUM_CLUSTERS_PER_STRUCTURE];
 	short depth = 0;

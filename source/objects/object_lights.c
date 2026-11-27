@@ -439,6 +439,7 @@ static long cluster_get_next_light(
 	long *reference_index);
 static void find_point_lights_for_object_in_cluster(
 	long object_index,
+	short bsp,
 	short cluster_index,
 	real_point3d const *center,
 	real radius,
@@ -1120,8 +1121,6 @@ long light_port_glow_new(
 	{
 		struct light_datum *light = light_get(light_index);
 
-		/* The port's renderer resamples these emitters at their current pose. */
-		light->world_bsp_index_plus_one = 0;
 		SET_FLAG(light->flags, _point_light_port_glow_bit, TRUE);
 	}
 	return light_index;
@@ -1637,7 +1636,8 @@ void lights_preprocess_scene(
 						if (object)
 							object_get_location(light->object_index, &emitter_location);
 						else
-							scenario_location_from_point(&emitter_location, &light->position);
+							scenario_location_from_point_in_structure(&emitter_location, render_structure_bsp(),
+								&light->position);
 						light_get_bounding_sphere(scene_light_handle, &partition_center, &partition_radius);
 						door_portals_light(light->rasterizer_light_index, emitter_location.cluster_index,
 							&partition_center, partition_radius);
@@ -2140,22 +2140,38 @@ static void brighten_real_rgb_color(
 	return;
 }
 
+/* Light handles have their own datum table. The cluster heads remain
+ * shared, so match the BSP stored when a light joined its clusters. */
+static long light_next_in_bsp(long light_index, long *reference_index, short bsp)
+{
+	while (light_index != NONE)
+	{
+		short owner = light_get(light_index)->world_bsp_index_plus_one - 1;
+		if ((owner == NONE ? global_structure_bsp_index_get() : owner) == bsp)
+			break;
+		light_index = cluster_partition_get_next_datum(&light_cluster_partition, reference_index);
+	}
+	return light_index;
+}
+
+static long light_first_in_bsp(long *reference_index, short cluster_index, short bsp)
+{
+	long light_index = cluster_partition_get_first_datum(&light_cluster_partition, reference_index, cluster_index);
+	return light_next_in_bsp(light_index, reference_index, bsp);
+}
+
 static long cluster_get_first_light(
 	long *reference_index,
 	short cluster_index)
 {
-	return cluster_partition_get_first_datum(
-		&light_cluster_partition,
-		reference_index,
-		cluster_index);
+	return light_first_in_bsp(reference_index, cluster_index, render_structure_bsp_index());
 }
 
 static long cluster_get_next_light(
 	long *reference_index)
 {
-	return cluster_partition_get_next_datum(
-		&light_cluster_partition,
-		reference_index);
+	long light_index = cluster_partition_get_next_datum(&light_cluster_partition, reference_index);
+	return light_next_in_bsp(light_index, reference_index, render_structure_bsp_index());
 }
 
 static void light_compute_bounding_sphere(
@@ -2570,28 +2586,40 @@ void light_reconnect_to_map(
 			0x4F9,
 			!TEST_FLAG(light->flags, _point_light_connected_to_map_bit));
 #ifndef HALO_SERVER
-		if (light->object_index != NONE && object_try_and_get(light->object_index))
 		{
-			object_get_location(light->object_index, &location);
+			struct scenario const *scenario = global_scenario_try_and_get();
+			boolean attached = light->object_index != NONE && object_try_and_get(light->object_index);
+
+			if (scenario && scenario_uses_regional_gameplay(scenario))
+			{
+				short bsp = light->world_bsp_index_plus_one ?
+					light->world_bsp_index_plus_one - 1 : global_structure_bsp_index_get();
+				struct structure_bsp const *structure;
+
+				if (attached)
+					bsp = object_get_regional_bsp(light->object_index);
+				structure = scenario_structure_bsp_try_and_get(bsp);
+				if (structure)
+				{
+					if (attached)
+						object_get_location(light->object_index, &location);
+					else
+						scenario_location_from_point_in_structure(&location, structure, &position);
+					light->world_bsp_index_plus_one = bsp + 1;
+					cluster_partition_reconnect_in_bsp(&light_cluster_partition, NONE, structure, light_index,
+						&light->cluster_reference, &position, radius, &location);
+				}
+			}
+			else
+			{
+				if (attached)
+					object_get_location(light->object_index, &location);
+				else
+					scenario_location_from_point(&location, &position);
+				cluster_partition_reconnect(&light_cluster_partition, light_index,
+					&light->cluster_reference, &position, radius, &location);
+			}
 		}
-		else if (light->world_bsp_index_plus_one &&
-			light->world_bsp_index_plus_one != global_structure_bsp_index_get() + 1)
-		{
-			/* Overlapping coordinates can belong to another region. Keep the
-			 * light alive, with no cluster links until its BSP returns. */
-			location = (struct location){ .leaf_index = NONE, .cluster_index = NONE, .bonus = NONE };
-		}
-		else
-		{
-			scenario_location_from_point(&location, &position);
-		}
-		cluster_partition_reconnect(
-			&light_cluster_partition,
-			light_index,
-			&light->cluster_reference,
-			&position,
-			radius,
-			&location);
 #else
 		/* port: The dedicated server draws nothing, and a light's clusters
 		are only for drawing: the lights that light an object or the map
@@ -2719,9 +2747,10 @@ static boolean lights_port_cluster(
 	if (lights_port.cluster_generations[cluster_index] != generation)
 	{
 		first = lights_port.entry_count;
-		for (light_index = cluster_partition_get_first_datum(&light_cluster_partition, &reference_index, cluster_index);
+		for (light_index = light_first_in_bsp(&reference_index, cluster_index, global_structure_bsp_index_get());
 			light_index != NONE;
-			light_index = cluster_partition_get_next_datum(&light_cluster_partition, &reference_index))
+			light_index = light_next_in_bsp(cluster_partition_get_next_datum(&light_cluster_partition, &reference_index),
+				&reference_index, global_structure_bsp_index_get()))
 		{
 			struct light_datum *light = light_get(light_index);
 			struct lights_port_entry *entry;
@@ -2756,6 +2785,7 @@ static boolean lights_port_cluster(
 
 static void find_point_lights_for_object_in_cluster(
 	long object_index,
+	short bsp,
 	short cluster_index,
 	real_point3d const *center,
 	real radius,
@@ -2780,7 +2810,7 @@ static void find_point_lights_for_object_in_cluster(
 	Most are far along one axis, which says so without the distance: a
 	distance is never less than one axis of it but for rounding, a few parts
 	in 2^24, well inside the margin here. */
-	if (lights_port_cluster(cluster_index, &first_entry, &entry_count))
+	if (bsp == global_structure_bsp_index_get() && lights_port_cluster(cluster_index, &first_entry, &entry_count))
 	{
 		short entry_index;
 
@@ -2807,9 +2837,10 @@ static void find_point_lights_for_object_in_cluster(
 		}
 		return;
 	}
-	for (light_index = cluster_partition_get_first_datum(&light_cluster_partition, &reference_index, cluster_index);
+	for (light_index = light_first_in_bsp(&reference_index, cluster_index, bsp);
 		light_index != NONE;
-		light_index = cluster_partition_get_next_datum(&light_cluster_partition, &reference_index))
+		light_index = light_next_in_bsp(cluster_partition_get_next_datum(&light_cluster_partition, &reference_index),
+			&reference_index, bsp))
 	{
 		find_point_light_for_object(object_index, light_index, center, radius, light_indices, light_intensities,
 			light_attenuations, light_count, maximum_light_count);
@@ -2875,6 +2906,7 @@ void lights_illumination_at_point(
 		light_marker_begin();
 		find_point_lights_for_object_in_cluster(
 			NONE,
+			global_structure_bsp_index_get(),
 			location->cluster_index,
 			point,
 			0.0f,
@@ -2945,17 +2977,19 @@ void lights_prepare_for_object_dynamic(
 	real light_attenuations[MAXIMUM_RENDERED_POINT_LIGHTS];
 	short cluster_index;
 	short light_index;
+	short bsp = render_structure_bsp_index();
 
 	object_get_bounding_sphere(object_index, &center, &radius);
 	lighting->point_light_count = 0;
 	light_marker_begin();
-	for (cluster_index = object_get_first_cluster(&iterator, object_index);
+	for (cluster_index = object_get_first_cluster_in_bsp(&iterator, object_index, bsp);
 		cluster_index != NONE;
 		cluster_index = object_get_next_cluster(&iterator, object_index))
 	{
 		lights_port_door_cluster = cluster_index;
 		find_point_lights_for_object_in_cluster(
 			object_index,
+			bsp,
 			cluster_index,
 			&center,
 			radius,

@@ -319,7 +319,7 @@ short object_get_next_cluster(
 		1049,
 		iterator->cluster_partition==&collideable_object_cluster_partition || iterator->cluster_partition==&noncollideable_object_cluster_partition);
 
-	return cluster_partition_get_next_cluster(iterator->cluster_partition, &iterator->reference_index);
+	return cluster_partition_get_next_cluster_in_bsp(iterator->cluster_partition, &iterator->reference_index, iterator->bsp);
 }
 
 void *object_try_and_get_and_verify_type(
@@ -1355,20 +1355,26 @@ void object_disconnect_from_map(
 	return;
 }
 
+short object_get_first_cluster_in_bsp(
+	struct object_cluster_iterator *iterator,
+	long object_index,
+	short bsp)
+{
+	struct object_datum const *root = object_get(object_get_ultimate_parent(object_index));
+
+	iterator->cluster_partition = TEST_FLAG(root->object.flags, _object_has_collision_model_bit) ?
+		&collideable_object_cluster_partition :
+		&noncollideable_object_cluster_partition;
+	iterator->reference_index = root->object.first_cluster_reference_index;
+	iterator->bsp = bsp == NONE ? iterator->cluster_partition->port_structure_bsp_index : bsp;
+	return object_get_next_cluster(iterator, object_index);
+}
+
 short object_get_first_cluster(
 	struct object_cluster_iterator *iterator,
 	long object_index)
 {
-	long ultimate_parent_index = object_get_ultimate_parent(object_index);
-	
-	iterator->cluster_partition = TEST_FLAG(object_get(ultimate_parent_index)->object.flags, _object_has_collision_model_bit) ?
-		&collideable_object_cluster_partition :
-		&noncollideable_object_cluster_partition;
-
-	return cluster_partition_get_first_cluster(
-		iterator->cluster_partition,
-		&iterator->reference_index,
-		object_get(ultimate_parent_index)->object.first_cluster_reference_index);
+	return object_get_first_cluster_in_bsp(iterator, object_index, NONE);
 }
 
 short object_get_regional_bsp(long object_index)

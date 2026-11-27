@@ -967,15 +967,19 @@ void rasterizer_lens_flare_submit_for_cluster(
 {
 	if (rasterizer_debug_options.draw_lens_flares && !screenshot_in_progress())
 	{
-		struct structure_bsp *structure_bsp= global_structure_bsp_get();
-		struct structure_cluster *cluster= TAG_BLOCK_GET_ELEMENT(&structure_bsp->clusters, cluster_index, struct structure_cluster);
-		long lens_flare_marker_index;
+		struct structure_bsp const *structure_bsp= render_structure_bsp();
+		struct structure_cluster const *cluster;
+		long lens_flare_marker_index, marker_count;
+
+		if (!structure_bsp || !VALID_INDEX(cluster_index, structure_bsp->clusters.count))
+			return;
+		cluster= TAG_BLOCK_GET_ELEMENT(&structure_bsp->clusters, cluster_index, struct structure_cluster);
 		/* port: only markers the BSP has, and no more than the occlusion
 		results hold: a marker's index goes into a short, read back sign
 		extended (rasterizer_lens_flare_submit), with the queued flares'
 		before it (a map's range: past SHORT_MAX+1 rows the index wrapped
 		negative), and a console's fewer rows (LENS_FLARE_OCCLUSION_RESULT_ROWS) */
-		long marker_count= MIN(
+		marker_count= MIN(
 			structure_bsp->lens_flare_markers.count,
 			LENS_FLARE_OCCLUSION_RESULT_ROWS-MAXIMUM_QUEUED_LENS_FLARES);
 

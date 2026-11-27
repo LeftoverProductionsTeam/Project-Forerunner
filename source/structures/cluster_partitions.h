@@ -112,6 +112,10 @@ long cluster_partition_get_first_cluster(
 	struct cluster_partition const *partition,
 	long *reference_index,
 	long first_cluster_reference);
+long cluster_partition_get_next_cluster_in_bsp(
+	struct cluster_partition const *partition,
+	long *reference_index,
+	short bsp);
 long cluster_partition_get_next_cluster(
 	struct cluster_partition const *partition,
 	long *reference_index);
