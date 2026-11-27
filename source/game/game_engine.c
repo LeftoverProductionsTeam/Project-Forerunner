@@ -5524,7 +5524,7 @@ static short game_engine_vehicle_home_bsp(long object_index)
 	return home == NONE ? NONE : game_engine_vehicle_homes[home].structure_bsp_index;
 }
 
-void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index)
+void game_engine_set_regional_object_bsp(long object_index, short bsp_index)
 {
 	struct game_engine_regional_object *region =
 		&game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)];

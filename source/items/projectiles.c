@@ -616,7 +616,7 @@ boolean projectile_new(
 	/* A shot can leave its source collision leaf before the next BSP
 	 * transition. Record its owner while the firing scene is still bound. */
 	if (scenario && structure_bsp_index != NONE && scenario_uses_regional_gameplay(scenario))
-		game_engine_set_regional_projectile_bsp(projectile_index, structure_bsp_index);
+		game_engine_set_regional_object_bsp(projectile_index, structure_bsp_index);
 
 	return TRUE;
 }
@@ -968,7 +968,7 @@ boolean projectile_update(
 			if (foreign_bsp != NONE)
 			{
 				bsp = foreign_bsp;
-				game_engine_set_regional_projectile_bsp(projectile_index, bsp);
+				game_engine_set_regional_object_bsp(projectile_index, bsp);
 			}
 			projectile_collision(
 				projectile_index,
@@ -1098,7 +1098,7 @@ boolean projectile_update(
 			if (foreign_bsp != NONE)
 			{
 				bsp = foreign_bsp;
-				game_engine_set_regional_projectile_bsp(projectile_index, bsp);
+				game_engine_set_regional_object_bsp(projectile_index, bsp);
 			}
 			object_translate(projectile_index, &new_position,
 				foreign_bsp != NONE || (bsp != NONE && bsp != global_structure_bsp_index_get()) ?

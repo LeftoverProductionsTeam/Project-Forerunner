@@ -2383,11 +2383,11 @@ void object_detach(
 	child_object->object.parent_node_index = NONE;
 	child_object->object.parent_object_index = NONE;
 
-	/* Held grenades may have been created before the holder reached this BSP.
-	 * Their flight must start in the holder's scene, including outside a leaf. */
-	if (child_object->object.type == _object_type_projectile && bsp != NONE &&
+	/* Inventory and held grenades can cross BSPs before they are released.
+	 * The carrier's current region owns the new world root. */
+	if (bsp != NONE && TEST_FLAG(_object_mask_item | _object_mask_projectile, child_object->object.type) &&
 		scenario_uses_regional_gameplay(global_scenario_get()))
-		game_engine_set_regional_projectile_bsp(child_object_index, bsp);
+		game_engine_set_regional_object_bsp(child_object_index, bsp);
 	object_reconnect_to_map_internal(child_object_index, NULL, structure == NULL, bsp, structure);
 	object_activate(child_object_index);
 
@@ -2617,7 +2617,7 @@ static void object_transfer_regional_projectile(long object_index, struct object
 	if (object->object.type == _object_type_projectile && from != NONE && from != to &&
 		destination->cluster_index != NONE && game_engine_object_recorded_bsp(object_index, _object_type_projectile) == from &&
 		players_position_crosses_bsp_route(from, to, &object->object.bounding_sphere_center))
-		game_engine_set_regional_projectile_bsp(object_index, to);
+		game_engine_set_regional_object_bsp(object_index, to);
 }
 
 void objects_reconnect_to_structure_bsp(

@@ -247,6 +247,23 @@ retains the existing projectile activation rule and passed a native map-launch
 smoke before promotion. Destroyed and transported vehicles and independent
 guest loot recovery have separate acceptance gates.
 
+### Carried drops after crossing
+
+The retained MegaWorld fixture `fcfe9d44` reproduced the lost cannon with a
+parked-and-restored BSP 0 pickup followed by a carry into BSP 12. Probe
+`159a5bc2` logged the cannon leaving the inventory with no live BSP and a
+stale recorded BSP 0. Probe `94957bed` used the same fixture and showed both
+the rifle and cannon assigned to BSP 12 at release. The cannon settled,
+then was still present at tick 1530 after the respawn in BSP 0. Probe logs
+are under `build/megaworld-ground-preview/v3-drop-stale-{base,fixed}`.
+
+Release `2757225e` used the same map with ordinary input from Play Solo. After
+a BSP 0→12→0 trip, the player acquired stock cannon 953, carried it into BSP
+12, and died there. Cannon 953 was still on the ground at tick 14550 after
+the return to BSP 12. Its remaining active lifetime expired during the
+pickup approach. Same-item re-equipping and multiplayer recovery remain open.
+The exact release run is in `build/megaworld-ground-preview/v3-drop-natural`.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

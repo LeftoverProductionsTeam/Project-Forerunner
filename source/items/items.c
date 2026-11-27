@@ -196,7 +196,10 @@ void item_in_unit_inventory(
 	if (owner_unit_index != NONE)
 	{
 		struct unit_datum *unit = unit_get(owner_unit_index);
+		struct scenario const *scenario = global_scenario_try_and_get();
 
+		if (scenario && scenario_uses_regional_gameplay(scenario))
+			game_engine_set_regional_object_bsp(item_index, NONE);
 		item->item.flags |= FLAG(_item_attached_to_unit_bit);
 		if (unit->unit.player_index != NONE)
 		{

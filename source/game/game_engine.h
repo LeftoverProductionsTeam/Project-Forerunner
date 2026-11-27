@@ -592,7 +592,7 @@ void game_engine_park_regional_root(long object_index, struct object_datum const
 boolean game_engine_connect_regional_item(long object_index, short bsp, struct structure_bsp const *structure);
 boolean game_engine_connect_regional_vehicle(long object_index, short bsp, struct structure_bsp const *structure);
 void game_engine_record_regional_object(long object_index, struct object_datum const *object, short source_bsp);
-void game_engine_set_regional_projectile_bsp(long object_index, short bsp_index);
+void game_engine_set_regional_object_bsp(long object_index, short bsp_index);
 short game_engine_object_recorded_bsp(long object_index, short object_type);
 boolean game_engine_object_parked(long object_index, short object_type);
 boolean game_engine_object_parked_for_unit(long object_index, short object_type, long unit_index);
