@@ -380,6 +380,40 @@ loose item recovery, real private wreck return, and synchronized hunt
 kills and objective credit remain separate open gates. No previous proof
 was withdrawn.
 
+**03:38 update.** The fresh exact `1bbcc126` / `fd7a49fa` / `868a8adf`
+pair is live with the test timer disabled. Host PID 50152 and guest PID
+6992 both resolved the matching map through ordinary LAN menus. Use
+`build/regional-pressure-profile/full-pools-bank-host` and
+`full-pools-bank-guest`, each with its own `logs/debug.txt`,
+`buttons.txt`, screenshots and isolated profile. The UNSC host
+deployed to pool 2 at (351.798, -64.514, -18.160) and walked west from
+Blood Gulch through the y≈27.25 passage to Sidewinder. At tick 14340 the
+host was alive at (131.482, -22.763, -21.075), near the central obstruction.
+The guest remained alive in the Covenant hub (1318.768, 578.205, -14.350)
+at the same tick. There is no field-call or bank acknowledgement yet.
+
+Resume that UNSC run by finding the stock up-route to the Sidewinder
+teleporter rather than walking farther into the same wall. Independent
+compiled readback of this exact map gives entrance row 150
+(80.087433, -24.852142, -16.674025) and exit row 151
+(61.738407, 31.973919, -17.073898). The native bypass is unproven.
+Once in Timberland, use the UNSC field terminal from its northwest
+approach near (-9.4, 46.4), then enter the UNSC hub on foot and confirm
+the host's committed bank and corresponding scoped guest session evidence.
+The operation notice is sent to its owning client. The pair should also
+check the run with a remote UNSC owner if the receiving-client bank
+notice is required.
+
+Spark's matched compiled readback isolated the Ice Fields render
+rejection to authored surface winding. The ten rays from the captured
+eye hit the same opaque wall on f5, 919 and the inverse-translated stock
+control, about 0.20 world units away, with render and collision agreeing
+within 0.000005. The rebuilt surfaces have opposite facing to stock.
+Spark is correcting the rebuilt surface winding. No Forerunner culling
+change or additional repeat of the rejected approach. Keep the private
+f5 and verified 919 infantry evidence. Retest the compact route when
+Spark's visible, vehicle-capable Carousel candidate is available.
+
 No acceptance in this checkpoint promotes a map or runtime.
 
 ## Product Completion V2.1 Windows release
