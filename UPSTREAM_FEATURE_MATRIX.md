@@ -281,6 +281,19 @@ also captured these elements with 2× MSAA in
 renderer smoke checks. Dynamic objects still do not participate in traced
 lighting, and baked indoor lighting, regional scenes and performance remain open.
 
+**Native BSP emitters.** The private OpenRemix preview now sends opaque Halo
+shader radiosity power and emitted RGB as material emission, with separate
+material identities for shaders sharing a base texture. Stock Xbox Chill Out
+`81819e9d7037a6b6c4e9a7472a431ebb53ed25ea00d8af634ac8384f1fe13d8b` on
+Win64 `945fcefd8cd8fc3ea086f6e372b9213125751ff4d96e6b8369d3dcc7c146b264`
+uploaded two emitting materials and drew with zero sun and sky ambient. At
+the same spawn, the traced and Classic frames retain the same HUD and weapon.
+The traced lighting is darker and noisier than the original. Logs and
+`window00320.bmp` are under `build/native-bsp-pathtrace-stock-bloodgulch`,
+in the `pathtrace-radiosity-chillout-{traced,raster}` trial sets. This does
+not transfer baked irradiance or shader-animation masks. An indoor BSP with
+no supported emitters still uses the native raster frame.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

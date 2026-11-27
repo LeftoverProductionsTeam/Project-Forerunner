@@ -12,12 +12,14 @@
 #include "game/game.h"
 #include "render/render_cameras.h"
 #include "render/render_sky_lighting.h"
+#include "shaders/shader_definitions.h"
 #include "structures/structure_bsp_definitions.h"
 
 #define REMIX_WINAPI_NO_INCLUDE
 #define REMIX_WINAPI_NO_LIBRARY_LOADER
 #include <remix/remix_editor_ext.h>
 #include <remix/remix_native_ext.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +63,13 @@ static struct
 	remixapi_LightHandle sunlight, ambient;
 	remixapi_MeshHandle mesh;
 	struct preview_texture textures[maximum_preview_textures];
-	unsigned int texture_count, texture_bytes;
+	struct
+	{
+		long shader;
+		short page;
+		remixapi_MaterialHandle handle;
+	} emitters[maximum_preview_material_sections];
+	unsigned int texture_count, texture_bytes, emitter_count;
 	const struct structure_bsp *structure;
 	char map[128];
 	short bsp, sky;
@@ -96,6 +104,8 @@ static void retire_bsp(void)
 	if (preview.mesh)
 		preview.api.DestroyMesh(preview.mesh);
 	preview.mesh = NULL;
+	for (i = 0; i < preview.emitter_count; i++)
+		if (preview.emitters[i].handle) preview.api.DestroyMaterial(preview.emitters[i].handle);
 	for (i = 0; i < preview.texture_count; i++)
 	{
 		struct preview_texture *texture = &preview.textures[i];
@@ -103,7 +113,7 @@ static void retire_bsp(void)
 		if (texture->material[1]) preview.api.DestroyMaterial(texture->material[1]);
 		if (texture->handle) preview.api.DestroyTexture(texture->handle);
 	}
-	preview.texture_count = preview.texture_bytes = 0;
+	preview.texture_count = preview.texture_bytes = preview.emitter_count = 0;
 }
 
 void pathtrace_provider_close(void)
@@ -245,24 +255,79 @@ static void upload_texture(struct preview_texture *texture)
 	free(pixels);
 }
 
+static remixapi_MaterialHandle emissive_material(const struct pathtrace_material *material,
+	const struct preview_texture *texture)
+{
+	const struct shader *shader = shader_definition_get(material->shader);
+	const struct shader_radiosity_properties *radiosity = &shader->base.radiosity;
+	const real_rgb_color *color = &radiosity->color_of_emitted_light;
+	remixapi_MaterialInfo info = {0};
+	remixapi_MaterialInfoOpaqueEXT opaque = {0};
+	wchar_t uri[24];
+	unsigned int i;
+
+	if (!isfinite(radiosity->power) || radiosity->power <= 0.0f ||
+		!isfinite(color->red) || !isfinite(color->green) || !isfinite(color->blue) ||
+		color->red < 0.0f || color->green < 0.0f || color->blue < 0.0f ||
+		MAX(color->red, MAX(color->green, color->blue)) <= 0.0f)
+		return NULL;
+
+	for (i = 0; i < preview.emitter_count; i++)
+		if (preview.emitters[i].shader == material->shader && preview.emitters[i].page == material->diffuse_bitmap)
+			return preview.emitters[i].handle;
+	if (i == maximum_preview_material_sections)
+		return NULL;
+
+	opaque.sType = REMIXAPI_STRUCT_TYPE_MATERIAL_INFO_OPAQUE_EXT;
+	opaque.albedoConstant = (remixapi_Float3D){1.0f, 1.0f, 1.0f};
+	opaque.opacityConstant = 1.0f;
+	opaque.roughnessConstant = 0.85f;
+	opaque.alphaTestType = material->alpha_tested ? 4 : 7;
+	opaque.alphaReferenceValue = 0x7f;
+	info.emissiveIntensity = radiosity->power;
+	info.emissiveColorConstant = (remixapi_Float3D){color->red, color->green, color->blue};
+	info.sType = REMIXAPI_STRUCT_TYPE_MATERIAL_INFO;
+	info.pNext = &opaque;
+	info.hash = 0x300000000ULL + (preview.mesh_generation << 16) + i;
+	if (texture && texture->handle)
+	{
+		_snwprintf(uri, NUMBEROF(uri), L"0x%016llx", (unsigned long long)texture->hash);
+		info.albedoTexture = uri;
+	}
+	preview.emitters[i].handle = NULL;
+	if (!status(preview.api.CreateMaterial(&info, &preview.emitters[i].handle), "bind BSP radiosity material"))
+		return NULL;
+	preview.emitters[i].shader = material->shader;
+	preview.emitters[i].page = material->diffuse_bitmap;
+	preview.emitter_count++;
+	return preview.emitters[i].handle;
+}
+
 static remixapi_MaterialHandle surface_material(const struct pathtrace_material *material)
 {
 	remixapi_MaterialInfo info = {0};
 	remixapi_MaterialInfoOpaqueEXT opaque = {0};
 	struct preview_texture *texture;
+	remixapi_MaterialHandle emitter;
 	unsigned int i;
 	int alpha = material->alpha_tested != 0;
 	wchar_t uri[24];
 
 	if (material->diffuse_group == NONE || material->diffuse_bitmap == NONE)
-		return preview.material;
+	{
+		emitter = emissive_material(material, NULL);
+		return emitter ? emitter : preview.material;
+	}
 	for (i = 0; i < preview.texture_count; i++)
 		if (preview.textures[i].group == material->diffuse_group && preview.textures[i].page == material->diffuse_bitmap)
 			break;
 	if (i == preview.texture_count)
 	{
 		if (i == maximum_preview_textures)
-			return preview.material;
+		{
+			emitter = emissive_material(material, NULL);
+			return emitter ? emitter : preview.material;
+		}
 		texture = &preview.textures[preview.texture_count++];
 		memset(texture, 0, sizeof(*texture));
 		texture->group = material->diffuse_group;
@@ -271,6 +336,9 @@ static remixapi_MaterialHandle surface_material(const struct pathtrace_material 
 		upload_texture(texture);
 	}
 	texture = &preview.textures[i];
+	emitter = emissive_material(material, texture);
+	if (emitter)
+		return emitter;
 	if (!texture->handle)
 		return preview.material;
 	if (!texture->material[alpha])
@@ -373,8 +441,8 @@ static int upload_bsp(const struct structure_bsp *structure)
 		free((void *)upload->surfaces[i].indices_values);
 	}
 	if (mesh)
-		platform_log("OpenRemix preview: uploaded the resident BSP (%u/%u textured sections, %u base texture bytes)",
-			upload->textured, upload->count, preview.texture_bytes);
+		platform_log("OpenRemix preview: uploaded the resident BSP (%u/%u textured sections, %u base texture bytes, %u radiosity materials)",
+			upload->textured, upload->count, preview.texture_bytes, preview.emitter_count);
 	free(upload);
 	preview.mesh = mesh;
 	return mesh != NULL;
@@ -394,11 +462,7 @@ static int upload_sky(short sky)
 	preview.sunlight = preview.ambient = NULL;
 	preview.sky = sky;
 	preview.sky_available = render_sky_get_outdoor_lighting(sky, &native);
-	if (!preview.sky_available)
-	{
-		platform_log("OpenRemix preview: sky %d has no outdoor light, using the native raster view", sky);
-		return TRUE;
-	}
+
 
 	light.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO;
 	distant.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO_DISTANT_EXT;
@@ -454,10 +518,10 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	preview.last_tick = tick;
 	if ((new_scene || sky != preview.sky) && !upload_sky(sky))
 		return pathtrace_provider_error;
-	if (!preview.sky_available)
-		return pathtrace_provider_no_sky;
 	if (!preview.mesh && !upload_bsp(structure))
 		return pathtrace_provider_error;
+	if (!preview.sky_available && !preview.emitter_count)
+		return pathtrace_provider_no_sky;
 
 	pose.sType = REMIXAPI_STRUCT_TYPE_CAMERA_INFO_PARAMETERIZED_EXT;
 	pose.position = (remixapi_Float3D){camera->position.x, camera->position.z, camera->position.y};
