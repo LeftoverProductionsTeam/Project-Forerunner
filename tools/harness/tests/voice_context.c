@@ -14,7 +14,7 @@ struct network_game {
  struct network_player players[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 };
 struct player_datum {
- long unit_index;boolean quit_out_of_game;
+ long unit_index;boolean quit_out_of_game;short team_index;
  struct { long player_list_index; } network_player_data;
 };
 struct unit_datum {
@@ -30,6 +30,9 @@ static struct unit_datum units[4];
 static struct { short type; } scenario={_scenario_type_solo},*global_scenario=&scenario;
 static struct delta_peer_voice_world published;
 static struct delta_wire_voice_config rules;
+static struct { short mode; boolean lobby; real proximity; } voice_host_settings={
+ _voice_mode_team_enemy_proximity,FALSE,15.f
+};
 static long const handles[4]={0x20010,0x20011,0x20012,0x20013},owners[4]={0x10000,0x10001,0x10002,0x10003};
 static short native_count=2,groups[4];
 static boolean operation;
@@ -40,11 +43,21 @@ static short extraction_voice_group(long player,long machine) {
 }
 static int storage,origin_calls;
 static void *player_data=&storage,*game_engine;
-static boolean started=TRUE,postgame;
+static boolean started=TRUE,postgame,regional;
+static short unit_bsps[4];
+static boolean network_regional_independent_bsp_ready(void) {return regional;}
+static short object_get_regional_bsp(long handle) {
+ short i;for(i=0;i<native_count;i++)if(handle==handles[i])return unit_bsps[i];return NONE;
+}
 
 static struct network_game_client *global_network_game_client_get(void) {return session;}
 static boolean game_in_progress(void) {return started;}
 static boolean game_engine_showing_postgame(void) {return postgame;}
+static boolean game_engine_has_teams(void) {return game.variant.universal_variant.teams;}
+static long distributed_living_unit(struct player_datum const *player) {return player->unit_index;}
+static real distance3d(real_point3d const *a,real_point3d const *b) {
+ real x=a->x-b->x,y=a->y-b->y,z=a->z-b->z;return sqrtf(x*x+y*y+z*z);
+}
 static short game_connection(void) {return _game_connection_network_server;}
 static struct network_game *network_game_get_game(void) {return &game;}
 static boolean network_player_is_valid(struct network_player const *player) {return player->valid;}
@@ -78,6 +91,22 @@ int main(int argc,char **argv) {
   units[i].unit.player_index=owners[i];units[i].object.mask=_object_mask_biped;
  }
  units[1].object.position.x=5.f;
+ if(!strcmp(name,"regional-proximity")) {
+  regional=TRUE;unit_bsps[0]=0;unit_bsps[1]=11;
+  host_world();
+  CHECK(route(_delta_voice_channel_proximity)==_delta_voice_route_none,"overlapping BSPs leaked proximity voice");
+  CHECK(voice_route_between(&players[0],&players[1])==_voice_route_none,"legacy proximity crossed BSPs");
+  CHECK(route(_delta_voice_channel_team)==_delta_voice_route_global,"regional isolation changed co-op radio");
+  unit_bsps[0]=11;host_world();
+  CHECK(route(_delta_voice_channel_proximity)==_delta_voice_route_proximity,"proximity did not recover after transfer");
+  CHECK(voice_route_between(&players[0],&players[1])==_voice_route_proximity,"legacy proximity did not recover");
+  unit_bsps[0]=unit_bsps[1]=NONE;host_world();
+  CHECK(route(_delta_voice_channel_proximity)==_delta_voice_route_none,"unknown BSPs counted as a shared region");
+  CHECK(voice_route_between(&players[0],&players[1])==_voice_route_none,"legacy proximity accepted unknown regions");
+  voice_host_settings.mode=_voice_mode_team_global_enemy_proximity;
+  CHECK(voice_route_between(&players[0],&players[1])==_voice_route_global,"legacy co-op lost radio when unlocated");
+  return 0;
+ }
  if(!strncmp(name,"operation-",10)) {
   boolean isolated=!strcmp(name,"operation-different")||!strcmp(name,"operation-faction")||
    !strcmp(name,"operation-unknown")||!strcmp(name,"operation-mixed");

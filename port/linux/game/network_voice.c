@@ -54,6 +54,7 @@ player's voice.
 #include "networking/network_client_manager.h"
 #include "objects/objects.h"
 #include "network_distributed.h"
+#include "network_coop.h"
 #include "network_voice.h"
 #include "network_chat.h"
 #include "../src/voice_audio.h"
@@ -500,12 +501,15 @@ static boolean voice_machine_muted_for_everyone(
 /* a player's living unit's position */
 static boolean voice_player_position(
 	struct player_datum const *player,
-	real_point3d *position)
+	real_point3d *position,
+	short *bsp)
 {
 	long unit_index = player ? distributed_living_unit(player) : NONE;
 
 	if (unit_index == NONE)
 		return FALSE;
+	if (bsp)
+		*bsp = object_get_regional_bsp(unit_index);
 	object_get_origin(unit_index, position);
 	return TRUE;
 }
@@ -544,6 +548,8 @@ static short voice_route_between(
 	real_point3d listener_position;
 	boolean both_alive;
 	boolean teammates;
+	boolean regional;
+	short speaker_bsp = NONE, listener_bsp = NONE;
 	real distance = 0.0f;
 
 	if (voice_in_lobby())
@@ -552,8 +558,10 @@ static short voice_route_between(
 		return _voice_route_none;
 	/* (co-op: one team; a game without teams: none) */
 	teammates = !game_engine || (game_engine_has_teams() && speaker->team_index == listener->team_index);
-	both_alive = voice_player_position(speaker, &speaker_position) &&
-		voice_player_position(listener, &listener_position);
+	regional = network_regional_independent_bsp_ready();
+	both_alive = voice_player_position(speaker, &speaker_position, regional ? &speaker_bsp : NULL) &&
+		voice_player_position(listener, &listener_position, regional ? &listener_bsp : NULL) &&
+		(!regional || (speaker_bsp != NONE && speaker_bsp == listener_bsp));
 	if (both_alive)
 		distance = distance3d(&speaker_position, &listener_position);
 	return voice_route(voice_host_settings.mode, FALSE, voice_host_settings.lobby, teammates, both_alive, distance,
@@ -638,6 +646,9 @@ static void voice_proximity_gain(
 	struct player_datum *player = player_index != NONE ? distributed_player(player_index) : NULL;
 	struct observer_result const *camera;
 	real_point3d position;
+	short listener = (short)local_player_get_next(NONE);
+	short speaker_bsp = NONE;
+	boolean regional = network_regional_independent_bsp_ready();
 	real_vector3d direction;
 	real_vector3d right;
 	real distance;
@@ -645,11 +656,26 @@ static void voice_proximity_gain(
 
 	*gain = 1.0f;
 	*pan = 0.0f;
-	if (!voice_player_position(player, &position) || local_player_get_next(NONE) == NONE)
+	if (!voice_player_position(player, &position, regional ? &speaker_bsp : NULL) || listener == NONE)
+	{
+		if (regional)
+			*gain = 0.0f;
 		return;
-	camera = observer_get_camera((short)local_player_get_next(NONE));
+	}
+	camera = observer_get_camera(listener);
 	if (!camera)
 		return;
+	if (regional)
+	{
+		struct location location;
+		short listener_bsp;
+		if (!observer_get_camera_structure(listener, camera, &location, &listener_bsp) ||
+			speaker_bsp == NONE || speaker_bsp != listener_bsp)
+		{
+			*gain = 0.0f;
+			return;
+		}
+	}
 	vector_from_points3d(&camera->position, &position, &direction);
 	distance = magnitude3d(&direction);
 	if (distance > VOICE_NEAR_DISTANCE)
@@ -682,12 +708,16 @@ static void voice_play(
 
 	if (!voice_machine_valid(machine_index) || length <= 0)
 		return;
+	if (route == _voice_route_proximity)
+	{
+		voice_proximity_gain(player_index, &gain, &pan);
+		if (gain == 0.0f)
+			return;
+	}
 	voice_heard_at[machine_index] = system_milliseconds();
 	voice_heard[machine_index] = TRUE;
 	if (!voice_audible(machine_index))
 		return;
-	if (route == _voice_route_proximity)
-		voice_proximity_gain(player_index, &gain, &pan);
 	voice_audio_play((int)machine_index, sequence, packet, (int)length, gain, pan);
 }
 

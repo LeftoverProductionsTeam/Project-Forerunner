@@ -4474,7 +4474,7 @@ boolean sound_vr_listener_head(short local_player_index, real_point3d *position,
 
 /* port: DirectSound stays at Halo's canonical origin; source positions are
 transformed per listener before reaching it. Positional VOIP follows that too. */
-boolean sound_world_to_listener(short local_player_index, real_point3d const *world, real_point3d *local)
+boolean sound_world_to_listener(short local_player_index, short bsp, real_point3d const *world, real_point3d *local)
 {
 	struct sound_listener *listener;
 
@@ -4482,16 +4482,14 @@ boolean sound_world_to_listener(short local_player_index, real_point3d const *wo
 		local_player_index >= MAXIMUM_NUMBER_OF_LOCAL_PLAYERS)
 		return FALSE;
 	listener = listener_get(local_player_index);
-	if (!listener->valid)
+	if (!listener->valid || (bsp != NONE && listener->bsp_plus_one != bsp + 1))
 		return FALSE;
 	matrix4x3_inverse_transform_point(&listener->matrix, world, local);
 	return TRUE;
 }
 
-/* port: expose the existing geometry query/conversion to proximity VOIP.
-   Keep the native observer and cache semantics; no cross-region acoustics or
-   separate XR obstruction origin is claimed by this source-only bridge. */
-boolean sound_world_obstruction(short local_player_index, real_point3d const *world,
+/* Expose the native listener and geometry query to proximity voice. */
+boolean sound_world_obstruction(short local_player_index, short bsp, real_point3d const *world,
 	real maximum_distance, long *obstruction, long *occlusion)
 {
 	struct sound_source source;
@@ -4504,6 +4502,7 @@ boolean sound_world_obstruction(short local_player_index, real_point3d const *wo
 		!game_in_progress() || global_structure_bsp_index == NONE ||
 		local_player_index < 0 || local_player_index >= MAXIMUM_NUMBER_OF_LOCAL_PLAYERS ||
 		!listener_get(local_player_index)->valid ||
+		(bsp != NONE && listener_get(local_player_index)->bsp_plus_one != bsp + 1) ||
 		global_current_collision_user_depth <= 0 ||
 		global_current_collision_user_depth >= MAXIMUM_COLLISION_USER_STACK_DEPTH)
 		return FALSE;
@@ -4511,7 +4510,12 @@ boolean sound_world_obstruction(short local_player_index, real_point3d const *wo
 	source.spatialization_mode = _sound_spatialization_mode_absolute;
 	source.scale = source.gain = 1.f;
 	source.location.position = *world;
-	scenario_location_from_point(&source.location.game_location, world);
+	source.bsp_plus_one = bsp + 1;
+	if (bsp != NONE && bsp != global_structure_bsp_index)
+		scenario_location_from_point_in_structure(&source.location.game_location,
+			scenario_structure_bsp_try_and_get(bsp), world);
+	else
+		scenario_location_from_point(&source.location.game_location, world);
 	if (source.location.game_location.cluster_index == NONE)
 		return FALSE;
 	distance_squared = source_distance_squared(local_player_index, &source);

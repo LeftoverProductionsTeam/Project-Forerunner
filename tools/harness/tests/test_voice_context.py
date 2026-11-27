@@ -7,15 +7,20 @@ from harness import CHECK_FAILED, build, enum_with, function, mutated, read, run
 def generated(fault=None):
     client = read('source/networking/network_client_manager.c')
     game = read('port/linux/game/voice_game.c')
+    legacy_voice = read('port/linux/game/network_voice.c')
+    legacy_rules = read('port/linux/game/network_voice.h')
     types = '\n'.join((enum_with(client, '_network_game_client_state_ingame'),
         enum_with(read('source/game/game.h'), '_game_connection_network_server'),
         enum_with(read('source/objects/objects.h'), '_object_dead_bit'),
-        enum_with(read('source/objects/object_types.h'), '_object_mask_unit')))
+        enum_with(read('source/objects/object_types.h'), '_object_mask_unit'),
+        enum_with(legacy_rules, '_voice_mode_off'),
+        enum_with(legacy_rules, '_voice_route_none')))
     code = '\n'.join((function(client, 'network_game_client_in_game'),
         function(read('source/game/game_engine.c'), 'game_engine_running'),
         function(read('port/linux/game/network_coop.c'), 'network_coop_active'),
         function(game, 'voice_in_game'),
-        function(read('port/linux/game/network_voice.c'), 'voice_in_lobby'),
+        function(legacy_voice, 'voice_in_lobby'), function(legacy_voice, 'voice_route'),
+        function(legacy_voice, 'voice_player_position'), function(legacy_voice, 'voice_route_between'),
         function(game, 'player_place'), function(game, 'host_world')))
     if fault:
         code = mutated(code, *fault)
@@ -28,7 +33,7 @@ def generated(fault=None):
 
 @pytest.mark.parametrize('case', ['coop-near', 'coop-far', 'pregame', 'postgame',
     'mp-postgame', 'no-session', 'no-world', 'no-players', 'dead', 'stale', 'missing',
-    'wrong-type', 'quit', 'invalid-position', 'vehicle', 'enemy-proximity', 'disabled'])
+    'wrong-type', 'quit', 'invalid-position', 'vehicle', 'enemy-proximity', 'disabled', 'regional-proximity'])
 def test_context(case):
     status, output = run(build('voice_context', generated()), case)
     assert status == 0, output

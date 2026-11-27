@@ -411,6 +411,7 @@ struct delta_peer_voice_member
 	unsigned char team;
 	unsigned char alive;
 	float position[3];
+	unsigned char bsp_plus_one; /* zero means no current regional owner */
 };
 
 struct delta_peer_voice_world
@@ -420,6 +421,7 @@ struct delta_peer_voice_world
 	unsigned char in_game;
 	unsigned char teams;
 	unsigned char coop;
+	unsigned char regional;
 	struct delta_peer_voice_member members[DELTA_PEER_MAXIMUM_MACHINES];
 };
 

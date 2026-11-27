@@ -169,7 +169,7 @@ static boolean voice_in_game(void)
 
 /* a player of the game's list's unit's place: FALSE if it has none (dead,
 or no game) */
-static boolean player_place(long list_index, real_point3d *place, long *player_index)
+static boolean player_place(long list_index, real_point3d *place, long *player_index, short *bsp)
 {
 	struct data_iterator iterator;
 	struct player_datum *player;
@@ -187,6 +187,8 @@ static boolean player_place(long list_index, real_point3d *place, long *player_i
 			if (!unit || unit->unit.player_index != iterator.datum_index ||
 				TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
 				return FALSE;
+			if (bsp)
+				*bsp = object_get_regional_bsp(player->unit_index);
 			object_get_origin(player->unit_index, place);
 			return valid_real_point3d(place);
 		}
@@ -203,6 +205,7 @@ static void host_world(void)
 
 	csmemset(&world, 0, sizeof(world));
 	world.in_game = voice_in_game() ? 1 : 0;
+	world.regional = world.in_game && network_regional_independent_bsp_ready();
 	world.coop = network_coop_active() ? 1 : 0;
 	world.teams = game && game->variant.universal_variant.teams ? 1 : 0;
 	for (index = 0; game && index < HALO_PORT_MAXIMUM_NETWORK_PLAYERS; index++)
@@ -213,6 +216,7 @@ static void host_world(void)
 		long machine = player->machine_index;
 		long player_index = NONE;
 		short group, isolated;
+		short bsp = NONE;
 		boolean alive;
 
 		if (!network_player_is_valid(player) || machine < 0 || machine >= MACHINES)
@@ -220,7 +224,7 @@ static void host_world(void)
 		member = &world.members[machine];
 		isolated = world.in_game ? extraction_voice_group(NONE, machine) : NONE;
 		if (member->present && isolated == NONE) continue;
-		alive = world.in_game && player_place(index, &place, &player_index);
+		alive = world.in_game && player_place(index, &place, &player_index, world.regional ? &bsp : NULL);
 		group = isolated != NONE ? extraction_voice_group(player_index, machine) : NONE;
 		if (member->present)
 		{
@@ -241,6 +245,7 @@ static void host_world(void)
 		if (alive)
 		{
 			member->alive = 1;
+			member->bsp_plus_one = (unsigned char)(bsp + 1);
 			member->position[0] = place.x;
 			member->position[1] = place.y;
 			member->position[2] = place.z;
@@ -479,7 +484,7 @@ static void local_update(int role)
 {
 	struct delta_wire_voice_config config;
 	unsigned long now = system_milliseconds();
-	boolean push, next, configured, obstruction_enabled;
+	boolean push, next, configured, obstruction_enabled, regional;
 	int channel, hears;
 	struct voice_frame frame;
 	short machine;
@@ -515,6 +520,7 @@ static void local_update(int role)
 		hears &= ~DELTA_VOICE_PARTY;
 	delta_peer_game_set_voice_hears(hears, voice_game.has_party ? voice_game.party : NULL);
 	obstruction_enabled = config_boolean("audio.voice_positional") && config_boolean("audio.voice_obstruction");
+	regional = network_regional_independent_bsp_ready();
 	/* Halo transforms native sound sources before DirectSound, whose listener
 	   stays at the canonical origin. Proximity voice uses that same space. */
 	for (machine = 0; machine < MACHINES; machine++)
@@ -523,11 +529,13 @@ static void local_update(int role)
 		long obstruction = 0, occlusion = 0;
 		real range = configured ? config.proximity / 10.0f : 15.0f;
 		short listener = (short)local_player_get_next(NONE);
+		short bsp = NONE;
 
 		if (!voice_game.heard_time[machine] || now - voice_game.heard_time[machine] > PLACE_TIME)
 			continue;
-		if (player_place(voice_game.heard_player[machine], &place, NULL) &&
-			sound_world_to_listener(listener, &place, &local))
+		if (player_place(voice_game.heard_player[machine], &place, NULL, regional ? &bsp : NULL) &&
+			(!regional || bsp != NONE) &&
+			sound_world_to_listener(listener, bsp, &place, &local))
 		{
 			float position[3];
 			boolean audible = TRUE;
@@ -536,7 +544,7 @@ static void local_update(int role)
 			position[1] = local.y;
 			position[2] = local.z;
 			if (obstruction_enabled && voice_speaker_channel(machine) == _delta_voice_channel_proximity)
-				audible = sound_world_obstruction(listener, &place, range, &obstruction, &occlusion);
+				audible = sound_world_obstruction(listener, bsp, &place, range, &obstruction, &occlusion);
 			voice_place(machine, audible ? position : NULL, range);
 		}
 		else

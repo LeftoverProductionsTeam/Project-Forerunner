@@ -1460,7 +1460,8 @@ int delta_peer_voice_route(const struct delta_wire_voice_config *rules, const st
 		float dy = speaker->position[1] - listener->position[1];
 		float dz = speaker->position[2] - listener->position[2];
 
-		if (!(rules->channels & DELTA_VOICE_PROXIMITY) || !speaker->alive || !listener->alive)
+		if (!(rules->channels & DELTA_VOICE_PROXIMITY) || !speaker->alive || !listener->alive ||
+			(world->regional && (!speaker->bsp_plus_one || speaker->bsp_plus_one != listener->bsp_plus_one)))
 			return _delta_voice_route_none;
 		return dx * dx + dy * dy + dz * dz <= range * range ? _delta_voice_route_proximity : _delta_voice_route_none;
 	}
