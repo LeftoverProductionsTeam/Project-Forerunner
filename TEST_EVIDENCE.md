@@ -290,6 +290,8 @@ out of Latest.
 
 ## Active MegaWorld checkpoint — 2026-11-27
 
+Promoted after the owner's Nov 27 scratch purge: Win64 `f3867a7c8205509eb3a8e0403d28853875f546dae6ff2bc741697b75427a98aa` on the unchanged `fcfe9d44`/`d7c07e86` preview. Ordinary Extraction menus, local lobby and Start Now reached the healthy UNSC hub, with native ticks recorded through shutdown. On the first selection Server Setup waits for MCC admission and may need a second Start Game press. Actual proof: `build/latest-f3867a7c-playable/logs/debug.txt` and rendered frames. Previous holds the former Latest `2757225e`. This is launch acceptance, not off-BSP lighting, full-pool acceptance or new map promotion. The owner purged older Forerunner scratch, so historical evidence paths below are original locations and may need exact fixture restaging from Spark. The sealed `fd7a49fa` handoff remains separate.
+
 All SHA-256 pins below are exact. Earlier detailed checkpoints remain in
 local Git, including e8fb86f2e. Existing accepted evidence above stays in place.
 

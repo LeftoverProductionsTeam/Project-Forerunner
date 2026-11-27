@@ -21,7 +21,7 @@ Product Completion V3 and the [persistent acceptance goal](docs/forerunner/PERSI
 - **Unified runtime checkpoint.** Complete the remaining scope and preserve classic support.
 
 Latest runs Win64 SHA-256
-`2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93`
+`f3867a7c8205509eb3a8e0403d28853875f546dae6ff2bc741697b75427a98aa`
 with the released MegaWorld ground preview `fcfe9d44`. The private V3 candidate
 adds authored match pools, recovery of regional drops, persistent AI and
 host-side remote combat effects. The full Spark map `fd7a49fa` with receipt
