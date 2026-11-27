@@ -512,13 +512,15 @@ static void render_window(
 				&render.camera, rasterizer_camera->viewport_bounds.x0, rasterizer_camera->viewport_bounds.y0,
 				rasterizer_camera->viewport_bounds.x1, rasterizer_camera->viewport_bounds.y1);
 #endif
+		HALO_PERF_RENDER_PART(_halo_perf_render_world);
+		structure_render_preprocess();
+		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
 		render_objects();
 #ifdef HALO_SHADER_PREP
 		/* port: and through every model's parts */
 		render_enumerate_models();
 #endif
 		HALO_PERF_RENDER_PART(_halo_perf_render_world);
-		structure_render_preprocess();
 		structure_render_lightmaps();
 		HALO_PERF_RENDER_PART(_halo_perf_render_lens_flares);
 		rasterizer_lens_flares_submit_occlusion_tests();

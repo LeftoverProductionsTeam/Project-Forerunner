@@ -1,5 +1,24 @@
 # Forerunner test evidence
 
+## Resident models visible across BSP openings
+
+Private Win64 `0344214C81089576D01EC2B34A45A4A9538FFE0190D7C06C55779A9C8CABEBFA`
+ran exact `d0c4c13b` / `36e2d953` through normal Extraction menus. At
+the same detached connector eye as the terrain A/B, BSP 10 drew with
+BSP 11 holding the player. The OpenGL trace selected 60 Ice Fields
+models. The matched frame now shows resident trees and boulders absent
+from the older capture. One boulder visibly intrudes into the left
+side of the corridor. Spark has the exact view to check its placement.
+
+The renderer uses the prepared terrain neighbor list and the existing
+model budget, with local objects and local shadow receivers given
+priority. Stock Blood Gulch `50FE5240` passed a native single-view
+render smoke. The requested second local player did not appear in that
+smoke, so split-screen, independent paired first-person occupancy,
+and live neighboring actors and vehicles remain open. Exact artifacts
+are in `build/regional-neighbor-models-0344214c` and
+`build/regional-models-classic-0344214c`. Latest and Previous stayed put.
+
 ## Foreground terrain visible from a neighboring viewport
 
 Exact compact map `d0c4c13b9bf3863be0d28fa30c417877756588df4b241092bbe98320cd7958f5`

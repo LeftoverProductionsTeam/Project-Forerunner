@@ -205,7 +205,7 @@ static void structure_render_pass(
 
 static struct structure_render_globals structure_render_globals;
 
-enum { MAXIMUM_NEIGHBOR_SURFACES = 4096, MAXIMUM_RENDERED_NEIGHBORS = 2 };
+enum { MAXIMUM_NEIGHBOR_SURFACES = 4096 };
 struct structure_render_neighbor
 {
 	struct structure_bsp const *structure;
@@ -734,6 +734,11 @@ static void structure_render_prepare_neighbors(void)
 }
 
 /* ---------- public code */
+
+short structure_render_neighbor_bsp(short slot)
+{
+	return render_neighbors[slot].structure ? render_neighbors[slot].bsp_index : NONE;
+}
 
 void structure_render_preprocess(
 	void)

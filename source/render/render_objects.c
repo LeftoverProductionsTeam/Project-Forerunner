@@ -99,6 +99,7 @@ symbols in this file:
 #include "objects/objects.h"
 #include "scenario/scenario.h"
 #include "structures/structure_bsp_definitions.h"
+#include "structures/structure_render.h"
 #include "objects/object_definitions.h"
 #include "objects/object_lights.h"
 #include "objects/object_lights_rendering.h"
@@ -399,6 +400,7 @@ static struct profile_section render_object_shadows_section =
 struct data_array *cached_object_render_states;
 
 static struct render_object_globals render_object_globals = { 0 };
+static short rendered_shadow_object_count;
 
 boolean debug_inactive_objects = FALSE;
 
@@ -635,22 +637,22 @@ static boolean object_is_first_person_camera(
 		sightjack_object_hidden(object_index);
 }
 
-static short find_rendered_regional_objects(short bsp, long *indices)
+static short find_rendered_regional_objects(struct structure_bsp const *structure, short bsp,
+	short origin_cluster, short capacity, long *indices)
 {
-	struct structure_bsp const *structure = render_structure_bsp();
 	short clusters[MAXIMUM_CLUSTERS_PER_STRUCTURE];
 	short count = 0;
 	short index, candidates, visible = 0;
 
-	if (!structure || !structure_bsp_port_verify(structure))
+	if (!capacity || !structure || !structure_bsp_port_verify(structure))
 		return 0;
 	for (index = 0; index < structure->clusters.count; index++)
 	{
-		if (render.cluster_index == NONE || index == render.cluster_index ||
-			scenario_test_pvs_in_structure(structure, (short)render.cluster_index, index))
+		if (origin_cluster == NONE || index == origin_cluster ||
+			scenario_test_pvs_in_structure(structure, origin_cluster, index))
 			clusters[count++] = index;
 	}
-	candidates = objects_in_bsp_clusters(bsp, 0, count, clusters, MAXIMUM_RENDERED_OBJECTS, indices);
+	candidates = objects_in_bsp_clusters(bsp, 0, count, clusters, capacity, indices);
 	for (index = 0; index < candidates; index++)
 	{
 		real_point3d center;
@@ -662,16 +664,8 @@ static short find_rendered_regional_objects(short bsp, long *indices)
 	return visible;
 }
 
-static void find_rendered_objects(
-	void)
+static void find_rendered_foreground_objects(void)
 {
-	short bsp = render_structure_bsp_index();
-	if (bsp != global_structure_bsp_index_get())
-	{
-		render_object_globals.rendered_object_count = find_rendered_regional_objects(
-			bsp, render_object_globals.rendered_object_indices);
-		return;
-	}
 	object_marker_begin();
 
 	render_object_globals.rendered_object_count = structure_visibility_find_objects(
@@ -694,6 +688,39 @@ static void find_rendered_objects(
 		object_mark_function);
 
 	object_marker_end();
+}
+
+static void find_rendered_objects(void)
+{
+	short bsp = render_structure_bsp_index();
+	short slot;
+	if (bsp == global_structure_bsp_index_get())
+		find_rendered_foreground_objects();
+	else
+		render_object_globals.rendered_object_count = find_rendered_regional_objects(
+			render_structure_bsp(), bsp, (short)render.cluster_index, MAXIMUM_RENDERED_OBJECTS,
+			render_object_globals.rendered_object_indices);
+
+	/* Only the viewport's objects cast onto that viewport's shadow receivers. */
+	rendered_shadow_object_count = render_object_globals.rendered_object_count;
+	for (slot = 0; slot < MAXIMUM_RENDERED_NEIGHBORS; ++slot)
+	{
+		short neighbor_bsp = structure_render_neighbor_bsp(slot);
+		short count = render_object_globals.rendered_object_count;
+		if (neighbor_bsp != NONE && count < MAXIMUM_RENDERED_OBJECTS)
+			render_object_globals.rendered_object_count += find_rendered_regional_objects(
+				scenario_structure_bsp_try_and_get(neighbor_bsp), neighbor_bsp, NONE,
+				MAXIMUM_RENDERED_OBJECTS - count, &render_object_globals.rendered_object_indices[count]);
+	}
+
+	if (render_object_globals.rendered_object_count > rendered_shadow_object_count && !(render.frame_index & 127))
+	{
+		extern char const *config_string(char const *name);
+		if (*config_string("debug.network_test"))
+			error(_error_silent, "neighbor models view %d bsp %d: %d local, %d neighboring",
+				render.window_index, bsp, rendered_shadow_object_count,
+				render_object_globals.rendered_object_count - rendered_shadow_object_count);
+	}
 
 	if (render_object_globals.rendered_object_count == MAXIMUM_RENDERED_OBJECTS &&
 		!reported_rendered_object_overflow)
@@ -709,7 +736,7 @@ static void find_rendered_objects(
 
 		if (distance > 0.f)
 		{
-			short i, kept = 0;
+			short i, kept = 0, shadow_kept = 0;
 
 			for (i = 0; i < render_object_globals.rendered_object_count; i++)
 			{
@@ -722,9 +749,12 @@ static void find_rendered_objects(
 						distance * distance)
 				{
 					render_object_globals.rendered_object_indices[kept++] = object_index;
+					if (i < rendered_shadow_object_count)
+						++shadow_kept;
 				}
 			}
 			render_object_globals.rendered_object_count = kept;
+			rendered_shadow_object_count = shadow_kept;
 		}
 	}
 #endif
@@ -1569,13 +1599,14 @@ static void process_rendered_objects(
 	struct object_render_data *data)
 {
 	short rendered_object_index;
+	short rendered_count = data->shadow ? rendered_shadow_object_count : render_object_globals.rendered_object_count;
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 	long parked_player = director_forge_monitor_biped(render.local_player_index) != NONE ?
 		player_control_get_unit_index(render.local_player_index) : NONE;
 #endif
 
 	for (rendered_object_index = 0;
-		rendered_object_index < render_object_globals.rendered_object_count;
+		rendered_object_index < rendered_count;
 		rendered_object_index++)
 	{
 		data->object_index =

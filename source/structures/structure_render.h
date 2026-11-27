@@ -20,8 +20,11 @@ STRUCTURE_RENDER.H
 
 void structure_render_set_fog_offset(
 	real_vector3d *vector_offset);
+enum { MAXIMUM_RENDERED_NEIGHBORS = 2 };
+
 void structure_render_preprocess(
 	void);
+short structure_render_neighbor_bsp(short slot);
 void structure_render_lightmaps(
 	void);
 void structure_render_diffuse_texture(
