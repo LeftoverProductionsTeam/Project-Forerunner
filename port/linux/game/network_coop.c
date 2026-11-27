@@ -1101,6 +1101,16 @@ static struct friendly_fire_player
 	long idle_ticks;
 } host_friendly_fire[MAXIMUM_TRACKED_PLAYERS];
 
+static boolean device_state_connected(long object_index, struct device_datum const *device,
+	boolean independent_regions)
+{
+	/* Scenario names identify the same authored device on both peers.
+	 * A connected device can simulate in a guest's BSP off the foreground. */
+	if (independent_regions && device->object.name_index != NONE)
+		return object_get_regional_bsp(object_index) != NONE;
+	return !game_engine_object_parked(object_index, device->object.type);
+}
+
 /* host, each tick: the devices that moved or changed power (and, with the
 resent state, all that ever have) */
 static void host_send_device_states(
@@ -1109,6 +1119,7 @@ static void host_send_device_states(
 	struct distributed_coop_device_states_message message;
 	struct object_iterator iterator;
 	struct device_datum *device;
+	boolean independent_regions = network_regional_independent_bsp_ready();
 	short count = 0;
 
 	object_iterator_new(&iterator, _object_mask_device, 0);
@@ -1120,7 +1131,7 @@ static void host_send_device_states(
 
 		if (absolute_index < 0 || absolute_index >= MAXIMUM_OBJECTS_PER_MAP)
 			continue;
-		if (game_engine_object_parked(iterator.index, device->object.type))
+		if (!device_state_connected(iterator.index, device, independent_regions))
 			continue;
 		if (host_sent_devices[absolute_index].object_index != iterator.index)
 		{
@@ -3952,10 +3963,12 @@ void network_coop_handle_device_states(
 	short count)
 {
 	struct distributed_coop_device_state const *states = entries;
+	boolean independent_regions;
 	short index;
 
 	if (!network_coop_devices_remote())
 		return;
+	independent_regions = network_regional_independent_bsp_ready();
 	for (index = 0; index < count; index++)
 	{
 		struct distributed_coop_device_state const *state = &states[index];
@@ -3967,7 +3980,7 @@ void network_coop_handle_device_states(
 		if (device_index == NONE || !distributed_real_valid(state->position) || !distributed_real_valid(state->power))
 			continue;
 		device = object_get_and_verify_type(device_index, _object_mask_device);
-		if (game_engine_object_parked(device_index, device->object.type))
+		if (!device_state_connected(device_index, device, independent_regions))
 			continue;
 		difference = device->device.position - state->position;
 		if (difference < 0.0f)

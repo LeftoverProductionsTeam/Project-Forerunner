@@ -1,5 +1,17 @@
 # Forerunner test evidence
 
+## Named devices in occupied neighboring BSPs
+
+Win64 `B9CECFFF90BCD6FA5F8F35175EF36BE80C25D205D174818422F5CCC13B9CA9A3`
+uses the device's connected BSP for synchronization of named authored
+devices when independent regions are negotiated. A compiled fixture
+exercised the actual sender and receiver with the host in BSP 0 and a named
+device connected in BSP 11. A position and power change reached the receiver,
+a disconnected device was skipped, and a scene refresh resent the state
+after reconnect. The old foreground gate failed the same change. The
+fixture also covered the unchanged classic and unnamed-device guards.
+Live paired door/control operation and late join remain unverified.
+
 ## Covenant hunt redeployment and personal kill credit
 
 Normal-menu private Covenant host on Win64 `76e82e3b`, the sealed hunt
