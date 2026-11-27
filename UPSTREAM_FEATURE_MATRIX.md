@@ -121,9 +121,21 @@ checks passed on the pinned provider's `device.cpp`, `runtime.cpp`, and
 `shared_frame.cpp` using their actual transitive headers. The matching NT
 RGBA8 memory and semaphore transport passed a native RTX 4070 Ti pixel
 round trip (1,024/1,024). Logs: `build/openremix-shared-frame-win32` and
-`build/openremix-win32-transport-roundtrip`. The provider was not linked
-or run with this patch. Next verify its first shared frame and import it
-into the existing Forerunner compositor before exposing the capability.
+`build/openremix-win32-transport-roundtrip`.
+
+The same patch now links in one private native Windows build. Provider
+`498d633959daff7cb66a9034c3e5e641f0b70c1b7cdcbe1a3f448f942df531a2`
+rendered three successive path-traced frames of OpenRemix's upstream sample
+at native 320×180 on the RTX 4070 Ti. An independent Vulkan device matched
+the exported GPU UUID, imported the NT memory and both semaphore payloads,
+then waited, acquired, copied for verification, released, and signaled each
+frame. The initially blank frames preceded provider readiness. The provider
+reported path tracing active on frames 9–11, with three different RGB
+checksums from the imported image. Upscaling and denoising were disabled.
+Evidence and the single incremental build are in `build/openremix-win64`
+(`consumer-cold-start-runtime.log`). Next import these frames into the
+Forerunner compositor and render Halo geometry; no Spark graphics capability
+is advertised yet.
 
 ## Implementation and acceptance boundaries
 
