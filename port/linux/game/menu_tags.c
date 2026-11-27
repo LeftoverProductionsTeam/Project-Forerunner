@@ -1294,7 +1294,7 @@ static boolean child_left_out(struct halo_menu_widget const *parent, struct halo
 			return !build.game_map || !pc_menu_forge_guest_offered();
 		if (!strcmp(name, "forerunner/forge/tools/guest_remove"))
 			return !build.game_map || !pc_menu_forge_guest_placements_offered();
-		if (strcmp(name, "forerunner/forge/back") && pc_menu_forge_guest_offered())
+		if (strcmp(name, "forerunner/forge/tools/exit") && pc_menu_forge_guest_offered())
 		{
 			return !pc_menu_forge_guest_placements_offered() ||
 				(strcmp(name, "forerunner/forge/tools/pick") &&

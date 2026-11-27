@@ -246,112 +246,138 @@
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools" width="640" height="480" flags="pass_unhandled_to_focused_child" bitmap="bitmaps/gradient">
+	<!-- Right-hand game panel and live-world presentation adapted from ChupathingyCE forge_menu.c,
+	     b00dc0c98. Copyright 2026 BirchWoodGod and the Chupathingy contributors, GPL-3.0-or-later.
+	     These rows invoke Forerunner's existing host-authoritative Forge actions. -->
+	<widget name="forerunner/forge/tools" width="640" height="480" flags="pass_unhandled_to_focused_child">
 		<on event="b" back="true" />
 		<on event="back" back="true" />
-		<child widget="forerunner/forge/tools/title" x="48" y="23" />
-		<child widget="forerunner/forge/tools/edit_title" x="48" y="63" />
-		<child widget="forerunner/forge/tools/layout_title" x="336" y="63" platform="desktop" />
+		<child widget="forerunner/forge/tools/panel" x="352" y="64" />
+		<child widget="forerunner/forge/tools/title" x="372" y="70" />
+		<child widget="forerunner/forge/tools/edit_title" x="372" y="96" />
 		<child widget="forerunner/forge/tools/choices" />
 	</widget>
-	<widget name="forerunner/forge/tools/title" type="text" width="264" height="30" text="FORGE TOOLS" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/forge/tools/edit_title" type="text" width="256" height="23" text="EDIT OBJECTS" font="ui\small_ui" color="#FFC0D7DD" />
-	<widget name="forerunner/forge/tools/layout_title" type="text" width="256" height="23" text="LAYOUT FILES" font="ui\small_ui" color="#FFC0D7DD" />
-	<widget name="forerunner/forge/tools/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
-		<child widget="forerunner/forge/tools/pick" x="48" y="92" />
-		<child widget="forerunner/forge/tools/place" x="48" y="124" />
-		<child widget="forerunner/forge/tools/move" x="48" y="156" />
-		<child widget="forerunner/forge/tools/rotate" x="48" y="188" />
-		<child widget="forerunner/forge/tools/guest_rotate" x="48" y="188" platform="desktop" />
-		<child widget="forerunner/forge/tools/remove" x="48" y="220" />
-		<child widget="forerunner/forge/tools/guest_remove" x="48" y="220" platform="desktop" />
-		<child widget="forerunner/forge/tools/undo" x="48" y="252" />
-		<child widget="forerunner/forge/tools/undo_move" x="48" y="284" />
-		<child widget="forerunner/forge/tools/redo_move" x="48" y="316" />
-		<child widget="forerunner/forge/tools/physics" x="48" y="348" platform="desktop" />
-		<child widget="forerunner/forge/tools/save" x="336" y="92" platform="desktop" />
-		<child widget="forerunner/forge/tools/load" x="336" y="124" platform="desktop" />
-		<child widget="forerunner/forge/tools/save_hmv" x="336" y="156" platform="desktop" />
-		<child widget="forerunner/forge/tools/load_hmv" x="336" y="188" platform="desktop" />
-		<child widget="forerunner/forge/tools/load_saved_hmv" x="336" y="220" platform="desktop" />
-		<child widget="forerunner/forge/back" x="48" y="412" />
+	<widget name="forerunner/forge/tools/files" width="640" height="480" flags="pass_unhandled_to_focused_child" platform="desktop">
+		<on event="b" back="true" />
+		<on event="back" back="true" />
+		<child widget="forerunner/forge/tools/panel" x="352" y="64" />
+		<child widget="forerunner/forge/tools/title" x="372" y="70" />
+		<child widget="forerunner/forge/tools/layout_title" x="372" y="96" platform="desktop" />
+		<child widget="forerunner/forge/tools/file_choices" platform="desktop" />
 	</widget>
-	<widget name="forerunner/forge/tools/guest_remove" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="REMOVE AIMED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/panel" width="272" height="416" bitmap="bitmaps/gradient" />
+	<widget name="forerunner/forge/tools/title" type="text" width="240" height="30" text="FORGE TOOLS" font="ui\large_ui" color="#FFE3F4F6" />
+	<widget name="forerunner/forge/tools/edit_title" type="text" width="240" height="23" text="OBJECT PROPERTIES" font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/tools/layout_title" type="text" width="240" height="23" text="LAYOUT FILES" font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/tools/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
+		<child widget="forerunner/forge/tools/pick" x="360" y="120" />
+		<child widget="forerunner/forge/tools/place" x="360" y="152" />
+		<child widget="forerunner/forge/tools/move" x="360" y="184" />
+		<child widget="forerunner/forge/tools/rotate" x="360" y="216" />
+		<child widget="forerunner/forge/tools/guest_rotate" x="360" y="216" platform="desktop" />
+		<child widget="forerunner/forge/tools/remove" x="360" y="248" />
+		<child widget="forerunner/forge/tools/guest_remove" x="360" y="248" platform="desktop" />
+		<child widget="forerunner/forge/tools/undo" x="360" y="280" />
+		<child widget="forerunner/forge/tools/undo_move" x="360" y="312" />
+		<child widget="forerunner/forge/tools/redo_move" x="360" y="344" />
+		<child widget="forerunner/forge/tools/physics" x="360" y="376" platform="desktop" />
+		<child widget="forerunner/forge/tools/open_files" x="360" y="408" platform="desktop" />
+		<child widget="forerunner/forge/tools/exit" x="360" y="440" />
+	</widget>
+	<widget name="forerunner/forge/tools/file_choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items" platform="desktop">
+		<child widget="forerunner/forge/tools/save_hmv" x="360" y="120" />
+		<child widget="forerunner/forge/tools/load_hmv" x="360" y="152" />
+		<child widget="forerunner/forge/tools/load_saved_hmv" x="360" y="184" />
+		<child widget="forerunner/forge/tools/save" x="360" y="230" />
+		<child widget="forerunner/forge/tools/load" x="360" y="262" />
+		<child widget="forerunner/forge/tools/exit" x="360" y="440" />
+	</widget>
+	<widget name="forerunner/forge/tools/open_files" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="LAYOUT FILES" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8" platform="desktop">
+		<on event="a" open="forerunner/forge/tools/files" />
+		<on event="start" open="forerunner/forge/tools/files" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/exit" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="BACK" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
+		<on event="a" back="true" />
+		<on event="start" back="true" />
+		<on event="left_mouse" run="mouse emit accept event" />
+	</widget>
+	<widget name="forerunner/forge/tools/guest_remove" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="REMOVE AIMED COPY" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge guest remove" close="all" />
 		<on event="start" run="port forge guest remove" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/guest_rotate" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="ROTATE AIMED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/guest_rotate" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="ROTATE AIMED COPY" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge guest rotate" close="all" />
 		<on event="start" run="port forge guest rotate" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="SELECT AIMED OBJECT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/pick" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="SELECT AIMED OBJECT" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge pick" close="all" />
 		<on event="start" run="port forge pick" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/place" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="PLACE COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/place" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="PLACE COPY" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge place" close="all" />
 		<on event="start" run="port forge place" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/undo" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="UNDO COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/undo" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="UNDO COPY" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge undo" close="all" />
 		<on event="start" run="port forge undo" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/save" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="SAVE SIDECAR (.TXT)" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/forge/tools/save" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="SAVE SIDECAR (.TXT)" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8" platform="desktop">
 		<on event="a" run="port forge save" close="all" />
 		<on event="start" run="port forge save" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/load" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="LOAD SIDECAR (.TXT)" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/forge/tools/load" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="LOAD SIDECAR (.TXT)" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8" platform="desktop">
 		<on event="a" run="port forge load" close="all" />
 		<on event="start" run="port forge load" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/save_hmv" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="SAVE LAYOUT (.HMV)" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/forge/tools/save_hmv" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="SAVE LAYOUT (.HMV)" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8" platform="desktop">
 		<on event="a" run="port forge save hmv" close="all" />
 		<on event="start" run="port forge save hmv" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/load_hmv" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="LOAD LAYOUT (.HMV)" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/forge/tools/load_hmv" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="LOAD LAYOUT (.HMV)" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8" platform="desktop">
 		<on event="a" run="port forge load hmv" close="all" />
 		<on event="start" run="port forge load hmv" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/load_saved_hmv" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="LOAD SAVED (.HMV)" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/forge/tools/load_saved_hmv" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="LOAD SAVED (.HMV)" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8" platform="desktop">
 		<on event="a" run="port forge load saved hmv" close="all" />
 		<on event="start" run="port forge load saved hmv" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/remove" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="REMOVE SELECTED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/remove" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="REMOVE SELECTED COPY" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge remove" close="all" />
 		<on event="start" run="port forge remove" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/move" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MOVE SELECTED COPY" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/move" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MOVE SELECTED COPY" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge move" close="all" />
 		<on event="start" run="port forge move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/rotate" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="ROTATE COPY 90°" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/rotate" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="ROTATE COPY 90°" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge rotate" close="all" />
 		<on event="start" run="port forge rotate" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/physics" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="CHANGE PHYSICS" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/physics" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="CHANGE PHYSICS" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge cycle physics" close="all" />
 		<on event="start" run="port forge cycle physics" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/undo_move" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="UNDO EDIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/undo_move" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="UNDO EDIT" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge undo move" close="all" />
 		<on event="start" run="port forge undo move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/tools/redo_move" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="REDO EDIT" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/tools/redo_move" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="REDO EDIT" font="ui\small_ui" color="#FFA6E6F2" text_x="12" text_y="8">
 		<on event="a" run="port forge redo move" close="all" />
 		<on event="start" run="port forge redo move" close="all" />
 		<on event="left_mouse" run="mouse emit accept event" />

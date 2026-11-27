@@ -10686,11 +10686,13 @@ static void ui_widget_port_menu_trace(
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 static char const forge_tools_screen[] = "pc\\forerunner\\forge\\tools";
+static char const forge_tools_files_screen[] = "pc\\forerunner\\forge\\tools\\files";
 
-boolean ui_widget_forge_tools_active(void)
+static boolean ui_widget_forge_tools_active(void)
 {
 	struct widget_instance const *active = widget_globals.active_widgets[0];
-	return active && !strcmp(tag_get_name(active->definition_tag_index), forge_tools_screen);
+	char const *name = active ? tag_get_name(active->definition_tag_index) : NULL;
+	return name && (!strcmp(name, forge_tools_screen) || !strcmp(name, forge_tools_files_screen));
 }
 #endif
 
@@ -10898,7 +10900,9 @@ void process_ui_widgets(
 			}
 		}
 
-		if (!widget_globals.active_widgets[0] &&
+		if (tools_key_down && !tools_key_was_down && ui_widget_forge_tools_active())
+			ui_widgets_close_all_for_local_player(0);
+		else if (!widget_globals.active_widgets[0] &&
 			!download_screen_active() && !console_is_active() && !network_chat_typing() &&
 			game_in_progress() && !we_are_at_the_main_menu && pc_menu_forge_offered())
 		{
@@ -10910,7 +10914,7 @@ void process_ui_widgets(
 			if (tools_key_down && !tools_key_was_down)
 			{
 				cheats_forge_grab_cancel();
-				ui_widget_load_by_name_or_tag(forge_tools_screen, NONE, NULL, NONE, NONE, NONE, 0);
+				ui_widget_load_by_name_or_tag(forge_tools_screen, NONE, NULL, 0, NONE, NONE, 0);
 			}
 			else if (director_forge_flight_active(0))
 				cheats_forge_grab_input(grab_key_down && !grab_key_was_down, rotate_key_down && !rotate_key_was_down);
