@@ -30,9 +30,11 @@ def generated(fault=None):
          enum_with(definitions, 'NUMBER_OF_SQUAD_FLAGS') + '\n' +
          enum_with(definitions, 'MAXIMUM_NUMBER_OF_FIRING_POSITION_GROUPS') + '\n' +
          enum_with(source, '_follow_target_ai')),
-        ('regional_combat_effects.inc', '\n'.join(function(effects, name) for name in (
+        ('regional_combat_effects.inc', enum_with(effects, '_effect_port_fixed_bsp_bit') + '\n' +
+         '\n'.join(function(effects, name) for name in (
              'effect_fixed_bsp', 'effect_simulation_bsp', 'effect_remote_simulation_structure',
-             'effect_part_is_regional_gameplay', 'effect_allowed_by_environment')) +
+             'effect_part_is_regional_gameplay', 'effect_definition_has_gameplay',
+             'effect_has_regional_gameplay', 'effect_allowed_by_environment')) +
          '\nstatic void dispatch_damage_effect(struct effect_datum const *effect,\n'
          ' struct effect_part_definition const *part_definition, real_point3d const *world_point,\n'
          ' real_vector3d const *world_forward, real scale, short bsp,\n'
@@ -60,7 +62,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', ['nearest', 'reordered', 'sixth', 'tie', 'death-respawn',
                                  'quit-stale', 'empty', 'explicit', 'hysteresis', 'outside-squad',
                                  'opposing-nearer', 'only-opposition', 'ninth', 'incapacitated-nearer',
-                                 'legacy', 'legacy-dead', 'legacy-ninth', 'regional-reconnect', 'regional-actor-ownership', 'regional-script-reattach', 'regional-encounterless-pvs', 'regional-actor-tick', 'regional-pressure', 'regional-effect-damage'])
+                                 'legacy', 'legacy-dead', 'legacy-ninth', 'regional-reconnect', 'regional-actor-ownership', 'regional-script-reattach', 'regional-encounterless-pvs', 'regional-actor-tick', 'regional-pressure', 'regional-effect-damage', 'regional-effect-content'])
 def test_encounter_follow(case):
     status, output = run(build('encounter_follow', generated()), case)
     assert status == 0, output

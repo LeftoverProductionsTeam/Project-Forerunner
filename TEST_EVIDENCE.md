@@ -29,7 +29,12 @@ ground preview and its published mode receipt.
   scripted reattachment, retention during memory pressure, and server-owned
   effect routing with the correct BSP, attack attribution and water rules.
   Negative controls reproduced the prior cleanup and damage routing failures.
-  Live unload and return with active authored actors still needs acceptance.
+  Win64 candidate `abf6c475` additionally classifies foreign effects by resolved
+  damage and object-spawn parts. The focused native Windows harness verified
+  that an unflagged map effect remains eligible and sound-only or missing-tag
+  parts are skipped. Restoring the old flag-only check failed that regression.
+  Live acceptance of an unflagged effect and an unload/return with active
+  authored actors remains open.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

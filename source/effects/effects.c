@@ -192,6 +192,8 @@ enum effect_flags
 	(effects_port_harmless) */
 	_effect_port_harmless_bit,
 	_effect_port_fixed_bsp_bit,
+	_effect_port_regional_classified_bit,
+	_effect_port_regional_gameplay_bit,
 	NUMBER_OF_EFFECT_FLAGS
 };
 
@@ -750,9 +752,32 @@ void effect_delete(
 	return;
 }
 
-/* port: a client checkpoint boundary retires delayed damage and object
-creation from its discarded prediction. Use the same validated part classes
-as effect_generate_part; the deterministic flag also covers harmless lights. */
+static boolean effect_part_is_regional_gameplay(tag class_tag)
+{
+	return class_tag == OBJECT_DEFINITION_TAG || class_tag == DAMAGE_EFFECT_DEFINITION_TAG;
+}
+
+static boolean effect_definition_has_gameplay(struct effect_definition const *definition)
+{
+	long event_index;
+
+	for (event_index = 0; event_index < definition->events.count; event_index++)
+	{
+		struct effect_event_definition const *event = TAG_BLOCK_GET_ELEMENT(
+			&definition->events, event_index, struct effect_event_definition);
+		long part_index;
+		for (part_index = 0; part_index < event->parts.count; part_index++)
+		{
+			struct effect_part_definition const *part = TAG_BLOCK_GET_ELEMENT(
+				&event->parts, part_index, struct effect_part_definition);
+			if (part->reference.index != NONE && effect_part_is_regional_gameplay(part->runtime_base_class_tag))
+				return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+/* port: a client checkpoint boundary retires gameplay from discarded prediction. */
 void effects_discard_gameplay(void)
 {
 	long effect_index;
@@ -764,29 +789,7 @@ void effects_discard_gameplay(void)
 		effect_index = data_next_index(effect_data, effect_index))
 	{
 		struct effect_definition *definition = effect_definition_get(effect_get(effect_index)->definition_index);
-		boolean gameplay = FALSE;
-		short event_index;
-
-		for (event_index = 0; event_index < definition->events.count && !gameplay; event_index++)
-		{
-			struct effect_event_definition *event = TAG_BLOCK_GET_ELEMENT(
-				&definition->events, event_index, struct effect_event_definition);
-			short part_index;
-
-			for (part_index = 0; part_index < event->parts.count; part_index++)
-			{
-				struct effect_part_definition *part = TAG_BLOCK_GET_ELEMENT(
-					&event->parts, part_index, struct effect_part_definition);
-
-				if (part->reference.index != NONE && (part->runtime_base_class_tag == OBJECT_DEFINITION_TAG ||
-					part->runtime_base_class_tag == DAMAGE_EFFECT_DEFINITION_TAG))
-				{
-					gameplay = TRUE;
-					break;
-				}
-			}
-		}
-		if (gameplay)
+		if (effect_definition_has_gameplay(definition))
 			effect_delete(effect_index);
 	}
 }
@@ -1925,11 +1928,6 @@ static void effect_generate_part(
 	return;
 }
 
-static boolean effect_part_is_regional_gameplay(tag class_tag)
-{
-	return class_tag == OBJECT_DEFINITION_TAG || class_tag == DAMAGE_EFFECT_DEFINITION_TAG;
-}
-
 static void effect_generate_parts(struct effect_datum *effect, short bsp,
 	struct structure_bsp const *remote_structure)
 {
@@ -2365,9 +2363,20 @@ static short effect_simulation_bsp(struct effect_datum const *effect)
 	return bsp;
 }
 
-static struct structure_bsp const *effect_remote_simulation_structure(short bsp, boolean deterministic)
+/* Definition parts stay fixed for the lifetime of an effect. */
+static boolean effect_has_regional_gameplay(struct effect_datum *effect, struct effect_definition const *definition)
 {
-	if (!deterministic || !VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ||
+	if (!TEST_FLAG(effect->header.flags, _effect_port_regional_classified_bit))
+	{
+		SET_FLAG(effect->header.flags, _effect_port_regional_gameplay_bit, effect_definition_has_gameplay(definition));
+		SET_FLAG(effect->header.flags, _effect_port_regional_classified_bit, TRUE);
+	}
+	return TEST_FLAG(effect->header.flags, _effect_port_regional_gameplay_bit);
+}
+
+static struct structure_bsp const *effect_remote_simulation_structure(short bsp, boolean gameplay)
+{
+	if (!gameplay || !VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ||
 		game_connection() != _game_connection_network_server || !network_regional_independent_bsp_ready() ||
 		!TEST_FLAG(players_occupied_regional_bsps(), bsp))
 		return NULL;
@@ -2390,10 +2399,11 @@ static void effect_update(
 	if (bsp != NONE && bsp != global_structure_bsp_index_get())
 	{
 		boolean deterministic = TEST_FLAG(definition->flags, _effect_definition_must_be_deterministic_bit);
-		remote_structure = effect_remote_simulation_structure(bsp, deterministic);
+		boolean gameplay = effect_has_regional_gameplay(effect, definition);
+		remote_structure = effect_remote_simulation_structure(bsp, gameplay);
 		if (!remote_structure)
 		{
-			if (!deterministic && effect->object_index == NONE)
+			if (!gameplay && !deterministic && effect->object_index == NONE)
 				effect_delete(effect_index);
 			return;
 		}

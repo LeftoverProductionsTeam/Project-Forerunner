@@ -160,12 +160,13 @@ static struct encounter_datum *encounter_iterator_next(struct encounter_iterator
 #define object_datum unit_datum
 #include "under_test.inc"
 typedef unsigned long tag;
-enum {_effect_port_fixed_bsp_bit, _effect_port_harmless_bit};
 enum {OBJECT_DEFINITION_TAG=1,DAMAGE_EFFECT_DEFINITION_TAG,SOUND_DEFINITION_TAG};
 enum {_effect_environment_anywhere,_effect_environment_air,_effect_environment_water,_effect_environment_vacuum};
 struct location {short cluster_index;};
 struct effect_datum {struct {unsigned long flags;} header;short fixed_bsp;long object_index,owner_object_index;struct location location;};
 struct effect_part_definition {tag runtime_base_class_tag;struct {long index;} reference;};
+struct effect_event_definition {struct tag_block parts;};
+struct effect_definition {unsigned long flags;struct tag_block events;};
 struct damage_data {long owner_player_index,owner_object_index;short owner_team_index;real scale;
  struct location location;real_point3d origin,epicenter;real_vector3d direction;};
 static struct damage_data damage_readback;
@@ -190,13 +191,36 @@ static boolean scenario_location_underwater_in_structure(struct structure_bsp co
 static boolean scenario_location_underwater(struct location const *location,real_point3d const *point,short *weather)
 { (void)location;(void)point;(void)weather;return FALSE; }
 #define match_vassert(file,line,condition,description) match_assert(file,line,condition)
+#define SET_FLAG(flags,bit,value) ((flags)=((flags)&~FLAG(bit))|((value)?FLAG(bit):0))
 #include "regional_combat_effects.inc"
+#undef SET_FLAG
 #undef object_datum
 
 int main(int argc,char **argv)
 {
  char const *case_name=argc>1?argv[1]:"";short i,expected=0;
  scenario.ai_encounters.count=1;scenario.ai_encounters.address=&definition;
+ if(!strcmp(case_name,"regional-effect-content"))
+ {
+  struct effect_part_definition parts[]={{SOUND_DEFINITION_TAG,{7}},{DAMAGE_EFFECT_DEFINITION_TAG,{NONE}}};
+  struct effect_event_definition event={.parts={2,parts}};
+  struct effect_definition definition={.flags=0,.events={1,&event}};
+  struct effect_datum cosmetic={0}, gameplay={0};
+  CHECK(!effect_has_regional_gameplay(&cosmetic,&definition),"sound or missing damage was classified as gameplay");
+  parts[1].reference.index=7;
+  CHECK(effect_has_regional_gameplay(&gameplay,&definition),"unflagged damage in a map effect was dropped");
+  CHECK(!effect_has_regional_gameplay(&cosmetic,&definition),"effect rescanned its definition after classification");
+  CHECK(effect_definition_has_gameplay(&definition),"checkpoint cleanup missed the same gameplay part");
+  regional_ready=TRUE;
+  resident_bsp=1;
+  use_occupied_override=TRUE;
+  occupied_override=FLAG(1);
+  CHECK(effect_remote_simulation_structure(1,effect_has_regional_gameplay(&gameplay,&definition))==&test_bsp,
+        "host skipped an unflagged map effect in an occupied region");
+  CHECK(!effect_remote_simulation_structure(1,effect_has_regional_gameplay(&cosmetic,&definition)),
+        "cosmetic effect advanced in the gameplay pass");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-effect-damage"))
  {
   struct effect_datum effect={.object_index=0x30000,.owner_object_index=0x30001,.location={1}};
