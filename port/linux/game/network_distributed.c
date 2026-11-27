@@ -4254,6 +4254,8 @@ static void distributed_handle_unit_state(
 		object_get(unit_index)->object.parent_object_index == NONE)
 	{
 		real_point3d before = object_get(unit_index)->object.position;
+		short before_bsp = local && network_regional_independent_bsp_ready() ?
+			object_get_regional_bsp(unit_index) : NONE;
 
 		if (local)
 			distributed_correct_own_unit(player, unit_index, state);
@@ -4269,8 +4271,11 @@ static void distributed_handle_unit_state(
 		if (distance_squared3d(&before, &object_get(unit_index)->object.position) > 1.0f)
 		{
 			short bsp = network_regional_independent_bsp_ready() ? object_get_regional_bsp(unit_index) : NONE;
-			player->teleporter_index = game_engine_find_teleporter(bsp, &object_get(unit_index)->object.position, 1.0f,
+			real_point3d const *after = &object_get(unit_index)->object.position;
+			player->teleporter_index = game_engine_find_teleporter(bsp, after, 1.0f,
 				_netgame_flag_teleporter_source, NONE);
+			if (bsp != NONE && bsp == before_bsp)
+				game_engine_present_network_teleport(player_index, bsp, &before, after);
 		}
 	}
 }

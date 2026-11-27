@@ -911,6 +911,9 @@ long game_engine_find_teleporter(
 	short type,
 	short channel);
 
+void game_engine_present_network_teleport(long player_index, short bsp,
+	union real_point3d const *before, union real_point3d const *after);
+
 boolean game_engine_should_end_game(
 	void);
 

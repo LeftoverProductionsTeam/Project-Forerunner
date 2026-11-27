@@ -334,11 +334,23 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   Normal terminal use deployed the guest into Chill Out pool 7, BSP 0.
   Both logs agree the guest boarded Ghost e83a05cb (native row 233) and
   drove off (-116.033, 245.086, -15.702) to ~(-114.67, 245.91, -15.80)
-  through tick 10710. Next continue out of Chill Out toward the Covenant
-  field call, base return and bank. The candidate has compiled teleporter
-  code. Live traversal with the host in another BSP and guest audiovisual
-  feedback are pending. The retained Chiron survey is in
-  full-pools-peer-exit-guest/route/covenant-putput-routes.json.
+  through tick 10710. On foot the host transferred 0→12 at tick 19933.
+  With that foreground held, the guest used Chill Out teleporter 190→191
+  within BSP 0. Both logs agree at tick 20640 on (-122.334, 237.737, -14.329),
+  full health/shields, and report foregrounds 12/0 at tick 20700. This
+  verifies authoritative movement from another BSP and client arrival.
+  The subsequent Win64 build
+  01baf2b427eb9a895a1a03708df578af345ca12ba0942751ef2639b6522c6404
+  reuses the existing teleport sound and flash for a same-BSP correction
+  matching both authored endpoints. Native feedback verification remains open.
+  The live guest crouched through Chill Out's lower aisle and took stock
+  portal 186→187. Both logs match at tick 38400 with host BSP 12 and guest
+  BSP 0. The guest then walked the stage 6 connector to the Rat Race mouth
+  at (-71.649, 166.605, -14.731), full health/shields at tick 46800.
+  See covenant-chillout-upper-egress.json in the live guest run for the
+  exact-base collision route toward Timberland. Continue from the mouth
+  toward the Covenant field call, base return and bank.
+  Retained Chiron routes are in full-pools-peer-exit-guest/route.
 - **Compact world.** The 919fbcce infantry round trip via Carousel's stock
   teleporter remains accepted. Spark isolated f5a4ca22's missing wall to
   authored winding. Separate d05638dd ramp and e55f3851 opacity builds

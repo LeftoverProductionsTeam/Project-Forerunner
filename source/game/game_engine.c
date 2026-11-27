@@ -5185,18 +5185,26 @@ void game_engine_nonplayer_post_rasterize(
 	return;
 }
 
+static void game_engine_present_teleport(long player_index)
+{
+	struct screen_flash_definition flash = { 0 };
+
+	game_engine_play_multiplayer_sound(_multiplayer_sound_teleporter_activate);
+	flash.type = 6;
+	flash.duration = 1.0f;
+	flash.priority = 2;
+	flash.max_intensity = 1.0f;
+	flash.screen_flash_color.alpha = 0.5f;
+	flash.screen_flash_color.red = 0.35f;
+	flash.screen_flash_color.green = 1.0f;
+	flash.screen_flash_color.blue = 0.35f;
+	player_effect_screen_flash(player_index, &flash, 1.0f);
+}
+
 static void game_engine_update_teleporter(
 	long player_index)
 {
 	static int blocked_message_delay = 0;
-	static long fade_function = 0;
-	static long screen_flash_type = 6;
-	static real max_intensity = 1.0f;
-	static real alpha = 0.5f;
-	static real red = 0.35f;
-	static real green = 1.0f;
-	static real blue = 0.35f;
-	static real duration = 1.0f;
 	struct scenario *scenario = global_scenario_get();
 	struct player_datum *player = player_get(player_index);
 	struct unit_datum *unit;
@@ -5367,28 +5375,7 @@ static void game_engine_update_teleporter(
 		}
 
 		if (player->local_player_index != NONE)
-		{
-			game_engine_play_multiplayer_sound(_multiplayer_sound_teleporter_activate);
-			if (player->local_player_index != NONE)
-			{
-				struct screen_flash_definition screen_flash = { 0 };
-
-				screen_flash.fade_function = fade_function;
-				screen_flash.type = screen_flash_type;
-				screen_flash.duration = duration;
-				screen_flash.priority = 2;
-				screen_flash.max_intensity = max_intensity;
-				screen_flash.zero_scale_factor = 0.0f;
-				screen_flash.screen_flash_color.alpha = alpha;
-				screen_flash.screen_flash_color.red = red;
-				screen_flash.screen_flash_color.green = green;
-				screen_flash.screen_flash_color.blue = blue;
-				player_effect_screen_flash(
-					player_index,
-					&screen_flash,
-					1.0f);
-			}
-		}
+			game_engine_present_teleport(player_index);
 		return;
 	}
 
@@ -7133,6 +7120,30 @@ long game_engine_find_teleporter(
 	}
 	find_netgame_flags_in_structure(position, radius, 0.0f, type, channel, 1, &flag_index, structure);
 	return flag_index;
+}
+
+/* A negotiated regional client presents the host's confirmed move.
+ * Match both authored endpoints to distinguish this from spawn or correction. */
+void game_engine_present_network_teleport(long player_index, short bsp,
+	real_point3d const *before, real_point3d const *after)
+{
+	struct scenario *scenario = global_scenario_get();
+	struct scenario_netgame_flag const *entrance;
+	struct scenario_netgame_flag const *exit;
+	long entrance_index = game_engine_find_teleporter(bsp, before, 1.0f,
+		_netgame_flag_teleporter_source, NONE);
+	long exit_index;
+
+	if (entrance_index == NONE)
+		return;
+	entrance = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_flags, entrance_index, struct scenario_netgame_flag);
+	exit_index = game_engine_find_teleporter(bsp, NULL, 0.0f,
+		_netgame_flag_teleporter_target, entrance->team_index);
+	if (exit_index == NONE)
+		return;
+	exit = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_flags, exit_index, struct scenario_netgame_flag);
+	if (distance_squared3d(&exit->position, after) <= 1.0f)
+		game_engine_present_teleport(player_index);
 }
 
 long find_netgame_flag(
