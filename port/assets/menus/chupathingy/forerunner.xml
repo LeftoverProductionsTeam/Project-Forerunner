@@ -99,22 +99,22 @@
 		<child widget="forerunner/extraction/join" x="60" y="384" />
 		<child widget="forerunner/extraction/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/extraction/play_solo" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="PLAY SOLO" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
-		<on event="a" open="main_menu/solo_level_select/solo_level_select_screen" run="port forerunner choose solo extraction" />
-		<on event="start" open="main_menu/solo_level_select/solo_level_select_screen" run="port forerunner choose solo extraction" />
+	<widget name="forerunner/extraction/play_solo" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="PLAY SOLO" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+		<on event="a" run="port forerunner choose solo extraction" />
+		<on event="start" run="port forerunner choose solo extraction" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/extraction/extraction_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/extraction/extraction_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="CHOOSE MAP &amp; HOST" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/extraction/join" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/extraction/join" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/extraction/back" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/extraction/back" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />

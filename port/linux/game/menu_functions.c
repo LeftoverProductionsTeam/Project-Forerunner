@@ -5816,6 +5816,17 @@ static boolean regional_extraction_private_host(void)
 #endif
 }
 
+static boolean regional_extraction_catalog_available(void)
+{
+	char const *const *maps;
+
+	if (!HALO_MODE_FILTER || !regional_extraction_private_host())
+		return FALSE;
+	ui_widget_port_multiplayer_maps(&maps, NULL);
+	ui_map_list_view_set(_ui_map_list_source_all, _ui_map_list_sort_default, "");
+	return ui_map_list_play_mode_row(_ui_map_mode_regional_extraction, NONE) > 0;
+}
+
 #ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
 int ui_map_list_hosting_regional_extraction(void)
 {
@@ -5832,10 +5843,8 @@ static boolean multiplayer_host(struct widget_instance *widget, struct event_rec
 	forerunner_infection_chooser = FALSE;
 	forerunner_map_mode = _ui_map_mode_unspecified;
 	multiplayer_mode_set(widget);
-#ifndef HALO_REGIONAL_EXTRACTION_PREVIEW
-	if (campaign_chooser && strstr(widget->name, "extraction_create_inter") && regional_extraction_private_host())
+	if (campaign_chooser && strstr(widget->name, "extraction_create_inter") && regional_extraction_catalog_available())
 		multiplayer.mode = _multiplayer_mode_host_lan;
-#endif
 	if (!multiplayer_player(controller))
 		return FALSE;
 	p2p_set_hosting_allowed(!local_only && multiplayer.mode == _multiplayer_mode_host_internet);
@@ -6020,7 +6029,7 @@ static boolean map_list_initialize(struct widget_instance *list)
 	/* (the list found first, so that the view knows the sources it has) */
 	ui_widget_port_multiplayer_maps(&names, NULL);
 	map_view_open(&create_game_view);
-	if (map_list.play_mode == _ui_map_mode_survival ||
+	if (map_list.play_mode == _ui_map_mode_survival || map_list.play_mode == _ui_map_mode_regional_extraction ||
 		(map_list.play_mode == _ui_map_mode_extraction && regional_extraction_private_host()))
 		ui_map_list_view_set(_ui_map_list_source_all, _ui_map_list_sort_default, "");
 	map_list.map_count = ui_widget_port_multiplayer_maps(&names, &last_used);
@@ -14391,8 +14400,22 @@ boolean pc_menu_event_function_invoke(
 		}
 		else if (!strcmp(name, "port forerunner choose solo extraction"))
 		{
+			/* Regional maps share the LAN catalog. Solo uses a loopback-only host. */
+			if (regional_extraction_catalog_available())
+			{
+				struct gametype_option const *option = gametype_option_named("coop_firefight_spinner");
+
+				if (!option || !gametype_option_setting_write(option, 2))
+					return campaign_fail();
+				if (!multiplayer_host(widget, event, controller, widget_deleted, TRUE, FALSE))
+					return FALSE;
+				multiplayer.mode = _multiplayer_mode_host_lan;
+				forerunner_map_mode = _ui_map_mode_regional_extraction;
+				return ui_widget_port_open(widget, "pc\\main_menu\\multiplayer_type_select\\connected\\connected_map_select_wrapper",
+					widget_deleted);
+			}
 			solo_extraction_chooser = TRUE;
-			return TRUE;
+			return ui_widget_port_open(widget, "pc\\main_menu\\solo_level_select\\solo_level_select_screen", widget_deleted);
 		}
 		else if (!strcmp(name, "port forerunner menu init"))
 		{

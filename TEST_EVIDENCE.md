@@ -209,6 +209,26 @@ Previous holds `ff104636`. The released map, its mode receipt, Apocalypse,
 and the installed configuration retained their hashes. Evidence is under
 `build/megaworld-ground-preview/latest-v3-emblem-installed`.
 
+## MegaWorld menu and regional death camera
+
+Win64 `ab43d580f0ea7d37937843dfb1344712b3167c667ec66201bf65857f3c283b98`
+launched the released `fcfe9d44` map through both Extraction > Play Solo and
+Extraction > Choose Map & Host from Latest. The native map identity matched,
+and each route spawned a healthy UNSC player in the Extraction hub. The LAN
+check used the full installed map catalog. With only the CE cache available,
+Play Solo showed Be Native in the campaign chooser. These runs are under
+`build/megaworld-ground-preview/v3-latest-{solo,lan,ce-fallback}`.
+
+On a private LAN match with the same executable and retained combat variant
+`bf748855`, native Flood killed the deployed UNSC host. The camera stayed
+near the body through the full countdown and the player respawned at the UNSC
+hub. The Covenant guest stayed healthy at their own hub with an independent
+camera. The failed operation settled and displayed the redeploy prompt. This
+test covers a regional death and settlement, with durable gear and concurrent
+combat in multiple regions still open. Logs are in the `v3-death-fixed-host`
+and `v3-death-fixed-guest` runs under
+`build/regional-native-trial/megaworld-hunt-bf748855`.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

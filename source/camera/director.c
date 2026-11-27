@@ -126,6 +126,7 @@ symbols in this file:
 #include "camera_scripting.h"
 #include "dead_camera.h"
 #include "coop_spectate.h" /* port: port/linux/game/coop_spectate.c */
+#include "network_coop.h"
 #include "sightjack.h" /* port (this fork): port/linux/game/sightjack.c */
 #include "follow_camera.h" /* port: port/linux/game/follow_camera.c */
 #include "late_join.h" /* port: port/linux/game/late_join.c */
@@ -1288,14 +1289,14 @@ static void director_choose_camera_game(
 				living player once the death camera is done
 				(port/linux/game/follow_camera.c) */
 				boolean cooperative = coop_spectating();
+				boolean owned_death_view = cooperative || network_regional_bsp_active();
 				long watched_unit_index = cooperative ? coop_spectate_unit(local_player_index) :
 					follow_camera_unit(local_player_index);
-				/* port: losing the last valid teammate returns to our body,
-				   rather than leaving the old followed unit pinned forever. */
-				long camera_unit_index = cooperative && watched_unit_index == NONE ? player->dead_unit_index : watched_unit_index;
+				/* An invalid teammate target falls back to the player's own body. */
+				long camera_unit_index = owned_death_view && watched_unit_index == NONE ? player->dead_unit_index : watched_unit_index;
 
 				if (director->camera_proc != (director_camera_update_proc)dead_camera_update ||
-					((cooperative || watched_unit_index != NONE) &&
+					((owned_death_view || watched_unit_index != NONE) &&
 						((struct dead_camera *)director->camera_data)->unit_index != camera_unit_index))
 				{
 					dead_camera_new(

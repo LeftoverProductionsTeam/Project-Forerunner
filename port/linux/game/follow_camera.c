@@ -27,6 +27,8 @@ network co-op spectator's (coop_spectate_camera).
 #include "game/players.h"
 #include "input/input.h"
 #include "networking/network_game_globals.h"
+#include "network_coop.h"
+#include "objects/objects.h"
 #include "memory/data.h"
 #include "interface/hud_messaging.h"
 #include "rasterizer/rasterizer.h"
@@ -182,7 +184,16 @@ static boolean follow_camera_can_watch(
 	if (player_index == NONE || player_index == self)
 		return FALSE;
 	player = player_try_and_get(player_index);
-	return player && player->unit_index != NONE && !player->quit_out_of_game;
+	if (!player || player->unit_index == NONE || player->quit_out_of_game)
+		return FALSE;
+	if (network_regional_bsp_active())
+	{
+		short bsp = network_coop_player_authoritative_bsp(self);
+
+		return bsp != NONE && player->team_index == player_get(self)->team_index &&
+			object_get_regional_bsp(player->unit_index) == bsp;
+	}
+	return TRUE;
 }
 
 /* The next player to follow after `after` (or the first, if it is NONE),
