@@ -535,6 +535,30 @@ static boolean object_set_physics_pose(long object,short bsp,real_point3d const 
  return TRUE;
 }
 #include "regional_deployment.inc"
+static word populated_bsp_flags;
+static struct { boolean suppress_bsp_object_creation; } reconnect_cinematic, *cinematic_globals = &reconnect_cinematic;
+static unsigned long rebound_roots;
+static int placement_calls;
+static struct structure_bsp const *global_structure_bsp_get(void) {return &fixture_hub_geometry;}
+static void object_types_place_objects(boolean reconnect)
+{
+ CHECK(reconnect,"foreground did not request reconnect placement");
+ placement_calls++;
+ populated_bsp_flags |= FLAG(global_structure_bsp_index_get());
+}
+static void rebound_root(short bsp,struct structure_bsp const *structure,unsigned long root_mask)
+{
+ CHECK(bsp==global_structure_bsp_index_get()&&structure==global_structure_bsp_get(),"reconnected a root in foreign geometry");
+ CHECK(!(rebound_roots&root_mask),"reconnected an already populated root");
+ rebound_roots |= root_mask;
+}
+static void object_types_connect_regional_controls(short bsp,struct structure_bsp const *structure)
+{rebound_root(bsp,structure,FLAG(0));}
+static void object_types_connect_regional_vehicles(short bsp,struct structure_bsp const *structure)
+{rebound_root(bsp,structure,FLAG(1));}
+static void object_types_connect_regional_items(short bsp,struct structure_bsp const *structure)
+{rebound_root(bsp,structure,FLAG(2));}
+#include "regional_root_reconnect.inc"
 static void players_extraction_deployment_commit(long player,real_vector3d const *forward) {}
 #include "extraction.inc"
 #define vehicle_datum unit_datum
@@ -716,6 +740,25 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"regional-root-reconnect")) {
+  scenario.structure_bsp_references.count=1;
+  object_types_reconnect_to_structure_bsp();
+  CHECK(placement_calls==1&&!rebound_roots,"classic reconnect scanned regional roots");
+  scenario.structure_bsp_references.count=2;
+  object_types_reconnect_to_structure_bsp();
+  CHECK(placement_calls==2&&rebound_roots==7,"full reconnect left parked roots disconnected");
+  object_types_reconnect_foreground();
+  CHECK(placement_calls==2,"view change populated an existing region again");
+  populated_bsp_flags=0;
+  rebound_roots=0;
+  object_types_reconnect_foreground();
+  CHECK(placement_calls==3&&rebound_roots==7,"foreground did not restore the same roots");
+  rebound_roots=0;
+  native_cinematic=reconnect_cinematic.suppress_bsp_object_creation=TRUE;
+  object_types_reconnect_to_structure_bsp();
+  CHECK(placement_calls==3&&rebound_roots==7,"cinematic suppressed existing roots");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-deployment-hold")) {
   struct scenario_structure_bsp_reference references[11] = {{0}};
   struct player_starting_location start = {.position={25.f,0.f,0.f}};

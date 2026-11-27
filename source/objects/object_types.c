@@ -1271,14 +1271,19 @@ static void object_types_connect_regional_vehicles(short bsp, struct structure_b
 	}
 }
 
+static void object_types_connect_regional_roots(short bsp, struct structure_bsp const *structure)
+{
+	object_types_connect_regional_controls(bsp, structure);
+	object_types_connect_regional_vehicles(bsp, structure);
+	object_types_connect_regional_items(bsp, structure);
+}
+
 void object_types_place_regional_bsp(short bsp, struct structure_bsp const *structure)
 {
 	if (structure && !TEST_FLAG(populated_bsp_flags, bsp))
 	{
 		object_types_place_objects_in_bsp(TRUE, bsp, structure);
-		object_types_connect_regional_controls(bsp, structure);
-		object_types_connect_regional_vehicles(bsp, structure);
-		object_types_connect_regional_items(bsp, structure);
+		object_types_connect_regional_roots(bsp, structure);
 	}
 }
 
@@ -1287,10 +1292,7 @@ void object_types_reconnect_foreground(void)
 	short bsp = global_structure_bsp_index_get();
 
 	if (!TEST_FLAG(populated_bsp_flags, bsp))
-	{
 		object_types_reconnect_to_structure_bsp();
-		object_types_connect_regional_vehicles(bsp, global_structure_bsp_get());
-	}
 }
 
 void object_types_reconnect_to_structure_bsp(
@@ -1300,9 +1302,10 @@ void object_types_reconnect_to_structure_bsp(
 	{
 		object_types_place_objects(TRUE);
 	}
-	/* Existing drops are independent of cinematic placement suppression. */
+	/* Parked roots survive a full BSP reconnect as well as a view change.
+	 * Their rebinding is independent of cinematic placement suppression. */
 	if (scenario_uses_regional_gameplay(global_scenario_get()))
-		object_types_connect_regional_items(global_structure_bsp_index_get(), global_structure_bsp_get());
+		object_types_connect_regional_roots(global_structure_bsp_index_get(), global_structure_bsp_get());
 
 	return;
 }

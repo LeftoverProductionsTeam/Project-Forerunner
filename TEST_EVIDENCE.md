@@ -222,9 +222,22 @@ ground preview and its published mode receipt.
   did not reseat the rider. At tick 54840 the player stood at
   (-214.621, 499.117, -22.367) facing yaw -45, pitch -18. The current
   trace does not include the vehicle's seat entrance or cluster ownership.
-- Still pending on the corrected full-world pairing: first deployment
-  directly into an unloaded BSP, both-faction banking, and return to the
-  same loose drop and a confirmed wreck. The separate hunt fixture still
+- The foreground-only refresh used a vehicle reconnection pass that the
+  full structure-BSP reconnect callback skipped. Win64 `1bbcc126` uses
+  the same regional root restore for both paths. The focused harness
+  verified both callbacks, the populated-region guard, cinematic
+  suppression of new placement, and the classic single-BSP path.
+  A new normal-menu two-player LAN match on exact `fd7a49fa` admitted
+  both factions. Both peers recorded the UNSC guest in seat 0 of the new
+  Beaver Creek Ghost (row 229, datum `e83205c3`), then driving it from
+  (464.412, -38.136) to (463.434, -39.524). A grenade later overturned it;
+  the host still reported health 1.000 and no damage flags. The wreck
+  test needs a destructible vehicle. Logs are under
+  `build/regional-pressure-profile/full-pools-reconnect-{host,guest}`.
+- Still pending on the corrected full-world pairing: reboarding after an
+  unload and reload, first deployment directly into an unloaded BSP,
+  both-faction banking, and return to the same loose drop and a confirmed
+  wreck. The separate hunt fixture still
   needs synchronized kills and objective credit. The saved
   checkpoint and logs do not identify the operation that triggered the
   reported restriction. No restricted operation was retried. Latest and

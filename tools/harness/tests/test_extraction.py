@@ -44,6 +44,10 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
         function(read('source/game/game_engine.c'), 'game_engine_spawn_observes_unit'),
         function(read('source/game/players.c'), 'player_extraction_start_clear'),
     ))))
+    files.append(('regional_root_reconnect.inc', '\n'.join(
+        function(read('source/objects/object_types.c'), name) for name in (
+            'object_types_connect_regional_roots', 'object_types_reconnect_to_structure_bsp',
+            'object_types_reconnect_foreground'))))
     files.append(('equipment_ownership.inc', enum_with(read('source/items/items.h'), '_item_attached_to_unit_bit') +
                   '\n' + enum_with(read('source/objects/objects.h'), '_object_connected_to_map_bit')))
     files.append(('mission_types.inc', enum_with(read('source/hs/hs_scenario_definitions.h'), '_hs_script_startup') +
@@ -115,7 +119,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
                                  'confirmation-outage', 'confirmation-published',
                                  'reservation-published',
-                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls', 'regional-pool-deploy', 'regional-deployment-hold',
+                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls', 'regional-pool-deploy', 'regional-deployment-hold', 'regional-root-reconnect',
                                  'account-host', 'account-host-unbound', 'account-host-role',
                                  'lan-gear-loop', 'lan-gear-delta', 'lan-gear-virtual',
                                  'mission-complete', 'mission-pending', 'mission-signature', 'mission-return-type', 'mission-restore',
