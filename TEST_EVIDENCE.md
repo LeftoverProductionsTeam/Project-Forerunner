@@ -1,5 +1,23 @@
 # Forerunner test evidence
 
+## Covenant ground bank over LAN
+
+On Win64 `7d25057b` with released `fcfe9d44` / `d7c07e86`,
+the host opened Extraction from the normal menus and a separate
+LAN client joined through the test discovery helper. Normal team
+controls assigned Covenant to the guest. The guest used Deploy,
+took the upper bridge and west ramp, reached resupply and the field
+terminal, held its zone, and returned by the west ramp on foot.
+The host reached phases 1, 2, 3 and 5. The guest received and drew
+the matching `SESSION GEAR BANKED | Stash 1/32 | Frag 0 Plasma 1.`
+Both logs agree on the return position (1312.922, 576.674, -14.350)
+and removal of the equipped weapon and grenade at tick 15210. The
+guest left normally and the host ended the match without a crash.
+Receipt, input tapes, both logs and `guest/window56755.bmp` are in
+`build/regional-covenant-lan-bank-7d25`. This proves session-only
+settlement on the released ground preview with the private build.
+The full-world return on `fd7a49fa` and account persistence remain open.
+
 ## Split-screen pause navigation
 
 On the released `fcfe9d44` / `d7c07e86` Extraction preview, the
