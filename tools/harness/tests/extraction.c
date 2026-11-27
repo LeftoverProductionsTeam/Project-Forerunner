@@ -514,8 +514,28 @@ static boolean players_extraction_deployment_clear(long player,struct player_sta
 static real_vector3d const pool_up={0,0,1};
 static real_vector3d const *global_up3d=&pool_up;
 static void vector3d_from_angle(real_vector3d *direction,real angle) {direction->i=1;direction->j=direction->k=0;}
-static boolean object_set_physics_pose(long object,short bsp,real_point3d const *point,real_vector3d const *forward,real_vector3d const *up) {return FALSE;}
-static void players_extraction_deployment_commit(long player,short bsp,real_vector3d const *forward) {}
+struct scenario_structure_bsp_reference {short bsp;};
+static unsigned long fixture_simulation_holds;
+static boolean fixture_hold_refused;
+static short fixture_pose_bsp=NONE;
+static void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference,boolean in_use)
+{
+ CHECK(in_use&&reference->bsp==10,"deployment touched another BSP hold");
+ if(!fixture_hold_refused) {
+  fixture_simulation_holds |= FLAG(reference->bsp);
+  body_region_loaded=TRUE;
+ }
+}
+static boolean object_set_physics_pose(long object,short bsp,real_point3d const *point,real_vector3d const *forward,real_vector3d const *up)
+{
+ if(!use_pool_fixture)return FALSE;
+ CHECK(object==unit_handles[0]&&point->x==25.f&&up->k==1.f,"wrong deployment body or pose");
+ CHECK(bsp==0||scenario_structure_bsp_try_and_get(bsp),"pose changed before destination activation");
+ fixture_pose_bsp=bsp;
+ return TRUE;
+}
+#include "regional_deployment.inc"
+static void players_extraction_deployment_commit(long player,real_vector3d const *forward) {}
 #include "extraction.inc"
 #define vehicle_datum unit_datum
 #include "vehicle_brake.inc"
@@ -696,6 +716,23 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"regional-deployment-hold")) {
+  struct scenario_structure_bsp_reference references[11] = {{0}};
+  struct player_starting_location start = {.position={25.f,0.f,0.f}};
+  real_vector3d forward = {1.f,0.f,0.f};
+  unsigned long prior_holds=FLAG(3);
+  references[10].bsp=10;
+  scenario.structure_bsp_references=(struct tag_block){11,references};
+  use_pool_fixture=TRUE;
+  fixture_simulation_holds=prior_holds;
+  fixture_hold_refused=TRUE;
+  CHECK(!players_extraction_deployment_move(player_handles[0],10,&start,&forward),"unavailable BSP accepted deployment");
+  CHECK(fixture_pose_bsp==NONE&&fixture_simulation_holds==prior_holds,"failed activation moved a unit or changed another hold");
+  fixture_hold_refused=FALSE;
+  CHECK(players_extraction_deployment_move(player_handles[0],10,&start,&forward),"first move into a preview BSP failed");
+  CHECK(fixture_pose_bsp==10&&fixture_simulation_holds==(prior_holds|FLAG(10)),"deployment did not preserve concurrent residency");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-pool-deploy")) {
   struct player_starting_location authored[8] = {0};
   struct player_starting_location const *chosen;

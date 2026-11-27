@@ -369,7 +369,9 @@ long player_new(
 struct player_starting_location;
 boolean players_extraction_deployment_clear(long player_index,
 	struct player_starting_location const *start, short bsp);
-void players_extraction_deployment_commit(long player_index, short bsp, real_vector3d const *forward);
+boolean players_extraction_deployment_move(long player_index, short bsp,
+	struct player_starting_location const *start, real_vector3d const *forward);
+void players_extraction_deployment_commit(long player_index, real_vector3d const *forward);
 
 boolean player_teleport(
 	long player_index,

@@ -169,10 +169,50 @@ ground preview and its published mode receipt.
   The retained partial receipt, duplicate region IDs, missing vehicles,
   shared pickup rows and a production request without a receipt were
   rejected before installation changes.
-- All 19 pools require a matched Spark release package. Eleven stock regions
-  lack vehicle rows. Spark owns the additional placements. Hosted online
-  persistence, simultaneous regional objectives, and compact-world acceptance
-  remain open.
+- The same Win64 build exercised both authored hunts in one normal LAN match
+  on `bf748855`. At tick 12300 the host reported four live hunt actors, two
+  near the UNSC player in BSP 0 and two near the Covenant guest in BSP 11.
+  The guest received its two actors with matching network IDs and sampled
+  positions. The UNSC player's shield dropped to 0.40 and the player died
+  while the Covenant hunt remained active. The Covenant player's shield later
+  dropped to 0.57 in the field. This verifies overlapping encounter simulation
+  and guest damage. Synchronized player kills, both objective settlements and
+  the loot/wreck round trip still need verification. Host peaks were 1,006
+  collidable and 542 noncollidable links out of 8,192 per pool, with 21,378
+  collidable links reused and zero allocation failures through tick 14100.
+  Both BSPs held 9,669,792 bytes in a 32,759,728-byte address window. Logs:
+  `build/regional-pressure-profile/two-hunts-live-host` and `two-hunts-live-guest`.
+- The full Spark handoff matched all four SHA-256 pins: map `fd7a49fa`, mode
+  receipt `868a8adf`, description `3ddb6728`, and native readback `3ce3b0da`.
+  The promotion preflight accepted all 19 logical regions. The exact map
+  also started through the normal LAN menus. The host rolled three distinct
+  authored weapon rows and one vehicle row per region once. The guest did
+  not reroll, and both logs showed the same selected Hang 'Em High Ghost.
+- The first private run on that map rejected a deployment after selecting a
+  preview-only BSP. An activation-only Win64 candidate `75dcbb26` moved the
+  UNSC guest into previously unvisited BSP 13. A host sample before and
+  after the transfer retained the Covenant player's BSP 11. That candidate
+  later asserted in `unit_inventory_get_weapon` after a separate local host
+  deployment, where regional placement compacted the object heap during
+  Use and invalidated a cached unit pointer.
+- Win64 candidate `8dcb0d7b` includes the activation ordering and refreshes
+  unit pointers after placement and Use. In a new normal-menu match on the
+  same map, the UNSC guest deployed to pool 11 and the Covenant host left
+  BSP 11 for pool 4 in BSP 0. Both logs still showed live players after tick
+  36000. The guest boarded the new Hang 'Em High Ghost (placement row 236,
+  datum slot 1491) and drove it from (-218.78, 499.28) to (-214.13, 498.62).
+  Host and guest agreed on the rider and destination. Logs are under
+  `build/regional-pressure-profile/full-pools-fixed-{host,guest}` and
+  `full-pools-live-{host,guest}`. The Windows Extraction harness covered
+  preview-to-simulation ordering, failed activation with another held region,
+  faction/squad selection and gear rollback.
+- Still pending on the corrected full-world pairing: a first visit to an
+  unloaded destination, both-faction banking, return to the same dropped
+  item and confirmed wreck, and consumed loot staying consumed. The separate
+  hunt fixture still needs synchronized kills and objective credit. The saved
+  checkpoint and logs do not identify the operation that triggered the
+  reported restriction. No restricted operation was retried. Latest and
+  Previous were preserved.
 
 ## Product Completion V2.1 Windows release
 

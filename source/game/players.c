@@ -1413,7 +1413,11 @@ boolean players_extraction_deployment_clear(long player_index,
 		return FALSE;
 	}
 	if (bsp != global_structure_bsp_index_get())
+	{
 		object_types_place_regional_bsp(bsp, structure);
+		/* Placing a region compacts the object heap. */
+		biped = biped_get(player->unit_index);
+	}
 	biped_get_physics_pill(player->unit_index, &base, &height, &radius);
 	base.x += start->position.x - biped->object.position.x;
 	base.y += start->position.y - biped->object.position.y;
@@ -1444,18 +1448,38 @@ boolean players_extraction_deployment_clear(long player_index,
 	return TRUE;
 }
 
-void players_extraction_deployment_commit(long player_index, short bsp, real_vector3d const *forward)
+/* Promote one destination without changing the foreground or other holds.
+ * The live-root residency pass reclaims any unused hold after a failed move. */
+static boolean player_hold_regional_destination(short bsp)
+{
+	struct scenario const *scenario = global_scenario_get();
+	struct scenario_structure_bsp_reference const *reference;
+
+	if (bsp == global_structure_bsp_index_get())
+		return TRUE;
+	if (!VALID_INDEX(bsp, scenario->structure_bsp_references.count) ||
+		(!scenario_structure_bsp_try_and_get(bsp) && !scenario_structure_bsp_preview(bsp, TRUE)))
+		return FALSE;
+	reference = TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
+		bsp, struct scenario_structure_bsp_reference);
+	mcc_cache_bsp_set_in_use(reference, TRUE);
+	return scenario_structure_bsp_try_and_get(bsp) != NULL;
+}
+
+boolean players_extraction_deployment_move(long player_index, short bsp,
+	struct player_starting_location const *start, real_vector3d const *forward)
+{
+	struct player_datum const *player = player_get(player_index);
+
+	return player_hold_regional_destination(bsp) &&
+		object_set_physics_pose(player->unit_index, bsp, &start->position, forward, global_up3d);
+}
+
+void players_extraction_deployment_commit(long player_index, real_vector3d const *forward)
 {
 	struct player_datum const *player = player_get(player_index);
 	struct biped_datum *biped = biped_get(player->unit_index);
 
-	if (bsp != global_structure_bsp_index_get())
-	{
-		struct scenario const *scenario = global_scenario_get();
-		struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
-			&scenario->structure_bsp_references, bsp, struct scenario_structure_bsp_reference);
-		mcc_cache_bsp_set_in_use(reference, TRUE);
-	}
 	biped->object.translational_velocity = *global_zero_vector3d;
 	biped->unit.desired_facing_vector = *forward;
 	biped->unit.desired_aiming_vector = *forward;
@@ -6068,12 +6092,16 @@ void players_update_before_game(
 					/* port: not for the keyboard's action key, which only acts
 					(units.h, UNIT_CONTROL_PORT_ACTION_ONLY_BIT) */
 					if (TEST_FLAG(action->control_flags, _unit_control_action_bit) &&
-						unit->object.parent_object_index == NONE &&
-						!stubbs_horde_player_action(iterator.datum_index) && /* port: Stubbs mode only */
-						!player_handle_action(iterator.datum_index) &&
-						!TEST_FLAG(action->control_flags, UNIT_CONTROL_PORT_ACTION_ONLY_BIT))
+						unit->object.parent_object_index == NONE)
 					{
-						SET_FLAG(action->control_flags, _unit_control_weapon_reload_bit, TRUE);
+						if (!stubbs_horde_player_action(iterator.datum_index) && /* port: Stubbs mode only */
+							!player_handle_action(iterator.datum_index) &&
+							!TEST_FLAG(action->control_flags, UNIT_CONTROL_PORT_ACTION_ONLY_BIT))
+							SET_FLAG(action->control_flags, _unit_control_weapon_reload_bit, TRUE);
+						/* Device actions can populate a region and compact the object heap. */
+						unit = unit_try_and_get(player->unit_index);
+						if (!unit)
+							continue;
 					}
 
 					if (TEST_FLAG(action->control_flags, _unit_control_swap_weapons_bit) &&
@@ -6256,13 +6284,8 @@ static void player_transfer_regional_root(
 		if (!structure ||
 			!player_root_bsp_crossing_clear(route, root_index, structure, source_structure, NULL, NONE))
 			continue;
-		if (destination != global_structure_bsp_index_get())
-		{
-			struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
-				&scenario->structure_bsp_references, destination, struct scenario_structure_bsp_reference);
-			mcc_cache_bsp_set_in_use(reference, TRUE);
-		}
-		if (!object_transfer_root_to_bsp(root_index, destination))
+		if (!player_hold_regional_destination(destination) ||
+			!object_transfer_root_to_bsp(root_index, destination))
 			continue;
 		if (destination != global_structure_bsp_index_get())
 			object_types_place_regional_bsp(destination, structure);

@@ -38,6 +38,8 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
     files.append(('body_binding.inc', '\n'.join(function(read('source/game/players.c'), name) for name in (
         'network_player_reconcile_coop_team', 'network_player_attach_unit', 'network_player_detach_unit', 'players_set_local_player_unit'))))
     files.append(('body_armor_color.inc', function(read('source/game/players.c'), 'player_apply_profile_color')))
+    files.append(('regional_deployment.inc', '\n'.join(function(read('source/game/players.c'), name)
+                  for name in ('player_hold_regional_destination', 'players_extraction_deployment_move'))))
     files.append(('spawn_clearance.inc', '\n'.join((
         function(read('source/game/game_engine.c'), 'game_engine_spawn_observes_unit'),
         function(read('source/game/players.c'), 'player_extraction_start_clear'),
@@ -113,7 +115,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
                                  'confirmation-outage', 'confirmation-published',
                                  'reservation-published',
-                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls', 'regional-pool-deploy',
+                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls', 'regional-pool-deploy', 'regional-deployment-hold',
                                  'account-host', 'account-host-unbound', 'account-host-role',
                                  'lan-gear-loop', 'lan-gear-delta', 'lan-gear-virtual',
                                  'mission-complete', 'mission-pending', 'mission-signature', 'mission-return-type', 'mission-restore',
@@ -576,8 +578,10 @@ def test_biped_admission_negative_control():
 @pytest.mark.parametrize('file,before,after,case', [
     ('under_test.inc', 'if (session->record.phase == _gear_reserved && !gear_cancel_reservation(session)) goto failed;',
      '', 'refund-disconnect-outage'),
-    ('extraction.inc', 'game_modes_inventory_revoke(player->unit_index, &loadout, created);',
-     '', 'confirmation-outage'),
+    ('extraction.inc',
+     'this grant before refunding; never leave usable unissued equipment. */\n'
+     '\t\tgame_modes_inventory_revoke(player->unit_index, &loadout, created);',
+     'this grant before refunding; never leave usable unissued equipment. */', 'confirmation-outage'),
     ('under_test.inc', 'return session->record.phase == _gear_deployed;',
      'return !session->pending && session->record.phase == _gear_deployed;', 'confirmation-published'),
 ])

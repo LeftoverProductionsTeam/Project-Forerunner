@@ -2207,7 +2207,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		origin_forward = body->object.forward;
 		origin_up = body->object.up;
 		vector3d_from_angle(&forward, start->facing);
-		if (!object_set_physics_pose(player->unit_index, deployment_bsp, &start->position, &forward, global_up3d))
+		if (!players_extraction_deployment_move(run->player, deployment_bsp, start, &forward))
 		{
 			game_modes_inventory_revoke(player->unit_index, &loadout, created);
 			if (!gear_cancel_reservation(&run->gear)) run->phase = _extraction_cancelling;
@@ -2231,7 +2231,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	gear_track_reserved(&run->gear, created);
 	if (start)
 	{
-		players_extraction_deployment_commit(run->player, deployment_bsp, &forward);
+		players_extraction_deployment_commit(run->player, &forward);
 		platform_log("extraction: player %ld deployed to pool %d bsp %d",
 			(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), pool_region, deployment_bsp);
 	}

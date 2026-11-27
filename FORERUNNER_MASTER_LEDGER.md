@@ -28,8 +28,12 @@ Latest runs Win64 SHA-256
 `2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93`
 with the released MegaWorld ground preview `fcfe9d44`. The private V3 candidate
 adds authored match pools, recovery of regional drops, persistent AI and
-host-side remote combat effects. See [test evidence](TEST_EVIDENCE.md) for the
-limited native LAN result and remaining promotion gates.
+host-side remote combat effects. The full Spark map `fd7a49fa` with receipt
+`868a8adf` passed 19-region pool coverage. Win64 `8dcb0d7b` passed private LAN
+deployment for both factions and native boarding and driving of the new Hang
+'Em High Ghost. Full-world banking and persistence, and synchronized kills
+and objective credit on the separate two-hunt fixture, remain promotion gates.
+See [test evidence](TEST_EVIDENCE.md).
 
 ### Interim ground Extraction on the existing world
 
