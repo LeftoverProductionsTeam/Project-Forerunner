@@ -1,5 +1,24 @@
 # Forerunner test evidence
 
+## Covenant hunt redeployment and personal kill credit
+
+Normal-menu private Covenant host on Win64 `76e82e3b`, the sealed hunt
+cache `bf748855` and receipt `796c12cf`. Squad 02 deployed, died in its
+first authored hunt, then deployed again in the same match. Each loss
+settled and woke the authored abort. In operation 2, a normal plasma
+grenade killed actor `e95201b4`, and the host credited player `ec700000`
+one NPC kill. At tick 22950 the native actor record showed that same
+body dead and actor `e95001b1` still alive. The player died again by
+tick 23040. No quest clear, bank or guest replication was observed.
+
+Exact hashes, input, OpenGL frames and host logs are in
+`build/covenant-hunt-bf748855-76e82e3b`. The proven ground route uses
+the upper north bridge and west ramp. On the next run, make contact from
+(1321, 568) and retreat behind the Scorpion's cover immediately after
+throwing. This trial preserves the earlier two-client spawn/damage proof
+and adds single-host credit. Guest death replication, both authored
+clears and Covenant banking remain open.
+
 ## MegaWorld map chooser filtering
 
 Private Win64 `76e82e3b4de2c9476845c94bfbf6d4c9176a4bb4bd7afc0865d3e4203e41b7dc`
