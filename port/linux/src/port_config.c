@@ -3172,6 +3172,8 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Pixel shaders show their first texture." },
 	{ "debug.gpu_debug_flat", _config_boolean, "false", "HALO_GPU_DEBUG_FLAT", _environment_set_is_true, _platform_all,
 		"Pixel shaders show their vertex color." },
+	{ "debug.pathtrace_scene", _config_string, "\"\"", "HALO_PATHTRACE_SCENE", _environment_value, _platform_windows,
+		"Capture one loaded gameplay BSP and camera to a new OBJ relative to the data folder (Windows64)." },
 	{ "debug.screenshot_directory", _config_string, "\"\"", "HALO_SCREENSHOT_DIR", _environment_value, _platform_all,
 		"A folder to save frames to, with debug.screenshot_every. Leave it empty\n"
 		"for none." },

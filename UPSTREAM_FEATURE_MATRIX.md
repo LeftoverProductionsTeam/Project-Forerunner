@@ -157,6 +157,27 @@ The probe used readback only to verify the GPU copy. Draw the resulting
 texture through Forerunner's presenter with Halo geometry before exposing
 the renderer option or Spark capabilities.
 
+**Stock Halo geometry and camera.** Private Windows64 build
+`639324A139D4E768E96A3BE846674D46F549EEFE46C7A607279E7A824BB612D0`
+captured the loaded Xbox Blood Gulch render BSP and the same-tick raster
+frame. The native map SHA-256 is
+`50FE52406F075D975E24100A65B26FF696458023DD3509878953052AB0EF858F`.
+The scene snapshot SHA-256 is
+`D41DA4C4D917DF0C48A04E1D34D6DE5EA783A76C82C6187ACC3B8984FFC8EB13`.
+The private adapter traced 5,503 triangles from 79 source material groups
+at 640×480 and copied the result through bgfx Vulkan. The adapter converts
+camera handedness and reverses triangle winding for the reflected basis.
+The matched images show the same base entrance and canyon silhouette.
+Evidence is in `build/native-bsp-pathtrace-stock-bloodgulch/window00684.bmp`,
+`build/openremix-win64/native-bloodgulch-matched-handed-bgfx.bmp` and
+`build/openremix-win64/consumer-native-bsp-matched-handed-runtime.log`.
+The probe uses a neutral material and a test light with upscaling and
+denoising disabled. Live in-game presentation, stock materials, lighting,
+sky, dynamic objects, HUD composition, hardware coverage and real gameplay
+frame time and memory measurements remain open. No renderer mode or Spark
+capability is advertised from this probe.
+
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

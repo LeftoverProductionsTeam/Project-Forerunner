@@ -85,6 +85,9 @@ symbols in this file:
 
 #include "cseries.h"
 #include "structure_render.h"
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+#include "pathtrace_scene.h"
+#endif
 
 #include "bitmaps/bitmap_group_runtime.h"
 #include "cseries/errors.h"
@@ -724,6 +727,9 @@ void structure_render_preprocess(
 {
 	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+	pathtrace_scene_capture(structure_bsp, global_structure_bsp_index_get(), &render.camera);
+#endif
 	profile_enter(render_structure_build_triangle_arrays_section);
 
 	structure_render_globals.environment_triangles_index =
