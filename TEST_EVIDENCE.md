@@ -460,6 +460,17 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   build/ice-fields-occupied-view-c5bb94da/c5bb94da/window00360.bmp and
   debug.log. This was controlled placement. Ordinary first-person and
   known-opaque comparisons remain open, and this map stays private.
+  Spark's compiled readback found wall surface 5283 is absent from all
+  subcluster memberships on c5bb94da. Keep the authoring defect separate.
+
+- **Split-screen camera fallback.** Win64 59F49869 on stock Blood Gulch
+  50FE5240 ran with two local views. After the first view moved to the
+  out-of-BSP bookmark at tick 91, both players were healthy through tick
+  300 and the second view still drew the base and HUD. Capture and logs
+  are in build/split-camera-leaf-59f49869-two-views. The focused compiled
+  check covered per-window leaf fallback and invalidation on BSP, player
+  and map changes. This was a scripted local smoke, with regional
+  split-screen, VR and ordinary menu acceptance still open.
 - **Reusable runtime diagnostics.** The private 2beae96a executable
   compiled, advertised playtest.regional_transition_log.v1 in discovery,
   and admitted b5178c77 from ordinary menus. The native transition log

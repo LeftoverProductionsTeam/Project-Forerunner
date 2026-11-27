@@ -35,7 +35,8 @@ extern boolean debug_portals;
 void debug_pvs(
 	boolean on);
 void structure_visibility_find_camera(
-	struct render_camera const *camera);
+	struct render_camera const *camera,
+	long previous_leaf);
 short structure_visibility_find_objects(
 	long *result_indices,
 	short maximum_count,

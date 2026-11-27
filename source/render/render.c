@@ -83,6 +83,7 @@ symbols in this file:
 #include "bink_playback.h"
 #include "game.h"
 #include "game_engine.h"
+#include "game/players.h"
 #include "interface/first_person_weapons.h"
 #include "interface/interface.h"
 #include "editor_stubs.h"
@@ -169,6 +170,16 @@ void render_sky(
 
 struct render_globals render;
 
+struct render_camera_leaf
+{
+	long player;
+	short bsp;
+	long leaf;
+	boolean valid;
+};
+
+static struct render_camera_leaf render_camera_leaves[MAXIMUM_WINDOWS];
+
 static boolean render_invalid_fog_warning_displayed;
 
 extern short global_screenshot_count;
@@ -203,6 +214,7 @@ void render_initialize_for_new_map(
 	/* port: preserve retail's energy-then-two-sided-glass compositing. */
 	models_fix_transparent_part_links();
 	render_objects_initialize_for_new_map();
+	memset(render_camera_leaves, 0, sizeof(render_camera_leaves));
 #ifdef HALO_SHADER_PREP
 	/* port: the new map's first frame drawn through every shader (debug.draw_every_shader:
 	port/linux/game/render_enumerate.c) */
@@ -639,6 +651,29 @@ static void render_window(
 	return;
 }
 
+/* Leaves are local to the current structure. A camera outside it can keep its
+ * last valid leaf, but a different view or player must never supply it. */
+static void render_locate_player_camera(struct render_window const *window)
+{
+	struct render_camera_leaf *history = VALID_INDEX(render.window_index, NUMBEROF(render_camera_leaves)) ?
+		&render_camera_leaves[render.window_index] : NULL;
+	long player = local_player_get_player_index(window->local_player_index);
+	short bsp = global_structure_bsp_index_get();
+	long previous_leaf = NONE;
+
+	if (history && history->valid && history->bsp == bsp && history->player == player)
+		previous_leaf = history->leaf;
+
+	structure_visibility_find_camera(&window->render_camera, previous_leaf);
+	if (history)
+	{
+		history->player = player;
+		history->bsp = bsp;
+		history->leaf = render.leaf_index;
+		history->valid = render.cluster_index != NONE;
+	}
+}
+
 static void render_player_frame(
 	struct render_window *window,
 	const point2d *screenshot_combined_index)
@@ -654,7 +689,7 @@ static void render_player_frame(
 	has_mirror = FALSE;
 
 	HALO_PERF_RENDER_PART(_halo_perf_render_setup);
-	structure_visibility_find_camera(camera);
+	render_locate_player_camera(window);
 	render.fog.runtime_flags = 0;
 	scenario_get_atmospheric_fog(
 		window->local_player_index,

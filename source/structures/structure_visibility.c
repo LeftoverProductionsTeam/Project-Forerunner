@@ -364,7 +364,8 @@ void debug_pvs(
 }
 
 void structure_visibility_find_camera(
-	const struct render_camera *camera)
+	const struct render_camera *camera,
+	long previous_leaf)
 {
 	struct structure_bsp *structure = global_structure_bsp_get();
 	long leaf_index = bsp3d_test_point(
@@ -372,20 +373,12 @@ void structure_visibility_find_camera(
 		0,
 		&camera->position);
 
-	if (leaf_index == NONE)
-	{
-		leaf_index = render.leaf_index;
-		if (leaf_index < structure->leaves.count)
-		{
-			goto leaf_index_ready;
-		}
-
-		leaf_index = NONE;
-	}
+	if (leaf_index == NONE && previous_leaf != NONE &&
+		(previous_leaf & LONG_MAX) < structure->leaves.count)
+		leaf_index = previous_leaf;
 
 	render.leaf_index = leaf_index;
 
-leaf_index_ready:
 	render.cluster_index = NONE;
 	render.visible_sky_index = NONE;
 	render.visible_sky_model = FALSE;
