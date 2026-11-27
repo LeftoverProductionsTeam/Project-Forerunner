@@ -47,6 +47,32 @@ component validator. Validation of the resulting tree is recorded separately.
 - The Remix C header carries MIT terms and the DXVK-Remix source carries zlib terms. Check the exact runtime and third-party binary redistribution terms separately, especially optional NVIDIA AI components. Retain upstream notices and authorship for any actual reuse. [DXVK-Remix notices](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/c63f9dd9eb81e7351e4d5823882952e49753f4f5/ThirdPartyLicenses.txt)
 - Accept with identical native inputs in Classic, Hybrid and Path Traced, starting with native resolution and frame generation off. Record rendered FPS, median and 95th-percentile frame time, peak dedicated VRAM and system RAM, and repeated BSP transitions to check resource retirement. Compare sky and baked lighting mood, emissives, foliage cutouts, glass and water, decals and particles, weapon silhouettes and HUD. Test native and upscaled modes and denoiser settings independently. The Windows host enumerates an RTX 4070 Ti and AMD integrated graphics. Enumeration proves no backend support or performance. A second RT-capable vendor needs its own run. Missing capabilities must leave Classic and Hybrid playable. Publish only verified graphics settings and native-tag material overrides through Spark's existing discovery, launch and readback.
 
+### Native direct SDK startup result
+
+NVIDIA RTX Remix 1.6.1 x64 release archive SHA-256
+`7dd1d44492a609050e44b0e3581cec31135d1ed88b4a91123b4faae91955716a`.
+The packaged DLL `81b7c6407361d376ed9274f9c52f6de2b09dfcee385cd2c3e651baca538b0321`
+reports `remix-main+5a7eec84`; the public release tree pins source
+`0a6cd5b1ee814ec390c358e0c9c32ece8895ddc0`. Keep these identities separate.
+The matching public 0.6.5 C SDK sample initialized against the package and
+returned success from 120 direct Present calls at 800×450 on an RTX 4070 Ti.
+It used NVIDIA's sample geometry and direct window presentation. The runtime
+logged a shutdown warning about 41 device objects. Default crash reporting
+initialized with no probe-specific settings file. No consent was granted.
+Retained logs and package identity: `build/remix-1.6.1-direct-probe`.
+The temporary download, expanded runtime and probe executable were removed.
+[Official release](https://github.com/NVIDIAGameWorks/rtx-remix/releases/tag/remix-1.6.1)
+· [Sample source](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/0a6cd5b1ee814ec390c358e0c9c32ece8895ddc0/tests/rtx/apps/RemixAPI_C/remixapi_example_c.c)
+
+The public implementation returns a raw image and two binary semaphores
+owned by the Remix Vulkan device. Forerunner's independent bgfx device cannot
+use those handles directly. The next interop test needs a supported
+cross-device memory/synchronization export or shared device integration.
+Reserve the provider choice until this path has evidence. This probe did
+not load Halo geometry, verify compositor output or measure gameplay frame
+times and memory. No provider, binary or Spark capability was added.
+[External presenter source](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/0a6cd5b1ee814ec390c358e0c9c32ece8895ddc0/src/d3d9/d3d9_swapchain_external.cpp)
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
