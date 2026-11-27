@@ -198,6 +198,17 @@ and the ground Extraction map, its mode receipt, the Zombie map and
 configuration match the pre-promotion hashes. This review plays camera
 motion over the current native scene. Native match replay remains open.
 
+## Main-menu emblem and installed MegaWorld check
+
+Win64 `4ed9dcfee28458e8cb36a5e193b4f888a8be3c89d769946d978a33581cf5cdd2`
+renders the existing Forerunner emblem beside the wordmark below the original
+Halo logo. The checked native window showed the selection outline and tagline.
+The same executable, launched from Latest with isolated profiles, opened
+`fcfe9d44` from the normal Extraction menus and spawned in the UNSC hub.
+Previous holds `ff104636`. The released map, its mode receipt, Apocalypse,
+and the installed configuration retained their hashes. Evidence is under
+`build/megaworld-ground-preview/latest-v3-emblem-installed`.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`
