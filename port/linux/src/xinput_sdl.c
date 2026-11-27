@@ -3323,8 +3323,18 @@ static BOOL debug_cam_middle = FALSE;
 static BOOL debug_cam_up = FALSE;
 static BOOL debug_cam_down = FALSE;
 static float debug_cam_wheel = 0.0f;
-static BOOL forge_tools_key, forge_flight_key, forge_grab_key, forge_rotate_key;
+static BOOL forge_tools_key, forge_browser_key, forge_flight_key, forge_grab_key, forge_rotate_key;
 static int forge_vertical_input;
+static BOOL forge_thrust;
+
+int halo_linux_forge_thrust(void)
+{
+	int thrust;
+	pthread_mutex_lock(&mouse_lock);
+	thrust = forge_thrust;
+	pthread_mutex_unlock(&mouse_lock);
+	return thrust;
+}
 static unsigned int machinima_buttons;
 static int machinima_roll, machinima_zoom, machinima_speed;
 
@@ -3349,11 +3359,12 @@ void halo_linux_forge_keys(int *tools, int *flight, int *vertical)
 	pthread_mutex_unlock(&mouse_lock);
 }
 
-void halo_linux_forge_edit_keys(int *grab, int *rotate)
+void halo_linux_forge_edit_keys(int *grab, int *rotate, int *browse)
 {
 	pthread_mutex_lock(&mouse_lock);
 	*grab = forge_grab_key;
 	*rotate = forge_rotate_key;
+	*browse = forge_browser_key;
 	pthread_mutex_unlock(&mouse_lock);
 }
 
@@ -3364,12 +3375,17 @@ static void debug_camera_update(const struct platform_input_state *input, BOOL b
 		input->mouse_buttons[SDL_BUTTON_MIDDLE] != 0;
 	debug_cam_up = !blocked && input->keys[SDL_SCANCODE_R] != 0;
 	debug_cam_down = !blocked && input->keys[SDL_SCANCODE_F] != 0;
-	forge_tools_key = !blocked && (input->keys[SDL_SCANCODE_F5] || input->keys[SDL_SCANCODE_F7]);
-	forge_flight_key = !blocked && (input->keys[SDL_SCANCODE_F4] || input->keys[SDL_SCANCODE_F8]);
-	forge_grab_key = !blocked && input->keys[SDL_SCANCODE_E];
-	forge_rotate_key = !blocked && input->keys[SDL_SCANCODE_R];
+	forge_tools_key = !blocked && input->keys[SDL_SCANCODE_F5];
+	forge_browser_key = !blocked && input->keys[SDL_SCANCODE_E];
+	forge_flight_key = !blocked && ((input->keys[SDL_SCANCODE_M] &&
+		!input->keys[SDL_SCANCODE_LALT] && !input->keys[SDL_SCANCODE_RALT]) || input->keys[SDL_SCANCODE_F7] ||
+		input->keys[SDL_SCANCODE_F4] || input->keys[SDL_SCANCODE_F8]);
+	forge_grab_key = !blocked && !input->mouse_released && input->mouse_buttons[SDL_BUTTON_LEFT];
+	forge_rotate_key = !blocked && (input->keys[SDL_SCANCODE_R] ||
+		(!input->mouse_released && input->mouse_buttons[SDL_BUTTON_RIGHT]));
+	forge_thrust = !blocked && (input->keys[SDL_SCANCODE_LSHIFT] || input->keys[SDL_SCANCODE_RSHIFT]);
 	forge_vertical_input = blocked ? 0 : !!input->keys[SDL_SCANCODE_SPACE] -
-		!!(input->keys[SDL_SCANCODE_LCTRL] || input->keys[SDL_SCANCODE_RCTRL]);
+		!!(input->keys[SDL_SCANCODE_LCTRL] || input->keys[SDL_SCANCODE_RCTRL] || input->keys[SDL_SCANCODE_C]);
 	machinima_buttons = 0;
 	if (!blocked && (input->keys[SDL_SCANCODE_LALT] || input->keys[SDL_SCANCODE_RALT]))
 	{

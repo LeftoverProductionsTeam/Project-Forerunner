@@ -1636,6 +1636,11 @@ void hud_draw_screen(
 {
 	long player_index = local_player_get_player_index(render.local_player_index);
 	director_perspective perspective = director_get_perspective(render.local_player_index);
+	boolean camera_setup = FALSE;
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	extern boolean pc_menu_camera_preview_visible(short local_player_index);
+	camera_setup = pc_menu_camera_preview_visible(render.local_player_index);
+#endif
 
 	rasterizer_hud_begin();
 	if (player_index != NONE)
@@ -1690,11 +1695,12 @@ void hud_draw_screen(
 				/* port: Stubbs's weapon HUDs are laid out his own way (the dam's
 				track halted drawing one): his HUD is stubbs_player_hud_draw's
 				(Stubbs mode only: port/linux/game/stubbs_player.c) */
-				if (!stubbs_mode_active())
+				if (!camera_setup && !stubbs_mode_active())
 					hud_render_weapon_interface(player);
 				hud_show_action_response(player_index);
 				hud_play_unit_sounds(player, hud_scripted_globals->show_hud);
-				hud_render_unit_interface(player);
+				if (!camera_setup)
+					hud_render_unit_interface(player);
 				hud_render_nav_points(render.local_player_index);
 				hud_render_damage_indicators(render.local_player_index);
 			}

@@ -1351,6 +1351,16 @@ static struct observer_result const *render_interpolation_blended_camera(
 	}
 #endif
 	camera = &interpolated_cameras[local_player_index];
+#ifdef HALO_GAME_BROWSER
+	{
+		extern boolean pc_menu_camera_preview_open(short local_player_index);
+		if (pc_menu_camera_preview_open(local_player_index))
+		{
+			camera->valid = FALSE;
+			return observer;
+		}
+	}
+#endif
 	/* A scripted camera that moves with an object (a cinematic's camera
 	point relative to a lifepod or dropship, or a unit's eyes in one) is
 	placed by the object as it stands after the last tick. Blended from its

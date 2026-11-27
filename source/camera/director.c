@@ -904,8 +904,8 @@ void director_toggle_forge_flight(void)
 		if (forge_monitor_biped != NONE && biped_definition_get(forge_monitor_biped)->object.model.index == NONE)
 			forge_monitor_biped = NONE;
 		hud_print_notice(0, forge_monitor_biped != NONE ?
-			"Monitor  |  F5 / X: tools  |  E / A: grab or drop" :
-			"Forge flight  |  F5 / X: tools  |  E / A: grab or drop");
+			"Monitor  |  E / X: browser  |  Click / A: grab or drop" :
+			"Forge flight  |  E / X: browser  |  Click / A: grab or drop");
 	}
 }
 
@@ -1199,8 +1199,12 @@ static boolean director_update_forge_controls(short local_player_index, struct c
 	if (!ui_widgets_take_input() && !console_is_active() && !network_chat_typing())
 	{
 		real_vector2d throttle = player_control_port_debug_throttle[0];
-		real speed = MIN(controls->seconds_elapsed, 0.05f) * 5.f;
+		/* ChupathingyCE Forge's native flight uses seconds-based motion and
+		 * four-times thrust while the alternate flight key is held. */
+		extern int halo_linux_forge_thrust(void);
+		real speed = PIN(controls->seconds_elapsed, 0.f, 0.05f) * 5.f;
 		int tools_key, flight_key, vertical;
+		int thrust = halo_linux_forge_thrust();
 
 		halo_linux_forge_keys(&tools_key, &flight_key, &vertical);
 		if (input_has_gamepad(0))
@@ -1208,7 +1212,10 @@ static boolean director_update_forge_controls(short local_player_index, struct c
 			struct gamepad_state const *pad = input_get_gamepad_state(0);
 			vertical += !!pad->buttons[_gamepad_analog_button_black] -
 				!!pad->buttons[_gamepad_analog_button_white];
+			thrust |= pad->buttons[_gamepad_analog_button_left_trigger] != 0;
 		}
+		if (thrust)
+			speed *= 4.f;
 		controls->facing_delta.yaw = player_control_port_debug_facing[0].yaw;
 		controls->facing_delta.pitch = player_control_port_debug_facing[0].pitch;
 		controls->position_delta.i = throttle.i * speed;

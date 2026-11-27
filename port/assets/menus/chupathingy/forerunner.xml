@@ -141,22 +141,22 @@
 		<child widget="forerunner/firefight/join" x="60" y="384" />
 		<child widget="forerunner/firefight/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/firefight/native_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="AUTHORED ENCOUNTER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/firefight/native_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="AUTHORED ENCOUNTER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/firefight/firefight_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="RUNTIME WAVES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/firefight/firefight_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="RUNTIME WAVES" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host firefight" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host firefight" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/firefight/join" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/firefight/join" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/firefight/back" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/firefight/back" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -184,7 +184,7 @@
 		<child widget="forerunner/zombies/join" x="60" y="384" />
 		<child widget="forerunner/zombies/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/zombies/play_solo" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="PLAY SOLO" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/zombies/play_solo" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="PLAY SOLO" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies local" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies local" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -194,17 +194,17 @@
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host zombies" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/zombies/infection_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="HOST INFECTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/zombies/infection_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="HOST INFECTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host infection" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host infection" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/zombies/join" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/zombies/join" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/zombies/back" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/zombies/back" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -224,29 +224,29 @@
 		<child widget="forerunner/forge/choices" x="0" y="0" />
 	</widget>
 	<widget name="forerunner/forge/title" type="text" width="520" height="35" text="FORGE" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="F5 / X opens tools. F4 / D-pad Down switches between flight and play. Use Space/Ctrl or the bumpers for altitude. In flight, E / A grabs or drops a copy and R / D-pad Right turns it." font="ui\small_ui" color="#FFC0D7DD" />
+	<widget name="forerunner/forge/description" type="text" width="520" height="108" text="M / F7 or both sticks: switch Monitor and player.\nE / F5 or X: open the object browser.\nSpace / Ctrl: altitude. Click / A: grab or drop." font="ui\small_ui" color="#FFC0D7DD" />
 	<widget name="forerunner/forge/choices" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/forge/native_create_inter" x="60" y="316" />
 		<child widget="forerunner/forge/create_lan_local" x="60" y="350" platform="desktop" />
 		<child widget="forerunner/forge/join" x="60" y="384" />
 		<child widget="forerunner/forge/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/forge/native_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="CREATE SESSION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/native_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="CREATE SESSION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/create_lan_local" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="LOCAL FORGE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
+	<widget name="forerunner/forge/create_lan_local" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="LOCAL FORGE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4" platform="desktop">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge local" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host forge local" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/join" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/join" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/forge/back" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/forge/back" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -409,22 +409,22 @@
 		<child widget="forerunner/spark/join" x="60" y="350" />
 		<child widget="forerunner/spark/back" x="336" y="414" />
 	</widget>
-	<widget name="forerunner/spark/native_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="HOST CO-OP" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/spark/native_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="HOST CO-OP" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host native" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/spark/extraction_create_inter" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="HOST EXTRACTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/spark/extraction_create_inter" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="HOST EXTRACTION" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
 		<on event="start" open="main_menu/multiplayer_type_select/connected/connected_map_select_wrapper" run="port forerunner host extraction" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/spark/join" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/spark/join" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="MULTIPLAYER" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="start" open="main_menu/multiplayer_type_select/multiplayer_type_select_screen" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/spark/back" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/spark/back" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="BACK" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />
@@ -556,12 +556,12 @@
 	<widget name="forerunner/vr/support/spinner" type="spinner" width="190" height="24" flags="pass_unhandled_to_focused_child left_right_tabs_items" strings="OFF|ON" setting="vr.two_handed" values="false|true" font="ui\large_ui" color="#FFA6E6F2" align="center" text_y="3" header_bitmap="bitmaps/arrow_sm_left" footer_bitmap="bitmaps/arrow_sm_right" header_bounds="7 -6 19 0" footer_bounds="7 190 19 196">
 		<on event="created" run="port setting load" />
 	</widget>
-	<widget name="forerunner/vr/save" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="SAVE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/vr/save" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="SAVE" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" run="port settings save" />
 		<on event="start" back="true" run="port settings save" />
 		<on event="left_mouse" run="mouse emit accept event" />
 	</widget>
-	<widget name="forerunner/vr/cancel" type="text" width="256" height="32" bitmap="bitmaps/list_item_bkd" text="CANCEL" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
+	<widget name="forerunner/vr/cancel" type="text" width="256" height="32" bitmap="forerunner/main_focus" text="CANCEL" font="ui\large_ui" color="#FFA6E6F2" text_x="12" text_y="4">
 		<on event="a" back="true" />
 		<on event="start" back="true" />
 		<on event="left_mouse" run="mouse emit accept event" />

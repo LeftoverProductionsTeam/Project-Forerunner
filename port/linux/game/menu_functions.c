@@ -3079,6 +3079,19 @@ static boolean settings_view_open(struct widget_instance *widget)
 	return TRUE;
 }
 
+static void settings_each_in_view(struct widget_instance *list, char const *view,
+	boolean (*visit)(struct widget_instance *spinner, struct pc_menu_setting *setting));
+
+static boolean settings_cancel_camera_draft(struct widget_instance *spinner, struct pc_menu_setting *setting)
+{
+	if ((!strncmp(setting->setting, "display.third_person_", sizeof("display.third_person_") - 1) ||
+		!strcmp(setting->setting, "display.on_foot_third_person") ||
+		!strcmp(setting->setting, "display.passenger_third_person")) &&
+		VALID_INDEX(setting->loaded_index, setting->value_count))
+		spinner->parameters.list.selected_index = setting->loaded_index;
+	return TRUE;
+}
+
 /* "port settings back" (B, Back): out of the nested list open, to the row
 that opened it; else back from the screen, as B was */
 static boolean settings_view_back(struct widget_instance *widget, boolean *widget_deleted)
@@ -3089,6 +3102,8 @@ static boolean settings_view_back(struct widget_instance *widget, boolean *widge
 	{
 		char link[8 + VIEW_NAME_LENGTH];
 
+		if (!strcmp(settings_view, "viewmodels"))
+			settings_each_in_view(list, settings_view, settings_cancel_camera_draft);
 		snprintf(link, sizeof(link), "op_link_%s", settings_view);
 		snprintf(settings_view, sizeof(settings_view), "%s", "main");
 		views_show(list, settings_view);
@@ -3417,6 +3432,41 @@ static void hdr_calibration_update(struct widget_instance *list)
 		hdr_calibration_pattern = HDR_CALIBRATION_PAPER_WHITE;
 	halo_hdr_calibration_show(hdr_calibration_pattern, setting_number_shown(list, "hdr_paper_white_spinner"),
 		setting_number_shown(list, "hdr_peak_brightness_spinner"));
+}
+
+/* The settings render the camera's live observer rather than a snapshot
+ * keyed to a simulation tick, which remains fixed during solo pause. */
+boolean pc_menu_camera_preview_open(short local_player_index)
+{
+	return named(ui_widget_port_active_screen(local_player_index), "third_person_distance_spinner", 0) != NULL;
+}
+
+boolean pc_menu_camera_preview_visible(short local_player_index)
+{
+	return !strcmp(settings_view, "viewmodels") && pc_menu_camera_preview_open(local_player_index);
+}
+
+/* Read the open screen's draft directly so temporary values never escape into config. */
+char const *pc_menu_camera_preview_value(short local_player_index, char const *name)
+{
+	struct widget_instance *screen = ui_widget_port_active_screen(local_player_index);
+	struct widget_instance *spinner;
+	struct pc_menu_setting *setting;
+	char widget_name[64];
+	short index;
+
+	if (!screen || strcmp(settings_view, "viewmodels") ||
+		strncmp(name, "display.", sizeof("display.") - 1))
+		return NULL;
+	snprintf(widget_name, sizeof(widget_name), "%s_spinner", name + sizeof("display.") - 1);
+	spinner = named(screen, widget_name, 0);
+	if (!spinner || !spinner->visible || !spinner->parent || !spinner->parent->visible)
+		return NULL;
+	setting = pc_menu_setting_get(spinner->definition_tag_index);
+	if (!setting || strcmp(setting->setting, name) || setting->loaded_index == NONE)
+		return NULL;
+	index = spinner->parameters.list.selected_index;
+	return VALID_INDEX(index, setting->value_count) && index != setting->loaded_index ? setting->values[index] : NULL;
 }
 
 /* ---------- Change Color: the profile's colour, from a list of the
@@ -14103,7 +14153,7 @@ boolean pc_menu_forge_offered(void)
 	return (network_game_forge_hosting() && !pc_menu_split_players()) || pc_menu_forge_guest_offered();
 }
 
-static boolean forerunner_forge_action(char const *action)
+boolean pc_menu_forge_action(char const *action)
 {
 	boolean was_terminal_command = terminal_command_running;
 	char const *notice, *title = NULL, *author = NULL;
@@ -14453,7 +14503,7 @@ boolean pc_menu_event_function_invoke(
 			!strcmp(name, "port forge save hmv") || !strcmp(name, "port forge load hmv") ||
 			!strcmp(name, "port forge load saved hmv"))
 		{
-			return forerunner_forge_action(name);
+			return pc_menu_forge_action(name);
 		}
 		else if (forerunner_operation_mode(name) != NONE)
 		{
@@ -14490,6 +14540,13 @@ boolean pc_menu_event_function_invoke(
 		{
 			return pc_menu_setup_open();
 		}
+#if defined(HALO_GUIDE) && defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+		else if (!strcmp(name, "port pause forge"))
+		{
+			extern boolean ui_widget_request_forge_browser(void);
+			return widget->local_player_index == 0 && ui_widget_request_forge_browser();
+		}
+#endif
 		else if (!strcmp(name, "port pause guide"))
 		{
 			return pause_guide(widget);

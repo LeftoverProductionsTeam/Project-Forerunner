@@ -776,6 +776,81 @@ static long forge_place_copy(long unit_index, long object_index)
 	return forge_clone_at_position(object_index, &position);
 }
 
+/* The in-game browser enumerates already-loaded, native object definitions.
+ * It uses the same map, host, copy and quota rules as the copy tools. */
+static boolean forge_catalog_definition_allowed(long definition_index, unsigned long group)
+{
+	struct object_definition const *definition;
+
+	if (group != 'vehi' && group != WEAPON_DEFINITION_TAG &&
+		group != 'eqip' && (group != 'scen' || forge_has_remote_players()))
+		return FALSE;
+	if (group == WEAPON_DEFINITION_TAG &&
+		TEST_FLAG(weapon_definition_get(definition_index)->weapon.flags, _weapon_must_be_readied_bit))
+		return FALSE;
+	definition = object_definition_get(definition_index);
+	return definition->object.model.index != NONE &&
+		valid_real(definition->object.bounding_radius) && definition->object.bounding_radius >= 0.f;
+}
+
+short cheats_forge_catalog(long group, long *definitions, short capacity)
+{
+	struct tag_iterator iterator;
+	long definition_index;
+	short count = 0;
+
+	if (!game_in_progress() || !network_game_forge_hosting() || network_game_host_cheats_refused() ||
+		network_game_distributed_client())
+		return 0;
+	tag_iterator_new(&iterator, group);
+	while ((definition_index = tag_iterator_next(&iterator)) != NONE && count < capacity)
+		if (forge_catalog_definition_allowed(definition_index, group))
+			definitions[count++] = definition_index;
+	return count;
+}
+
+boolean cheats_forge_catalog_place(long definition_index)
+{
+	struct object_definition const *definition;
+	struct object_placement_data placement;
+	struct collision_result hit;
+	struct location location;
+	real_point3d center;
+	real radius;
+	long clone;
+
+	if (definition_index == NONE || !network_game_forge_hosting() ||
+		!forge_aim_collision(&hit, FALSE) || hit.type != _collision_result_structure || hit.plane.n.k < 0.7f ||
+		!forge_catalog_definition_allowed(definition_index, tag_get_group_tag(definition_index)))
+		return FALSE;
+
+	definition = object_definition_get(definition_index);
+	radius = MAX(definition->object.bounding_radius, 0.05f);
+	point_from_line3d(&hit.point, &hit.plane.n, radius + 0.06f, &center);
+	scenario_location_from_point(&location, &center);
+	if (location.cluster_index == NONE || collision_test_sphere(&center, radius, NONE) ||
+		forge_space_occupied(&location, &center, radius, NONE))
+		return FALSE;
+
+	object_placement_data_new(&placement, definition_index, NONE);
+	placement.position.x = center.x - definition->object.bounding_offset.x;
+	placement.position.y = center.y - definition->object.bounding_offset.y;
+	placement.position.z = center.z - definition->object.bounding_offset.z;
+	scenario_location_from_point(&location, &placement.position);
+	if (location.cluster_index == NONE)
+		return FALSE;
+	clone = forge_create_copy(&placement, 1.f);
+	if (clone != NONE)
+		forge_selection = clone;
+	return clone != NONE;
+}
+
+long cheats_forge_selection(void)
+{
+	struct object_datum const *object = forge_placeable_object_get(forge_selection);
+	return object ? object->definition_index : NONE;
+}
+
 long cheat_forge_place(void)
 {
 	if (!terminal_command_running || network_game_distributed_client() ||

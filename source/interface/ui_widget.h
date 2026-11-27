@@ -100,6 +100,8 @@ void widget_free(
 	void *ptr);
 boolean ui_widgets_active(
 	void);
+struct widget_instance *ui_widget_port_active_screen(short local_player_index);
+
 boolean ui_widgets_active_for_local_player(
 	short local_player_index);
 /* port: a menu, the virtual keyboard or a screen of code over them takes

@@ -752,6 +752,9 @@ void guide_update(boolean menu_open);
 void guide_process(void);
 void guide_pointer(struct halo_ui_pointer const *pointer);
 void guide_render(void);
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+#include "../../port/linux/game/forge_menu.inc"
+#endif
 /* the pause menu's DELTA with what waits in it ("DELTA 2"), for
 its text's string list; NULL to leave it */
 wchar_t const *guide_pause_label(long string_list_tag);
@@ -2513,6 +2516,9 @@ static boolean ui_widget_screens_of_code_active(
 
 #ifdef HALO_GUIDE
 	active = active || guide_active();
+#ifndef HALO_WEB
+	active = active || forge_side.open;
+#endif
 #endif
 
 #ifndef HALO_CONSOLE_NO_CONTROLS
@@ -5573,6 +5579,13 @@ void display_errors_deferred_until_cinematic_stop(
 	return;
 }
 
+struct widget_instance *ui_widget_port_active_screen(short local_player_index)
+{
+	if (!widget_globals.initialized || !VALID_INDEX(local_player_index, NUMBEROF(widget_globals.active_widgets)))
+		return NULL;
+	return widget_globals.active_widgets[local_player_index];
+}
+
 boolean ui_widgets_active_for_local_player(
 	short local_player_index)
 {
@@ -6837,6 +6850,21 @@ static void widget_instance_render_text_box(
 	return;
 }
 
+static boolean ui_camera_slider(struct widget_instance const *widget)
+{
+	return !strcmp(widget->name, "third_person_distance_spinner") ||
+		!strcmp(widget->name, "third_person_horizontal_spinner") ||
+		!strcmp(widget->name, "third_person_vertical_spinner");
+}
+
+static rectangle2d ui_camera_slider_track(rectangle2d bounds)
+{
+	bounds.x0 += 9;
+	bounds.x1 -= 9;
+	bounds.y0 = bounds.y1 - 2;
+	return bounds;
+}
+
 static void widget_instance_render_spinner_list(
 	struct widget_instance *widget,
 	struct ui_widget_definition *definition,
@@ -6853,6 +6881,32 @@ static void widget_instance_render_spinner_list(
 
 	if (!widget->visible)
 		return;
+	if (ui_camera_slider(widget) && widget->parameters.list.number_of_items > 1)
+	{
+		rectangle2d track = definition->bounds;
+		rectangle2d knob;
+		long alpha = fast_ftol(alpha_modifier * 255.0f);
+		long selected = PIN(widget->parameters.list.selected_index, 0, widget->parameters.list.number_of_items - 1);
+		short x;
+
+		track.x0 += offset.x;
+		track.x1 += offset.x;
+		track.y0 += offset.y;
+		track.y1 += offset.y;
+		track = ui_camera_slider_track(track);
+		x = (short)(track.x0 + (track.x1 - track.x0) * selected / (widget->parameters.list.number_of_items - 1));
+		knob = track;
+		knob.x0 = x - 2;
+		knob.x1 = x + 2;
+		knob.y0 -= 1;
+		knob.y1 += 1;
+		if (!clip_rect || (track.x0 >= clip_rect->x0 && track.x1 <= clip_rect->x1 &&
+			track.y0 >= clip_rect->y0 && track.y1 <= clip_rect->y1))
+		{
+			draw_quad(&track, (alpha << 24) | 0x006485A3);
+			draw_quad(&knob, (alpha << 24) | (focus ? 0x00E3F4FF : 0x007CCEFF));
+		}
+	}
 	last_list_tab_direction = widget->parameters.list.last_list_tab_direction;
 	if (last_list_tab_direction)
 	{
@@ -7162,6 +7216,7 @@ struct ui_mouse_target
 	that a neighbour or the screen's edge holds to one side keeps it */
 	short split_x;
 	short split_y;
+	short slider_x0, slider_x1;
 	/* a button's parts, kept so its area can be settled once the whole frame's
 	buttons are known (ui_mouse_fit_button_targets) */
 	rectangle2d icon_bounds;
@@ -7732,6 +7787,14 @@ static void ui_mouse_note_target(
 	target->button_index = button_index;
 	target->split_x = (bounds.x0 + bounds.x1) / 2;
 	target->split_y = (bounds.y0 + bounds.y1) / 2;
+	target->slider_x0 = target->slider_x1 = 0;
+	if (kind == _ui_mouse_target_value && ui_camera_slider(widget))
+	{
+		rectangle2d track = ui_camera_slider_track(definition->bounds);
+
+		target->slider_x0 = track.x0 + offset.x;
+		target->slider_x1 = track.x1 + offset.x;
+	}
 	target->icon_bounds = icon_bounds;
 	target->label = target_label;
 	target->label_bounds = target_label_bounds;
@@ -8341,6 +8404,10 @@ static boolean ui_mouse_menus_active(
 	/* (the Guide, over a game too, frees the mouse for itself) */
 	if (guide_active())
 		return TRUE;
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	if (forge_side.open)
+		return TRUE;
+#endif
 #endif
 	return virtual_keyboard_active() || ui_mouse_menu() != NULL || game_engine_showing_postgame();
 }
@@ -8553,6 +8620,10 @@ static void ui_widgets_process_mouse(
 #ifdef HALO_GUIDE
 	if (pointer_active && guide_active())
 		guide_pointer(&pointer);
+#ifndef HALO_WEB
+	else if (pointer_active && forge_side.open)
+		forge_side_pointer(&pointer);
+#endif
 	else
 #endif
 	if (pointer_active && !keyboard_active && invite_prompt_active())
@@ -8723,6 +8794,18 @@ static void ui_widgets_process_mouse(
 					boolean first_half;
 
 					ui_mouse_give_focus(target->widget);
+					/* The track selects a step directly; arrows still step normally. */
+					if (target->slider_x1 > target->slider_x0 &&
+						ui_camera_slider(target->widget) && ui_mouse_click_x >= target->slider_x0 &&
+						ui_mouse_click_x <= target->slider_x1 && target->widget->parameters.list.number_of_items > 1)
+					{
+						long span = target->slider_x1 - target->slider_x0;
+						long value_count = target->widget->parameters.list.number_of_items;
+						long tap = ui_mouse_click_x - target->slider_x0;
+
+						target->widget->parameters.list.selected_index = (short)((tap * (value_count - 1) + span / 2) / span);
+						break;
+					}
 					ui_mouse_list_directions(target->widget, &back, &forward);
 					first_half = back == _widget_event_dpad_left ?
 						ui_mouse_click_x < target->split_x :
@@ -9400,6 +9483,9 @@ void render_ui_widgets(
 		moderation_screen_render();
 		invite_prompt_render();
 #ifdef HALO_GUIDE
+		#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+		forge_side_render();
+#endif
 		/* (over all of them) */
 		guide_render();
 #endif
@@ -10753,6 +10839,36 @@ void process_ui_widgets(
 #ifdef HALO_GUIDE
 	/* port: the Guide, over whatever is up, takes the input while open */
 	guide_update(widget_globals.active_widgets[0] != NULL);
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	if (forge_side_requested)
+	{
+		forge_side_requested = FALSE;
+		if (!guide_active() && !main_menu_is_active() && game_in_progress() && pc_menu_forge_offered())
+		{
+			ui_widgets_close_all_for_local_player(0);
+			forge_side_open();
+		}
+	}
+	if (forge_side.open)
+	{
+		int tools_key_down, flight_key_down, vertical;
+		boolean close_key;
+		halo_linux_forge_keys(&tools_key_down, &flight_key_down, &vertical);
+		close_key = tools_key_down && !forge_side_f5_held;
+		forge_side_f5_held = tools_key_down != 0;
+		if (close_key)
+			forge_side_f5_consumed = TRUE;
+		if (close_key || guide_active() || widget_globals.active_widgets[0] || !game_in_progress() ||
+			main_menu_is_active() || !pc_menu_forge_offered())
+			forge_side_close();
+		else
+		{
+			forge_side_process();
+			event_manager_flush();
+			return;
+		}
+	}
+#endif
 	if (guide_active())
 	{
 		guide_process();
@@ -10882,16 +10998,25 @@ void process_ui_widgets(
 	{
 		extern boolean pc_menu_forge_offered(void);
 		static boolean tools_key_was_down, fly_key_was_down, grab_key_was_down, rotate_key_was_down;
-		int tools_key_down, fly_key_down, vertical, grab_key_down, rotate_key_down;
+		int tools_key_down, fly_key_down, vertical, grab_key_down, rotate_key_down, browse_key_down;
 
-		extern void halo_linux_forge_edit_keys(int *, int *);
+		extern void halo_linux_forge_edit_keys(int *, int *, int *);
 
 		halo_linux_forge_keys(&tools_key_down, &fly_key_down, &vertical);
-		halo_linux_forge_edit_keys(&grab_key_down, &rotate_key_down);
+#ifdef HALO_GUIDE
+		if (!tools_key_down)
+			forge_side_f5_consumed = FALSE;
+		else if (forge_side_f5_consumed)
+			tools_key_down = 0;
+#endif
+		halo_linux_forge_edit_keys(&grab_key_down, &rotate_key_down, &browse_key_down);
+		if (director_forge_flight_active(0))
+			tools_key_down |= browse_key_down;
 		if (input_has_gamepad(0) && network_game_port_hosting_local())
 		{
 			struct gamepad_state const *pad = input_get_gamepad_state(0);
-			fly_key_down |= pad->buttons[_gamepad_binary_button_dpad_down] != 0;
+			fly_key_down |= pad->buttons[_gamepad_binary_button_dpad_down] != 0 ||
+				(pad->buttons[_gamepad_binary_button_left_thumb] && pad->buttons[_gamepad_binary_button_right_thumb]);
 			if (director_forge_flight_active(0))
 			{
 				tools_key_down |= pad->buttons[_gamepad_analog_button_x] != 0;
@@ -10914,7 +11039,11 @@ void process_ui_widgets(
 			if (tools_key_down && !tools_key_was_down)
 			{
 				cheats_forge_grab_cancel();
+				#ifdef HALO_GUIDE
+				forge_side_open();
+#else
 				ui_widget_load_by_name_or_tag(forge_tools_screen, NONE, NULL, 0, NONE, NONE, 0);
+#endif
 			}
 			else if (director_forge_flight_active(0))
 				cheats_forge_grab_input(grab_key_down && !grab_key_was_down, rotate_key_down && !rotate_key_was_down);

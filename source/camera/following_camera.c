@@ -116,7 +116,6 @@ typedef char unit_camera_track_size_assert[
 
 static struct unit_camera const *unit_camera_get(
 	long unit_index);
-double config_real(char const *name);
 
 static void camera_track_splut(
 	struct unit_camera const *camera,
@@ -286,9 +285,9 @@ void following_camera_update(
 		}
 		if (on_foot || passenger)
 		{
-			real distance = (real)PIN(config_real("display.third_person_distance"), 0.9, 4.2);
-			real horizontal = (real)PIN(config_real("display.third_person_horizontal"), -0.9, 0.9);
-			real vertical = (real)PIN(config_real("display.third_person_vertical"), -0.5, 1.0);
+			real distance = (real)PIN(third_person_camera_axis(controls->local_player_index, "display.third_person_distance"), 0.9, 4.2);
+			real horizontal = (real)PIN(third_person_camera_axis(controls->local_player_index, "display.third_person_horizontal"), -0.9, 0.9);
+			real vertical = (real)PIN(third_person_camera_axis(controls->local_player_index, "display.third_person_vertical"), -0.5, 1.0);
 
 			if (on_foot)
 			{

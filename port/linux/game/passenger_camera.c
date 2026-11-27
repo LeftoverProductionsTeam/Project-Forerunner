@@ -29,8 +29,25 @@ and the deterministic camera used for shooting keeps its original view.
 #endif
 
 #include <string.h>
+#include <stdlib.h>
 
 int config_boolean(const char *name);
+double config_real(const char *name);
+char const *pc_menu_camera_preview_value(short local_player_index, char const *name);
+
+static boolean third_person_camera_toggle(short local_player_index, char const *name)
+{
+	char const *draft = pc_menu_camera_preview_value(local_player_index, name);
+
+	return draft ? !strcmp(draft, "true") : config_boolean(name) != 0;
+}
+
+double third_person_camera_axis(short local_player_index, char const *name)
+{
+	char const *draft = pc_menu_camera_preview_value(local_player_index, name);
+
+	return draft ? strtod(draft, NULL) : config_real(name);
+}
 
 static boolean reticle_active;
 static real_point2d reticle_offset;
@@ -58,7 +75,7 @@ boolean on_foot_camera_enabled(short local_player_index)
 {
 	struct unit_datum const *unit;
 
-	if (!config_boolean("display.on_foot_third_person"))
+	if (!third_person_camera_toggle(local_player_index, "display.on_foot_third_person"))
 		return FALSE;
 #ifdef HALO_OPENXR
 	if (vr_openxr_running())
@@ -79,7 +96,7 @@ static struct unit_seat const *reference_seat(short local_player_index, long *ve
 	char const *name;
 	short reference_role, index;
 
-	if (!config_boolean("display.passenger_third_person"))
+	if (!third_person_camera_toggle(local_player_index, "display.passenger_third_person"))
 		return NULL;
 	unit = local_camera_unit(local_player_index);
 	if (!unit || unit->object.parent_object_index == NONE || unit->unit.parent_seat_index < 0)

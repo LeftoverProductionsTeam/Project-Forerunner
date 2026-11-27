@@ -933,9 +933,9 @@
 		<string text="FIELD OF VIEW:"/>
 		<string text="VIEWMODEL FOV:"/>
 		<string text="ON-FOOT THIRD PERSON:"/>
-		<string text="CAMERA DISTANCE:"/>
-		<string text="CAMERA SHOULDER:"/>
-		<string text="CAMERA HEIGHT:"/>
+		<string text="CAMERA Z (DISTANCE):"/>
+		<string text="CAMERA X (SHOULDER):"/>
+		<string text="CAMERA Y (HEIGHT):"/>
 		<string text="VIEWMODELS:"/>
 		<string text="PASSENGER THIRD PERSON:"/>
 		<string text="ARM SHIELDS:"/>
@@ -1016,9 +1016,9 @@
 		<string text="On foot, horizontal at 16:9, in degrees.\nDefault keeps the stock view."/>
 		<string text="How wide your weapon is drawn, horizontal at 16:9.\nDefault keeps the weapon's stock view."/>
 		<string text="Follow your character on foot in campaign and co-op.\nScoped weapons return to first person while zoomed."/>
-		<string text="Move the third-person camera closer or farther away."/>
-		<string text="Shift the third-person camera to either shoulder."/>
-		<string text="Raise or lower the third-person camera."/>
+		<string text="Move toward or away from the character.\nAccept to save. Back restores the view."/>
+		<string text="Move left or right. Preview in-game before saving."/>
+		<string text="Raise or lower the view. Preview in-game before saving."/>
 		<string text="Draw first-person weapons, hands and attached\nvisuals. Gameplay and sound continue when off."/>
 		<string text="Third-person Warthog and Scorpion passengers in\nthe campaign and co-op. Weapon zoom is disabled."/>
 		<string text="The energy shield's flare on your first-person\narms too, as on your body."/>

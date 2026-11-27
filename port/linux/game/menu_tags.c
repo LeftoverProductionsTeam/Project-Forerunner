@@ -2085,8 +2085,13 @@ static boolean pause_list_patch(struct cache_file_tag_instance *instances, struc
 	{
 		names[added] = "pause/forge_button";
 		tags[added] = next_tag();
+#if defined(HALO_GUIDE) && !defined(HALO_WEB)
+		buttons[added++] = pause_button(instances, model, "pause/forge_button", "OBJECT BROWSER",
+			function_index("port pause forge", "pause", 0), NONE, FALSE, NULL, NONE);
+#else
 		buttons[added++] = pause_button(instances, model, "pause/forge_button", "FORGE TOOLS",
 			function_index("NULL", "pause", 0), build.widget_tags[forge_widget], FALSE, NULL, NONE);
+#endif
 	}
 	if (moderation)
 	{
