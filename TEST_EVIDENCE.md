@@ -92,9 +92,17 @@ The native placement backend still refuses unsupported records as one batch.
 Focused C checks passed for reversed knees, excess flexion, crossed and
 coincident limb points, and separated limbs. Silent Cartographer launched
 through its normal menu and ran the beach firefight with ragdolls enabled
-and no runtime exception. Its frame-time trace is diagnostic pending a
-matched baseline. Custom rigs, contact during full falls and performance
-at the current corpse budget remain open. Latest retains the released build.
+and no runtime exception. Its original frame-time trace is diagnostic. A follow-up replay used
+Win64 `f2e4d85e` and stock B30 `a6e2ae62` with the same saved settings and
+normal movement, shots and grenades, first with the revised ragdolls on
+and then off. Both began the input at tick 1230. In the 18-second
+beach firefight window, capped frame times were 16.67 ms median in both
+runs, 17.49/17.58 ms at the 95th percentile and 45.21/41.64 ms at the
+99th (on/off). Both had 21 dead bipeds at tick 2205. The live combat
+paths diverged slightly and the trace measures whole frames, so the
+tail difference does not isolate solver cost. Custom rigs, contact during
+full falls and solver performance at the current corpse budget remain
+open. Latest retains the released build.
 
 ## Product Completion V2 Windows checkpoint
 
