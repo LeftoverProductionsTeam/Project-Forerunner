@@ -163,10 +163,11 @@ typedef unsigned long tag;
 enum {OBJECT_DEFINITION_TAG=1,DAMAGE_EFFECT_DEFINITION_TAG,SOUND_DEFINITION_TAG};
 enum {_effect_environment_anywhere,_effect_environment_air,_effect_environment_water,_effect_environment_vacuum};
 struct location {short cluster_index;};
-struct effect_datum {struct {unsigned long flags;} header;short fixed_bsp;long object_index,owner_object_index;struct location location;};
+struct effect_datum {struct {short identifier;unsigned long flags;} header;short fixed_bsp,local_player_index;long object_index,owner_object_index,definition_index;
+ struct location location;long location_datum_indices[1];};
 struct effect_part_definition {tag runtime_base_class_tag;struct {long index;} reference;};
 struct effect_event_definition {struct tag_block parts;};
-struct effect_definition {unsigned long flags;struct tag_block events;};
+struct effect_definition {unsigned long flags;struct tag_block events,locations;};
 struct damage_data {long owner_player_index,owner_object_index;short owner_team_index;real scale;
  struct location location;real_point3d origin,epicenter;real_vector3d direction;};
 static struct damage_data damage_readback;
@@ -190,6 +191,35 @@ static boolean scenario_location_underwater_in_structure(struct structure_bsp co
 }
 static boolean scenario_location_underwater(struct location const *location,real_point3d const *point,short *weather)
 { (void)location;(void)point;(void)weather;return FALSE; }
+struct effect_location_datum {struct datum_header header;long next_instance_location_index;};
+static struct effect_definition effect_definitions[3];
+static struct data_array *effect_data,*effect_location_data;
+static boolean effects_port_harmless;
+#define NUMBEROF(a) (sizeof(a)/sizeof((a)[0]))
+static boolean game_in_editor(void) {return FALSE;}
+#define effect_get(index) ((struct effect_datum *)datum_get(effect_data,index))
+#define effect_definition_get(index) (&effect_definitions[index])
+#define effect_location_get(index) ((struct effect_location_datum *)datum_get(effect_location_data,index))
+static struct effect_datum *effect_try_and_get(long index)
+{
+ struct effect_datum *effect=effect_get(index);
+ return (unsigned short)effect->header.identifier==((unsigned long)index>>16) ? effect : NULL;
+}
+static long data_next_index(struct data_array *array,long index)
+{
+ long slot=(index==NONE ? 0 : DATUM_INDEX_TO_ABSOLUTE_INDEX(index)+1);
+ for (;slot<array->maximum_count;slot++)
+ {
+  struct datum_header *header=datum_get(array,slot);
+  if (header->identifier)
+   return ((long)(unsigned short)header->identifier<<16)|slot;
+ }
+ return NONE;
+}
+static void effect_set_event(long index,short event)
+{
+ CHECK(effect_get(index)&&event==0,"effect did not start its first native event");
+}
 #define match_vassert(file,line,condition,description) match_assert(file,line,condition)
 #define SET_FLAG(flags,bit,value) ((flags)=((flags)&~FLAG(bit))|((value)?FLAG(bit):0))
 #include "regional_combat_effects.inc"
@@ -200,6 +230,42 @@ int main(int argc,char **argv)
 {
  char const *case_name=argc>1?argv[1]:"";short i,expected=0;
  scenario.ai_encounters.count=1;scenario.ai_encounters.address=&definition;
+ if(!strcmp(case_name,"regional-effect-pool"))
+ {
+  struct effect_part_definition damaged={DAMAGE_EFFECT_DEFINITION_TAG,{7}};
+  struct effect_event_definition gameplay_event={.parts={1,&damaged}};
+  struct effect_event_definition cosmetic_event={0};
+  long old_gameplay, old_cosmetic, gameplay_location, cosmetic_location, replacement;
+  effect_data=game_state_data_new("effects",2,sizeof(struct effect_datum));
+  effect_location_data=game_state_data_new("effect locations",2,sizeof(struct effect_location_datum));
+  old_gameplay=datum_new(effect_data);
+  old_cosmetic=datum_new(effect_data);
+  gameplay_location=datum_new(effect_location_data);
+  cosmetic_location=datum_new(effect_location_data);
+  effect_location_get(gameplay_location)->next_instance_location_index=NONE;
+  effect_location_get(cosmetic_location)->next_instance_location_index=NONE;
+  effect_get(old_gameplay)->definition_index=0;
+  effect_get(old_cosmetic)->definition_index=1;
+  effect_get(old_gameplay)->location_datum_indices[0]=gameplay_location;
+  effect_get(old_cosmetic)->location_datum_indices[0]=cosmetic_location;
+  effect_definitions[0]=(struct effect_definition){.events={1,&gameplay_event},.locations={1,NULL}};
+  effect_definitions[1]=(struct effect_definition){.events={1,&cosmetic_event},.locations={1,NULL}};
+  effect_definitions[2]=effect_definitions[0];
+
+  regional_ready=FALSE;
+  CHECK(effect_allocate(2,NONE,TRUE)==NONE&&effect_location_data->count==2,
+        "classic lost its allocation policy");
+  regional_ready=TRUE;
+  replacement=effect_allocate(2,NONE,TRUE);
+  CHECK(replacement!=NONE&&effect_get(replacement)==effect_get(old_cosmetic),
+        "regional gameplay did not reclaim a presentation slot");
+  CHECK(effect_try_and_get(old_gameplay)&&!effect_try_and_get(old_cosmetic)&&
+        effect_location_get(gameplay_location)->header.identifier&&effect_location_data->count==1,
+        "regional eviction lost gameplay or leaked the cosmetic effect's locations");
+  CHECK(effect_allocate(2,NONE,TRUE)==NONE&&effect_data->count==2,
+        "a full regional gameplay pool discarded an active gameplay effect");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-effect-content"))
  {
   struct effect_part_definition parts[]={{SOUND_DEFINITION_TAG,{7}},{DAMAGE_EFFECT_DEFINITION_TAG,{NONE}}};

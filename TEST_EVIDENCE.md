@@ -33,8 +33,12 @@ ground preview and its published mode receipt.
   damage and object-spawn parts. The focused native Windows harness verified
   that an unflagged map effect remains eligible and sound-only or missing-tag
   parts are skipped. Restoring the old flag-only check failed that regression.
-  Live acceptance of an unflagged effect and an unload/return with active
-  authored actors remains open.
+  Win64 candidate `01870eef` uses the same classification when the effect
+  pool fills. A focused Windows test verified that the classic reserve policy
+  remains intact, regional gameplay reclaims a cosmetic slot and its
+  locations, and a pool of gameplay effects evicts none. Live acceptance
+  under effect saturation, an unflagged effect in a remote region, and
+  unload/return with active authored actors remain open.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

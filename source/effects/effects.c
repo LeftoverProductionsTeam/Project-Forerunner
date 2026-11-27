@@ -777,6 +777,17 @@ static boolean effect_definition_has_gameplay(struct effect_definition const *de
 	return FALSE;
 }
 
+/* Definition parts stay fixed for the lifetime of an effect. */
+static boolean effect_has_regional_gameplay(struct effect_datum *effect, struct effect_definition const *definition)
+{
+	if (!TEST_FLAG(effect->header.flags, _effect_port_regional_classified_bit))
+	{
+		SET_FLAG(effect->header.flags, _effect_port_regional_gameplay_bit, effect_definition_has_gameplay(definition));
+		SET_FLAG(effect->header.flags, _effect_port_regional_classified_bit, TRUE);
+	}
+	return TEST_FLAG(effect->header.flags, _effect_port_regional_gameplay_bit);
+}
+
 /* port: a client checkpoint boundary retires gameplay from discarded prediction. */
 void effects_discard_gameplay(void)
 {
@@ -1636,22 +1647,25 @@ static long effect_allocate(
 		}
 		else if (definition->events.count > 0)
 		{
-			effect_index = datum_new(effect_data);
+			boolean regional_host = game_connection() == _game_connection_network_server &&
+				network_regional_independent_bsp_ready();
 
-			if (effect_index == NONE && TEST_FLAG(
-				definition->flags,
-				_effect_definition_must_be_deterministic_bit))
+			effect_index = datum_new(effect_data);
+			if (effect_index == NONE &&
+				(TEST_FLAG(definition->flags, _effect_definition_must_be_deterministic_bit) ||
+				 (regional_host && effect_definition_has_gameplay(definition))))
 			{
 				for (effect_index = data_next_index(effect_data, NONE);
 					effect_index != NONE;
 					effect_index = data_next_index(effect_data, effect_index))
 				{
-					if (!TEST_FLAG(
-						effect_definition_get(
-							effect_get(effect_index)->definition_index)->flags,
-						_effect_definition_must_be_deterministic_bit))
+					struct effect_datum *candidate = effect_get(effect_index);
+					struct effect_definition const *candidate_definition =
+						effect_definition_get(candidate->definition_index);
+					if (!TEST_FLAG(candidate_definition->flags, _effect_definition_must_be_deterministic_bit) &&
+						(!regional_host || !effect_has_regional_gameplay(candidate, candidate_definition)))
 					{
-						datum_delete(effect_data, effect_index);
+						effect_delete(effect_index);
 						effect_index = datum_new(effect_data);
 						match_assert(
 							"c:\\halo\\SOURCE\\effects\\effects.c",
@@ -2361,17 +2375,6 @@ static short effect_simulation_bsp(struct effect_datum const *effect)
 	if (bsp == NONE && network_regional_independent_bsp_ready() && object_try_and_get(effect->object_index))
 		bsp = object_get_regional_bsp(effect->object_index);
 	return bsp;
-}
-
-/* Definition parts stay fixed for the lifetime of an effect. */
-static boolean effect_has_regional_gameplay(struct effect_datum *effect, struct effect_definition const *definition)
-{
-	if (!TEST_FLAG(effect->header.flags, _effect_port_regional_classified_bit))
-	{
-		SET_FLAG(effect->header.flags, _effect_port_regional_gameplay_bit, effect_definition_has_gameplay(definition));
-		SET_FLAG(effect->header.flags, _effect_port_regional_classified_bit, TRUE);
-	}
-	return TEST_FLAG(effect->header.flags, _effect_port_regional_gameplay_bit);
 }
 
 static struct structure_bsp const *effect_remote_simulation_structure(short bsp, boolean gameplay)
