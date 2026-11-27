@@ -1359,9 +1359,9 @@ void biped_exit_seat_end(
 
 		object_get_bounding_sphere(seat_object_index, &center, &radius);
 		if (!biped_fix_position(biped_index, seat_object_index, &center, 0, radius, TRUE, FALSE, FALSE))
-			error(_error_silent, "seat exit: no clear placement for %s from %s at %.3f %.3f %.3f",
+			error(_error_silent, "seat exit: no clear placement for %s from %s at %.3f %.3f %.3f unit %08lx carrier %08lx tick %ld",
 				tag_get_name(biped->definition_index), tag_get_name(object_get(seat_object_index)->definition_index),
-				center.x, center.y, center.z);
+				center.x, center.y, center.z, (unsigned long)biped_index, (unsigned long)seat_object_index, game_time_get());
 	}
 
 	return;

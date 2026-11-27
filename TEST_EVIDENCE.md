@@ -438,6 +438,23 @@ isolated trial and is outside this release.
 
 ## Original Zombie Apocalypse native checks
 
+On released Win64 18E298F5, ordinary Zombies Play Solo on Spark's comparison
+cache 05A4268A reproduced blocked carrier exits. The first 540 ticks contained
+14 placement failures and distinct living groups: dormant riders still in
+their seats, and active, unparented actors at full vitality that stayed at
+the same world coordinates. Private Win64 D5D00E32 tied three such actors
+(e36d00fc, e3730102, e3750104) to failed exits on carriers e35700e6 and
+e35900e8 at ticks 1, 29 and 27. A bounded floor fallback left those actors
+stuck and was removed. The exit diagnostic retains the unit, carrier and
+tick for native correlation. Preserve both exact cache variants. Logs:
+build/zombie-seat-18e298f5 and build/zombie-seat-d5d00e32. Near-player damage
+response and the original Demo comparison remain open.
+The installed original-content MCC conversion 12649191 also produced 14
+failures by tick 540 with the two matching unparented, stationary actor
+handles e36d00fc and e3730102. e3750104 moved to ground on that cache.
+See build/zombie-seat-original-18e298f5. The shared failure occurs in local
+host simulation on both caches.
+
 Windows Latest `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
 loaded installed MCC13 `12649191` and Spark's collider candidate `05a4268a`
 through the ordinary Survival menu. The map-authored vehicle preset placed
