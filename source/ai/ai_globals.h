@@ -10,13 +10,17 @@ header included in hcex build.
 
 /* ---------- constants */
 
+/* The saved short keeps the legacy effect type in the low byte. Zero in
+ * the high byte means an unqualified (classic) event. */
+enum { AI_SPATIAL_EFFECT_BSP_STRIDE = 256 };
+
 /* ---------- macros */
 
 /* ---------- structures */
 
 struct ai_spatial_effect
 {
-	short type;
+	short key;
 	short count;
 	real_point3d position;
 	long last_tick;

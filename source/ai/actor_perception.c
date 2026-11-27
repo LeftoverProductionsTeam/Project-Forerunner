@@ -2607,19 +2607,6 @@ perception_factor_ready:
 	return result;
 }
 
-short actor_audibility_at_point(
-	long actor_index,
-	struct actor_position_data const *position,
-	real_point3d const *source_position,
-	struct location const *source_location,
-	short source_type,
-	real scale,
-	short line_of_sight)
-{
-	return actor_audibility_at_point_in_structure(actor_index, position, source_position,
-		source_location, source_type, scale, line_of_sight, global_structure_bsp_get());
-}
-
 short actor_audibility_at_point_in_structure(
 	long actor_index,
 	struct actor_position_data const *position,

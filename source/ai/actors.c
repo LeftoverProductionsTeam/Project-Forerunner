@@ -2041,6 +2041,7 @@ static void actor_decision_loop(
 
 void actors_handle_spatial_effect(
 	long object_index,
+	short bsp,
 	short effect_type,
 	real_point3d const *position,
 	short volume,
@@ -2049,18 +2050,28 @@ void actors_handle_spatial_effect(
 	struct location location;
 	struct actor_iterator iterator;
 	struct actor_datum *actor;
+	struct structure_bsp const *structure = bsp == NONE ?
+		global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
 
-	scenario_location_from_point(&location, position);
+	if (!structure)
+		return;
+	if (bsp == NONE)
+		scenario_location_from_point(&location, position);
+	else
+		scenario_location_from_point_in_structure(&location, structure, position);
 
 	actor_iterator_new(&iterator, TRUE);
 	while ((actor = actor_iterator_next(&iterator)) != NULL)
 	{
-		if (actor->state.combat_status < _actor_combat_status_visible)
+		if (actor->state.combat_status < _actor_combat_status_visible &&
+			(bsp == NONE || (object_try_and_get(actor->meta.unit_index) &&
+			 object_get_regional_bsp(actor->meta.unit_index) == bsp)))
 		{
 			struct actor_position_data sense_position;
 
 			actor_perception_find_sense_position(iterator.index, position, NONE, &sense_position);
-			if (actor_audibility_at_point(iterator.index, &sense_position, position, &location, volume, 1.f, 0) >=
+			if (actor_audibility_at_point_in_structure(iterator.index, &sense_position, position, &location,
+				volume, 1.f, 0, structure) >=
 				_ai_sound_volume_loud)
 			{
 				switch (effect_type)

@@ -5332,7 +5332,8 @@ static void ai_debug_render_spatial_effects(
 	{
 		struct ai_spatial_effect *effect = &ai_globals->spatial_effects[index];
 
-		if (effect->type!=NONE)
+		short bsp = effect->key / AI_SPATIAL_EFFECT_BSP_STRIDE - 1;
+		if (effect->key != NONE && (bsp == NONE || bsp == global_structure_bsp_index_get()))
 		{
 			real_argb_color const **colors[3] =
 			{
@@ -5344,9 +5345,10 @@ static void ai_debug_render_spatial_effects(
 			real_point3d *effect_point;
 			real_point3d point;
 
-			if (effect->type>=0 && effect->type<3)
+			short type = effect->key % AI_SPATIAL_EFFECT_BSP_STRIDE;
+			if (VALID_INDEX(type, NUMBEROF(colors)))
 			{
-				color = *colors[effect->type];
+				color = *colors[type];
 			}
 
 			effect_point = &effect->position;

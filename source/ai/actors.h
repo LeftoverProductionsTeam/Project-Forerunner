@@ -1105,6 +1105,7 @@ void actor_change_encounter(
 	short squad_index);
 void actors_handle_spatial_effect(
 	long object_index,
+	short bsp,
 	short effect_type,
 	real_point3d const *position,
 	short volume,
@@ -1439,15 +1440,6 @@ void prop_position_refresh(
 	struct actor_position_data *position,
 	boolean refresh_position,
 	boolean refresh_vehicle);
-short actor_audibility_at_point(
-	long actor_index,
-	struct actor_position_data const *sense_position,
-	real_point3d const *position,
-	struct location const *location,
-	short volume,
-	real perception_factor,
-	short line_of_sight);
-struct structure_bsp;
 short actor_audibility_at_point_in_structure(
 	long actor_index,
 	struct actor_position_data const *position,

@@ -216,6 +216,7 @@ void ai_handle_editing(
 	long encounter_index);
 void ai_handle_spatial_effect(
 	long object_index,
+	short bsp,
 	union real_point3d const *position,
 	short effect_type,
 	short volume,

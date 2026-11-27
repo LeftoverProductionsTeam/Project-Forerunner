@@ -3061,6 +3061,7 @@ void ai_handle_editing(
 
 void ai_handle_spatial_effect(
 	long object_index,
+	short bsp,
 	real_point3d const *position,
 	short effect_type,
 	short volume,
@@ -3069,6 +3070,16 @@ void ai_handle_spatial_effect(
 	if (ai_globals->ai_initialized_for_map)
 	{
 		long now = game_time_get();
+
+		if (scenario_uses_regional_gameplay(global_scenario_get()))
+		{
+			if (bsp == NONE && object_try_and_get(object_index))
+				bsp = object_get_regional_bsp(object_index);
+			if (!scenario_structure_bsp_try_and_get(bsp))
+				return;
+		}
+		else
+			bsp = NONE;
 
 		match_assert("c:\\halo\\SOURCE\\ai\\ai.c", 0x80E, count>0);
 		match_assert("c:\\halo\\SOURCE\\ai\\ai.c", 0x80F, volume>=0 && volume<NUMBER_OF_AI_SOUND_VOLUMES);
@@ -3083,6 +3094,7 @@ void ai_handle_spatial_effect(
 			boolean submit;
 			short available_effect_index;
 			short i;
+			short effect_key = effect_type + (bsp + 1) * AI_SPATIAL_EFFECT_BSP_STRIDE;
 
 			submit_time = now - AI_SPATIAL_EFFECT_REFRESH_TICKS;
 			new_position_time = now - AI_SPATIAL_EFFECT_REFRESH_TICKS;
@@ -3098,7 +3110,7 @@ void ai_handle_spatial_effect(
 			{
 				boolean matches = FALSE;
 
-				if (effect_type == ai_globals->spatial_effects[i].type &&
+				if (effect_key == ai_globals->spatial_effects[i].key &&
 					distance_squared3d(
 						&ai_globals->spatial_effects[i].position,
 						position) < 1.0f)
@@ -3108,7 +3120,7 @@ void ai_handle_spatial_effect(
 
 				if (ai_globals->spatial_effects[i].last_tick <= expired_time)
 				{
-					ai_globals->spatial_effects[i].type = NONE;
+					ai_globals->spatial_effects[i].key = NONE;
 
 					if (i == ai_globals->spatial_effects_first_index)
 					{
@@ -3183,7 +3195,7 @@ void ai_handle_spatial_effect(
 				matching_effect = &ai_globals->spatial_effects[i];
 				matching_effect->position = *position;
 				matching_effect->last_tick = now;
-				matching_effect->type = effect_type;
+				matching_effect->key = effect_key;
 				matching_effect->count = 1;
 			}
 
@@ -3191,7 +3203,8 @@ void ai_handle_spatial_effect(
 			{
 				actors_handle_spatial_effect(
 					object_index,
-					matching_effect->type,
+					bsp,
+					effect_type,
 					&matching_effect->position,
 					volume,
 					matching_effect->count);

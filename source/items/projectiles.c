@@ -979,11 +979,8 @@ boolean projectile_update(
 			collision_count++;
 			if (foreign_bsp != NONE)
 				time_remaining = 0.f;
-			if (bsp == NONE || bsp == global_structure_bsp_index_get())
-			{
-				ai_handle_spatial_effect(projectile_index, &collision.point,
-					_ai_spatial_effect_weapon_impact, definition->projectile.impact_noise, 1);
-			}
+			ai_handle_spatial_effect(projectile_index, bsp, &collision.point,
+				_ai_spatial_effect_weapon_impact, definition->projectile.impact_noise, 1);
 
 			if (TEST_FLAG(projectile->projectile.flags, _projectile_attached_bit))
 				moved = FALSE;
@@ -1618,9 +1615,8 @@ static void projectile_detonate(
 			TRUE);
 	}
 
-	if (bsp == NONE || bsp == global_structure_bsp_index_get())
-		ai_handle_spatial_effect(projectile_index, &marker_points[0],
-			_ai_spatial_effect_weapon_detonation, definition->projectile.detonation_noise, 1);
+	ai_handle_spatial_effect(projectile_index, bsp, &marker_points[0],
+		_ai_spatial_effect_weapon_detonation, definition->projectile.detonation_noise, 1);
 
 	return;
 }
