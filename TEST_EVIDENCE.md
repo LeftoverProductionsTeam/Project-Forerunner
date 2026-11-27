@@ -1,5 +1,14 @@
 # Forerunner test evidence
 
+## Windows small app icon
+
+Win64 candidate `1466b288` started in an isolated rendered desktop window.
+The two native window icon slots returned the exact new 16- and 32-pixel
+artwork. The executable resource contains all nine requested sizes, and the
+64-, 128-, and 256-pixel artwork matches the previous icon pixel for pixel.
+This candidate also contains the private regional changes awaiting gameplay
+verification, so the installed Latest remains the released ground preview.
+
 ## Product Completion V3 regional Extraction and combat
 
 Private Win64 candidate `351701a5fa23a9b9fbe3dd2365986f4b78f336e3cf78b191bdc28a19609287d5`

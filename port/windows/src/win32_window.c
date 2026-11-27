@@ -9,6 +9,29 @@ which blanks the monitor when the player switches to another application.
 #include <windows.h>
 #include <SDL3/SDL.h>
 
+bool win32_window_set_icon(SDL_Window *window)
+{
+	HWND handle = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+	HINSTANCE application = GetModuleHandleW(NULL);
+	HICON small, large;
+
+	if (!handle || !application)
+		return false;
+
+	/* Use the native size-specific frames from halo.rc. Shared icon handles
+	 * remain valid until the process exits. */
+	small = LoadImageW(application, MAKEINTRESOURCEW(1), IMAGE_ICON,
+		GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED);
+	large = LoadImageW(application, MAKEINTRESOURCEW(1), IMAGE_ICON,
+		GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_SHARED);
+	if (!small || !large)
+		return false;
+
+	SendMessageW(handle, WM_SETICON, ICON_SMALL, (LPARAM)small);
+	SendMessageW(handle, WM_SETICON, ICON_BIG, (LPARAM)large);
+	return true;
+}
+
 void win32_window_borderless_apply(SDL_Window *window)
 {
 	HWND handle;

@@ -50,6 +50,7 @@ and the debug keyboard that the game's console reads.
 #include <time.h>
 #ifdef HALO_WINDOWS
 /* port/windows/src/win32_window.c, compiled with the Windows SDK */
+bool win32_window_set_icon(SDL_Window *window);
 void win32_window_borderless_apply(SDL_Window *window);
 #endif
 #if !defined(_WIN32) && !defined(HALO_ANDROID)
@@ -3312,6 +3313,9 @@ BOOL platform_video_initialize(unsigned long width, unsigned long height)
 #ifndef HALO_GLES
 	/* the game's icon, which the desktop shows for the window (on Windows
 	also halo.exe's own, port/windows/halo.rc; a web page has its own) */
+#ifdef HALO_WINDOWS
+	if (!win32_window_set_icon(platform_window))
+#endif
 	if (platform_window_icon_size)
 	{
 		SDL_Surface *icon = SDL_LoadPNG_IO(SDL_IOFromConstMem(platform_window_icon, platform_window_icon_size), true);

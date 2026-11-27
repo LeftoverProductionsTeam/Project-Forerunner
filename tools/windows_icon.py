@@ -1,39 +1,52 @@
 #!/usr/bin/env python3
-"""Makes the Windows executable's icon, port/windows/forerunner.ico, from the
-artwork, port/assets/icon/forerunner.png:
+"""Makes the Windows executable and window icon, port/windows/forerunner.ico:
 
     python tools/windows_icon.py
 
-The icon holds the artwork at 16, 24, 32, 48, 64, 128 and 256 pixels, each
-rendered from the SVG on its own (so the small ones are not scaled down from
-a large one), as PNG images. Needs Pillow for the original Forerunner artwork; SVG rendering uses rsvg-convert. The resource
-script, port/windows/halo.rc, puts the icon in the executable; run this
-again when the artwork changes.
+The 16–48 pixel frames use a compact, high-contrast version of the emblem.
+The 64–256 pixel frames use port/assets/icon/forerunner.png. Needs Pillow.
+The resource script, port/windows/halo.rc, embeds all frames in the executable.
 """
 
 import struct
-import subprocess
+from io import BytesIO
 from pathlib import Path
+
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 ARTWORK = ROOT / "port/assets/icon/forerunner.png"
 ICON = ROOT / "port/windows/forerunner.ico"
 
-SIZES = (16, 24, 32, 48, 64, 128, 256)
+SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
+
+
+def compact_emblem(size: int) -> Image.Image:
+    """Draw the ring and central crest with enough weight for a title bar."""
+    canvas = Image.new("RGBA", (128, 128))
+    draw = ImageDraw.Draw(canvas)
+    ring_color = "#82e7ff"
+    ring_bounds = (10, 10, 117, 117)
+    draw.arc(ring_bounds, 106, 234, fill=ring_color, width=15)
+    draw.arc(ring_bounds, 306, 434, fill=ring_color, width=15)
+    draw.polygon(
+        [(64, 16), (90, 43), (82, 69), (72, 80), (72, 119),
+         (56, 119), (56, 80), (46, 69), (38, 43)],
+        fill="#eef9ff",
+    )
+    return canvas.resize((size, size), Image.Resampling.LANCZOS)
 
 
 def render(size: int) -> bytes:
-    """the artwork as a PNG of size by size pixels"""
-    if ARTWORK.suffix.lower() == ".png":
-        from io import BytesIO
-        from PIL import Image
-        output = BytesIO()
+    """The size-appropriate emblem as a PNG."""
+    output = BytesIO()
+    if size <= 48:
+        icon = compact_emblem(size)
+    else:
         with Image.open(ARTWORK) as artwork:
-            artwork.resize((size, size), Image.Resampling.LANCZOS).save(output, format="PNG")
-        return output.getvalue()
-    return subprocess.run(
-        ["rsvg-convert", "-w", str(size), "-h", str(size), str(ARTWORK)],
-        check=True, capture_output=True).stdout
+            icon = artwork.resize((size, size), Image.Resampling.LANCZOS)
+    icon.save(output, format="PNG")
+    return output.getvalue()
 
 
 def main() -> None:
