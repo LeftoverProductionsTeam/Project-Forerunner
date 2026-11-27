@@ -1,5 +1,20 @@
 # Forerunner test evidence
 
+## Regional proximity voice
+
+Private Win64 `EA146200336746A7A2939C1DE3EC5949034AAB48C2B63E9701D45CC203B7D191`
+uses BSP ownership for proximity routing in both voice paths. The compiled
+native harness covers overlapping regions, a transfer into a shared region,
+missing ownership, and existing lobby, team and party routing. Optional
+proximity obstruction now uses the same region as playback. The wire format
+is unchanged.
+
+The stock Blood Gulch audio probe on this candidate and Latest `DEACA69B`
+logged the same environment, weapon sound start frames and recording length.
+The candidate produced nonzero final mixer output. Voice capture was off.
+See `build/stock-positional-audio-ea146200/receipt.json` and both debug logs.
+Live two-region party testing still needs a native gameplay session.
+
 ## Regional positional sound and Ice Fields opacity
 
 Private Win64 build `118F03B83C7038DE926CDC14525D944C0F6D7A9AE7AC422E319C7E29A87E1383`
