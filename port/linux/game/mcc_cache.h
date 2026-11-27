@@ -27,6 +27,7 @@ boolean mcc_cache_bsp_reference_checked(struct scenario_structure_bsp_reference 
 void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *reference, boolean in_use);
 void mcc_cache_bsp_set_active(struct scenario_structure_bsp_reference const *reference, boolean active);
 boolean mcc_cache_has_simulation_bsp_holds(void);
+void mcc_cache_log_bsp_pressure(long tick);
 unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_reference const *active,
     struct scenario_structure_bsp_reference const *destination);
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
@@ -49,6 +50,7 @@ the shared code calls do nothing, their arguments unevaluated */
 #define mcc_cache_bsp_set_in_use(reference, in_use) ((void)sizeof(reference), (void)sizeof(in_use))
 #define mcc_cache_bsp_set_active(reference, active) ((void)sizeof(reference), (void)sizeof(active))
 #define mcc_cache_has_simulation_bsp_holds() ((boolean)0)
+#define mcc_cache_log_bsp_pressure(tick) ((void)sizeof(tick))
 #define mcc_cache_bsp_prepare_address(active, destination) ((void)sizeof(active), (void)sizeof(destination), 0ul)
 #define mcc_cache_bsp_load(a0, a1, a2, a3) ((void)sizeof(a0), (void)sizeof(a1), (void)sizeof(a2), (void)sizeof(a3), (boolean)0)
 #define mcc_cache_bsp_retained_structure(reference) ((void)sizeof(reference), (struct structure_bsp *)0)

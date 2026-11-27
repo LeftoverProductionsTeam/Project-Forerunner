@@ -62,6 +62,7 @@ static void mcc_memory_release(void *allocation, uint32_t size)
 void *mcc_memory_reserve(uint32_t address, uint32_t size);
 void mcc_memory_release(void *allocation, uint32_t size);
 #endif
+void platform_log(char const *format, ...);
 int mcc_tags_prepare(struct mcc_runtime *runtime);
 int mcc_scripts_prepare(struct mcc_runtime *runtime);
 short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer, byte const **nodes);
@@ -619,6 +620,35 @@ static boolean mcc_cache_bsp_pinned(struct mcc_cache_bsp const *bsp)
 static boolean mcc_cache_bsp_in_use(struct mcc_cache_bsp const *bsp)
 {
     return bsp && (bsp == mcc_active_bsp || mcc_cache_bsp_pinned(bsp));
+}
+
+void mcc_cache_log_bsp_pressure(long tick)
+{
+    uint32_t index, resident_mask = 0, held_mask = 0;
+    uint64_t resident = 0, held = 0, speculative = 0;
+
+    if (!mcc_loaded || mcc_loaded_cache.report.identity.scenario_type != _scenario_type_multiplayer ||
+        mcc_loaded_cache.report.bsp_count < 2)
+        return;
+    for (index = 0; index < mcc_loaded_cache.report.bsp_count; ++index) {
+        struct mcc_cache_bsp const *bsp = &mcc_loaded_cache.report.bsps[index];
+        uint32_t bit = mcc_cache_bsp_bit(bsp);
+
+        if (!mcc_cache_bsp_resident_address(bsp))
+            continue;
+        resident_mask |= bit;
+        resident += bsp->size;
+        if (mcc_cache_bsp_in_use(bsp)) {
+            held_mask |= bit;
+            held += bsp->size;
+        }
+        if (mcc_preview_bsps & bit)
+            speculative += bsp->size;
+    }
+    platform_log("network test: BSP residency %ld resident %08lx %llu bytes held %08lx %llu bytes previews %llu bytes window %lu bytes",
+        tick, (unsigned long)resident_mask, (unsigned long long)resident, (unsigned long)held_mask,
+        (unsigned long long)held, (unsigned long long)speculative,
+        (unsigned long)(mcc_loaded_cache.capacity - mcc_loaded_cache.used));
 }
 
 /* Tag activation owns its own hold. Unbinding a foreground BSP must

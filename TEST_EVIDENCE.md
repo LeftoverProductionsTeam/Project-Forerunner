@@ -149,6 +149,21 @@ ground preview and its published mode receipt.
   BSP-only residency and crossing pressure remain unmeasured. Logs are
   under `build/regional-pool-authority/pressure-native-host` and
   `pressure-native-guest`.
+- The full-source Win64 candidate `7fdae7fe` sampled live BSP residency
+  and collision references through the existing opt-in network test log.
+  Two players entered `fcfe9d44` from normal LAN menus. The host first
+  held BSPs 0 and 11, then released 11 when the guest died and held it again
+  after respawn. The host walked into BSP 12 while the guest stayed in BSP
+  11. At tick 3750, the host held 2,086,656 bytes in BSPs 11 and 12 and kept
+  BSP 0 as a 7,588,012-byte preview. The largest sampled residency was
+  9,674,668 bytes within the 34,013,792-byte address window above the tags.
+  Host collision pools peaked at 738/8,192 collidable and 542/8,192
+  noncollidable references, with 3,336 unchanged links reused and zero
+  allocation failures through that sample. The guest kept BSP 11 across
+  the host's crossing. The timer ended before a return was observed.
+  Logs are under `build/regional-pressure-profile/residency-host` and
+  `residency-guest`. This is a ground-preview pressure sample, with stress
+  coverage and the combat/loot/wreck round trip still open.
 - Production promotion now requires complete pool coverage. The existing
   released ground preview and a synthetic full roster passed preflight.
   The retained partial receipt, duplicate region IDs, missing vehicles,

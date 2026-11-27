@@ -1721,6 +1721,20 @@ machine has ("network test: item <game time> <absolute index> <x> <y> <z>
 map's item spawns once a game ("network test: spawn <index> <flags> <game
 types> <spawn time> <x> <y> <z> <game type now> <item collection>"), for
 tools/item_sync_check.py to compare the machines' */
+static void network_test_log_collision_pressure(long tick, struct cluster_partition const *partition)
+{
+	struct data_array const *clusters = partition->cluster_reference_data;
+	struct data_array const *references = partition->data_reference_data;
+
+	if (!clusters || !references || !clusters->valid || !references->valid)
+		return;
+	platform_log("network test: collision references %ld %s current %d/%d %d/%d peak %d %d reused %lu allocation failures %lu",
+		tick, clusters->name, clusters->actual_count, clusters->maximum_count,
+		references->actual_count, references->maximum_count,
+		partition->regional_cluster_peak, partition->regional_data_peak,
+		partition->regional_reference_reuses, partition->regional_reference_failures);
+}
+
 static void network_test_log_items(
 	void)
 {
@@ -2372,6 +2386,13 @@ void network_test_update(
 	{
 		network_test.logged_time = game_time_get();
 		network_test_log_players();
+		if (network_test.logged_time % (5 * TICKS_PER_SECOND) < TICKS_PER_SECOND &&
+			global_scenario_try_and_get() && scenario_uses_regional_gameplay(global_scenario_get()))
+		{
+			mcc_cache_log_bsp_pressure(network_test.logged_time);
+			network_test_log_collision_pressure(network_test.logged_time, &collideable_object_cluster_partition);
+			network_test_log_collision_pressure(network_test.logged_time, &noncollideable_object_cluster_partition);
+		}
 		if (network_test.shoot_interval > 0.0f &&
 			game_time_get() % MAX(1, (long)(network_test.shoot_interval * TICKS_PER_SECOND)) < TICKS_PER_SECOND)
 		{
