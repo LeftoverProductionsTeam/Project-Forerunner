@@ -226,6 +226,7 @@ symbols in this file:
 #include "game/game_allegiance.h"
 #include "game/game_globals.h"
 #include "game/players.h"
+#include "network_coop.h"
 
 #include "main/console.h"
 #include "memory/data.h"
@@ -707,8 +708,8 @@ void ai_erase(
 	return;
 }
 
-/* Authored regions keep their live squads between visits. Native pressure
- * recovery can still release encounterless actors and classic encounters. */
+/* Authored regions keep their live squads between visits, including actors
+ * temporarily detached for a crossing. Unbound actors remain reclaimable. */
 static boolean ai_encounter_has_regional_home(struct scenario const *scenario, long encounter_index)
 {
 	struct encounter_definition const *definition;
@@ -723,6 +724,13 @@ static boolean ai_encounter_has_regional_home(struct scenario const *scenario, l
 	definition = TAG_BLOCK_GET_ELEMENT(&scenario->ai_encounters, index, struct encounter_definition);
 	return VALID_INDEX(definition->runtime_structure_bsp_reference_index,
 		MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO));
+}
+
+static boolean ai_actor_has_regional_home(struct scenario const *scenario, struct actor_datum const *actor)
+{
+	long encounter = actor->meta.encounterless ? actor->meta.disconnected_encounter_index :
+		actor->meta.encounter_index;
+	return ai_encounter_has_regional_home(scenario, encounter);
 }
 
 boolean ai_release_inactive_swarms(
@@ -748,7 +756,7 @@ boolean ai_release_inactive_swarms(
 		if (actor->meta.swarm &&
 			!actor->meta.active &&
 			actor->meta.last_active_time != NONE &&
-			!ai_encounter_has_regional_home(scenario, actor->meta.encounter_index))
+			!ai_actor_has_regional_home(scenario, actor))
 		{
 			released_unit_count += actor->meta.swarm_unit_count;
 			actor_erase(iterator.index, TRUE);
@@ -813,7 +821,7 @@ void ai_find_inactive_encounters(
 
 			if (!actor->meta.active &&
 				actor->meta.last_active_time != NONE &&
-				!ai_encounter_has_regional_home(scenario, actor->meta.encounter_index))
+				!ai_actor_has_regional_home(scenario, actor))
 			{
 				storage->entities[storage->count].is_actor = TRUE;
 				storage->entities[storage->count].entity_index = actor_iterator.index;
@@ -1909,10 +1917,38 @@ void ai_disconnect_from_structure_bsp_for_rebind(void)
 	ai_disconnect_from_structure_bsp_internal(TRUE);
 }
 
-void ai_reconnect_to_structure_bsp(
-	void)
+boolean ai_try_reconnect_disconnected_actor(long actor_index)
 {
-	short structure_bsp_index = global_structure_bsp_index_get();
+	struct scenario *scenario = global_scenario_get();
+	struct actor_datum *actor = actor_get(actor_index);
+	struct encounter_definition const *definition;
+	long encounter_index = actor->meta.disconnected_encounter_index;
+	short squad = actor->meta.disconnected_squad_index;
+	short home;
+
+	if (!actor->meta.encounterless || encounter_index == NONE)
+		return FALSE;
+	definition = TAG_BLOCK_GET_ELEMENT(&scenario->ai_encounters,
+		DATUM_INDEX_TO_ABSOLUTE_INDEX(encounter_index), struct encounter_definition);
+	home = definition->runtime_structure_bsp_reference_index;
+	if (scenario_uses_regional_gameplay(scenario) && network_regional_independent_bsp_ready())
+	{
+		long unit = actor->meta.swarm_unit_index != NONE ? actor->meta.swarm_unit_index : actor->meta.unit_index;
+		if (!VALID_INDEX(home, scenario->structure_bsp_references.count) ||
+			!object_try_and_get(unit) || object_get_regional_bsp(unit) != home ||
+			!scenario_structure_bsp_try_and_get(home))
+			return FALSE;
+	}
+	else if (home != global_structure_bsp_index_get())
+		return FALSE;
+
+	encounterless_detach_actor(actor_index);
+	encounter_attach_actor(actor_index, encounter_index, squad, TRUE);
+	return TRUE;
+}
+
+static void ai_reconnect_disconnected_actors(void)
+{
 	long actor_index = ai_globals->first_encounterless_actor_index;
 
 	while (actor_index != NONE)
@@ -1921,28 +1957,15 @@ void ai_reconnect_to_structure_bsp(
 		long next_actor_index = actor->meta.next_actor_index;
 
 		match_assert("c:\\halo\\SOURCE\\ai\\ai.c", 0x96F, actor->meta.encounterless);
-
-		if (actor->meta.disconnected_encounter_index != NONE)
-		{
-			struct encounter_definition *encounter = TAG_BLOCK_GET_ELEMENT(
-				&global_scenario_get()->ai_encounters,
-				DATUM_INDEX_TO_ABSOLUTE_INDEX(actor->meta.disconnected_encounter_index),
-				struct encounter_definition);
-
-			if (encounter->runtime_structure_bsp_reference_index == structure_bsp_index)
-			{
-				encounterless_detach_actor(actor_index);
-				encounter_attach_actor(
-					actor_index,
-					actor->meta.disconnected_encounter_index,
-					actor->meta.disconnected_squad_index,
-					TRUE);
-			}
-		}
-
+		ai_try_reconnect_disconnected_actor(actor_index);
 		actor_index = next_actor_index;
 	}
+}
 
+void ai_reconnect_to_structure_bsp(
+	void)
+{
+	ai_reconnect_disconnected_actors();
 	encounters_reconnect_to_structure_bsp();
 	return;
 }
@@ -2059,6 +2082,10 @@ void ai_update(
 		}
 		else if (ai_globals->ai_active)
 		{
+			/* A remote region can become live without the foreground BSP switching. */
+			if (ai_globals->first_encounterless_actor_index != NONE && game_time_get() % TICKS_PER_SECOND == 0 &&
+				scenario_uses_regional_gameplay(global_scenario_get()) && network_regional_independent_bsp_ready())
+				ai_reconnect_disconnected_actors();
 			ai_conversation_update();
 			encounters_update();
 			actors_update();

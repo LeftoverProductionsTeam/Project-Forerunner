@@ -319,6 +319,7 @@ symbols in this file:
 #include "units/vehicle_definitions.h"
 #include "units/vehicles.h"
 #include "networking/network_game_globals.h"
+#include "network_coop.h"
 #include "stubbs_mode.h" /* port: port/linux/game/stubbs_mode.c */
 #include "mcc_skulls.h" /* port: MCC's skulls on MCC maps */
 #include "coop_enemies.h" /* port: native Firefight child ownership (coop_enemies.c) */
@@ -4125,7 +4126,7 @@ static boolean actor_general_update(
 				switch (actor->control.path.destination_orders.destination_type)
 				{
 				case _destination_firing_position:
-					if (actor->state.action == _actor_action_guard &&
+					if (encounter && actor->state.action == _actor_action_guard &&
 						encounter->follow_target_type == _follow_target_players)
 					{
 						can_become_dormant = FALSE;
@@ -4361,11 +4362,45 @@ static void actor_update(
 	return;
 }
 
+static boolean actor_simulation_region_live(long unit_index, short foreground, unsigned long occupied)
+{
+	short bsp = object_get_regional_bsp(unit_index);
+	return VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) &&
+		(bsp == foreground || (TEST_FLAG(occupied, bsp) && scenario_structure_bsp_try_and_get(bsp)));
+}
+
+static boolean actor_simulation_scene_live(struct actor_datum const *actor, short foreground, unsigned long occupied)
+{
+	long unit_index;
+	short remaining;
+
+	if (!actor->meta.swarm)
+		return actor->meta.unit_index == NONE ||
+			actor_simulation_region_live(actor->meta.unit_index, foreground, occupied);
+
+	/* A swarm shares orders across its bodies. Wait until every member's
+	 * collision scene can service them before advancing those orders. */
+	unit_index = actor->meta.swarm_unit_index;
+	remaining = actor->meta.swarm_unit_count;
+	while (unit_index != NONE && remaining-- > 0)
+	{
+		struct unit_datum const *unit = unit_try_and_get(unit_index);
+		if (!unit || !actor_simulation_region_live(unit_index, foreground, occupied))
+			return FALSE;
+		unit_index = unit->unit.swarm_next_unit_index;
+	}
+	return unit_index == NONE;
+}
+
 void actors_update(
 	void)
 {
 	struct actor_iterator iterator;
 	struct actor_datum *actor;
+	boolean regional = game_connection() == _game_connection_network_server &&
+		scenario_uses_regional_gameplay(global_scenario_get()) && network_regional_independent_bsp_ready();
+	short foreground = regional ? global_structure_bsp_index_get() : NONE;
+	unsigned long occupied = regional ? players_occupied_regional_bsps() : 0;
 
 	ai_globals->last_highest_service_timer = ai_globals->current_highest_service_timer;
 	ai_globals->current_highest_service_timer = 0;
@@ -4378,7 +4413,8 @@ void actors_update(
 		{
 			actor_erase(iterator.index, FALSE);
 		}
-		else if (actor->state.mode > _actor_mode_braindead)
+		else if (actor->state.mode > _actor_mode_braindead &&
+			(!regional || actor_simulation_scene_live(actor, foreground, occupied)))
 		{
 			actor_update(iterator.index);
 		}

@@ -168,6 +168,7 @@ symbols in this file:
 #include "saved games/game_state.h"
 #include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
+#include "scenario/scenario_limits.h"
 #include "sound/game_sound.h"
 #include "sound/sound_definitions.h"
 #include "tag_files/tag_files.h"
@@ -536,11 +537,11 @@ static void effect_generate_part(
 	real_point3d const *world_point,
 	real_vector3d const *world_forward,
 	real_vector3d const *world_up,
-	real scale);
+	real scale, short bsp, struct structure_bsp const *remote_structure);
 
 // effect_generate_parts: effect is passed in ebx
-static void effect_generate_parts(
-	struct effect_datum *effect);
+static void effect_generate_parts(struct effect_datum *effect, short bsp,
+	struct structure_bsp const *remote_structure);
 
 // effect_generate_particles: effect is passed in edi
 static void effect_generate_particles(
@@ -595,7 +596,7 @@ static void effect_random_angular_velocity(
 static boolean effect_allowed_by_environment(
 	short environment,
 	struct location const *location,
-	real_point3d const *world_point);
+	real_point3d const *world_point, struct structure_bsp const *remote_structure);
 
 // effect_part_allowed_by_disposition: both arguments are passed in registers
 static boolean effect_part_allowed_by_disposition(
@@ -1712,7 +1713,7 @@ static void effect_generate_part(
 	real_point3d const *world_point,
 	real_vector3d const *world_forward,
 	real_vector3d const *world_up,
-	real scale)
+	real scale, short bsp, struct structure_bsp const *remote_structure)
 {
 	real_vector3d direction;
 	real_vector3d velocity;
@@ -1823,7 +1824,10 @@ static void effect_generate_part(
 				part_definition->scale_a_flags,
 				part_definition->scale_b_flags);
 
-			object_new(&data);
+			if (remote_structure)
+				object_new_in_bsp(&data, bsp, remote_structure);
+			else
+				object_new(&data);
 			break;
 		}
 
@@ -1878,11 +1882,13 @@ static void effect_generate_part(
 
 			damage.scale = scale;
 			damage.location = effect->location;
+			if (remote_structure)
+				scenario_location_from_point_in_structure(&damage.location, remote_structure, world_point);
 			damage.origin = *world_point;
 			damage.epicenter = *world_point;
 			damage.direction = *world_forward;
 
-			area_of_effect_cause_damage_in_bsp(effect_fixed_bsp(effect), &damage);
+			area_of_effect_cause_damage_in_bsp(bsp, &damage);
 			break;
 		}
 
@@ -1919,8 +1925,13 @@ static void effect_generate_part(
 	return;
 }
 
-static void effect_generate_parts(
-	struct effect_datum *effect)
+static boolean effect_part_is_regional_gameplay(tag class_tag)
+{
+	return class_tag == OBJECT_DEFINITION_TAG || class_tag == DAMAGE_EFFECT_DEFINITION_TAG;
+}
+
+static void effect_generate_parts(struct effect_datum *effect, short bsp,
+	struct structure_bsp const *remote_structure)
 {
 	struct effect_definition *definition =
 		effect_definition_get(effect->definition_index);
@@ -1938,6 +1949,10 @@ static void effect_generate_parts(
 			struct effect_part_definition);
 		long location_datum_index;
 		struct effect_location_datum *instance;
+
+		/* Presentation parts still use foreground render and audio lists. */
+		if (remote_structure && !effect_part_is_regional_gameplay(part->runtime_base_class_tag))
+			continue;
 
 		/* port: and a location the effect holds */
 		if (part->location_index < 0 ||
@@ -1998,10 +2013,8 @@ static void effect_generate_parts(
 				world_up = *global_forward3d;
 			}
 
-			if (effect_allowed_by_environment(
-				part->environment,
-				&effect->location,
-				&world_point))
+			if (effect_allowed_by_environment(part->environment, &effect->location,
+				&world_point, remote_structure))
 			{
 				effect_generate_part(
 					effect,
@@ -2015,7 +2028,7 @@ static void effect_generate_parts(
 						1.0f,
 						part->scale_a_flags,
 						part->scale_b_flags,
-						_effect_part_type_scale_bit));
+						_effect_part_type_scale_bit), bsp, remote_structure);
 			}
 		}
 	}
@@ -2182,7 +2195,7 @@ static void effect_generate_particles(
 				if (effect_allowed_by_environment(
 					particles->environment,
 					&effect->location,
-					&world_point))
+					&world_point, NULL))
 				{
 					data.definition_index = particles->particle.index;
 
@@ -2344,6 +2357,23 @@ static boolean effect_location_potentially_visible_local(
 	return scenario_location_potentially_visible_local(location);
 }
 
+static short effect_simulation_bsp(struct effect_datum const *effect)
+{
+	short bsp = effect_fixed_bsp(effect);
+	if (bsp == NONE && network_regional_independent_bsp_ready() && object_try_and_get(effect->object_index))
+		bsp = object_get_regional_bsp(effect->object_index);
+	return bsp;
+}
+
+static struct structure_bsp const *effect_remote_simulation_structure(short bsp, boolean deterministic)
+{
+	if (!deterministic || !VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ||
+		game_connection() != _game_connection_network_server || !network_regional_independent_bsp_ready() ||
+		!TEST_FLAG(players_occupied_regional_bsps(), bsp))
+		return NULL;
+	return scenario_structure_bsp_try_and_get(bsp);
+}
+
 static void effect_update(
 	long effect_index,
 	real dt)
@@ -2354,13 +2384,19 @@ static void effect_update(
 	boolean visible;
 	short iteration_index;
 
-	/* World effects resume in their own scene. Until effect parts can spawn
-	 * and render against another live scene, keep their native event intact. */
-	if (!effect_fixed_bsp_is_current(effect))
+	short bsp = effect_simulation_bsp(effect);
+	struct structure_bsp const *remote_structure = NULL;
+
+	if (bsp != NONE && bsp != global_structure_bsp_index_get())
 	{
-		if (!TEST_FLAG(definition->flags, _effect_definition_must_be_deterministic_bit))
-			effect_delete(effect_index);
-		return;
+		boolean deterministic = TEST_FLAG(definition->flags, _effect_definition_must_be_deterministic_bit);
+		remote_structure = effect_remote_simulation_structure(bsp, deterministic);
+		if (!remote_structure)
+		{
+			if (!deterministic && effect->object_index == NONE)
+				effect_delete(effect_index);
+			return;
+		}
 	}
 
 	if (effect->object_index != NONE)
@@ -2375,15 +2411,6 @@ static void effect_update(
 			effect_delete(effect_index);
 
 			return;
-		}
-
-		/* Attached effects use the scene of their root, even while a listen
-		 * host is viewing a different BSP. Resume with that scene. */
-		if (network_regional_independent_bsp_ready())
-		{
-			short bsp = object_get_regional_bsp(effect->object_index);
-			if (bsp != NONE && bsp != global_structure_bsp_index_get())
-				return;
 		}
 
 		parent_object_index = object_get_ultimate_parent(effect->object_index);
@@ -2477,8 +2504,8 @@ static void effect_update(
 		}
 	}
 
-	visible = FALSE;
-	if (effect->location.cluster_index != NONE)
+	visible = remote_structure != NULL;
+	if (!visible && effect->location.cluster_index != NONE)
 	{
 		visible = TEST_FLAG(
 			definition->flags,
@@ -2543,7 +2570,7 @@ static void effect_update(
 		{
 			short next_event_index;
 
-			if (!TEST_FLAG(flags, _effect_invisible_bit))
+			if (!remote_structure && !TEST_FLAG(flags, _effect_invisible_bit))
 				effect_generate_particles(effect);
 
 			if (!event_completed)
@@ -2643,7 +2670,7 @@ static void effect_update(
 			}
 
 			if (!TEST_FLAG(effect->header.flags, _effect_invisible_bit))
-				effect_generate_parts(effect);
+				effect_generate_parts(effect, bsp, remote_structure);
 		}
 	}
 
@@ -2778,7 +2805,7 @@ static void effect_random_angular_velocity(
 static boolean effect_allowed_by_environment(
 	short environment,
 	struct location const *location,
-	real_point3d const *world_point)
+	real_point3d const *world_point, struct structure_bsp const *remote_structure)
 {
 	boolean allowed;
 
@@ -2789,11 +2816,17 @@ static boolean effect_allowed_by_environment(
 			break;
 
 		case _effect_environment_air:
-			allowed = !scenario_location_underwater(location, world_point, NULL);
-			break;
-
 		case _effect_environment_water:
-			allowed = scenario_location_underwater(location, world_point, NULL);
+			if (remote_structure)
+			{
+				struct location part_location;
+				scenario_location_from_point_in_structure(&part_location, remote_structure, world_point);
+				allowed = scenario_location_underwater_in_structure(remote_structure, &part_location, world_point, NULL);
+			}
+			else
+				allowed = scenario_location_underwater(location, world_point, NULL);
+			if (environment == _effect_environment_air)
+				allowed = !allowed;
 			break;
 
 		case _effect_environment_vacuum:

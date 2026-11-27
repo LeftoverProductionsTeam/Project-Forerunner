@@ -734,7 +734,7 @@ short scenario_get_fog_region_index(
 		scenario_get_fog_region_index_in_structure(global_structure_bsp_get(), location, position);
 }
 
-static boolean scenario_location_underwater_in_structure(
+boolean scenario_location_underwater_in_structure(
 	struct structure_bsp const *structure_bsp,
 	const struct location *location,
 	const real_point3d *position,

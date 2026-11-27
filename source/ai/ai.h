@@ -114,6 +114,7 @@ boolean ai_unit_belongs_to_other_bsp(
 void ai_disconnect_from_structure_bsp(
 	void);
 void ai_disconnect_from_structure_bsp_for_rebind(void);
+boolean ai_try_reconnect_disconnected_actor(long actor_index);
 void ai_reconnect_to_structure_bsp(
 	void);
 void ai_globals_dialogue_triggers_enabled(

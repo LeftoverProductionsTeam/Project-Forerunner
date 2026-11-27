@@ -4184,24 +4184,78 @@ static void encounterless_deactivate(
 	return;
 }
 
+struct encounter_activation_visibility
+{
+	boolean regional;
+	unsigned long occupied;
+	unsigned long computed;
+	unsigned long const *foreground;
+	unsigned long remote[MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO][BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
+};
+
+static unsigned long const *encounter_activation_pvs(struct encounter_activation_visibility *visibility,
+	short bsp, struct structure_bsp const *structure)
+{
+	if (!visibility->regional || bsp == global_structure_bsp_index)
+		return visibility->foreground;
+	if (!structure || !VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+		return NULL;
+	if (!TEST_FLAG(visibility->computed, bsp))
+	{
+		players_compute_regional_pvs(bsp, structure, visibility->remote[bsp]);
+		visibility->computed |= FLAG(bsp);
+	}
+	return visibility->remote[bsp];
+}
+
+static boolean encounterless_unit_is_visible(long unit_index, struct encounter_activation_visibility *visibility)
+{
+	long root;
+	struct object_datum const *object;
+	unsigned long const *pvs = visibility->foreground;
+	short cluster;
+
+	if (unit_index == NONE || !object_try_and_get(unit_index))
+		return FALSE;
+	root = object_get_ultimate_parent(unit_index);
+	object = object_try_and_get(root);
+	if (!object)
+		return FALSE;
+	cluster = object->object.location.cluster_index;
+	if (!VALID_INDEX(cluster, MAXIMUM_CLUSTERS_PER_STRUCTURE))
+		return FALSE;
+
+	if (visibility->regional)
+	{
+		short bsp = object_get_regional_bsp(root);
+		struct structure_bsp const *structure = bsp == global_structure_bsp_index ?
+			global_structure_bsp_get() : encounter_remote_structure(bsp, visibility->occupied);
+		if (!structure || !VALID_INDEX(cluster, structure->clusters.count))
+			return FALSE;
+		pvs = encounter_activation_pvs(visibility, bsp, structure);
+	}
+	return pvs && BIT_VECTOR_TEST_FLAG(pvs, cluster);
+}
+
 static void encounters_test_activation(
 	void)
 {
 	struct scenario *scenario = global_scenario_get();
 	boolean regional = scenario_uses_regional_gameplay(scenario);
 	struct structure_bsp const *foreground_structure = global_structure_bsp_get();
-	unsigned long const *foreground_pvs = players_get_combined_pvs();
-	unsigned long occupied = regional && network_regional_independent_bsp_ready() ?
-		players_occupied_regional_bsps() : 0;
-	unsigned long regional_pvs[MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO][BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
-	unsigned long computed_pvs = 0;
-	unsigned long const *combined_pvs = foreground_pvs;
+	struct encounter_activation_visibility visibility;
+	unsigned long const *combined_pvs;
 	unsigned long activation_cluster_bit_vector[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
 	struct data_iterator iterator;
 	struct encounter_datum *encounter;
 	struct actor_datum *actor;
 	long actor_index;
 	boolean active;
+
+	visibility.regional = regional;
+	visibility.occupied = regional && network_regional_independent_bsp_ready() ? players_occupied_regional_bsps() : 0;
+	visibility.computed = 0;
+	visibility.foreground = players_get_combined_pvs();
 
 	for (actor_index = ai_globals->first_encounterless_actor_index; actor_index != NONE; actor_index = actor->meta.next_actor_index)
 	{
@@ -4219,11 +4273,8 @@ static void encounters_test_activation(
 				while (unit_index != NONE)
 				{
 					struct unit_datum *unit = unit_get(unit_index);
-					long ultimate_parent_index = object_get_ultimate_parent(unit_index);
-					struct object_datum *parent_object = object_get(ultimate_parent_index);
-					short cluster_index = parent_object->object.location.cluster_index;
 
-					if (cluster_index != NONE && BIT_VECTOR_TEST_FLAG(combined_pvs, cluster_index))
+					if (encounterless_unit_is_visible(unit_index, &visibility))
 					{
 						actor->meta.dormant_desire = FALSE;
 						break;
@@ -4239,11 +4290,7 @@ static void encounters_test_activation(
 
 				for (i = 0; i < swarm->unit_count; ++i)
 				{
-					long ultimate_parent_index = object_get_ultimate_parent(swarm->unit_indices[i]);
-					struct object_datum *parent_object = object_get(ultimate_parent_index);
-					short cluster_index = parent_object->object.location.cluster_index;
-
-					if (cluster_index != NONE && BIT_VECTOR_TEST_FLAG(combined_pvs, cluster_index))
+					if (encounterless_unit_is_visible(swarm->unit_indices[i], &visibility))
 					{
 						actor->meta.dormant_desire = FALSE;
 						break;
@@ -4253,14 +4300,7 @@ static void encounters_test_activation(
 		}
 		else
 		{
-			long ultimate_parent_index = object_get_ultimate_parent(actor->meta.unit_index);
-			struct object_datum *parent_object = object_get(ultimate_parent_index);
-			short cluster_index = parent_object->object.location.cluster_index;
-
-			if (cluster_index == NONE)
-				actor->meta.dormant_desire = TRUE;
-			else
-				actor->meta.dormant_desire = !BIT_VECTOR_TEST_FLAG(combined_pvs, cluster_index);
+			actor->meta.dormant_desire = !encounterless_unit_is_visible(actor->meta.unit_index, &visibility);
 		}
 
 		active = actor->meta.force_active;
@@ -4295,22 +4335,13 @@ static void encounters_test_activation(
 		struct structure_bsp const *structure = foreground_structure;
 		boolean remote = bsp != global_structure_bsp_index;
 
-		combined_pvs = foreground_pvs;
 		if (remote)
 		{
-			structure = regional ? encounter_remote_structure(bsp, occupied) : NULL;
+			structure = regional ? encounter_remote_structure(bsp, visibility.occupied) : NULL;
 			if (regional && !structure)
 				continue;
-			if (structure)
-			{
-				if (!TEST_FLAG(computed_pvs, bsp))
-				{
-					players_compute_regional_pvs(bsp, structure, regional_pvs[bsp]);
-					computed_pvs |= FLAG(bsp);
-				}
-				combined_pvs = regional_pvs[bsp];
-			}
 		}
+		combined_pvs = encounter_activation_pvs(&visibility, bsp, structure);
 
 		active = encounter->force_active;
 		active |= game_in_editor();

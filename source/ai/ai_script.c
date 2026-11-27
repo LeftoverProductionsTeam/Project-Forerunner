@@ -2533,17 +2533,8 @@ static void ai_scripting_migrate_internal(
 								(target_squad_indices[current_squad_index] >= 0) && (target_squad_indices[current_squad_index] < target_encounter_definition->squads.count));
 							actor->meta.disconnected_encounter_index = target_encounter_index;
 							actor->meta.disconnected_squad_index = target_squad_indices[current_squad_index];
-							if (!same_encounter &&
-								target_encounter_definition->runtime_structure_bsp_reference_index ==
-									global_structure_bsp_index_get())
-							{
-								encounterless_detach_actor(iterator.index);
-								encounter_attach_actor(
-									iterator.index,
-									actor->meta.disconnected_encounter_index,
-									actor->meta.disconnected_squad_index,
-									TRUE);
-							}
+							if (!same_encounter)
+								ai_try_reconnect_disconnected_actor(iterator.index);
 						}
 					}
 				}
