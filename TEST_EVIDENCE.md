@@ -1,5 +1,29 @@
 # Forerunner test evidence
 
+## Forge and camera settings release
+
+Latest Win64 is `18E298F5CE8B67BFD9FE4737ED4E03ABCC24BC594A3368E4ED053CA474D15DCB`
+(source `2c82bbf2e`). Previous is `E930A095`. The installed Be Native and
+MegaWorld map/receipt hashes matched before and after the executable rotation.
+
+- Normal Local Forge menus on stock Battle Creek `C65AC17D` confirmed F7
+  enters flight, Space moves the camera, F5 opens and closes the Chupathingy
+  side browser, and F7 returns player control and the weapon. The Vehicles
+  category and Properties tab opened while gameplay remained visible. An
+  earlier UI-equivalent candidate `13D2DED7` also placed an assault rifle from
+  the native palette. Frames: `build/forge-browser-18e298f5/screens`, with
+  placement in `build/forge-browser-13d2ded7/screens/window22749.bmp`.
+- Be Native `BCE7A0A3` through Extraction → Play Solo confirmed live
+  Z/X/Y preview while the game is paused. Uncovered scene pixels changed on
+  every axis adjustment and returned exactly to baseline on Back and reopen.
+  Accept saved only Z=4.2 after the canceled draft. Frames and debug log:
+  `build/camera-preview-18e298f5`.
+- The owner session reached Be Native's landing prompt 74 s after deploy.
+  The cause of the low circling remains open. The Zombie comparison session
+  used `05A4268A` and logged repeated blocked carrier exits. No actor ID
+  links those exits to the reported stationary bodies. Keep the original
+  map, enhanced Warthog and Monitor spectator work separate.
+
 ## Firefight round and set release
 
 Win64 E930A0952A9B899DA0DEF9CB0EDDE32E6DD23C0FBC3DED2204CD4626EA81AF80 is in Latest. Previous holds F3867A7C. Normal Firefight menus on stock B40 0A7B26D6 selected three waves, one wave per round, two rounds per set, one initial enemy and resupply. Native solo-host combat used the existing aim/trigger harness with finite ammunition. Host logging shows round clear at 100, set clear at 200, entry to set 2, three native kills, two resupplies, victory at 300 and return to pregame. Logs and frames: build/firefight-sets-e930a095-complete. The release and Previous seals match; B40 and the released MegaWorld pair are unchanged. Grouped peer late join and reconnect still need native proof.

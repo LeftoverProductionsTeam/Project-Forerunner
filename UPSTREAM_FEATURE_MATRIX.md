@@ -34,6 +34,12 @@ component validator. Validation of the resulting tree is recorded separately.
 | [DamnationCE](https://github.com/xshxdex98/DamnationCE) | `d31736d3748f1156995e6bba13126f87aeff40ee` | `0b2c6759bb4cb3ee5dcc3d650de2dcda74d79620` | Older CE/co-op reference; avoid copying AI/network systems already present in newer ancestry. |
 | [OpenCE-PS4](https://github.com/iHaiDeeZ/OpenCE-PS4) | `dcf1b836085829999a004afef86bb3c45d361642` | No common Git ancestor: patch/toolchain repository | Optional console adapter. `patches/BASE.txt` separately pins engine base `9662f0f6cb60746444bee9549e4271e387fdc659`. |
 
+## Optional path tracing source audit
+
+- [OpenH1 master at 1b00fcfb](https://github.com/OpenH1/goath1/blob/1b00fcfb1210cbed44e3495f6292a747ca2c6899/docs/rt-plan/4-path-tracing.md) documents an optional opaque path tracer sharing Halo material records, scene acceleration structures, native sky and lights, raster transparencies and the HUD. Its performance figures are targets and have no Forerunner measurement.
+- [NVIDIA DXVK-Remix direct SDK](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/c63f9dd9eb81e7351e4d5823882952e49753f4f5/documentation/RemixSDK.md) can accept camera, mesh, material, and light data without intercepting Forerunner's legacy draw calls. The zlib-licensed renderer's Windows SDK uses a versioned C interface in the runtime library and owns its acceleration structures. Review bundled binary terms separately. Compare a thin optional adapter over Forerunner's scene data with the native Vulkan path before deciding which renderer to ship.
+- [TheGreatHMMMM's Halo compatibility mod](https://github.com/TheGreatHMMMM/halo-rtx-compat/tree/2eaf31db8a5580dd812a38649f153696a65523e3) targets the 2003 PC executable (GPL-3.0). Use it to compare Halo material and effects handling. The [Halo DXVK-Remix fork](https://github.com/TheGreatHMMMM/halo-dxvk-remix/tree/d35f037e463ca7bb17809f0e7764c4c151d5cf09) is zlib-licensed, and [OpenRemix](https://github.com/TheGreatHMMMM/OpenRemix/tree/13c3a1001be4d5eb40a8037c136ca6efca8461eb) offers a Remix API-compatible vendor-agnostic candidate under Apache-2.0. Runtime compatibility, visual fidelity, hardware coverage, frame time, VRAM and Spark controls remain unverified.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

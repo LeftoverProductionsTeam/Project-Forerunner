@@ -9,6 +9,14 @@ workflows. Use the focused [active test checkpoint](../../TEST_EVIDENCE.md)
 and the owner’s current priorities for work order. Earlier priority labels
 below describe their original milestones.
 
+Optional full path tracing belongs alongside Classic and Hybrid. Evaluate
+direct integration before implementing a new tracer. Reuse native scene
+geometry, materials, lighting and acceleration structures. Keep native
+resolution, optional upscaling, and configurable denoising. Publish Spark
+graphics and material controls only for verified capabilities. Keep RTX
+optional and verify licenses, supported hardware, visual fidelity, real frame
+times and memory before release.
+
 ## Product Completion V2.1
 
 Keep Product Completion V2 and its accepted behavior. Verify the shared actor
