@@ -73,6 +73,19 @@ not load Halo geometry, verify compositor output or measure gameplay frame
 times and memory. No provider, binary or Spark capability was added.
 [External presenter source](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/0a6cd5b1ee814ec390c358e0c9c32ece8895ddc0/src/d3d9/d3d9_swapchain_external.cpp)
 
+**Native D3D11 sharing result.** The same pinned 1.6.1 package accepted a
+caller-created DXVK D3D9Ex device and returned a handle for an 800×450 shared
+render-target texture. DXVK reported that it could not write the shared
+resource metadata, and a native hardware D3D11 device rejected
+`OpenSharedResource` with `0x80070057`. No final-color copy or compositor
+frame was verified. The public D3D9 texture code uses an opaque Vulkan Win32
+KMT handle for this path. A different consumer must prove import of that
+specific handle type and synchronization on the selected adapter, or use a
+provider with explicit shared-device or external resource support. Do not
+treat the returned handle alone as proof of compatibility. Evidence and
+package identity are in `build/remix-1.6.1-shared-image`.
+[Shared-texture source](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/0a6cd5b1ee814ec390c358e0c9c32ece8895ddc0/src/d3d9/d3d9_common_texture.cpp)
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
