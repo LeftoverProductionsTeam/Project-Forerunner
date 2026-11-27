@@ -53,13 +53,25 @@ MINIMUM_FREE = 4 * GIB
 INCREMENTAL_RESERVE = 4 * GIB
 
 
-def scratch_usage(directory, maximum=SCRATCH_LIMIT):
+def scratch_usage(directory, maximum=SCRATCH_LIMIT, *, active_writer=False):
     total = 0
     pending = [directory]
     while pending:
-        with os.scandir(pending.pop()) as entries:
+        folder = pending.pop()
+        try:
+            entries = os.scandir(folder)
+        except FileNotFoundError:
+            if not active_writer or folder == directory:
+                raise
+            continue
+        with entries:
             for entry in entries:
-                info = entry.stat(follow_symlinks=False)
+                try:
+                    info = entry.stat(follow_symlinks=False)
+                except FileNotFoundError:
+                    if not active_writer:
+                        raise
+                    continue
                 if (entry.is_symlink() or getattr(info, "st_file_attributes", 0) &
                         getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)):
                     raise ValueError(f"Linked path in managed scratch: {entry.path}")

@@ -75,7 +75,12 @@ def run_case(args, name, binary):
             args.writer = process
             deadline = time.monotonic() + args.seconds + 60
             sent = False
+            next_storage_check = started
             while process.poll() is None and time.monotonic() < deadline:
+                now = time.monotonic()
+                if now >= next_storage_check:
+                    scratch_usage(args.scratch, GIB, active_writer=True)
+                    next_storage_check = now + 1
                 current = trace()
                 if any(message in current.lower() for message in FAILURES):
                     break
@@ -172,6 +177,11 @@ def run_smoke(args):
     for name in args.maps:
         print(f"{name}: hidden startup and simulation check", flush=True)
         result = run_case(args, name, binary)
+        # run_case has joined the native writer. Its saves belong to this run.
+        case_scratch = args.scratch / name
+        if case_scratch.exists() and not linked_path(case_scratch) and args.scratch in case_scratch.resolve().parents:
+            scratch_usage(case_scratch)
+            shutil.rmtree(case_scratch)
         results.append(result)
         print(json.dumps(result), flush=True)
         (args.output / "results.json").write_text(json.dumps(results, indent=2) + "\n")
