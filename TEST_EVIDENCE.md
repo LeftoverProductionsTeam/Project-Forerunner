@@ -1,5 +1,34 @@
 # Forerunner test evidence
 
+## Direct Carousel ramp on foot
+
+Exact private `2d365ba8` with mode receipt `46a5753c` and authoring readback
+`06940fd1` loaded from Extraction > Choose Map & Host on Win64 `02AA847E`.
+The normal lobby switched to Covenant. Ordinary controls took the same unit
+`e6a00431` through 11→10 at tick 5249 and 10→3 at 8420. It walked down to
+(786.461, -21.860, -31.404), climbed the revised ramp directly to the upper
+apron, and transferred 3→10 at tick 9229. All three crossings and the ramp
+return retained full health and shields. The ramp return used no teleporter.
+
+The private harness timed out normally at tick 10170, partway back along
+BSP 10 at (843.248, 32.701, -28.045). This verifies both directions at the
+changed Carousel end. The full Ice Fields return on this exact pair and
+Warthog round trip are still open. Evidence in
+`build/carousel-foot-2d365ba8/{debug.log,buttons.txt,receipt.json}` includes
+the input sequence and first-person renders. Latest and Previous were preserved.
+
+## Ice Fields stock-lighting comparison
+
+Private `d0c4c13b` with receipt `36e2d953` and readback `a57a0fbc` passed a
+matched occupied camera comparison against parent `2d365ba8` on the same
+Win64 `02AA847E` and OpenGL 800×600. Both runs recorded BSP 11, leaf 6737,
+the same detached camera and a healthy unit at the wall. The 100×80 wall
+patch at (390,100) changed from mean screen RGB (3.98,4.02,0.00) to
+(48.37,67.27,96.04). The wall remains opaque and its texture is readable.
+Evidence in `build/icefields-lighting-d0c4c13b/matched-wall.png`, with exact
+seals and logs beside both captures. This is a controlled visual test.
+Ordinary first-person, the Warthog round trip and pool acceptance remain open.
+
 ## Detached regional camera
 
 Private Win64 `02AA847EE41078C5D7FEA5CD91285CC89514D194AC66AEB003321FD53AA0D8DB`
