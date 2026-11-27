@@ -1,5 +1,25 @@
 # Forerunner test evidence
 
+## Foreground terrain visible from a neighboring viewport
+
+Exact compact map `d0c4c13b9bf3863be0d28fa30c417877756588df4b241092bbe98320cd7958f5`
+and mode `36e2d953d53d7772f11e9295b9140cc9ec7208bf626b8d5de8c245b04d7b87fb`
+were opened through normal Extraction menus in private OpenGL. At the
+matched detached connector camera (938, 129.561, -15.45), BSP 10 rendered
+while the player stayed in Ice Fields BSP 11. Control `659E162E` drew a
+purple opening. `D54B7BB6FF0F6C7538345C88269C840DB2F48DFD9A8B4D75A80722639F67F007`
+drew the exterior terrain and terminal, submitting 2,954 of 12,903 neighbor
+surfaces under the same 4,096 limit. The foreground binding was reused
+without a new cache load or a player transfer. See the exact receipts,
+logs and frames in `build/regional-neighbor-aperture-{659e162e,d54b7bb6}`.
+
+The same batch routes object shadows through the viewport's structure.
+Existing shadow runtime probes passed. The generated Video Setup XML
+comparison still differs on existing camera labels. A live secondary
+shadow, ordinary first-person seam appearance, and split-screen remain
+open. The matched view still shows a dark strip at the landing.
+Latest and Previous were preserved.
+
 ## Dynamic environment lighting in secondary views
 
 Private Win64 `f5b865a4c2037e89aa07434413c4e948a2f58a1f5aecec3ebfb92e3f48be5dc5`

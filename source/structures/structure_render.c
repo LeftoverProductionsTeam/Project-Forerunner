@@ -695,6 +695,14 @@ static void structure_render_prepare_neighbor(struct structure_render_neighbor *
 	}
 
 	neighbor->triangles_index = structure_render_build_dynamic_triangles(structure, surfaces, surface_count, NULL);
+	if (!(render.frame_index & 127))
+	{
+		extern char const *config_string(char const *name);
+		if (*config_string("debug.network_test"))
+			error(_error_silent, "neighbor render view %d: %d to %d selected %ld of %ld (limit %ld), triangles %ld",
+				render.window_index, render_structure_bsp_index(), bsp_index, surface_count,
+				structure->surfaces.count, surface_limit, neighbor->triangles_index);
+	}
 	if (neighbor->triangles_index != NONE)
 	{
 		neighbor->structure = structure;
@@ -1222,7 +1230,10 @@ void structure_render_shadow(
 	long surface_indices[MAXIMUM_LOCALLY_RENDERED_SURFACES];
 	long surface_count;
 	long dynamic_triangles_index;
+	struct structure_bsp const *structure = render_structure_bsp();
 
+	if (!structure)
+		return;
 	profile_enter(render_structure_shadows_section);
 
 	surface_count = structure_visibility_build_surfaces(
@@ -1237,7 +1248,7 @@ void structure_render_shadow(
 		NULL);
 
 	dynamic_triangles_index = structure_render_build_dynamic_triangles(
-		global_structure_bsp_get(),
+		structure,
 		surface_indices,
 		surface_count,
 		NULL);
@@ -1247,8 +1258,8 @@ void structure_render_shadow(
 		profile_enter(render_structure_shadows_draw_section);
 
 		structure_render_pass(
-			global_structure_bsp_get(),
-			global_structure_bsp_index_get(),
+			structure,
+			render_structure_bsp_index(),
 			surface_indices,
 			surface_count,
 			dynamic_triangles_index,

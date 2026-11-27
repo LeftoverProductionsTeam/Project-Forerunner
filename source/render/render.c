@@ -523,8 +523,7 @@ static void render_window(
 		HALO_PERF_RENDER_PART(_halo_perf_render_lens_flares);
 		rasterizer_lens_flares_submit_occlusion_tests();
 		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
-		if (render_view_bsp == NONE)
-			render_object_shadows();
+		render_object_shadows();
 		HALO_PERF_RENDER_PART(_halo_perf_render_world);
 		lights_render_diffuse();
 

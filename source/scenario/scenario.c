@@ -457,6 +457,10 @@ static struct structure_bsp const *scenario_structure_bsp_view(short index, bool
 	if (!scenario || !scenario_uses_regional_gameplay(scenario) ||
 		!VALID_INDEX(index, scenario->structure_bsp_references.count))
 		return NULL;
+	/* The simulation foreground already owns a native binding. It may be
+	 * a visible neighbor of a detached or independently occupied viewport. */
+	if (index == global_structure_bsp_index)
+		return global_structure_bsp;
 	return mcc_cache_bsp_preview(TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
 		index, struct scenario_structure_bsp_reference), prefetch, visible);
 }
