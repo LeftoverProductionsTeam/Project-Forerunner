@@ -4373,12 +4373,15 @@ boolean object_force_inside_bsp_ignoring(
 
 	struct object_datum *object = object_get(object_index);
 	real_vector3d launch;
-	short bsp = object_get_regional_bsp(object_index);
+	short connected_bsp = object_get_regional_bsp(object_index);
+	short bsp = connected_bsp;
+	boolean loose_item = TEST_FLAG(_object_mask_item, object->object.type) &&
+		object->object.parent_object_index == NONE;
 	boolean remote, hit, result = FALSE;
 
-	/* A projectile can be deliberately outside the foreground clusters. */
-	if (bsp == NONE && object->object.type == _object_type_projectile)
-		bsp = game_engine_object_recorded_bsp(object_index, _object_type_projectile);
+	/* A release near a wall may have no cluster, but still has its carrier's BSP. */
+	if (bsp == NONE && (loose_item || object->object.type == _object_type_projectile))
+		bsp = game_engine_object_recorded_bsp(object_index, object->object.type);
 	remote = bsp != NONE && bsp != global_structure_bsp_index_get();
 
 	match_assert("c:\\halo\\SOURCE\\objects\\objects.c", 2365, global_current_collision_user_depth < MAXIMUM_COLLISION_USER_STACK_DEPTH);
@@ -4386,7 +4389,13 @@ boolean object_force_inside_bsp_ignoring(
 	
 	hit = collision_test_bsp_vector(bsp, _collision_test_for_projectiles_flags, known_good_point,
 		vector_from_points3d(known_good_point, &object->object.position, &launch), ignore_object_index, &collision);
-	if (hit || (remote ? collision.location.cluster_index : object->object.location.cluster_index) == NONE)
+	if (remote && loose_item)
+	{
+		if (collision.location.cluster_index != NONE)
+			result = (!hit && connected_bsp == bsp) ||
+				object_set_physics_pose(object_index, bsp, &collision.point, &object->object.forward, &object->object.up);
+	}
+	else if (hit || (remote ? collision.location.cluster_index : object->object.location.cluster_index) == NONE)
 	{
 		if (collision.location.cluster_index!=NONE)
 		{

@@ -111,6 +111,12 @@ ground preview and its published mode receipt.
   with forgotten reverse references removes the old membership and leaves
   the new one intact. Skipping the reverse lookup repair failed that check.
   Rendered movement under reference pressure remains unverified.
+- Win64 candidate `3ac58012` recovers a loose drop using the recorded
+  carrier BSP when its release pose has no cluster. A compiled regression
+  checked a clear release and a wall hit in BSP 11, missing destination
+  geometry, and exhausted references. It also covered the existing
+  projectile and classic paths. Restoring the foreground fallback failed.
+  A rendered drop at a boundary still needs both peers to verify it.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance
