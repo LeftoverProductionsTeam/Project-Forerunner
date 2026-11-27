@@ -231,9 +231,17 @@ ground preview and its published mode receipt.
   both factions. Both peers recorded the UNSC guest in seat 0 of the new
   Beaver Creek Ghost (row 229, datum `e83205c3`), then driving it from
   (464.412, -38.136) to (463.434, -39.524). A grenade later overturned it;
-  the host still reported health 1.000 and no damage flags. The wreck
-  test needs a destructible vehicle. Logs are under
+  the host still reported health 1.000 and no damage flags. Logs are under
   `build/regional-pressure-profile/full-pools-reconnect-{host,guest}`.
+- Exact-cache Invader readback resolved all 37 vehicle tags in `fd7a49fa`
+  to eight collision tags. Every collision tag has maximum body vitality
+  zero, including the Beaver Creek multiplayer Ghost. This accounts for
+  the rollover without body damage. Spark identified the editable stock
+  campaign Ghost with body vitality 160 for a separate private wreck
+  fixture. The vehicle harness now parks the actual issued wreck, refuses
+  a neighboring BSP's reconnect, and rebinds the same dead datum on return
+  through the runtime vehicle reconnect function. The focused vehicle
+  checks passed. The native wreck acceptance is pending the private map.
 - Still pending on the corrected full-world pairing: reboarding after an
   unload and reload, first deployment directly into an unloaded BSP,
   both-faction banking, and return to the same loose drop and a confirmed

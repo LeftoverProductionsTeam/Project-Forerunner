@@ -64,7 +64,8 @@ def generated(fault=None):
              regional_objects +
              '\n'.join(function(engine, name) for name in (
                  'game_engine_item_suspended', 'game_engine_record_regional_object',
-                 'game_engine_connect_regional_item'))),
+                 'game_engine_object_recorded_bsp', 'game_engine_park_regional_root',
+                 'game_engine_connect_regional_item', 'game_engine_connect_regional_vehicle'))),
             ('looks.inc', looks),
             ('clone.inc', forge_state +
                 '\n'.join(function(read('source/physics/physics.c'), name) for name in (

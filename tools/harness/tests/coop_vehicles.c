@@ -476,10 +476,7 @@ static long object_new_in_bsp(struct object_placement_data const *placement,shor
  replacement_bsp=bsp;
  return object_new(placement);
 }
-static short game_engine_object_recorded_bsp(long index,short type)
-{
- return index==regional_vehicle && type==_object_type_vehicle ? regional_vehicle_bsp : NONE;
-}
+short game_engine_object_recorded_bsp(long index,short type);
 enum {GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER=20};
 static void platform_log(char const *format, ...) {(void)format;}
 static struct tag_block *scenario_get_object_type_scenario_datums(struct scenario *scenario, short type, long *size)
@@ -518,6 +515,13 @@ static boolean object_connect_to_regional_bsp(long index, short bsp, struct stru
   return FALSE;
  regional_vehicle_bsp=bsp;
  return TRUE;
+}
+static void object_park_regional_root(long index)
+{
+ CHECK(index==regional_vehicle&&get(index),"parked an unrelated root");
+ get(index)->object.flags &= ~FLAG(_object_connected_to_map_bit);
+ get(index)->object.location.cluster_index=NONE;
+ regional_vehicle_bsp=NONE;
 }
 #include "regional_items.inc"
 
@@ -632,6 +636,11 @@ static void extraction_vehicle_once(void)
  issued=game_engine_vehicle_homes[0].object_index;
  CHECK(new_count==1&&get(issued)&&replacement_bsp==1&&game_engine_vehicle_homes[0].extraction_once,
        "pool did not bind its one vehicle to the guest's region");
+ regional_vehicle=issued;
+ regional_vehicle_bsp=1;
+ get(issued)->object.type=_object_type_vehicle;
+ get(issued)->object.location.cluster_index=0;
+ get(issued)->object.flags |= FLAG(_object_connected_to_map_bit);
  get(issued)->object.damage_flags=FLAG(_object_dead_bit);
  CHECK(game_engine_extraction_keeps_vehicle_wreck(issued,get(issued)->object.vehicle_home_index),
        "issued wreck was eligible for death garbage collection");
@@ -643,6 +652,11 @@ static void extraction_vehicle_once(void)
  CHECK(!game_engine_extraction_keeps_vehicle_wreck(issued,get(issued)->object.vehicle_home_index),
        "classic vehicle inherited wreck protection");
  game_engine_vehicle_homes[0].extraction_once=TRUE;
+ game_engine_park_regional_root(issued,get(issued),1);
+ CHECK(regional_vehicle_bsp==NONE&&game_engine_object_recorded_bsp(issued,_object_type_vehicle)==1,
+       "unloading lost the wreck's BSP identity");
+ CHECK(!game_engine_connect_regional_vehicle(issued,0,&respawn_bsp[0]),
+       "the foreground claimed a wreck from a different BSP");
  occupied_vehicle_bsps=0;
  now+=2*TICKS_PER_SECOND;
  game_engine_update_vehicle_respawn();
@@ -650,6 +664,8 @@ static void extraction_vehicle_once(void)
 
  occupied_vehicle_bsps=FLAG(1);
  game_engine_update_vehicle_respawn();
+ CHECK(game_engine_connect_regional_vehicle(issued,1,&respawn_bsp[1])&&regional_vehicle_bsp==1,
+       "returning to the recorded BSP failed to reconnect the wreck");
  CHECK(get(issued)&&TEST_FLAG(get(issued)->object.damage_flags,_object_dead_bit)&&new_count==1,
        "returning to the region replaced or revived its pooled wreck");
 
