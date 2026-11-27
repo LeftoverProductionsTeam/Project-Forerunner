@@ -388,7 +388,7 @@ struct sound_preferences;
 struct sound_source
 {
 	short spatialization_mode;
-	short pad_2;
+	short bsp_plus_one; /* zero keeps the legacy listener search */
 	real scale;
 	real gain;
 	struct sound_location location;
@@ -405,7 +405,7 @@ struct sound_listener
 {
 	boolean valid;
 	boolean underwater;
-	byte pad_2[2];
+	short bsp_plus_one;
 	real_matrix4x3 matrix;
 	real_vector3d velocity;
 };
@@ -1446,6 +1446,7 @@ static boolean track_loop_impulse_sound(
 	{
 		struct loop_impulse_sound_tracking_data const *tracking_data = track_data;
 
+		source->bsp_plus_one = looping_sound->source.bsp_plus_one;
 		source->obstruction = looping_sound->source.obstruction;
 		source->occlusion = looping_sound->source.occlusion;
 
@@ -3534,7 +3535,8 @@ static boolean sound_obstruction_cache_recall(
 	if (!entry || !entry->valid ||
 		entry->datum_index != datum_index ||
 		entry->game_time != now ||
-		entry->structure_bsp_index != global_structure_bsp_index || /* port: BSP lifetime. */
+		entry->structure_bsp_index != (source->bsp_plus_one ?
+			source->bsp_plus_one - 1 : global_structure_bsp_index) ||
 		entry->tracked_listener != listener_uses_tracking(local_player_index) || /* port: origin. */
 		entry->local_player_index != local_player_index)
 	{
@@ -3562,7 +3564,8 @@ static void sound_obstruction_cache_store(
 	entry->datum_index = datum_index;
 	entry->game_time = game_time_get();
 	entry->local_player_index = local_player_index;
-	entry->structure_bsp_index = global_structure_bsp_index; /* port: BSP lifetime. */
+	entry->structure_bsp_index = source->bsp_plus_one ?
+		source->bsp_plus_one - 1 : global_structure_bsp_index;
 	entry->tracked_listener = listener_uses_tracking(local_player_index); /* port: origin. */
 	entry->obstruction = source->obstruction;
 	entry->occlusion = source->occlusion;
@@ -3597,7 +3600,9 @@ static short source_audible(
 			listener_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS;
 			listener_index++)
 		{
-			if (listener_get(listener_index)->valid)
+			struct sound_listener const *listener = listener_get(listener_index);
+			if (listener->valid &&
+				(!source->bsp_plus_one || listener->bsp_plus_one == source->bsp_plus_one))
 			{
 				real distance_squared = source_distance_squared(
 					listener_index,
@@ -4309,6 +4314,7 @@ static void refresh_listener(
 			real_vector3d velocity; /* port: listener_measure_velocity */
 			struct location location;
 			struct structure_bsp const *structure;
+			short bsp;
 			boolean underwater;
 #ifdef HALO_OPENXR
 			struct observer_result tracked_listener;
@@ -4329,7 +4335,8 @@ static void refresh_listener(
 			}
 #endif
 			listener->valid = TRUE;
-			structure = observer_get_camera_structure(local_player_index, camera, &location);
+			structure = observer_get_camera_structure(local_player_index, camera, &location, &bsp);
+			listener->bsp_plus_one = bsp + 1;
 			underwater = scenario_location_underwater_in_structure(structure, &location, &camera->position, NULL);
 
 			if (listener->underwater != underwater)
@@ -4338,6 +4345,7 @@ static void refresh_listener(
 				struct sound_source splash;
 
 				splash.spatialization_mode = _sound_spatialization_mode_none;
+				splash.bsp_plus_one = 0;
 				splash.scale = 1.f;
 				splash.gain = 1.f;
 

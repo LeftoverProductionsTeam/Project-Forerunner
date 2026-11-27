@@ -109,7 +109,8 @@ struct structure_bsp;
 struct structure_bsp const *observer_get_camera_structure(
 	short local_player_index,
 	struct observer_result const *camera,
-	struct location *location);
+	struct location *location,
+	short *bsp_index);
 /* port: for the sounds' Doppler effect (sound_manager.c) */
 real_point3d const *observer_get_focus_position(
 	short local_player_index);

@@ -86,6 +86,33 @@ int main(int argc, char **argv)
 		source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound);
 		CHECK(tests == 2, "a new BSP reused the old obstruction");
 	}
+	CASE("regional-listeners")
+	{
+		/* Both listeners are equally close, but only the second shares the BSP. */
+		listeners[0].bsp_plus_one = 1;
+		listeners[1].valid = TRUE;
+		listeners[1].bsp_plus_one = 9;
+		source = at(2.f);
+		source.bsp_plus_one = 9;
+		CHECK(source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound) == 1,
+			"the foreground listener intercepted a remote sound");
+		listeners[1].valid = FALSE;
+		CHECK(source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound) == NONE,
+			"a positional sound leaked between BSPs");
+		CHECK(tests == 1, "a BSP-mismatched source ran an obstruction test");
+	}
+	CASE("regional-source-move")
+	{
+		/* The sound datum and listener index survive a transfer in the same tick. */
+		source = at(2.f);
+		listeners[0].bsp_plus_one = source.bsp_plus_one = 9;
+		CHECK(source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound) == 0,
+			"the first regional sound is unheard");
+		listeners[0].bsp_plus_one = source.bsp_plus_one = 12;
+		CHECK(source_audible(&source, 10.f, _sound_obstruction_cache_sound, sound) == 0,
+			"the transferred regional sound is unheard");
+		CHECK(tests == 2, "a moved source reused the former BSP obstruction");
+	}
 	CASE("tracked-origin")
 	{
 		source = at(2.f);

@@ -1305,12 +1305,15 @@ static short observer_followed_remote_bsp(short local_player_index)
 struct structure_bsp const *observer_get_camera_structure(
 	short local_player_index,
 	struct observer_result const *camera,
-	struct location *location)
+	struct location *location,
+	short *bsp_index)
 {
 	short bsp = observer_followed_remote_bsp(local_player_index);
 	struct structure_bsp const *structure = bsp == NONE ?
 		global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
 
+	if (bsp_index)
+		*bsp_index = bsp == NONE ? global_structure_bsp_index_get() : bsp;
 	if (bsp == NONE)
 		*location = camera->location;
 	else

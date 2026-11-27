@@ -1624,7 +1624,7 @@ void scenario_get_sound_environment(
 		{
 			struct location location;
 			camera = observer_get_camera((short)local_player_index);
-			structure_bsp = observer_get_camera_structure((short)local_player_index, camera, &location);
+			structure_bsp = observer_get_camera_structure((short)local_player_index, camera, &location, NULL);
 			if (structure_bsp && VALID_INDEX(location.cluster_index, structure_bsp->clusters.count))
 			{
 				cluster = TAG_BLOCK_GET_ELEMENT(

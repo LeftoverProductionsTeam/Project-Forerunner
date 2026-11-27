@@ -166,7 +166,7 @@ enum sound_spatialization_mode
 struct sound_source
 {
 	short spatialization_mode;
-	short pad_2;
+	short bsp_plus_one; /* zero keeps the legacy listener search */
 	real scale;
 	real gain;
 	struct sound_location location;
@@ -222,16 +222,12 @@ static void obstruction_cache_clear(void); /* port: geometry/restore lifetime. *
 static void compute_combined_pas(
 	void);
 static boolean location_potentially_audible(
-	struct location *location);
-
-static boolean object_sound_in_listener_bsp(long object_index)
-{
-	return !network_regional_independent_bsp_ready() ||
-		object_get_regional_bsp(object_index) == global_structure_bsp_index_get();
-}
+	struct location const *location,
+	short bsp);
 static void update_potentially_audible_looping_sound(
 	long looping_sound_index,
-	struct location const *location);
+	struct location const *location,
+	short bsp_plus_one);
 static boolean looping_sound_definition_is_music(
 	long definition_index);
 static void scripted_music_stop_all(
@@ -243,7 +239,8 @@ static void scripted_looping_sound_stop_internal(
 
 struct game_sound_globals *game_sound_globals;
 struct data_array *game_looping_sound_data;
-unsigned long combined_pas[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
+static unsigned long combined_pas[MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO]
+	[BIT_VECTOR_SIZE_IN_LONGS(MAXIMUM_CLUSTERS_PER_STRUCTURE)];
 
 /* ---------- public code */
 
@@ -499,6 +496,8 @@ long unattached_impulse_sound_new(
 		scale>=0.f && scale<=1.f);
 
 	source.location = *location;
+	source.bsp_plus_one = network_regional_independent_bsp_ready() ?
+		global_structure_bsp_index_get() + 1 : 0;
 	source.scale = scale;
 	source.spatialization_mode = _sound_spatialization_mode_absolute;
 	source.gain = 1.f;
@@ -524,6 +523,7 @@ long unspatialized_impulse_sound_new(
 		scale>=0.f && scale<=1.f);
 
 	source.spatialization_mode = _sound_spatialization_mode_none;
+	source.bsp_plus_one = 0;
 	source.scale = scale;
 	source.gain = 1.f;
 
@@ -926,7 +926,7 @@ void game_sound_update(
 
 		if (sound->object_index == NONE)
 		{
-			update_potentially_audible_looping_sound(looping_sound_index, NULL);
+			update_potentially_audible_looping_sound(looping_sound_index, NULL, 0);
 		}
 		else if (TEST_FLAG(sound->flags, _game_looping_sound_unattached_bit)
 			&& !object_try_and_get(sound->object_index))
@@ -944,13 +944,16 @@ void game_sound_update(
 		{
 			struct object_datum *object = object_get(sound->object_index);
 
-			if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit) &&
-				object_sound_in_listener_bsp(sound->object_index))
+			if (TEST_FLAG(object->object.flags, _object_connected_to_map_bit))
 			{
+				boolean regional = network_regional_independent_bsp_ready();
+				short bsp = regional ? object_get_regional_bsp(sound->object_index) :
+					global_structure_bsp_index_get();
 				object_get_location(sound->object_index, &location);
-				if (location_potentially_audible(&location))
+				if (location_potentially_audible(&location, bsp))
 				{
-					update_potentially_audible_looping_sound(looping_sound_index, &location);
+					update_potentially_audible_looping_sound(
+						looping_sound_index, &location, regional ? bsp + 1 : 0);
 				}
 			}
 		}
@@ -1025,6 +1028,8 @@ void compute_sound_obstruction(
 	   obstruction starts at the listener actually used for audio, including
 	   the safe native-position fallback when the tracked head is behind a wall. */
 	real_point3d const *listener_position = &camera->position;
+	short bsp = source->bsp_plus_one ? source->bsp_plus_one - 1 : global_structure_bsp_index;
+	struct structure_bsp const *structure = scenario_structure_bsp_try_and_get(bsp);
 	short listener_cluster_index = camera->location.cluster_index;
 #ifdef HALO_OPENXR
 	real_point3d tracked_position;
@@ -1042,7 +1047,7 @@ void compute_sound_obstruction(
 #ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	if (obstruction_cache[slot].valid &&
 		obstruction_cache[slot].game_time == now &&
-		obstruction_cache[slot].structure_bsp_index == global_structure_bsp_index && /* port: BSP identity. */
+		obstruction_cache[slot].structure_bsp_index == bsp &&
 		obstruction_cache[slot].local_player_index == local_player_index &&
 		obstruction_cache[slot].position.x == source->location.position.x &&
 		obstruction_cache[slot].position.y == source->location.position.y &&
@@ -1072,12 +1077,18 @@ void compute_sound_obstruction(
 		887,
 		source->spatialization_mode==_sound_spatialization_mode_absolute);
 
-	if (source->location.game_location.cluster_index != NONE &&
-		listener_cluster_index != NONE)
+	if (bsp != global_structure_bsp_index)
 	{
-		struct structure_bsp *structure_bsp = global_structure_bsp_get();
+		struct location listener_location;
+		scenario_location_from_point_in_structure(&listener_location, structure, listener_position);
+		listener_cluster_index = listener_location.cluster_index;
+	}
+	if (structure &&
+		VALID_INDEX(source->location.game_location.cluster_index, structure->clusters.count) &&
+		VALID_INDEX(listener_cluster_index, structure->clusters.count))
+	{
 		byte encoded_distance = structure_bsp_get_cluster_encoded_sound_distance(
-			structure_bsp,
+			(struct structure_bsp *)structure,
 			listener_cluster_index,
 			source->location.game_location.cluster_index);
 		real cluster_distance = (encoded_distance & ~FLAG(_cluster_sound_distance_unreachable_bit))
@@ -1087,7 +1098,7 @@ void compute_sound_obstruction(
 		{
 			if (BIT_VECTOR_TEST_FLAG(
 				structure_bsp_get_cluster_pvs(
-					global_structure_bsp_get(),
+					structure,
 					listener_cluster_index),
 				source->location.game_location.cluster_index))
 			{
@@ -1099,7 +1110,8 @@ void compute_sound_obstruction(
 					listener_position,
 					&source->location.position,
 					&listener_to_source);
-				if (!collision_test_vector(
+				if (!collision_test_bsp_vector(
+					bsp,
 					FLAG(_collision_test_front_facing_surfaces_bit) |
 						FLAG(_collision_test_structure_bit) |
 						FLAG(_collision_test_media_bit) |
@@ -1132,7 +1144,7 @@ void compute_sound_obstruction(
 #ifdef HALO_PORT_FRAMES_BETWEEN_TICKS
 	obstruction_cache[slot].valid = TRUE;
 	obstruction_cache[slot].game_time = now;
-	obstruction_cache[slot].structure_bsp_index = global_structure_bsp_index; /* port: BSP identity. */
+	obstruction_cache[slot].structure_bsp_index = bsp;
 #ifdef HALO_OPENXR
 	obstruction_cache[slot].tracked_listener = tracked_listener; /* port: origin. */
 #endif
@@ -1150,58 +1162,48 @@ void compute_sound_obstruction(
 static void compute_combined_pas(
 	void)
 {
-	struct structure_bsp *structure_bsp = global_structure_bsp_get();
 	short local_player_index;
+	boolean regional = network_regional_independent_bsp_ready();
 
-	csmemset(
-		combined_pas,
-		0,
-		BIT_VECTOR_SIZE_IN_BYTES(structure_bsp->clusters.count));
-
-	for (local_player_index = 0;
-		local_player_index < MAXIMUM_LOCAL_PLAYERS;
-		local_player_index++)
+	csmemset(combined_pas, 0, sizeof(combined_pas));
+	for (local_player_index = 0; local_player_index < MAXIMUM_LOCAL_PLAYERS; local_player_index++)
 	{
 		if (local_player_get_player_index(local_player_index) != NONE)
 		{
 			struct observer_result const *camera = observer_get_camera(local_player_index);
+			struct location location = camera->location;
+			short bsp = global_structure_bsp_index_get();
+			struct structure_bsp const *structure = global_structure_bsp_get();
 
-			if (camera->location.cluster_index != NONE)
+			if (regional)
+				structure = observer_get_camera_structure(local_player_index, camera, &location, &bsp);
+
+			if (structure && VALID_INDEX(bsp, NUMBEROF(combined_pas)) &&
+				VALID_INDEX(location.cluster_index, structure->clusters.count))
 			{
 				short cluster_index;
-
-				for (cluster_index = 0;
-					cluster_index < structure_bsp->clusters.count;
-					cluster_index++)
+				for (cluster_index = 0; cluster_index < structure->clusters.count; cluster_index++)
 				{
-					real distance = (structure_bsp_get_cluster_encoded_sound_distance(
-							structure_bsp,
-							cluster_index,
-							camera->location.cluster_index) & ~FLAG(_cluster_sound_distance_unreachable_bit))
+					byte encoded_distance = structure_bsp_get_cluster_encoded_sound_distance(
+						(struct structure_bsp *)structure, cluster_index, location.cluster_index);
+					real distance = (encoded_distance & ~FLAG(_cluster_sound_distance_unreachable_bit))
 						* (MAXIMUM_CLUSTER_SOUND_DISTANCE / CLUSTER_SOUND_DISTANCE_VALUE_MASK);
 
 					if (distance < MAXIMUM_CLUSTER_SOUND_DISTANCE)
-					{
-						BIT_VECTOR_SET_FLAG(combined_pas, cluster_index, TRUE);
-					}
+						BIT_VECTOR_SET_FLAG(combined_pas[bsp], cluster_index, TRUE);
 				}
 			}
 		}
 	}
-
-	return;
 }
 
 static boolean location_potentially_audible(
-	struct location *location)
+	struct location const *location,
+	short bsp)
 {
-	match_assert(
-		"c:\\halo\\SOURCE\\sound\\game_sound.c",
-		870,
-		location->cluster_index>=NONE && location->cluster_index<global_structure_bsp_get()->clusters.count);
-
-	return location->cluster_index != NONE
-		&& BIT_VECTOR_TEST_FLAG(combined_pas, location->cluster_index);
+	return VALID_INDEX(bsp, NUMBEROF(combined_pas)) &&
+		VALID_INDEX(location->cluster_index, MAXIMUM_CLUSTERS_PER_STRUCTURE) &&
+		BIT_VECTOR_TEST_FLAG(combined_pas[bsp], location->cluster_index);
 }
 
 static boolean looping_sound_definition_is_music(
@@ -1247,8 +1249,13 @@ boolean track_object_impulse_sound(
 		795,
 		source);
 
-	if (object && object_sound_in_listener_bsp(object_index))
+	if (object)
 	{
+		boolean regional = network_regional_independent_bsp_ready();
+		short bsp = regional ? object_get_regional_bsp(object_index) : NONE;
+		if (regional && bsp == NONE)
+			return FALSE;
+		source->bsp_plus_one = bsp + 1;
 		object_get_location(object_index, &location);
 		if (location.cluster_index != NONE)
 		{
@@ -1279,7 +1286,8 @@ boolean track_object_impulse_sound(
 
 static void update_potentially_audible_looping_sound(
 	long looping_sound_index,
-	struct location const *location)
+	struct location const *location,
+	short bsp_plus_one)
 {
 	struct game_looping_sound_datum *sound = game_looping_sound_get(looping_sound_index);
 	struct looping_sound_definition *definition =
@@ -1331,6 +1339,7 @@ static void update_potentially_audible_looping_sound(
 			source.spatialization_mode = _sound_spatialization_mode_none;
 		}
 		source.gain = 1.f;
+		source.bsp_plus_one = bsp_plus_one;
 
 		if (audible)
 		{
