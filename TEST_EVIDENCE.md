@@ -97,6 +97,13 @@ ground preview and its published mode receipt.
   destroyed. A physical switch round trip and visible wreck recovery remain
   open. Logs are under `build/regional-pool-authority/pool-roundtrip-host`
   and `pool-roundtrip-guest`.
+- Win64 candidate `82d36833` preserves regional roots during a foreground
+  handoff when no living player holds any region. A compiled Windows
+  regression exercised the actual trim functions with zero occupied regions,
+  a partially retained set, and a classic disconnect. The old zero-mask
+  behavior failed to park three loose objects. The updated path parks the
+  drops and vehicle, detaches the named control, and leaves carried equipment
+  alone. An ordinary input run across this exact handoff remains open.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

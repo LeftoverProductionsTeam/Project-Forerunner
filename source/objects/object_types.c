@@ -1031,7 +1031,7 @@ struct tag_block *scenario_get_object_type_scenario_palette(
 	return (struct tag_block *)((byte *)scenario + definition->palette_tag_block_offset);
 }
 
-void object_types_trim_bsp_placements(unsigned long keep_bsps)
+static void object_types_trim_bsp_placements_internal(unsigned long keep_bsps, boolean park_regional_roots)
 {
 	struct object_iterator iterator;
 	struct object_datum *object;
@@ -1045,7 +1045,7 @@ void object_types_trim_bsp_placements(unsigned long keep_bsps)
 				object_delete(iterator.index);
 		}
 	}
-	if (keep_bsps && (populated_bsp_flags & ~keep_bsps))
+	if (park_regional_roots && (populated_bsp_flags & ~keep_bsps))
 	{
 		object_iterator_new(&iterator, _object_mask_control | _object_mask_vehicle |
 			_object_mask_weapon | _object_mask_equipment, 0);
@@ -1064,6 +1064,12 @@ void object_types_trim_bsp_placements(unsigned long keep_bsps)
 	populated_bsp_flags &= (word)keep_bsps;
 }
 
+void object_types_trim_bsp_placements(unsigned long keep_bsps)
+{
+	/* An empty occupied mask is valid during a regional handoff. */
+	object_types_trim_bsp_placements_internal(keep_bsps, TRUE);
+}
+
 void object_types_trim_unused_regional_bsps(unsigned long keep_bsps)
 {
 	if (populated_bsp_flags & ~keep_bsps)
@@ -1072,7 +1078,7 @@ void object_types_trim_unused_regional_bsps(unsigned long keep_bsps)
 
 void object_types_disconnect_from_structure_bsp(void)
 {
-	object_types_trim_bsp_placements(0);
+	object_types_trim_bsp_placements_internal(0, FALSE);
 }
 
 static boolean object_placement_overlaps_current_bsp(
