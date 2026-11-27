@@ -1996,6 +1996,7 @@ long scenario_tags_load(
 		if (cache_file_is_ce && cache_file_header_verify(&cache_file_globals.header, scenario_name, TRUE))
 		{
 			struct cache_file_ce_tag_header *ce_header;
+			long image_tag_count;
 
 			tag_cache_base_address = xbox_pointer(CE_TAG_CACHE_BASE);
 #ifdef HALO_CONSOLE_CE_SHARED_TAG_CACHE
@@ -2045,6 +2046,9 @@ long scenario_tags_load(
 				return NONE;
 			}
 			cache_file_globals.tag_header = tag_cache_base_address;
+			/* Mods and menus can grow this same tag table. Only the
+			 * original entries have names stored in the cache image. */
+			image_tag_count = ce_header->tag_count;
 			global_tag_instances = xbox_pointer(ce_header->tag_instances);
 			cache_file_globals.tags_loaded = TRUE;
 			error(_error_silent, "Custom Edition map %s: %ld tags, %ld model parts (%ld bytes of model data)",
@@ -2235,7 +2239,7 @@ long scenario_tags_load(
 			{
 				extern void ce_resources_tag_names_copy(void *tag_instances, long tag_count);
 
-				ce_resources_tag_names_copy(global_tag_instances, ce_header->tag_count);
+				ce_resources_tag_names_copy(global_tag_instances, image_tag_count);
 			}
 			return ce_header->scenario_tag_index;
 		}

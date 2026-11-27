@@ -499,7 +499,7 @@ static struct object_datum *forge_placeable_object_get(long object_index)
 #ifdef NATIVE_FORGE_SIDECARS
 	/* Exact HMV-created devices can be edited. Native scenario bindings
 	 * and live linked switches stay with the original map. */
-	if (forge_local_host() && TEST_FLAG(_object_mask_machine | _object_mask_control, object->object.type) &&
+	if (forge_local_host() && TEST_FLAG(_object_mask_device, object->object.type) &&
 		forge_copies[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)] == object_index)
 		return object;
 #endif
@@ -1480,10 +1480,10 @@ static boolean forge_layout_placement(unsigned long group, char const *path, rea
 	long definition;
 	struct location location;
 
-	/* ChupathingyCE Forge creates machines and controls with object_new
-	 * and leaves their scenario links to the map. The co-op state sender
-	 * assumes those devices already exist on each peer, so host them locally. */
-	boolean device = hmv && forge_local_host() && (group == 'mach' || group == 'ctrl');
+	/* ChupathingyCE Forge creates devices with object_new and leaves their
+	 * scenario links to the map. Co-op assumes those devices already exist
+	 * on each peer, so import machines, controls and light fixtures locally. */
+	boolean device = hmv && forge_local_host() && (group == 'mach' || group == 'ctrl' || group == 'lifi');
 	if ((!device && group != 'vehi' && group != 'weap' && group != 'eqip' && group != 'scen') ||
 		(group == 'scen' && forge_has_remote_players()) ||
 		strchr(path, '|') || team < NONE || team >= NUMBER_OF_SOLO_CAMPAIGN_TEAMS ||
@@ -1685,7 +1685,7 @@ static boolean forge_sidecar_capture(char *text, char const *base, char const *r
 		if (!object)
 			continue;
 		if (++count > FORGE_SIDECAR_OBJECTS || !forge_layout_pose(handle, object, &group, &path, &angles) ||
-			group == 'mach' || group == 'ctrl' || forge_placement_physics(handle, object))
+			TEST_FLAG(_object_mask_device, object->object.type) || forge_placement_physics(handle, object))
 			return FALSE;
 		/* Keep the upstream OBJECT row readable. Older editors ignore the
 		 * optional property and place these objects at their default scale. */
