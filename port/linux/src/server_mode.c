@@ -227,6 +227,7 @@ static void print_spark_capabilities(void)
 #if HALO_MCC && defined(HALO_64BIT)
 	server_json_string(&json, NULL, MCC_CACHE_EXPANDED_TAG_SPACE_FEATURE);
 	server_json_string(&json, NULL, MCC_CACHE_EXTENDED_SKY_SLOTS_FEATURE);
+	server_json_string(&json, NULL, "playtest.regional_transition_log.v1");
 #endif
 #if defined(_WIN32) || defined(__linux__) || defined(__APPLE__)
 	server_json_string(&json, NULL, "forge.hmv_local_devices.v1");

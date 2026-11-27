@@ -1768,6 +1768,23 @@ preview. Receipt fields do not change configuration or bypass native admission.
 Classic maps without a receipt still use their existing catalog and loader.
 Choose the corresponding gameplay menu to start the map.
 
+MCC Win64 runtimes advertising `playtest.regional_transition_log.v1`
+write host-owned continuous BSP handoffs to the existing native diagnostic
+log. The `regional transfer:` line includes the result, simulation tick,
+player slot, scenario switch row, trigger volume row, source and destination
+BSPs, world XYZ, root datum, root definition tag index and blocking object
+datum when known. The blocker is `ffffffff` when unavailable. Match the run
+against the staged cache and resolved native map identity before resolving
+indices in Spark. Failures are sampled at most once per five seconds per
+player. Successful transfers are always recorded. An approach that never
+reaches a switch volume can produce no transfer record.
+
+Use the staged playtest's existing retained log tail for this readback.
+The optional feature describes runtime diagnostics. It is never a required
+map receipt feature, an indication that a map loaded, or evidence of
+successful traversal by itself. No commands, network messages, or receipt
+changes are needed for this log.
+
 A pooled MegaWorld receipt uses the existing `extraction.regional_pools.v1`
 feature and `extractionPools` records. Promotion through the managed Windows
 playtest requires nineteen distinct logical region IDs. Use

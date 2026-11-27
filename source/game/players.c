@@ -518,6 +518,7 @@ struct data_array *team_data;
 struct data_array *player_data;
 static long machine_to_player_table[MAXIMUM_NETWORK_MACHINE_COUNT][MAXIMUM_LOCAL_PLAYERS] = { 0 };
 static boolean players_lost_map_started = FALSE;
+static long players_bsp_report_ticks[NETWORK_GAME_MAXIMUM_PLAYER_COUNT];
 static short over_shield_screen_flash_fade_function = 0;
 static real over_shield_screen_flash_alpha = 0.f;
 static real over_shield_screen_flash_green = 0.f;
@@ -609,6 +610,7 @@ void players_initialize_for_new_map(
 	players_globals->all_dead = FALSE;
 	players_globals->pending_teleport_starting_location_index = NONE;
 	players_globals->respawn_failure = 0;
+	csmemset(players_bsp_report_ticks, NONE, sizeof(players_bsp_report_ticks));
 	/* port: a new map has no network co-op checkpoint yet */
 	csmemset(&players_checkpoint, 0, sizeof(players_checkpoint));
 	csmemset(&players_coop_state, 0, sizeof(players_coop_state));
@@ -4089,7 +4091,7 @@ static unsigned long player_root_bsp_contacts(
 	return collision_structure_blocks_pill(structure, bsp_index, &base, height, width) ? 1UL : 0UL;
 }
 
-static boolean player_root_blocked_in_destination(
+static long player_root_destination_blocker(
 	long root_index,
 	short destination)
 {
@@ -4116,7 +4118,7 @@ static boolean player_root_blocked_in_destination(
 			continue;
 
 		if (root->object.type == _object_type_vehicle && physics_vehicle_blocked_by_object(root_index, iterator.index))
-			return TRUE;
+			return iterator.index;
 		if (root->object.type == _object_type_biped)
 		{
 			real_point3d base;
@@ -4124,10 +4126,10 @@ static boolean player_root_blocked_in_destination(
 
 			biped_get_physics_pill(root_index, &base, &height, &width);
 			if (collision_object_blocks_pill(iterator.index, &base, height, width))
-				return TRUE;
+				return iterator.index;
 		}
 	}
-	return FALSE;
+	return NONE;
 }
 
 /* A cold load replaces the source tag window. Keep the contact mask for
@@ -4167,41 +4169,48 @@ void players_capture_bsp_crossing_clearance(
 
 /* Validate the root against the destination without moving any rider or
  * consulting the rest of the squad. A cold load can supply captured contacts. */
-static boolean player_root_bsp_crossing_clear(
+static char const *player_root_bsp_crossing_failure(
 	struct scenario_bsp_switch_trigger_volume const *volume,
 	long root_index,
 	struct structure_bsp const *destination,
 	struct structure_bsp const *source,
 	struct players_bsp_crossing_clearance const *clearance,
-	long slot)
+	long slot,
+	long *blocking_object)
 {
 	struct object_datum const *root;
 	unsigned long contacts, source_contacts;
+	long blocker;
 
 	if (!destination)
-		return TRUE;
+		return NULL;
 	root = object_get(root_index);
 	if (!scenario_structure_bsp_contains_point(destination, &root->object.bounding_sphere_center) &&
 		!scenario_structure_bsp_contains_point(destination, &root->object.position))
-		return FALSE;
+		return "outside_destination";
 
 	/* Classic co-op and the preflight of a cold switch may not have contact data yet. */
 	if (!source && !clearance)
-		return TRUE;
-	if (player_root_blocked_in_destination(root_index, volume->destination_structure_bsp_index))
-		return FALSE;
+		return NULL;
+	blocker = player_root_destination_blocker(root_index, volume->destination_structure_bsp_index);
+	if (blocker != NONE)
+	{
+		if (blocking_object)
+			*blocking_object = blocker;
+		return "blocked_object";
+	}
 	contacts = player_root_bsp_contacts(root_index, volume->destination_structure_bsp_index, destination);
 	if (!contacts)
-		return TRUE;
+		return NULL;
 	if (source)
 		source_contacts = player_root_bsp_contacts(root_index, volume->source_structure_bsp_index, source);
 	else if (VALID_INDEX(slot, NUMBEROF(clearance->source)) && clearance->source[slot].root_index == root_index)
 		source_contacts = clearance->source[slot].contacts;
 	else
-		return FALSE;
+		return "source_contact_unknown";
 
 	/* Keep shared floor contact while rejecting any new mass-point contact. */
-	return (contacts & ~source_contacts) == 0;
+	return (contacts & ~source_contacts) ? "contact_changed" : NULL;
 }
 
 /* The current network path moves a shared world. Require every living root
@@ -4247,8 +4256,8 @@ static boolean players_continuous_bsp_crossing_valid(
 				return FALSE;
 			continue;
 		}
-		if (!player_root_bsp_crossing_clear(volume, root_index, structure, source, regional ? clearance : NULL,
-			DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index)))
+		if (player_root_bsp_crossing_failure(volume, root_index, structure, source, regional ? clearance : NULL,
+			DATUM_INDEX_TO_ABSOLUTE_INDEX(iterator.datum_index), NULL))
 			return FALSE;
 		BIT_VECTOR_SET_FLAG(checked_roots, root_slot, TRUE);
 		crossing = TRUE;
@@ -6253,6 +6262,33 @@ void players_show_telefragged(
 	return;
 }
 
+/* Record an authored switch after it matches the live root. Rejections can
+ * repeat each tick while a player remains in the volume. */
+static void player_report_regional_crossing(long player_index, long root_index,
+	short switch_index, struct scenario_bsp_switch_trigger_volume const *route,
+	char const *failure, long blocker)
+{
+	long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index);
+	long now = game_time_get();
+	struct object_datum const *root;
+
+	if (failure && VALID_INDEX(slot, NUMBEROF(players_bsp_report_ticks)))
+	{
+		long *last = &players_bsp_report_ticks[slot];
+		if (*last != NONE && (unsigned long)now - (unsigned long)*last < 5 * TICKS_PER_SECOND)
+			return;
+		*last = now;
+	}
+	root = object_get(root_index);
+	platform_log("regional transfer: result=%s tick=%ld player=%ld switch=%d volume=%d from=%d to=%d "
+		"xyz=%.3f,%.3f,%.3f root=%08lx definition=%08lx blocker=%08lx",
+		failure ? failure : "transferred", now, slot, switch_index, route->trigger_volume_index,
+		route->source_structure_bsp_index, route->destination_structure_bsp_index,
+		root->object.position.x, root->object.position.y, root->object.position.z,
+		(unsigned long)(unsigned int)root_index, (unsigned long)(unsigned int)root->definition_index,
+		(unsigned long)(unsigned int)blocker);
+}
+
 /* Only the host chooses a destination from an authored continuous seam. */
 static void player_transfer_regional_root(
 	struct scenario const *scenario,
@@ -6274,6 +6310,8 @@ static void player_transfer_regional_root(
 		struct structure_bsp const *structure;
 		struct data_iterator iterator;
 		struct player_datum const *rider;
+		char const *failure;
+		long blocker = NONE;
 
 		if (route->cutscene_flag_index != NONE || route->source_structure_bsp_index != source ||
 			destination == source || !VALID_INDEX(destination, scenario->structure_bsp_references.count) ||
@@ -6281,11 +6319,14 @@ static void player_transfer_regional_root(
 			continue;
 		structure = destination == global_structure_bsp_index_get() ? global_structure_bsp_get() :
 			scenario_structure_bsp_preview(destination, TRUE);
-		if (!structure ||
-			!player_root_bsp_crossing_clear(route, root_index, structure, source_structure, NULL, NONE))
-			continue;
-		if (!player_hold_regional_destination(destination) ||
-			!object_transfer_root_to_bsp(root_index, destination))
+		failure = structure ? player_root_bsp_crossing_failure(route, root_index, structure, source_structure,
+			NULL, NONE, &blocker) : "destination_unavailable";
+		if (!failure && !player_hold_regional_destination(destination))
+			failure = "destination_hold";
+		if (!failure && !object_transfer_root_to_bsp(root_index, destination))
+			failure = "root_transfer_failed";
+		player_report_regional_crossing(player_index, root_index, index, route, failure, blocker);
+		if (failure)
 			continue;
 		if (destination != global_structure_bsp_index_get())
 			object_types_place_regional_bsp(destination, structure);
