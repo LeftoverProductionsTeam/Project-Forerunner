@@ -322,6 +322,39 @@ Raw frame times, memory samples, logs and captures are retained under
 `build/native-bsp-pathtrace-stock-bloodgulch` in the `pathtrace-performance-*`
 trial sets. [Pinned NRD license](https://github.com/NVIDIA-RTX/NRD/blob/fca9486957dececb7a7d5b5646d0829c667a01cf/LICENSE.txt)
 
+**Optional FSR 3.1.** The private OpenRemix preview accepts
+`debug.pathtrace_fsr` with Off (default), Quality, Balanced or Performance.
+It reuses OpenRemix's existing Vulkan FSR 3.1.4, verifies the active backend
+and internal resolution with the provider's reconstruction diagnostics,
+and composites the native weapon and HUD at output resolution. The existing
+BSP upload generation is sent as the camera world epoch for temporal history.
+The FidelityFX MIT notice is retained with the pinned provider dependency;
+it must accompany any distribution of that provider.
+[FidelityFX SDK license](https://github.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/blob/c6efa6bf7f2027b3ec94f28578bb5965eabb9e55/LICENSE.txt)
+
+Same fixed stock Chill Out view, RTX 4070 Ti and 1920×1080 output, one
+sample per pixel, denoising and frame generation off. First build
+`d8036d6420dcb30e23a0a7d9ee2c5c84c2c16220deff5ec5a890ac9609848788`.
+Frame times are engine submissions over eight steady-state seconds and
+memory is peak sampled Windows process dedicated GPU usage. Captures,
+frame times and memory logs are under `build/native-bsp-pathtrace-stock-bloodgulch`
+in the `pathtrace-fsr-1080p-*` trial sets. FSR retained the HUD and weapon but
+indoor sampling noise remains visible. This fixed view does not verify
+motion, BSP-transition history, or another adapter.
+
+| Mode | Internal resolution | FPS | Median / p95 ms | Dedicated GPU MiB |
+|---|---:|---:|---:|---:|
+| Off | 1920×1080 | 62.6 | 14.371 / 21.756 | 1696 |
+| Quality | 1280×720 | 115.8 | 8.429 / 9.855 | 1485 |
+| Balanced | 1129×635 | 141.3 | 7.026 / 7.767 | 1357 |
+| Performance | 960×540 | 166.1 | 5.973 / 6.840 | 1329 |
+
+Final executable
+`eed25fb13921ed5bd70d23a7668cc1fb97ee34d591608d5ff10afc7ff2e6ae67`
+reports reconstruction only after the traced backend becomes active. The
+`pathtrace-fsr-final-*` native repeat verified Quality at 1280×720 and
+confirmed that an invalid preference retains native 1920×1080 tracing.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

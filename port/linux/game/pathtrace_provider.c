@@ -19,6 +19,7 @@
 #define REMIX_WINAPI_NO_LIBRARY_LOADER
 #include <remix/remix_editor_ext.h>
 #include <remix/remix_native_ext.h>
+#include <remix/remix_reconstruction_ext.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@ __declspec(dllimport) remixapi_loader_PROC __stdcall GetProcAddress(remixapi_HMO
 __declspec(dllimport) int __stdcall FreeLibrary(remixapi_HMODULE);
 __declspec(dllimport) unsigned long __stdcall GetFullPathNameA(const char *, unsigned long, char *, char **);
 
+extern const char *config_string(const char *name);
 extern long config_integer(const char *name);
 extern void platform_log(const char *format, ...);
 
@@ -55,11 +57,15 @@ struct preview_texture
 	uint64_t hash;
 };
 
+typedef remixapi_ErrorCode (REMIXAPI_PTR *reconstruction_diagnostics_fn)(remixapi_ReconstructionDiagnosticsEXT *);
+
 static struct
 {
 	remixapi_HMODULE module;
 	remixapi_Interface api;
 	PFN_remixapi_GetBackendCapabilitiesEXT capabilities;
+	reconstruction_diagnostics_fn reconstruction;
+	int fsr_reported;
 	remixapi_MaterialHandle material;
 	remixapi_LightHandle sunlight, ambient;
 	remixapi_MeshHandle mesh;
@@ -86,6 +92,34 @@ static int status(remixapi_ErrorCode result, const char *action)
 	if (result != REMIXAPI_ERROR_CODE_SUCCESS)
 		platform_log("OpenRemix preview: %s failed (%d)", action, (int)result);
 	return result == REMIXAPI_ERROR_CODE_SUCCESS;
+}
+
+static void report_reconstruction(void)
+{
+	remixapi_ReconstructionDiagnosticsEXT diagnostics = {0};
+	int report;
+
+	if (!preview.reconstruction)
+		return;
+	diagnostics.structSize = sizeof(diagnostics);
+	if (preview.reconstruction(&diagnostics) != REMIXAPI_ERROR_CODE_SUCCESS || diagnostics.version != 1)
+		return;
+	if (diagnostics.activeBackend == 1 && diagnostics.evaluatedFrames)
+		report = 1;
+	else if (diagnostics.requestedMode == 2 && diagnostics.fallbackReason[0])
+		report = -1;
+	else
+		return;
+	if (report == preview.fsr_reported)
+		return;
+	preview.fsr_reported = report;
+	if (report > 0)
+	{
+		platform_log("OpenRemix preview: FSR 3.1 active at %ux%u -> %ux%u",
+			diagnostics.renderWidth, diagnostics.renderHeight, diagnostics.displayWidth, diagnostics.displayHeight);
+	}
+	else
+		platform_log("OpenRemix preview: FSR 3.1 fallback to native: %.255s", diagnostics.fallbackReason);
 }
 
 void pathtrace_provider_close_handles(struct win32_shared_frame_description *description)
@@ -144,7 +178,9 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	PFN_remixapi_InitializeLibrary initialize;
 	win32_configure_frame configure;
 	char full_path[1024], samples_setting[8];
+	const char *fsr = config_string("debug.pathtrace_fsr");
 	long samples = PIN(config_integer("debug.pathtrace_samples"), 1, 16);
+	int want_fsr = !strcmp(fsr, "quality") || !strcmp(fsr, "balanced") || !strcmp(fsr, "performance");
 	unsigned long length = GetFullPathNameA(path, sizeof(full_path), full_path, NULL);
 
 	if (!length || length >= sizeof(full_path))
@@ -181,10 +217,28 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	if (!status(preview.api.Startup(&startup), "start"))
 		return FALSE;
 	preview.started = TRUE;
+	if (want_fsr)
+	{
+		preview.reconstruction = (reconstruction_diagnostics_fn)GetProcAddress(preview.module,
+			"remixapi_GetReconstructionDiagnosticsEXT");
+		if (!preview.reconstruction)
+		{
+			platform_log("OpenRemix preview: FSR 3.1 diagnostics unavailable, using native resolution");
+			want_fsr = FALSE;
+		}
+	}
+	else if (strcmp(fsr, "off"))
+		platform_log("OpenRemix preview: invalid FSR 3.1 setting, using native resolution");
+	if (want_fsr && !status(preview.api.SetConfigVariable("rtx.native.pathtrace.fsrQuality", fsr), "set FSR 3.1 quality"))
+	{
+		preview.reconstruction = NULL;
+		want_fsr = FALSE;
+	}
 	snprintf(samples_setting, sizeof(samples_setting), "%ld", samples);
 	if (!status(preview.api.SetConfigVariable("rtx.native.backend", "pathtrace"), "select path tracing") ||
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.samples", samples_setting), "set samples per pixel") ||
-		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.upscaler", "off"), "select native resolution") ||
+		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.upscaler", want_fsr ? "fsr31" : "off"),
+			"select reconstruction mode") ||
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.denoiser", "off"), "disable denoising"))
 		return FALSE;
 
@@ -202,8 +256,8 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	frame.version = 1;
 	frame.width = width;
 	frame.height = height;
-	platform_log("OpenRemix preview: exporting %ux%u at %ld samples per pixel per frame, native resolution",
-		width, height, samples);
+	platform_log("OpenRemix preview: exporting %ux%u at %ld samples per pixel per frame (%s)",
+		width, height, samples, want_fsr ? fsr : "native resolution");
 	if (configure(&frame))
 		return FALSE;
 	description->width = frame.width;
@@ -505,6 +559,7 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	long tick = game_time_get();
 	remixapi_CameraInfo camera_info = {0};
 	remixapi_CameraInfoParameterizedEXT pose = {0};
+	remixapi_CameraTemporalEXT temporal = {0};
 	remixapi_InstanceInfo instance = {0};
 	remixapi_BackendCapabilitiesEXT capabilities = {0};
 	int new_scene;
@@ -528,7 +583,10 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	if (!preview.sky_available && !preview.emitter_count)
 		return pathtrace_provider_no_sky;
 
+	temporal.sType = REMIXAPI_STRUCT_TYPE_CAMERA_TEMPORAL_EXT;
+	temporal.worldEpoch = preview.mesh_generation;
 	pose.sType = REMIXAPI_STRUCT_TYPE_CAMERA_INFO_PARAMETERIZED_EXT;
+	pose.pNext = &temporal;
 	pose.position = (remixapi_Float3D){camera->position.x, camera->position.z, camera->position.y};
 	pose.forward = (remixapi_Float3D){camera->forward.i, camera->forward.k, camera->forward.j};
 	pose.up = (remixapi_Float3D){camera->up.i, camera->up.k, camera->up.j};
@@ -562,8 +620,10 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	if (!status(preview.capabilities(&capabilities), "query active backend") ||
 		!(capabilities.supportedBackends & (1u << REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)))
 		return pathtrace_provider_unavailable;
-	return capabilities.activeBackend == REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT ?
-		pathtrace_provider_traced : pathtrace_provider_warming_up;
+	if (capabilities.activeBackend != REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)
+		return pathtrace_provider_warming_up;
+	report_reconstruction();
+	return pathtrace_provider_traced;
 }
 #else
 struct render_camera;
