@@ -13,12 +13,21 @@ surfaces under the same 4,096 limit. The foreground binding was reused
 without a new cache load or a player transfer. See the exact receipts,
 logs and frames in `build/regional-neighbor-aperture-{659e162e,d54b7bb6}`.
 
-The same batch routes object shadows through the viewport's structure.
-Existing shadow runtime probes passed. The generated Video Setup XML
-comparison still differs on existing camera labels. A live secondary
-shadow, ordinary first-person seam appearance, and split-screen remain
-open. The matched view still shows a dark strip at the landing.
-Latest and Previous were preserved.
+Ordinary first-person follow-up on the same build, map and receipt
+reached the Ice Fields landing from a natural Covenant spawn. The same
+body `e6a00431` crossed 11→10 at tick 7117 and 10→11 at tick 7714,
+kept full health and shields, and ended outside at (948.666, 139.448,
+-15.702). The pre-switch OpenGL view from BSP 10 shows the Ice Fields
+cliff, snow and green device. See `build/regional-first-person-d54b7bb6`
+for the inputs, hashes, log and `window26894.bmp` / `window27194.bmp`.
+
+Spark traced the dark band to the baked material change at the nearly
+coincident donor-mouth and connector floors. The tonal join remains
+visible in first person and needs an authored lighting correction.
+The same runtime batch routes object shadows through the viewport's
+structure. Existing shadow probes passed. The generated Video Setup XML
+comparison differs on existing camera labels. Live secondary shadows
+and split-screen remain open. Latest and Previous were preserved.
 
 ## Dynamic environment lighting in secondary views
 
