@@ -48,6 +48,7 @@ void light_particle(
 	boolean block);
 
 real object_get_self_illumination(long object_index);
+boolean lights_sample_baked_illumination(short bsp, union real_point3d const *point, union real_rgb_color *color);
 void lights_illumination_at_point(union real_point3d const *point, struct location const *location, union real_rgb_color *color);
 
 void light_disconnect_from_map(long light_index);

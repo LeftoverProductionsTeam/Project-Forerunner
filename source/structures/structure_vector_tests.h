@@ -29,4 +29,15 @@ boolean structure_test_vector(
 	real *s,
 	real *t);
 
+boolean structure_test_vector_in_bsp(
+	short bsp,
+	union real_point3d const *point,
+	union real_vector3d const *vector,
+	union real_point3d *collision_point,
+	short *lightmap_index,
+	short *material_index,
+	long *surface_index,
+	real *s,
+	real *t);
+
 #endif /* __STRUCTURE_VECTOR_TESTS_H */

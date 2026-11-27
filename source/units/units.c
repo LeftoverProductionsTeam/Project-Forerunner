@@ -8229,15 +8229,15 @@ static void unit_refresh_illumination(
 	if (parent_unit==NULL)
 	{
 		real_rgb_color color;
-		if (network_regional_independent_bsp_ready())
-		{
-			short bsp = object_get_regional_bsp(unit_index);
-			/* Keep the last sample until this unit's lightmap is in view. */
-			if (bsp != NONE && bsp != global_structure_bsp_index_get())
-				return;
-		}
-		lights_illumination_at_point(&unit->object.position, &unit->object.location, &color);
-		unit->unit.ambient_illumination = real_rgb_color_brightness(&color);
+		boolean sampled = TRUE;
+		short bsp = network_regional_independent_bsp_ready() ? object_get_regional_bsp(unit_index) : NONE;
+
+		if (bsp == NONE || bsp == global_structure_bsp_index_get())
+			lights_illumination_at_point(&unit->object.position, &unit->object.location, &color);
+		else
+			sampled = lights_sample_baked_illumination(bsp, &unit->object.position, &color);
+		if (sampled)
+			unit->unit.ambient_illumination = real_rgb_color_brightness(&color);
 		unit->unit.self_illumination = object_get_self_illumination(unit_index);
 	}
 	else

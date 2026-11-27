@@ -71,7 +71,7 @@ unsigned long *structure_bsp_get_cluster_pvs(
 the surface: the map's lightmaps and materials are searched as they are
 given, and what a malformed map's search ends on is not used */
 boolean structure_bsp_find_material_for_surface(
-	struct structure_bsp *structure,
+	struct structure_bsp const *structure,
 	long surface_index,
 	short *lightmap_index,
 	short *material_index)

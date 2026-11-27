@@ -2818,71 +2818,51 @@ static void find_point_lights_for_object_in_cluster(
 	return;
 }
 
+boolean lights_sample_baked_illumination(short bsp, real_point3d const *point, real_rgb_color *color)
+{
+	struct structure_bsp const *structure = bsp == NONE ? global_structure_bsp_get() :
+		scenario_structure_bsp_try_and_get(bsp);
+	struct structure_lightmap *lightmap;
+	struct structure_material *material;
+	struct bitmap_data *bitmap;
+	struct structure_surface const *surface;
+	short lightmap_index, material_index;
+	long surface_index;
+	real s, t;
+	real_point3d collision_point;
+
+	if (!structure || !structure_test_vector_in_bsp(bsp, point, &lightmap_sample_raycast_down,
+		&collision_point, &lightmap_index, &material_index, &surface_index, &s, &t))
+		return FALSE;
+
+	lightmap = TAG_BLOCK_GET_ELEMENT(&structure->lightmaps, lightmap_index, struct structure_lightmap);
+	if (structure->lightmap_group.index == NONE || lightmap->bitmap_index == NONE)
+		return FALSE;
+	bitmap = bitmap_group_try_and_get_bitmap(structure->lightmap_group.index, lightmap->bitmap_index);
+	if (!bitmap)
+		return FALSE;
+	material = TAG_BLOCK_GET_ELEMENT(&lightmap->materials, material_index, struct structure_material);
+	surface = TAG_BLOCK_GET_ELEMENT(&structure->surfaces, surface_index, struct structure_surface);
+
+	/* Wait for baked lightmaps independently of whether the renderer saw
+	 * this BSP. Consoles keep the original nonblocking texture read. */
+#if defined(HALO_CONSOLE) || defined(HALO_XBOX_CONSOLE)
+	if (!_texture_cache_bitmap_get_hardware_format(bitmap, FALSE, FALSE))
+#else
+	if (!_texture_cache_bitmap_get_hardware_format(bitmap, TRUE, TRUE))
+#endif
+		return FALSE;
+	sample_lightmap(material, bitmap, surface, s, t, color);
+	return TRUE;
+}
+
 void lights_illumination_at_point(
 	real_point3d const *point,
 	struct location const *location,
 	real_rgb_color *color)
 {
 	*color = *global_real_rgb_black;
-	{
-		short lightmap_index;
-		short material_index;
-		long surface_index;
-		real s;
-		real t;
-		real_point3d collision_point;
-
-		if (structure_test_vector(
-			point,
-			&lightmap_sample_raycast_down,
-			&collision_point,
-			&lightmap_index,
-			&material_index,
-			&surface_index,
-			&s,
-			&t))
-		{
-			struct structure_bsp *structure = global_structure_bsp_get();
-			struct structure_lightmap *lightmap = TAG_BLOCK_GET_ELEMENT(
-				&structure->lightmaps,
-				lightmap_index,
-				struct structure_lightmap);
-			struct structure_material *material = TAG_BLOCK_GET_ELEMENT(
-				&lightmap->materials,
-				material_index,
-				struct structure_material);
-
-			if (structure->lightmap_group.index != NONE
-				&& lightmap->bitmap_index != NONE)
-			{
-				struct bitmap_data *bitmap = bitmap_group_try_and_get_bitmap(
-					structure->lightmap_group.index,
-					lightmap->bitmap_index);
-				struct structure_surface const *surface = TAG_BLOCK_GET_ELEMENT(
-					&structure->surfaces,
-					surface_index,
-					struct structure_surface);
-
-				match_assert(
-					"c:\\halo\\SOURCE\\objects\\object_lights.c",
-					854,
-					material->lightmap_vertices.type==_rasterizer_vertex_type_environment_lightmap_uncompressed || material->lightmap_vertices.type==_rasterizer_vertex_type_environment_lightmap_compressed);
-				/* port: the lightmap waited for, not sampled only if the texture
-				cache has it yet: a unit's illumination (the AI's sight) is the
-				ticks', and what the cache holds is the renderer's and the
-				loading thread's, by the clock and what was drawn. The consoles
-				read it as the Xbox did, without waiting on the disc */
-#if defined(HALO_CONSOLE) || defined(HALO_XBOX_CONSOLE)
-				if (_texture_cache_bitmap_get_hardware_format(bitmap, FALSE, FALSE))
-#else
-				if (_texture_cache_bitmap_get_hardware_format(bitmap, TRUE, TRUE))
-#endif
-				{
-					sample_lightmap(material, bitmap, surface, s, t, color);
-				}
-			}
-		}
-	}
+	lights_sample_baked_illumination(NONE, point, color);
 
 	if (location->cluster_index != NONE)
 	{

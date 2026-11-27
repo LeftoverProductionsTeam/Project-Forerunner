@@ -509,7 +509,8 @@ static short structure_clusters_in_sphere_recursive(
 	return cluster_count;
 }
 
-boolean structure_render_surface_from_point_and_leaf(
+static boolean structure_render_surface_from_point_and_leaf(
+	struct structure_bsp const *structure,
 	real_point3d const *point,
 	long leaf_index,
 	long plane_index,
@@ -519,13 +520,13 @@ boolean structure_render_surface_from_point_and_leaf(
 	real *s,
 	real *t)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
-	struct structure_leaf *leaf = TAG_BLOCK_GET_ELEMENT(
-		&structure->leaves,
-		leaf_index & LONG_MAX,
-		struct structure_leaf);
+	struct structure_leaf const *leaf;
 	long surface_reference_index;
 	boolean found = FALSE;
+
+	if (leaf_index == NONE || !VALID_INDEX(leaf_index & LONG_MAX, structure->leaves.count))
+		return FALSE;
+	leaf = TAG_BLOCK_GET_ELEMENT(&structure->leaves, leaf_index & LONG_MAX, struct structure_leaf);
 
 	for (surface_reference_index = leaf->first_surface_reference_index;
 		surface_reference_index <
@@ -842,7 +843,8 @@ short structure_bsp_clusters_in_cone(
 	return cluster_count;
 }
 
-boolean structure_test_vector(
+boolean structure_test_vector_in_bsp(
+	short bsp,
 	real_point3d const *p,
 	real_vector3d const *v,
 	real_point3d *collision_point,
@@ -855,6 +857,11 @@ boolean structure_test_vector(
 	boolean found = FALSE;
 	boolean done;
 	struct collision_result collision;
+	struct structure_bsp const *structure = bsp == NONE ? global_structure_bsp_get() :
+		scenario_structure_bsp_try_and_get(bsp);
+
+	if (!structure)
+		return FALSE;
 
 	match_assert(
 		"c:\\halo\\SOURCE\\structures\\structures.c",
@@ -892,7 +899,8 @@ boolean structure_test_vector(
 		global_current_collision_users[global_current_collision_user_depth++] =
 			_collision_user_structure_lighting;
 
-		if (collision_test_vector(
+		if (collision_test_bsp_vector(
+			bsp,
 			FLAG(_collision_test_front_facing_surfaces_bit) |
 				FLAG(_collision_test_structure_bit),
 			collision_point,
@@ -900,10 +908,9 @@ boolean structure_test_vector(
 			NONE,
 			&collision))
 		{
-			struct structure_bsp *structure = global_structure_bsp_get();
-
 			*collision_point = collision.point;
 			if (structure_render_surface_from_point_and_leaf(
+				structure,
 				collision_point,
 				collision.location.leaf_index,
 				collision.plane_designator & LONG_MAX,
@@ -939,6 +946,20 @@ boolean structure_test_vector(
 	while (!done);
 
 	return found;
+}
+
+boolean structure_test_vector(
+	real_point3d const *p,
+	real_vector3d const *v,
+	real_point3d *collision_point,
+	short *lightmap_index,
+	short *material_index,
+	long *surface_index,
+	real *s,
+	real *t)
+{
+	return structure_test_vector_in_bsp(NONE, p, v, collision_point, lightmap_index,
+		material_index, surface_index, s, t);
 }
 
 long structure_get_planar_fog_definition_index(
