@@ -347,9 +347,11 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   portal 186→187. Both logs match at tick 38400 with host BSP 12 and guest
   BSP 0. The guest then walked the stage 6 connector to the Rat Race mouth
   at (-71.649, 166.605, -14.731), full health/shields at tick 46800.
-  See covenant-chillout-upper-egress.json in the live guest run for the
-  exact-base collision route toward Timberland. Continue from the mouth
-  toward the Covenant field call, base return and bank.
+  The guest then passed Rat Race, Timberland, Sidewinder, and the Blood
+  Gulch connector with ordinary controls. Tick 88350 held full health and
+  shields near Beaver Creek at (356.806, -36.444, -18.658). Next reach the
+  Beaver Creek connector, then continue toward the Covenant field call,
+  base return and bank. Route surveys remain in the live guest folder.
   Retained Chiron routes are in full-pools-peer-exit-guest/route.
 - **Compact world.** The 919fbcce infantry round trip via Carousel's stock
   teleporter remains accepted. Spark isolated f5a4ca22's missing wall to
@@ -378,11 +380,18 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   Its desktop compile passed. Live creator workflow acceptance remains open. The older BSP fixture is stale against
   current residency interfaces. The earlier denied discard of those two
   edited fixture files remains deferred. Both edits remain in the worktree.
-- **Other gameplay gates.** Observe recovery of the same loose datum,
-  destroy row 229 in private 4719a713 and return to the same wreck, and
-  verify synchronized kills/objective credit on bf748855. Both hunts
-  spawning and dealing damage are already recorded. Retain separate
-  candidates until the exact visible compact route and merged pools pass.
+- **Loose item recovered in LAN.** On 7709b08b/fd7a49fa the host picked up
+  pooled pistol slot 1107, carried it 0→12 at tick 77767 and dropped it on
+  death. During the BSP 0 respawn and return approach all 38 samples from
+  ticks 80550–86190 show slot 1107 loose at (38.93, 36.41, -21.08). The
+  host re-entered BSP 12 at tick 86224, received action 7 on 1107 at 87600
+  and held the same pistol slot on the new body at 87750. This is native
+  persistence across an unoccupied region. Physical cache eviction was
+  not measured.
+- **Other gameplay gates.** Destroy row 229 in private 4719a713 and return
+  to the same wreck. Verify synchronized kills/objective credit on bf748855.
+  Both hunts spawning and dealing damage are already recorded. Retain
+  separate candidates until the compact vehicle route and merged pools pass.
 
 No promotion or push occurred.
 
