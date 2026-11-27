@@ -1,5 +1,31 @@
 # Forerunner test evidence
 
+## Two local Extraction players in separate resident BSPs
+
+The existing local test launcher can exercise one-BSP Team Slayer.
+It now waits for all requested local profiles to be acknowledged
+before starting. An opt-in private test can add the second profile
+through normal client admission after the normal Extraction menu
+admits the host. Fourteen focused readiness checks passed.
+
+On exact released `fcfe9d44` / `d7c07e86`, the ordinary Extraction
+menu and two acknowledged profiles exposed a spawn assertion in
+Win64 `120E50CF`. The stack traced it to a light attached during
+off-foreground object placement. Its cluster reference now carries
+the owning BSP and the shared list is bounded by storage capacity.
+
+Win64 `407F9675058CB3AE361C947F6080448A60D53B8ED6A6E97F162C6AEB7191D3F5`
+booted the same map through the same menu. It drew the UNSC view from
+BSP 0/cluster 3 and Covenant view from BSP 11/cluster 73. Both regions
+stayed held at mask `0x0801` (9,669,792 bytes). Between ticks 450 and
+540 the UNSC player walked from Y 64.283 to 62.033 while the Covenant
+player stayed at (1313.169, 578.214, -14.350). Both stayed at full
+health and shields. See `build/regional-split-menu-407f9675` for exact
+hashes, normal menu inputs, the split-screen frame and native log.
+The second profile was test-assisted. Physical second-controller
+joining, overlapping region boundary travel, and remote paired
+acceptance remain open. Latest and Previous were preserved.
+
 ## Ice Fields connector floor lighting
 
 Spark's `867b8ec7` / `11572552` uses the same boulder-corrected

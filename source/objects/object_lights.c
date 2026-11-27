@@ -2606,7 +2606,7 @@ void light_reconnect_to_map(
 					else
 						scenario_location_from_point_in_structure(&location, structure, &position);
 					light->world_bsp_index_plus_one = bsp + 1;
-					cluster_partition_reconnect_in_bsp(&light_cluster_partition, NONE, structure, light_index,
+					cluster_partition_reconnect_in_bsp(&light_cluster_partition, bsp, structure, light_index,
 						&light->cluster_reference, &position, radius, &location);
 				}
 			}

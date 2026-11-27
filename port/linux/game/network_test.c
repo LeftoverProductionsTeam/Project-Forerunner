@@ -160,6 +160,7 @@ network_test_update, which does nothing there */
 #endif
 #include "hs/hs.h"
 #include "network_coop.h"
+#include "halo_ui_map_list.h"
 #include "game/game_allegiance.h"
 
 #include "../src/p2p.h" /* port: port/linux/src/p2p.c, p2p_lobby.c */
@@ -2148,8 +2149,15 @@ static void network_test_join_players(
 	short state;
 	short controller;
 	boolean all_added = TRUE;
+	boolean add_menu_players = FALSE;
 
-	if (network_test.mode != _network_test_join || !network_test.set_up ||
+#ifdef HALO_REGIONAL_EXTRACTION_PREVIEW
+	/* Exercise the ordinary receipt-checked, offline Extraction lobby. Its
+	 * first profile and the Start Game action still belong to the menu. */
+	add_menu_players = network_test.mode == _network_test_log && network_test.local_players > 1 &&
+		!config_boolean("network.online") && ui_map_list_hosting_regional_extraction();
+#endif
+	if ((!add_menu_players && (network_test.mode != _network_test_join || !network_test.set_up)) ||
 		filesystem_check_thread_is_active())
 		return;
 	client = global_network_game_client_get();
@@ -2158,6 +2166,8 @@ static void network_test_join_players(
 	state = network_game_client_get_state(client, NULL);
 	if (state != 2 && state != 3)
 		return;
+	if (add_menu_players && (state != 2 || !network_game_client_has_local_player(client, 0)))
+		return;
 	for (controller = 0; controller < network_test.local_players; controller++)
 	{
 		if (!network_game_client_has_local_player(client, controller))
@@ -2165,7 +2175,11 @@ static void network_test_join_players(
 	}
 	network_test.player_added = all_added;
 	if (all_added)
+	{
+		if (add_menu_players && !network_test.team_set)
+			network_test.team_set = network_game_client_split_teams();
 		return;
+	}
 	network_test.player_request_seconds += seconds;
 	if (network_test.player_request_seconds < 0.5f)
 		return;
@@ -2175,6 +2189,17 @@ static void network_test_join_players(
 		if (!network_game_client_has_local_player(client, controller))
 			network_game_client_add_player(client, controller);
 	}
+}
+
+static boolean network_test_host_local_players_ready(void)
+{
+	short controller;
+	struct network_game_client *client = global_network_game_client_get();
+
+	for (controller = 0; controller < network_test.local_players; ++controller)
+		if (!network_game_client_has_local_player(client, controller))
+			return FALSE;
+	return TRUE;
 }
 
 /* debug.network_test_start owns this test's start. The ordinary lobby's
@@ -2187,7 +2212,8 @@ static void network_test_start_host_if_ready(
 	if (!server || network_game_server_port_start_sent(server))
 		return;
 	if (network_test.setup_seconds >= network_test.start_delay && network_test.map_set &&
-		(!network_test.lobby_map[0] || network_test.lobby_map_set))
+		(!network_test.lobby_map[0] || network_test.lobby_map_set) &&
+		(network_test.local_players <= 1 || network_test_host_local_players_ready()))
 	{
 		network_test.started = TRUE;
 		network_test.setup_seconds = 0.0f;
@@ -3039,7 +3065,8 @@ void network_test_update(
 			}
 			/* (a split screen: its players on both teams, for a team game) */
 			if (network_test.local_players > 1 && network_test.local_players_added == network_test.local_players &&
-				network_test.setup_seconds >= network_test.start_delay - 1.0f && !network_test.team_set)
+				network_test.setup_seconds >= network_test.start_delay - 1.0f && !network_test.team_set &&
+				network_test_host_local_players_ready())
 			{
 				network_test.team_set = network_game_client_split_teams();
 			}

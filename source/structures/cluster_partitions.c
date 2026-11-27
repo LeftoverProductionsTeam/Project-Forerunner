@@ -851,11 +851,10 @@ static long *cluster_partition_get_first_reference(
 	match_assert(
 		"c:\\halo\\SOURCE\\structures\\cluster_partitions.c",
 		0xd5,
-		cluster_index >= 0 && (cluster_key >= MAXIMUM_CLUSTERS_PER_STRUCTURE ||
-			cluster_index < global_structure_bsp_get()->clusters.count));
+		cluster_index >= 0 && cluster_index < MAXIMUM_CLUSTERS_PER_STRUCTURE);
 
-	/* port: a cluster index that fits no cluster's list has an empty list
-	(what is put in it is not kept), not one past the lists */
+	/* Heads are indexed by local cluster even when a retained BSP has
+	 * more clusters than the foreground. The iterator qualifies the owner. */
 	if (cluster_index < 0 || cluster_index >= MAXIMUM_CLUSTERS_PER_STRUCTURE)
 	{
 		cluster_partition_port_no_cluster_first_reference = NONE;

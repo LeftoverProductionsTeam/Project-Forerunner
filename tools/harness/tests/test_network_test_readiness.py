@@ -10,7 +10,8 @@ from harness import CHECK_FAILED, build, function, mutated, read, run  # noqa: E
 TEST = 'port/linux/game/network_test.c'
 MANAGER = 'source/networking/network_server_manager.c'
 CLIENT = 'source/networking/network_client_manager.c'
-CASES = ['host-delay', 'host-reset', 'client-transition', 'client-readiness', 'client-membership']
+CASES = ['host-delay', 'host-reset', 'host-local-acknowledgement',
+         'menu-regional-admission', 'client-transition', 'client-readiness', 'client-membership']
 CONTROLS = {
     'unpaused': ('network_game_server_pause_countdown(server, TRUE);',
                  'network_game_server_pause_countdown(server, FALSE);', 'host-delay'),
@@ -18,6 +19,8 @@ CONTROLS = {
     'write-is-ack': ('network_test.player_added = all_added;',
                      'network_test.player_added = TRUE;', 'client-transition'),
     'menu-only': ('if (state != 2 && state != 3)', 'if (state != 2)', 'client-transition'),
+    'host-unacknowledged': ('(network_test.local_players <= 1 || network_test_host_local_players_ready())',
+                            'TRUE', 'host-local-acknowledgement'),
 }
 
 
@@ -27,6 +30,7 @@ def generated(control=None):
                        function(manager, 'network_game_server_pause_countdown'),
                        function(manager, 'network_game_server_port_start_sent'),
                        function(test, 'network_test_join_players'),
+                       function(test, 'network_test_host_local_players_ready'),
                        function(test, 'network_test_start_host_if_ready')))
     if control:
         before, after, _ = CONTROLS[control]

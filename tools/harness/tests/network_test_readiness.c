@@ -5,6 +5,8 @@
 #define csmemset memset
 #define _network_test_off 0
 #define _network_test_join 2
+#define _network_test_log 3
+#define HALO_REGIONAL_EXTRACTION_PREVIEW
 
 struct network_player { boolean valid; char machine_index, controller_index; };
 struct network_game_client
@@ -20,14 +22,23 @@ struct network_game_server
 static struct
 {
 	short mode, local_players;
-	boolean set_up, player_added, started, map_set, lobby_map_set;
+	boolean set_up, player_added, started, map_set, lobby_map_set, team_set;
 	real player_request_seconds, setup_seconds, start_delay;
 	char lobby_map[32];
 } network_test;
 static struct network_game_client client;
 static struct network_game_server server;
 static boolean have_client = TRUE, have_server = TRUE, initializing;
-static int requests[4], request_states[5], starts;
+static int requests[4], request_states[5], starts, team_assignments;
+static boolean regional_menu_host, online;
+
+static boolean config_boolean(char const *name)
+{
+	CHECK(!strcmp(name, "network.online"), "unexpected test config lookup");
+	return online;
+}
+static int ui_map_list_hosting_regional_extraction(void) { return regional_menu_host; }
+static boolean network_game_client_split_teams(void) { ++team_assignments; return TRUE; }
 
 static boolean network_player_is_valid(struct network_player *player) { return player->valid; }
 static struct network_game_client *global_network_game_client_get(void) { return have_client ? &client : NULL; }
@@ -75,6 +86,7 @@ int main(int argc, char **argv)
 
 	CASE("host-delay")
 	{
+		network_test.local_players = 1;
 		network_test.map_set = TRUE;
 		server.countdown_state.active = TRUE;
 		server.countdown_state.timer = 3;
@@ -93,6 +105,7 @@ int main(int argc, char **argv)
 	}
 	CASE("host-reset")
 	{
+		network_test.local_players = 1;
 		network_test.started = FALSE;
 		network_test.setup_seconds = 0.0f;
 		network_test_start_host_if_ready();
@@ -110,6 +123,44 @@ int main(int argc, char **argv)
 		server.sent_start_game_message = TRUE;
 		network_test_start_host_if_ready();
 		CHECK(starts == 1, "loading game was started twice");
+		return 0;
+	}
+	CASE("host-local-acknowledgement")
+	{
+		network_test.map_set = TRUE;
+		network_test.setup_seconds = 15.0f;
+		acknowledge(0, 1, 0);
+		acknowledge(1, 2, 1);
+		network_test_start_host_if_ready();
+		CHECK(!starts && server.countdown_state.paused, "remote controller counted as local");
+		acknowledge(2, 1, 1);
+		network_test_start_host_if_ready();
+		CHECK(starts == 1, "acknowledged local profiles did not release the start");
+		return 0;
+	}
+	CASE("menu-regional-admission")
+	{
+		network_test.mode = _network_test_log;
+		network_test.set_up = FALSE;
+		network_test_join_players(1.0f);
+		regional_menu_host = TRUE;
+		network_test_join_players(1.0f);
+		CHECK(!requests[0] && !requests[1], "test took over the primary menu profile");
+		acknowledge(0, 1, 0);
+		online = TRUE;
+		network_test_join_players(1.0f);
+		CHECK(!requests[1], "test added a profile to an online lobby");
+		online = FALSE;
+		client.state = 3;
+		network_test_join_players(1.0f);
+		CHECK(!requests[1], "test added a profile after the menu game started");
+		client.state = 2;
+		network_test_join_players(0.5f);
+		CHECK(!requests[0] && requests[1] == 1 && !team_assignments, "second profile acknowledgement was bypassed");
+		acknowledge(1, 1, 1);
+		network_test_join_players(0.5f);
+		network_test_join_players(0.5f);
+		CHECK(network_test.player_added && team_assignments == 1, "both acknowledged menu profiles were not assigned once");
 		return 0;
 	}
 	CASE("client-transition")
