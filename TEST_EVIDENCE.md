@@ -1,5 +1,23 @@
 # Forerunner test evidence
 
+## Be Native field guidance release
+
+Latest Win64 is `DEACA69B00335F048795C611AF09DED5EA75A7EE41DA0421F0816EAE7865CE5C`
+(source `4d5ea294c`). Previous is `3BC670B6`. The executable-only promotion
+verified eight installed map and sidecar hashes, including Be Native,
+MegaWorld and Zombie Apocalypse.
+
+- Through normal Extraction Solo menus and controls on Be Native
+  `BCE7A0A352338C9E34B94CFAE0CF84BCD950B4D5052DFF33887369F8A41F4D90`
+  with receipt `FC76140A09ADC61561997BA5EAC676501A0701C2C14BD2C211E2C9CDAF019068`,
+  the UNSC player deployed, boarded Pelican seat 4, waited for the native
+  landing cue and exited with Action at full health. The on-foot mission
+  and evacuation prompt appeared once after exit.
+- Evidence: `build/extraction-foot-guidance-deaca69b/logs/debug.txt` lines
+  4961 and 4988 and `screens/window19587.bmp` in the same trial. Low circling
+  before landing reproduced. The route, Covenant, remote delivery and
+  evacuation completion remain open.
+
 ## Forge and camera settings release
 
 Latest Win64 is `18E298F5CE8B67BFD9FE4737ED4E03ABCC24BC594A3368E4ED053CA474D15DCB`
