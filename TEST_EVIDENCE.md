@@ -438,6 +438,23 @@ isolated trial and is outside this release.
 
 ## Original Zombie Apocalypse native checks
 
+Latest Win64 C339CC2D9B972FA4DBE7AD41FF45EE5FC7293D78D03D0DBF564B82A0B1E3E3F2
+contains the validated AI rollover recovery from d6a19efa5. Previous is
+18E298F5. The two Zombie map/receipt pairs and the Be Native and MegaWorld
+pairs matched their pre-release hashes.
+
+The trace on native cache 12649191 found that clear-pose candidates were
+rejected by an object in the sightline to the carrier center. For e36d00fc
+the center-based search rejected twelve poses during fit and fifteen on the
+outbound sightline to e2aa003b. e3730102 had the same counts with e29d002e.
+The fallback excludes scenery only from the sightline checks for living AI
+at a grounded rollover. It retains the full standing pill, carrier hull,
+terrain and actor checks. Normal Zombies Play Solo on 12649191 and 05A4268A
+reduced initial failures from fourteen to zero by tick 540. Both actors
+traversed on foot and later lost vitality. Logs: build/zombie-seat-trace-543e410e,
+build/zombie-seat-scenery-c339cc2d and build/zombie-seat-compare-c339cc2d.
+The original Demo run, a full match and remote-peer play remain open.
+
 On released Win64 18E298F5, ordinary Zombies Play Solo on Spark's comparison
 cache 05A4268A reproduced blocked carrier exits. The first 540 ticks contained
 14 placement failures and distinct living groups: dormant riders still in
