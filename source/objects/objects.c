@@ -3808,32 +3808,31 @@ void object_set_position(
 }
 
 /* Retained roots stay connected and use their own BSP's cluster lists. */
-static void object_reindex_in_bsp(
+static boolean object_reindex_in_bsp(
 	long object_index,
 	struct object_datum *object,
 	short bsp,
 	struct structure_bsp const *structure,
+	real_point3d const *center,
 	struct location const *location)
 {
 	struct cluster_partition *partition = TEST_FLAG(object->object.flags, _object_has_collision_model_bit) ?
 		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
+	if (!cluster_partition_replace_in_bsp(partition, bsp, structure, object_index,
+		&object->object.first_cluster_reference_index, center, object->object.bounding_sphere_radius, location))
+		return FALSE;
 
-	cluster_partition_disconnect(partition, object_index, &object->object.first_cluster_reference_index);
 	object->object.location = *location;
 	object_header_get(object_index)->cluster_index = location->cluster_index;
 	SET_FLAG(object->object.flags, _object_outside_of_map_bit, FALSE);
-	cluster_partition_reconnect_in_bsp(partition, bsp, structure, object_index,
-		&object->object.first_cluster_reference_index, &object->object.bounding_sphere_center,
-		object->object.bounding_sphere_radius, location);
+	return TRUE;
 }
 
 boolean object_transfer_root_to_bsp(long object_index, short destination)
 {
 	struct object_datum *root = object_try_and_get(object_index);
 	struct structure_bsp const *structure;
-	struct cluster_partition *partition;
 	struct location location;
-	long references = NONE;
 
 	if (!root || root->object.parent_object_index != NONE ||
 		!TEST_FLAG(root->object.flags, _object_connected_to_map_bit) ||
@@ -3848,22 +3847,9 @@ boolean object_transfer_root_to_bsp(long object_index, short destination)
 	if (location.cluster_index == NONE)
 		return FALSE;
 
-	partition = TEST_FLAG(root->object.flags, _object_has_collision_model_bit) ?
-		&collideable_object_cluster_partition : &noncollideable_object_cluster_partition;
-	/* Allocate the destination before disconnecting the source. Attached
-	 * riders inherit the root's membership without changing seats or pose. */
-	if (!cluster_partition_reconnect_in_bsp(partition, destination, structure, object_index,
-		&references, &root->object.bounding_sphere_center, root->object.bounding_sphere_radius, &location))
-	{
-		cluster_partition_disconnect(partition, object_index, &references);
-		return FALSE;
-	}
-	cluster_partition_disconnect(partition, object_index, &root->object.first_cluster_reference_index);
-	root->object.first_cluster_reference_index = references;
-	root->object.location = location;
-	object_header_get(object_index)->cluster_index = location.cluster_index;
-	SET_FLAG(root->object.flags, _object_outside_of_map_bit, FALSE);
-	return TRUE;
+	/* Attached riders inherit the root's membership without changing pose. */
+	return object_reindex_in_bsp(object_index, root, destination, structure,
+		&root->object.bounding_sphere_center, &location);
 }
 
 boolean object_connect_to_regional_bsp(long object_index, short bsp, struct structure_bsp const *structure)
@@ -3920,16 +3906,16 @@ boolean object_set_physics_pose(
 	scenario_location_from_point_in_structure(&location, structure, &object->object.bounding_sphere_center);
 	if (location.cluster_index == NONE)
 		scenario_location_from_point_in_structure(&location, structure, position);
-	if (location.cluster_index == NONE)
+	if (location.cluster_index == NONE ||
+		!object_reindex_in_bsp(object_index, object, bsp, structure, &object->object.bounding_sphere_center, &location))
 	{
-		/* Leave the transform and membership intact until the host owns a crossing. */
+		/* Leave the last valid transform and membership intact. */
 		object->object.position = previous_position;
 		object->object.forward = previous_forward;
 		object->object.up = previous_up;
 		object_compute_node_matrices(object_index);
 		return FALSE;
 	}
-	object_reindex_in_bsp(object_index, object, bsp, structure, &location);
 	return TRUE;
 }
 
@@ -3951,12 +3937,11 @@ static void object_translate_in_bsp(
 	scenario_location_from_point_in_structure(&location, structure, &center);
 	if (location.cluster_index == NONE)
 		scenario_location_from_point_in_structure(&location, structure, new_position);
-	if (location.cluster_index == NONE)
+	if (location.cluster_index == NONE || !object_reindex_in_bsp(object_index, object, bsp, structure, &center, &location))
 		return;
 
 	object->object.position = *new_position;
 	object->object.bounding_sphere_center = center;
-	object_reindex_in_bsp(object_index, object, bsp, structure, &location);
 }
 
 void object_translate(

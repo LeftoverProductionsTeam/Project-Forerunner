@@ -525,6 +525,59 @@ boolean cluster_partition_reconnect_in_bsp(
 	return cluster_count > 0;
 }
 
+boolean cluster_partition_replace_in_bsp(
+	struct cluster_partition *partition,
+	short structure_bsp_index,
+	struct structure_bsp const *structure,
+	long datum_index,
+	long *first_cluster_reference,
+	real_point3d const *position,
+	float radius,
+	struct location const *location)
+{
+	long old_reference, replacement = NONE;
+
+	/* A loaded save can lack the reverse lookup. Restore it before the same
+	 * object is briefly present twice in an overlapping cluster list. */
+	for (old_reference = *first_cluster_reference; old_reference != NONE;)
+	{
+		struct data_reference *cluster = datum_get(partition->cluster_reference_data, old_reference);
+		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(old_reference);
+
+		if (!partition->port_cluster_data_references || !partition->port_previous_references)
+			return FALSE;
+		if (partition->port_cluster_data_references[slot] == NONE)
+		{
+			long previous = NONE;
+			long index = *cluster_partition_get_first_reference(partition, cluster->datum_index);
+
+			while (index != NONE)
+			{
+				struct data_reference *data = datum_get(partition->data_reference_data, index);
+				if (data->datum_index == datum_index)
+					break;
+				previous = index;
+				index = data->next_reference_index;
+			}
+			if (index == NONE)
+				return FALSE;
+			partition->port_previous_references[DATUM_INDEX_TO_ABSOLUTE_INDEX(index)] = previous;
+			partition->port_cluster_data_references[slot] = index;
+		}
+		old_reference = cluster->next_reference_index;
+	}
+
+	if (!cluster_partition_reconnect_in_bsp(partition, structure_bsp_index, structure, datum_index,
+		&replacement, position, radius, location))
+	{
+		cluster_partition_disconnect(partition, datum_index, &replacement);
+		return FALSE;
+	}
+	cluster_partition_disconnect(partition, datum_index, first_cluster_reference);
+	*first_cluster_reference = replacement;
+	return TRUE;
+}
+
 void cluster_partition_reconnect(
 	struct cluster_partition *partition,
 	long datum_index,

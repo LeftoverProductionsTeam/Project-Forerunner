@@ -104,6 +104,13 @@ ground preview and its published mode receipt.
   behavior failed to park three loose objects. The updated path parks the
   drops and vehicle, detaches the named control, and leaves carried equipment
   alone. An ordinary input run across this exact handoff remains open.
+- Win64 candidate `ff96729d` preserves existing collision ownership when
+  a regional move cannot allocate all destination cluster references. The
+  compiled regression exercised exhaustion of each reference pool after a
+  partial allocation. It also verified that an overlapping destination
+  with forgotten reverse references removes the old membership and leaves
+  the new one intact. Skipping the reverse lookup repair failed that check.
+  Rendered movement under reference pressure remains unverified.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

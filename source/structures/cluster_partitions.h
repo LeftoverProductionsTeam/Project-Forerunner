@@ -59,6 +59,15 @@ holding them is about to be loaded: game_state.c's before-load procs) */
 void cluster_partitions_port_forget(
 	void);
 struct structure_bsp;
+boolean cluster_partition_replace_in_bsp(
+	struct cluster_partition *partition,
+	short structure_bsp_index,
+	struct structure_bsp const *structure,
+	long datum_index,
+	long *first_cluster_reference,
+	real_point3d const *position,
+	float radius,
+	struct location const *location);
 boolean cluster_partition_reconnect_in_bsp(
 	struct cluster_partition *partition,
 	short structure_bsp_index,
