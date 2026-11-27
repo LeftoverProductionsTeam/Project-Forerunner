@@ -1,5 +1,22 @@
 # Forerunner test evidence
 
+## Regional positional sound and Ice Fields opacity
+
+Private Win64 build `118F03B83C7038DE926CDC14525D944C0F6D7A9AE7AC422E319C7E29A87E1383`
+compiled the regional positional sound changes. The existing native sound
+harness verifies matching-BSP listener selection, suppression when only
+another BSP has a listener, and obstruction invalidation after a same-tick
+transfer. Live two-region audio mixing still needs gameplay verification.
+
+Latest `DEACA69B` loaded private `6804a24b` (mode receipt `09532f41`,
+visibility readback `ef328be9`) in controlled Slayer, OpenGL 800×600. At the
+preserved BSP 11 camera pose, the restored wall now occludes the snow and sky
+that were visible on `c5bb94da`. The wall is nearly black at that pose. Native
+first-person readability and traversal remain open. See
+`build/ice-fields-opacity-6804a24b/{receipt.json,debug.log,matched-review.png}`.
+The receipt was hashed, and Slayer did not consume it. This private map and
+the new sound build remain outside Latest.
+
 ## Windows native renderer startup baseline
 
 Latest `DEACA69B00335F048795C611AF09DED5EA75A7EE41DA0421F0816EAE7865CE5C`
