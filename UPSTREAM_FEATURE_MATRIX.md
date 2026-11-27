@@ -137,6 +137,17 @@ Evidence and the single incremental build are in `build/openremix-win64`
 Forerunner compositor and render Halo geometry; no Spark graphics capability
 is advertised yet.
 
+**Forerunner shared-frame import.** The Windows64 Vulkan build now includes
+the native image importer and EXTERNAL queue ownership barriers. With the
+same pinned OpenRemix provider, the native probe ran those functions on an
+independent Vulkan device. It rejected mismatched GPU identity and allocation
+size, imported the exact provider image, and acquired and released three
+successive path-traced frames with distinct checksums. Evidence is in
+`build/openremix-win64/consumer-forerunner-bridge-runtime.log`.
+The Windows64 engine build `133B8775` links the importer. The existing
+compositor does not yet submit it. A Forerunner gameplay frame, native Halo
+geometry, and Spark-facing validation remain open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

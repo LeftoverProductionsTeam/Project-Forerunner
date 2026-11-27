@@ -808,6 +808,10 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
             add_object(LZMA_DIR / "LzmaDec.c", " ".join([abi, *WIN32_FLAGS, "-w"]))
         miniupnpc_include = f"-I{MINIUPNPC_DIR / 'include'} -DMINIUPNP_STATICLIB"
         for source in sorted((PORT_DIR / "src").glob("*.c")):
+            if source.name == "win32_shared_frame.c":
+                if use_bgfx and target.name == "windows64":
+                    add_object(source, f"{win32_cflags} -Ibuild/bgfx/bgfx/3rdparty/khronos")
+                continue
             if source.name == "win32_openxr.c" and not use_openxr:
                 continue
             if target.server and source.name in WINDOWS_SERVER_EXCLUDED:
