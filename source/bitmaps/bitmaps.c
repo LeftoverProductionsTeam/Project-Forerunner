@@ -1268,6 +1268,52 @@ pixel32 bitmap_2d_get_pixel(
 	return (pixel32)NONE;
 }
 
+boolean bitmap_2d_read_color_row(struct bitmap_data *bitmap, short y, pixel32 *row)
+{
+	real_point2d sample;
+	short x;
+
+	if (!bitmap || !row || !bitmap->base_address || bitmap->type != _bitmap_type_2d ||
+		bitmap->width <= 0 || y < 0 || y >= bitmap->height ||
+		TEST_FLAG(bitmap->flags, _bitmap_linear_bit))
+		return FALSE;
+
+	switch (bitmap->format)
+	{
+	case _bitmap_format_dxt1:
+	case _bitmap_format_dxt3:
+	case _bitmap_format_dxt5:
+		if (bitmap->width % 4 || bitmap->height % 4 || !TEST_FLAG(bitmap->flags, _bitmap_compressed_bit))
+			return FALSE;
+		break;
+	case _bitmap_format_r5g6b5:
+	case _bitmap_format_a1r5g5b5:
+	case _bitmap_format_a4r4g4b4:
+	case _bitmap_format_x8r8g8b8:
+	case _bitmap_format_a8r8g8b8:
+	case _bitmap_format_a8:
+	case _bitmap_format_y8:
+	case _bitmap_format_ay8:
+	case _bitmap_format_a8y8:
+	case _bitmap_format_p8_bump:
+		if (TEST_FLAG(bitmap->flags, _bitmap_compressed_bit))
+			return FALSE;
+		break;
+	default:
+		return FALSE;
+	}
+
+	sample.y = ((real)y + 0.5f) / bitmap->height;
+	for (x = 0; x < bitmap->width; x++)
+	{
+		sample.x = ((real)x + 0.5f) / bitmap->width;
+		row[x] = bitmap_2d_get_pixel(bitmap, &sample, 1.0f);
+		if (bitmap->format == _bitmap_format_x8r8g8b8)
+			row[x] |= 0xFF000000;
+	}
+	return TRUE;
+}
+
 boolean bitmap_verify(
 	struct bitmap_data *bitmap,
 	boolean import)

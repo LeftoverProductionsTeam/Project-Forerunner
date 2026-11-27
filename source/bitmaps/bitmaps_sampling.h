@@ -25,4 +25,7 @@ pixel32 bitmap_2d_get_pixel(
 	union real_point2d const *texcoord,
 	real lod);
 
+/* Read the top mip from an already resident Xbox 2D bitmap. */
+boolean bitmap_2d_read_color_row(struct bitmap_data *bitmap, short y, pixel32 *row);
+
 #endif /* __BITMAPS_SAMPLING_H */

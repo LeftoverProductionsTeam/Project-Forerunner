@@ -3,7 +3,13 @@
 #include "cseries.h"
 #include "pathtrace_scene.h"
 
+#include "bitmaps/bitmap_group.h"
+#include "bitmaps/bitmap_group_lookup.h"
+#include "bitmaps/bitmaps_sampling.h"
 #include "cache/cache_files.h"
+#include "cache/texture_cache.h"
+#include "shaders/shader_definitions.h"
+#include "shaders/shaders.h"
 #include "game/game.h"
 #include "rasterizer/rasterizer_geometry_environment.h"
 #include "render/render_cameras.h"
@@ -16,6 +22,7 @@
 #include <string.h>
 
 extern const char *config_string(const char *name);
+extern int config_boolean(const char *name);
 extern void platform_log(const char *format, ...);
 extern void halo_test_screenshot(void);
 
@@ -24,7 +31,10 @@ enum
 	compressed_vertex_stride = 32,
 	compressed_lightmap_stride = 8,
 	maximum_scene_vertices = 262144,
-	maximum_scene_surfaces = 262144
+	maximum_scene_surfaces = 262144,
+	maximum_texture_side = 1024,
+	maximum_capture_textures = 128,
+	capture_texture_bytes = 32 * 1024 * 1024
 };
 
 int pathtrace_scene_visit(const struct structure_bsp *structure, pathtrace_material_sink sink, void *context)
@@ -50,6 +60,7 @@ int pathtrace_scene_visit(const struct structure_bsp *structure, pathtrace_mater
 			long lightmap_count = material->lightmap_vertices.count;
 			long bytes = material->compressed_vertex_data.size;
 			long index;
+			boolean alpha_tested;
 			struct pathtrace_material section;
 
 			if (!count)
@@ -67,6 +78,17 @@ int pathtrace_scene_visit(const struct structure_bsp *structure, pathtrace_mater
 			section.vertex_count = vertex_count;
 			section.surface_count = count;
 			section.shader = material->shader.index;
+			section.diffuse_group = shader_environment_base_bitmap_group(
+				section.shader == NONE ? NULL : shader_definition_get(section.shader), &alpha_tested);
+			section.alpha_tested = alpha_tested;
+			section.diffuse_bitmap = NONE;
+			if (section.diffuse_group != NONE)
+			{
+				const struct bitmap_group *group = bitmap_group_get(section.diffuse_group);
+
+				if (group && group->bitmaps.count > 0)
+					section.diffuse_bitmap = (short)(MAX(0, material->permutation_index) % group->bitmaps.count);
+			}
 			section.permutation = material->permutation_index;
 			section.lightmap_group = structure->lightmap_group.index;
 			section.lightmap_bitmap = lightmap->bitmap_index;
@@ -120,8 +142,83 @@ void pathtrace_scene_read_vertex(const struct pathtrace_material *material, long
 struct pathtrace_obj
 {
 	FILE *file;
+	const char *texture_prefix;
 	long vertices, triangles;
+	long texture_bytes, texture_count;
+	struct
+	{
+		long group;
+		short index;
+	} textures[maximum_capture_textures];
 };
+
+static FILE *open_capture_file(const char *path)
+{
+	int descriptor = _open(path, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+	FILE *file = descriptor < 0 ? NULL : _fdopen(descriptor, "wb");
+
+	if (!file && descriptor >= 0)
+		_close(descriptor);
+	return file;
+}
+
+static void write_texture(struct pathtrace_obj *obj, long group, short index)
+{
+	pixel32 row[maximum_texture_side];
+	struct bitmap_data *bitmap;
+	char filename[512];
+	unsigned char header[18] = {0};
+	long i, size;
+	int length;
+	short y;
+	FILE *file;
+	int failed;
+
+	if (!obj->texture_prefix || group == NONE || index == NONE || obj->texture_count >= maximum_capture_textures)
+		return;
+	for (i = 0; i < obj->texture_count; i++)
+		if (obj->textures[i].group == group && obj->textures[i].index == index)
+			return;
+	obj->textures[i].group = group;
+	obj->textures[i].index = index;
+	obj->texture_count++;
+	bitmap = bitmap_group_try_and_get_bitmap(group, index);
+	if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0 ||
+		bitmap->width > maximum_texture_side || bitmap->height > maximum_texture_side)
+		return;
+	size = sizeof(header) + bitmap->width * bitmap->height * 4L;
+	if (size > capture_texture_bytes - obj->texture_bytes ||
+		!texture_cache_bitmap_load(bitmap) || !bitmap_2d_read_color_row(bitmap, 0, row))
+		return;
+
+	length = snprintf(filename, sizeof(filename), "%s-%08lx-%d.tga", obj->texture_prefix, (unsigned long)group, index);
+	if (length < 0 || length >= sizeof(filename))
+		return;
+	file = open_capture_file(filename);
+	if (!file)
+		return;
+	/* RGBA Targa stores blue first, with rows starting at the upper left. */
+	header[2] = 2;
+	header[12] = (unsigned char)bitmap->width;
+	header[13] = (unsigned char)(bitmap->width >> 8);
+	header[14] = (unsigned char)bitmap->height;
+	header[15] = (unsigned char)(bitmap->height >> 8);
+	header[16] = 32;
+	header[17] = 0x28;
+	failed = fwrite(header, 1, sizeof(header), file) != sizeof(header);
+	for (y = 0; y < bitmap->height && !failed; y++)
+	{
+		if (y != 0 && !bitmap_2d_read_color_row(bitmap, y, row))
+			failed = TRUE;
+		else
+			failed = fwrite(row, 4, bitmap->width, file) != bitmap->width;
+	}
+	failed |= fclose(file) != 0;
+	if (failed)
+		_unlink(filename);
+	else
+		obj->texture_bytes += size;
+}
 
 static int write_material(void *context, const struct pathtrace_material *material)
 {
@@ -129,8 +226,12 @@ static int write_material(void *context, const struct pathtrace_material *materi
 	long index;
 
 	fprintf(obj->file, "g shader_%08lx\n", (unsigned long)material->shader);
-	fprintf(obj->file, "# material permutation %d lightmap %08lx %d\n",
-		material->permutation, (unsigned long)material->lightmap_group, material->lightmap_bitmap);
+	fprintf(obj->file, "# material permutation %d lightmap %08lx %d diffuse %08lx %d alpha_test %d\n",
+		material->permutation, (unsigned long)material->lightmap_group, material->lightmap_bitmap,
+		(unsigned long)material->diffuse_group, material->diffuse_bitmap, material->alpha_tested);
+	write_texture(obj, material->diffuse_group, material->diffuse_bitmap);
+	if (material->lightmap_vertices)
+		write_texture(obj, material->lightmap_group, material->lightmap_bitmap);
 	for (index = 0; index < material->vertex_count; index++)
 	{
 		struct pathtrace_vertex vertex;
@@ -165,7 +266,7 @@ void pathtrace_scene_capture(const struct structure_bsp *structure, short bsp,
 	const char *map;
 	struct pathtrace_obj obj = {0};
 	FILE *file;
-	int descriptor, failed;
+	int failed;
 
 	if (!checked)
 	{
@@ -181,10 +282,7 @@ void pathtrace_scene_capture(const struct structure_bsp *structure, short bsp,
 		return;
 
 	attempted = TRUE;
-	descriptor = _open(path, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
-	file = descriptor < 0 ? NULL : _fdopen(descriptor, "wb");
-	if (!file && descriptor >= 0)
-		_close(descriptor);
+	file = open_capture_file(path);
 	if (!file)
 	{
 		platform_log("Path tracing scene capture could not create %s", path);
@@ -198,6 +296,8 @@ void pathtrace_scene_capture(const struct structure_bsp *structure, short bsp,
 		(double)(camera->viewport_bounds.x1 - camera->viewport_bounds.x0) /
 			MAX(1, camera->viewport_bounds.y1 - camera->viewport_bounds.y0));
 	obj.file = file;
+	if (config_boolean("debug.pathtrace_material_textures"))
+		obj.texture_prefix = path;
 	failed = !pathtrace_scene_visit(structure, write_material, &obj);
 	failed |= fclose(file) != 0;
 	if (!failed && *config_string("debug.screenshot_directory"))

@@ -29,6 +29,7 @@ struct render_animation
 
 short shader_get_vertex_shader_permutation(
 	struct shader const *shader);
+long shader_environment_base_bitmap_group(const struct shader *shader, boolean *alpha_tested);
 boolean shader_is_mirror(
 	struct shader *shader);
 boolean shader_is_destructable(

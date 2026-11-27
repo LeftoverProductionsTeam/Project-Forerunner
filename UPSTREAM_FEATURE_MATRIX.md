@@ -191,6 +191,22 @@ and the adjacent `data/bloodgulch-lightmaps.obj`. Provider-side material
 uploads and live HUD composition are pending.
 
 
+**Stock material upload.** Windows64 build `CC6DEF98` captured 25
+distinct native bitmaps through Halo's texture cache and CPU sampler.
+The stock Blood Gulch geometry and UVs match the earlier capture. The
+private OpenRemix probe uploaded all 10 resolved base textures for the
+35 supported environment material sections and used a neutral material
+on the other 44 sections. Three active frames reached bgfx Vulkan with
+different checksums. The reference view shows the original red-base
+walls and cliff colors. The probe uses the same earlier camera and a
+test light. It captures baked lightmap bitmaps, but their contribution
+is pending, as are terrain detail layers, live HUD composition,
+cross-hardware coverage and gameplay performance measurements.
+Evidence is in `build/native-bsp-pathtrace-stock-bloodgulch/process-materials.log`,
+`build/openremix-win64/consumer-native-bsp-matched-textured-runtime.log`
+and `build/openremix-win64/native-bloodgulch-matched-textured-bgfx.bmp`.
+No runtime renderer option or Spark capability has been released.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

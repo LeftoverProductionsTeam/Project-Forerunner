@@ -105,6 +105,7 @@ enum
 	_shader_transparent_draw_before_water_bit = 4,
 	_shader_transparent_ignore_effect_bit = 5,
 	_shader_meter_decal_bit = 0,
+	_shader_environment_alpha_tested_bit = 0,
 	_shader_environment_dynamic_mirror_bit = 0,
 	_shader_glass_reflection_type_mirror = 2
 };
@@ -184,7 +185,9 @@ struct shader_model_definition
 
 struct shader_environment_diffuse_properties
 {
-	byte reserved_before_texture_animation[0xE4];
+	byte reserved_before_base_map[0x1C];
+	struct tag_reference base_map;
+	byte reserved_before_texture_animation[0xB8];
 	short u_animation_function;
 	short pad_u_animation;
 	real u_animation_period;
@@ -227,6 +230,8 @@ typedef char shader_model_translucency_offset[
 	offsetof(struct shader_model_definition, translucency) == 0x38 ? 1 : -1];
 typedef char shader_environment_diffuse_offset[
 	offsetof(struct shader_environment_definition, diffuse) == 0x6C ? 1 : -1];
+typedef char shader_environment_base_map_offset[
+	offsetof(struct shader_environment_definition, diffuse.base_map) == 0x88 ? 1 : -1];
 typedef char shader_environment_u_animation_period_offset[
 	offsetof(struct shader_environment_definition, diffuse.u_animation_period) == 0x154 ? 1 : -1];
 typedef char shader_environment_v_animation_period_offset[
@@ -248,6 +253,20 @@ long numeric_countdown_timer_milliseconds = 0;
 struct numeric_countdown_timer_state numeric_countdown_timer_on = { 0 };
 
 /* ---------- public code */
+
+long shader_environment_base_bitmap_group(const struct shader *shader, boolean *alpha_tested)
+{
+	const struct shader_environment_definition *environment;
+
+	*alpha_tested = FALSE;
+	if (!shader || shader->base.type != _shader_type_environment)
+		return NONE;
+
+	environment = SHADER_GET_ENVIRONMENT(shader);
+	/* The native environment setup uses this bit to enable alpha testing. */
+	*alpha_tested = TEST_FLAG(environment->flags, _shader_environment_alpha_tested_bit);
+	return environment->diffuse.base_map.index;
+}
 
 short shader_get_vertex_shader_permutation(
 	struct shader const *shader)

@@ -12,7 +12,9 @@ struct pathtrace_material
 	const unsigned char *vertices;
 	const unsigned char *lightmap_vertices;
 	long vertex_count, surface_count;
-	long shader, lightmap_group;
+	long shader, lightmap_group, diffuse_group;
+	short diffuse_bitmap;
+	int alpha_tested;
 	short permutation, lightmap_bitmap;
 };
 
