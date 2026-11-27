@@ -355,6 +355,25 @@ reports reconstruction only after the traced backend becomes active. The
 `pathtrace-fsr-final-*` native repeat verified Quality at 1280×720 and
 confirmed that an invalid preference retains native 1920×1080 tracing.
 
+**Native temporal filter.** The private preview's
+`debug.pathtrace_temporal` setting defaults to OpenRemix's existing temporal
+resolve. Off exposes raw native-resolution tracing. Stock Chill Out at
+1080p on the RTX 4070 Ti reported 16 history frames with the filter active,
+and zero in the raw run. NRD was inactive in both. In a matched wall crop,
+mean adjacent-pixel luminance difference fell from 4.70 to 3.59 on a 0–255
+scale. Grain remains visible. The raw cold run required about 12 seconds
+of provider configuration preparation before the native trace became ready.
+
+The rotating-camera harness on the same map verified FSR Quality at
+1280×720 → 1920×1080 with the FSR resolve active and the native filter
+inactive. It averaged 143 FPS in this scripted view, with the weapon and
+HUD retained. This is same-BSP motion evidence. Cross-BSP history is open.
+Private log and capture sets `pathtrace-temporal-*` are under
+`build/native-bsp-pathtrace-stock-bloodgulch`. Filter and motion build
+`520833e05a557688afaca42d1bda934dd08fba06dd48dabd8d9049046c4db3e4`.
+Final raw build with provider status diagnostics
+`137f11e9adc7881a04d6019039db4cf3c9834f5bf1f364523514b4734db6da18`.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

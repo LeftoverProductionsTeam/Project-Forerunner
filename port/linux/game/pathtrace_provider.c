@@ -37,6 +37,7 @@ __declspec(dllimport) int __stdcall FreeLibrary(remixapi_HMODULE);
 __declspec(dllimport) unsigned long __stdcall GetFullPathNameA(const char *, unsigned long, char *, char **);
 
 extern const char *config_string(const char *name);
+extern int config_boolean(const char *name);
 extern long config_integer(const char *name);
 extern void platform_log(const char *format, ...);
 
@@ -65,7 +66,10 @@ static struct
 	remixapi_Interface api;
 	PFN_remixapi_GetBackendCapabilitiesEXT capabilities;
 	reconstruction_diagnostics_fn reconstruction;
+	PFN_remixapi_GetDenoisingStatisticsEXT temporal_statistics;
+	unsigned int temporal_readback_frames;
 	int fsr_reported;
+	int unavailable_reported;
 	remixapi_MaterialHandle material;
 	remixapi_LightHandle sunlight, ambient;
 	remixapi_MeshHandle mesh;
@@ -120,6 +124,18 @@ static void report_reconstruction(void)
 	}
 	else
 		platform_log("OpenRemix preview: FSR 3.1 fallback to native: %.255s", diagnostics.fallbackReason);
+}
+
+static void report_temporal_filtering(void)
+{
+	remixapi_DenoisingStatisticsEXT stats = {0};
+
+	if (!preview.temporal_statistics || ++preview.temporal_readback_frames != 16)
+		return;
+	stats.structSize = sizeof(stats);
+	if (preview.temporal_statistics(&stats) == REMIXAPI_ERROR_CODE_SUCCESS)
+		platform_log("OpenRemix preview: temporal filtering requested %u, active %u, history %llu frames, NRD active %u",
+			stats.requestedTaa, stats.activeTaa, (unsigned long long)stats.historyFrames, stats.activeDenoiser);
 }
 
 void pathtrace_provider_close_handles(struct win32_shared_frame_description *description)
@@ -217,6 +233,8 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	if (!status(preview.api.Startup(&startup), "start"))
 		return FALSE;
 	preview.started = TRUE;
+	preview.temporal_statistics = (PFN_remixapi_GetDenoisingStatisticsEXT)GetProcAddress(preview.module,
+		"remixapi_GetDenoisingStatisticsEXT");
 	if (want_fsr)
 	{
 		preview.reconstruction = (reconstruction_diagnostics_fn)GetProcAddress(preview.module,
@@ -239,6 +257,8 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.samples", samples_setting), "set samples per pixel") ||
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.upscaler", want_fsr ? "fsr31" : "off"),
 			"select reconstruction mode") ||
+		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.taa",
+			config_boolean("debug.pathtrace_temporal") ? "1" : "0"), "set native temporal filtering") ||
 		!status(preview.api.SetConfigVariable("rtx.native.pathtrace.denoiser", "off"), "disable denoising"))
 		return FALSE;
 
@@ -617,12 +637,19 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 		platform_log("OpenRemix preview: submitted the first live camera");
 	}
 	capabilities.structSize = sizeof(capabilities);
-	if (!status(preview.capabilities(&capabilities), "query active backend") ||
-		!(capabilities.supportedBackends & (1u << REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)))
+	if (!status(preview.capabilities(&capabilities), "query active backend"))
+		return pathtrace_provider_unavailable;
+	if (capabilities.unavailableReason[0] && !preview.unavailable_reported)
+	{
+		preview.unavailable_reported = TRUE;
+		platform_log("OpenRemix preview: path tracing status: %.255s", capabilities.unavailableReason);
+	}
+	if (!(capabilities.supportedBackends & (1u << REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)))
 		return pathtrace_provider_unavailable;
 	if (capabilities.activeBackend != REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)
 		return pathtrace_provider_warming_up;
 	report_reconstruction();
+	report_temporal_filtering();
 	return pathtrace_provider_traced;
 }
 #else
