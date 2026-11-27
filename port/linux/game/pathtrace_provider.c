@@ -86,7 +86,7 @@ static struct
 	short bsp, sky;
 	long last_tick;
 	unsigned long long mesh_generation;
-	int started, submitted, sky_available;
+	int started, submitted, warming_reported, sky_available;
 } preview;
 
 typedef int (REMIXAPI_CALL *win32_configure_frame)(remixapi_EditorSharedFrameWin32 *);
@@ -96,6 +96,22 @@ static int status(remixapi_ErrorCode result, const char *action)
 	if (result != REMIXAPI_ERROR_CODE_SUCCESS)
 		platform_log("OpenRemix preview: %s failed (%d)", action, (int)result);
 	return result == REMIXAPI_ERROR_CODE_SUCCESS;
+}
+
+static int query_pathtrace_backend(remixapi_BackendCapabilitiesEXT *capabilities)
+{
+	capabilities->structSize = sizeof(*capabilities);
+	if (!status(preview.capabilities(capabilities), "query active backend"))
+		return FALSE;
+	if (capabilities->unavailableReason[0] && !preview.unavailable_reported)
+	{
+		preview.unavailable_reported = TRUE;
+		platform_log("OpenRemix preview: path tracing status: %.255s", capabilities->unavailableReason);
+	}
+	if (capabilities->supportedBackends & (1u << REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT))
+		return TRUE;
+	platform_log("OpenRemix preview: the provider GPU does not support path tracing");
+	return FALSE;
 }
 
 static void report_reconstruction(void)
@@ -189,6 +205,7 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	remixapi_EditorStartupEXT editor = {0};
 	remixapi_StartupInfo startup = {0};
 	remixapi_EditorSharedFrameWin32 frame = {0};
+	remixapi_BackendCapabilitiesEXT capabilities = {0};
 	remixapi_MaterialInfoOpaqueEXT opaque = {0};
 	remixapi_MaterialInfo material = {0};
 	PFN_remixapi_InitializeLibrary initialize;
@@ -233,6 +250,8 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	if (!status(preview.api.Startup(&startup), "start"))
 		return FALSE;
 	preview.started = TRUE;
+	if (!query_pathtrace_backend(&capabilities))
+		return FALSE;
 	preview.temporal_statistics = (PFN_remixapi_GetDenoisingStatisticsEXT)GetProcAddress(preview.module,
 		"remixapi_GetDenoisingStatisticsEXT");
 	if (want_fsr)
@@ -636,18 +655,17 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 		preview.submitted = TRUE;
 		platform_log("OpenRemix preview: submitted the first live camera");
 	}
-	capabilities.structSize = sizeof(capabilities);
-	if (!status(preview.capabilities(&capabilities), "query active backend"))
-		return pathtrace_provider_unavailable;
-	if (capabilities.unavailableReason[0] && !preview.unavailable_reported)
-	{
-		preview.unavailable_reported = TRUE;
-		platform_log("OpenRemix preview: path tracing status: %.255s", capabilities.unavailableReason);
-	}
-	if (!(capabilities.supportedBackends & (1u << REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)))
+	if (!query_pathtrace_backend(&capabilities))
 		return pathtrace_provider_unavailable;
 	if (capabilities.activeBackend != REMIXAPI_RENDER_BACKEND_PATHTRACE_EXT)
+	{
+		if (!preview.warming_reported)
+		{
+			preview.warming_reported = TRUE;
+			platform_log("OpenRemix preview: keeping the native view while traced pipelines prepare");
+		}
 		return pathtrace_provider_warming_up;
+	}
 	report_reconstruction();
 	report_temporal_filtering();
 	return pathtrace_provider_traced;

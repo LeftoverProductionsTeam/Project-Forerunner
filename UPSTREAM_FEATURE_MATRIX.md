@@ -374,6 +374,27 @@ Private log and capture sets `pathtrace-temporal-*` are under
 Final raw build with provider status diagnostics
 `137f11e9adc7881a04d6019039db4cf3c9834f5bf1f364523514b4734db6da18`.
 
+**Adapter preflight.** Win64
+`1efd81f8890d03d570c6ebc3779fddc433c48ff927d316aff481730dfdb03b12`
+checks the provider's ray-tracing capability after device startup, before
+exporting a shared image or uploading BSP assets. While the provider
+prepares, the engine displays its native raster view. It still requires an
+exact adapter UUID match before importing any provider GPU resource.
+
+Stock Chill Out at 800×600, with process-local selection of each installed
+Vulkan driver, imported successfully on both tested adapters. RTX 4070 Ti
+activated the trace with 936 MiB peak process working set. AMD Radeon
+integrated (1002:164e, driver 26.3.1) reported tracing capability and
+continued raster gameplay through tick 1110, but did not activate tracing
+within 44 seconds. Limiting the provider to one pipeline worker still
+reached 19.5 GiB peak process working set. These are CPU working sets, not
+dedicated GPU memory. AMD tracing is unverified and this configuration
+fails the release resource check despite the positive capability bit.
+The driver/compiler memory cause is unconfirmed. Native logs are in
+`build/native-bsp-pathtrace-stock-bloodgulch/process-live-pathtrace-adapter-workers-*.log`.
+A Vulkan device reporting the ray-tracing capability absent remains
+untested.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
