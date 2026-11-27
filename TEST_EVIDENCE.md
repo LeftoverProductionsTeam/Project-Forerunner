@@ -240,12 +240,30 @@ ground preview and its published mode receipt.
   campaign Ghost with body vitality 160 for a separate private wreck
   fixture. The vehicle harness now parks the actual issued wreck, refuses
   a neighboring BSP's reconnect, and rebinds the same dead datum on return
-  through the runtime vehicle reconnect function. The focused vehicle
-  checks passed. The native wreck acceptance is pending the private map.
-- Still pending on the corrected full-world pairing: reboarding after an
-  unload and reload, first deployment directly into an unloaded BSP,
-  both-faction banking, and return to the same loose drop and a confirmed
-  wreck. The separate hunt fixture still
+  through the runtime vehicle reconnect function. All 100 tests in the
+  vehicle harness passed.
+- Using `1bbcc126` on the unchanged full-world control, the guest walked
+  the Chiron corridor from BSP 0 to BSP 1 and back as the Covenant host
+  remained in BSP 11. The host masks at ticks 22200, 22350 and 23250 were
+  `0x0801`, `0x0802` and `0x0801`. The same overturned Beaver Creek
+  Ghost, datum slot 1475, returned to the guest's object list at
+  (463.71, -40.21, -17.89). The guest returned on foot, flipped the Ghost
+  upright with Use, and entered seat 0 of the same datum e83205c3. Both
+  clients recorded that seat at tick 42270.
+- The private campaign Ghost map `4719a713` and receipt `213b2d85`
+  matched the Spark handoff. The normal Play Solo flow opened the exact
+  pair and materialized row 229 as `vehicles/ghost/ghost`. Initial hub
+  simulation held only BSP 0. The first normal deployment activated
+  previously unloaded BSP 3 and moved the player into Derelict. The
+  loadout left rifle slot 927 loose in the hub after BSP 0 unloaded.
+  On the native hub respawn, that slot disappeared while the identical
+  starter rifle's total ammunition rose from 240 to 420. The existing
+  ammunition pickup path accounts for that result. Equipping the same
+  loose datum and native destruction of the campaign Ghost remain open.
+  Logs are under `build/regional-pressure-profile/wreck-native-solo`.
+- Still pending on the corrected full-world pairing:
+  cold deployment in the paired LAN session, both-faction banking, and
+  return to the same loose drop and a confirmed wreck. The separate hunt fixture still
   needs synchronized kills and objective credit. The saved
   checkpoint and logs do not identify the operation that triggered the
   reported restriction. No restricted operation was retried. Latest and
