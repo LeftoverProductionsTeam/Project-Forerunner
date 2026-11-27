@@ -17,6 +17,22 @@ graphics and material controls only for verified capabilities. Keep RTX
 optional and verify licenses, supported hardware, visual fidelity, real frame
 times and memory before release.
 
+The private Windows Vulkan preview uses the pinned OpenRemix provider and
+Forerunner's native scene inputs. It has presented stock and MegaWorld BSPs
+through the existing compositor with optional FSR and temporal filtering.
+The direct NVIDIA SDK probe presented on Windows, but its pinned release did
+not complete the tested compositor handoff. Continue the existing OpenRemix
+integration before considering a native tracer. The provider owns its
+acceleration structures. OpenH1's native design shares render acceleration
+structures with Hybrid if that route becomes necessary.
+
+Release gates include matched Classic, Hybrid and traced gameplay captures,
+material and effects fidelity, memory and frame-time measurements across
+regional transitions, validation on another RT-capable vendor, and exact
+redistribution terms. Advertise graphics and native material overrides in
+Spark through existing discovery and readback after ordinary workflow testing.
+See the [upstream audit and native evidence](../../UPSTREAM_FEATURE_MATRIX.md#optional-path-tracing-source-audit).
+
 ## Product Completion V2.1
 
 Keep Product Completion V2 and its accepted behavior. Verify the shared actor
