@@ -28,6 +28,15 @@ to foot. Spark's separate `7a0672ff` Hiding Marine diagnostic removed
 the Marine from its spawn, and the separate Play Solo run saw Standard
 riders leave through the native path. The installed-map and collider runs
 used LAN, so this does not establish the effect of the Marine on release.
+A finer native Play Solo trace on released `f9907675` resolved the Alpha
+outcome. On exact `12649191`, the three automatic spawner sites produced
+living on-foot Alpha actors by tick 2 and three new living actors by
+tick 1804. Spark's exact `05a4268a` collider comparison showed the same
+two waves by ticks 7 and 1813. Both used normal Survival menus and no
+player fire. No sampled frame captured the same Alpha in a seat. The
+result verifies automatic delivery in the converted maps and leaves the
+physical ejection sequence, Evolved and the original Demo comparison open.
+
 The diagnostic's 30-second mixer captured the map music, Slayer and nearby
 effects. Normal input collected and threw an authored grenade. These
 checks do not establish original flame appearance or the complete audio mix.
