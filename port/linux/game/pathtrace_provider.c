@@ -96,7 +96,7 @@ static struct
 	long last_tick;
 	unsigned long long mesh_generation, history_generation;
 	unsigned long camera_epoch;
-	int started, submitted, warming_reported, sky_available;
+	int started, submitted, warming_reported, sky_available, scene_unlit;
 } preview;
 
 typedef int (REMIXAPI_CALL *win32_configure_frame)(remixapi_EditorSharedFrameWin32 *);
@@ -345,14 +345,33 @@ static unsigned int find_texture(const struct pathtrace_material *material)
 	return i;
 }
 
+static const struct shader_radiosity_properties *emissive_radiosity(const struct pathtrace_material *material)
+{
+	const struct shader *shader = shader_definition_get(material->shader);
+	const struct shader_radiosity_properties *radiosity = &shader->base.radiosity;
+	const real_rgb_color *color = &radiosity->color_of_emitted_light;
+
+	if (!isfinite(radiosity->power) || radiosity->power <= 0.0f ||
+		!isfinite(color->red) || !isfinite(color->green) || !isfinite(color->blue) ||
+		color->red < 0.0f || color->green < 0.0f || color->blue < 0.0f ||
+		MAX(color->red, MAX(color->green, color->blue)) <= 0.0f)
+		return NULL;
+	return radiosity;
+}
+
 static int plan_texture(void *context, const struct pathtrace_material *material)
 {
 	struct bitmap_data *bitmap;
 	struct preview_texture *texture;
 	unsigned int i;
 
-	(void)context;
-	if (!material->opaque || material->diffuse_group == NONE || material->diffuse_bitmap == NONE ||
+	int *scene_emits = context;
+
+	if (!material->opaque)
+		return TRUE;
+	if (!*scene_emits && emissive_radiosity(material))
+		*scene_emits = TRUE;
+	if (material->diffuse_group == NONE || material->diffuse_bitmap == NONE ||
 		preview.texture_count == maximum_preview_textures)
 		return TRUE;
 	i = find_texture(material);
@@ -472,19 +491,16 @@ static void upload_planned_textures(void)
 static remixapi_MaterialHandle emissive_material(const struct pathtrace_material *material,
 	const struct preview_texture *texture)
 {
-	const struct shader *shader = shader_definition_get(material->shader);
-	const struct shader_radiosity_properties *radiosity = &shader->base.radiosity;
-	const real_rgb_color *color = &radiosity->color_of_emitted_light;
+	const struct shader_radiosity_properties *radiosity = emissive_radiosity(material);
+	const real_rgb_color *color;
 	remixapi_MaterialInfo info = {0};
 	remixapi_MaterialInfoOpaqueEXT opaque = {0};
 	wchar_t uri[24];
 	unsigned int i;
 
-	if (!isfinite(radiosity->power) || radiosity->power <= 0.0f ||
-		!isfinite(color->red) || !isfinite(color->green) || !isfinite(color->blue) ||
-		color->red < 0.0f || color->green < 0.0f || color->blue < 0.0f ||
-		MAX(color->red, MAX(color->green, color->blue)) <= 0.0f)
+	if (!radiosity)
 		return NULL;
+	color = &radiosity->color_of_emitted_light;
 
 	for (i = 0; i < preview.emitter_count; i++)
 		if (preview.emitters[i].shader == material->shader && preview.emitters[i].page == material->diffuse_bitmap)
@@ -629,14 +645,24 @@ static int upload_bsp(const struct structure_bsp *structure)
 	remixapi_MeshInfo geometry = {0};
 	remixapi_MeshHandle mesh = NULL;
 	unsigned int i;
+	int scene_emits = FALSE;
 
 	if (!upload)
 		return FALSE;
 	++preview.mesh_generation;
-	if (!pathtrace_scene_visit(structure, plan_texture, NULL))
+	if (!pathtrace_scene_visit(structure, plan_texture, &scene_emits))
 	{
 		free(upload);
 		return FALSE;
+	}
+	preview.scene_unlit = !preview.sky_available && !scene_emits;
+	if (preview.scene_unlit)
+	{
+		preview.texture_count = 0;
+		free(upload);
+		platform_log("OpenRemix preview: map %s BSP %d, keeping native baked lighting (no traceable lights)",
+			preview.map, preview.bsp);
+		return TRUE;
 	}
 	upload_planned_textures();
 	memset(upload, 0, sizeof(*upload));
@@ -726,6 +752,8 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	if (new_scene)
 	{
 		retire_bsp();
+		preview.scene_unlit = FALSE;
+		preview.fsr_reported = 0;
 		preview.structure = structure;
 		preview.bsp = bsp;
 		strcpy(preview.map, map);
@@ -734,7 +762,7 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	new_sky = new_scene || sky != preview.sky;
 	if (new_sky && !upload_sky(sky))
 		return pathtrace_provider_error;
-	if (!preview.mesh && !upload_bsp(structure))
+	if (!preview.mesh && (!preview.scene_unlit || preview.sky_available) && !upload_bsp(structure))
 		return pathtrace_provider_error;
 	if (!preview.sky_available && !preview.emitter_count)
 		return pathtrace_provider_no_sky;

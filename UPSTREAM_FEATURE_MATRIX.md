@@ -437,6 +437,22 @@ with no mip reduction. The private Vulkan logs and views are in
 `pathtrace-megaworld-stock-mip-control`. This measures coverage at the
 tested BSPs. Visual quality and cross-BSP streaming costs remain open.
 
+**Physical Infinity seam.** Win64
+`4b9175e24be19e9cf7e0c9ebb7707b14555fcb8bdeeefdc807e0b7144002a7c1`
+keeps the native frame and skips preview mesh and texture uploads in
+a BSP with neither sky lighting nor a supported emitting shader. In a
+private solo trial on the retained `9eb74c92` map and `f50dc937` receipt,
+one setup placement preceded normal inputs for both legs of BSP 0→12→0.
+The player kept full vitality. BSP 12 was the held foreground at tick 300.
+BSP 0 held again at tick 600. FSR Quality resumed at 533×400 → 800×600,
+all 149 opaque sections were textured again, and the provider confirmed
+the new history epoch. The original dark tunnel remains visible in the
+raster capture. This does not accept the old tunnel art, a traced
+interior, the released map's geometry, or multiplayer. The log is
+`build/native-bsp-pathtrace-stock-bloodgulch/process-live-pathtrace-megaworld-infinity-9eb74c92-fsr-return.log`.
+Adjacent capture `window00904.bmp` is the tunnel and `window01667.bmp`
+is the return outdoors.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
