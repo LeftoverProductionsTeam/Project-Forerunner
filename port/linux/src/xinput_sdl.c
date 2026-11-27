@@ -3379,6 +3379,14 @@ static void debug_camera_update(const struct platform_input_state *input, BOOL b
 		if (input->keys[SDL_SCANCODE_N]) machinima_buttons |= HALO_MACHINIMA_LOAD;
 		if (input->keys[SDL_SCANCODE_S]) machinima_buttons |= HALO_MACHINIMA_SMOOTHING;
 		if (input->keys[SDL_SCANCODE_X]) machinima_buttons |= HALO_MACHINIMA_COLLISION;
+		if (input->keys[SDL_SCANCODE_P]) machinima_buttons |= HALO_MACHINIMA_REVIEW;
+		if (input->keys[SDL_SCANCODE_K]) machinima_buttons |= HALO_MACHINIMA_REVIEW_PLAY;
+		if (input->keys[SDL_SCANCODE_LEFT]) machinima_buttons |= HALO_MACHINIMA_REVIEW_PREVIOUS;
+		if (input->keys[SDL_SCANCODE_RIGHT]) machinima_buttons |= HALO_MACHINIMA_REVIEW_NEXT;
+		if (input->keys[SDL_SCANCODE_DOWN]) machinima_buttons |= HALO_MACHINIMA_REVIEW_SLOWER;
+		if (input->keys[SDL_SCANCODE_UP]) machinima_buttons |= HALO_MACHINIMA_REVIEW_FASTER;
+		if (input->keys[SDL_SCANCODE_HOME]) machinima_buttons |= HALO_MACHINIMA_REVIEW_FIRST;
+		if (input->keys[SDL_SCANCODE_END]) machinima_buttons |= HALO_MACHINIMA_REVIEW_LAST;
 	}
 	machinima_roll = blocked ? 0 : !!input->keys[SDL_SCANCODE_G] - !!input->keys[SDL_SCANCODE_T];
 	machinima_zoom = blocked ? 0 : !!input->keys[SDL_SCANCODE_PERIOD] - !!input->keys[SDL_SCANCODE_COMMA];

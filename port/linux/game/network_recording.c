@@ -103,7 +103,8 @@ a type a reader does not know it skips:
               the game's player list's index, 255 the server or the game),
               the speaker's name, text
  16 map:      family (1: halo_map_families.h's), file (its name, without
-              .map), hash (32: SHA-256, map_share.h's; zeros if unknown)
+              .map), hash (32 bytes, zeros if unknown). MCC family 5 uses
+              exact cache SHA-256. Earlier families retain the sharing hash.
  17 marks:    the map's netgame flags, once: count (2), then each one's kind
               (1: scenario_definitions.h's, a CTF flag's stand 0, a CTF
               vehicle 1, an oddball's ball spawn 2, a race track's point 3,
@@ -153,6 +154,7 @@ game's carnage report, <name>.json beside the copy gives its address:
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
 #include "camera/director.h"
 #include "render/render_cameras.h"
+#include "../../third_party/zlib/zlib_prefixed.h"
 #endif
 #include "game/game.h"
 #include "game/game_engine.h"
@@ -175,6 +177,9 @@ game's carnage report, <name>.json beside the copy gives its address:
 #endif
 #include "map_share.h"
 #include "halo_map_families.h"
+#include "mcc_cache.h"
+#include "mcc_package.h"
+#include "../src/map_file_hash.h"
 #ifdef HALO_PORT_CHAT
 #include "chat.h"
 #endif
@@ -202,6 +207,7 @@ void event_log_free(char *json);
 
 #define RECORDING_FOLDER "d:\\recordings"
 #define RECORDING_VERSION 2
+#define RECORDING_MAP_FAMILY_MCC 5 /* HREC value, outside the legacy map-family enum */
 
 enum
 {
@@ -913,22 +919,50 @@ static void recording_walls(
 	free(walls);
 }
 
-/* the map's family, file and hash, for a replay viewer to find the map
-itself and draw it as the game does */
+/* Use the loaded MCC scenario's local identity. Some compatible network
+   protocols announce only its basename, which otherwise looks like Xbox. */
+static short recording_map_identity(char const *name, char file[MAX_PATH], byte hash[MAP_SHARE_HASH_BYTES])
+{
+	char path[MAX_PATH];
+	short family;
+
+	file[0] = 0;
+	csmemset(hash, 0, MAP_SHARE_HASH_BYTES);
+	if (mcc_cache_tags_loaded() && global_scenario_index != NONE)
+	{
+		char const *local = tag_get_name(global_scenario_index);
+		char const *leaf = local ? strrchr(local, '\\') : NULL;
+		byte archive_hash[MAP_SHARE_HASH_BYTES];
+
+		if (!leaf || !mcc_package_map_path(local, path))
+			return NONE;
+		snprintf(file, MAX_PATH, "%s", leaf + 1);
+		if (!map_file_hash_both(path, archive_hash, hash))
+			csmemset(hash, 0, MAP_SHARE_HASH_BYTES);
+		return RECORDING_MAP_FAMILY_MCC;
+	}
+	else
+	{
+		family = name && *name ? map_family_parse(name, file, MAX_PATH) : NONE;
+		if (family == NONE || !file[0] || !map_family_find(family, file, path, sizeof(path)))
+			return family;
+	}
+	if (!map_share_map_hash(path, hash))
+		csmemset(hash, 0, MAP_SHARE_HASH_BYTES);
+	return family;
+}
+
+/* The replay's exact locally loaded map, kept alongside the shot data. */
 static void recording_map(
 	char const *map)
 {
-	char file[MAX_PATH] = "";
-	char path[MAX_PATH] = "";
+	char file[MAX_PATH];
 	byte hash[MAP_SHARE_HASH_BYTES];
-	short family = map[0] ? map_family_parse(map, file, sizeof(file)) : NONE;
+	short family = recording_map_identity(map, file, hash);
 	byte *at;
 
-	csmemset(hash, 0, sizeof(hash));
 	if (family == NONE || !file[0])
 		return;
-	if (map_family_find(family, file, path, sizeof(path)) && !map_share_map_hash(path, hash))
-		csmemset(hash, 0, sizeof(hash));
 	at = recording_begin(_record_map, 1 + text_size(file) + MAP_SHARE_HASH_BYTES);
 	if (!at)
 		return;
@@ -1768,6 +1802,356 @@ static void recording_tick(
 }
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
+enum
+{
+	REVIEW_MAX_FRAMES = 216000,
+	REVIEW_MAX_FILE_BYTES = 128 * 1024 * 1024,
+	REVIEW_MAX_BLOCK_BYTES = RECORDING_MAXIMUM_WALL_BYTES + 5
+};
+
+struct recording_camera_sample
+{
+	unsigned long tick;
+	real_point3d position;
+	real_vector3d forward;
+	real_vector3d up;
+	real fov;
+	boolean cut;
+};
+
+static struct
+{
+	struct recording_camera_sample *samples;
+	long count, capacity;
+	short rate, speed;
+	boolean playing, cut;
+	double frame;
+} review;
+
+static unsigned long recording_read_u32(byte const *at)
+{
+	return at[0] | (unsigned long)at[1] << 8 | (unsigned long)at[2] << 16 | (unsigned long)at[3] << 24;
+}
+
+static real recording_read_real(byte const *at)
+{
+	union { uint32_t bits; real value; } converted;
+	converted.bits = (uint32_t)recording_read_u32(at);
+	return converted.value;
+}
+
+static boolean review_camera_record(byte const *record, unsigned long size)
+{
+	struct recording_camera_sample sample;
+	long capacity;
+	void *grown;
+
+	if (size == 4)
+	{
+		review.cut = TRUE;
+		return TRUE;
+	}
+	if (size != 44 || review.count >= REVIEW_MAX_FRAMES)
+		return FALSE;
+	sample.tick = recording_read_u32(record);
+	sample.position.x = recording_read_real(record + 4);
+	sample.position.y = recording_read_real(record + 8);
+	sample.position.z = recording_read_real(record + 12);
+	sample.forward.i = recording_read_real(record + 16);
+	sample.forward.j = recording_read_real(record + 20);
+	sample.forward.k = recording_read_real(record + 24);
+	sample.up.i = recording_read_real(record + 28);
+	sample.up.j = recording_read_real(record + 32);
+	sample.up.k = recording_read_real(record + 36);
+	sample.fov = recording_read_real(record + 40);
+	if (!valid_real_point3d(&sample.position) ||
+		!valid_real_vector3d_axes2(&sample.forward, &sample.up) ||
+		!valid_real(sample.fov) || sample.fov <= 0.f || sample.fov >= _pi)
+		return FALSE;
+	sample.cut = review.cut;
+	if (review.count)
+	{
+		struct recording_camera_sample const *last = &review.samples[review.count - 1];
+
+		if (sample.tick <= last->tick)
+			return FALSE;
+		sample.cut |= sample.tick - last->tick > 1 ||
+			distance_squared3d(&last->position, &sample.position) > 4.f ||
+			dot_product3d(&last->forward, &sample.forward) < 0.f ||
+			dot_product3d(&last->up, &sample.up) < 0.f;
+	}
+	if (review.count == review.capacity)
+	{
+		capacity = MIN(REVIEW_MAX_FRAMES, MAX(512, review.capacity * 2));
+		grown = review.samples ? realloc(review.samples, capacity * sizeof(sample)) :
+			malloc(capacity * sizeof(sample));
+		if (!grown)
+			return FALSE;
+		review.samples = grown;
+		review.capacity = capacity;
+	}
+	review.samples[review.count++] = sample;
+	review.cut = FALSE;
+	return TRUE;
+}
+
+static boolean review_inflate(byte *packed, unsigned long bytes, byte *unpacked, unsigned long size, byte kind)
+{
+	z_stream stream;
+	boolean ok;
+
+	csmemset(&stream, 0, sizeof(stream));
+	stream.next_in = packed;
+	stream.avail_in = (uInt)bytes;
+	stream.next_out = unpacked;
+	stream.avail_out = (uInt)size;
+	if (inflateInit2(&stream, MAX_WBITS + (kind == 'G' ? 16 : 0)) != Z_OK)
+		return FALSE;
+	ok = inflate(&stream, Z_FINISH) == Z_STREAM_END && stream.total_in == bytes && stream.total_out == size;
+	inflateEnd(&stream);
+	return ok;
+}
+
+static boolean review_read(FILE *file, short family, char const *map, byte const *hash, unsigned long *budget)
+{
+	byte header[9];
+	byte *packed = NULL, *unpacked = NULL;
+	unsigned long packed_total = 0;
+	boolean map_matches = FALSE, ended = FALSE, ok = FALSE;
+	char const *problem = "film header";
+	size_t read;
+
+	if (fread(header, 1, 8, file) != 8 || memcmp(header, "HREC", 4) ||
+		recording_read_u32(header + 4) != RECORDING_VERSION)
+		return FALSE;
+	packed = malloc(REVIEW_MAX_BLOCK_BYTES);
+	unpacked = malloc(REVIEW_MAX_BLOCK_BYTES);
+	if (!packed || !unpacked)
+		goto finish;
+	while ((read = fread(header, 1, sizeof(header), file)) != 0)
+	{
+		unsigned long size, bytes, offset;
+		byte *records;
+
+		problem = "film block header";
+		if (read != sizeof(header) || ended)
+			goto finish;
+		size = recording_read_u32(header + 1);
+		bytes = recording_read_u32(header + 5);
+		if (!size || !bytes || size > REVIEW_MAX_BLOCK_BYTES || bytes > REVIEW_MAX_BLOCK_BYTES ||
+			bytes > REVIEW_MAX_FILE_BYTES - packed_total || size > *budget ||
+			fread(packed, 1, bytes, file) != bytes)
+			goto finish;
+		packed_total += bytes;
+		*budget -= size;
+		records = packed;
+		if (header[0] == 'R')
+		{
+			if (size != bytes)
+				goto finish;
+		}
+		else
+		{
+			problem = "film compression";
+			if ((header[0] != 'G' && header[0] != 'B') ||
+				!review_inflate(packed, bytes, unpacked, size, header[0]))
+				goto finish;
+			records = unpacked;
+		}
+		for (offset = 0; offset < size;)
+		{
+			byte const *record = records + offset;
+			unsigned long length;
+			byte type;
+
+			problem = "film record framing";
+			if (size - offset < 5 || ended)
+				goto finish;
+			type = record[0];
+			length = recording_read_u32(record + 1);
+			record += 5;
+			offset += 5;
+			if (length > size - offset)
+				goto finish;
+			offset += length;
+			if (type == _record_game)
+			{
+				problem = "film timing";
+				if (length < 6 || review.rate)
+					goto finish;
+				review.rate = (short)(record[4] | record[5] << 8);
+				if (review.rate < 1 || review.rate > 240)
+					goto finish;
+			}
+			else if (type == _record_map)
+			{
+				problem = "film map identity";
+				if (map_matches || length < 2 + MAP_SHARE_HASH_BYTES || record[0] != family ||
+					length != 2UL + record[1] + MAP_SHARE_HASH_BYTES ||
+					strlen(map) != record[1] || memcmp(map, record + 2, record[1]) ||
+					memcmp(hash, record + 2 + record[1], MAP_SHARE_HASH_BYTES))
+					goto finish;
+				map_matches = TRUE;
+			}
+			else if (type == _record_camera)
+			{
+				problem = "film camera sample";
+				if (!map_matches || !review_camera_record(record, length))
+					goto finish;
+			}
+			else if (type == _record_end)
+			{
+				problem = "film end record";
+				if (length != 4 || !review.count ||
+					recording_read_u32(record) < review.samples[review.count - 1].tick)
+					goto finish;
+				ended = TRUE;
+			}
+		}
+	}
+	problem = "incomplete film";
+	ok = !ferror(file) && map_matches && ended && review.rate && review.count;
+finish:
+	if (!ok)
+		error(_error_silent, "camera review: %s rejected after %ld samples", problem, review.count);
+	if (unpacked)
+		free(unpacked);
+	if (packed)
+		free(packed);
+	return ok;
+}
+
+void network_recording_review_close(void)
+{
+	if (review.samples)
+		free(review.samples);
+	csmemset(&review, 0, sizeof(review));
+}
+
+boolean network_recording_review_open(void)
+{
+	struct network_game *game = network_game_get_game();
+	byte hash[MAP_SHARE_HASH_BYTES];
+	byte empty_hash[MAP_SHARE_HASH_BYTES] = { 0 };
+	enum { RECENT_FILMS = 8 };
+	char map[MAX_PATH], path[MAX_PATH], recent[RECENT_FILMS][MAX_PATH];
+	short family = recording_map_identity(game ? game->map.name : NULL, map, hash);
+	WIN32_FIND_DATAA data;
+	HANDLE files;
+	long scanned = 0;
+	int count = 0, index;
+	unsigned long budget = REVIEW_MAX_FILE_BYTES;
+
+	network_recording_review_close();
+	if (family == NONE || !memcmp(hash, empty_hash, sizeof(hash)))
+	{
+		error(_error_silent, "camera review: could not identify the loaded map");
+		return FALSE;
+	}
+	files = FindFirstFileA(RECORDING_FOLDER "\\*.hrec", &data);
+	if (files == INVALID_HANDLE_VALUE)
+		return FALSE;
+	do
+	{
+		int rank;
+
+		if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ||
+			data.nFileSizeHigh || data.nFileSizeLow < 17 || data.nFileSizeLow > REVIEW_MAX_FILE_BYTES ||
+			strpbrk(data.cFileName, "/\\:") ||
+			snprintf(path, sizeof(path), RECORDING_FOLDER "\\%s", data.cFileName) >= (int)sizeof(path) ||
+			(recording.file && !csstrcasecmp(path, recording.name)))
+			continue;
+		for (rank = 0; rank < count && strcmp(recent[rank], data.cFileName) > 0; rank++)
+			;
+		if (rank == RECENT_FILMS)
+			continue;
+		count = MIN(count + 1, RECENT_FILMS);
+		if (rank < count - 1)
+			memmove(recent[rank + 1], recent[rank], (count - rank - 1) * sizeof(recent[0]));
+		snprintf(recent[rank], sizeof(recent[rank]), "%s", data.cFileName);
+	}
+	while (++scanned < RECORDING_MAXIMUM_FILES && FindNextFileA(files, &data));
+	CloseHandle(files);
+	for (index = 0; index < count && budget; index++)
+	{
+		FILE *file;
+		boolean ok;
+
+		snprintf(path, sizeof(path), RECORDING_FOLDER "\\%s", recent[index]);
+		file = fopen(path, "rb");
+		if (!file)
+			continue;
+		ok = review_read(file, family, map, hash, &budget);
+		fclose(file);
+		if (ok)
+		{
+			review.speed = 2;
+			error(_error_silent, "camera review: opened %ld frames at %hd Hz", review.count, review.rate);
+			return TRUE;
+		}
+		network_recording_review_close();
+	}
+	return FALSE;
+}
+
+/* The SlipstreamCE Theater controls use discrete playback speeds and pause.
+   Keep the camera's clock independent of the parked simulation. */
+void network_recording_review_update(real seconds, boolean toggle, int step, int speed, int seek)
+{
+	static real const speeds[] = { 0.25f, 0.5f, 1.f, 2.f, 4.f };
+
+	if (!review.count)
+		return;
+	if (toggle)
+		review.playing = !review.playing;
+	if (speed)
+		review.speed = (short)PIN(review.speed + speed, 0, (short)NUMBEROF(speeds) - 1);
+	if (step || seek)
+	{
+		review.playing = FALSE;
+		review.frame = seek ? (seek < 0 ? 0.0 : review.count - 1) : floor(review.frame) + step;
+	}
+	else if (review.playing)
+		review.frame += PIN(seconds, 0.f, 0.1f) * review.rate * speeds[review.speed];
+	review.frame = PIN(review.frame, 0.0, review.count - 1);
+	if (review.frame == review.count - 1)
+		review.playing = FALSE;
+	if (toggle || step || speed || seek)
+		error(_error_silent, "camera review: frame %ld/%ld at %.2fx (%s)",
+			(long)review.frame + 1, review.count, speeds[review.speed], review.playing ? "playing" : "paused");
+}
+
+boolean network_recording_review_camera(struct render_camera *view)
+{
+	long index;
+	struct recording_camera_sample const *a, *b;
+	real fraction, tilt;
+
+	if (!review.count)
+		return FALSE;
+	index = (long)review.frame;
+	a = &review.samples[index];
+	b = index + 1 < review.count && !review.samples[index + 1].cut ? a + 1 : a;
+	fraction = (real)(review.frame - index);
+	view->position.x = a->position.x + (b->position.x - a->position.x) * fraction;
+	view->position.y = a->position.y + (b->position.y - a->position.y) * fraction;
+	view->position.z = a->position.z + (b->position.z - a->position.z) * fraction;
+	view->forward.i = a->forward.i + (b->forward.i - a->forward.i) * fraction;
+	view->forward.j = a->forward.j + (b->forward.j - a->forward.j) * fraction;
+	view->forward.k = a->forward.k + (b->forward.k - a->forward.k) * fraction;
+	view->up.i = a->up.i + (b->up.i - a->up.i) * fraction;
+	view->up.j = a->up.j + (b->up.j - a->up.j) * fraction;
+	view->up.k = a->up.k + (b->up.k - a->up.k) * fraction;
+	normalize3d(&view->forward);
+	tilt = dot_product3d(&view->forward, &view->up);
+	view->up.i -= view->forward.i * tilt;
+	view->up.j -= view->forward.j * tilt;
+	view->up.k -= view->forward.k * tilt;
+	normalize3d(&view->up);
+	view->vertical_field_of_view = a->fov + (b->fov - a->fov) * fraction;
+	return TRUE;
+}
+
 void network_recording_camera_frame(short local_player_index, struct render_camera const *view)
 {
 	boolean active;

@@ -545,7 +545,10 @@ void render_objects(
 	{
 		if (first_person_pass != rasterizer_debug_options.draw_first_person_weapon_first)
 		{
-			first_person_weapon_draw();
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+			if (!director_machinima_reviewing(render.local_player_index))
+#endif
+				first_person_weapon_draw();
 		}
 		else
 		{

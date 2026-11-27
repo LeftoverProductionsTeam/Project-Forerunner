@@ -182,6 +182,22 @@ full native map presentation in playback remain open. Promoted the
 validated native writer to Latest with Previous `e15ab145`. Installed maps
 and configuration matched their prior hashes.
 
+## Native camera review
+
+Win64 `ff104636916a076663a558e2094ccdc9582a547aff8d5b25e0b62d49c6b633b7`
+loaded the installed Zombie Apocalypse map through the normal Play Solo
+menus. Native review skipped a recent film with no camera frames and found
+the completed private run for map SHA-256 `126491917a68c50e14a9465a8b066c40f56a9cd3eb933b66f5ee188f36ebedb1`.
+It rendered the first and last camera poses with stock geometry and no
+first-person weapon overlay. The native controls stepped from frame 240 to
+239 and back, sought to the first frame, and played at quarter speed to
+frame 16. Simulation ticks resumed after exiting review. The test log and
+rendered frames are under `build/machinima-native/native-review-release`.
+The installed executable matches the tested hash. Previous holds `97a90a99`,
+and the ground Extraction map, its mode receipt, the Zombie map and
+configuration match the pre-promotion hashes. This review plays camera
+motion over the current native scene. Native match replay remains open.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

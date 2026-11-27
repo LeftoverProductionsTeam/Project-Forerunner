@@ -4098,7 +4098,9 @@ static void main_game_render(
 		MAIN_STAGE("render: set_window_camera_values");
 		set_window_camera_values(window, observer);
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
-		network_recording_camera_frame(window->local_player_index, &window->rasterizer_camera);
+		if (!director_machinima_reviewing(window->local_player_index) ||
+			!network_recording_review_camera(&window->rasterizer_camera))
+			network_recording_camera_frame(window->local_player_index, &window->rasterizer_camera);
 #endif
 		window->console_window = FALSE;
 	}

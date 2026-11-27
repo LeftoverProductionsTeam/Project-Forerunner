@@ -160,6 +160,9 @@ symbols in this file:
 #include "units/biped_definitions.h"
 #include "network_chat.h"
 #include "halo_keyboard.h"
+#ifndef HALO_SERVER
+#include "network_recording.h"
+#endif
 #ifdef HALO_OPENXR
 #include "../../port/linux/src/vr_openxr.h"
 #endif
@@ -224,6 +227,10 @@ static boolean director_update_controls(
 static long forge_flight_unit = NONE;
 static long forge_monitor_biped = NONE;
 static boolean machinima_active;
+#ifndef HALO_SERVER
+static boolean machinima_reviewing;
+static boolean machinima_review_was_paused;
+#endif
 static boolean machinima_character_input;
 static unsigned int machinima_previous_buttons;
 static real machinima_speed;
@@ -929,6 +936,15 @@ boolean director_machinima_active(short local_player_index)
 	return local_player_index == 0 && machinima_active;
 }
 
+boolean director_machinima_reviewing(short local_player_index)
+{
+#ifdef HALO_SERVER
+	return FALSE;
+#else
+	return local_player_index == 0 && machinima_reviewing;
+#endif
+}
+
 static boolean director_machinima_allowed(void)
 {
 	struct scenario const *scenario = global_scenario_try_and_get();
@@ -980,6 +996,45 @@ static void director_machinima_ease(real_vector2d input, real seconds)
 	}
 }
 
+#ifndef HALO_SERVER
+static boolean director_update_camera_review(unsigned int pressed, real seconds)
+{
+	boolean toggle = (pressed & HALO_MACHINIMA_REVIEW) != 0;
+
+	if (machinima_reviewing && (toggle || !director_machinima_allowed()))
+	{
+		network_recording_review_close();
+		machinima_reviewing = FALSE;
+		game_time_set_paused(machinima_review_was_paused);
+		director_choose_game_perspective(0, TRUE);
+		return TRUE;
+	}
+	if (!machinima_reviewing && toggle && director_machinima_allowed())
+	{
+		if (!network_recording_review_open())
+		{
+			hud_print_notice(0, "Camera review needs a finished private recording from this exact map.");
+			return FALSE;
+		}
+		machinima_active = FALSE;
+		machinima_character_input = FALSE;
+		director_choose_game_perspective(0, TRUE);
+		machinima_review_was_paused = game_time_get_paused();
+		machinima_reviewing = TRUE;
+		game_time_set_paused(TRUE);
+	}
+	if (!machinima_reviewing)
+		return FALSE;
+	director_inhibit_input(0);
+	director_inhibit_facing(0);
+	network_recording_review_update(seconds, (pressed & HALO_MACHINIMA_REVIEW_PLAY) != 0,
+		!!(pressed & HALO_MACHINIMA_REVIEW_NEXT) - !!(pressed & HALO_MACHINIMA_REVIEW_PREVIOUS),
+		!!(pressed & HALO_MACHINIMA_REVIEW_FASTER) - !!(pressed & HALO_MACHINIMA_REVIEW_SLOWER),
+		!!(pressed & HALO_MACHINIMA_REVIEW_LAST) - !!(pressed & HALO_MACHINIMA_REVIEW_FIRST));
+	return TRUE;
+}
+#endif
+
 static boolean director_update_machinima(short local_player_index, struct camera_control *controls)
 {
 	struct director *director = director_get(local_player_index);
@@ -1025,6 +1080,10 @@ static boolean director_update_machinima(short local_player_index, struct camera
 	if (!keyboard_available)
 		pressed = 0;
 
+#ifndef HALO_SERVER
+	if (director_update_camera_review(pressed, controls->seconds_elapsed))
+		return TRUE;
+#endif
 	if (machinima_active && (!director_machinima_allowed() ||
 		(pressed & HALO_MACHINIMA_TOGGLE)))
 	{
@@ -1540,6 +1599,10 @@ void director_initialize_for_new_map(
 	forge_monitor_biped = NONE;
 	machinima_active = FALSE;
 	machinima_character_input = FALSE;
+#ifndef HALO_SERVER
+	machinima_reviewing = FALSE;
+	network_recording_review_close();
+#endif
 #endif
 	sound_listener_motion_reset(NONE); /* port: also called when restoring a saved game */
 	controller_remap_reset(); /* port: release held actions and camera context between maps */

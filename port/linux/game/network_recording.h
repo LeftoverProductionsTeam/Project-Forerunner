@@ -39,6 +39,10 @@ void network_recording_update(void);
 struct render_camera;
 /* Capture the rendered detached operator view in the local recording only. */
 void network_recording_camera_frame(short local_player_index, struct render_camera const *view);
+boolean network_recording_review_open(void);
+void network_recording_review_close(void);
+void network_recording_review_update(real seconds, boolean toggle, int step, int speed, int seek);
+boolean network_recording_review_camera(struct render_camera *view);
 #endif
 /* a bullet's hit on a player the fair play checks looked at: its shooter and
 target (player indices), where it hit, the verdict, how far off the

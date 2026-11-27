@@ -2019,7 +2019,10 @@ async function loadRealMapAs(loading) {
   mapStatusText = "";
   document.getElementById("realmap").style.display = "none";
   const name = rec.map ? rec.map.file : mapName(rec.game.map);
-  if (!name || (rec.map && rec.map.family !== 1 && rec.map.family !== 0)) return;
+  if (!name || (rec.map && rec.map.family !== 1 && rec.map.family !== 0)) {
+    if (rec.map?.family === 5) mapStatus("MCC cache recorded by file hash. This viewer shows its recorded walls.");
+    return;
+  }
   const found = await findMap(name, rec.map ? rec.map.family : null);
   if (loading !== realMapLoading) return;
   if (!found) { mapStatus("The map's file is not on this site: its walls only."); return; }

@@ -5168,8 +5168,18 @@ Spark can map each contiguous shot into its existing Director timeline
 when record 20 is present. Keep the basis vectors and distinguish the
 rendered vertical FOV from the native script camera's input lens.
 The recorder omits these records from public copies. Existing HREC readers
-can skip them by length. Native Theater, per-region detached rendering
-and capability discovery for camera operators remain open.
+can skip them by length. For the record 16 map identity, family 5 identifies
+a locally loaded MCC cache and carries the exact 32-byte map SHA-256. The
+other family values keep their established hash conventions.
+
+In Windows Latest, `Alt+P` opens native camera review from supported Solo
+sessions. The director selects a recent completed private HREC whose map
+identity matches the loaded cache. The active shot renders in the native
+scene with the simulation paused. `Alt+K` plays or pauses, `Alt+Left` and
+`Alt+Right` step, `Alt+Up` and `Alt+Down` adjust speed, and `Alt+Home` and
+`Alt+End` seek to the ends. `Alt+P` returns to gameplay. Match-state Theater
+playback, per-region detached rendering and operator capability discovery
+remain open.
 
 Windows64/GL `build/native-delta-transport-complete-crew/result.json` passes two
 distinct authenticated players' normal boarding, seated insertion, native pilot
