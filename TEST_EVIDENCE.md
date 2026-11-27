@@ -78,6 +78,14 @@ ground preview and its published mode receipt.
   that manual removal does not replenish the pool. The classic vehicle
   respawn regression passed. Live combat, cleanup pressure and returning to
   the visible wreck with a guest still need native verification.
+- Win64 candidate `9b5ceb84` keeps host-owned replicas out of client
+  garbage accounting and collection. A focused Windows check used the
+  native deletion guard and garbage list function. It verified that a
+  host-owned replica stays off the list, a local object can still be
+  collected, a recycled slot is checked by full handle, and ownership
+  changes still allow a stale garbage mark to be cleared. The old path
+  failed the reproduction. A rendered host and guest still need to verify
+  a destroyed vehicle and dropped gear together on a region round trip.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

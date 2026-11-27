@@ -482,6 +482,12 @@ void object_set_garbage(
 	struct object_datum* object = object_get(object_index);
 	
 	long garbage_object_index;
+
+	/* Replicated objects are removed by their host. Counting them as locally
+	 * collectible can make a client free its own effects and objects early. */
+	if (garbage && !network_objects_may_delete(object_index))
+		return;
+
 	for (garbage_object_index = object_globals->first_garbage_object_index;
 		garbage_object_index!=NONE;
 		garbage_object_index = garbage_object->object.next_garbage_object_index)
@@ -4482,7 +4488,7 @@ static boolean object_update(
 		/* port: (vehicle_riding.c) */
 		object_count_update(object_index);
 
-		if (TEST_FLAG(object->object.flags, _object_garbage_bit))
+		if (TEST_FLAG(object->object.flags, _object_garbage_bit) && network_objects_may_delete(object_index))
 		{
 			++object_globals->active_garbage_object_count;
 		}
@@ -4898,6 +4904,8 @@ void objects_garbage_collection(
 					garbage_object_index = object->object.next_garbage_object_index)
 				{
 					object = object_get(garbage_object_index);
+					if (!network_objects_may_delete(garbage_object_index))
+						continue;
 
 					match_assert("c:\\halo\\SOURCE\\objects\\objects.c", 4289, garbage_object_count<MAXIMUM_OBJECTS_PER_MAP);
 
