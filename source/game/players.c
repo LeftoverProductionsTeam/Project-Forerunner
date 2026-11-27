@@ -1385,6 +1385,86 @@ static boolean player_extraction_start_clear(long player_index, long biped,
 	return TRUE;
 }
 
+
+void platform_log(char const *format, ...);
+
+/* Keep authored deployment rows in the native BSP and collision systems.
+ * No temporary unit or client-side placement is needed for the check. */
+boolean players_extraction_deployment_clear(long player_index,
+	struct player_starting_location const *start, short bsp)
+{
+	struct player_datum const *player = player_get(player_index);
+	struct biped_datum const *biped = biped_try_and_get(player->unit_index);
+	struct structure_bsp const *structure;
+	struct object_iterator iterator;
+	struct object_datum const *blocker;
+	real_point3d base;
+	real height, radius;
+
+	if (!biped || biped->object.parent_object_index != NONE ||
+		!player_extraction_start_clear(player_index, biped->definition_index, &start->position, bsp))
+		return FALSE;
+	structure = scenario_structure_bsp_try_and_get(bsp);
+	if (!structure)
+		structure = scenario_structure_bsp_preview(bsp, TRUE);
+	if (!structure || !scenario_structure_bsp_contains_placement(structure, &start->position))
+	{
+		platform_log("extraction: deployment geometry in BSP %d unavailable (%s)", bsp, structure ? "outside BSP" : "not resident");
+		return FALSE;
+	}
+	if (bsp != global_structure_bsp_index_get())
+		object_types_place_regional_bsp(bsp, structure);
+	biped_get_physics_pill(player->unit_index, &base, &height, &radius);
+	base.x += start->position.x - biped->object.position.x;
+	base.y += start->position.y - biped->object.position.y;
+	base.z += start->position.z - biped->object.position.z;
+	if (collision_structure_blocks_pill(structure, bsp, &base, height, radius))
+	{
+		platform_log("extraction: deployment capsule obstructed by BSP %d geometry", bsp);
+		return FALSE;
+	}
+
+	object_iterator_new(&iterator, _object_mask_vehicle | _object_mask_biped | _object_mask_device | _object_mask_scenery, 0);
+	while ((blocker = object_iterator_next(&iterator)) != NULL)
+	{
+		short owner = object_get_regional_bsp(iterator.index);
+		real reach = blocker->object.bounding_sphere_radius + height + radius;
+
+		if (iterator.index == player->unit_index || blocker->object.parent_object_index != NONE ||
+			distance_squared3d(&base, &blocker->object.bounding_sphere_center) > reach * reach)
+			continue;
+		if (owner == NONE)
+			owner = game_engine_object_recorded_bsp(iterator.index, blocker->object.type);
+		if (owner == bsp && collision_object_blocks_pill(iterator.index, &base, height, radius))
+		{
+			platform_log("extraction: deployment capsule obstructed by object %08lx", (unsigned long)iterator.index);
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+void players_extraction_deployment_commit(long player_index, short bsp, real_vector3d const *forward)
+{
+	struct player_datum const *player = player_get(player_index);
+	struct biped_datum *biped = biped_get(player->unit_index);
+
+	if (bsp != global_structure_bsp_index_get())
+	{
+		struct scenario const *scenario = global_scenario_get();
+		struct scenario_structure_bsp_reference const *reference = TAG_BLOCK_GET_ELEMENT(
+			&scenario->structure_bsp_references, bsp, struct scenario_structure_bsp_reference);
+		mcc_cache_bsp_set_in_use(reference, TRUE);
+	}
+	biped->object.translational_velocity = *global_zero_vector3d;
+	biped->unit.desired_facing_vector = *forward;
+	biped->unit.desired_aiming_vector = *forward;
+	biped->unit.desired_looking_vector = *forward;
+	if (player->local_player_index != NONE)
+		player_control_set_facing(player->local_player_index, forward);
+	network_coop_note_player_structure_bsp((short)DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index), NONE);
+}
+
 static long player_spawn_default_biped(struct game_globals const *globals)
 {
 	if (game_engine_running())

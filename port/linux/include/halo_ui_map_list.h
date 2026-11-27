@@ -56,6 +56,8 @@ enum
 	_ui_map_mode_regional_extraction
 };
 
+struct extraction_pool_map;
+short ui_map_list_spark_read_pools(char const *path, struct extraction_pool_map *pools);
 short ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
 	wchar_t *description, long size);
 short ui_map_list_play_mode_row(short mode, short row);

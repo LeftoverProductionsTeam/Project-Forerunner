@@ -80,7 +80,7 @@ enum {_scenario_trigger_volume_type_oriented=1};
 struct scenario_trigger_volume { char name[32]; short type; };
 #include "mission_types.inc"
 #include "profile_types.inc"
-struct player_starting_location { real_point3d position; short structure_bsp_reference_index; };
+struct player_starting_location { real_point3d position; real facing; short team_index, structure_bsp_reference_index; };
 struct scenario { short type; struct tag_block object_names, trigger_volumes, players, hs_scripts, starting_profiles, device_groups,bipeds,biped_palette; struct tag_reference hud_messages; struct tag_block controls, control_palette, structure_bsp_references, vehicles, vehicle_palette, cutscene_flags; };
 struct object_placement_data { long definition_index,owner_player_index; short owner_team_index,variant_number; real_point3d position; real_vector3d forward,up,translational_velocity,angular_velocity; };
 struct delta_peer_identity { byte account[16]; int bound; };
@@ -503,6 +503,19 @@ static void hud_unit_deactivate_nav_point_with_flag(long unit,short flag)
  CHECK(unit==unit_handles[0]&&flag==hud_ground_flag,"cleared the wrong ground guide");
  hud_ground_flag=NONE;
 }
+static boolean game_engine_extraction_pools_valid(void) {return TRUE;}
+static boolean game_engine_extraction_pools_enabled(void) {return FALSE;}
+static boolean use_pool_fixture;
+static unsigned long blocked_pool_bsps;
+static short game_engine_extraction_pool_start(short region,short choice) {return use_pool_fixture ? 2 * region + choice : NONE;}
+static short random_range(short lo,short hi) {return lo;}
+static boolean players_extraction_deployment_clear(long player,struct player_starting_location const *start,short bsp)
+{return use_pool_fixture && !TEST_FLAG(blocked_pool_bsps, bsp);}
+static real_vector3d const pool_up={0,0,1};
+static real_vector3d const *global_up3d=&pool_up;
+static void vector3d_from_angle(real_vector3d *direction,real angle) {direction->i=1;direction->j=direction->k=0;}
+static boolean object_set_physics_pose(long object,short bsp,real_point3d const *point,real_vector3d const *forward,real_vector3d const *up) {return FALSE;}
+static void players_extraction_deployment_commit(long player,short bsp,real_vector3d const *forward) {}
 #include "extraction.inc"
 #define vehicle_datum unit_datum
 #include "vehicle_brake.inc"
@@ -683,6 +696,35 @@ int main(int argc,char **argv)
  boolean light=!strncmp(case_name,"light:",6);
  if(light)case_name+=6;
  initialize();
+ if(!strcmp(case_name,"regional-pool-deploy")) {
+  struct player_starting_location authored[8] = {0};
+  struct player_starting_location const *chosen;
+  short region=NONE,bsp=NONE;
+  use_pool_fixture=TRUE;
+  scenario.type=_scenario_type_solo;
+  connection=_game_connection_local;
+  scenario.players=(struct tag_block){8,authored};
+  extraction.pools.region_count=4;
+  for(i=0;i<4;i++){
+   extraction.pools.regions[i].bsp_index=i;
+   authored[2*i].team_index=authored[2*i+1].team_index=_team_blue;
+  }
+  authored[0].team_index=authored[1].team_index=_team_red;
+  blocked_pool_bsps=FLAG(3);
+  run(0)->squad=NONE;
+  chosen=extraction_pool_deployment(run(0),1,&region,&bsp);
+  CHECK(chosen==&authored[4]&&region==2&&bsp==2,"fallback used receipt ordering or ignored the faction or occupied start");
+  run(0)->squad=0;
+  run(1)->squad=0;
+  run(1)->phase=_extraction_deployed;
+  run(1)->squad_operation=extraction.squads[0].operation=1;
+  extraction.squads[0].pool_region=1;
+  chosen=extraction_pool_deployment(run(0),1,&region,&bsp);
+  CHECK(chosen==&authored[2]&&region==1&&bsp==1,"Covenant squad did not stay in its operation's region");
+  blocked_pool_bsps|=FLAG(1);
+  CHECK(!extraction_pool_deployment(run(0),1,&region,&bsp),"blocked squad was sent to another region");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-ground-guidance")) {
   struct scenario_cutscene_flag flags[]={
    {.name="gs_unsc_deploy"}, {.name="gs_unsc_resupply",.position={9.f,0.f,0.f}},

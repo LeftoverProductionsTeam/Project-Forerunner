@@ -71,6 +71,8 @@ is fetched (its page shows the pictures itself: online_client.js).
 #include "halo_map_families.h"
 #include "halo_join_reasons.h"
 #include "halo_ui_map_list.h"
+#include "extraction.h"
+#include "scenario/scenario_limits.h"
 #include "halomd_map_names.h"
 #include "mcc_maps.h"
 #include "../src/port_config.h"
@@ -488,8 +490,92 @@ static boolean spark_map_matches(char const *path, short version, boolean campai
 	return valid;
 }
 
+static boolean spark_pool_row(struct server_json_document const *json, int token, long limit, short *row)
+{
+	double value;
+	if (!server_json_get_number(json, token, &value) || !(value >= 0 && value < limit) ||
+		value != (short)value)
+		return FALSE;
+	*row = (short)value;
+	return TRUE;
+}
+
+static boolean spark_pool_rows(struct server_json_document const *json, int token, short minimum,
+	short *storage, short *used, short *count, byte *seen)
+{
+	short index;
+	if (token < 0 || json->tokens[token].type != _server_json_array ||
+		json->tokens[token].size < minimum ||
+		json->tokens[token].size > EXTRACTION_POOL_ROWS_MAXIMUM - *used)
+		return FALSE;
+	*count = (short)json->tokens[token].size;
+	for (index = 0; index < *count; index++)
+	{
+		short row;
+		if (!spark_pool_row(json, server_json_element(json, token, index),
+			EXTRACTION_POOL_ROWS_MAXIMUM, &row) || seen[row])
+			return FALSE;
+		storage[(*used)++] = row;
+		seen[row] = TRUE;
+	}
+	return TRUE;
+}
+
+static boolean spark_regional_extraction_pools(struct server_json_document const *json,
+	int token, struct extraction_pool_map *pools)
+{
+	struct extraction_pool_map scratch;
+	char region_ids[EXTRACTION_POOL_REGIONS_MAXIMUM][96];
+	byte seen_starts[MCC_SCENARIO_PLAYER_STARTS_MAXIMUM] = {0};
+	byte seen_weapons[EXTRACTION_POOL_ROWS_MAXIMUM] = {0}, seen_vehicles[EXTRACTION_POOL_ROWS_MAXIMUM] = {0};
+	short region_index, weapon_rows = 0, vehicle_rows = 0;
+
+	if (token < 0 || json->tokens[token].type != _server_json_array ||
+		json->tokens[token].size < 1 || json->tokens[token].size > EXTRACTION_POOL_REGIONS_MAXIMUM)
+		return FALSE;
+	if (!pools)
+		pools = &scratch;
+	for (region_index = 0; region_index < json->tokens[token].size; region_index++)
+	{
+		struct extraction_pool_region *region = &pools->regions[region_index];
+		int object = server_json_element(json, token, region_index);
+		int starts = server_json_member(json, object, "playerStarts");
+		short index;
+
+		if (object < 0 || json->tokens[object].type != _server_json_object ||
+			json->tokens[object].size != 5 ||
+			!server_json_get_string(json, server_json_member(json, object, "regionId"),
+				region_ids[region_index], sizeof(region_ids[region_index])) || !region_ids[region_index][0] ||
+			!spark_pool_row(json, server_json_member(json, object, "bspIndex"), MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO, &region->bsp_index) ||
+			starts < 0 || json->tokens[starts].type != _server_json_array || json->tokens[starts].size != 2)
+			return FALSE;
+		for (index = 0; index < region_index; index++)
+			if (!strcmp(region_ids[index], region_ids[region_index]))
+				return FALSE;
+		for (index = 0; index < NUMBEROF(region->player_starts); index++)
+		{
+			short row;
+			if (!spark_pool_row(json, server_json_element(json, starts, index),
+				MCC_SCENARIO_PLAYER_STARTS_MAXIMUM, &row) || seen_starts[row])
+				return FALSE;
+			region->player_starts[index] = row;
+			seen_starts[row] = TRUE;
+		}
+		region->weapon_first = weapon_rows;
+		region->vehicle_first = vehicle_rows;
+		if (!spark_pool_rows(json, server_json_member(json, object, "weapons"), EXTRACTION_POOL_WEAPONS_PER_REGION,
+				pools->weapon_rows, &weapon_rows, &region->weapon_count, seen_weapons) ||
+			!spark_pool_rows(json, server_json_member(json, object, "vehicles"), 1,
+				pools->vehicle_rows, &vehicle_rows, &region->vehicle_count, seen_vehicles))
+			return FALSE;
+	}
+	pools->region_count = region_index;
+	return TRUE;
+}
+
 static wchar_t const *spark_mode_description(struct server_json_document const *json,
-	char const *path, char const *base, short version, boolean campaign, short *play_mode)
+	char const *path, char const *base, short version, boolean campaign, short *play_mode,
+	struct extraction_pool_map *pools)
 {
 	static char const *const features[] = {
 		"extraction.squad_objectives.v1", "extraction.squad_begin.v1",
@@ -503,7 +589,8 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 	int native = server_json_member(json, 0, "requiredNativeFeatures");
 	int settings = server_json_member(json, 0, "runtimeSettings");
 	int index, token, enabled;
-	boolean extraction, scripted, regional = FALSE, regional_feature = FALSE;
+	int pool_token = server_json_member(json, 0, "extractionPools");
+	boolean extraction, scripted, regional = FALSE, regional_feature = FALSE, pools_feature = FALSE;
 	wchar_t const *label;
 
 	if (!server_json_get_number(json, server_json_member(json, 0, "schemaVersion"), &schema) || schema != 1 ||
@@ -571,6 +658,11 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 			regional_feature = TRUE;
 			continue;
 		}
+		if (regional && !strcmp(value, EXTRACTION_REGIONAL_POOLS_FEATURE))
+		{
+			pools_feature = TRUE;
+			continue;
+		}
 		if (!extraction)
 			return L"Unsupported Spark\r\nnative requirement";
 		while (feature < NUMBEROF(features) && strcmp(features[feature], value))
@@ -586,6 +678,9 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 	}
 	if (regional && !regional_feature)
 		return L"Regional Extraction\r\nrequires mode metadata";
+	if (pools_feature != (pool_token >= 0) ||
+		(pools_feature && !spark_regional_extraction_pools(json, pool_token, pools)))
+		return L"Invalid Spark\r\nExtraction pools";
 	if (!spark_map_matches(path, version, campaign, expected))
 		return L"Spark metadata\r\nmap mismatch";
 	if (version == 609 && !map_family_resources_ready(NULL, 0))
@@ -600,12 +695,12 @@ static wchar_t const *spark_mode_description(struct server_json_document const *
 }
 #endif
 
-short ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
-	wchar_t *description, long size)
+static short ui_map_list_spark_read(char const *path, short cache_version, boolean campaign,
+	wchar_t *description, long size, struct extraction_pool_map *pools)
 {
 #ifdef HALO_SPARK_MODE_RECEIPTS
 	static char const suffix[] = ".spark-mode.json";
-	char receipt[512], text[4096];
+	char receipt[512], text[32768];
 	wchar_t previous[128];
 	wchar_t const *label = L"Invalid Spark\r\nmap metadata";
 	short play_mode = _ui_map_mode_unspecified;
@@ -625,9 +720,9 @@ short ui_map_list_spark_description(char const *path, short cache_version, boole
 		return _ui_map_mode_unspecified;
 	length = fread(text, 1, sizeof(text), file);
 	if (!ferror(file) && length < sizeof(text) &&
-		server_json_parse_tokens(&json, text, (int)length, 4, 128))
+		server_json_parse_tokens(&json, text, (int)length, 6, 4096))
 	{
-		label = spark_mode_description(&json, path, base ? base + 1 : path, cache_version, campaign, &play_mode);
+		label = spark_mode_description(&json, path, base ? base + 1 : path, cache_version, campaign, &play_mode, pools);
 		server_json_document_free(&json);
 	}
 	fclose(file);
@@ -646,6 +741,33 @@ short ui_map_list_spark_description(char const *path, short cache_version, boole
 	(void)campaign;
 	(void)description;
 	(void)size;
+	(void)pools;
+	return _ui_map_mode_unspecified;
+#endif
+}
+
+short ui_map_list_spark_description(char const *path, short cache_version, boolean campaign,
+	wchar_t *description, long size)
+{
+	return ui_map_list_spark_read(path, cache_version, campaign, description, size, NULL);
+}
+
+short ui_map_list_spark_read_pools(char const *path, struct extraction_pool_map *pools)
+{
+#ifdef HALO_SPARK_MODE_RECEIPTS
+	wchar_t description[1] = {0};
+	short mode;
+
+	if (pools)
+		pools->region_count = 0;
+	mode = ui_map_list_spark_read(path, MCC_CACHE_VERSION, FALSE, description, NUMBEROF(description), pools);
+	if (pools && mode != _ui_map_mode_regional_extraction)
+		pools->region_count = 0;
+	return mode;
+#else
+	(void)path;
+	if (pools)
+		pools->region_count = 0;
 	return _ui_map_mode_unspecified;
 #endif
 }

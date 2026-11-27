@@ -545,6 +545,7 @@ symbols in this file:
 #include "errors.h"
 #include "aim_assist.h"
 #include "game_engine.h"
+#include "objects/object_types.h"
 #include "game_engine_list.h"
 #include "game_engine_place.h"
 #include "ai/ai.h"
@@ -937,6 +938,9 @@ static void game_engine_update_weapons(
 
 static void game_engine_update_item_spawn(
 	void);
+void platform_log(char const *format, ...);
+static long random_item(long item_collection_index);
+static boolean game_engine_extraction_item_issued(long object_index, struct item_datum const *item);
 
 static short game_engine_stocked_equipment_home(
 	long object_index,
@@ -4263,7 +4267,8 @@ static void game_engine_update_purge(
 				long item_index = item_iterator.index;
 				/* Regional pads keep their current stock while the BSP is inactive. */
 				if (!game_engine_item_suspended(item_index) && can_delete_item(item_index) &&
-					game_engine_stocked_equipment_home(item_index, item) == NONE)
+					game_engine_stocked_equipment_home(item_index, item) == NONE &&
+					!game_engine_extraction_item_issued(item_index, item))
 					object_delete(item_index);
 			}
 		}
@@ -5401,6 +5406,7 @@ static struct
 	/* (the scenario name the map's scripts teleport; NONE when it had none) */
 	short name_index;
 	short structure_bsp_index;
+	boolean extraction_once;
 } game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];
 static short game_engine_vehicle_home_count = NONE;
 static boolean game_engine_vehicle_homes_scanned;
@@ -5408,6 +5414,186 @@ static boolean game_engine_vehicle_homes_scanned;
 /* Bind each equipment row to one home, including rows in a shared seam. */
 static unsigned long game_engine_equipment_regions_seen;
 static short game_engine_equipment_home_bsp[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
+
+static struct
+{
+	boolean initialized, enabled, valid;
+	short weapon_bsp[EXTRACTION_POOL_ROWS_MAXIMUM];
+	long weapon_definition[EXTRACTION_POOL_ROWS_MAXIMUM];
+	byte issued_equipment[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
+	byte equipment_contains_weapon[MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM];
+	struct
+	{
+		short bsp, start_rows[2], vehicle_row;
+		boolean vehicle_issued;
+	} regions[EXTRACTION_POOL_REGIONS_MAXIMUM];
+	short region_count, stock_vehicle_count;
+	long stock_vehicles[MAXIMUM_VEHICLE_HOMES];
+} extraction_match_pools;
+
+/* A mixed collection must not bypass the authored weapon pool. */
+static boolean game_engine_pool_weapon_collection(long collection, boolean require_all)
+{
+	struct item_collection_definition const *definition;
+	long index;
+	boolean has_weapon = FALSE;
+
+	if (collection == NONE)
+		return FALSE;
+	definition = item_collection_definition_get(collection);
+	for (index = 0; index < definition->permutations.count; index++)
+	{
+		struct item_permutation_definition const *entry = TAG_BLOCK_GET_ELEMENT(
+			&definition->permutations, index, struct item_permutation_definition);
+
+		if (!(entry->weight > 0.0f))
+			continue;
+		if (entry->item.index != NONE && object_definition_get(entry->item.index)->object.type == _object_type_weapon)
+			has_weapon = TRUE;
+		else if (require_all)
+			return FALSE;
+	}
+	return has_weapon;
+}
+
+static boolean game_engine_pool_validate_region(struct extraction_pool_map const *map,
+	struct extraction_pool_region const *region, struct scenario const *scenario,
+	long vehicle_element_size)
+{
+	short index;
+
+	if (!VALID_INDEX(region->bsp_index, scenario->structure_bsp_references.count))
+		return FALSE;
+	for (index = 0; index < NUMBEROF(region->player_starts); index++)
+	{
+		struct player_starting_location const *start;
+		short row = region->player_starts[index];
+
+		if (!VALID_INDEX(row, scenario->players.count))
+			return FALSE;
+		start = TAG_BLOCK_GET_ELEMENT(&scenario->players, row, struct player_starting_location);
+		if (start->structure_bsp_reference_index != NONE &&
+			start->structure_bsp_reference_index != region->bsp_index)
+			return FALSE;
+	}
+	for (index = 0; index < region->weapon_count; index++)
+	{
+		short row = map->weapon_rows[region->weapon_first + index];
+		struct scenario_netgame_equipment const *placement;
+
+		if (!VALID_INDEX(row, scenario->netgame_equipment.count))
+			return FALSE;
+		placement = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_equipment, row, struct scenario_netgame_equipment);
+		if (!game_engine_pool_weapon_collection(placement->item_collection.index, TRUE))
+			return FALSE;
+	}
+	for (index = 0; index < region->vehicle_count; index++)
+	{
+		short row = map->vehicle_rows[region->vehicle_first + index];
+		struct scenario_object_datum const *placement;
+		struct scenario_object_palette_entry const *tag;
+
+		if (!VALID_INDEX(row, scenario->vehicles.count))
+			return FALSE;
+		placement = tag_block_get_element_with_size(&scenario->vehicles, row, vehicle_element_size);
+		if (placement->name_index != NONE ||
+			TEST_FLAG(placement->placement_flags, _scenario_object_placement_not_automatic_bit) ||
+			(placement->on_bsp_flags && !TEST_FLAG(placement->on_bsp_flags, region->bsp_index)) ||
+			!VALID_INDEX(placement->palette_entry_index, scenario->vehicle_palette.count))
+			return FALSE;
+		tag = TAG_BLOCK_GET_ELEMENT(&scenario->vehicle_palette, placement->palette_entry_index,
+			struct scenario_object_palette_entry);
+		if (tag->reference.index == NONE)
+			return FALSE;
+	}
+	return TRUE;
+}
+
+void game_engine_initialize_extraction_pools(struct scenario const *scenario)
+{
+	struct extraction_pool_map const *map;
+	short region_index;
+	long equipment_index, vehicle_element_size;
+
+	if (extraction_match_pools.initialized)
+		return;
+	extraction_match_pools.initialized = TRUE;
+	map = extraction_regional_pool_map();
+	if (!map)
+		return;
+	extraction_match_pools.enabled = TRUE;
+	scenario_get_object_type_scenario_datums((struct scenario *)scenario, _object_type_vehicle, &vehicle_element_size);
+	for (region_index = 0; region_index < map->region_count; region_index++)
+	{
+		if (!game_engine_pool_validate_region(map, &map->regions[region_index], scenario, vehicle_element_size))
+		{
+			platform_log("extraction: invalid compiled placement in regional pool %d", region_index);
+			return;
+		}
+	}
+	extraction_match_pools.valid = TRUE;
+	for (equipment_index = 0; equipment_index < MIN(scenario->netgame_equipment.count,
+		NUMBEROF(extraction_match_pools.equipment_contains_weapon)); equipment_index++)
+	{
+		struct scenario_netgame_equipment const *placement = TAG_BLOCK_GET_ELEMENT(
+			&scenario->netgame_equipment, equipment_index, struct scenario_netgame_equipment);
+		extraction_match_pools.equipment_contains_weapon[equipment_index] =
+			game_engine_pool_weapon_collection(placement->item_collection.index, FALSE);
+	}
+	extraction_match_pools.region_count = map->region_count;
+	csmemset(extraction_match_pools.weapon_bsp, NONE, sizeof(extraction_match_pools.weapon_bsp));
+	for (region_index = 0; region_index < map->region_count; region_index++)
+	{
+		struct extraction_pool_region const *region = &map->regions[region_index];
+		short choices[EXTRACTION_POOL_ROWS_MAXIMUM];
+		short remaining = region->weapon_count;
+		short vehicle_choice = random_range(0, region->vehicle_count);
+		short preferred_start = random_range(0, NUMBEROF(region->player_starts));
+		short selected[EXTRACTION_POOL_WEAPONS_PER_REGION];
+		short index;
+
+		extraction_match_pools.regions[region_index].bsp = region->bsp_index;
+		extraction_match_pools.regions[region_index].start_rows[0] = region->player_starts[preferred_start];
+		extraction_match_pools.regions[region_index].start_rows[1] = region->player_starts[1 - preferred_start];
+		extraction_match_pools.regions[region_index].vehicle_row = map->vehicle_rows[region->vehicle_first + vehicle_choice];
+		csmemcpy(choices, &map->weapon_rows[region->weapon_first], remaining * sizeof(*choices));
+		for (index = 0; index < EXTRACTION_POOL_WEAPONS_PER_REGION; index++)
+		{
+			short choice = random_range(0, remaining);
+			short row = choices[choice];
+			struct scenario_netgame_equipment const *placement = TAG_BLOCK_GET_ELEMENT(
+				&scenario->netgame_equipment, row, struct scenario_netgame_equipment);
+
+			choices[choice] = choices[--remaining];
+			selected[index] = row;
+			extraction_match_pools.weapon_bsp[row] = region->bsp_index;
+			extraction_match_pools.weapon_definition[row] = random_item(placement->item_collection.index);
+		}
+		platform_log("extraction: match pool %d bsp %d weapons %d,%d,%d vehicle %d starts %d,%d",
+			region_index, region->bsp_index, selected[0], selected[1], selected[2],
+			extraction_match_pools.regions[region_index].vehicle_row,
+			extraction_match_pools.regions[region_index].start_rows[0],
+			extraction_match_pools.regions[region_index].start_rows[1]);
+	}
+}
+
+boolean game_engine_extraction_pools_valid(void)
+{
+	return !extraction_match_pools.enabled || extraction_match_pools.valid;
+}
+
+boolean game_engine_extraction_pools_enabled(void)
+{
+	return extraction_match_pools.enabled;
+}
+
+short game_engine_extraction_pool_start(short region, short choice)
+{
+	if (!VALID_INDEX(region, extraction_match_pools.region_count) || !VALID_INDEX(choice, 2))
+		return NONE;
+	return extraction_match_pools.regions[region].start_rows[choice];
+}
+
 
 enum
 {
@@ -5465,6 +5651,22 @@ static short game_engine_stocked_equipment_home(
 	if (owner == NONE)
 		owner = game_engine_object_recorded_bsp(object_index, item->object.type);
 	return owner == NONE || owner == home ? home : NONE;
+}
+
+static boolean game_engine_extraction_item_issued(long object_index, struct item_datum const *item)
+{
+	struct scenario const *scenario;
+	struct scenario_netgame_equipment const *equipment;
+	short index = item->item.netgame_equipment_index;
+
+	if (!extraction_match_pools.valid || !VALID_INDEX(index, NUMBEROF(extraction_match_pools.issued_equipment)) ||
+		!extraction_match_pools.issued_equipment[index])
+		return FALSE;
+	scenario = global_scenario_get();
+	if (!VALID_INDEX(index, scenario->netgame_equipment.count))
+		return FALSE;
+	equipment = TAG_BLOCK_GET_ELEMENT(&scenario->netgame_equipment, index, struct scenario_netgame_equipment);
+	return equipment->run_time_spawned_item_index == object_index;
 }
 
 static boolean game_engine_equipment_item_parked(
@@ -5571,9 +5773,15 @@ void game_engine_record_regional_object(
 		 * the foreground scene being disconnected. Capture it before the
 		 * object loses its cluster references. */
 		short bsp = object_get_regional_bsp(object_index);
+		if (bsp == NONE)
+			bsp = source_bsp;
+		if (type != _object_type_weapon && type != _object_type_equipment)
+			region->suspended_at = NONE;
+		else if (region->object_index != object_index || region->bsp_index != bsp ||
+			region->suspended_at == NONE)
+			region->suspended_at = game_time_get();
 		region->object_index = object_index;
-		region->bsp_index = bsp != NONE ? bsp : source_bsp;
-		region->suspended_at = NONE;
+		region->bsp_index = bsp;
 	}
 }
 
@@ -5610,8 +5818,6 @@ void game_engine_park_regional_root(long object_index, struct object_datum const
 	game_engine_record_regional_object(object_index, object, bsp);
 	if (game_engine_object_recorded_bsp(object_index, type) != bsp)
 		return;
-	if (type == _object_type_weapon || type == _object_type_equipment)
-		game_engine_regional_objects[DATUM_INDEX_TO_ABSOLUTE_INDEX(object_index)].suspended_at = game_time_get();
 	object_park_regional_root(object_index);
 }
 
@@ -5749,7 +5955,7 @@ static void game_engine_vehicle_home_track(
 		object_get(object_index)->object.vehicle_home_index = home;
 }
 
-static void game_engine_vehicle_home_add(
+static short game_engine_vehicle_home_add(
 	long object_index, real_point3d const *position, short bsp)
 {
 	struct object_datum const *object = object_get(object_index);
@@ -5758,7 +5964,7 @@ static void game_engine_vehicle_home_add(
 	if (game_engine_vehicle_home_count == NONE)
 		game_engine_vehicle_home_count = 0;
 	if (game_engine_vehicle_home_count >= MAXIMUM_VEHICLE_HOMES)
-		return;
+		return NONE;
 	home = game_engine_vehicle_home_count++;
 	game_engine_vehicle_home_track(home, object_index);
 	game_engine_vehicle_homes[home].definition_index = object->definition_index;
@@ -5768,6 +5974,8 @@ static void game_engine_vehicle_home_add(
 	game_engine_vehicle_homes[home].idle_since = NONE;
 	game_engine_vehicle_homes[home].name_index = object->object.name_index;
 	game_engine_vehicle_homes[home].structure_bsp_index = bsp;
+	game_engine_vehicle_homes[home].extraction_once = FALSE;
+	return home;
 }
 
 /* Bind unambiguous compiled pads before the foreground geometry can claim
@@ -5779,6 +5987,15 @@ void game_engine_register_regional_vehicle_home(
 	word flags = placement->on_bsp_flags;
 	short bsp;
 
+	/* Keep the normal initial object sequence on host and guests. Remove the
+	 * stock vehicles through authoritative replication after registration,
+	 * even when the guest has no authored mode receipt of its own. */
+	if (extraction_match_pools.valid && placement->name_index == NONE &&
+		extraction_match_pools.stock_vehicle_count < NUMBEROF(extraction_match_pools.stock_vehicles))
+	{
+		extraction_match_pools.stock_vehicles[extraction_match_pools.stock_vehicle_count++] = object_index;
+		return;
+	}
 	if (!flags || (flags & (flags - 1)) || !scenario_uses_regional_gameplay(scenario) ||
 		network_game_distributed_client())
 		return;
@@ -5833,6 +6050,59 @@ static long game_engine_vehicle_home_current(
 	return object_index;
 }
 
+static void game_engine_place_extraction_vehicles(struct scenario *scenario,
+	short foreground, unsigned long occupied)
+{
+	long element_size;
+	struct tag_block *vehicles;
+	short index;
+
+	if (!extraction_match_pools.valid || !extraction_match_pools.region_count)
+		return;
+	for (index = 0; index < extraction_match_pools.stock_vehicle_count; index++)
+	{
+		long stock = extraction_match_pools.stock_vehicles[index];
+		if (object_try_and_get(stock))
+			object_delete(stock);
+	}
+	extraction_match_pools.stock_vehicle_count = 0;
+	vehicles = scenario_get_object_type_scenario_datums(scenario, _object_type_vehicle, &element_size);
+	for (index = 0; index < extraction_match_pools.region_count; index++)
+	{
+		short bsp = extraction_match_pools.regions[index].bsp;
+		short row = extraction_match_pools.regions[index].vehicle_row;
+		short home;
+		struct structure_bsp const *structure;
+		struct scenario_object_datum *placement;
+		long object_index;
+
+		if (extraction_match_pools.regions[index].vehicle_issued ||
+			game_engine_vehicle_home_count >= MAXIMUM_VEHICLE_HOMES ||
+			(bsp != foreground && !TEST_FLAG(occupied, bsp)) ||
+			object_header_data->maximum_count - object_header_data->actual_count <= GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER)
+			continue;
+		structure = scenario_structure_bsp_try_and_get(bsp);
+		if (!structure)
+			continue;
+		placement = tag_block_get_element_with_size(vehicles, row, element_size);
+		if (!scenario_structure_bsp_contains_placement(structure, &placement->position))
+			continue;
+		object_index = object_new_from_scenario_in_bsp(placement, &scenario->vehicle_palette, bsp, structure);
+		if (object_index == NONE)
+			continue;
+		home = game_engine_vehicle_home_add(object_index, &placement->position, bsp);
+		if (home == NONE)
+		{
+			object_delete(object_index);
+			continue;
+		}
+		game_engine_vehicle_homes[home].extraction_once = TRUE;
+		extraction_match_pools.regions[index].vehicle_issued = TRUE;
+		object_activate(object_index);
+		platform_log("extraction: pooled vehicle row %d bsp %d object %08lx", row, bsp, (unsigned long)object_index);
+	}
+}
+
 static void game_engine_update_vehicle_respawn(
 	void)
 {
@@ -5856,6 +6126,8 @@ static void game_engine_update_vehicle_respawn(
 	}
 	if (!foreground_structure && respawn_ticks <= 0)
 		return;
+
+	game_engine_place_extraction_vehicles(global_scenario_get(), foreground, occupied);
 
 	/* Keep the stock first-look behavior for homes without a compiled BSP. */
 	if (!game_engine_vehicle_homes_scanned)
@@ -5884,6 +6156,8 @@ static void game_engine_update_vehicle_respawn(
 		struct unit_datum *vehicle;
 		boolean waiting = TRUE;
 
+		if (game_engine_vehicle_homes[index].extraction_once)
+			continue;
 		if (foreground_structure)
 		{
 			if (*home_bsp == NONE &&
@@ -9268,6 +9542,7 @@ void game_engine_initialize_for_new_map(
 		game_engine_vehicle_home_count = NONE;
 		game_engine_vehicle_homes_scanned = FALSE;
 		game_engine_equipment_regions_seen = 0;
+		csmemset(&extraction_match_pools, 0, sizeof(extraction_match_pools));
 		csmemset(game_engine_equipment_home_bsp, NONE, sizeof(game_engine_equipment_home_bsp));
 		csmemset(game_engine_regional_objects, NONE, sizeof(game_engine_regional_objects));
 		timeout_for_endgame_sound = 0;
@@ -10855,7 +11130,21 @@ static void game_engine_update_item_spawn_in_bsp(
 		struct scenario_netgame_equipment *equipment;
 		struct item_datum *previous;
 		short *home = structure ? &game_engine_equipment_home_bsp[equipment_index] : NULL;
+		boolean pool_match = structure && extraction_match_pools.enabled;
+		boolean pooled_weapon = FALSE;
 
+		if (pool_match)
+		{
+			if (!extraction_match_pools.valid || extraction_match_pools.issued_equipment[equipment_index])
+				continue;
+			if (extraction_match_pools.equipment_contains_weapon[equipment_index])
+			{
+				if (!VALID_INDEX(equipment_index, NUMBEROF(extraction_match_pools.weapon_bsp)) ||
+					extraction_match_pools.weapon_bsp[equipment_index] != active_bsp)
+					continue;
+				pooled_weapon = TRUE;
+			}
+		}
 		if (home && !first_visit && *home != active_bsp)
 			continue;
 		equipment = TAG_BLOCK_GET_ELEMENT(
@@ -10880,7 +11169,7 @@ static void game_engine_update_item_spawn_in_bsp(
 				continue;
 			}
 		}
-		if (match_game_type(
+		if (pooled_weapon || match_game_type(
 			game_engine_get_type(),
 			NUMBEROF(equipment->game_type),
 			equipment->game_type))
@@ -10906,7 +11195,7 @@ static void game_engine_update_item_spawn_in_bsp(
 				respawn_period = respawn_time * TICKS_PER_SECOND;
 			}
 
-			if (first_visit || now % respawn_period == 0)
+			if (first_visit || now % respawn_period == 0 || (pooled_weapon && now % TICKS_PER_SECOND == 0))
 			{
 				struct object_placement_data placement_data;
 				long definition_index;
@@ -10917,7 +11206,10 @@ static void game_engine_update_item_spawn_in_bsp(
 				if (mcc_cache_tags_loaded() && object_header_data->maximum_count -
 					object_header_data->actual_count <= GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER)
 					continue;
-				definition_index = random_item(equipment->item_collection.index);
+				definition_index = pooled_weapon ? extraction_match_pools.weapon_definition[equipment_index] :
+					random_item(equipment->item_collection.index);
+				if (pool_match && definition_index == NONE)
+					continue;
 
 				/* port: the gametype's no weapons on the map */
 				if (definition_index != NONE && game_variant_options_get()->no_map_weapons &&
@@ -10945,6 +11237,12 @@ static void game_engine_update_item_spawn_in_bsp(
 					struct item_datum *item = item_get(object_index);
 
 					object_set_garbage(object_index, FALSE);
+					if (pool_match)
+					{
+						extraction_match_pools.issued_equipment[equipment_index] = TRUE;
+						if (pooled_weapon)
+							platform_log("extraction: pooled weapon row %ld bsp %d object %08lx", equipment_index, active_bsp, (unsigned long)object_index);
+					}
 					if (structure)
 					{
 						equipment->run_time_spawned_item_index = object_index;

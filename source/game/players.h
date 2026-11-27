@@ -366,6 +366,11 @@ long player_new(
 	long player_index,
 	short local_player_index,
 	struct network_player const *network_player);
+struct player_starting_location;
+boolean players_extraction_deployment_clear(long player_index,
+	struct player_starting_location const *start, short bsp);
+void players_extraction_deployment_commit(long player_index, short bsp, real_vector3d const *forward);
+
 boolean player_teleport(
 	long player_index,
 	long source_unit_index,

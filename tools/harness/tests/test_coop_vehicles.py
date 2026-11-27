@@ -34,14 +34,22 @@ def generated(fault=None):
     end = engine.index('} game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];')
     home_table = engine[engine.rindex('static struct', 0, end):end + len(
         '} game_engine_vehicle_homes[MAXIMUM_VEHICLE_HOMES];')]
+    pool_end = engine.index('} extraction_match_pools;')
+    pool_table = engine[engine.rindex('static struct', 0, pool_end):pool_end + len('} extraction_match_pools;')]
+    regional_objects = engine[engine.index('static struct game_engine_regional_object\n'):
+                              engine.index('static boolean game_engine_item_suspended(long object_index)\n{')]
     vehicle_respawn = '\n'.join([
         enum_with(engine, 'MAXIMUM_VEHICLE_HOMES ='), home_table,
+        '#define MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM %d' % constant(
+            read('port/linux/game/mcc_cache_format.h'), 'MCC_SCENARIO_NETGAME_EQUIPMENT_MAXIMUM'),
+        enum_with(read('port/linux/game/extraction.h'), 'EXTRACTION_POOL_REGIONS_MAXIMUM'), pool_table,
         re.search(r'^#define VEHICLE_HOME_AWAY_SQUARED .+$', engine, re.M).group(0),
         *(function(engine, name) for name in (
             'game_engine_vehicle_empty', 'game_engine_vehicle_away', 'game_engine_vehicle_home_at_pad', 'game_engine_vehicle_home_bsp',
             'game_engine_vehicle_home_on_pad', 'game_engine_vehicle_home_track',
             'game_engine_vehicle_home_add', 'game_engine_register_regional_vehicle_home',
             'game_engine_vehicle_home_follow', 'game_engine_vehicle_home_current',
+            'game_engine_place_extraction_vehicles',
             'game_engine_update_vehicle_respawn')),
     ])
     cheats = read('source/game/cheats.c')
@@ -51,6 +59,11 @@ def generated(fault=None):
             ('path.inc', path),
             ('home_respawn.inc', function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') +
              '\n' + vehicle_respawn),
+            ('regional_items.inc', enum_with(engine, 'REGIONAL_STATIC_OBJECT_TYPES') + '\n' +
+             regional_objects +
+             '\n'.join(function(engine, name) for name in (
+                 'game_engine_item_suspended', 'game_engine_record_regional_object',
+                 'game_engine_connect_regional_item'))),
             ('looks.inc', looks),
             ('clone.inc', forge_state +
                 '\n'.join(function(read('source/physics/physics.c'), name) for name in (
@@ -88,6 +101,16 @@ def test_cinematic_path_negative_control():
 
 def test_mcc_compiled_regional_vehicle_home():
     status, output = run(build('coop_vehicles', generated()), 'compiled-regional-home')
+    assert status == 0, output
+
+
+def test_mcc_regional_drop_recovers():
+    status, output = run(build('coop_vehicles', generated()), 'regional-drop-recovers')
+    assert status == 0, output
+
+
+def test_mcc_extraction_vehicle_issued_once():
+    status, output = run(build('coop_vehicles', generated()), 'extraction-vehicle-once')
     assert status == 0, output
 
 

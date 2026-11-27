@@ -584,6 +584,11 @@ map's placement of a vehicle allowed, by its type and the nearer team's
 spawn points (counted from game_engine_vehicle_placement_begin) */
 struct scenario_object_datum;
 struct tag_block;
+struct scenario;
+void game_engine_initialize_extraction_pools(struct scenario const *scenario);
+boolean game_engine_extraction_pools_enabled(void);
+short game_engine_extraction_pool_start(short region, short choice);
+boolean game_engine_extraction_pools_valid(void);
 void game_engine_vehicle_placement_begin(
 	void);
 void game_engine_register_regional_vehicle_home(long object_index, struct scenario_object_datum const *placement);

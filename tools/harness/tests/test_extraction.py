@@ -113,7 +113,7 @@ def generated(fault=None, outcome_fault=False, medical_fault=False):
                                  'refund-disconnect-outage', 'refund-recycled-outage', 'refund-map-outage',
                                  'confirmation-outage', 'confirmation-published',
                                  'reservation-published',
-                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls',
+                                 'transfer', 'pending-deploy', 'pending-escape', 'grant-failure', 'authority', 'native-controls', 'regional-pool-deploy',
                                  'account-host', 'account-host-unbound', 'account-host-role',
                                  'lan-gear-loop', 'lan-gear-delta', 'lan-gear-virtual',
                                  'mission-complete', 'mission-pending', 'mission-signature', 'mission-return-type', 'mission-restore',

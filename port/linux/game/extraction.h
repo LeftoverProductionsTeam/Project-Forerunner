@@ -3,6 +3,34 @@
 #ifndef HALO_EXTRACTION_H
 #define HALO_EXTRACTION_H
 
+#define EXTRACTION_REGIONAL_POOLS_FEATURE "extraction.regional_pools.v1"
+
+enum
+{
+	EXTRACTION_POOL_REGIONS_MAXIMUM = 64,
+	EXTRACTION_POOL_ROWS_MAXIMUM = 1024,
+	EXTRACTION_POOL_WEAPONS_PER_REGION = 3
+};
+
+struct extraction_pool_region
+{
+	short bsp_index;
+	short player_starts[2];
+	short weapon_first, weapon_count;
+	short vehicle_first, vehicle_count;
+};
+
+/* Zero-based compiled scenario rows, with logical regions independent of BSPs. */
+struct extraction_pool_map
+{
+	short region_count;
+	short weapon_rows[EXTRACTION_POOL_ROWS_MAXIMUM];
+	short vehicle_rows[EXTRACTION_POOL_ROWS_MAXIMUM];
+	struct extraction_pool_region regions[EXTRACTION_POOL_REGIONS_MAXIMUM];
+};
+
+struct extraction_pool_map const *extraction_regional_pool_map(void);
+
 void extraction_reset(void);
 /* A restored world may contain items already committed to a stash. Banking
    stays disabled until a fresh map replaces that world. */

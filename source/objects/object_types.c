@@ -1283,7 +1283,6 @@ void object_types_reconnect_foreground(void)
 	if (!TEST_FLAG(populated_bsp_flags, bsp))
 	{
 		object_types_reconnect_to_structure_bsp();
-		object_types_connect_regional_items(bsp, global_structure_bsp_get());
 		object_types_connect_regional_vehicles(bsp, global_structure_bsp_get());
 	}
 }
@@ -1295,6 +1294,9 @@ void object_types_reconnect_to_structure_bsp(
 	{
 		object_types_place_objects(TRUE);
 	}
+	/* Existing drops are independent of cinematic placement suppression. */
+	if (scenario_uses_regional_gameplay(global_scenario_get()))
+		object_types_connect_regional_items(global_structure_bsp_index_get(), global_structure_bsp_get());
 
 	return;
 }
@@ -1306,7 +1308,8 @@ void object_types_place_all(
 	{
 		short object_type;
 
-		/* port: the gametype's vehicles counted afresh */
+		/* The host rolls opted-in regional placements before any stock vehicle spawns. */
+		game_engine_initialize_extraction_pools(scenario);
 		game_engine_vehicle_placement_begin();
 
 		for (object_type = 0; object_type < NUMBER_OF_OBJECT_TYPES; object_type++)
@@ -1344,8 +1347,7 @@ void object_types_place_all(
 							element_size);
 					long object_index;
 
-					if (object_type == _object_type_vehicle &&
-						!mcc_vehicle_placement_allowed(scenario_object))
+					if (object_type == _object_type_vehicle && !mcc_vehicle_placement_allowed(scenario_object))
 						continue;
 
 					/* port: a Halo PC map's vehicles by their placements' spawn

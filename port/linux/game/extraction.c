@@ -11,6 +11,7 @@
 #include "game/game_engine.h"
 #include "game/game_globals.h"
 #include "game/players.h"
+#include "math/real_math.h"
 #include "game/player_queues_new.h"
 #include "hs/hs.h"
 #include "hs/object_lists.h"
@@ -182,6 +183,7 @@ static struct
 	boolean bound, admitted, suspended, suspension_announced, separate_hubs;
 	boolean native_mode_checked, authored_extraction, lan_session_gear;
 	boolean regional_receipt_checked, regional_receipt_valid;
+	struct extraction_pool_map pools;
 	boolean survival, evacuation, completion_notified, squad_script_warning, squad_notice_warning, squad_radio_warning;
 	short deploy_name, activate_name, loadout_name, debrief_name, zone, return_zone;
 	short ground_calls[2], ground_zones[2];
@@ -207,7 +209,7 @@ static struct
 	long last_tick;
 	/* Optional hub choices only; native scripts still own mission objectives,
 	 * and every member keeps their existing independent gear transaction. */
-	struct { short name, ready_group; unsigned long operation; boolean notified, banked, unconfirmed_escape; } squads[EXTRACTION_SQUADS];
+	struct { short name, ready_group, pool_region; unsigned long operation; boolean notified, banked, unconfirmed_escape; } squads[EXTRACTION_SQUADS];
 	/* Map-local choices for verified reconnects. Only live runs occupy seats. */
 	struct extraction_squad_choice squad_choices[HALO_PORT_MAXIMUM_NETWORK_PLAYERS];
 	short next_squad_choice;
@@ -245,11 +247,9 @@ static boolean extraction_has_regional_receipt(void)
 	if (!extraction.regional_receipt_checked)
 	{
 		char path[128];
-		wchar_t description[128] = {0};
 		extraction.regional_receipt_checked = TRUE;
 		extraction.regional_receipt_valid = mcc_package_map_path(tag_get_name(global_scenario_index), path) &&
-			ui_map_list_spark_description(path, MCC_CACHE_VERSION, FALSE, description, NUMBEROF(description)) ==
-				_ui_map_mode_regional_extraction;
+			ui_map_list_spark_read_pools(path, &extraction.pools) == _ui_map_mode_regional_extraction;
 	}
 	return extraction.regional_receipt_valid;
 }
@@ -343,6 +343,13 @@ boolean extraction_regional_hud_active(void)
 #else
 	return FALSE;
 #endif
+}
+
+struct extraction_pool_map const *extraction_regional_pool_map(void)
+{
+	if (extraction_authoritative_scene() && extraction.pools.region_count > 0)
+		return &extraction.pools;
+	return NULL;
 }
 
 static unsigned short extraction_start_hubs(struct player_starting_location const *start)
@@ -1522,7 +1529,7 @@ static void extraction_bind(void)
 	debrief = extraction.debrief_name != NONE ? control_try_and_get(object_index_from_name_index(extraction.debrief_name)) : NULL;
 	/* Match Spark's native touched-by-player tag requirement. Other trigger
 	   kinds never reach extraction_control_touched through control_touched. */
-	extraction.admitted = unique && extraction_validate_native_starts(regional);
+	extraction.admitted = unique && game_engine_extraction_pools_valid() && extraction_validate_native_starts(regional);
 	if (extraction.separate_hubs)
 	{
 		if (extraction.deploy_name != NONE || extraction.loadout_name != NONE || extraction.debrief_name != NONE)
@@ -2081,12 +2088,69 @@ static boolean extraction_wake_mission_script(char const *name, boolean reusable
 	return FALSE;
 }
 
+static struct player_starting_location const *extraction_pool_deployment(
+	struct extraction_run const *run, short faction, short *region, short *bsp)
+{
+	struct extraction_pool_map const *pool = extraction_regional_pool_map();
+	short candidates[EXTRACTION_POOL_REGIONS_MAXIMUM];
+	short count, index;
+
+	if (!pool || !VALID_INDEX(faction, 2))
+		return NULL;
+	if (VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) && extraction_squad_busy(run->squad, run))
+	{
+		short pinned = extraction.squads[run->squad].pool_region;
+		if (!VALID_INDEX(pinned, pool->region_count))
+			return NULL;
+		candidates[0] = pinned;
+		count = 1;
+	}
+	else
+	{
+		count = pool->region_count;
+		for (index = 0; index < count; index++)
+			candidates[index] = index;
+	}
+	/* Trying each region at most once keeps rejected starts from giving the
+	 * next region in receipt order a disproportionate chance of selection. */
+	while (count > 0)
+	{
+		short draw = count == 1 ? 0 : random_range(0, count);
+		short candidate = candidates[draw];
+		short candidate_bsp = pool->regions[candidate].bsp_index;
+		short choice;
+		candidates[draw] = candidates[--count];
+		for (choice = 0; choice < 2; choice++)
+		{
+			short row = game_engine_extraction_pool_start(candidate, choice);
+			struct player_starting_location const *start;
+			if (!VALID_INDEX(row, global_scenario->players.count))
+				continue;
+			start = TAG_BLOCK_GET_ELEMENT(&global_scenario->players, row, struct player_starting_location);
+			if (start->team_index != NONE && start->team_index != (faction == 0 ? _team_red : _team_blue))
+				continue;
+			if (!players_extraction_deployment_clear(run->player, start, candidate_bsp))
+			{
+				platform_log("extraction: deployment row %d bsp %d is unavailable", row, candidate_bsp);
+				continue;
+			}
+			*region = candidate;
+			*bsp = candidate_bsp;
+			return start;
+		}
+	}
+	return NULL;
+}
+
 static boolean extraction_deploy(struct extraction_run *run, struct player_datum *player, boolean bring_stash)
 {
 	struct game_modes_inventory loadout;
 	long created[GAME_MODES_INVENTORY_WEAPONS];
 	short weapons_to_reserve, faction = extraction_faction((short)player->team_index);
-	short starting_squad = NONE;
+	short starting_squad = NONE, pool_region = NONE, deployment_bsp = NONE, origin_bsp = NONE;
+	struct player_starting_location const *start = NULL;
+	real_point3d origin;
+	real_vector3d origin_forward, origin_up, forward;
 	if (extraction_medical_incapacitated(player->unit_index)) return FALSE;
 	run->discard_deadline = 0;
 	if (!extraction_open_gear(run, player) || !extraction_restore_squad(run, player) ||
@@ -2111,6 +2175,15 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 			return FALSE;
 		}
 	}
+	if (game_engine_extraction_pools_enabled())
+	{
+		start = extraction_pool_deployment(run, faction, &pool_region, &deployment_bsp);
+		if (!start)
+		{
+			extraction_block(run, "DEPLOYMENT BLOCKED | No compatible squad start is clear. Retry when a start is free.");
+			return FALSE;
+		}
+	}
 	if (!gear_reserve(&run->gear, bring_stash))
 	{
 		extraction_block(run, "DEPLOYMENT PENDING | Select compatible gear and retry; no recovered equipment granted."); return FALSE;
@@ -2121,8 +2194,27 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		run->retry_tick = game_time_get();
 		extraction_block(run, "DEPLOYMENT BLOCKED | Native loadout could not be placed; reserved gear is returning to the stash."); return FALSE;
 	}
+	if (start)
+	{
+		struct object_datum const *body = object_get(player->unit_index);
+		origin_bsp = object_get_regional_bsp(player->unit_index);
+		origin = body->object.position;
+		origin_forward = body->object.forward;
+		origin_up = body->object.up;
+		vector3d_from_angle(&forward, start->facing);
+		if (!object_set_physics_pose(player->unit_index, deployment_bsp, &start->position, &forward, global_up3d))
+		{
+			game_modes_inventory_revoke(player->unit_index, &loadout, created);
+			if (!gear_cancel_reservation(&run->gear)) run->phase = _extraction_cancelling;
+			run->retry_tick = game_time_get();
+			extraction_block(run, "DEPLOYMENT BLOCKED | The regional start is unavailable. Gear returned.");
+			return FALSE;
+		}
+	}
 	if (!gear_confirm_deployment(&run->gear))
 	{
+		if (start)
+			object_set_physics_pose(player->unit_index, origin_bsp, &origin, &origin_forward, &origin_up);
 		/* No tick/input occurs between grant and confirmation. Remove only
 		 * this grant before refunding; never leave usable unissued equipment. */
 		game_modes_inventory_revoke(player->unit_index, &loadout, created);
@@ -2132,6 +2224,12 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		return FALSE;
 	}
 	gear_track_reserved(&run->gear, created);
+	if (start)
+	{
+		players_extraction_deployment_commit(run->player, deployment_bsp, &forward);
+		platform_log("extraction: player %ld deployed to pool %d bsp %d",
+			(long)DATUM_INDEX_TO_ABSOLUTE_INDEX(run->player), pool_region, deployment_bsp);
+	}
 	/* Native campaign Player and Human are distinct teams. On a map with
 	 * faction selection, the default UNSC run uses the same team as the
 	 * UNSC terminal once the loadout has been durably issued. */
@@ -2147,6 +2245,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 		if (!extraction_squad_busy(run->squad, run))
 		{
 			starting_squad = run->squad;
+			extraction.squads[run->squad].pool_region = pool_region;
 			if (!++extraction.squads[run->squad].operation) ++extraction.squads[run->squad].operation;
 			extraction.squads[run->squad].notified = FALSE;
 			extraction.squads[run->squad].banked = FALSE;

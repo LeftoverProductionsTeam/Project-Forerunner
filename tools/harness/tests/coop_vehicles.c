@@ -17,7 +17,8 @@
 #define _game_connection_network_server 2
 enum { _object_dead_bit, _object_connected_to_map_bit, _object_outside_of_map_bit, _object_at_rest_bit, _object_on_ground_bit, _object_forge_phased_bit };
 #include "unit_flags.inc"
-enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle, _object_type_biped };
+enum { _object_type_scenery, _object_type_weapon, _object_type_equipment, _object_type_vehicle, _object_type_biped,
+       _object_type_device, _object_type_sound_scenery, _object_type_projectile };
 #define _object_mask_scenery FLAG(_object_type_scenery)
 #define _object_mask_weapon FLAG(_object_type_weapon)
 #define _object_mask_equipment FLAG(_object_type_equipment)
@@ -27,8 +28,8 @@ enum { _collision_test_structure_bit, _collision_test_objects_bit, _collision_te
        _collision_test_back_facing_surfaces_bit };
 #define _collision_test_objects_sight_blocking_flags 0
 #define _object_mask_all 0xffffffffUL
-#define _object_mask_projectile 4
-struct scenario_object_datum {int unused;unsigned short on_bsp_flags;real_point3d position;};
+#define _object_mask_projectile FLAG(_object_type_projectile)
+struct scenario_object_datum {short name_index;unsigned short on_bsp_flags;real_point3d position;};
 typedef unsigned short word;
 struct player_datum {long unit_index;};
 struct location {long leaf_index; short cluster_index;};
@@ -36,10 +37,11 @@ struct test_object {
  long definition_index;
  struct {long parent_object_index,first_child_object_index,next_object_index,owner_object_index,owner_player_index,vehicle_home_index; unsigned long flags,damage_flags; real_point3d position,bounding_sphere_center;
  real_vector3d forward,up,translational_velocity,angular_velocity; float bounding_sphere_radius; short variant_number;
- float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];} object;
+ float base_change_colors[12];short name_index,type,owner_team_index;real scale;byte region_permutations[16];
+ struct location location;} object;
  struct {unsigned long flags; long driver_object_index,gunner_object_index,player_index;} unit;
  struct {byte airborne_ticks;} vehicle;
- struct {unsigned long flags;} item;
+ struct {unsigned long flags;long last_owned_time;} item;
 };
 #define vehicle_datum test_object
 #define unit_datum test_object
@@ -80,7 +82,7 @@ static struct unit_definition definitions[8];
 static struct mass_point_definition mass_point;
 static struct physics_definition physics;
 static struct scenario_object_datum sources[4];
-static struct {long actual_count;} headers,*object_header_data=&headers;
+static struct {long actual_count,maximum_count;} headers={.maximum_count=1024},*object_header_data=&headers;
 static short global_structure_bsp_index;
 static int enabled,connection,coop,percent,multiplier,blocked,sphere_blocked,floor_present,allocation_failed,nearby;
 static long now,new_count,last_copy,placement_overlap,placement_phase_overlap=NONE;
@@ -244,7 +246,7 @@ struct squad_definition {short default_state,initial_state;};
 struct encounter_definition {struct tag_block squads;};
 static struct squad_definition rider_squads[2];
 static struct encounter_definition rider_encounters[4];
-static struct scenario {struct tag_block ai_encounters,structure_bsp_references;short type;} rider_scenario;
+static struct scenario {struct tag_block ai_encounters,structure_bsp_references,vehicles,vehicle_palette;short type;} rider_scenario;
 static long rider_attempts,rider_successes,rider_statuses,rider_variants[4];
 static short rider_offsets[4];
 #define global_scenario_get() (&rider_scenario)
@@ -430,9 +432,10 @@ static boolean mcc_cache_tags_loaded(void) {return respawn_mcc;}
 static short global_structure_bsp_index_get(void) {return global_structure_bsp_index;}
 static struct structure_bsp *global_structure_bsp_get(void)
 {return &respawn_bsp[global_structure_bsp_index];}
+static unsigned long occupied_vehicle_bsps;
 static boolean scenario_structure_bsp_contains_placement(struct structure_bsp const *bsp,real_point3d const *point)
 {
- CHECK(bsp->index==global_structure_bsp_index,"used the wrong BSP to bind the home");
+ CHECK(bsp->index==global_structure_bsp_index || TEST_FLAG(occupied_vehicle_bsps,bsp->index),"used the wrong BSP to bind the home");
  return point->x<=20;
 }
 #define game_variant_options_get() (&respawn_options)
@@ -458,7 +461,7 @@ static real distance_squared3d(real_point3d const *p,real_point3d const *q)
 static long regional_vehicle=NONE;
 static short regional_vehicle_bsp=NONE;
 static short replacement_bsp=NONE;
-static unsigned long occupied_vehicle_bsps;
+
 static short object_get_regional_bsp(long index)
 {
  return index==regional_vehicle ? regional_vehicle_bsp : NONE;
@@ -477,7 +480,73 @@ static short game_engine_object_recorded_bsp(long index,short type)
 {
  return index==regional_vehicle && type==_object_type_vehicle ? regional_vehicle_bsp : NONE;
 }
+enum {GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER=20};
+static void platform_log(char const *format, ...) {(void)format;}
+static struct tag_block *scenario_get_object_type_scenario_datums(struct scenario *scenario, short type, long *size)
+{
+ CHECK(type==_object_type_vehicle,"pool asked for non-vehicle placements");
+ *size=sizeof(struct scenario_object_datum);
+ return &scenario->vehicles;
+}
+static void *tag_block_get_element_with_size(struct tag_block *block, long row, long size)
+{
+ CHECK(VALID_INDEX(row,block->count),"pool chose an invalid vehicle row");
+ return (char *)block->address+row*size;
+}
+static long object_new_from_scenario_in_bsp(struct scenario_object_datum *placement, struct tag_block *palette,
+ short bsp, struct structure_bsp const *structure)
+{
+ struct object_placement_data data;
+ (void)palette;
+ object_placement_data_new(&data,0,NONE);
+ data.position=placement->position;
+ return object_new_in_bsp(&data,bsp,structure);
+}
 #include "home_respawn.inc"
+
+#define _object_mask_item (_object_mask_weapon | _object_mask_equipment)
+#define _object_mask_device FLAG(_object_type_device)
+#define _object_mask_sound_scenery FLAG(_object_type_sound_scenery)
+#define _object_mask_biped FLAG(_object_type_biped)
+#define item_get get
+static boolean players_vehicle_has_living_rider(long vehicle) {return !game_engine_vehicle_empty(get(vehicle));}
+static boolean item_region_allows_connection=TRUE;
+static boolean object_connect_to_regional_bsp(long index, short bsp, struct structure_bsp const *structure)
+{
+ CHECK(index==regional_vehicle&&structure==&respawn_bsp[bsp],"drop connected through the wrong collision scene");
+ if (!item_region_allows_connection)
+  return FALSE;
+ regional_vehicle_bsp=bsp;
+ return TRUE;
+}
+#include "regional_items.inc"
+
+static void regional_drop_recovers(void)
+{
+ long weapon=regional_vehicle=make(1,0);
+ struct item_datum *item=get(weapon);
+ item->object.type=_object_type_weapon;
+ item->object.location.cluster_index=0;
+ item->item.last_owned_time=180;
+ regional_vehicle_bsp=1;
+ now=200;
+ game_engine_record_regional_object(weapon,item,0);
+ CHECK(game_engine_item_suspended(weapon),"global disconnect failed to suspend a ground drop");
+ now=300;
+ game_engine_record_regional_object(weapon,item,0);
+ regional_vehicle_bsp=NONE;
+ now=1200;
+ CHECK(!game_engine_connect_regional_item(weapon,0,&respawn_bsp[0]),"neighboring BSP claimed the loose weapon");
+
+ item_region_allows_connection=FALSE;
+ CHECK(!game_engine_connect_regional_item(weapon,1,&respawn_bsp[1])&&game_engine_item_suspended(weapon)&&
+       item->item.last_owned_time==180,"failed reconnect consumed the drop or its timer");
+ item_region_allows_connection=TRUE;
+ CHECK(game_engine_connect_regional_item(weapon,1,&respawn_bsp[1])&&get(weapon)==item&&
+       !game_engine_item_suspended(weapon)&&item->item.last_owned_time==1180,
+       "source region failed to restore the same weapon and active lifetime");
+ CHECK(!game_engine_connect_regional_item(weapon,1,&respawn_bsp[1]),"restored the same drop twice");
+}
 
 static boolean game_engine_vehicle_parked(long index)
 {
@@ -517,6 +586,65 @@ static void compiled_regional_home(void)
  global_structure_bsp_index=1;
  CHECK(!game_engine_vehicle_parked(vehicle) && game_engine_vehicle_home_bsp(vehicle)==1,
        "vehicle failed to wake or lost its home during arrival clearance");
+}
+
+static void extraction_vehicle_once(void)
+{
+ struct scenario_object_datum placement={.name_index=NONE,.on_bsp_flags=2,.position={10,0,0}};
+ long stock=path_vehicle=make(1,0);
+ long issued;
+ rider_scenario.type=_scenario_type_multiplayer;
+ rider_scenario.structure_bsp_references.count=2;
+ rider_scenario.vehicles=(struct tag_block){1,&placement};
+ respawn_mcc=TRUE;
+ extraction_match_pools.valid=TRUE;
+ extraction_match_pools.region_count=1;
+ extraction_match_pools.regions[0].bsp=1;
+ game_engine_register_regional_vehicle_home(stock,&placement);
+
+ connection=1;
+ occupied_vehicle_bsps=FLAG(1);
+ game_engine_update_vehicle_respawn();
+ CHECK(get(stock)&&!new_count,"guest changed the authoritative pool");
+
+ connection=2;
+ occupied_vehicle_bsps=0;
+ game_engine_update_vehicle_respawn();
+ CHECK(!get(stock)&&!new_count,"spawned a vehicle before its remote region activated");
+
+ occupied_vehicle_bsps=FLAG(1);
+ game_engine_vehicle_home_count=MAXIMUM_VEHICLE_HOMES;
+ game_engine_update_vehicle_respawn();
+ CHECK(!new_count&&!extraction_match_pools.regions[0].vehicle_issued,"spent a pick without an ownership slot");
+
+ game_engine_vehicle_home_count=0;
+ headers.actual_count=headers.maximum_count-GARBAGE_LIMIT_FREE_OBJECTS_TRIGGER;
+ game_engine_update_vehicle_respawn();
+ CHECK(!new_count&&!extraction_match_pools.regions[0].vehicle_issued,"spent a pick needed for the combat object reserve");
+ headers.actual_count=0;
+ allocation_failed=TRUE;
+ game_engine_update_vehicle_respawn();
+ CHECK(!new_count&&!extraction_match_pools.regions[0].vehicle_issued,"spent a pick after allocation failed");
+
+ allocation_failed=FALSE;
+ now+=TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ issued=game_engine_vehicle_homes[0].object_index;
+ CHECK(new_count==1&&get(issued)&&replacement_bsp==1&&game_engine_vehicle_homes[0].extraction_once,
+       "pool did not bind its one vehicle to the guest's region");
+ get(issued)->object.damage_flags=FLAG(_object_dead_bit);
+ occupied_vehicle_bsps=0;
+ now+=2*TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(get(issued)&&new_count==1,"an inactive region replaced a wreck");
+
+ object_delete(issued);
+ occupied_vehicle_bsps=FLAG(1);
+ now+=2*TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ now+=2*TICKS_PER_SECOND;
+ game_engine_update_vehicle_respawn();
+ CHECK(!get(issued)&&new_count==1,"reentry respawned a destroyed Extraction vehicle");
 }
 
 static void regional_respawn(void)
@@ -709,6 +837,8 @@ static void unsteered_path(char const *name) {
 int main(int argc,char **argv) {
  if(argc!=2)return 2;
  if(!strcmp(argv[1],"compiled-regional-home")) {compiled_regional_home();return 0;}
+ if(!strcmp(argv[1],"regional-drop-recovers")) {regional_drop_recovers();return 0;}
+ if(!strcmp(argv[1],"extraction-vehicle-once")) {extraction_vehicle_once();return 0;}
  if(!strcmp(argv[1],"regional-respawn")) {regional_respawn();return 0;}
  if(!strncmp(argv[1],"clone-",6)) {
   long source=reset(),copy;char const *name=argv[1]+6;boolean refused=FALSE;
