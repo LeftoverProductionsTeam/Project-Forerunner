@@ -122,6 +122,16 @@ Native HMV readback gave one `lifi` record at (16.669445, 0.421251, 0.123938)
 and a byte-identical save `9240fb81`. The title and operation are local-only.
 This checks the shared placement transaction, not every HMV 16 record kind.
 
+Latest Win64 `963313f2` includes the CE name fix, bounded HMV reader, local
+light fixtures and the right-side Forge Tools panel adapted from Chupathingy.
+On the exact Rat Race fixture, normal menu input opened the panel with a
+complete selection border and a clear reticle. The match tick advanced
+while a held movement key left the editing player in place. The layout
+page imported and saved the same `9240fb81` bytes. The match and original
+profile data were untouched by installation. Previous is `f9907675`.
+The Backquote control hid the reticle, ammo and vitals while preserving
+the viewmodel and motion tracker in the private Win64 panel test.
+
 Private Win64 `132534c8` compiled two speculative BSP previews in the
 existing warm-slot budget. Each viewport's requests are considered before a
 single load attempt. The focused check covered filling both slots, preserving
