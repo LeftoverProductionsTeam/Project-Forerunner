@@ -5,7 +5,7 @@
 
 #include "cache/cache_files.h"
 #include "game/game.h"
-#include "rasterizer/rasterizer_vertex_byte_order.h"
+#include "rasterizer/rasterizer_geometry_environment.h"
 #include "render/render_cameras.h"
 #include "structures/structure_bsp_definitions.h"
 
@@ -22,53 +22,139 @@ extern void halo_test_screenshot(void);
 enum
 {
 	compressed_vertex_stride = 32,
+	compressed_lightmap_stride = 8,
 	maximum_scene_vertices = 262144,
 	maximum_scene_surfaces = 262144
 };
 
-static long write_material(FILE *file, const struct structure_bsp *structure,
-	const struct structure_material *material, long *total_vertices, long surface_budget)
+int pathtrace_scene_visit(const struct structure_bsp *structure, pathtrace_material_sink sink, void *context)
 {
-	const unsigned char *vertices;
-	long vertex_count = material->vertices.count;
-	long first = material->first_surface_index;
-	long count = material->surface_count;
-	long index, triangles = 0;
+	long total_vertices = 0, total_surfaces = 0;
+	long map_index, material_index;
 
-	if (vertex_count <= 0 || vertex_count > material->compressed_vertex_data.size / compressed_vertex_stride ||
-		vertex_count > maximum_scene_vertices - *total_vertices || count <= 0 || first < 0 ||
-		count > structure->surfaces.count || first > structure->surfaces.count - count || count > surface_budget)
-		return 0;
-	vertices = xbox_pointer(material->compressed_vertex_data.address);
-	if (!vertices)
-		return 0;
+	if (!structure || !sink || structure->surfaces.count <= 0 ||
+		structure->surfaces.count > maximum_scene_surfaces)
+		return FALSE;
 
-	fprintf(file, "g shader_%08lx\n", (unsigned long)material->shader.index);
-	for (index = 0; index < vertex_count; index++)
+	for (map_index = 0; map_index < structure->lightmaps.count; map_index++)
 	{
-		const unsigned char *vertex = vertices + index * compressed_vertex_stride;
-		real_vector3d normal = uncompress_int32_to_real_vector3d(vertex_data_read_dword(vertex + 12));
+		const struct structure_lightmap *lightmap = TAG_BLOCK_GET_ELEMENT(&structure->lightmaps, map_index, struct structure_lightmap);
 
-		fprintf(file, "v %.9g %.9g %.9g\n", vertex_data_read_float(vertex), vertex_data_read_float(vertex + 4),
-			vertex_data_read_float(vertex + 8));
-		fprintf(file, "vt %.9g %.9g\n", vertex_data_read_float(vertex + 24), vertex_data_read_float(vertex + 28));
-		fprintf(file, "vn %.9g %.9g %.9g\n", normal.i, normal.j, normal.k);
+		for (material_index = 0; material_index < lightmap->materials.count; material_index++)
+		{
+			const struct structure_material *material =
+				TAG_BLOCK_GET_ELEMENT(&lightmap->materials, material_index, struct structure_material);
+			long vertex_count = material->vertices.count;
+			long first = material->first_surface_index;
+			long count = material->surface_count;
+			long lightmap_count = material->lightmap_vertices.count;
+			long bytes = material->compressed_vertex_data.size;
+			long index;
+			struct pathtrace_material section;
+
+			if (!count)
+				continue;
+			if (vertex_count <= 0 || vertex_count > bytes / compressed_vertex_stride ||
+				vertex_count > maximum_scene_vertices - total_vertices || count < 0 || first < 0 ||
+				count > structure->surfaces.count || first > structure->surfaces.count - count ||
+				count > maximum_scene_surfaces - total_surfaces)
+				return FALSE;
+
+			section.vertices = xbox_pointer(material->compressed_vertex_data.address);
+			if (!section.vertices)
+				return FALSE;
+			section.surfaces = TAG_BLOCK_GET_ELEMENT(&structure->surfaces, first, struct structure_surface);
+			section.vertex_count = vertex_count;
+			section.surface_count = count;
+			section.shader = material->shader.index;
+			section.permutation = material->permutation_index;
+			section.lightmap_group = structure->lightmap_group.index;
+			section.lightmap_bitmap = lightmap->bitmap_index;
+			section.lightmap_vertices = NULL;
+			if (lightmap_count == vertex_count &&
+				lightmap_count <= (bytes - vertex_count * compressed_vertex_stride) / compressed_lightmap_stride)
+				section.lightmap_vertices = section.vertices + vertex_count * compressed_vertex_stride;
+
+			for (index = 0; index < count; index++)
+			{
+				const word *indices = section.surfaces[index].vertex_indices;
+				if (indices[0] >= vertex_count || indices[1] >= vertex_count || indices[2] >= vertex_count)
+					return FALSE;
+			}
+			if (!sink(context, &section))
+				return FALSE;
+			total_vertices += vertex_count;
+			total_surfaces += count;
+		}
 	}
-	for (index = first; index < first + count; index++)
+	return total_surfaces > 0;
+}
+
+void pathtrace_scene_read_vertex(const struct pathtrace_material *material, long index, struct pathtrace_vertex *vertex)
+{
+	const unsigned char *data = material->vertices + index * compressed_vertex_stride;
+	const struct environment_vertex_compressed *environment = (const void *)data;
+	real_point3d position;
+	real_vector3d normal;
+	real_point2d texcoord;
+
+	environment_vertex_compressed_get_point(environment, &position);
+	environment_vertex_compressed_get_normal(environment, &normal);
+	environment_vertex_compressed_get_texcoord(environment, &texcoord);
+	vertex->position[0] = position.x;
+	vertex->position[1] = position.y;
+	vertex->position[2] = position.z;
+	vertex->normal[0] = normal.i;
+	vertex->normal[1] = normal.j;
+	vertex->normal[2] = normal.k;
+	vertex->texcoord[0] = texcoord.x;
+	vertex->texcoord[1] = texcoord.y;
+	texcoord.x = texcoord.y = 0.0f;
+	if (material->lightmap_vertices)
+		environment_lightmap_vertex_compressed_get_texcoord(
+			(const void *)(material->lightmap_vertices + index * compressed_lightmap_stride), &texcoord);
+	vertex->lightmap_texcoord[0] = texcoord.x;
+	vertex->lightmap_texcoord[1] = texcoord.y;
+}
+
+struct pathtrace_obj
+{
+	FILE *file;
+	long vertices, triangles;
+};
+
+static int write_material(void *context, const struct pathtrace_material *material)
+{
+	struct pathtrace_obj *obj = context;
+	long index;
+
+	fprintf(obj->file, "g shader_%08lx\n", (unsigned long)material->shader);
+	fprintf(obj->file, "# material permutation %d lightmap %08lx %d\n",
+		material->permutation, (unsigned long)material->lightmap_group, material->lightmap_bitmap);
+	for (index = 0; index < material->vertex_count; index++)
 	{
-		const struct structure_surface *surface = TAG_BLOCK_GET_ELEMENT(&structure->surfaces, index, struct structure_surface);
-		long a = surface->vertex_indices[0], b = surface->vertex_indices[1], c = surface->vertex_indices[2];
+		struct pathtrace_vertex vertex;
 
-		if (a >= vertex_count || b >= vertex_count || c >= vertex_count)
-			continue;
-		a += *total_vertices + 1;
-		b += *total_vertices + 1;
-		c += *total_vertices + 1;
-		fprintf(file, "f %ld/%ld/%ld %ld/%ld/%ld %ld/%ld/%ld\n", a, a, a, b, b, b, c, c, c);
-		triangles++;
+		pathtrace_scene_read_vertex(material, index, &vertex);
+		fprintf(obj->file, "v %.9g %.9g %.9g\n", vertex.position[0], vertex.position[1], vertex.position[2]);
+		fprintf(obj->file, "vt %.9g %.9g\n", vertex.texcoord[0], vertex.texcoord[1]);
+		fprintf(obj->file, "vn %.9g %.9g %.9g\n", vertex.normal[0], vertex.normal[1], vertex.normal[2]);
+		if (material->lightmap_vertices)
+			fprintf(obj->file, "# lightmap_uv %ld %.9g %.9g\n", obj->vertices + index + 1,
+				vertex.lightmap_texcoord[0], vertex.lightmap_texcoord[1]);
 	}
-	*total_vertices += vertex_count;
-	return triangles;
+	for (index = 0; index < material->surface_count; index++)
+	{
+		const word *indices = material->surfaces[index].vertex_indices;
+		long a = indices[0] + obj->vertices + 1;
+		long b = indices[1] + obj->vertices + 1;
+		long c = indices[2] + obj->vertices + 1;
+
+		fprintf(obj->file, "f %ld/%ld/%ld %ld/%ld/%ld %ld/%ld/%ld\n", a, a, a, b, b, b, c, c, c);
+	}
+	obj->vertices += material->vertex_count;
+	obj->triangles += material->surface_count;
+	return !ferror(obj->file);
 }
 
 void pathtrace_scene_capture(const struct structure_bsp *structure, short bsp,
@@ -77,7 +163,7 @@ void pathtrace_scene_capture(const struct structure_bsp *structure, short bsp,
 	static boolean checked, attempted;
 	static const char *path;
 	const char *map;
-	long map_index, material_index, vertices = 0, triangles = 0;
+	struct pathtrace_obj obj = {0};
 	FILE *file;
 	int descriptor, failed;
 
@@ -111,24 +197,12 @@ void pathtrace_scene_capture(const struct structure_bsp *structure, short bsp,
 		camera->vertical_field_of_view, camera->z_near, camera->z_far,
 		(double)(camera->viewport_bounds.x1 - camera->viewport_bounds.x0) /
 			MAX(1, camera->viewport_bounds.y1 - camera->viewport_bounds.y0));
-	for (map_index = 0; map_index < structure->lightmaps.count; map_index++)
-	{
-		const struct structure_lightmap *lightmap = TAG_BLOCK_GET_ELEMENT(&structure->lightmaps, map_index, struct structure_lightmap);
-
-		for (material_index = 0; material_index < lightmap->materials.count; material_index++)
-		{
-			const struct structure_material *material =
-				TAG_BLOCK_GET_ELEMENT(&lightmap->materials, material_index, struct structure_material);
-
-			triangles += write_material(file, structure, material, &vertices, maximum_scene_surfaces - triangles);
-		}
-	}
-
-	failed = ferror(file);
+	obj.file = file;
+	failed = !pathtrace_scene_visit(structure, write_material, &obj);
 	failed |= fclose(file) != 0;
-	if (!failed && triangles > 0 && *config_string("debug.screenshot_directory"))
+	if (!failed && *config_string("debug.screenshot_directory"))
 		halo_test_screenshot();
 	platform_log("Path tracing scene capture: %s BSP %d, %ld vertices, %ld triangles%s",
-		map, bsp, vertices, triangles, failed ? " (write failed)" : "");
+		map, bsp, obj.vertices, obj.triangles, failed ? " (incomplete capture)" : "");
 }
 #endif

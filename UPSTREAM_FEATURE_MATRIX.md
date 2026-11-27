@@ -178,6 +178,19 @@ frame time and memory measurements remain open. No renderer mode or Spark
 capability is advertised from this probe.
 
 
+**Native BSP material data.** The native scene visitor now supplies each
+bounded material section directly from the loaded render BSP, including
+the shader and permutation, the baked lightmap group and page, and both
+UV sets. The stock Blood Gulch smoke run on Windows64 build `29972727`
+matched all 79 material groups, 5,790 vertices and 5,503 triangles from
+the earlier capture exactly. It also read 5,534 secondary UVs. The
+snapshot SHA-256 is
+`4f38e623f0c9a02c01e68692d9dac1e5907a72e2ba2a718d01be6dfde33e36ec`.
+Evidence is in `build/native-bsp-pathtrace-stock-bloodgulch/process-lightmap-stream-one-player.log`
+and the adjacent `data/bloodgulch-lightmaps.obj`. Provider-side material
+uploads and live HUD composition are pending.
+
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
