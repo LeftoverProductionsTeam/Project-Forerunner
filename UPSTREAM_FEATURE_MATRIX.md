@@ -86,6 +86,32 @@ treat the returned handle alone as proof of compatibility. Evidence and
 package identity are in `build/remix-1.6.1-shared-image`.
 [Shared-texture source](https://github.com/NVIDIAGameWorks/dxvk-remix/blob/0a6cd5b1ee814ec390c358e0c9c32ece8895ddc0/src/d3d9/d3d9_common_texture.cpp)
 
+**Windows Vulkan sharing result.** Native driver queries accept export and
+import of the tested mutable BGRA8 opaque Win32 KMT image and a Win32 binary
+semaphore on both the RTX 4070 Ti and AMD integrated adapter. On the RTX, a
+producer and consumer on independent Vulkan logical devices shared a
+32×32 image using that memory handle and an exported semaphore. The producer
+released queue ownership to EXTERNAL and the consumer acquired it before
+copying. A verification readback matched all 1,024 pixels. Logs are in
+`build/vulkan-win32-image-preflight` and `build/vulkan-win32-image-roundtrip`.
+This proves GPU/driver interop for an explicitly described allocation, not
+a Remix frame or AMD path-tracing support. Vulkan requires the exporter's
+allocation size and memory type for opaque handle imports. The official Remix
+public handoff reviewed here supplies neither with its KMT handle and does
+not supply compatible exported semaphore payloads for that texture.
+[Win32 memory import specification](https://docs.vulkan.org/refpages/latest/refpages/source/VkImportMemoryWin32HandleInfoKHR.html)
+
+OpenRemix already exposes a shared-frame contract with allocation size,
+memory type, GPU UUID, and paired acquire/release semaphores. The pinned
+implementation exports Linux file descriptors. Prefer a provider using that
+existing synchronization contract for the first compositor integration.
+On Windows evaluate adapting the same contract to Win32 external handles
+using the verified transport above. Then submit an owned Halo BSP and model,
+validate composition and compare gameplay frame times, memory and fidelity
+against the stock paths before adding settings or Spark capability discovery.
+[OpenRemix shared-frame API](https://github.com/TheGreatHMMMM/OpenRemix/blob/13c3a1001be4d5eb40a8037c136ca6efca8461eb/public/include/remix/remix_editor_ext.h)
+· [OpenRemix implementation](https://github.com/TheGreatHMMMM/OpenRemix/blob/13c3a1001be4d5eb40a8037c136ca6efca8461eb/src/native/runtime/shared_frame.cpp)
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
