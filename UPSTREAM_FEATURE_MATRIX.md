@@ -112,6 +112,19 @@ against the stock paths before adding settings or Spark capability discovery.
 [OpenRemix shared-frame API](https://github.com/TheGreatHMMMM/OpenRemix/blob/13c3a1001be4d5eb40a8037c136ca6efca8461eb/public/include/remix/remix_editor_ext.h)
 · [OpenRemix implementation](https://github.com/TheGreatHMMMM/OpenRemix/blob/13c3a1001be4d5eb40a8037c136ca6efca8461eb/src/native/runtime/shared_frame.cpp)
 
+**OpenRemix Windows exporter.** The [pinned provider patch](tools/openremix-patches/0001-export-shared-frames-on-win32.patch)
+extends the existing headless frame allocator and queue synchronization.
+The Windows ABI returns caller-owned opaque NT handles for the RGBA8
+image and paired semaphores with allocation size, memory type and GPU UUID.
+The Linux FD ABI remains intact. Patch application and Windows x64 syntax
+checks passed on the pinned provider's `device.cpp`, `runtime.cpp`, and
+`shared_frame.cpp` using their actual transitive headers. The matching NT
+RGBA8 memory and semaphore transport passed a native RTX 4070 Ti pixel
+round trip (1,024/1,024). Logs: `build/openremix-shared-frame-win32` and
+`build/openremix-win32-transport-roundtrip`. The provider was not linked
+or run with this patch. Next verify its first shared frame and import it
+into the existing Forerunner compositor before exposing the capability.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
