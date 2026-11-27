@@ -109,6 +109,7 @@ symbols in this file:
 #include "game/game.h"
 #endif
 #include "networking/network_connection.h"
+#include "objects/objects.h"
 #include "cache/predicted_resources.h"
 #include "physics/collisions.h"
 #include "physics/collision_usage.h"
@@ -320,11 +321,13 @@ static void observer_apply_rotational_displacement(
 	real_vector3d *forward,
 	real_vector3d *up);
 static boolean observer_collision_test_with_t(
+	short bsp,
 	real_point3d const *point0,
 	real_point3d const *point1,
 	real *t,
 	boolean ignore_media);
 static boolean observer_collision_test_differential(
+	short bsp,
 	real_point3d const *origin,
 	real_point3d const *destination,
 	real_vector3d const *differential_basis,
@@ -344,6 +347,8 @@ static void observer_rotational_displacement(
 	real_vector3d const *up1,
 	real_vector3d *rotation);
 static void observer_check_penetration(
+	short bsp,
+	struct structure_bsp const *structure,
 	real_point3d *focus_position,
 	real_vector3d const *forward,
 	real_vector3d const *up,
@@ -774,6 +779,7 @@ static void observer_update_velocities(
 }
 
 static boolean observer_collision_test_with_t(
+	short bsp,
 	real_point3d const *point0,
 	real_point3d const *point1,
 	real *t,
@@ -801,7 +807,7 @@ static boolean observer_collision_test_with_t(
 	global_current_collision_users[global_current_collision_user_depth++] = _collision_user_observer;
 
 	vector_from_points3d(point0, point1, &vector);
-	if (collision_test_vector(flags, point0, &vector, NONE, &collision))
+	if (collision_test_bsp_vector(bsp, flags, point0, &vector, NONE, &collision))
 	{
 		*t = collision.t;
 		result = TRUE;
@@ -817,6 +823,7 @@ static boolean observer_collision_test_with_t(
 }
 
 static boolean observer_collision_test_differential(
+	short bsp,
 	real_point3d const *origin,
 	real_point3d const *destination,
 	real_vector3d const *differential_basis,
@@ -830,7 +837,7 @@ static boolean observer_collision_test_differential(
 	differential_destination.y = differential*differential_basis->j + destination->y;
 	differential_destination.z = differential*differential_basis->k + destination->z;
 
-	return observer_collision_test_with_t(origin, &differential_destination, t, ignore_media);
+	return observer_collision_test_with_t(bsp, origin, &differential_destination, t, ignore_media);
 }
 
 static void observer_update_command(
@@ -1160,6 +1167,8 @@ static void observer_find_displacement(
 }
 
 static void observer_check_penetration(
+	short bsp,
+	struct structure_bsp const *structure,
 	real_point3d *focus_position,
 	real_vector3d const *forward,
 	real_vector3d const *up,
@@ -1179,8 +1188,11 @@ static void observer_check_penetration(
 	real distance_scale;
 	short probe_index;
 
-	scenario_location_from_point(&focus_location, focus_position);
-	ignore_media = scenario_location_underwater(&focus_location, focus_position, NULL);
+	if (bsp == NONE)
+		scenario_location_from_point(&focus_location, focus_position);
+	else
+		scenario_location_from_point_in_structure(&focus_location, structure, focus_position);
+	ignore_media = scenario_location_underwater_in_structure(structure, &focus_location, focus_position, NULL);
 
 	backward.i = -forward->i*(*distance + safe_distance);
 	backward.j = -forward->j*(*distance + safe_distance);
@@ -1189,6 +1201,7 @@ static void observer_check_penetration(
 	desired_position.y = backward.j + focus_position->y;
 	desired_position.z = backward.k + focus_position->z;
 	observer_collision_test_with_t(
+		bsp,
 		focus_position,
 		&desired_position,
 		&first_t,
@@ -1210,6 +1223,7 @@ static void observer_check_penetration(
 		real collision_t;
 
 		if (observer_collision_test_differential(
+			bsp,
 			focus_position,
 			&desired_position,
 			offset,
@@ -1237,6 +1251,7 @@ static void observer_check_penetration(
 			real middle = (upper + lower)*0.5f;
 			real collision_t;
 			boolean hit = observer_collision_test_differential(
+				bsp,
 				focus_position,
 				&desired_position,
 				best_offset,
@@ -1267,6 +1282,24 @@ static void observer_check_penetration(
 	return;
 }
 
+/* Preserve the foreground path for classic maps and unbound cameras.
+ * A live followed unit gives all obstruction probes a single native scene. */
+static short observer_followed_remote_bsp(short local_player_index)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	if (scenario && scenario_uses_regional_gameplay(scenario))
+	{
+		long unit = director_get_followed_unit(local_player_index);
+		if (object_try_and_get(unit))
+		{
+			short bsp = object_get_regional_bsp(unit);
+			if (bsp != global_structure_bsp_index_get())
+				return bsp;
+		}
+	}
+	return NONE;
+}
+
 static void observer_postcheck(
 	short local_player_index)
 {
@@ -1274,6 +1307,9 @@ static void observer_postcheck(
 	real_point3d focus_position = observer->focus_position;
 	real focus_distance = PIN(observer->focus_distance, 0.f, REAL_MAX);
 	real_vector2d heading;
+	short bsp = observer_followed_remote_bsp(local_player_index);
+	struct structure_bsp const *structure = bsp == NONE ?
+		global_structure_bsp_get() : scenario_structure_bsp_try_and_get(bsp);
 	real water_depth;
 
 	match_assert(
@@ -1308,10 +1344,12 @@ static void observer_postcheck(
 	focus_position.y += observer->focus_offset.i*heading.j - observer->focus_offset.j*heading.i;
 	focus_position.z += observer->focus_offset.k;
 
-	if (!TEST_FLAG(observer->last_command.flags, _observer_command_ignore_obstructions_bit) &&
+	if (structure && !TEST_FLAG(observer->last_command.flags, _observer_command_ignore_obstructions_bit) &&
 		focus_distance != 0.f)
 	{
 		observer_check_penetration(
+			bsp,
+			structure,
 			&focus_position,
 			&observer->forward,
 			&observer->up,
@@ -1342,9 +1380,16 @@ static void observer_postcheck(
 		}
 	}
 
-	water_depth = scenario_location_water_depth(
-		&observer->result.location,
-		&observer->result.position);
+	/* The result's location is still consumed by foreground-only callers.
+	 * Sample the followed scene's water separately for camera placement. */
+	if (bsp != NONE)
+	{
+		struct location camera_location;
+		scenario_location_from_point_in_structure(&camera_location, structure, &observer->result.position);
+		water_depth = scenario_location_water_depth_in_structure(structure, &camera_location, &observer->result.position);
+	}
+	else
+		water_depth = scenario_location_water_depth(&observer->result.location, &observer->result.position);
 	if (fabs(water_depth) < 0.05f)
 	{
 		if (water_depth > 0.f)
