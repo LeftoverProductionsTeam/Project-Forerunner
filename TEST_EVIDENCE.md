@@ -1,5 +1,21 @@
 # Forerunner test evidence
 
+## Windows native renderer startup baseline
+
+Latest `DEACA69B00335F048795C611AF09DED5EA75A7EE41DA0421F0816EAE7865CE5C`
+loaded the stock Xbox UI (`35E3E560478D85178749BE310AD13D6D6ECDE618D32675261A3554592333A833`)
+at native 1280×720 in OpenGL 4.5 and bgfx Vulkan without fallback. Both
+selected the RTX 4070 Ti with NVIDIA 621.40. Vulkan enumerated the AMD integrated
+GPU as well. Visual review confirmed the ring scene, Halo and Forerunner marks,
+menu labels and complete selection outline on both backends. This run reached
+the main menu; no gameplay scene or RT provider was loaded. Evidence in
+`build/native-render-baseline-deaca69b/{gl,bgfx}` uses isolated data and saves.
+The unthrottled screenshot cadence produced 398 OpenGL and 8 Vulkan captures,
+so these frame logs cannot support a matched performance comparison. One frame
+per backend and the logs are retained; 1,677,376,824 bytes were reclaimed.
+For matched performance runs, disable screenshots, take visual frames in a
+separate bounded run, and sample only after the same gameplay scene has loaded.
+
 ## Be Native field guidance release
 
 Latest Win64 is `DEACA69B00335F048795C611AF09DED5EA75A7EE41DA0421F0816EAE7865CE5C`
