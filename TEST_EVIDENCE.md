@@ -206,10 +206,26 @@ ground preview and its published mode receipt.
   `full-pools-live-{host,guest}`. The Windows Extraction harness covered
   preview-to-simulation ordering, failed activation with another held region,
   faction/squad selection and gear rollback.
-- Still pending on the corrected full-world pairing: a first visit to an
-  unloaded destination, both-faction banking, return to the same dropped
-  item and confirmed wreck, and consumed loot staying consumed. The separate
-  hunt fixture still needs synchronized kills and objective credit. The saved
+- The same `8dcb0d7b` LAN session continued on exact `fd7a49fa`. At tick
+  40200 the selected Hang 'Em High sniper rifle (placement 518, datum slot
+  1390) was still at its authored pickup. At 40650 both clients reported
+  it attached to the UNSC guest. The guest walked from BSP 0 into the
+  previously unloaded Death Island connector (BSP 4) and back under normal
+  controls, then entered the connector again while the Covenant host
+  respawned in BSP 11. The host's tick 47250 mask was `0x0810`, holding
+  only BSPs 4 and 11. At tick 48000 BSP 0 was resident again
+  (`0x0801`). Both peers reported the same carried rifle, no replacement
+  at its authored pickup, and the same parked Ghost (slot 1491) at its
+  driven location. That proves a consumed pickup and parked vehicle
+  survived an actual host-side unload and return on the full pairing.
+  The guest rendered the returned Ghost up close, but subsequent Use inputs
+  did not reseat the rider. At tick 54840 the player stood at
+  (-214.621, 499.117, -22.367) facing yaw -45, pitch -18. The current
+  trace does not include the vehicle's seat entrance or cluster ownership.
+- Still pending on the corrected full-world pairing: first deployment
+  directly into an unloaded BSP, both-faction banking, and return to the
+  same loose drop and a confirmed wreck. The separate hunt fixture still
+  needs synchronized kills and objective credit. The saved
   checkpoint and logs do not identify the operation that triggered the
   reported restriction. No restricted operation was retried. Latest and
   Previous were preserved.
