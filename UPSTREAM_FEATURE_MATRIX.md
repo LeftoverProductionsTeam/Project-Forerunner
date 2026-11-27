@@ -425,6 +425,18 @@ in the `pathtrace-megaworld-released-{spawn,textured-final}` sets.
 These are scripted startup renderer checks. Physical seam traversal and
 matched lighting comparisons remain open.
 
+**MegaWorld texture budget.** Win64
+`593ad2131fc6d646ec2c248b3b2c5f4e377780f22a460eebba08b404cd1601b8`
+preplans unique BSP textures and fits them using the map's authored mips.
+On released `fcfe9d44` BSP 0, 54 textures used a coarser mip and 152/152
+opaque sections bound textures within 33,423,360 bytes. The matched stock
+Sidewinder control retained 80/80 textured sections and 8,650,752 bytes
+with no mip reduction. The private Vulkan logs and views are in
+`build/native-bsp-pathtrace-stock-bloodgulch`, trial sets
+`pathtrace-megaworld-released-mip-final` and
+`pathtrace-megaworld-stock-mip-control`. This measures coverage at the
+tested BSPs. Visual quality and cross-BSP streaming costs remain open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

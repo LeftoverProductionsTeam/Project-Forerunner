@@ -232,20 +232,25 @@ BOOL xgpu_mcc_texture_source(DWORD const *resource,struct xgpu_texture_descripti
 }
 
 #ifdef HALO_BGFX
-int mcc_texture_bridge_decode_base(void const *resource, unsigned long width,
-    unsigned long height, unsigned long *destination)
+int mcc_texture_bridge_decode_mip(void const *resource, unsigned long mip,
+    unsigned long width, unsigned long height, unsigned long *destination)
 {
     struct xgpu_texture_description description;
     void const *source;
-    unsigned long bytes, level_bytes;
+    unsigned long bytes, level_bytes, offset, mip_width, mip_height;
     long hud_asset;
 
     if (!destination || !xgpu_mcc_texture_source(resource, &description, &source, &bytes, &hud_asset) ||
-        description.width != width || description.height != height || description.depth != 1 || description.cube_map)
+        description.depth != 1 || description.cube_map || mip >= description.levels)
         return FALSE;
-    level_bytes = xgpu_texture_level_bytes(&description, 0);
-    return level_bytes && level_bytes <= bytes &&
-        xgpu_texture_decode_level(&description, 0, source, NULL, destination);
+    mip_width = description.width >> mip;
+    mip_height = description.height >> mip;
+    if ((mip_width ? mip_width : 1) != width || (mip_height ? mip_height : 1) != height)
+        return FALSE;
+    offset = xgpu_texture_level_offset(&description, mip);
+    level_bytes = xgpu_texture_level_bytes(&description, mip);
+    return level_bytes && offset <= bytes && level_bytes <= bytes - offset &&
+        xgpu_texture_decode_level(&description, mip, (unsigned char const *)source + offset, NULL, destination);
 }
 #endif
 

@@ -15,6 +15,7 @@
 #include "cache/texture_cache.h"
 #include "game/game.h"
 #include "camera/director.h"
+#include "rasterizer/rasterizer_swizzle.h"
 #include "render/render_cameras.h"
 #include "render/render_sky_lighting.h"
 #include "shaders/shader_definitions.h"
@@ -58,6 +59,9 @@ struct preview_texture
 {
 	long group;
 	short page;
+	struct bitmap_data *bitmap;
+	const void *mcc_resource;
+	unsigned int mip, maximum_mip;
 	remixapi_TextureHandle handle;
 	remixapi_MaterialHandle material[2];
 	uint64_t hash;
@@ -85,7 +89,7 @@ static struct
 		short page;
 		remixapi_MaterialHandle handle;
 	} emitters[maximum_preview_material_sections];
-	unsigned int texture_count, texture_bytes, emitter_count;
+	unsigned int texture_count, texture_bytes, mipmapped_textures, emitter_count;
 	const struct structure_bsp *structure;
 	char map[128];
 	short bsp, sky;
@@ -187,7 +191,7 @@ static void retire_bsp(void)
 		if (texture->material[1]) preview.api.DestroyMaterial(texture->material[1]);
 		if (texture->handle) preview.api.DestroyTexture(texture->handle);
 	}
-	preview.texture_count = preview.texture_bytes = preview.emitter_count = 0;
+	preview.texture_count = preview.texture_bytes = preview.mipmapped_textures = preview.emitter_count = 0;
 }
 
 void pathtrace_provider_close(void)
@@ -324,19 +328,72 @@ struct preview_mesh
 	unsigned int count, textured;
 };
 
-static int read_texture_pixels(struct bitmap_data *bitmap, pixel32 *pixels)
+static unsigned int texture_size(const struct preview_texture *texture)
 {
+	return MAX(texture->bitmap->width >> texture->mip, 1) *
+		MAX(texture->bitmap->height >> texture->mip, 1) * sizeof(pixel32);
+}
+
+static unsigned int find_texture(const struct pathtrace_material *material)
+{
+	unsigned int i;
+
+	for (i = 0; i < preview.texture_count; i++)
+		if (preview.textures[i].group == material->diffuse_group &&
+			preview.textures[i].page == material->diffuse_bitmap)
+			break;
+	return i;
+}
+
+static int plan_texture(void *context, const struct pathtrace_material *material)
+{
+	struct bitmap_data *bitmap;
+	struct preview_texture *texture;
+	unsigned int i;
+
+	(void)context;
+	if (!material->opaque || material->diffuse_group == NONE || material->diffuse_bitmap == NONE ||
+		preview.texture_count == maximum_preview_textures)
+		return TRUE;
+	i = find_texture(material);
+	if (i != preview.texture_count)
+		return TRUE;
+	bitmap = bitmap_group_try_and_get_bitmap(material->diffuse_group, material->diffuse_bitmap);
+	if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0)
+		return TRUE;
+
+	texture = &preview.textures[i];
+	memset(texture, 0, sizeof(*texture));
+	texture->bitmap = bitmap;
+#ifdef HALO_BGFX
+	texture->mcc_resource = mcc_texture_cache_get(bitmap, TRUE);
+	if (texture->mcc_resource)
+		texture->maximum_mip = rasterizer_xbox_bitmap_get_max_mipmap_count(bitmap);
+#endif
+	while (texture->mip < texture->maximum_mip &&
+		(bitmap->width >> texture->mip > maximum_preview_texture_side ||
+		bitmap->height >> texture->mip > maximum_preview_texture_side))
+		++texture->mip;
+	if (bitmap->width >> texture->mip > maximum_preview_texture_side ||
+		bitmap->height >> texture->mip > maximum_preview_texture_side)
+		return TRUE;
+
+	texture->group = material->diffuse_group;
+	texture->page = material->diffuse_bitmap;
+	texture->hash = 0x100000000ULL + (preview.mesh_generation << 16) + i;
+	++preview.texture_count;
+	return TRUE;
+}
+
+static int read_texture_pixels(const struct preview_texture *texture, unsigned int width,
+	unsigned int height, pixel32 *pixels)
+{
+	struct bitmap_data *bitmap = texture->bitmap;
 	short y;
 
 #ifdef HALO_BGFX
-	/* MCC owns converted pixels outside the Xbox texture cache. Resolve the
-	 * bitmap through the native renderer's registered descriptor. */
-	{
-		const void *resource = mcc_texture_cache_get(bitmap, TRUE);
-
-		if (resource)
-			return mcc_texture_bridge_decode_base(resource, bitmap->width, bitmap->height, pixels);
-	}
+	if (texture->mcc_resource)
+		return mcc_texture_bridge_decode_mip(texture->mcc_resource, texture->mip, width, height, pixels);
 #endif
 
 	if (!texture_cache_bitmap_load(bitmap))
@@ -349,34 +406,67 @@ static int read_texture_pixels(struct bitmap_data *bitmap, pixel32 *pixels)
 
 static void upload_texture(struct preview_texture *texture)
 {
-	struct bitmap_data *bitmap = bitmap_group_try_and_get_bitmap(texture->group, texture->page);
 	remixapi_TextureInfo info = {0};
+	unsigned int width = MAX(texture->bitmap->width >> texture->mip, 1);
+	unsigned int height = MAX(texture->bitmap->height >> texture->mip, 1);
+	unsigned int bytes = texture_size(texture);
 	pixel32 *pixels;
-	unsigned int bytes;
 
-	if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0 || bitmap->width > maximum_preview_texture_side ||
-		bitmap->height > maximum_preview_texture_side)
-		return;
-	bytes = bitmap->width * bitmap->height * sizeof(*pixels);
 	if (bytes > maximum_preview_texture_bytes - preview.texture_bytes)
 		return;
 	pixels = malloc(bytes);
 	if (!pixels)
 		return;
-	if (read_texture_pixels(bitmap, pixels))
+	if (read_texture_pixels(texture, width, height, pixels))
 	{
 		info.sType = REMIXAPI_STRUCT_TYPE_TEXTURE_INFO;
 		info.hash = texture->hash;
-		info.width = bitmap->width;
-		info.height = bitmap->height;
+		info.width = width;
+		info.height = height;
 		info.depth = info.mipLevels = 1;
 		info.format = REMIXAPI_FORMAT_B8G8R8A8_SRGB;
 		info.data = pixels;
 		info.dataSize = bytes;
 		if (status(preview.api.CreateTexture(&info, &texture->handle), "upload base bitmap"))
+		{
 			preview.texture_bytes += bytes;
+			preview.mipmapped_textures += texture->mip != 0;
+		}
 	}
 	free(pixels);
+}
+
+/* Choose coarser mips for the largest images before the upload loop spends
+ * the budget in BSP material order. */
+static void upload_planned_textures(void)
+{
+	unsigned int i, total = 0;
+
+	for (i = 0; i < preview.texture_count; i++)
+		total += texture_size(&preview.textures[i]);
+	while (total > maximum_preview_texture_bytes)
+	{
+		struct preview_texture *largest = NULL;
+		unsigned int largest_size = 0;
+
+		for (i = 0; i < preview.texture_count; i++)
+		{
+			struct preview_texture *texture = &preview.textures[i];
+			unsigned int size = texture_size(texture);
+
+			if (texture->mip < texture->maximum_mip && size > largest_size)
+			{
+				largest = texture;
+				largest_size = size;
+			}
+		}
+		if (!largest)
+			break;
+		++largest->mip;
+		total -= largest_size - texture_size(largest);
+	}
+	for (i = 0; i < preview.texture_count; i++)
+		upload_texture(&preview.textures[i]);
 }
 
 static remixapi_MaterialHandle emissive_material(const struct pathtrace_material *material,
@@ -442,22 +532,11 @@ static remixapi_MaterialHandle surface_material(const struct pathtrace_material 
 		emitter = emissive_material(material, NULL);
 		return emitter ? emitter : preview.material;
 	}
-	for (i = 0; i < preview.texture_count; i++)
-		if (preview.textures[i].group == material->diffuse_group && preview.textures[i].page == material->diffuse_bitmap)
-			break;
+	i = find_texture(material);
 	if (i == preview.texture_count)
 	{
-		if (i == maximum_preview_textures)
-		{
-			emitter = emissive_material(material, NULL);
-			return emitter ? emitter : preview.material;
-		}
-		texture = &preview.textures[preview.texture_count++];
-		memset(texture, 0, sizeof(*texture));
-		texture->group = material->diffuse_group;
-		texture->page = material->diffuse_bitmap;
-		texture->hash = 0x100000000ULL + (preview.mesh_generation << 16) + i;
-		upload_texture(texture);
+		emitter = emissive_material(material, NULL);
+		return emitter ? emitter : preview.material;
 	}
 	texture = &preview.textures[i];
 	emitter = emissive_material(material, texture);
@@ -554,6 +633,12 @@ static int upload_bsp(const struct structure_bsp *structure)
 	if (!upload)
 		return FALSE;
 	++preview.mesh_generation;
+	if (!pathtrace_scene_visit(structure, plan_texture, NULL))
+	{
+		free(upload);
+		return FALSE;
+	}
+	upload_planned_textures();
 	memset(upload, 0, sizeof(*upload));
 	if (pathtrace_scene_visit(structure, upload_surface, upload) && upload->count)
 	{
@@ -569,8 +654,8 @@ static int upload_bsp(const struct structure_bsp *structure)
 		free((void *)upload->surfaces[i].indices_values);
 	}
 	if (mesh)
-		platform_log("OpenRemix preview: uploaded the resident BSP (%u/%u textured sections, %u base texture bytes, %u radiosity materials)",
-			upload->textured, upload->count, preview.texture_bytes, preview.emitter_count);
+		platform_log("OpenRemix preview: uploaded the resident BSP (%u/%u textured sections, %u base texture bytes, %u coarser textures, %u radiosity materials)",
+			upload->textured, upload->count, preview.texture_bytes, preview.mipmapped_textures, preview.emitter_count);
 	free(upload);
 	preview.mesh = mesh;
 	return mesh != NULL;
