@@ -34,8 +34,19 @@ living on-foot Alpha actors by tick 2 and three new living actors by
 tick 1804. Spark's exact `05a4268a` collider comparison showed the same
 two waves by ticks 7 and 1813. Both used normal Survival menus and no
 player fire. No sampled frame captured the same Alpha in a seat. The
-result verifies automatic delivery in the converted maps and leaves the
-physical ejection sequence, Evolved and the original Demo comparison open.
+result verifies automatic Alpha delivery in the converted maps. The
+physical seat-to-foot transition and original Demo comparison remain open.
+
+The same exact controls also showed a living, unparented Evolved variant
+near the authored row-9 automatic spawner (86.29, -99.15, 6.28), by tick 2 on
+`12649191` and by tick 7 on `05a4268a`. A second normal-menu launch on the
+installed cache reproduced it by tick 2. Another living Evolved actor stayed
+seated at the row-10 carrier. These samples establish on-foot Evolved
+delivery at one automatic spawner and preserve the other as a separate
+case. A normal-input run found the moving row-9 weapon on the ground at
+(88.00, -169.46, 0.08), but the Survivor died while trying to leave the base.
+There is no verified handheld pickup, shot or sampled physical rollover on
+the exact installed pair.
 
 The diagnostic's 30-second mixer captured the map music, Slayer and nearby
 effects. Normal input collected and threw an authored grenade. These
