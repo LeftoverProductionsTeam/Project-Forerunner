@@ -17,6 +17,8 @@ import subprocess
 import time
 import uuid
 
+from forerunner_build import GIB, ROOT, linked_path, scratch_admission, scratch_usage
+
 
 FAILURES = ("recompile scripts", "recompile.)", "error loading scripts",
             "scripts won't run", "unsupported script", "invalid script",
@@ -49,7 +51,7 @@ def run_case(args, name, binary):
     offset = debug.stat().st_size if debug.exists() else 0
     marker = "mcc_smoke_" + uuid.uuid4().hex
     env = {key: value for key, value in os.environ.items() if not key.startswith("HALO_")}
-    env.update(HALO_DATA_ROOT=str(data), HALO_SAVE_ROOT=str(output / "saves"),
+    env.update(HALO_DATA_ROOT=str(data), HALO_SAVE_ROOT=str(args.scratch / name / "saves"),
                HALO_HIDDEN_WINDOW="1", HALO_EXIT_AFTER=str(args.seconds),
                HALO_NULL_RENDERER="0", HALO_MAX_FPS="30", HALO_NO_VSYNC="1", HALO_NO_AUDIO="1",
                HALO_DISPLAY_MODE="windowed", HALO_WINDOW_SIZE="640x480", HALO_FULLSCREEN="0",
@@ -70,6 +72,7 @@ def run_case(args, name, binary):
         with (output / "stdout.log").open("wb") as stdout, (output / "stderr.log").open("wb") as stderr:
             process = subprocess.Popen([str(binary)], cwd=data, env=env, stdout=stdout, stderr=stderr,
                                        creationflags=subprocess.CREATE_NO_WINDOW)
+            args.writer = process
             deadline = time.monotonic() + args.seconds + 60
             sent = False
             while process.poll() is None and time.monotonic() < deadline:
@@ -132,8 +135,36 @@ def main():
     for name in args.maps:
         if not re.fullmatch(r"[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)?", name) or not (args.data_root / "mcc_maps" / (name + ".map")).is_file():
             parser.error("supply existing loose or package/map names from the disposable data root")
+    build = ROOT / "build"
+    for folder in (args.data_root, args.output):
+        if linked_path(folder.absolute()) or build not in folder.resolve().parents:
+            parser.error("use physical test data and evidence folders under build")
     args.data_root, args.output = args.data_root.resolve(), args.output.resolve()
-    binary = args.output / "bin" / "halo.exe"
+    if args.output.exists() or args.data_root in args.output.parents or args.output in args.data_root.parents:
+        parser.error("use a new output folder separate from disposable game data")
+    try:
+        with scratch_admission(ROOT, GIB):
+            args.output.mkdir(parents=True)
+            args.scratch = args.output / "scratch"
+            args.scratch.mkdir()
+            owned = args.scratch.stat()
+            args.writer = None
+            try:
+                return run_smoke(args)
+            finally:
+                writer_stopped = args.writer is None or args.writer.poll() is not None
+                scratch = args.output / "scratch"
+                if writer_stopped and not linked_path(scratch) and scratch.resolve() == scratch:
+                    if os.path.samestat(owned, scratch.stat()):
+                        # Validate all entries before touching the owned child tree.
+                        scratch_usage(args.scratch)
+                        shutil.rmtree(args.scratch)
+    except (OSError, ValueError) as error:
+        parser.exit(2, f"mcc_native_smoke: {error}\n")
+
+
+def run_smoke(args):
+    binary = args.scratch / "bin" / "halo.exe"
     binary.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(args.executable, binary)
     shutil.copy2(args.executable.parent / "SDL3.dll", binary.parent / "SDL3.dll")

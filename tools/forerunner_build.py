@@ -2,11 +2,11 @@
 """Build the Windows x86 baseline from a private export of tracked source.
 
 Requires Python 3.9+, Git, Ninja, LLVM, the x86 MSVC libraries and Windows
-SDK. No game data is needed or copied. The work directory must be new and
-outside the source checkout. Outputs and a source/toolchain manifest stay
-there; this tool never cleans, replaces or publishes an existing build.
+SDK. No game data is needed or copied. Use --incremental for ordinary builds.
+The baseline export has one managed location and retains its identity manifest.
+This tool never replaces or publishes an existing build.
 
-    python tools/forerunner_build.py --work C:/Temp/forerunner-build-001 \
+    python tools/forerunner_build.py --work build/baseline-export \
         --toolchain C:/Tools/LLVM --ninja C:/Tools/ninja.exe
 
 Use --export-only to inspect the exact source snapshot without compiling.
@@ -21,6 +21,7 @@ import shutil
 import stat
 import subprocess
 import sys
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -44,13 +45,83 @@ def linked_path(path):
     return False
 
 
+# Count logical bytes conservatively, including hardlinks. Source, saves and the
+# two playtest installations are outside the scratch tree.
+GIB = 1024 ** 3
+SCRATCH_LIMIT = 32 * GIB
+MINIMUM_FREE = 4 * GIB
+INCREMENTAL_RESERVE = 4 * GIB
+
+
+def scratch_usage(directory, maximum=SCRATCH_LIMIT):
+    total = 0
+    pending = [directory]
+    while pending:
+        with os.scandir(pending.pop()) as entries:
+            for entry in entries:
+                info = entry.stat(follow_symlinks=False)
+                if (entry.is_symlink() or getattr(info, "st_file_attributes", 0) &
+                        getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)):
+                    raise ValueError(f"Linked path in managed scratch: {entry.path}")
+                if stat.S_ISDIR(info.st_mode):
+                    pending.append(entry.path)
+                elif stat.S_ISREG(info.st_mode):
+                    total += info.st_size
+                    if total > maximum:
+                        raise ValueError("Aggregate build storage limit exceeded; review existing scratch")
+                else:
+                    raise ValueError(f"Unknown file type in managed scratch: {entry.path}")
+    return total
+
+
+@contextmanager
+def scratch_admission(root, reserve):
+    """Hold one reservation across an entire managed writer operation."""
+    build = root / "build"
+    if linked_path(build) or not 0 < reserve <= SCRATCH_LIMIT:
+        raise ValueError("Managed scratch requires a physical build folder and a bounded reservation")
+    # Keep the lock outside build so rejected admission creates no job output.
+    lock = root / ".forerunner-storage.lock"
+    try:
+        held = lock.open("x", encoding="ascii")
+    except FileExistsError as error:
+        raise ValueError("Another managed job is active or interrupted; inspect its storage lock") from error
+    with held:
+        identity = os.fstat(held.fileno())
+        try:
+            held.write(f"{os.getpid()}\n")
+            held.flush()
+            used = scratch_usage(build, SCRATCH_LIMIT - reserve) if build.exists() else 0
+            if shutil.disk_usage(root).free < reserve + MINIMUM_FREE:
+                raise ValueError("The build reservation would violate the minimum free space")
+            print(f"Scratch admission: {used:,} used + {reserve:,} reserved of {SCRATCH_LIMIT:,} bytes", flush=True)
+            yield
+            if build.exists():
+                scratch_usage(build)
+        finally:
+            # An interrupted exclusive lock stays for owner review. Never
+            # remove a lock that somebody replaced during this invocation.
+            held.close()
+            if not linked_path(lock):
+                try:
+                    if os.path.samestat(lock.stat(), identity):
+                        lock.unlink()
+                except FileNotFoundError:
+                    pass
+
+
+def incremental_build(target, ninja, jobs):
+    with scratch_admission(ROOT, INCREMENTAL_RESERVE):
+        return subprocess.run([str(ninja), "-j", str(jobs), target], cwd=ROOT).returncode
+
+
 def git(source, *arguments):
     return subprocess.run(["git", "-C", str(source), *arguments], check=True, capture_output=True).stdout
 
 
 def work_directory(source, work):
     source, work = Path(source).resolve(), Path(work).resolve()
-    if work == source or source in work.parents or work in source.parents:
+    if work != source / "build/baseline-export" and (work == source or source in work.parents or work in source.parents):
         raise ValueError("the work directory must be separate from, and outside, the source checkout")
     if work.exists():
         raise ValueError(f"work directory already exists: {work}; choose a new directory (nothing was removed)")
@@ -238,7 +309,11 @@ def build_environment(args, manifest):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--source", type=Path, default=ROOT)
-    parser.add_argument("--work", required=True, type=Path)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--work", type=Path, help="explicit baseline source export")
+    mode.add_argument("--incremental", choices=("windows", "windows64", "linux", "linux64",
+                                                 "macos", "android", "android64", "browser", "web",
+                                                 "server"), help="reuse the configured Ninja target")
     parser.add_argument("--toolchain", type=Path, help="LLVM installation or its bin directory")
     parser.add_argument("--compiler", type=Path, help="exact clang.exe to put first on PATH")
     parser.add_argument("--ninja", type=Path)
@@ -252,9 +327,28 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.jobs < 1:
         parser.error("--jobs must be positive")
+    if args.incremental:
+        if args.export_only:
+            parser.error("--export-only requires --work")
+        try:
+            return incremental_build(args.incremental, executable_path(args.ninja, "ninja"), args.jobs)
+        except (ValueError, OSError) as error:
+            print(f"forerunner_build: {error}", file=sys.stderr)
+            return 2
     if os.name != "nt" and not args.export_only:
         parser.error("this baseline builds on native Windows; use --export-only to inspect its source elsewhere")
-    work = args.work.resolve()
+    source, work = args.source.resolve(), args.work.resolve()
+    if source != ROOT or work != ROOT / "build/baseline-export" or linked_path(args.work.absolute()):
+        parser.error("use the single physical build/baseline-export folder or --incremental")
+    try:
+        with scratch_admission(ROOT, INCREMENTAL_RESERVE):
+            return build_snapshot(args, work)
+    except (ValueError, OSError) as error:
+        print(f"forerunner_build: {error}", file=sys.stderr)
+        return 2
+
+
+def build_snapshot(args, work):
     manifest = None
     try:
         exported, manifest = export_source(args.source, work)

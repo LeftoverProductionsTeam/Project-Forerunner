@@ -74,7 +74,15 @@ existing ignored build/work locations; keep generated binaries, caches and test
 maps out of tracked source. After owned jobs stop, remove their disposable
 runtime/map payloads and scratch files while retaining compact useful evidence.
 Full runtime retention is an explicit debugging choice, not the default.
-Reuse one incremental output per target. The owner launches `Latest\halo.exe`
+Reuse one incremental output per target via the configured Ninja target and
+`tools/forerunner_build.py --incremental TARGET`. Check aggregate build scratch
+before creating jobs, including manual native staging. Managed builds reserve
+4 GiB under a 32 GiB logical cap and leave 4 GiB free. Reject excess or unknown
+ownership rather than creating another workspace. Release the owned reservation
+after success, failure or handled interruption. A hard-interrupted lock or
+payload requires ownership and writer verification before cleanup. Keep only
+necessary evidence and dependencies. Never archive redundant scratch.
+The owner launches `Latest\halo.exe`
 and has one rollback under `Previous`. Only promote a focused-smoke-tested
 executable with its compatible map set using `tools/forerunner_playtest.py`.
 Keep saves outside any rotating payload.

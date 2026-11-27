@@ -64,10 +64,10 @@ Before diving into a huge feature, check the [upstream feature matrix](UPSTREAM_
 
 ### Building from source
 
-For the Windows x86 build helper, you'll need Python 3.9+, Git, Ninja, LLVM, x86 MSVC libraries and the Windows SDK. Use a **new folder outside the source checkout**. The helper won't overwrite existing builds or copy game data.
+Configure once with Ninja, LLVM, MSVC libraries and the Windows SDK. Reuse the managed target for subsequent builds and playtests. The helper checks the aggregate scratch budget before starting and does not copy game data.
 
 ~~~powershell
-python tools/forerunner_build.py --work C:/Temp/forerunner-build-001 --toolchain C:/Tools/LLVM
+python tools/forerunner_build.py --incremental windows64
 ~~~
 
 Run `python tools/forerunner_build.py --help` for the compiler, SDK and Ninja options. I'm still working through builds and testing on more platforms.

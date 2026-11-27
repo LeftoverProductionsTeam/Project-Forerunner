@@ -13,7 +13,7 @@ import shutil
 import subprocess
 from pathlib import Path, PurePosixPath
 
-from forerunner_build import ROOT, file_checksum, linked_path
+from forerunner_build import GIB, ROOT, file_checksum, linked_path, scratch_admission
 
 
 MAP_FOLDERS = {"maps", "maps_ce", "mcc_maps"}
@@ -168,6 +168,15 @@ def promote(root, stage, pins, *, production_megaworld=False):
     if production_megaworld and not complete_pools:
         raise ValueError("Production MegaWorld requires a staged, complete Extraction pool receipt")
 
+    # Replacement files use independent allocations; the rollback uses links.
+    reserve = sum((stage / name).stat().st_size for name in pins) + 64 * 1024 ** 2
+    if reserve > 4 * GIB:
+        raise ValueError("Playtest replacement exceeds its 4 GiB scratch allowance")
+    with scratch_admission(root, reserve):
+        install_payload(root, build, current, previous, stage, pins)
+
+
+def install_payload(root, build, current, previous, stage, pins):
     temporary = build / "playtest-promotion"
     temporary.mkdir()
     replacement = temporary / "replacement"
