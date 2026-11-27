@@ -36,6 +36,18 @@ Deploy terminal with its verified interaction side before queuing
 Action. This run did not reach the field. Inputs, frames, hashes and
 logs are in `build/regional-split-deploy-407f9675`.
 
+Same map/runtime, normal menu and test-assisted second profile:
+UNSC used Deploy from (-16.569, 63.909, -17.752), left the bunker,
+used the field terminal, held the zone, then returned on foot and
+banked at (-16.758, 64.118, -17.752). The native log reports phases
+1, 2, 3 and 5 with one weapon and one frag banked. The isolated
+profile record independently verifies an escaped settlement, no
+open reservation or escrow, and a valid SHA-256 payload checksum.
+Covenant stayed at (1315.958, 573.084, -14.350) in BSP 11 with full
+health and shields throughout. See `build/regional-split-bank-407f9675`
+for the input tape, exact pairing, native log and bank readback.
+Remote Covenant settlement and cross-BSP travel remain separate gates.
+
 ## Ice Fields connector floor lighting
 
 Spark's `867b8ec7` / `11572552` uses the same boulder-corrected
