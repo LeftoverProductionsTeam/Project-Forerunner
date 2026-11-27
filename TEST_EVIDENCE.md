@@ -26,6 +26,16 @@ The second profile was test-assisted. Physical second-controller
 joining, overlapping region boundary travel, and remote paired
 acceptance remain open. Latest and Previous were preserved.
 
+A follow-up on the same pairing kept both players healthy while UNSC
+approached the hub controls. Normal Action at (-16.081, 63.567, -17.752)
+used the faction terminal (object 378), which correctly directed the
+player to Deploy. The session expired before Action acquired the
+separate Deploy terminal (object 380, -17.050, 64.049, -17.618). The
+Covenant player stayed at (1318.728, 575.415, -14.350). Resume at the
+Deploy terminal with its verified interaction side before queuing
+Action. This run did not reach the field. Inputs, frames, hashes and
+logs are in `build/regional-split-deploy-407f9675`.
+
 ## Ice Fields connector floor lighting
 
 Spark's `867b8ec7` / `11572552` uses the same boulder-corrected
