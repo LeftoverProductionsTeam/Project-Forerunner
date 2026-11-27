@@ -466,8 +466,8 @@ void director_save_camera(
 
 	if (local_player_index == NONE)
 		return;
-	/* port: in the working directory; the Xbox's was on its D: drive */
-	file = fopen("camera.txt", "w");
+	/* The port maps this special path into the active save root. */
+	file = fopen("d:\\camera.txt", "w");
 	if (file)
 	{
 		struct observer_result const *camera;
@@ -509,8 +509,10 @@ void director_load_camera(
 
 	if (local_player_index == NONE)
 		return;
-	/* port: in the working directory (director_save_camera) */
-	file = fopen("camera.txt", "r");
+	file = fopen("d:\\camera.txt", "r");
+	/* Older desktop builds wrote bookmarks in the data directory. */
+	if (!file)
+		file = fopen("camera.txt", "r");
 	if (file)
 	{
 		real_point3d position;
@@ -523,11 +525,18 @@ void director_load_camera(
 		struct flying_camera *camera =
 			(struct flying_camera *)director->camera_data;
 
-		fscanf(file, "%f %f %f\n", &position.x, &position.y, &position.z);
-		fscanf(file, "%f %f %f\n", &forward.i, &forward.j, &forward.k);
-		fscanf(file, "%f %f %f\n", &stored_up.i, &stored_up.j, &stored_up.k);
-		fscanf(file, "%f\n", &field_of_view);
+		int fields = fscanf(file, "%f %f %f %f %f %f %f %f %f %f",
+			&position.x, &position.y, &position.z,
+			&forward.i, &forward.j, &forward.k,
+			&stored_up.i, &stored_up.j, &stored_up.k, &field_of_view);
 		fclose(file);
+		if (fields != 10 || !valid_real_point3d(&position) ||
+			position.x < -5000.f || position.x > 5000.f ||
+			position.y < -5000.f || position.y > 5000.f ||
+			position.z < -5000.f || position.z > 5000.f ||
+			!valid_real_vector3d_axes2(&forward, &stored_up) ||
+			!valid_real(field_of_view) || field_of_view <= 0.f || field_of_view >= _pi)
+			return;
 
 		flying_camera_new_from_point_and_vector(camera, &position, &forward);
 		observer_up_from_forward(&forward, &derived_up);
