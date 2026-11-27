@@ -51,6 +51,17 @@ ground preview and its published mode receipt.
   coincident coordinates in another BSP, the field cue, the bank target, and
   resuming the local route after entering the correct BSP. A live crossing
   between overlapping field and hub scenes remains open.
+- A normal-menu two-machine LAN match on Win64
+  `6e525206fc9c2fe3e1841fc6812d448dc34fdd14a25eb4121c54a744292dfbb6`
+  used hunt map `bf748855` with receipt `796c12cf`. The UNSC host deployed
+  Squad 01, took authored hunt damage in BSP 0 and lost the run while the
+  Covenant guest remained healthy in BSP 11. The host then started operation
+  2 while the guest used its faction terminal to start Squad 02 operation 1.
+  Both retained independent deployments. The timed session ended with the
+  Covenant guest short of its hunt volume, so simultaneous AI combat,
+  synchronized kills, and authored objective credit remain unverified.
+  Logs are under `build/regional-native-trial/megaworld-hunt-bf748855/v3-two-hunts-host`
+  and `v3-two-hunts-guest`.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance
