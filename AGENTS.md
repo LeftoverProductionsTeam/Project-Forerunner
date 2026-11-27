@@ -53,6 +53,10 @@ installations, maps, disc images, saves or personal assets. The user authorized
 copying game data from Guilty Spark into isolated Forerunner test staging;
 that authorization does not permit modifying the originals or distributing data.
 The owner's latest location rule is `D:\Project Forerunner` only, on `master`.
+Use existing physical project paths for builds and tests. Never assign a new
+letter, create a SUBST or DOS device alias, attach a virtual disk, or mount a
+network share. Remove a stale mapping only after confirming it belongs to an
+owned completed test and rechecking its exact target. Preserve mapped data.
 Do not create external staging or nested project/repository copies. Reuse the
 existing ignored build/work locations; keep generated binaries, caches and test
 maps out of tracked source. After owned jobs stop, remove their disposable

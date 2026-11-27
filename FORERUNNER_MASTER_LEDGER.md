@@ -1,6 +1,6 @@
 # Forerunner engineering checkpoint
 
-Current priority follows [Product Completion V2](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md).
+Current priority follows Product Completion V3 and the [persistent acceptance goal](docs/forerunner/PERSISTENT_ACCEPTANCE_GOAL.md).
 Run native AI synchronization and compact BSP residency as shared foundation
 work. Advance flagship gameplay and Spark authoring in parallel when a
 construction issue or acceptance fixture blocks another track. The previous
@@ -24,10 +24,12 @@ priorities below retain their checkpoints and verification scope.
 - P2: original Zombie Apocalypse fidelity, then polished Survival and Firefight.
 - P3: complete the remaining unified runtime scope and preserve classic support.
 
-Latest: Win64 SHA-256 659036e994bb5663906207c2008361968769af3b80f43b016777bf7a41d99d9c.
-The single installed MegaWorld selection is the ground Extraction preview on
-the interim 19-region world. Previous retains the prior engine and exploration
-map. Promote coherent feature batches after normal-controls verification.
+Latest runs Win64 SHA-256
+`2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93`
+with the released MegaWorld ground preview `fcfe9d44`. The private V3 candidate
+adds authored match pools, recovery of regional drops, persistent AI and
+host-side remote combat effects. See [test evidence](TEST_EVIDENCE.md) for the
+limited native LAN result and remaining promotion gates.
 
 ### Interim ground Extraction on the existing world
 

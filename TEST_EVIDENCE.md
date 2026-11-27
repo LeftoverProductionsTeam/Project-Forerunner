@@ -1,5 +1,40 @@
 # Forerunner test evidence
 
+## Product Completion V3 regional Extraction and combat
+
+Private Win64 candidate `351701a5fa23a9b9fbe3dd2365986f4b78f336e3cf78b191bdc28a19609287d5`
+builds the pool, item recovery, AI and combat changes against the accepted
+renderer and residency baseline. Latest continues to ship the existing
+ground preview and its published mode receipt.
+
+- The released native cache `fcfe9d44` loaded through ordinary menus with a
+  private Spark pool receipt. The host rolled three weapons and one vehicle
+  for each of two logical regions in BSP 0. A separate two-BSP fixture and
+  earlier LAN trials verified host-selected loot shared with a guest,
+  faction-compatible deployment, and consumed loot surviving a transition
+  without respawn. The focused harness verified spawn retry without spending
+  the selection, destroyed vehicle non-respawn, drop reconnect and classic
+  vehicle respawn. Live recovery of the same dropped item and vehicle wreck
+  through a region round trip remains open.
+- Both machines joined a private LAN lobby before loading hunt cache
+  `bf748855` with receipt `796c12cf`. With the host in BSP 0 at full
+  vitality, the guest in BSP 11 threw a grenade using ordinary input. The
+  host recorded the grenade expenditure and the guest's death by tick 2400.
+  The guest respawned and the host remained healthy. This verifies damage in
+  the remote region during independent occupancy. It leaves simultaneous AI
+  combat and effect presentation in both regions open. Host and guest logs
+  are under `build/regional-native-trial/megaworld-hunt-bf748855/effect-combat-host`
+  and `effect-combat-guest`.
+- Focused tests cover actor suspension/resumption, encounterless visibility,
+  scripted reattachment, retention during memory pressure, and server-owned
+  effect routing with the correct BSP, attack attribution and water rules.
+  Negative controls reproduced the prior cleanup and damage routing failures.
+  Live unload and return with active authored actors still needs acceptance.
+- All 19 pools require a matched Spark release package. Eleven stock regions
+  lack vehicle rows. Spark owns the additional placements. Hosted online
+  persistence, simultaneous regional objectives, and compact-world acceptance
+  remain open.
+
 ## Product Completion V2.1 Windows release
 
 The prior Win64 `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
