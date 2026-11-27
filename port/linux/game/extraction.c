@@ -119,7 +119,7 @@ struct extraction_run
 	short report_page, start_kills, start_deaths, npc_kills;
 	boolean statistics_started, hub_briefed, ground_evacuation;
 	boolean resupply_visited, guidance_active;
-	boolean field_exit_notice_pending, field_exit_notice_sent;
+	boolean field_exit_notice_pending, field_exit_notice_sent, objectives_announced;
 	byte guidance_route_next[NUMBER_OF_EXTRACTION_GUIDANCE_ROUTES];
 	short guidance_flag;
 	long guidance_unit;
@@ -2294,6 +2294,7 @@ static boolean extraction_deploy(struct extraction_run *run, struct player_datum
 	}
 	run->start_kills = player->statistics.kills[0]; run->start_deaths = player->statistics.deaths;
 	run->statistics_started = TRUE; run->npc_kills = 0; run->report_page = 0;
+	run->objectives_announced = FALSE;
 	run->unit = player->unit_index; run->local_player = player->local_player_index;
 	run->dropship = NONE;
 	run->field_reached = FALSE;
@@ -3188,6 +3189,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 {
 	struct unit_datum *unit;
 	boolean return_ready = FALSE;
+	boolean objectives_ready;
 	byte owner[GEAR_ID_BYTES];
 	if (run->discard_deadline)
 	{
@@ -3251,6 +3253,14 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		}
 		return; /* Retain owned gear while alive; an incapacitated body cannot escape. */
 	}
+	objectives_ready = extraction_squad_objectives_ready(run);
+	if (VALID_INDEX(run->squad, NUMBEROF(extraction.squads)) &&
+		extraction.squads[run->squad].ready_group != NONE)
+	{
+		if (objectives_ready && !run->objectives_announced)
+			extraction_tell(run, "OBJECTIVES COMPLETE | Use the field terminal to evacuate.");
+		run->objectives_announced = objectives_ready;
+	}
 	if (run->phase == _extraction_deployed)
 	{
 		short faction = extraction_faction(unit->object.owner_team_index);
@@ -3280,8 +3290,7 @@ static void extraction_update_run(struct extraction_run *run, struct player_datu
 		/* Arrival is an operation milestone. Exit guidance follows the live seat gate. */
 		run->field_exit_ready = exit_ready;
 	}
-	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) &&
-		!extraction_squad_objectives_ready(run))
+	if ((run->phase == _extraction_activating || run->phase == _extraction_ready) && !objectives_ready)
 	{
 		run->phase = _extraction_deployed; run->activation_ticks = 0; run->dropship = NONE;
 		extraction_tell(run, "EXTRACTION CANCELLED | Your squad's authored objectives are no longer complete.");
@@ -3591,7 +3600,9 @@ static void extraction_update_guidance(struct extraction_run *run, struct player
 			flag = route[_extraction_guidance_deploy];
 			break;
 		case _extraction_deployed:
-			flag = route[_extraction_guidance_call];
+		{
+			boolean objectives_ready = extraction_squad_objectives_ready(run);
+			if (objectives_ready) flag = route[_extraction_guidance_call];
 			if (!run->resupply_visited && route[_extraction_guidance_resupply] != NONE &&
 				extraction_field_control_in_region(extraction.ground_calls[faction], unit_index))
 			{
@@ -3607,10 +3618,13 @@ static void extraction_update_guidance(struct extraction_run *run, struct player
 				else
 				{
 					run->resupply_visited = TRUE;
-					extraction_tell(run, "RESUPPLY SITE | Collect the available gear, then use the marked evacuation terminal.");
+					extraction_tell(run, objectives_ready ?
+						"RESUPPLY SITE | Collect gear, then use the evacuation marker." :
+						"RESUPPLY SITE | Collect gear and finish your objectives.");
 				}
 			}
 			break;
+		}
 		case _extraction_activating:
 			if (run->ground_evacuation) flag = route[_extraction_guidance_call];
 			break;

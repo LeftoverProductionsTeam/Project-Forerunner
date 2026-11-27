@@ -245,7 +245,7 @@ def test_starter_deployment_negative_control():
     'squad-notice-death', 'squad-notice-epoch', 'squad-notice-client', 'squad-notice-restored',
     'squad-notice-storage', 'squad-notice-text', 'squad-notice-icon', 'squad-notice-bounds',
     'squad-notice-termination', 'squad-notice-long', 'squad-notice-index',
-    'squad-objective-loop', 'squad-objective-escrow', 'squad-objective-alias', 'squad-objective-duplicate',
+    'squad-objective-loop', 'squad-objective-escrow', 'squad-objective-alias', 'squad-objective-duplicate', 'squad-objective-guidance',
 ])
 def test_squad_native_objectives(case):
     status, output = run(build('extraction', generated()), case)

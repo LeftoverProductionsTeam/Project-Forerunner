@@ -462,7 +462,14 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   not measured.
 - **Other gameplay gates.** Destroy row 229 in private 4719a713 and return
   to the same wreck. Verify synchronized kills/objective credit on bf748855.
-  Both hunts spawning and dealing damage are already recorded. Retain
+  Both hunts spawning and dealing damage are already recorded. The sealed
+  bf748855 / 796c12cf pair remains available. Spark's matching hunt source
+  records completion in the two gs_hunt_*_cleared globals and has no squad
+  ready-group output. Use it for native kill and script-state checks. A
+  ready-group-authored candidate is needed to accept gated evacuation.
+  Windows candidate DB4C98A9 passed the focused host guidance harness: an
+  authored signal reveals the call marker, notifies only its squad and clears
+  on revocation. Native LAN validation and promotion are still open. Retain
   separate candidates until the compact vehicle route and merged pools pass.
 
 No promotion or push occurred.

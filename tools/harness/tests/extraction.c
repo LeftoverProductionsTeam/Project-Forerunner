@@ -1608,6 +1608,30 @@ int main(int argc,char **argv)
    CHECK(extraction.squads[0].ready_group==8&&device_groups[8].actual_value==0,"stale authored objective admitted");
    touch(6,1);touch(0,0);touch(0,1);a=pickup(0,1);
    units[0].object.position.x=units[1].object.position.x=20;
+   if(!strcmp(case_name,"squad-objective-guidance")) {
+    extraction.guidance_arrow=0;
+    extraction.guidance_flags[0][_extraction_guidance_call]=2;
+    run(0)->resupply_visited=run(1)->resupply_visited=TRUE;
+    advance(1);
+    CHECK(hud_ground_flag==NONE,"locked evacuation showed a call marker");
+    int local_before=local_notices, remote_before=remote_notices;
+    device_groups[8].actual_value=1.f;
+    advance(1);
+    CHECK(hud_ground_flag==2&&local_notices==local_before+1&&remote_notices==remote_before,
+     "completed objective did not guide just the eligible squad");
+    CHECK(strstr(local_notice_history[local_before%4],"OBJECTIVES COMPLETE"),"host completion notice missing");
+    advance(1);
+    CHECK(local_notices==local_before+1,"ready notice repeated");
+    device_groups[8].actual_value=0.f;
+    advance(1);
+    CHECK(hud_ground_flag==NONE,"revoked objective left an evacuation marker");
+    extraction.guidance_arrow=NONE;
+    device_groups[9].actual_value=1.f;
+    advance(1);
+    CHECK(remote_notices==remote_before+1&&strstr(last_remote_notice,"OBJECTIVES COMPLETE")&&
+     local_notices==local_before+1,"second squad's completion notice did not reach only its guest");
+    return 0;
+   }
    touch(1,0);CHECK(run(0)->phase==_extraction_deployed&&!control_updates[1],"incomplete objective activated extraction");
    device_groups[8].actual_value=.5f;touch(1,0);CHECK(run(0)->phase==_extraction_deployed,"partial objective signal admitted");
    device_groups[8].actual_value=1;touch(1,0);touch(1,1);CHECK(run(0)->phase==_extraction_activating&&run(1)->phase==_extraction_deployed,"squad objective unlocked other squad");
