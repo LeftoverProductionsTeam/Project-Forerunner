@@ -468,6 +468,20 @@ the matching capture folder. `window01151.bmp` shows the tunnel and
 fallback and restoration on released content. Multiplayer and traced
 indoor lighting remain open.
 
+**Authored MCC mip chains.** Win64
+`3db7b4ac47eb4942e121fb54256cd4c58f7436f47390ab35b4ec6fc79d075515`
+uploads each affordable native 2D mip chain to OpenRemix and sets the
+environment base sampler to linear filtering and repeat addressing. On the
+released `fcfe9d44` Infinity round trip, both BSP 0 uploads bound 152/152
+opaque sections with 802 mip levels in 33,552,448 bytes. The provider
+used the native baked frame in BSP 12 and resumed FSR outside with fresh
+history. The private log
+`process-live-pathtrace-megaworld-infinity-release-mipchain-verified.log`
+and matching captures are under `build/native-bsp-pathtrace-stock-bloodgulch`.
+One initial setup placement was followed by movement inputs. The run
+checks complete uploads and playback through the seam. Texture shimmer
+and performance deltas remain unquantified.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

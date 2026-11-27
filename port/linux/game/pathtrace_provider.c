@@ -89,7 +89,7 @@ static struct
 		short page;
 		remixapi_MaterialHandle handle;
 	} emitters[maximum_preview_material_sections];
-	unsigned int texture_count, texture_bytes, mipmapped_textures, emitter_count;
+	unsigned int texture_count, texture_bytes, mipmapped_textures, texture_levels, emitter_count;
 	const struct structure_bsp *structure;
 	char map[128];
 	short bsp, sky;
@@ -191,7 +191,7 @@ static void retire_bsp(void)
 		if (texture->material[1]) preview.api.DestroyMaterial(texture->material[1]);
 		if (texture->handle) preview.api.DestroyTexture(texture->handle);
 	}
-	preview.texture_count = preview.texture_bytes = preview.mipmapped_textures = preview.emitter_count = 0;
+	preview.texture_count = preview.texture_bytes = preview.mipmapped_textures = preview.texture_levels = preview.emitter_count = 0;
 }
 
 void pathtrace_provider_close(void)
@@ -328,10 +328,18 @@ struct preview_mesh
 	unsigned int count, textured;
 };
 
+static unsigned int texture_level_texels(const struct preview_texture *texture, unsigned int mip)
+{
+	return MAX(texture->bitmap->width >> mip, 1) * MAX(texture->bitmap->height >> mip, 1);
+}
+
 static unsigned int texture_size(const struct preview_texture *texture)
 {
-	return MAX(texture->bitmap->width >> texture->mip, 1) *
-		MAX(texture->bitmap->height >> texture->mip, 1) * sizeof(pixel32);
+	unsigned int mip, texels = 0;
+
+	for (mip = texture->mip; mip <= texture->maximum_mip; ++mip)
+		texels += texture_level_texels(texture, mip);
+	return texels * sizeof(pixel32);
 }
 
 static unsigned int find_texture(const struct pathtrace_material *material)
@@ -404,15 +412,27 @@ static int plan_texture(void *context, const struct pathtrace_material *material
 	return TRUE;
 }
 
-static int read_texture_pixels(const struct preview_texture *texture, unsigned int width,
-	unsigned int height, pixel32 *pixels)
+static int read_texture_pixels(const struct preview_texture *texture, pixel32 *pixels)
 {
 	struct bitmap_data *bitmap = texture->bitmap;
 	short y;
 
 #ifdef HALO_BGFX
 	if (texture->mcc_resource)
-		return mcc_texture_bridge_decode_mip(texture->mcc_resource, texture->mip, width, height, pixels);
+	{
+		unsigned int mip;
+
+		for (mip = texture->mip; mip <= texture->maximum_mip; ++mip)
+		{
+			unsigned int width = MAX(bitmap->width >> mip, 1);
+			unsigned int height = MAX(bitmap->height >> mip, 1);
+
+			if (!mcc_texture_bridge_decode_mip(texture->mcc_resource, mip, width, height, pixels))
+				return FALSE;
+			pixels += texture_level_texels(texture, mip);
+		}
+		return TRUE;
+	}
 #endif
 
 	if (!texture_cache_bitmap_load(bitmap))
@@ -436,19 +456,21 @@ static void upload_texture(struct preview_texture *texture)
 	pixels = malloc(bytes);
 	if (!pixels)
 		return;
-	if (read_texture_pixels(texture, width, height, pixels))
+	if (read_texture_pixels(texture, pixels))
 	{
 		info.sType = REMIXAPI_STRUCT_TYPE_TEXTURE_INFO;
 		info.hash = texture->hash;
 		info.width = width;
 		info.height = height;
-		info.depth = info.mipLevels = 1;
+		info.depth = 1;
+		info.mipLevels = texture->maximum_mip - texture->mip + 1;
 		info.format = REMIXAPI_FORMAT_B8G8R8A8_SRGB;
 		info.data = pixels;
 		info.dataSize = bytes;
 		if (status(preview.api.CreateTexture(&info, &texture->handle), "upload base bitmap"))
 		{
 			preview.texture_bytes += bytes;
+			preview.texture_levels += info.mipLevels;
 			preview.mipmapped_textures += texture->mip != 0;
 		}
 	}
@@ -488,6 +510,14 @@ static void upload_planned_textures(void)
 		upload_texture(&preview.textures[i]);
 }
 
+static void set_environment_sampler(remixapi_MaterialInfo *info)
+{
+	/* SDK sampler values used by the upstream material helper: linear and
+	 * repeat. Halo's native environment base pass also repeats its UVs. */
+	info->filterMode = 1;
+	info->wrapModeU = info->wrapModeV = 1;
+}
+
 static remixapi_MaterialHandle emissive_material(const struct pathtrace_material *material,
 	const struct preview_texture *texture)
 {
@@ -519,6 +549,7 @@ static remixapi_MaterialHandle emissive_material(const struct pathtrace_material
 	info.sType = REMIXAPI_STRUCT_TYPE_MATERIAL_INFO;
 	info.pNext = &opaque;
 	info.hash = 0x300000000ULL + (preview.mesh_generation << 16) + i;
+	set_environment_sampler(&info);
 	if (texture && texture->handle)
 	{
 		_snwprintf(uri, NUMBEROF(uri), L"0x%016llx", (unsigned long long)texture->hash);
@@ -575,6 +606,7 @@ static remixapi_MaterialHandle surface_material(const struct pathtrace_material 
 		info.sType = REMIXAPI_STRUCT_TYPE_MATERIAL_INFO;
 		info.pNext = &opaque;
 		info.hash = 0x200000000ULL + (preview.mesh_generation << 16) + i * 2 + alpha;
+		set_environment_sampler(&info);
 		info.albedoTexture = uri;
 		status(preview.api.CreateMaterial(&info, &texture->material[alpha]), "bind base bitmap");
 	}
@@ -680,8 +712,8 @@ static int upload_bsp(const struct structure_bsp *structure)
 		free((void *)upload->surfaces[i].indices_values);
 	}
 	if (mesh)
-		platform_log("OpenRemix preview: uploaded the resident BSP (%u/%u textured sections, %u base texture bytes, %u coarser textures, %u radiosity materials)",
-			upload->textured, upload->count, preview.texture_bytes, preview.mipmapped_textures, preview.emitter_count);
+		platform_log("OpenRemix preview: uploaded the resident BSP (%u/%u textured sections, %u base texture bytes, %u coarser textures, %u uploaded mip levels, %u radiosity materials)",
+			upload->textured, upload->count, preview.texture_bytes, preview.mipmapped_textures, preview.texture_levels, preview.emitter_count);
 	free(upload);
 	preview.mesh = mesh;
 	return mesh != NULL;
