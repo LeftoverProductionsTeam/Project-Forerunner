@@ -18,6 +18,8 @@ from forerunner_build import ROOT, file_checksum, linked_path
 
 MAP_FOLDERS = {"maps", "maps_ce", "mcc_maps"}
 RECEIPT = ".forerunner-playtest.json"
+MEGAWORLD_REGIONS = 19
+REGIONAL_POOLS_FEATURE = "extraction.regional_pools.v1"
 
 
 def payload_name(name):
@@ -93,7 +95,38 @@ def close_playtest(root, current):
         raise RuntimeError("Close the running Forerunner playtest before promoting.")
 
 
-def promote(root, stage, pins):
+def check_pooled_megaworld_receipt(receipt, name):
+    features = receipt.get("requiredNativeFeatures", [])
+    pools = receipt.get("extractionPools")
+    has_pools_feature = isinstance(features, list) and REGIONAL_POOLS_FEATURE in features
+    if pools is None and not has_pools_feature:
+        return False
+    if (receipt.get("mode") != "extraction" or receipt.get("scenarioType") != 1
+            or not has_pools_feature or not isinstance(pools, list)
+            or len(pools) != MEGAWORLD_REGIONS):
+        raise ValueError(f"Keep partial Extraction pools in private staging: {name}")
+
+    region_ids = set()
+    assigned_rows = {field: set() for field in ("playerStarts", "weapons", "vehicles")}
+    for region in pools:
+        if not isinstance(region, dict):
+            raise ValueError(f"Invalid Extraction pool region: {name}")
+        region_id = region.get("regionId")
+        if not isinstance(region_id, str) or not region_id.strip() or region_id in region_ids:
+            raise ValueError(f"Extraction needs nineteen distinct region identities: {name}")
+        region_ids.add(region_id)
+        for field, minimum in (("playerStarts", 2), ("weapons", 3), ("vehicles", 1)):
+            rows = region.get(field)
+            if (not isinstance(rows, list) or len(rows) < minimum
+                    or any(type(row) is not int or row < 0 for row in rows)
+                    or (field == "playerStarts" and len(rows) != minimum)
+                    or len(set(rows)) != len(rows) or assigned_rows[field].intersection(rows)):
+                raise ValueError(f"Missing, invalid, or shared {field} for Extraction region {region_id}: {name}")
+            assigned_rows[field].update(rows)
+    return True
+
+
+def promote(root, stage, pins, *, production_megaworld=False):
     build = root / "build"
     latest = root / "Latest"
     previous = root / "Previous"
@@ -108,6 +141,7 @@ def promote(root, stage, pins):
         raise ValueError("Use a fresh disposable stage directly under build")
     if stage.resolve() == current or "halo.exe" not in pins:
         raise ValueError("Pin the staged executable")
+    complete_pools = False
     for name, digest in pins.items():
         path = stage / payload_name(name)
         if not re.fullmatch(r"[0-9a-fA-F]{64}", digest) or linked_path(path) or not path.is_file():
@@ -129,6 +163,10 @@ def promote(root, stage, pins):
                 str(receipt.get("cacheSha256")).lower() != native_digest.lower()
             ):
                 raise ValueError(f"Spark receipt does not match the map: {name}")
+            complete_pools |= check_pooled_megaworld_receipt(receipt, name)
+
+    if production_megaworld and not complete_pools:
+        raise ValueError("Production MegaWorld requires a staged, complete Extraction pool receipt")
 
     temporary = build / "playtest-promotion"
     temporary.mkdir()
@@ -189,12 +227,15 @@ def main():
     parser.add_argument("stage", type=Path)
     parser.add_argument("sha256")
     parser.add_argument("--file", action="append", default=[], metavar="PATH=SHA256")
+    parser.add_argument("--production-megaworld", action="store_true",
+                        help="require a staged Extraction receipt covering the whole MegaWorld")
     args = parser.parse_args()
     try:
         pins = dict(entry.rsplit("=", 1) for entry in args.file)
         if "halo.exe" in pins or len(pins) != len(args.file):
             raise ValueError("Supply each staged file pin once")
-        promote(ROOT, args.stage, {"halo.exe": args.sha256, **pins})
+        promote(ROOT, args.stage, {"halo.exe": args.sha256, **pins},
+                production_megaworld=args.production_megaworld)
     except (ValueError, OSError, RuntimeError) as error:
         parser.exit(2, f"forerunner_playtest: {error}\n")
 

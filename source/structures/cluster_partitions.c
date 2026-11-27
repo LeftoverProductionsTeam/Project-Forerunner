@@ -255,6 +255,10 @@ void cluster_partition_make_valid(
 	data_make_valid(partition->cluster_reference_data);
 	data_make_valid(partition->data_reference_data);
 	cluster_partition_port_forget(partition);
+	partition->regional_reference_reuses = 0;
+	partition->regional_reference_failures = 0;
+	partition->regional_cluster_peak = 0;
+	partition->regional_data_peak = 0;
 	/* port: the new map's lists warn again when full */
 	reference_list_port_report(partition->cluster_reference_data);
 	reference_list_port_report(partition->data_reference_data);
@@ -265,6 +269,12 @@ void cluster_partition_make_valid(
 void cluster_partition_make_invalid(
 	struct cluster_partition *partition)
 {
+	if (partition->regional_cluster_peak || partition->regional_reference_failures)
+		error(_error_silent, "Regional references (%s): peak cluster %d/%d, data %d/%d; unchanged %lu, allocation failures %lu",
+			partition->cluster_reference_data->name,
+			partition->regional_cluster_peak, partition->cluster_reference_data->maximum_count,
+			partition->regional_data_peak, partition->data_reference_data->maximum_count,
+			partition->regional_reference_reuses, partition->regional_reference_failures);
 	/* port: how many times the map's lists were full past the first */
 	reference_list_port_report(partition->cluster_reference_data);
 	reference_list_port_report(partition->data_reference_data);
@@ -499,7 +509,13 @@ boolean cluster_partition_reconnect_in_bsp(
 		long data_reference_index;
 
 		if (cluster_reference_index == NONE)
+		{
+			if (structure_bsp_index != NONE)
+				partition->regional_reference_failures++;
 			return FALSE;
+		}
+		if (structure_bsp_index != NONE)
+			partition->regional_cluster_peak = MAX(partition->regional_cluster_peak, partition->cluster_reference_data->actual_count);
 		data_reference_index = cluster_partition_port_add(
 			partition->data_reference_data,
 			cluster_partition_get_first_reference(partition, cluster_key),
@@ -512,8 +528,12 @@ boolean cluster_partition_reconnect_in_bsp(
 				partition->cluster_reference_data, cluster_reference_index);
 			*first_cluster_reference = reference->next_reference_index;
 			datum_delete(partition->cluster_reference_data, cluster_reference_index);
+			if (structure_bsp_index != NONE)
+				partition->regional_reference_failures++;
 			return FALSE;
 		}
+		if (structure_bsp_index != NONE)
+			partition->regional_data_peak = MAX(partition->regional_data_peak, partition->data_reference_data->actual_count);
 		partition->port_modification_count++;
 		if (partition->port_cluster_data_references)
 		{
@@ -535,6 +555,12 @@ boolean cluster_partition_replace_in_bsp(
 	float radius,
 	struct location const *location)
 {
+	short clusters[64];
+	short count = structure_bsp_clusters_in_sphere(structure, location->cluster_index,
+		position, radius, NUMBEROF(clusters), clusters);
+	short remaining = MIN(count, (short)NUMBEROF(clusters));
+	boolean unchanged = remaining > 0;
+	boolean linked;
 	long old_reference, replacement = NONE;
 
 	/* A loaded save can lack the reverse lookup. Restore it before the same
@@ -544,6 +570,15 @@ boolean cluster_partition_replace_in_bsp(
 		struct data_reference *cluster = datum_get(partition->cluster_reference_data, old_reference);
 		long slot = DATUM_INDEX_TO_ABSOLUTE_INDEX(old_reference);
 
+		if (remaining > 0)
+		{
+			short target = clusters[--remaining];
+			long key = structure_bsp_index == NONE ? target :
+				((long)structure_bsp_index + 1) * MAXIMUM_CLUSTERS_PER_STRUCTURE + target;
+			unchanged = unchanged && cluster->datum_index == key;
+		}
+		else
+			unchanged = FALSE;
 		if (!partition->port_cluster_data_references || !partition->port_previous_references)
 			return FALSE;
 		if (partition->port_cluster_data_references[slot] == NONE)
@@ -567,8 +602,18 @@ boolean cluster_partition_replace_in_bsp(
 		old_reference = cluster->next_reference_index;
 	}
 
-	if (!cluster_partition_reconnect_in_bsp(partition, structure_bsp_index, structure, datum_index,
-		&replacement, position, radius, location))
+	if (unchanged && remaining == 0)
+	{
+		partition->regional_reference_reuses++;
+		partition->regional_cluster_peak = MAX(partition->regional_cluster_peak, partition->cluster_reference_data->actual_count);
+		partition->regional_data_peak = MAX(partition->regional_data_peak, partition->data_reference_data->actual_count);
+		return TRUE;
+	}
+	linked = cluster_partition_reconnect_in_bsp(partition, structure_bsp_index, structure, datum_index,
+		&replacement, position, radius, location);
+	partition->regional_cluster_peak = MAX(partition->regional_cluster_peak, partition->cluster_reference_data->actual_count);
+	partition->regional_data_peak = MAX(partition->regional_data_peak, partition->data_reference_data->actual_count);
+	if (!linked)
 	{
 		cluster_partition_disconnect(partition, datum_index, &replacement);
 		return FALSE;

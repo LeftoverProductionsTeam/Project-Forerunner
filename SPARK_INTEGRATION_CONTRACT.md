@@ -1768,6 +1768,18 @@ preview. Receipt fields do not change configuration or bypass native admission.
 Classic maps without a receipt still use their existing catalog and loader.
 Choose the corresponding gameplay menu to start the map.
 
+A pooled MegaWorld receipt uses the existing `extraction.regional_pools.v1`
+feature and `extractionPools` records. Promotion through the managed Windows
+playtest requires nineteen distinct logical region IDs. Use
+`--production-megaworld` to require the complete receipt in the staged release. Each needs two
+authored starts, at least three candidate weapon rows, and at least one
+candidate vehicle row. Rows within a category cannot be shared between
+regions. Several logical regions may share one physical BSP. Check the roster
+against Spark’s authored region identities and verify each binding against
+the exact native map before promotion. The runtime still accepts partial
+receipts in private staging, and the existing ground preview can load without
+pools.
+
 Native Win64 checks identified renamed CE `ash bridge` and renamed MCC
 `dust echo` as Firefight and displayed a hash mismatch on the deliberately
 stale CE receipt. The renamed MCC map spawned with its own HaloScript wave

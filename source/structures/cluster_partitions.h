@@ -38,6 +38,8 @@ struct cluster_partition
 	/* Default BSP for native object queries and new reverse references.
 	 * Lights and classic worlds keep plain keys. */
 	short port_structure_bsp_index;
+	unsigned long regional_reference_reuses, regional_reference_failures;
+	short regional_cluster_peak, regional_data_peak;
 };
 
 /* ---------- prototypes/CLUSTER_PARTITIONS.C */

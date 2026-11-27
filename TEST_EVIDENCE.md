@@ -136,6 +136,24 @@ ground preview and its published mode receipt.
   geometry, and exhausted references. It also covered the existing
   projectile and classic paths. Restoring the foreground fallback failed.
   A rendered drop at a boundary still needs both peers to verify it.
+- Win64 candidate `7f27a197` reuses unchanged qualified cluster references
+  under allocation pressure. The focused Windows regression kept the same
+  handles when both reference pools were full, verified rollback on each
+  kind of allocation failure, and measured temporary peaks of 3 cluster
+  and 2 data references in that intentionally tiny fixture. Desktop
+  partitions keep their existing 8,192-entry capacity. A normal two-machine
+  LAN run of `fcfe9d44` with the private pool receipt held BSPs 0 and 11 and
+  moved both players. Peak process working sets were 776.5 MiB host and
+  687.9 MiB guest. These include the renderer and all other game memory.
+  The timed exit produced no per-partition report. Native reference peaks,
+  BSP-only residency and crossing pressure remain unmeasured. Logs are
+  under `build/regional-pool-authority/pressure-native-host` and
+  `pressure-native-guest`.
+- Production promotion now requires complete pool coverage. The existing
+  released ground preview and a synthetic full roster passed preflight.
+  The retained partial receipt, duplicate region IDs, missing vehicles,
+  shared pickup rows and a production request without a receipt were
+  rejected before installation changes.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance
