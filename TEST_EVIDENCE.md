@@ -820,6 +820,21 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   Beaver Creek connector, then continue toward the Covenant field call,
   base return and bank. Route surveys remain in the live guest folder.
   Retained Chiron routes are in full-pools-peer-exit-guest/route.
+  A fresh two-process private LAN on `7d25057b` and exact
+  `fd7a49fa` / `868a8adf` used the normal Extraction host lobby,
+  harness-assisted guest discovery and normal team/input controls.
+  From the south hub start, Covenant took the east and north outer
+  corridors, west doorway and stock west ladder, then used Deploy.
+  The host issued the session stash and deployed pool 7/BSP 0;
+  the guest displayed the corresponding notice. The guest jumped
+  the raised Chill Out threshold, crouched through the lower aisle
+  and used stock portal 186→187. The client rendered the green flash
+  (`guest/window55340.bmp`); both logs agree at tick 14160 on
+  (-111.353, 238.670, -14.731), with both players healthy. Audio was
+  disabled. Both processes exited at the staging timeout before the
+  field call. Receipt, inputs and logs:
+  `build/regional-covenant-lan-fd7a-7d25`. Resume beyond portal 187
+  toward the stage 6 connector in a longer-lived run.
 - **Compact world.** The 919fbcce infantry round trip via Carousel's stock
   teleporter remains accepted. Spark isolated f5a4ca22's missing wall to
   authored winding. Separate d05638dd ramp and e55f3851 opacity builds
