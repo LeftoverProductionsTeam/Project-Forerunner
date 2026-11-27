@@ -1,5 +1,9 @@
 # Forerunner test evidence
 
+## Firefight round and set release
+
+Win64 E930A0952A9B899DA0DEF9CB0EDDE32E6DD23C0FBC3DED2204CD4626EA81AF80 is in Latest. Previous holds F3867A7C. Normal Firefight menus on stock B40 0A7B26D6 selected three waves, one wave per round, two rounds per set, one initial enemy and resupply. Native solo-host combat used the existing aim/trigger harness with finite ammunition. Host logging shows round clear at 100, set clear at 200, entry to set 2, three native kills, two resupplies, victory at 300 and return to pregame. Logs and frames: build/firefight-sets-e930a095-complete. The release and Previous seals match; B40 and the released MegaWorld pair are unchanged. Grouped peer late join and reconnect still need native proof.
+
 ## Windows small app icon
 
 Win64 candidate `1466b288` started in an isolated rendered desktop window.
