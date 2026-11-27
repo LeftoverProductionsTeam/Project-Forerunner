@@ -288,6 +288,62 @@ This verifies the infantry round trip via the stock teleporter. The direct
 Carousel approach and Warthog round trip are open. The private map stayed
 out of Latest.
 
+## Resumable MegaWorld acceptance checkpoint — 2026-11-27 03:22 local
+
+Exact SHA-256 pins. All maps use their adjacent Spark mode receipts.
+
+| Pairing | Executable | Map | Receipt |
+| --- | --- | --- | --- |
+| Latest ground preview | `2757225e3690c93dfe37dfdc97920707867a4ede204b6b486cece6680b1f4b93` | `fcfe9d449aed9683421e22ed80c412e74ebb05fdcb121ae988b13b3ea5e7f01f` | `d7c07e868df9f1158f023cc11b5fdcc025e853dd158b34ab5257cbb08a8366da` |
+| Compact infantry trial | Latest executable above | `919fbcce7722ccc32b19f3a541c8bb14916b373f2ae16f353bc48c0691ae915d` | `204b37f6bbe95da0ea4dca2130e326455490b1ea5dd1639a30e4670bb776aa09` |
+| Full-world paired Extraction | `1bbcc126dd51016596fd2910035be5fc149c69d76ce6047414b157f85ed47204` | `fd7a49faf877d9565b8472d82beceaf726af74ea6142b9f07e550576f09646ca` | `868a8adfbaab27b9a14f5d1edfc3ab641a14516646e0156f08bb51dfff297855` |
+| Private damageable Ghost | Same `1bbcc126` executable above | `4719a713cb7bc29e9371a925a7f4fb074c0e2221ed6ff7a33063f10d25019ddb` | `213b2d85d35423e867e32740f6d2e9adb6d3acbb17c888c22f72c0767bec835c` |
+| Retained two-hunt trial | Prior `7fdae7fe` from test record | `bf748855e1d748823638ec4caeb9f7db113c18cac45789ef1973f07c64fc297e` | `796c12cfd3ee21ab8ef92f318617ab837ccdf0632551ec62dca49de8ea42773a` |
+
+Previous executable remains
+`6fa0c1e3552b60496d07ad80674c59bb6d24367799adff25fae0c5983c9ac3ab`.
+Private folders are under `build/regional-pressure-profile`. Each run has
+`logs/debug.txt`, `screens`, `pid.txt` and its own `buttons.txt` normal input
+feed. PIDs were live at capture. Recheck PID, executable path and the last
+gameplay tick before resuming.
+
+- **Compact, PID 43656, `compact-native-route`.** Both directions verified on
+  foot in one session via the stock Carousel teleporter on the return.
+  At tick 32760 the Covenant Elite was alive in Ice Fields at
+  (951.152, 141.936, -14.905), full health and shields. The direct lower
+  Carousel approach stops beneath the tunnel. Spark has the position and
+  requested combined candidate. Once its exact corrected map and receipt
+  arrive, verify the changed approach on foot and by Warthog both ways.
+- **Full world, PIDs 23260/59128, `full-pools-reconnect-host` and
+  `full-pools-reconnect-guest`.** Accepted evidence covers both players
+  deploying in one match, shared host-selected loot, and the same Beaver
+  Creek Ghost reboard after BSP 0 unloaded and returned. A new UNSC run
+  went to pool 4 and boarded Rat Race Ghost `e83405c5` seat 0. At tick
+  93960, the UNSC guest waited aboard at (-84.802, 151.990, -15.605).
+  The Covenant host respawned at base and waited at the foot of the east
+  ladder (1317.967, 577.677, -15.650). First finish one complete route:
+  drive the active UNSC run to its authored field terminal, use it on
+  foot, return to the UNSC hub and verify the bank and region return in
+  both logs. Repeat for Covenant after normal deployment. Recovery of the
+  same loose dropped datum still requires exact pickup evidence.
+- **Wreck fixture, PID 42048, `wreck-native-solo`.** The campaign Ghost
+  at Beaver Creek row 229 materialized. At tick 67470 the player was alive
+  on the Timberland–Sidewinder approach at (78.192, 37.479, -21.075).
+  Straight walking stopped at the snow wall shown in `window216409.bmp`.
+  Next use a reachable ground approach to the pad at (464.412, -38.136,
+  -18.026), confirm genuine body destruction on row 229, leave its
+  simulation region, then return and verify the same damaged/dead datum.
+  The stock Ghost reboard is independent evidence.
+- **Hunts, retired sessions `two-hunts-live-host` and
+  `two-hunts-live-guest`.** Both hunts spawned and dealt damage in the
+  paired match. Exact fixture is under
+  `build/regional-native-trial/megaworld-hunt-bf748855/mcc_maps`.
+  The old executable's hash is retained as a prefix in the test record.
+  Continue from the verified encounter setup, then confirm synchronized
+  kills and objective credit for both squads.
+
+No acceptance in this checkpoint promotes a map or runtime.
+
 ## Product Completion V2.1 Windows release
 
 The prior Win64 `eecbbd645b46986dc23b11383a2a8c54d5fc95efca74668a4fea83e4ca21a035`
