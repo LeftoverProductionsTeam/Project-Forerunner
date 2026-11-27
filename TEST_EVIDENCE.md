@@ -316,18 +316,29 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   Covenant guest remained alive. The bank notice is private to the owner.
   The read-only Sidewinder bypass and Timberland routes are in the host's
   route folder. Remote receipt of an UNSC bank remains unverified.
-- **Covenant guest.** Deployed normally into pool 7, BSP 0, and the guest
-  received the host's deployment message. Both logs show the Elite at
-  (-127.706, 247.444, -17.113) at tick 48120. Both owned windows then
-  closed at 03:58:40–41 before any field call or bank. The new timerless
-  full-pools-covenant-bank-host/guest pair (PIDs 54404/25084 at capture)
-  joined normally, matching the cache hash and reporting two machines. The
-  guest dropped from the hub upper deck to the lower floor during approach
-  and was alive at (1311.893, 577.019, -15.650) at tick 7530. No new deploy
-  or bank was recorded. Next rejoin the guest normally if still on the lower
-  floor and use the verified upper bridge waypoint (1316.607, 579.386) before
-  turning south toward control 381. Then finish the remote field call, return
-  and bank on this exact pair.
+- **Covenant guest.** Preserved prior 1bbcc126 deployment into pool 7.
+  In full-pools-covenant-bank-host the guest's normal departure at 04:29:00
+  cleared the negotiated regional capability and the host asserted in
+  combined player PVS. Exact old executable disassembly identifies the
+  player cluster lookup. The private PVS fix
+  bed26fb49e3b37d778e5027e3f5a2605c7158ba0312b756e0092c2574000141e
+  deployed the guest to pool 12, BSP 1. On normal guest departure at
+  04:42:15 the host passed removal, capability reset, and game over without
+  the assertion (full-pools-peer-exit-host, past tick 11970).
+  Chiron stock source row 237 did not move the guest on this build. The host
+  searched only its foreground BSP. A second private candidate
+  7709b08bb6571d91c1a651b4da7f207ea47e4f31490c6b1859fd171e327cad2c
+  contains the BSP-qualified teleporter lookup, collision and placement patch.
+  The exact same fd7a49fa/868a8adf map pair is running in
+  full-pools-regional-teleporter-host/guest (PIDs 41560/40616 at capture).
+  Normal terminal use deployed the guest into Chill Out pool 7, BSP 0.
+  Both logs agree the guest boarded Ghost e83a05cb (native row 233) and
+  drove off (-116.033, 245.086, -15.702) to ~(-114.67, 245.91, -15.80)
+  through tick 10710. Next continue out of Chill Out toward the Covenant
+  field call, base return and bank. The candidate has compiled teleporter
+  code. Live traversal with the host in another BSP and guest audiovisual
+  feedback are pending. The retained Chiron survey is in
+  full-pools-peer-exit-guest/route/covenant-putput-routes.json.
 - **Compact world.** The 919fbcce infantry round trip via Carousel's stock
   teleporter remains accepted. Spark isolated f5a4ca22's missing wall to
   authored winding. Separate d05638dd ramp and e55f3851 opacity builds
@@ -350,10 +361,11 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   implementation preserves crossing validation. A focused compiled probe verified
   context fields, per-player throttling and immediate success output. Normal
   gameplay also emitted successful transfer records for both directions at
-  both repaired seams in the compact-native-diagnostics log. Spark editor
-  presentation remains open. The older BSP fixture is stale against
-  current residency interfaces. Its unfinished changes were kept outside
-  the source commit.
+  both repaired seams in the compact-native-diagnostics log. Spark source
+  0751058f resolved all six retained transfers in an exact map/log check.
+  Its desktop compile passed. Live creator workflow acceptance remains open. The older BSP fixture is stale against
+  current residency interfaces. The earlier denied discard of those two
+  edited fixture files remains deferred. Both edits remain in the worktree.
 - **Other gameplay gates.** Observe recovery of the same loose datum,
   destroy row 229 in private 4719a713 and return to the same wreck, and
   verify synchronized kills/objective credit on bf748855. Both hunts

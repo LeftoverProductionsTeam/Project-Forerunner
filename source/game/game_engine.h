@@ -905,6 +905,7 @@ long find_netgame_flag(
 	short team_index);
 
 long game_engine_find_teleporter(
+	short bsp,
 	union real_point3d const *position,
 	real radius,
 	short type,

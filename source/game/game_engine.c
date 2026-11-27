@@ -5205,11 +5205,21 @@ static void game_engine_update_teleporter(
 	real_vector3d forward;
 	long source_flag_index;
 	long destination_flag_index;
+	short bsp = NONE;
 
 	if (player->unit_index == NONE)
 		return;
 
 	unit = unit_get(player->unit_index);
+	if (network_regional_independent_bsp_ready())
+	{
+		/* The host owns the regional root. Clients use its normal placement update. */
+		if (game_connection() == _game_connection_network_client)
+			return;
+		bsp = object_get_regional_bsp(player->unit_index);
+		if (bsp == NONE)
+			return;
+	}
 	if (!VALID_INDEX(player->teleporter_index, scenario->netgame_flags.count))
 		player->teleporter_index = NONE;
 	if (player->teleporter_index != NONE)
@@ -5223,7 +5233,7 @@ static void game_engine_update_teleporter(
 			player->teleporter_index = NONE;
 	}
 
-	source_flag_index = game_engine_find_teleporter(
+	source_flag_index = game_engine_find_teleporter(bsp,
 		&unit->object.position, 0.5f, _netgame_flag_teleporter_source, NONE);
 	if (source_flag_index == NONE ||
 		source_flag_index == player->teleporter_index)
@@ -5235,7 +5245,7 @@ static void game_engine_update_teleporter(
 		&scenario->netgame_flags,
 		source_flag_index,
 		struct scenario_netgame_flag);
-	destination_flag_index = game_engine_find_teleporter(
+	destination_flag_index = game_engine_find_teleporter(bsp,
 		NULL, 0.0f, _netgame_flag_teleporter_target, source_flag->team_index);
 	if (destination_flag_index != NONE)
 	{
@@ -5263,7 +5273,7 @@ static void game_engine_update_teleporter(
 			{
 				struct collision_plane point_test_result;
 
-				if (collision_get_features_in_sphere(
+				if (collision_get_bsp_features_in_sphere(bsp,
 						0x200380,
 						&position,
 						height + radius * 2.0f,
@@ -5323,6 +5333,39 @@ static void game_engine_update_teleporter(
 			}
 		}
 
+		{
+			real angle =
+				arctangent(forward.j, forward.i) +
+				destination_flag->facing -
+				source_flag->facing;
+
+			forward.i = cosine(angle);
+			forward.j = sine(angle);
+			normalize3d(&forward);
+			if (bsp != NONE && bsp != global_structure_bsp_index_get())
+			{
+				real_vector3d right = {forward.j, -forward.i, 0.f};
+				real_vector3d up;
+				if (unit->object.parent_object_index != NONE)
+					return;
+				if (normalize3d(&right) == 0.f)
+					right.i = 1.f;
+				cross_product3d(&right, &forward, &up);
+				if (!object_set_physics_pose(player->unit_index, bsp,
+					&destination_flag->position, &forward, &up))
+					return;
+			}
+			else
+			{
+				object_set_position(player->unit_index, &destination_flag->position, &forward, NULL);
+			}
+			if (player->local_player_index != NONE)
+				player_control_set_facing(player->local_player_index, &forward);
+
+			player->teleporter_index = game_engine_find_teleporter(bsp,
+				&unit->object.position, 1.0f, _netgame_flag_teleporter_source, NONE);
+		}
+
 		if (player->local_player_index != NONE)
 		{
 			game_engine_play_multiplayer_sound(_multiplayer_sound_teleporter_activate);
@@ -5345,27 +5388,6 @@ static void game_engine_update_teleporter(
 					&screen_flash,
 					1.0f);
 			}
-		}
-
-		{
-			real angle =
-				arctangent(forward.j, forward.i) +
-				destination_flag->facing -
-				source_flag->facing;
-
-			forward.i = cosine(angle);
-			forward.j = sine(angle);
-			normalize3d(&forward);
-			object_set_position(
-				player->unit_index,
-				&destination_flag->position,
-				&forward,
-				NULL);
-			if (player->local_player_index != NONE)
-				player_control_set_facing(player->local_player_index, &forward);
-
-			player->teleporter_index = game_engine_find_teleporter(
-				&unit->object.position, 1.0f, _netgame_flag_teleporter_source, NONE);
 		}
 		return;
 	}
@@ -7090,6 +7112,7 @@ long find_netgame_flags(
 }
 
 long game_engine_find_teleporter(
+	short bsp,
 	real_point3d const *position,
 	real radius,
 	short type,
@@ -7102,9 +7125,11 @@ long game_engine_find_teleporter(
 	/* Regional scenarios can reuse a channel in each BSP. */
 	if (scenario_uses_regional_gameplay(scenario))
 	{
-		if (global_structure_bsp_index_get() == NONE)
+		if (bsp == NONE)
+			bsp = global_structure_bsp_index_get();
+		structure = scenario_structure_bsp_try_and_get(bsp);
+		if (!structure)
 			return NONE;
-		structure = global_structure_bsp_get();
 	}
 	find_netgame_flags_in_structure(position, radius, 0.0f, type, channel, 1, &flag_index, structure);
 	return flag_index;

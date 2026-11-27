@@ -2146,7 +2146,9 @@ static void players_compute_combined_pvs(
 	short activating_cluster_index;
 	long root_object_index;
 	short cluster_index;
-	boolean independent = network_regional_independent_bsp_ready();
+	struct scenario const *scenario = global_scenario_try_and_get();
+	boolean regional = scenario && scenario_uses_regional_gameplay(scenario);
+	boolean independent = regional && network_regional_independent_bsp_ready();
 	short foreground = global_structure_bsp_index_get();
 
 	structure_bsp = global_structure_bsp_get();
@@ -2165,8 +2167,10 @@ static void players_compute_combined_pvs(
 				root_object_index =
 					object_get_ultimate_parent(player->unit_index);
 				root_object = object_get(root_object_index);
-				/* A live root's cluster is only meaningful in its own structure. */
-				if (independent && object_get_regional_bsp(root_object_index) != foreground)
+				/* A departing peer can clear the room capability before its
+				 * regional root is removed. The partition still owns its BSP. */
+				short root_bsp = regional ? object_get_regional_bsp(root_object_index) : NONE;
+				if ((independent || root_bsp != NONE) && root_bsp != foreground)
 				{
 					player->cluster_index = NONE;
 					continue;
@@ -2179,6 +2183,8 @@ static void players_compute_combined_pvs(
 			}
 
 			cluster_index = player->cluster_index;
+			if (regional && !VALID_INDEX(cluster_index, structure_bsp->clusters.count))
+				player->cluster_index = cluster_index = NONE;
 			if (cluster_index != NONE)
 			{
 				bit_vector_or(
