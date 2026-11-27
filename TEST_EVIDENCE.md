@@ -39,6 +39,12 @@ ground preview and its published mode receipt.
   locations, and a pool of gameplay effects evicts none. Live acceptance
   under effect saturation, an unflagged effect in a remote region, and
   unload/return with active authored actors remain open.
+- Win64 candidate `9c784cfd` rendered the native motion tracker in the
+  released `fcfe9d44` preview after a normal-menu LAN host launch. A focused
+  Windows regression exercised two viewports over vertically overlapping
+  regions and verified each radar drew candidates from its own BSP, rejected
+  the old sweep after crossing, and retained classic height-independent scans.
+  Live split-screen with both viewports over an overlapping boundary remains open.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

@@ -103,8 +103,10 @@ symbols in this file:
 #include "interface/hud.h"
 #include "interface/hud_definitions.h"
 #include "interface/hud_draw.h"
+#include "network_coop.h"
 #include "objects/objects.h"
 #include "rasterizer/rasterizer.h"
+#include "scenario/scenario_limits.h"
 #include "units/unit_definitions.h"
 #include "units/units.h"
 #include "units/vehicles.h"
@@ -165,7 +167,8 @@ struct motion_sensor_datum
 	long blip_count;
 	real yaw;
 	byte custom_blip_count;
-	byte pad[3];
+	byte region;
+	byte pad[2];
 };
 
 struct motion_sensor_player
@@ -291,6 +294,27 @@ static void tiny_point2d_set(
 	return;
 }
 
+static long motion_sensor_local_unit(short local_player_index)
+{
+	long player_index = local_player_get_player_index(local_player_index);
+	return player_index == NONE ? NONE : player_get(player_index)->unit_index;
+}
+
+static byte motion_sensor_unit_region(boolean regional, long unit_index)
+{
+	short bsp;
+	if (!regional || unit_index == NONE)
+		return 0;
+	bsp = object_get_regional_bsp(unit_index);
+	/* Zero keeps old saved samples and unqualified units out of regional scans. */
+	return VALID_INDEX(bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO) ? (byte)(bsp + 1) : 0;
+}
+
+static boolean motion_sensor_regions_match(boolean regional, byte viewer, byte blip)
+{
+	return !regional || (viewer != 0 && viewer == blip);
+}
+
 static void motion_sensor_update(
 	void)
 {
@@ -339,6 +363,9 @@ static void motion_sensor_update(
 		stack_buffer ("corrupt stack at 0") */
 		short blip_counts[MAXIMUM_LOCAL_PLAYERS] = { 0 };
 		short scan_players[MAXIMUM_LOCAL_PLAYERS];
+		long scan_units[MAXIMUM_LOCAL_PLAYERS];
+		byte scan_regions[MAXIMUM_LOCAL_PLAYERS];
+		boolean regional = network_regional_independent_bsp_ready();
 		short player_count = local_player_count();
 		short local_player_index = local_player_get_next(NONE);
 		struct object_iterator iter;
@@ -353,15 +380,13 @@ static void motion_sensor_update(
 			struct motion_sensor_datum *sensor =
 				&motion_sensor_globals->players[local_player_index]
 					.sensor_data[active_sensor_index];
-			long player_index =
-				local_player_get_player_index(local_player_index);
-			long unit_index = player_index == NONE
-				? NONE
-				: player_get(
-					local_player_get_player_index(local_player_index))->unit_index;
+			long unit_index = motion_sensor_local_unit(local_player_index);
 			short blip_index;
 
 			scan_players[player_scan_index] = local_player_index;
+			scan_units[local_player_index] = unit_index;
+			scan_regions[local_player_index] = motion_sensor_unit_region(regional, unit_index);
+			sensor->region = scan_regions[local_player_index];
 			camera_positions[local_player_index].x = 0.0f;
 			camera_positions[local_player_index].y = 0.0f;
 			camera_positions[local_player_index].z = 0.0f;
@@ -395,6 +420,7 @@ static void motion_sensor_update(
 				real_point3d center;
 				real object_radius;
 				short players_full = 0;
+				byte object_region = motion_sensor_unit_region(regional, iter.index);
 
 				object_get_bounding_sphere(
 					iter.index,
@@ -407,13 +433,8 @@ static void motion_sensor_update(
 				{
 					short scan_player_index =
 						scan_players[player_scan_index];
-					long player_index =
-						local_player_get_player_index(scan_player_index);
 
-					if (player_index != NONE &&
-						player_get(
-							local_player_get_player_index(scan_player_index))
-							->unit_index != NONE)
+					if (scan_units[scan_player_index] != NONE)
 					{
 						short blip_index = blip_counts[scan_player_index];
 
@@ -421,7 +442,7 @@ static void motion_sensor_update(
 						{
 							players_full++;
 						}
-						else
+						else if (motion_sensor_regions_match(regional, scan_regions[scan_player_index], object_region))
 						{
 							real_vector3d displacement;
 
@@ -531,11 +552,12 @@ static void update_motion_sensor(
 	if (motion_sensor_globals->update)
 	{
 		active_sensor_index = motion_sensor_globals->active_sensor_index;
-		unit_index = local_player_get_player_index(local_player_index) == NONE
-			? NONE
-			: player_get(local_player_get_player_index(local_player_index))->unit_index;
+		boolean regional = network_regional_independent_bsp_ready();
+		byte viewer_region;
+		unit_index = motion_sensor_local_unit(local_player_index);
+		viewer_region = motion_sensor_unit_region(regional, unit_index);
 		sensor = &player->sensor_data[active_sensor_index];
-		if (unit_index != NONE)
+		if (unit_index != NONE && motion_sensor_regions_match(regional, viewer_region, sensor->region))
 		{
 			{
 				real_point3d camera_position;
@@ -555,7 +577,8 @@ static void update_motion_sensor(
 				{
 					long object_index = player->unit_indices[blip_index];
 
-					if (unit_try_and_get(object_index))
+					if (unit_try_and_get(object_index) && motion_sensor_regions_match(regional, viewer_region,
+						motion_sensor_unit_region(regional, object_index)))
 					{
 						real_point3d object_position;
 						real_point3d player_center;
@@ -587,6 +610,11 @@ static void update_motion_sensor(
 							blips[blip_index].type = _blip_type_none;
 							player->unit_indices[blip_index] = NONE;
 						}
+					}
+					else if (regional)
+					{
+						blips[blip_index].type = _blip_type_none;
+						player->unit_indices[blip_index] = NONE;
 					}
 				}
 			}
@@ -655,6 +683,8 @@ static void render_motion_sensor(
 	real relative_scale;
 	real_point2d corner;
 	short history_index;
+	boolean regional = network_regional_independent_bsp_ready();
+	byte viewer_region = regional ? motion_sensor_unit_region(TRUE, motion_sensor_local_unit(local_player_index)) : 0;
 
 	csmemset(stack_buffer, 0x62, sizeof(stack_buffer));
 	perspective = director_get_perspective(local_player_index);
@@ -688,6 +718,9 @@ static void render_motion_sensor(
 		real radius = (real)(
 			power(1.0f - weight, 3.5f) * 7.0 + 1.0);
 		short blip_index;
+
+		if (!motion_sensor_regions_match(regional, viewer_region, sensor->region))
+			continue;
 
 		for (blip_index = 0;
 			blip_index < MAXIMUM_MOTION_SENSOR_BLIPS;

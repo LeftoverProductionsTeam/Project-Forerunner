@@ -90,7 +90,8 @@ static short global_structure_bsp_index;
 static short global_structure_bsp_index_get(void) { return global_structure_bsp_index; }
 static boolean mcc_loaded;
 static boolean mcc_cache_tags_loaded(void) { return mcc_loaded; }
-static long game_time_get(void) { return 100; }
+static long test_game_time=100;
+static long game_time_get(void) { return test_game_time; }
 static void encounter_clear_pursuit(long index) { (void)index; }
 static void actor_verify_activation(long index) { CHECK(VALID_INDEX(index,actor_count),"invalid actor"); }
 static void actor_set_active(long index,boolean active) { actors[index].meta.active=active; }
@@ -120,8 +121,17 @@ static struct structure_bsp const *encounter_remote_structure(short bsp,unsigned
 {return bsp>=0 && TEST_FLAG(occupied,bsp) ? scenario_structure_bsp_try_and_get(bsp) : NULL;}
 static struct actor_datum *actor_get(long index) { CHECK(index==0x20000,"unexpected actor");return &actors[0]; }
 static void *object_try_and_get(long unit) { return unit_try_and_get(unit); }
-static boolean case_name_is_actor_tick;
+static boolean case_name_is_actor_tick, radar_fixture;
+static short radar_regions[4];
 static short object_get_regional_bsp(long unit) {
+ if(radar_fixture)
+ {
+  short i;
+  for(i=0;i<4;i++)
+   if(unit==unit_handles[i])
+    return radar_regions[i];
+  CHECK(FALSE,"unexpected radar contact");
+ }
  if(unit==unit_handles[1] && case_name_is_actor_tick) return 0;
  CHECK(unit==unit_handles[0],"unexpected actor body");
  return unit_bsp;
@@ -220,16 +230,81 @@ static void effect_set_event(long index,short event)
 {
  CHECK(effect_get(index)&&event==0,"effect did not start its first native event");
 }
-#define match_vassert(file,line,condition,description) match_assert(file,line,condition)
+#define match_vassert(file,line,condition,description) CHECK(condition,"native assertion at line %d",line)
 #define SET_FLAG(flags,bit,value) ((flags)=((flags)&~FLAG(bit))|((value)?FLAG(bit):0))
 #include "regional_combat_effects.inc"
 #undef SET_FLAG
 #undef object_datum
 
+typedef struct {real x,y;} real_point2d;
+typedef unsigned short word;
+enum {MAXIMUM_LOCAL_PLAYERS=4};
+static short local_player_count(void) {return 2;}
+static short local_player_get_next(short index) {return index==NONE ? 0 : index==0 ? 2 : NONE;}
+static long local_player_get_player_index(short index) {return index==0 ? 0 : index==2 ? 1 : NONE;}
+static struct player_datum *player_get(long index) {return &players[index];}
+static boolean game_engine_running(void) {return TRUE;}
+static long get_return_eip(void) {return 0;}
+static void game_engine_motion_sensor_viewer(short index) {(void)index;}
+static void unit_get_camera_position(long unit,real_point3d *point) {*point=unit_try_and_get(unit)->object.position;}
+static boolean should_track_object(long unit) {return unit_try_and_get(unit)!=NULL;}
+static boolean should_draw_object(long unit) {return should_track_object(unit);}
+static void object_get_bounding_sphere(long unit,real_point3d *point,real *radius)
+{unit_get_camera_position(unit,point);*radius=1;}
+static real magnitude_squared3d(real_vector3d const *vector)
+{return vector->i*vector->i+vector->j*vector->j+vector->k*vector->k;}
+struct object_iterator {long index; short next;};
+static void object_iterator_new(struct object_iterator *iterator,long mask,boolean active)
+{(void)mask;(void)active;iterator->next=0;}
+static boolean object_iterator_next(struct object_iterator *iterator)
+{
+ if(iterator->next==4)return FALSE;
+ iterator->index=unit_handles[iterator->next++];
+ return TRUE;
+}
+static struct {struct {real motion_sensor_range;} defaults;} radar_hud={{15}}, *hud_globals=&radar_hud;
+#define csmemcpy memcpy
+#include "regional_motion_sensor.inc"
+#undef csmemcpy
+
 int main(int argc,char **argv)
 {
  char const *case_name=argc>1?argv[1]:"";short i,expected=0;
  scenario.ai_encounters.count=1;scenario.ai_encounters.address=&definition;
+ if(!strcmp(case_name,"regional-motion-sensor"))
+ {
+  struct motion_sensor_datum *first,*second;
+  radar_fixture=regional_ready=TRUE;
+  test_game_time=0;
+  for(i=0;i<4;i++)
+  {
+   unit_handles[i]=0x30000+i;
+   radar_regions[i]=i%2;
+   units[i].object.position=(real_point3d){0,0,(real)(10*(i%2))};
+  }
+  players[0].unit_index=unit_handles[0];
+  players[1].unit_index=unit_handles[1];
+  motion_sensor_update();
+  first=&sensor_storage.players[0].sensor_data[sensor_storage.active_sensor_index];
+  second=&sensor_storage.players[2].sensor_data[sensor_storage.active_sensor_index];
+  CHECK(first->blip_count==2&&second->blip_count==2&&first->region==1&&second->region==2,
+        "a split-screen tracker admitted contacts on another floor");
+  CHECK(sensor_storage.players[0].unit_indices[1]==unit_handles[2]&&
+        sensor_storage.players[2].unit_indices[1]==unit_handles[3],"contacts reached the wrong viewport");
+  radar_regions[1]=0;
+  test_game_time=1;
+  motion_sensor_update();
+  second=&sensor_storage.players[2].sensor_data[sensor_storage.active_sensor_index];
+  CHECK(!motion_sensor_regions_match(TRUE,motion_sensor_unit_region(TRUE,unit_handles[1]),second->region),
+        "a crossing accepted a previous region's sweep");
+  CHECK(!motion_sensor_regions_match(TRUE,0,0),"unqualified contacts were displayed");
+  regional_ready=FALSE;
+  test_game_time=15;
+  motion_sensor_update();
+  first=&sensor_storage.players[0].sensor_data[sensor_storage.active_sensor_index];
+  CHECK(first->blip_count==4,"classic multiplayer lost its native height-independent tracker");
+  return 0;
+ }
  if(!strcmp(case_name,"regional-effect-pool"))
  {
   struct effect_part_definition damaged={DAMAGE_EFFECT_DEFINITION_TAG,{7}};

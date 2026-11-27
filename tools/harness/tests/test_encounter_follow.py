@@ -21,6 +21,8 @@ def generated(fault=None):
     definitions = read('source/ai/ai_scenario_definitions.h')
     ai = read('source/ai/ai.c')
     effects = read('source/effects/effects.c')
+    motion = read('source/interface/motion_sensor.c')
+    motion = motion[motion.index('/* ---------- constants */'):]
     effect_part = function(effects, 'effect_generate_part')
     damage_part = effect_part[effect_part.index('case DAMAGE_EFFECT_DEFINITION_TAG:'):
                               effect_part.index('case LIGHT_DEFINITION_TAG:')]
@@ -41,6 +43,14 @@ def generated(fault=None):
          ' real_vector3d const *world_forward, real scale, short bsp,\n'
          ' struct structure_bsp const *remote_structure)\n'
          '{\n switch(part_definition->runtime_base_class_tag) {\n' + damage_part + '\n }\n}\n'),
+        ('regional_motion_sensor.inc', enum_with(motion, '_blip_type_none') + '\n' +
+         enum_with(motion, 'MAXIMUM_MOTION_SENSOR_BLIPS') + '\n' +
+         motion[motion.index('struct tiny_point2d\n{'):motion.index('typedef char motion_sensor_blip_size_assert')] +
+         '\nstatic struct motion_sensor_globals_definition sensor_storage, *motion_sensor_globals=&sensor_storage;\n'
+         'static void motion_sensor_blip_set_type_and_size(struct motion_sensor_blip *blip, long unit, long player)\n'
+         '{(void)unit; (void)player; blip->type=_blip_type_enemy;}\n' +
+         '\n'.join(function(motion, name) for name in ('motion_sensor_local_unit',
+             'motion_sensor_unit_region', 'motion_sensor_regions_match', 'motion_sensor_update'))),
         ('under_test.inc', candidates + '\n' + follow + '\n' +
          function(read('source/scenario/scenario.c'), 'scenario_uses_regional_gameplay') + '\n' +
          function(read('source/ai/ai.c'), 'ai_unit_belongs_to_other_bsp') + '\n' +
@@ -63,7 +73,7 @@ def generated(fault=None):
 @pytest.mark.parametrize('case', ['nearest', 'reordered', 'sixth', 'tie', 'death-respawn',
                                  'quit-stale', 'empty', 'explicit', 'hysteresis', 'outside-squad',
                                  'opposing-nearer', 'only-opposition', 'ninth', 'incapacitated-nearer',
-                                 'legacy', 'legacy-dead', 'legacy-ninth', 'regional-reconnect', 'regional-actor-ownership', 'regional-script-reattach', 'regional-encounterless-pvs', 'regional-actor-tick', 'regional-pressure', 'regional-effect-damage', 'regional-effect-content', 'regional-effect-pool'])
+                                 'legacy', 'legacy-dead', 'legacy-ninth', 'regional-reconnect', 'regional-actor-ownership', 'regional-script-reattach', 'regional-encounterless-pvs', 'regional-actor-tick', 'regional-pressure', 'regional-effect-damage', 'regional-effect-content', 'regional-effect-pool', 'regional-motion-sensor'])
 def test_encounter_follow(case):
     status, output = run(build('encounter_follow', generated()), case)
     assert status == 0, output
