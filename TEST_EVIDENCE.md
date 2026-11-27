@@ -449,11 +449,17 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   wall absent on c5bb94da. The debug camera and BSP were positioned by
   the existing test cues, with the player outside the tested view.
   Evidence: build/ice-fields-opacity-c5bb94da/{f5a4ca22,c5bb94da}/window00360.bmp
-  and c5bb94da-no-structure-culling/window00240.bmp. The c5bb94da receipt
-  present on disk rehashed 1c52f0c9, distinct from the handoff's 04173bc0.
-  The comparison used Slayer without a mode receipt. Next compare the
-  exact view with a known opaque control and a live player in BSP 11
-  before attributing the remaining missing geometry or accepting the map.
+  and c5bb94da-no-structure-culling/window00240.bmp. The verified c5bb94da
+  mode receipt is 1c52f0c9. The independently hashed render readback is
+  04173bc0. The comparison used Slayer without a mode receipt.
+
+  A follow-up moved the live unit to the saved camera within foreground
+  BSP 11. At tick 240 it stood at (928.474,183.096,-15.650) at full vitality
+  and shields. From the same detached camera the wall was still absent
+  with the unit now present in the frame. Evidence:
+  build/ice-fields-occupied-view-c5bb94da/c5bb94da/window00360.bmp and
+  debug.log. This was controlled placement. Ordinary first-person and
+  known-opaque comparisons remain open, and this map stays private.
 - **Reusable runtime diagnostics.** The private 2beae96a executable
   compiled, advertised playtest.regional_transition_log.v1 in discovery,
   and admitted b5178c77 from ordinary menus. The native transition log
