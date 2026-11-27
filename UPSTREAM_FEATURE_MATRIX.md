@@ -144,9 +144,18 @@ independent Vulkan device. It rejected mismatched GPU identity and allocation
 size, imported the exact provider image, and acquired and released three
 successive path-traced frames with distinct checksums. Evidence is in
 `build/openremix-win64/consumer-forerunner-bridge-runtime.log`.
-The Windows64 engine build `133B8775` links the importer. The existing
-compositor does not yet submit it. A Forerunner gameplay frame, native Halo
-geometry, and Spark-facing validation remain open.
+The Windows64 engine build `133B8775` initially linked the importer.
+
+The next Windows64 build `C63CD3AC61D6AA8299FB82F6DF39C453D450D60250E920785B05A45AF2283419`
+adds GPU-only transfer into a regular bgfx RGBA8 texture. The same-thread
+Vulkan renderer waits on ready, copies, releases ownership and signals the
+provider. A separate native Win32 window running the game's patched bgfx
+library imported and copied three active OpenRemix sample frames with
+different checksums from the bgfx-owned destination. Setup and warm-up
+frames are recorded in `build/openremix-win64/consumer-bgfx-window-runtime.log`.
+The probe used readback only to verify the GPU copy. Draw the resulting
+texture through Forerunner's presenter with Halo geometry before exposing
+the renderer option or Spark capabilities.
 
 ## Implementation and acceptance boundaries
 

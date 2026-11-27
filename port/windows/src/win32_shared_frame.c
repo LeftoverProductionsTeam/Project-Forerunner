@@ -61,6 +61,8 @@ VkResult win32_shared_frame_import(struct win32_shared_frame *out,
 #define DEVICE_PROC(name) (PFN_vk##name)get_device(device, "vk" #name)
 	frame.device = device;
 	frame.queue_family = queue_family;
+	frame.width = description->width;
+	frame.height = description->height;
 	frame.destroy_image = DEVICE_PROC(DestroyImage);
 	frame.free_memory = DEVICE_PROC(FreeMemory);
 	frame.destroy_semaphore = DEVICE_PROC(DestroySemaphore);

@@ -131,13 +131,18 @@ def fetch_bgfx() -> bool:
     stamp = bgfx / ".halo-patches"
     patches = [(patch.name, patch.read_bytes().replace(b"\r\n", b"\n")) for patch in BGFX_PATCHES]
     wanted = "".join(f"{name} {hashlib.sha256(text).hexdigest()}\n" for name, text in patches)
-    if stamp.is_file() and stamp.read_text() == wanted:
+    applied = stamp.read_text() if stamp.is_file() else ""
+    if applied == wanted:
         discard_extracted_archives()
         return True
     legacy_git = (bgfx / ".git").exists()
-    if legacy_git:
+    if applied and applied.endswith("\n") and wanted.startswith(applied):
+        patches = patches[len(applied.splitlines()):]
+    elif legacy_git:
         if subprocess.run(["git", "-C", str(bgfx), "-c", "core.autocrlf=false", "checkout", "-q", "-f", "--", "."]).returncode != 0:
             return False
+        stamp.unlink(missing_ok=True)
+        applied = ""
     elif stamp.exists():
         raise BgfxPatchError(f"{bgfx} has different cached patches; preserve/regenerate this dependency cache")
     for name, text in patches:
@@ -150,7 +155,8 @@ def fetch_bgfx() -> bool:
             # of shipping builds with no bgfx renderer that nobody notices, #1080)
             raise BgfxPatchError(f"tools/bgfx-patches/{name} does not apply to bgfx at "
                                  f"{BGFX_REPOSITORIES['bgfx'][1][:12]}: fix the patch or the pin (tools/bgfx_build.py)")
-    stamp.write_text(wanted)
+        applied += f"{name} {hashlib.sha256(text).hexdigest()}\n"
+        stamp.write_text(applied)
     discard_extracted_archives()
     return True
 
@@ -192,6 +198,7 @@ class BgfxTarget:
     implicit: List[Path] = field(default_factory=list)
     # Optional application interop, leaving every other target unchanged.
     extra_flags: List[str] = field(default_factory=list)
+    renderer_extra_flags: List[str] = field(default_factory=list)
 
 
 def bgfx_include_flags() -> List[str]:
@@ -251,7 +258,7 @@ def bgfx_build(n: Writer, target: BgfxTarget) -> List[Path]:
         "bx": ([bx / "src/amalgamated.cpp"], f"-x c++ {simd}"),
         "bimg": ([bimg / "src/image.cpp", bimg / "src/image_encode_wic.cpp",
                   *sorted((bimg / "3rdparty/astc-encoder/source").glob("*.cpp"))], f"-x c++ {simd}"),
-        "bgfx": ([bgfx / "src/amalgamated.cpp"], f"{bgfx_flags} {simd}"),
+        "bgfx": ([bgfx / "src/amalgamated.cpp"], " ".join([bgfx_flags, simd, *target.renderer_extra_flags])),
         "glslang": (glslang_sources, f"-x c++ -std=c++17 -fno-strict-aliasing -I{glslang} -I{glslang.parent}"),
     }
     if target.platform in SPIRV_CROSS_UNITS:

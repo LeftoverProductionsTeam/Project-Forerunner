@@ -26,7 +26,7 @@ struct win32_shared_frame
 	VkImage image;
 	VkDeviceMemory memory;
 	VkSemaphore ready, released;
-	uint32_t queue_family;
+	uint32_t queue_family, width, height;
 	PFN_vkDestroyImage destroy_image;
 	PFN_vkFreeMemory free_memory;
 	PFN_vkDestroySemaphore destroy_semaphore;
@@ -49,6 +49,15 @@ void win32_shared_frame_release(const struct win32_shared_frame *frame,
 
 /* The caller must finish GPU use before destroying an imported frame. */
 void win32_shared_frame_destroy(struct win32_shared_frame *frame);
+
+/* Bgfx's same-thread Vulkan renderer. Supply a live, already created,
+ * single-sample RGBA8 BLIT_DST texture with the same extent. Each copy
+ * consumes one ready signal and queues the corresponding released signal.
+ * Drain before destroying the imported frame or switching Vulkan devices. */
+VkResult bgfx_vk_shared_frame_import(struct win32_shared_frame *out,
+	const struct win32_shared_frame_description *description);
+int bgfx_vk_shared_frame_copy(const struct win32_shared_frame *frame, uint16_t target);
+void bgfx_vk_shared_frame_finish(void);
 
 #ifdef __cplusplus
 }

@@ -656,6 +656,8 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
         target_flags=[f"--target={target.triple}", "-gcodeview", march_flag(sln)],
         build_dir=build / "bgfx", archive_command="llvm-ar rcs $out $in",
         extra_flags=openxr_flags,
+        renderer_extra_flags=["-DHALO_WIN32_SHARED_FRAME", "-Iport/windows/include"]
+        if target.name == "windows64" else [],
     )) if use_bgfx else []
     bgfx_cflags = " ".join(bgfx_include_flags()) if use_bgfx else ""
     # (the server links no SDL: server/platform/sdl_headless.c has the few

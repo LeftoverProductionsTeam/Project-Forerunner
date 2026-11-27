@@ -2,6 +2,7 @@
 (#1080): tools/bgfx_build.py raises BgfxPatchError, which bgfx_available lets
 through to configure.py, instead of quietly leaving the bgfx renderer out
 the way a machine without git or the network does."""
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -58,3 +59,38 @@ def test_a_fetch_that_fails_leaves_bgfx_out(monkeypatch, capsys):
     assert "left out" in capsys.readouterr().out
     monkeypatch.setattr(bgfx_build, "fetch_bgfx", lambda: (_ for _ in ()).throw(OSError("no git")))
     assert bgfx_build.bgfx_available(None) is False
+
+
+def test_patch_cache_applies_only_a_verified_suffix(monkeypatch, tmp_path):
+    sources = tmp_path / "sources"
+    for name in bgfx_build.BGFX_REPOSITORIES:
+        (sources / name).mkdir(parents=True)
+        (sources / name / "LICENSE").write_text("x")
+    monkeypatch.setattr(bgfx_build, "BGFX_SOURCES", sources)
+    monkeypatch.setattr(bgfx_build, "_git_head", lambda directory: bgfx_build.BGFX_REPOSITORIES[directory.name][1])
+
+    patches = [tmp_path / "0001-existing.patch", tmp_path / "0002-appended.patch"]
+    for patch in patches:
+        patch.write_bytes(patch.name.encode())
+    monkeypatch.setattr(bgfx_build, "BGFX_PATCHES", patches)
+
+    stamp = sources / "bgfx" / ".halo-patches"
+    prefix = f"{patches[0].name} {hashlib.sha256(patches[0].read_bytes()).hexdigest()}\n"
+    stamp.write_text(prefix)
+    applied = []
+
+    def run(command, **arguments):
+        if "apply" in command:
+            applied.append(arguments["input"])
+        return Done(0)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert bgfx_build.fetch_bgfx()
+    assert applied == [patches[1].read_bytes()]
+    assert stamp.read_text().startswith(prefix)
+    assert len(stamp.read_text().splitlines()) == 2
+
+    stamp.write_text(f"{patches[0].name} {'0' * 64}\n")
+    with pytest.raises(bgfx_build.BgfxPatchError, match="different cached patches"):
+        bgfx_build.fetch_bgfx()
+    assert applied == [patches[1].read_bytes()]

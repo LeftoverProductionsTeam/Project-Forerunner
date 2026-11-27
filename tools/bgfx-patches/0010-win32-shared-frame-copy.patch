@@ -1,0 +1,105 @@
+diff --git a/src/renderer_vk.cpp b/src/renderer_vk.cpp
+--- a/src/renderer_vk.cpp
++++ b/src/renderer_vk.cpp
+@@ -11,6 +11,9 @@
+ #endif
+ #	include <bx/pixelformat.h>
+ #	include "renderer_vk.h"
++#if defined(HALO_WIN32_SHARED_FRAME)
++#include "win32_shared_frame.h"
++#endif
+ #	include "video_vk.h"
+ 
+ extern "C" char bgfx_gpu_name[256];
+@@ -424,6 +427,10 @@
+ 			KHR_xcb_surface,
+ #	elif BX_PLATFORM_WINDOWS
+ 			KHR_win32_surface,
++#if defined(HALO_WIN32_SHARED_FRAME)
++			KHR_external_memory_win32,
++			KHR_external_semaphore_win32,
++#endif
+ #	elif BX_PLATFORM_OSX
+ 			MVK_macos_surface,
+ #	elif BX_PLATFORM_NX
+@@ -477,6 +484,10 @@
+ 		{ VK_KHR_XCB_SURFACE_EXTENSION_NAME,        1, false, false, true,                                                          Layer::Count },
+ #	elif BX_PLATFORM_WINDOWS
+ 		{ VK_KHR_WIN32_SURFACE_EXTENSION_NAME,      1, false, false, true,                                                          Layer::Count },
++#if defined(HALO_WIN32_SHARED_FRAME)
++		{ "VK_KHR_external_memory_win32",            1, false, false, true,                                                          Layer::Count },
++		{ "VK_KHR_external_semaphore_win32",         1, false, false, true,                                                          Layer::Count },
++#endif
+ #	elif BX_PLATFORM_OSX
+ 		{ VK_MVK_MACOS_SURFACE_EXTENSION_NAME,      1, false, false, true,                                                          Layer::Count },
+ #	elif BX_PLATFORM_NX
+@@ -13248,6 +13259,69 @@
+ 	}
+ #endif
+ 
++#if defined(HALO_WIN32_SHARED_FRAME)
++	// Forerunner uses bgfx in same-thread mode. Queue the transfer before the
++	// compositor records its views, including when the window has just resized.
++	extern "C" VkResult bgfx_vk_shared_frame_import(win32_shared_frame* out,
++		const win32_shared_frame_description* description)
++	{
++		if (NULL == s_renderVK || s_renderVK->m_lost)
++			return VK_ERROR_INITIALIZATION_FAILED;
++		if (VK_API_VERSION_1_1 > s_renderVK->m_deviceProperties.apiVersion
++		|| !s_extension[Extension::KHR_external_memory_win32].m_supported
++		|| !s_extension[Extension::KHR_external_semaphore_win32].m_supported
++		|| VK_NULL_HANDLE != s_renderVK->m_externalDevice)
++			return VK_ERROR_EXTENSION_NOT_PRESENT;
++		return win32_shared_frame_import(out, s_renderVK->m_instance, s_renderVK->m_physicalDevice,
++			s_renderVK->m_device, s_renderVK->m_globalQueueFamily, vkGetInstanceProcAddr,
++			vkGetDeviceProcAddr, description);
++	}
++
++	extern "C" int bgfx_vk_shared_frame_copy(const win32_shared_frame* frame, uint16_t target)
++	{
++		if (NULL == s_renderVK || s_renderVK->m_lost || NULL == frame
++		|| frame->device != s_renderVK->m_device || VK_NULL_HANDLE == frame->image
++		|| target >= BGFX_CONFIG_MAX_TEXTURES)
++			return 0;
++		auto& queue = s_renderVK->m_cmd;
++		if (queue.m_numWaitSemaphores == BX_COUNTOF(queue.m_waitSemaphores)
++		|| queue.m_numSignalSemaphores == BX_COUNTOF(queue.m_signalSemaphores))
++			return 0;
++
++		TextureVK& destination = s_renderVK->m_textures[target];
++		if (VK_NULL_HANDLE == destination.m_textureImage
++		|| destination.m_aspectFlags != VK_IMAGE_ASPECT_COLOR_BIT
++		|| destination.m_format != VK_FORMAT_R8G8B8A8_UNORM
++		|| destination.m_sampler.Sample != VK_SAMPLE_COUNT_1_BIT
++		|| destination.m_numLayers != 1 || destination.m_depth != 1
++		|| destination.m_width != frame->width || destination.m_height != frame->height
++		|| 0 == (destination.m_flags & BGFX_TEXTURE_BLIT_DST)
++		|| 0 != (destination.m_flags & BGFX_SAMPLER_INTERNAL_SHARED))
++			return 0;
++
++		VkCommandBuffer commands = s_renderVK->m_commandBuffer;
++		queue.addWaitSemaphore(frame->ready, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
++		win32_shared_frame_acquire(frame, commands, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
++		destination.setState(commands, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++		VkImageCopy copy = {};
++		copy.srcSubresource = copy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
++		copy.extent = { frame->width, frame->height, 1 };
++		vkCmdCopyImage(commands, frame->image, VK_IMAGE_LAYOUT_GENERAL, destination.m_textureImage,
++			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
++		destination.setState(commands, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
++		win32_shared_frame_release(frame, commands, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
++		queue.m_signalSemaphores[queue.m_numSignalSemaphores++] = frame->released;
++		s_renderVK->kick();
++		return !s_renderVK->m_lost;
++	}
++
++	extern "C" void bgfx_vk_shared_frame_finish(void)
++	{
++		if (NULL != s_renderVK && !s_renderVK->m_lost)
++			vkDeviceWaitIdle(s_renderVK->m_device);
++	}
++#endif
++
+ } /* namespace vk */ } // namespace bgfx
+ 
+ #else
