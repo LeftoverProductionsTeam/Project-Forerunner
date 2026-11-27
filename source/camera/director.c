@@ -151,12 +151,15 @@ symbols in this file:
 #include "interface/hud_messaging.h"
 #include "interface/ui_widget.h"
 #include "networking/network_game_globals.h"
+#include "networking/network_server_manager.h"
 #include "physics/collision_features.h"
 #include "physics/collisions.h"
+#include "scenario/scenario.h"
 #include "static_camera.h"
 #include "tag_files/tag_files.h"
 #include "units/biped_definitions.h"
 #include "network_chat.h"
+#include "halo_keyboard.h"
 #ifdef HALO_OPENXR
 #include "../../port/linux/src/vr_openxr.h"
 #endif
@@ -220,6 +223,15 @@ static boolean director_update_controls(
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 static long forge_flight_unit = NONE;
 static long forge_monitor_biped = NONE;
+static boolean machinima_active;
+static boolean machinima_character_input;
+static unsigned int machinima_previous_buttons;
+static real machinima_speed;
+static real machinima_smoothing;
+static boolean machinima_collision;
+static real_vector2d machinima_throttle;
+static void director_forge_flight_update(struct flying_camera *camera,
+	struct flying_camera_action const *controls, struct camera_command *command);
 #endif
 
 static char const *director_camera_mode_names[NUMBER_OF_DIRECTOR_CAMERA_MODES] =
@@ -500,6 +512,20 @@ static void director_set_camera(
 	return;
 }
 
+static void director_apply_flying_pose(struct flying_camera *camera, real_point3d const *position,
+	real_vector3d const *forward, real_vector3d const *up, real field_of_view)
+{
+	real_vector3d derived_up, cross_product;
+
+	flying_camera_new_from_point_and_vector(camera, position, forward);
+	observer_up_from_forward(forward, &derived_up);
+	camera->roll = angle_between_vectors3d(up, &derived_up);
+	cross_product3d(up, &derived_up, &cross_product);
+	if (dot_product3d(&cross_product, forward) > 0.f)
+		camera->roll = -camera->roll;
+	camera->field_of_view = PIN(field_of_view, 0.001f, _pi / 2.f);
+}
+
 void director_load_camera(
 	void)
 {
@@ -517,9 +543,7 @@ void director_load_camera(
 	{
 		real_point3d position;
 		real_vector3d forward;
-		real_vector3d derived_up;
 		real_vector3d stored_up;
-		real_vector3d cross_product;
 		real field_of_view;
 		struct director *director = director_get(local_player_index);
 		struct flying_camera *camera =
@@ -535,19 +559,17 @@ void director_load_camera(
 			position.y < -5000.f || position.y > 5000.f ||
 			position.z < -5000.f || position.z > 5000.f ||
 			!valid_real_vector3d_axes2(&forward, &stored_up) ||
-			!valid_real(field_of_view) || field_of_view <= 0.f || field_of_view >= _pi)
+			!valid_real(field_of_view) || field_of_view < 0.001f || field_of_view > _pi / 2.f)
 			return;
 
-		flying_camera_new_from_point_and_vector(camera, &position, &forward);
-		observer_up_from_forward(&forward, &derived_up);
-		camera->roll = angle_between_vectors3d(&stored_up, &derived_up);
-		cross_product3d(&stored_up, &derived_up, &cross_product);
-		if (dot_product3d(&cross_product, &forward) > 0.f)
-			camera->roll = -camera->roll;
-		camera->field_of_view = field_of_view;
+		director_apply_flying_pose(camera, &position, &forward, &stored_up, field_of_view);
 		director_set_camera(
 			local_player_index,
-			(director_camera_update_proc)flying_camera_update,
+			#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+			machinima_active && local_player_index == 0 ?
+				(director_camera_update_proc)director_forge_flight_update :
+#endif
+				(director_camera_update_proc)flying_camera_update,
 			FALSE);
 		director->camera_mode_index = _camera_flying;
 	}
@@ -830,13 +852,15 @@ static void director_forge_flight_update(struct flying_camera *camera,
 	real_vector3d displacement, clipped_velocity;
 
 	flying_camera_update(camera, controls, command);
-	if (controls->active)
+	if (controls->active && (!machinima_active || machinima_collision))
 	{
 		vector_from_points3d(&origin, &camera->position, &displacement);
 		collision_move_sphere(FLAG(_collision_test_structure_bit), &origin, &displacement, 0.20f,
 			NONE, &camera->position, &clipped_velocity, 1, &contact);
 		command->position = camera->position;
 	}
+	if (machinima_active)
+		command->timer = machinima_character_input ? 0.f : machinima_smoothing;
 	if (forge_monitor_biped != NONE)
 	{
 		/* Keep the Monitor below and just to the left of the placement ray. */
@@ -849,6 +873,8 @@ void director_toggle_forge_flight(void)
 {
 	long unit_index = player_control_get_unit_index(0);
 
+	if (machinima_active)
+		return;
 	if (forge_flight_unit != NONE)
 	{
 		forge_flight_unit = NONE;
@@ -895,6 +921,202 @@ boolean director_forge_flight_aim(long unit_index, real_point3d *position, real_
 	view = observer_get_camera(0);
 	*position = view->position;
 	*forward = view->forward;
+	return TRUE;
+}
+
+boolean director_machinima_active(short local_player_index)
+{
+	return local_player_index == 0 && machinima_active;
+}
+
+static boolean director_machinima_allowed(void)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+
+	if (!scenario || !game_in_progress() || cinematic_in_progress() ||
+		*director_camera_scripted || local_player_get_next(0) != NONE ||
+		scenario_uses_regional_gameplay(scenario) || forge_flight_unit != NONE ||
+		network_game_forge_hosting())
+		return FALSE;
+#ifdef HALO_OPENXR
+	if (vr_openxr_running())
+		return FALSE;
+#endif
+	return (game_connection() == _game_connection_local && !network_game_is_active()) ||
+		(game_connection() == _game_connection_network_server && network_game_port_hosting_local() &&
+			network_game_is_splitscreen_local() &&
+			network_game_server_port_remote_machine_count(global_network_game_server_get(), FALSE) == 0 &&
+			!network_game_host_cheats_refused());
+}
+
+/* Adapted from thelinkin3000's SlipstreamCE playback_free_camera_speed
+ * (75dd78a44c53, AGPL-3.0-or-later). Square the stick radius and ease
+ * toward the requested velocity, with faster braking than acceleration. */
+static void director_machinima_ease(real_vector2d input, real seconds)
+{
+	real magnitude = square_root(input.i * input.i + input.j * input.j);
+	real radius = MIN(magnitude, 1.f);
+	real_vector2d target = {{0.f, 0.f}};
+	real_vector2d delta;
+	real difference, step;
+
+	if (magnitude > 0.f)
+	{
+		target.i = input.i * radius * radius / magnitude;
+		target.j = input.j * radius * radius / magnitude;
+	}
+	delta.i = target.i - machinima_throttle.i;
+	delta.j = target.j - machinima_throttle.j;
+	difference = square_root(delta.i * delta.i + delta.j * delta.j);
+	step = seconds / (radius * radius * radius * radius >=
+		machinima_throttle.i * machinima_throttle.i + machinima_throttle.j * machinima_throttle.j ?
+		0.2f : 0.08f);
+	if (difference <= step)
+		machinima_throttle = target;
+	else
+	{
+		machinima_throttle.i += delta.i * step / difference;
+		machinima_throttle.j += delta.j * step / difference;
+	}
+}
+
+static boolean director_update_machinima(short local_player_index, struct camera_control *controls)
+{
+	struct director *director = director_get(local_player_index);
+	struct flying_camera *camera = (struct flying_camera *)director->camera_data;
+	unsigned int buttons, pressed;
+	int raise, roll, zoom, speed;
+	boolean keyboard_available;
+
+	if (local_player_index != 0)
+		return FALSE;
+
+	buttons = halo_linux_machinima_keys(&roll, &zoom, &speed);
+	keyboard_available = !ui_widgets_take_input() && !console_is_active() && !network_chat_typing();
+	if (input_has_gamepad(0))
+	{
+		struct gamepad_state const *pad = input_get_gamepad_state(0);
+		int up = !!pad->buttons[_gamepad_binary_button_dpad_up];
+		int down = !!pad->buttons[_gamepad_binary_button_dpad_down];
+		int left = !!pad->buttons[_gamepad_binary_button_dpad_left];
+		int right = !!pad->buttons[_gamepad_binary_button_dpad_right];
+
+		if (pad->buttons[_gamepad_binary_button_right_thumb])
+		{
+			if (up) buttons |= HALO_MACHINIMA_TOGGLE;
+			if (down) buttons |= HALO_MACHINIMA_FOCUS;
+			if (left) buttons |= HALO_MACHINIMA_SAVE;
+			if (right) buttons |= HALO_MACHINIMA_LOAD;
+		}
+		else if (pad->buttons[_gamepad_binary_button_left_thumb])
+		{
+			zoom += up - down;
+			if (left) buttons |= HALO_MACHINIMA_SMOOTHING;
+			if (right) buttons |= HALO_MACHINIMA_COLLISION;
+		}
+		else
+		{
+			speed += up - down;
+			roll += right - left;
+		}
+	}
+	pressed = buttons & ~machinima_previous_buttons;
+	machinima_previous_buttons = buttons;
+	if (!keyboard_available)
+		pressed = 0;
+
+	if (machinima_active && (!director_machinima_allowed() ||
+		(pressed & HALO_MACHINIMA_TOGGLE)))
+	{
+		machinima_active = FALSE;
+		machinima_character_input = FALSE;
+		if (!*director_camera_scripted)
+			director_choose_game_perspective(0, TRUE);
+		return TRUE;
+	}
+	if (!machinima_active)
+	{
+		struct unit_datum const *unit;
+
+		if (!(pressed & HALO_MACHINIMA_TOGGLE) || !director_machinima_allowed())
+			return FALSE;
+		unit = unit_try_and_get(player_control_get_unit_index(0));
+		if (!unit || TEST_FLAG(unit->object.damage_flags, _object_dead_bit))
+			return FALSE;
+
+		{
+			struct observer_result const *view = observer_get_camera(0);
+			director_apply_flying_pose(camera, &view->position, &view->forward, &view->up, view->field_of_view);
+		}
+		director_set_camera(0, (director_camera_update_proc)director_forge_flight_update, FALSE);
+		machinima_active = TRUE;
+		machinima_character_input = FALSE;
+		machinima_speed = 5.f;
+		machinima_smoothing = 0.3f;
+		machinima_collision = TRUE;
+		csmemset(&machinima_throttle, 0, sizeof(machinima_throttle));
+	}
+
+	if (pressed & HALO_MACHINIMA_FOCUS)
+	{
+		machinima_character_input = !machinima_character_input;
+		csmemset(&machinima_throttle, 0, sizeof(machinima_throttle));
+		if (machinima_character_input)
+		{
+			/* Park at the actual visible pose, even mid-smoothing. */
+			struct observer_result const *view = observer_get_camera(0);
+			director_apply_flying_pose(camera, &view->position, &view->forward, &view->up, view->field_of_view);
+		}
+		/* The focus chord itself belongs to the camera, whichever way it went. */
+		director_inhibit_input(0);
+		director_inhibit_facing(0);
+	}
+	if (pressed & HALO_MACHINIMA_SAVE)
+		director_save_camera();
+	if (pressed & HALO_MACHINIMA_LOAD)
+		director_load_camera();
+	if (pressed & HALO_MACHINIMA_SMOOTHING)
+		machinima_smoothing = machinima_smoothing > 0.f ? 0.f : 0.3f;
+
+	if (pressed & HALO_MACHINIMA_COLLISION)
+		machinima_collision = !machinima_collision;
+
+	/* A held shortcut can also be a gameplay key (C, S or X). */
+	if (machinima_character_input)
+	{
+		if (keyboard_available && buttons)
+		{
+			director_inhibit_input(0);
+			director_inhibit_facing(0);
+		}
+		return TRUE;
+	}
+
+	director_inhibit_input(0);
+	director_inhibit_facing(0);
+	if (keyboard_available)
+	{
+		real seconds = PIN(controls->seconds_elapsed, 0.f, 0.05f);
+		int tools_key, flight_key;
+		halo_linux_forge_keys(&tools_key, &flight_key, &raise);
+		if (input_has_gamepad(0))
+		{
+			struct gamepad_state const *pad = input_get_gamepad_state(0);
+			raise += !!pad->buttons[_gamepad_analog_button_right_trigger] -
+				!!pad->buttons[_gamepad_analog_button_left_trigger];
+		}
+
+		machinima_speed = PIN(machinima_speed * (1.f + PIN(speed, -1, 1) * seconds * 2.f), 0.5f, 35.f);
+		camera->field_of_view = PIN(camera->field_of_view + PIN(zoom, -1, 1) * seconds, _pi / 9.f, _pi / 2.f);
+		director_machinima_ease(player_control_port_debug_throttle[0], seconds);
+		controls->facing_delta.yaw = player_control_port_debug_facing[0].yaw;
+		controls->facing_delta.pitch = player_control_port_debug_facing[0].pitch;
+		controls->facing_delta.roll = PIN(roll, -1, 1) * seconds;
+		controls->position_delta.i = machinima_throttle.i * machinima_speed * seconds;
+		controls->position_delta.j = machinima_throttle.j * machinima_speed * seconds;
+		controls->position_delta.k = PIN(raise, -1, 1) * machinima_speed * seconds;
+		controls->active = TRUE;
+	}
 	return TRUE;
 }
 
@@ -985,7 +1207,7 @@ static void director_choose_camera_game(
 			director_choose_game_perspective(local_player_index, TRUE);
 
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
-		if (local_player_index == 0 && forge_flight_unit != NONE)
+		if (local_player_index == 0 && (forge_flight_unit != NONE || machinima_active))
 		{
 			director->perspective = _director_perspective_third_person;
 			return;
@@ -1112,7 +1334,8 @@ static boolean director_update_controls(
 	controls->local_player_index = local_player_index;
 	controls->seconds_elapsed = director_globals.dtime;
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
-	if (director_update_forge_controls(local_player_index, controls))
+	if (director_update_machinima(local_player_index, controls) ||
+		director_update_forge_controls(local_player_index, controls))
 		return FALSE;
 #endif
 	player_index = player_get(
@@ -1315,6 +1538,8 @@ void director_initialize_for_new_map(
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 	forge_flight_unit = NONE;
 	forge_monitor_biped = NONE;
+	machinima_active = FALSE;
+	machinima_character_input = FALSE;
 #endif
 	sound_listener_motion_reset(NONE); /* port: also called when restoring a saved game */
 	controller_remap_reset(); /* port: release held actions and camera context between maps */

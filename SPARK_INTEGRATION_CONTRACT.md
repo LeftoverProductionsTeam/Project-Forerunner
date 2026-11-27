@@ -5152,6 +5152,15 @@ convention for the desired forward/up vectors rather than assuming yaw/pitch/zer
 roll preserves a level camera. Spark's existing `engine_machinima.rs` and
 `scenario_logic_readback.rs` already use native radian camera data.
 
+Live Machinima uses the native local director and one private save-root
+bookmark. On supported desktop sessions the operator can fly the camera,
+park it while controlling the character, and recall the saved pose. The
+director releases the view when a second machine connects. Spark can
+continue using the existing native cutscene point and HREC import workflows.
+Engine capability discovery has no new camera-operator token in this batch.
+Theater playback, camera track export and per-region detached rendering
+remain open.
+
 Windows64/GL `build/native-delta-transport-complete-crew/result.json` passes two
 distinct authenticated players' normal boarding, seated insertion, native pilot
 return/recall/landing, evacuation boarding, departure camera, durable four-unique-

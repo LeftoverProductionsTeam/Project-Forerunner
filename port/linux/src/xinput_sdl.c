@@ -1820,7 +1820,11 @@ static void test_input_menu_keys(struct platform_input_state *input)
 		next = strchr(name, '+');
 		if (next)
 			*next++ = 0;
-		scancode = SDL_GetScancodeFromName(name);
+		/* The script's tokens cannot contain SDL's space in "Left Alt". */
+		if (!strcmp(name, "LAlt"))
+			scancode = SDL_SCANCODE_LALT;
+		else
+			scancode = SDL_GetScancodeFromName(name);
 		if (scancode != SDL_SCANCODE_UNKNOWN)
 			input->keys[scancode] = 1;
 	}
@@ -3321,6 +3325,20 @@ static BOOL debug_cam_down = FALSE;
 static float debug_cam_wheel = 0.0f;
 static BOOL forge_tools_key, forge_flight_key, forge_grab_key, forge_rotate_key;
 static int forge_vertical_input;
+static unsigned int machinima_buttons;
+static int machinima_roll, machinima_zoom, machinima_speed;
+
+unsigned int halo_linux_machinima_keys(int *roll, int *zoom, int *speed)
+{
+	unsigned int buttons;
+	pthread_mutex_lock(&mouse_lock);
+	buttons = machinima_buttons;
+	*roll = machinima_roll;
+	*zoom = machinima_zoom;
+	*speed = machinima_speed;
+	pthread_mutex_unlock(&mouse_lock);
+	return buttons;
+}
 
 void halo_linux_forge_keys(int *tools, int *flight, int *vertical)
 {
@@ -3352,6 +3370,19 @@ static void debug_camera_update(const struct platform_input_state *input, BOOL b
 	forge_rotate_key = !blocked && input->keys[SDL_SCANCODE_R];
 	forge_vertical_input = blocked ? 0 : !!input->keys[SDL_SCANCODE_SPACE] -
 		!!(input->keys[SDL_SCANCODE_LCTRL] || input->keys[SDL_SCANCODE_RCTRL]);
+	machinima_buttons = 0;
+	if (!blocked && (input->keys[SDL_SCANCODE_LALT] || input->keys[SDL_SCANCODE_RALT]))
+	{
+		if (input->keys[SDL_SCANCODE_M]) machinima_buttons |= HALO_MACHINIMA_TOGGLE;
+		if (input->keys[SDL_SCANCODE_C]) machinima_buttons |= HALO_MACHINIMA_FOCUS;
+		if (input->keys[SDL_SCANCODE_B]) machinima_buttons |= HALO_MACHINIMA_SAVE;
+		if (input->keys[SDL_SCANCODE_N]) machinima_buttons |= HALO_MACHINIMA_LOAD;
+		if (input->keys[SDL_SCANCODE_S]) machinima_buttons |= HALO_MACHINIMA_SMOOTHING;
+		if (input->keys[SDL_SCANCODE_X]) machinima_buttons |= HALO_MACHINIMA_COLLISION;
+	}
+	machinima_roll = blocked ? 0 : !!input->keys[SDL_SCANCODE_G] - !!input->keys[SDL_SCANCODE_T];
+	machinima_zoom = blocked ? 0 : !!input->keys[SDL_SCANCODE_PERIOD] - !!input->keys[SDL_SCANCODE_COMMA];
+	machinima_speed = blocked ? 0 : !!input->keys[SDL_SCANCODE_EQUALS] - !!input->keys[SDL_SCANCODE_MINUS];
 	if (debug_cam_middle)
 		debug_cam_wheel += input->mouse_wheel;
 	else

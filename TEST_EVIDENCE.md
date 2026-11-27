@@ -140,6 +140,29 @@ and one-slot fallback. Actual multi-neighbor junction rendering and foreground
 selection for split-screen terrain remain open. The existing
 `scenario_illumination_at_point` is an unused constant-output placeholder.
 
+## Product Completion V3 — Live Machinima
+
+The exact Win64 camera build `e15ab1455839a1426e6525132d35eb05efa41c9e5bd12c11891e09f7849ca81b`
+loaded Zombie Apocalypse `12649191` through the ordinary Play Solo menu.
+Keyboard controls drove the HUD-free native camera. The player remained
+at (97.170,-159.023,-0.287) while the view reached (94.0,-159.8,0.6).
+After parking, the player moved to (98.271,-158.463,-0.287) while the view
+held. The saved private bookmark was recalled after moving the camera again.
+When a second local process connected, before its player joined, the host's
+camera returned to the player (render samples at ticks 2280 and 2310).
+The earlier private candidate also rendered voluntary exit with the classic
+weapon and reticle and saved a rolled pose and a widened 90-degree FOV.
+Existing map-script restrictions on bookmark access passed focused checks.
+
+Live flight reuses native director and collision controls and adapts easing
+from thelinkin3000's SlipstreamCE `75dd78a44c53` under AGPL-3.0-or-later.
+The isolated Windows delivery excludes the pending two-neighbor work.
+Promoted the exact tested executable to Latest. Previous is `963313f2`.
+The installed MegaWorld ground preview, Zombie Apocalypse and saved
+configuration matched their prior hashes.
+Controller chords, separate simultaneous devices, campaign-native acceptance,
+regional camera ownership, HREC tracks and the Theater player remain open.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

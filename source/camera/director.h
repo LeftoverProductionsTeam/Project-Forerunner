@@ -154,6 +154,7 @@ void director_load_camera(
 /* port: audio_probe.c's */
 #if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
 void director_toggle_forge_flight(void);
+boolean director_machinima_active(short local_player_index);
 boolean director_forge_flight_active(short local_player_index);
 long director_forge_monitor_biped(short local_player_index);
 boolean director_forge_flight_aim(long unit_index, real_point3d *position, real_vector3d *forward);

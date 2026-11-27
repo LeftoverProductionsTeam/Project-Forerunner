@@ -616,6 +616,13 @@ void interface_draw_screen(
 
 	if (render.local_player_index == NONE)
 		return;
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB)
+	if (director_machinima_active(render.local_player_index))
+	{
+		rasterizer_screen_effect(NULL);
+		return;
+	}
+#endif
 
 	weapon_hud_index = interface_get_weapon_hud_index(&flashlight_power);
 	if (weapon_hud_index != NONE)

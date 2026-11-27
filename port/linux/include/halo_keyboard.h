@@ -120,6 +120,18 @@ int halo_chat_taps(float *x, float *y);
 then goes at the top left: on Android, and in a browser once its touch
 controls have been used */
 int halo_chat_touch_layout(void);
+/* Native detached camera hotkeys. */
+enum
+{
+	HALO_MACHINIMA_TOGGLE = 1 << 0,
+	HALO_MACHINIMA_FOCUS = 1 << 1,
+	HALO_MACHINIMA_SAVE = 1 << 2,
+	HALO_MACHINIMA_LOAD = 1 << 3,
+	HALO_MACHINIMA_SMOOTHING = 1 << 4,
+	HALO_MACHINIMA_COLLISION = 1 << 5
+};
+unsigned int halo_linux_machinima_keys(int *roll, int *zoom, int *speed);
+
 /* the mouse wheel's notches turned while a chat line is typed, since the
 last call (up positive): they scroll the lines, not the weapons */
 int halo_chat_wheel_steps(void);
