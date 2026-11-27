@@ -1088,7 +1088,8 @@ static boolean biped_fix_position_internal(
 	boolean fix_below_new_position,
 	boolean dont_teleport,
 	boolean use_radius_as_multiplier,
-	boolean avoid_player_support)
+	boolean avoid_player_support,
+	boolean ignore_scenery_in_sight_lines)
 {
 	/* A vehicle seat and its exit belong to the carrier's collision scene,
 	 * even when the listen host is playing in another BSP. */
@@ -1113,7 +1114,7 @@ static boolean biped_fix_position_internal(
 		boolean line_of_sight_only;
 		real_point3d line_of_sight_position;
 		struct biped_datum *biped;
-		unsigned long collision_flags;
+		unsigned long collision_flags, sight_flags;
 		real_point3d position;
 		real pill_height;
 		real pill_width;
@@ -1155,6 +1156,9 @@ static boolean biped_fix_position_internal(
 				(biped->unit.player_index != NONE && !network_coop_player_collisions())))
 				collision_flags |= FLAG(_collision_test_skip_player_bipeds_bit);
 		}
+
+		sight_flags = ignore_scenery_in_sight_lines ?
+			collision_flags & ~FLAG(_collision_test_objects_scenery_bit) : collision_flags;
 
 		if (new_position)
 		{
@@ -1263,14 +1267,14 @@ static boolean biped_fix_position_internal(
 							pill_width,
 							&model_pill_collision)) &&
 						(!collision_test_bsp_vector(
-							bsp, collision_flags,
+							bsp, sight_flags,
 							&fixed_position,
 							vector_from_points3d(&fixed_position, &line_of_sight_position, &sight_vector),
 							biped_index,
 							&line_collision) ||
 							line_collision.object_index == line_of_sight_object_index) &&
 						(!collision_test_bsp_vector(
-							bsp, collision_flags,
+							bsp, sight_flags,
 							&line_of_sight_position,
 							vector_from_points3d(&line_of_sight_position, &fixed_position, &sight_vector),
 							line_of_sight_object_index,
@@ -1329,14 +1333,16 @@ boolean biped_fix_position(
 	boolean use_radius_as_multiplier)
 {
 	return biped_fix_position_internal(biped_index, line_of_sight_object_index, new_position, final_position,
-		maximum_radius_fudge_factor, fix_below_new_position, dont_teleport, use_radius_as_multiplier, FALSE);
+		maximum_radius_fudge_factor, fix_below_new_position, dont_teleport, use_radius_as_multiplier, FALSE, FALSE);
 }
 
 boolean biped_fix_coop_spawn_position(long biped_index, long anchor, real_point3d const *position)
 {
 	/* Give a full squad more lateral room while checking all player bodies. */
-	return biped_fix_position_internal(biped_index, anchor, position, NULL, 4.f, FALSE, FALSE, TRUE, TRUE);
+	return biped_fix_position_internal(biped_index, anchor, position, NULL, 4.f, FALSE, FALSE, TRUE, TRUE, FALSE);
 }
+
+static boolean biped_vehicle_should_eject_rider(long vehicle_index, struct unit_datum const *vehicle);
 
 void biped_exit_seat_end(
 	long biped_index,
@@ -1358,7 +1364,16 @@ void biped_exit_seat_end(
 		real radius;
 
 		object_get_bounding_sphere(seat_object_index, &center, &radius);
-		if (!biped_fix_position(biped_index, seat_object_index, &center, 0, radius, TRUE, FALSE, FALSE))
+		if (!biped_fix_position(biped_index, seat_object_index, &center, 0, radius, TRUE, FALSE, FALSE) &&
+			/* A rollover carrier can rest inside scenery. Its center is not a
+			 * visibility requirement for an AI ejection, but the body still
+			 * needs clear space, its native hull check and an unobstructed BSP. */
+			!(biped->unit.player_index == NONE && biped->unit.actor_index != NONE &&
+				!TEST_FLAG(biped->object.damage_flags, _object_dead_bit) &&
+				object_get_type(seat_object_index) == _object_type_vehicle &&
+				biped_vehicle_should_eject_rider(seat_object_index, vehicle_get(seat_object_index)) &&
+				biped_fix_position_internal(biped_index, seat_object_index, &center, NULL, radius,
+					TRUE, FALSE, FALSE, FALSE, TRUE)))
 			error(_error_silent, "seat exit: no clear placement for %s from %s at %.3f %.3f %.3f unit %08lx carrier %08lx tick %ld",
 				tag_get_name(biped->definition_index), tag_get_name(object_get(seat_object_index)->definition_index),
 				center.x, center.y, center.z, (unsigned long)biped_index, (unsigned long)seat_object_index, game_time_get());
