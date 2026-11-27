@@ -10153,10 +10153,30 @@ static void frame_pacing_wait(void)
 }
 #endif
 
+/* Count submissions before readback so asynchronous captures share the same cap. */
+static BOOL periodic_screenshot_due(void)
+{
+	static BOOL initialized;
+	static long every, limit;
+	static unsigned long submitted;
+
+	if (!initialized)
+	{
+		every = *config_string("debug.screenshot_directory") ? config_integer("debug.screenshot_every") : 0;
+		limit = config_integer("debug.screenshot_limit");
+		initialized = TRUE;
+	}
+	if (every <= 0 || (limit > 0 && submitted >= (unsigned long)limit) ||
+		device.frame % (unsigned long)every != 0)
+		return FALSE;
+	if (limit > 0)
+		submitted++;
+	return TRUE;
+}
+
 void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destination_rectangle,
 	void *unused, void *unused2)
 {
-	static long screenshot_every = -1;
 	static int screenshot_window = -1;
 
 	RENDER_TIME_BEGIN();
@@ -10165,14 +10185,13 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 	(void)destination_rectangle;
 	(void)unused;
 	(void)unused2;
-	if (screenshot_every < 0)
-		screenshot_every = config_integer("debug.screenshot_every");
 	if (screenshot_window < 0)
 		screenshot_window = config_boolean("debug.screenshot_window") ? 1 : 0;
 
 	if (device.gl_ready)
 	{
 		struct render_target_entry *back_buffer = render_target_get(&device.back_buffer);
+		BOOL screenshot_due = periodic_screenshot_due();
 		int window_width, window_height, width, height, x, y;
 		/* (the browser's too: looked up before the default framebuffer is
 		bound for the blit, as a new framebuffer_get entry binds itself) */
@@ -10196,7 +10215,7 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 #ifndef HALO_GLES
 		visibility_send_batch();
 #endif
-		if (screenshot_every > 0 && !screenshot_window && device.frame % (unsigned long)screenshot_every == 0)
+		if (screenshot_due && !screenshot_window)
 			write_screenshot(back_buffer);
 #if !defined(HALO_GLES) && !defined(HALO_SERVER)
 		if (platform_screenshot_take_request())
@@ -10357,7 +10376,7 @@ void WINAPI D3DDevice_Present(CONST RECT *source_rectangle, CONST RECT *destinat
 #endif
 		/* (the window as shown, before it is swapped away; and the one
 		debug.test_input's shot asks for) */
-		if ((screenshot_every > 0 && screenshot_window && device.frame % (unsigned long)screenshot_every == 0) ||
+		if ((screenshot_due && screenshot_window) ||
 			test_screenshot_requested)
 		{
 			test_screenshot_requested = FALSE;

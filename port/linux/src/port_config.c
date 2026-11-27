@@ -3177,6 +3177,8 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"for none." },
 	{ "debug.screenshot_every", _config_integer, "0", "HALO_SCREENSHOT_EVERY", _environment_value, _platform_all,
 		"Save every this many frames to debug.screenshot_directory. 0 for none." },
+	{ "debug.screenshot_limit", _config_integer, "0", "HALO_SCREENSHOT_LIMIT", _environment_value, _platform_all,
+		"Maximum periodic screenshot requests per run. 0 for unlimited. Manual screenshots are separate." },
 	{ "debug.screenshot_window", _config_boolean, "false", "HALO_SCREENSHOT_WINDOW", _environment_set_is_true,
 		_platform_all,
 		"With debug.screenshot_every, save the window as shown instead of the\n"

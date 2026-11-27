@@ -16,6 +16,14 @@ per backend and the logs are retained; 1,677,376,824 bytes were reclaimed.
 For matched performance runs, disable screenshots, take visual frames in a
 separate bounded run, and sample only after the same gameplay scene has loaded.
 
+Periodic screenshot capture accepts a per-run request limit. In private
+Win64 candidate `B628807E78E4466A7D9D0138A7D8BCC8545234563B19B5D711EC92D7A71191DC`,
+OpenGL and native Vulkan each produced only the requested two 800×600 captures
+at frames 0 and 3, then continued to the normal eight-second exit. Logs and
+frames are in `build/periodic-capture-acceptance-b628807e`. Scripted and
+player-triggered requests use their prior paths. Candidate stays private
+for the next renderer batch.
+
 ## Be Native field guidance release
 
 Latest Win64 is `DEACA69B00335F048795C611AF09DED5EA75A7EE41DA0421F0816EAE7865CE5C`

@@ -43,6 +43,7 @@ def main():
     settings = SimpleNamespace(start=4, skip=0, seconds=args.seconds, events=False, window=True, display=None)
     extra = ["HALO_EXIT_AFTER=" + str(args.seconds), "HALO_FULLSCREEN=false", "HALO_WINDOW_SIZE=960x540",
              "HALO_MAX_FPS=60", "HALO_SCREENSHOT_DIR=" + str(frames), "HALO_SCREENSHOT_EVERY=240",
+             "HALO_SCREENSHOT_LIMIT=32",
              "HALO_USAGE_STATS=false", "HALO_MAP_TORRENTS=false", "HALO_NET_MAPS_URL=", "HALO_WORKSHOP_MAPS=false",
              "HALO_NET_REPORT_HOSTED=false", "HALO_NET_REPORT_GAMES=false", "HALO_NET_REPORT_EVENTS=false",
              "HALO_CRASH_REPORTS=no", "HALO_DISCORD_REGISTER_LAUNCH=false"]

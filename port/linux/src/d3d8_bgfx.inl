@@ -5498,7 +5498,6 @@ static void bg_present(void)
 	double frame_start, frame_end;
 	uint32_t frame_number;
 	BOOL window;
-	static long screenshot_every = -1;
 	int letterbox[4] = { 0, 0, 0, 0 };
 #ifdef HALO_OPENXR
 	struct vr_openxr_frame idle_frame;
@@ -5509,8 +5508,6 @@ static void bg_present(void)
 		xgpu_openxr_frame_begin(&idle_frame);
 #endif
 
-	if (screenshot_every < 0)
-		screenshot_every = *config_string("debug.screenshot_directory") ? config_integer("debug.screenshot_every") : 0;
 	bg_warm();
 	bg.present_view = (unsigned short)(bg.view + 1);
 	window = bg_window_due();
@@ -5545,7 +5542,7 @@ static void bg_present(void)
 		snprintf(path, sizeof(path), "%s/window%05lu.bmp", config_string("debug.screenshot_directory"), device.frame);
 		bgfx_request_screen_shot((bgfx_frame_buffer_handle_t)BGFX_INVALID_HANDLE, path);
 	}
-	if (screenshot_every > 0 && device.frame % (unsigned long)screenshot_every == 0)
+	if (periodic_screenshot_due())
 	{
 		char path[512];
 
