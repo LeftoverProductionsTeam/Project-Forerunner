@@ -115,6 +115,10 @@ struct render_globals
 
 /* ---------- prototypes/RENDER.C */
 
+/* Render-only BSP selection for the current view. */
+struct structure_bsp;
+short render_structure_bsp_index(void);
+struct structure_bsp const *render_structure_bsp(void);
 void render_effects(boolean enable);
 void render_initialize(void);
 void render_initialize_for_new_map(void);

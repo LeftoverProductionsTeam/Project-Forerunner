@@ -77,6 +77,10 @@ short structure_bsp_clusters_in_cone(
 void structure_get_planar_fog(
 	short cluster_index,
 	struct render_fog *fog);
+void structure_get_planar_fog_in_bsp(
+	struct structure_bsp const *structure,
+	short cluster_index,
+	struct render_fog *fog);
 short structure_bsp_clusters_in_sphere(
 	struct structure_bsp const *structure,
 	short cluster_index,

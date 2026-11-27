@@ -69,9 +69,12 @@ symbols in this file:
 #include "objects.h"
 #include "render_sprite.h"
 #include "scenario.h"
+#include "scenario/scenario_definitions.h"
 #include "structure_bsp_definitions.h"
 #include "effects/player_effects.h"
 #include "structures/structure_visibility.h"
+#include "structures/structure_bsp_definitions.h"
+#include "camera/director.h"
 #ifdef HALO_SHADER_PREP
 #include "render_enumerate.h" /* port: port/linux/game/render_enumerate.c */
 #endif
@@ -169,6 +172,18 @@ void render_sky(
 /* ---------- globals */
 
 struct render_globals render;
+static short render_view_bsp = NONE;
+
+short render_structure_bsp_index(void)
+{
+	return render_view_bsp == NONE ? global_structure_bsp_index_get() : render_view_bsp;
+}
+
+struct structure_bsp const *render_structure_bsp(void)
+{
+	return render_view_bsp == NONE ? global_structure_bsp_get() :
+		scenario_structure_bsp_preview(render_view_bsp, FALSE);
+}
 
 struct render_camera_leaf
 {
@@ -490,7 +505,7 @@ static void render_window(
 		lights_preprocess_scene();
 		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
 #if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
-		if (rasterizer_target == _render_target_primary && !render.camera.mirrored &&
+		if (render_view_bsp == NONE && rasterizer_target == _render_target_primary && !render.camera.mirrored &&
 			game_in_progress() && game_time_get() >= 30)
 			has_pathtrace_frame = halo_pathtrace_prepare(global_structure_bsp_get(), global_structure_bsp_index_get(),
 				render.visible_sky_index,
@@ -508,9 +523,11 @@ static void render_window(
 		HALO_PERF_RENDER_PART(_halo_perf_render_lens_flares);
 		rasterizer_lens_flares_submit_occlusion_tests();
 		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
-		render_object_shadows();
+		if (render_view_bsp == NONE)
+			render_object_shadows();
 		HALO_PERF_RENDER_PART(_halo_perf_render_world);
-		lights_render_diffuse();
+		if (render_view_bsp == NONE)
+			lights_render_diffuse();
 
 		rasterizer_decals_begin(_decal_layer_light);
 		for (rendered_cluster_index = 0;
@@ -554,10 +571,12 @@ static void render_window(
 		}
 		rasterizer_decals_end();
 
-		lights_render_specular();
+		if (render_view_bsp == NONE)
+			lights_render_specular();
 		structure_render_specular_lightmaps();
 		structure_render_reflection_lightmap_masks();
-		structure_render_reflection_mirrors();
+		if (render_view_bsp == NONE)
+			structure_render_reflection_mirrors();
 		structure_render_reflections();
 		HALO_PERF_RENDER_PART(_halo_perf_render_transparent);
 		structure_render_transparent_geometry();
@@ -566,10 +585,13 @@ static void render_window(
 		HALO_PERF_RENDER_PART(_halo_perf_render_objects);
 		game_engine_post_rasterize_objects();
 		HALO_PERF_RENDER_PART(_halo_perf_render_effects);
-		weather_particle_systems_render();
-		render_particles();
-		particle_systems_render();
-		render_contrails_normal();
+		if (render_view_bsp == NONE)
+		{
+			weather_particle_systems_render();
+			render_particles();
+			particle_systems_render();
+			render_contrails_normal();
+		}
 #ifdef HALO_SHADER_PREP
 		/* port: and every effect's (port/linux/game/render_enumerate.c) */
 		render_enumerate_effects();
@@ -587,7 +609,8 @@ static void render_window(
 		}
 		rasterizer_decals_end();
 
-		structure_render_detail_objects();
+		if (render_view_bsp == NONE)
+			structure_render_detail_objects();
 		HALO_PERF_RENDER_PART(_halo_perf_render_transparent);
 		rasterizer_transparent_geometry_draw(FALSE);
 		rasterizer_transparent_geometry_stop();
@@ -651,6 +674,35 @@ static void render_window(
 	return;
 }
 
+/* Prefer the followed unit where regions overlap. A detached view can use
+ * any resident render BSP containing the eye, without transferring a unit. */
+static short render_player_structure_bsp(struct render_window const *window)
+{
+	struct scenario const *scenario = global_scenario_try_and_get();
+	short foreground = global_structure_bsp_index_get();
+	short bsp;
+	long unit;
+
+	if (!scenario || window->local_player_index == NONE || !scenario_uses_regional_gameplay(scenario))
+		return foreground;
+	unit = director_get_followed_unit(window->local_player_index);
+	if (object_try_and_get(unit))
+	{
+		bsp = object_get_regional_bsp(unit);
+		if (bsp != NONE && (bsp == foreground || scenario_structure_bsp_preview(bsp, FALSE)))
+			return bsp;
+	}
+	if (scenario_structure_bsp_contains_point(global_structure_bsp_get(), &window->render_camera.position))
+		return foreground;
+	for (bsp = 0; bsp < MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO); bsp++)
+	{
+		if (bsp != foreground && scenario_structure_bsp_contains_point(
+			scenario_structure_bsp_preview(bsp, FALSE), &window->render_camera.position))
+			return bsp;
+	}
+	return foreground;
+}
+
 /* Leaves are local to the current structure. A camera outside it can keep its
  * last valid leaf, but a different view or player must never supply it. */
 static void render_locate_player_camera(struct render_window const *window)
@@ -658,15 +710,20 @@ static void render_locate_player_camera(struct render_window const *window)
 	struct render_camera_leaf *history = VALID_INDEX(render.window_index, NUMBEROF(render_camera_leaves)) ?
 		&render_camera_leaves[render.window_index] : NULL;
 	long player = local_player_get_player_index(window->local_player_index);
-	short bsp = global_structure_bsp_index_get();
+	short bsp = render_structure_bsp_index();
 	long previous_leaf = NONE;
 
 	if (history && history->valid && history->bsp == bsp && history->player == player)
 		previous_leaf = history->leaf;
 
-	structure_visibility_find_camera(&window->render_camera, previous_leaf);
+	structure_visibility_find_camera(render_structure_bsp(), &window->render_camera, previous_leaf);
 	if (history)
 	{
+		extern char const *config_string(char const *name);
+		if ((history->bsp != bsp || history->player != player) &&
+			*config_string("debug.network_test"))
+			error(_error_silent, "render view %d: bsp %d foreground %d leaf %ld cluster %ld",
+				render.window_index, bsp, global_structure_bsp_index_get(), render.leaf_index, render.cluster_index);
 		history->player = player;
 		history->bsp = bsp;
 		history->leaf = render.leaf_index;
@@ -689,6 +746,9 @@ static void render_player_frame(
 	has_mirror = FALSE;
 
 	HALO_PERF_RENDER_PART(_halo_perf_render_setup);
+	render_view_bsp = render_player_structure_bsp(window);
+	if (render_view_bsp == global_structure_bsp_index_get())
+		render_view_bsp = NONE;
 	render_locate_player_camera(window);
 	render.fog.runtime_flags = 0;
 	scenario_get_atmospheric_fog(
@@ -696,7 +756,7 @@ static void render_player_frame(
 		(word)render.visible_sky_index,
 		&camera->position,
 		&render.fog);
-	structure_get_planar_fog((short)render.cluster_index, &render.fog);
+	structure_get_planar_fog_in_bsp(render_structure_bsp(), (short)render.cluster_index, &render.fog);
 
 	if (render.fog.atmospheric_maximum_distance != 0.0f &&
 		render.visible_sky_index == NONE &&
@@ -853,7 +913,7 @@ static void render_player_frame(
 		&rasterizer_frustum,
 		TRUE);
 
-	if (main_get_window_count() == 1)
+	if (render_view_bsp == NONE && main_get_window_count() == 1)
 	{
 		if (structure_visibility_find_mirror(camera, &frustum, &mirror))
 		{
@@ -920,6 +980,7 @@ static void render_player_frame(
 		_render_target_primary,
 		has_mirror);
 
+	render_view_bsp = NONE;
 	return;
 }
 
@@ -945,14 +1006,12 @@ void render_frame(
 	for (window_index = 0; window_index < window_count; window_index++)
 	{
 		short source_bsp, first, second;
-		long unit;
 		window = &windoze[window_index];
 		if (window->console_window || window->local_player_index == NONE || window->render_camera.mirrored)
 			continue;
-		unit = player_control_get_unit_index(window->local_player_index);
-		source_bsp = unit != NONE ? object_get_regional_bsp(unit) : NONE;
-		if (source_bsp == NONE)
-			source_bsp = global_structure_bsp_index_get();
+		source_bsp = render_player_structure_bsp(window);
+		if (VALID_INDEX(source_bsp, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO))
+			visible |= 1UL << source_bsp;
 		first = players_visible_bsp_neighbor(source_bsp, &window->render_camera.position, &window->render_camera.forward, FALSE, NONE);
 		if (first == NONE)
 			continue;

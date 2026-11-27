@@ -97,6 +97,8 @@ symbols in this file:
 #include "render/render_debug.h"
 #include "game/cheats.h"
 #include "objects/objects.h"
+#include "scenario/scenario.h"
+#include "structures/structure_bsp_definitions.h"
 #include "objects/object_definitions.h"
 #include "objects/object_lights.h"
 #include "objects/object_lights_rendering.h"
@@ -633,9 +635,43 @@ static boolean object_is_first_person_camera(
 		sightjack_object_hidden(object_index);
 }
 
+static short find_rendered_regional_objects(short bsp, long *indices)
+{
+	struct structure_bsp const *structure = render_structure_bsp();
+	short clusters[MAXIMUM_CLUSTERS_PER_STRUCTURE];
+	short count = 0;
+	short index, candidates, visible = 0;
+
+	if (!structure || !structure_bsp_port_verify(structure))
+		return 0;
+	for (index = 0; index < structure->clusters.count; index++)
+	{
+		if (render.cluster_index == NONE || index == render.cluster_index ||
+			scenario_test_pvs_in_structure(structure, (short)render.cluster_index, index))
+			clusters[count++] = index;
+	}
+	candidates = objects_in_bsp_clusters(bsp, 0, count, clusters, MAXIMUM_RENDERED_OBJECTS, indices);
+	for (index = 0; index < candidates; index++)
+	{
+		real_point3d center;
+		real radius;
+		object_get_render_bounding_sphere(indices[index], &center, &radius);
+		if (render_frustum_sphere_visible(&render.frustum, &center, radius))
+			indices[visible++] = indices[index];
+	}
+	return visible;
+}
+
 static void find_rendered_objects(
 	void)
 {
+	short bsp = render_structure_bsp_index();
+	if (bsp != global_structure_bsp_index_get())
+	{
+		render_object_globals.rendered_object_count = find_rendered_regional_objects(
+			bsp, render_object_globals.rendered_object_indices);
+		return;
+	}
 	object_marker_begin();
 
 	render_object_globals.rendered_object_count = structure_visibility_find_objects(

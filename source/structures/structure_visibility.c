@@ -364,16 +364,16 @@ void debug_pvs(
 }
 
 void structure_visibility_find_camera(
+	struct structure_bsp const *structure,
 	const struct render_camera *camera,
 	long previous_leaf)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
-	long leaf_index = bsp3d_test_point(
+	long leaf_index = structure && structure->collision_bsp.count ? bsp3d_test_point(
 		&TAG_BLOCK_GET_ELEMENT(&structure->collision_bsp, 0, struct collision_bsp)->bsp3d,
 		0,
-		&camera->position);
+		&camera->position) : NONE;
 
-	if (leaf_index == NONE && previous_leaf != NONE &&
+	if (structure && leaf_index == NONE && previous_leaf != NONE &&
 		(previous_leaf & LONG_MAX) < structure->leaves.count)
 		leaf_index = previous_leaf;
 
@@ -475,20 +475,30 @@ static void structure_visibility_collect_subclusters(
 
 /* Neighbor geometry shares the world coordinates, but has its own cluster
  * indices. Cull against the camera without changing the active visibility set. */
-long structure_visibility_neighbor_surfaces(struct structure_bsp const *structure,
-	struct render_frustum const *frustum, unsigned long *surface_flags, long surface_limit)
+static long structure_visibility_collect_view_surfaces(struct structure_bsp const *structure,
+	struct render_frustum const *frustum, unsigned long *surface_flags, long surface_limit, short origin_cluster)
 {
+	unsigned long const *pvs = VALID_INDEX(origin_cluster, structure->clusters.count) ?
+		structure_bsp_get_cluster_pvs(structure, origin_cluster) : NULL;
 	long count = 0;
 	long index;
 
 	for (index = 0; index < structure->clusters.count && count < surface_limit; index++)
 	{
-		struct structure_visibility_cluster const *cluster = TAG_BLOCK_GET_ELEMENT(
-			&structure->clusters, index, struct structure_visibility_cluster);
+		struct structure_visibility_cluster const *cluster;
+		if (pvs && index != origin_cluster && !BIT_VECTOR_TEST_FLAG(pvs, index))
+			continue;
+		cluster = TAG_BLOCK_GET_ELEMENT(&structure->clusters, index, struct structure_visibility_cluster);
 		structure_visibility_collect_subclusters(structure, cluster, frustum,
 			surface_flags, &count, surface_limit);
 	}
 	return count;
+}
+
+long structure_visibility_neighbor_surfaces(struct structure_bsp const *structure,
+	struct render_frustum const *frustum, unsigned long *surface_flags, long surface_limit)
+{
+	return structure_visibility_collect_view_surfaces(structure, frustum, surface_flags, surface_limit, NONE);
 }
 
 static void structure_visibility_traverse_subclusters(
@@ -1927,6 +1937,22 @@ void structure_visibility_compute(
 	void)
 {
 	struct structure_bsp *structure = global_structure_bsp_get();
+
+	/* The normal cluster traversal and its decals/lights refer to the
+	 * simulation foreground. Collect render-only geometry separately. */
+	if (render_structure_bsp_index() != global_structure_bsp_index_get())
+	{
+		struct structure_bsp const *view = render_structure_bsp();
+		csmemset(render.visible_cluster_flags, 0, sizeof(render.visible_cluster_flags));
+		csmemset(render.environment_surface_flags, 0, sizeof(render.environment_surface_flags));
+		render.rendered_cluster_count = 0;
+		render.environment_surface_count = 0;
+		if (view && structure_bsp_port_verify(view))
+			render.environment_surface_count = structure_visibility_collect_view_surfaces(
+				view, &render.frustum, render.environment_surface_flags,
+				MAXIMUM_RENDERED_ENVIRONMENT_SURFACES, (short)render.cluster_index);
+		return;
+	}
 
 	/* port: a bsp (from the map) bigger than the engine's flags and arrays
 	of its clusters and surfaces hold, or without its clusters' pvs, has

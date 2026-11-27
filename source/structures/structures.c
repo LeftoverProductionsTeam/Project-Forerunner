@@ -1036,7 +1036,14 @@ void structure_get_planar_fog(
 	short cluster_index,
 	struct render_fog *fog)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
+	structure_get_planar_fog_in_bsp(global_structure_bsp_get(), cluster_index, fog);
+}
+
+void structure_get_planar_fog_in_bsp(
+	struct structure_bsp const *structure,
+	short cluster_index,
+	struct render_fog *fog)
+{
 	boolean screen_fog = FALSE;
 	long fog_definition_index;
 
@@ -1048,6 +1055,8 @@ void structure_get_planar_fog(
 	fog->planar_mode = _render_planar_fog_mode_off;
 	fog->fog_definition_flags = 0;
 	fog->screen = NULL;
+	if (!structure)
+		return;
 
 	fog_definition_index = structure_get_planar_fog_definition_index(
 		structure,
@@ -1067,7 +1076,6 @@ void structure_get_planar_fog(
 		struct structure_cluster *cluster;
 		struct structure_planar_fog_definition *definition;
 
-		structure = global_structure_bsp_get();
 		cluster = TAG_BLOCK_GET_ELEMENT(
 			&structure->clusters,
 			cluster_index,

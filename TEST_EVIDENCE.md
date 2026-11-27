@@ -1,5 +1,22 @@
 # Forerunner test evidence
 
+## Detached regional camera
+
+Private Win64 `02AA847EE41078C5D7FEA5CD91285CC89514D194AC66AEB003321FD53AA0D8DB`
+rendered the floor, walls and ceiling from BSP 10 on exact `6804a24b` while
+simulation remained in BSP 11. The native pose was (938, 129.561, -15.45).
+The matched `3F5DBE10` build selected the same leaf and cluster but produced
+a blank view because it gathered the foreground BSP's triangle vertices.
+The focused compiled camera check also covered classic fallback, followed
+unit priority and per-window history. The image and native trace are in
+`build/regional-camera-02aa847e/{comparison.png,debug.log,receipt.json}`.
+
+The connector's far opening still looks blank at this pose. The native
+test was a controlled detached view. Ordinary first-person, remote dynamic
+effects and split-screen acceptance are still open. The sealed Carousel
+candidate `2D365BA8` and its `46A5753C` mode and `06940FD1` readback receipts
+were rehashed for the next foot/Warthog run. Latest remains unchanged.
+
 ## Neighbor BSP material passes
 
 Private Win64 `5797C58E04C8E746C836AEFA7D99C143DF03E0D7E18E15DED6043052B0708FCC`
