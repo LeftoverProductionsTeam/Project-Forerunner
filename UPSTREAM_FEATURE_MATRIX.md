@@ -207,6 +207,37 @@ Evidence is in `build/native-bsp-pathtrace-stock-bloodgulch/process-materials.lo
 and `build/openremix-win64/native-bloodgulch-matched-textured-bgfx.bmp`.
 No runtime renderer option or Spark capability has been released.
 
+**Live in-game preview.** Windows64 build
+`6328B8BBB4F043B899C3A153480EC8BFDD8577B7A905D66564CFE5AD97A28FB6`
+submitted the resident Blood Gulch BSP, the current player camera and
+native base textures straight to the pinned OpenRemix C SDK. Forerunner
+copied the active Vulkan frame at an 800×600 render extent and drew the
+native HUD afterward. The in-game view shows the traced canyon, weapon
+reticle, ammo, shields and radar. The provider bound 35 of 79 material
+sections and uploaded 5,505,024 bytes of decoded base textures. The other
+sections used the neutral preview material. This is upload payload size,
+separate from actual GPU memory use.
+Evidence is in
+`build/native-bsp-pathtrace-stock-bloodgulch/process-live-pathtrace-vulkan-textured.log`
+and `live-pathtrace-vulkan-textured/window00146.bmp` beneath the same folder.
+The screenshot SHA-256 is
+`a12695d35872f9fbc15f485107e3cf57ff1f7188b08056fe65e04a89230d8c60`.
+
+The preview is private and requires the pinned OpenRemix SDK include
+directory during Windows64 Vulkan build configuration and an explicitly
+selected trusted local DLL. Release builds need no provider dependency.
+It currently replaces the raster world color behind the HUD, so the
+sky, viewmodel, dynamic objects, transparencies, baked lighting and
+terrain detail layers are missing or incomplete. It uses a test light
+and native resolution with denoising disabled. An isolated scripted-look
+run kept the HUD over the updated view, and a missing provider returned
+to the native raster view with simulation continuing beyond tick 150.
+Evidence is in `process-live-pathtrace-vulkan-motion.log` and
+`process-live-pathtrace-missing-provider.log` beside the earlier log.
+Alternate GPUs, motion fidelity, performance, VRAM usage, resize and
+long-run acceptance remain separate gates for a supported mode. Latest,
+Previous and Spark are unchanged.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

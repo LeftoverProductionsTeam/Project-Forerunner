@@ -3174,6 +3174,8 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Pixel shaders show their vertex color." },
 	{ "debug.pathtrace_scene", _config_string, "\"\"", "HALO_PATHTRACE_SCENE", _environment_value, _platform_windows,
 		"Capture one loaded gameplay BSP and camera to a new OBJ relative to the data folder (Windows64)." },
+	{ "debug.pathtrace_provider", _config_string, "\"\"", "HALO_PATHTRACE_PROVIDER", _environment_value, _platform_windows,
+		"Opt in to the private OpenRemix preview with a trusted local Win64 provider DLL. Requires the OpenRemix SDK build and Vulkan." },
 	{ "debug.pathtrace_material_textures", _config_boolean, "false", "HALO_PATHTRACE_TEXTURES", _environment_set_is_true, _platform_windows,
 		"Save native base textures and baked lightmaps next to a private BSP capture (Windows64). Up to 32 MiB." },
 	{ "debug.screenshot_directory", _config_string, "\"\"", "HALO_SCREENSHOT_DIR", _environment_value, _platform_all,

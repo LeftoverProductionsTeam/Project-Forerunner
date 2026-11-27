@@ -4570,6 +4570,123 @@ static void bg_screen_anti_alias(short x0, short y0, short x1, short y1)
 	target->written = ++bg.write_serial;
 }
 
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+#include "../game/pathtrace_preview.h"
+#include "../../windows/include/pathtrace_provider.h"
+
+static struct
+{
+	struct win32_shared_frame imported;
+	bgfx_texture_handle_t texture;
+	BOOL creating, disabled, shown;
+	unsigned int width, height;
+} bg_pathtrace = { .texture = BGFX_INVALID_HANDLE };
+
+static void bg_pathtrace_release(void)
+{
+	if (bg_pathtrace.imported.device)
+	{
+		bgfx_vk_shared_frame_finish();
+		win32_shared_frame_destroy(&bg_pathtrace.imported);
+	}
+	pathtrace_provider_close();
+	if (BGFX_HANDLE_IS_VALID(bg_pathtrace.texture))
+		bgfx_destroy_texture(bg_pathtrace.texture);
+	bg_pathtrace.texture = (bgfx_texture_handle_t)BGFX_INVALID_HANDLE;
+	bg_pathtrace.creating = bg_pathtrace.shown = FALSE;
+}
+
+static int bg_pathtrace_before_hud(const struct structure_bsp *structure, short bsp,
+	const struct render_camera *camera, short x0, short y0, short x1, short y1)
+{
+	const char *path = config_string("debug.pathtrace_provider");
+	struct bg_target *target;
+	bgfx_frame_buffer_handle_t framebuffer;
+	unsigned short viewport[4];
+	int frame;
+
+	if (!path || !*path || bg_pathtrace.disabled || !bg_active() ||
+		bgfx_get_renderer_type() != BGFX_RENDERER_TYPE_VULKAN)
+		return FALSE;
+#ifdef HALO_OPENXR
+	if (vr_openxr_running())
+		return FALSE;
+#endif
+	target = bg_target_get(&device.back_buffer);
+	if (!target || x0 != 0 || y0 != 0 || x1 != target->width || y1 != target->height ||
+		!target->pixel_width || !target->pixel_height || target->pixel_width > 3840 || target->pixel_height > 2160 ||
+		bg.view + 3 >= BG_MAXIMUM_VIEWS || !BGFX_HANDLE_IS_VALID(bg.blit) || !BGFX_HANDLE_IS_VALID(bg.full_quad))
+		return FALSE;
+	framebuffer = bg_framebuffer_get(target, NULL);
+	if (!BGFX_HANDLE_IS_VALID(framebuffer))
+		return FALSE;
+
+	if (bg_pathtrace.width != target->pixel_width || bg_pathtrace.height != target->pixel_height ||
+		!BGFX_HANDLE_IS_VALID(bg_pathtrace.texture))
+	{
+		bg_pathtrace_release();
+		platform_log("OpenRemix preview: preparing a %lux%lu Vulkan view",
+			target->pixel_width, target->pixel_height);
+		bg_pathtrace.width = target->pixel_width;
+		bg_pathtrace.height = target->pixel_height;
+		bg_pathtrace.texture = bgfx_create_texture_2d((uint16_t)target->pixel_width, (uint16_t)target->pixel_height,
+			false, 1, BGFX_TEXTURE_FORMAT_RGBA8, BGFX_TEXTURE_BLIT_DST, NULL, 0);
+		bg_pathtrace.creating = TRUE;
+		if (BGFX_HANDLE_IS_VALID(bg_pathtrace.texture))
+			return FALSE; /* bgfx creates it during this frame's submission. */
+		goto failed;
+	}
+	if (bg_pathtrace.creating)
+	{
+		struct win32_shared_frame_description description = {0};
+		BOOL opened = pathtrace_provider_open(path, bg_pathtrace.width, bg_pathtrace.height, &description);
+		VkResult imported = opened ? bgfx_vk_shared_frame_import(&bg_pathtrace.imported, &description) :
+			VK_ERROR_INITIALIZATION_FAILED;
+		pathtrace_provider_close_handles(&description);
+		if (imported != VK_SUCCESS)
+		{
+			platform_log("OpenRemix preview: provider or shared-frame import unavailable (%d)", (int)imported);
+			goto failed;
+		}
+		bg_pathtrace.creating = FALSE;
+		platform_log("OpenRemix preview: the Vulkan renderer imported the shared frame");
+	}
+	frame = pathtrace_provider_draw(structure, bsp, camera);
+	if (frame == pathtrace_provider_error ||
+		!bgfx_vk_shared_frame_copy(&bg_pathtrace.imported, bg_pathtrace.texture.idx) ||
+		frame == pathtrace_provider_unavailable)
+		goto failed;
+	if (frame == pathtrace_provider_warming_up)
+		return FALSE;
+
+	viewport[0] = viewport[1] = 0;
+	viewport[2] = (unsigned short)target->pixel_width;
+	viewport[3] = (unsigned short)target->pixel_height;
+	bg_view_set(framebuffer, viewport, TRUE);
+	bgfx_set_vertex_buffer(0, bg.full_quad, 0, 4);
+	bgfx_set_texture(0, bg.samplers[0], bg_pathtrace.texture, BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+	bgfx_set_state(BGFX_STATE_WRITE_RGB | BGFX_STATE_PT_TRISTRIP, 0);
+	bgfx_submit(bg.view, bg.blit, 0, BGFX_DISCARD_ALL);
+	bg.view_used = TRUE;
+	target->written = ++bg.write_serial;
+	if (!bg_pathtrace.shown)
+	{
+		bg_pathtrace.shown = TRUE;
+		platform_log("OpenRemix preview: live BSP composited before the HUD at %ux%u",
+			bg_pathtrace.width, bg_pathtrace.height);
+		if (*config_string("debug.screenshot_directory"))
+			halo_test_screenshot();
+	}
+	return TRUE;
+
+failed:
+	bg_pathtrace_release();
+	bg_pathtrace.disabled = TRUE;
+	platform_log("OpenRemix preview: continuing with the native raster view");
+	return FALSE;
+}
+#endif
+
 /* display.crt_filter: a CRT look over the final picture (scanlines,
 curvature, phosphor mask, vignette, bloom, flicker, color bleed), off by
 default. The CRT filter is from Theseus by Milenko (fs_crt.sc, with its

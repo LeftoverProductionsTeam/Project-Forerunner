@@ -730,7 +730,18 @@ def generate_windows_target(n: Writer, sln: Any, target: WindowsTarget) -> None:
             else:
                 add_object(source, game_cflags)
         for source in sorted(Path(linux_config["game_sources"]).glob("*.c")):
-            add_object(source, game_cflags)
+            if source.name == "pathtrace_provider.c" and target.name == "windows64":
+                provider_flags = ["-Iport/windows/include"]
+                sdk = os.environ.get("HALO_OPENREMIX_SDK")
+                if sdk and use_bgfx:
+                    sdk_include = Path(sdk).resolve(strict=True)
+                    for header in ("remix_c.h", "remix_editor_ext.h", "remix_native_ext.h"):
+                        if not (sdk_include / "remix" / header).is_file():
+                            raise SystemExit(f"OpenRemix SDK is missing {header}")
+                    provider_flags += [*bgfx_include_flags(), "-DHALO_OPENREMIX_SDK", f"-I{_quote(sdk_include)}"]
+                add_object(source, f"{game_cflags} {' '.join(provider_flags)}")
+            else:
+                add_object(source, game_cflags)
         # the dedicated server's director, with the game browser (server/)
         if getattr(sln, "game_browser", False):
             for source in sorted(Path("server/src").glob("*.c")):

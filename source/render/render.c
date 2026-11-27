@@ -95,6 +95,9 @@ symbols in this file:
 /* port: static transparent part links for the newly loaded model tags. */
 #include "models/models.h"
 #include "structure_culling.h" /* port: port/linux/game/structure_culling.c */
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+#include "pathtrace_preview.h"
+#endif
 #include "halo_perf_log.h" /* port: console.perf_log */
 #include "stubbs_mode.h" /* port: port/linux/game/stubbs_mode.c */
 #include "stubbs_player.h" /* port: port/linux/game/stubbs_image_effects.c */
@@ -587,6 +590,13 @@ static void render_window(
 				rasterizer_camera->viewport_bounds.x1,
 				rasterizer_camera->viewport_bounds.y1);
 		}
+#if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
+		if (rasterizer_target == _render_target_primary && !render.camera.mirrored &&
+			game_in_progress() && game_time_get() >= 30)
+			halo_pathtrace_before_hud(global_structure_bsp_get(), global_structure_bsp_index_get(),
+				&render.camera, rasterizer_camera->viewport_bounds.x0, rasterizer_camera->viewport_bounds.y0,
+				rasterizer_camera->viewport_bounds.x1, rasterizer_camera->viewport_bounds.y1);
+#endif
 		HALO_PERF_RENDER_PART(_halo_perf_render_hud);
 		{
 			rectangle2d bounds;
