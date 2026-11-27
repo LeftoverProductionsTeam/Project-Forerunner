@@ -1,6 +1,5 @@
 # PROJECT FORERUNNER — FINAL MASTER ENGINEERING DIRECTIVE
-## ONE ENGINE. EVERY FORK.
-### THE COMPLETE MODERN HALO 1 ENGINE
+## THE COMPLETE MODERN HALO 1 ENGINE
 
 **Mission:** Finish Forerunner as one cohesive, stable, cross-platform Halo 1 engine combining the strongest compatible functionality from OpenCE, Chupathingy, FractumSeraph, Faber, OpenH1 and other relevant community implementations.
 
@@ -228,5 +227,3 @@ The engine is complete only when actual players can:
 - Install stable platform-native releases and join supported multiplayer servers.
 
 Do not substitute compilation, fixtures or source presence for gameplay proof.
-
-**ONE ENGINE. EVERY FORK.**

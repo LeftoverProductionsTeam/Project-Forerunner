@@ -1,7 +1,5 @@
 # PROJECT FORERUNNER
 
-### ONE ENGINE. EVERY FORK.
-
 I've been modding Halo 1 since the MacGamingMods days, and I've always had this OCD obsession with trying to combine everything Halo into one place. I did it with my old Halo modding packs back in the day, I'm doing it with Guilty Spark now, and Forerunner is the engine side of that same idea.
 
 **I want one Halo 1 engine that brings together the best work from across the community.** Keep classic Halo running great on older hardware, add the newer stuff, support the maps and mods we've built over the years, and see how far we can push the game.
@@ -26,8 +24,6 @@ If you're another Halo developer, here's what we've been working on.
 If you want to dig into the details, check the [development notes](FORERUNNER_MASTER_LEDGER.md), [test results](TEST_EVIDENCE.md), [Spark integration notes](SPARK_INTEGRATION_CONTRACT.md) and [compatibility matrix](COMPATIBILITY_MATRIX.md).
 
 ## Where I'm taking it
-
-**One Engine. Every Fork.** There's a lot more I want to bring together.
 
 - **Keep classic Halo alive.** I want it to run great on older PCs with the original gameplay and maps intact. Better graphics shouldn't mean leaving old hardware behind.
 - **Bring the forks together.** Keep improving multiplayer compatibility with Chupathingy, OpenCE and other Halo engines. There are differences in their networking and game features, and I'm working through those.

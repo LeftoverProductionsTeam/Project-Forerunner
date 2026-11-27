@@ -154,5 +154,3 @@ Preserve ordinary Halo multiplayer throughout.
 **When these workflows function reliably, and the accepted feature matrix has passed its required tests, Forerunner has achieved its primary mission.**
 
 Build the engine. Prove the gameplay. Finish the integration.
-
-**FORERUNNER — ONE ENGINE. EVERY FORK.**

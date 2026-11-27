@@ -8,7 +8,6 @@
 		<child widget="main_menu/halo_logo" x="0" y="-76" />
 		<child widget="forerunner/main_emblem" x="238" y="93" />
 		<child widget="forerunner/main_wordmark" x="248" y="100" />
-		<child widget="forerunner/main_tagline" x="0" y="129" />
 		<child widget="forerunner/main_list" x="0" y="0" />
 		<child widget="main_menu/build_number" x="450" y="444" />
 	</widget>
@@ -18,16 +17,17 @@
 		<frame png="chupathingy/forerunner/emblem.png" width="32" height="32" />
 	</bitmap>
 	<widget name="forerunner/main_wordmark" type="text" width="180" height="28" align="center" text="FORERUNNER" font="ui\large_ui" color="#FFE3F4F6" />
-	<widget name="forerunner/main_tagline" type="text" width="640" height="22" align="center" text="ONE ENGINE. EVERY FORK." font="ui\small_ui" color="#FFA6E6F2" />
 	<bitmap name="forerunner/main_focus">
 		<frame png="ce/shell/bitmaps/list_item_bkd__0.png" width="256" height="32" />
 		<frame png="chupathingy/forerunner/main_focus.png" width="256" height="32" />
 	</bitmap>
 
-	<widget name="forerunner/banner" width="640" height="128" bitmap="chupathingy/forerunner/brand" />
-	<bitmap name="chupathingy/forerunner/brand">
-		<frame png="chupathingy/forerunner/brand.png" width="640" height="128" />
-	</bitmap>
+	<widget name="forerunner/banner" width="640" height="128">
+		<child widget="forerunner/banner_emblem" x="44" y="12" />
+		<child widget="forerunner/banner_wordmark" x="136" y="41" />
+	</widget>
+	<widget name="forerunner/banner_emblem" width="76" height="76" bitmap="forerunner/main_emblem" />
+	<widget name="forerunner/banner_wordmark" type="text" width="260" height="28" text="FORERUNNER" font="ui\large_ui" color="#FFE3F4F6" />
 	<widget name="forerunner/main_list" type="column_list" width="640" height="480" flags="pass_unhandled_to_focused_child up_down_tabs_items">
 		<child widget="forerunner/campaign" x="60" y="168" />
 		<child widget="forerunner/multiplayer" x="60" y="202" />

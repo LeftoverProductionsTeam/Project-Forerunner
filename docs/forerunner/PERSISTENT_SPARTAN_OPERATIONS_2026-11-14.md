@@ -1,7 +1,5 @@
 # FORERUNNER — PERSISTENT SPARTAN OPERATIONS ENGINE
 
-**ONE ENGINE. EVERY FORK.**
-
 Implement complete cooperative and PvPvE Extraction missions using existing Halo engine systems and Spark-authored maps.
 
 ### Reuse existing implementations

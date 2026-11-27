@@ -9,6 +9,15 @@ artwork. The executable resource contains all nine requested sizes, and the
 This candidate also contains the private regional changes awaiting gameplay
 verification, so the installed Latest remains the released ground preview.
 
+## Forerunner menu branding
+
+Win64 candidate `128d8047` rendered the main and Extraction menus at
+800×600 using the updated Forerunner headers. The source check covered all
+six screens that share the header, and the tracked tagline search came back
+empty. A trial of the existing loose XML replacement on installed
+`2757225e` was rejected because Windows listed the same embedded XML path
+with both slash styles. The override was kept out of Latest.
+
 ## LAN Extraction browser label
 
 Win64 candidate `d22a998a` advertised the retained MegaWorld Extraction
