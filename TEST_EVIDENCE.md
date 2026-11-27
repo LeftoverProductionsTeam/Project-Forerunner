@@ -45,6 +45,12 @@ ground preview and its published mode receipt.
   regions and verified each radar drew candidates from its own BSP, rejected
   the old sweep after crossing, and retained classic height-independent scans.
   Live split-screen with both viewports over an overlapping boundary remains open.
+- Win64 candidate `6e525206` opened the released `fcfe9d44` ground preview
+  through the normal LAN menus. The UNSC player used Deploy, walked to the
+  resupply site and received the field evacuation cue. Focused checks covered
+  coincident coordinates in another BSP, the field cue, the bank target, and
+  resuming the local route after entering the correct BSP. A live crossing
+  between overlapping field and hub scenes remains open.
 - All 19 pools require a matched Spark release package. Eleven stock regions
   lack vehicle rows. Spark owns the additional placements. Hosted online
   persistence, simultaneous regional objectives, and compact-world acceptance

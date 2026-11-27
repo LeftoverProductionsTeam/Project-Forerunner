@@ -971,19 +971,24 @@ static short extraction_transport_return_zone(short faction)
 		? extraction.dropship_return_zones[faction] : extraction.return_zone;
 }
 
+/* Qualify the live field control before using any coordinates in its region. */
+static boolean extraction_field_control_in_region(short call, long object)
+{
+	short bsp;
+	long control;
+	if (!scenario_uses_regional_gameplay(global_scenario))
+		return TRUE;
+	if (call == NONE)
+		return FALSE;
+	bsp = object_get_regional_bsp(object);
+	control = object_index_from_name_index(call);
+	return bsp != NONE && control != NONE && object_get_regional_bsp(control) == bsp;
+}
+
 static boolean extraction_in_field_volume(short zone, short call, long object)
 {
-	if (zone == NONE || !scenario_trigger_volume_test_object(zone, object))
-		return FALSE;
-	if (scenario_uses_regional_gameplay(global_scenario))
-	{
-		short bsp = object_get_regional_bsp(object);
-		long control = object_index_from_name_index(call);
-
-		/* The live field control qualifies its trigger when BSPs overlap. */
-		return bsp != NONE && control != NONE && object_get_regional_bsp(control) == bsp;
-	}
-	return TRUE;
+	return zone != NONE && scenario_trigger_volume_test_object(zone, object) &&
+		extraction_field_control_in_region(call, object);
 }
 
 static boolean extraction_at_call_zone(short faction, long object)
@@ -3535,7 +3540,8 @@ static void extraction_update_guidance(struct extraction_run *run, struct player
 			break;
 		case _extraction_deployed:
 			flag = route[_extraction_guidance_call];
-			if (!run->resupply_visited && route[_extraction_guidance_resupply] != NONE)
+			if (!run->resupply_visited && route[_extraction_guidance_resupply] != NONE &&
+				extraction_field_control_in_region(extraction.ground_calls[faction], unit_index))
 			{
 				short resupply = route[_extraction_guidance_resupply];
 				struct scenario_cutscene_flag const *location =
@@ -3559,8 +3565,16 @@ static void extraction_update_guidance(struct extraction_run *run, struct player
 		case _extraction_ready:
 		case _extraction_settling:
 			if (run->ground_evacuation)
-				flag = extraction_guidance_next(run, faction, _extraction_guidance_route_return,
-					&unit->object.position, route[_extraction_guidance_bank]);
+			{
+				flag = route[_extraction_guidance_bank];
+				/* Return waypoints are local to the faction hub. From another scene,
+				 * keep the bank direction without consuming coincident waypoints. */
+				if (!scenario_uses_regional_gameplay(global_scenario) ||
+					(extraction.faction_hub_bsps[faction] != NONE &&
+					 object_get_regional_bsp(unit_index) == extraction.faction_hub_bsps[faction]))
+					flag = extraction_guidance_next(run, faction, _extraction_guidance_route_return,
+						&unit->object.position, flag);
+			}
 			break;
 		default:
 			break;

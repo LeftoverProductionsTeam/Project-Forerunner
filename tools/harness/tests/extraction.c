@@ -783,6 +783,39 @@ int main(int argc,char **argv)
   units[0].object.position.x=2.f;
   extraction_update_guidance(host,&players[0]);
   CHECK(hud_ground_flag==3,"end of the return route did not point to banking");
+
+  scenario.structure_bsp_references.count=3;
+  extraction.ground_calls[0]=1;
+  extraction.faction_hub_bsps[0]=0;
+  fixture_control_bsp=1;
+  fixture_unit_bsp=2;
+  memset(host->guidance_route_next,0,sizeof(host->guidance_route_next));
+  host->phase=_extraction_deployed;
+  host->resupply_visited=FALSE;
+  units[0].object.position.x=3.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==2&&!host->guidance_route_next[_extraction_guidance_route_outbound],
+        "overlapping BSP advanced a field waypoint or replaced the main objective");
+  units[0].object.position.x=9.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(!host->resupply_visited,"another region completed the resupply cue");
+  fixture_unit_bsp=1;
+  units[0].object.position.x=3.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==7,"field region did not resume its authored route");
+  units[0].object.position.x=9.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==2&&host->resupply_visited,"field region did not complete the resupply cue");
+
+  host->phase=_extraction_ready;
+  units[0].object.position.x=2.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==3&&!host->guidance_route_next[_extraction_guidance_route_return],
+        "another region advanced the overlapping return corridor");
+  fixture_unit_bsp=0;
+  units[0].object.position.x=9.f;
+  extraction_update_guidance(host,&players[0]);
+  CHECK(hud_ground_flag==8,"hub region did not resume its return route");
   return 0;
  }
  if(!strcmp(case_name,"regional-ground-evacuation")) {

@@ -2541,6 +2541,13 @@ guest gear file. Focused gear tests cover settlement and redeployment within
 the match and clearing the stash on disconnect. Native LAN evacuation and
 banking still need a full playtest.
 
+Ground Extraction uses the existing `gs_unsc_*` and `gs_cov_*` cutscene
+flags. Keep resupply and numbered `exit` flags in the faction field control's
+BSP. Keep numbered `return` flags in the faction hub's BSP. From another BSP,
+the HUD points to the field call or bank flag. Only the corresponding local
+scene advances its route, including when floors overlap. Use existing native
+transition volumes to connect the stages.
+
 **Acceptance.** Play the same exact staged cache through the ordinary menu
 with both faction profiles. Verify solo saving, death and redeploy across a
 restart. Verify private and authenticated two-client settlement, including a
