@@ -20,7 +20,7 @@ def generated(fault=None):
         'firefight_spawn_pending', 'coop_enemies_firefight_tracks_unit',
         'coop_enemies_firefight_track_spawned_unit', 'coop_enemies_firefight_enemy_damaged',
         'coop_enemies_firefight_enemy_died', 'coop_enemies_firefight_spawn_finished',
-        'firefight_format_status'))
+        'firefight_wave_label', 'firefight_wave_clear_seconds', 'firefight_format_status'))
     if fault:
         if fault[0] in code:
             code = mutated(code, *fault)
@@ -66,3 +66,8 @@ def test_native_children(case):
 def test_native_child_reuse_negative(before, after, case):
     status, output = run(build('firefight_pursuit', generated((before, after))), 'child-' + case)
     assert status == CHECK_FAILED, output
+
+
+def test_round_and_set_boundaries():
+    status, output = run(build('firefight_pursuit', generated()), 'progression')
+    assert status == 0, output

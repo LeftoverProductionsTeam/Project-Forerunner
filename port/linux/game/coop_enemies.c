@@ -195,6 +195,7 @@ static struct
 	short phase;
 	long wave;
 	long wave_limit;
+	short waves_per_round, rounds_per_set;
 	short initial_enemies;
 	short wave_growth;
 	long score;
@@ -534,12 +535,47 @@ void coop_enemies_firefight_spawn_finished(long unit_index)
 	}
 }
 
+static void firefight_wave_label(char *text, long size)
+{
+	if (firefight.waves_per_round)
+	{
+		long ordinal = MAX(firefight.wave, 1) - 1;
+		long round = ordinal / firefight.waves_per_round;
+		long wave = ordinal % firefight.waves_per_round + 1;
+
+		if (firefight.rounds_per_set)
+			snprintf(text, size, "set %ld round %ld wave %ld/%d", round / firefight.rounds_per_set + 1,
+				round % firefight.rounds_per_set + 1, wave, (int)firefight.waves_per_round);
+		else
+			snprintf(text, size, "round %ld wave %ld/%d", round + 1, wave, (int)firefight.waves_per_round);
+	}
+	else if (firefight.wave_limit)
+		snprintf(text, size, "wave %ld/%ld", firefight.wave, firefight.wave_limit);
+	else
+		snprintf(text, size, "wave %ld/endless", firefight.wave);
+}
+
+/* Faber gives round boundaries extra recovery time. Derive those boundaries
+ * from the existing wave counter so resumes cannot drift out of step. A
+ * finite wave limit still ends the game, even partway through a round. */
+static long firefight_wave_clear_seconds(void)
+{
+	if ((firefight.wave_limit && firefight.wave >= firefight.wave_limit) ||
+		!firefight.waves_per_round || firefight.wave % firefight.waves_per_round)
+		return 3;
+	if (firefight.rounds_per_set &&
+		(firefight.wave / firefight.waves_per_round) % firefight.rounds_per_set == 0)
+		return 7;
+	return 5;
+}
+
 /* The same host summary serves newly loaded peers and combat updates. Pending
 carrier spawns stay distinct from living enemies, as in wave completion. */
 static void firefight_format_status(char *text, long size)
 {
 	short index, remaining = 0, pending = 0;
 	char const *phase;
+	char wave[64];
 
 	for (index = 0; index < firefight.unit_count; index++)
 	{
@@ -551,12 +587,9 @@ static void firefight_format_status(char *text, long size)
 	}
 	phase = firefight.phase == 1 ? "preparing" : firefight.phase == 2 ? "in progress" :
 		firefight.phase == 3 ? "cleared" : "finished";
-	if (firefight.wave_limit)
-		snprintf(text, size, "Firefight: wave %ld/%ld %s; enemies %d; carriers pending %d; score %ld; lives %d",
-			firefight.wave, firefight.wave_limit, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
-	else
-		snprintf(text, size, "Firefight: wave %ld/endless %s; enemies %d; carriers pending %d; score %ld; lives %d",
-			firefight.wave, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
+	firefight_wave_label(wave, sizeof(wave));
+	snprintf(text, size, "Firefight: %s %s; enemies %d; carriers pending %d; score %ld; lives %d",
+		wave, phase, (int)remaining, (int)pending, firefight.score, (int)firefight.lives);
 }
 
 /* The existing reliable client-ready path calls once for a newly loaded peer.
@@ -1098,7 +1131,14 @@ static void firefight_update(void)
 		{
 			char text[128];
 
-			if (firefight.wave_limit)
+			if (firefight.waves_per_round)
+			{
+				char wave[64];
+
+				firefight_wave_label(wave, sizeof(wave));
+				snprintf(text, sizeof(text), "Firefight: %s - eliminate all enemies", wave);
+			}
+			else if (firefight.wave_limit)
 				snprintf(text, sizeof(text), "Firefight: wave %ld of %ld - eliminate all enemies", firefight.wave, firefight.wave_limit);
 			else
 				snprintf(text, sizeof(text), "Firefight: survival wave %ld - eliminate all enemies", firefight.wave);
@@ -1131,15 +1171,18 @@ static void firefight_update(void)
 		}
 		if (dead == firefight.unit_count)
 		{
-			firefight.phase = 3;
-			firefight.deadline = now + 3 * TICKS_PER_SECOND;
-			firefight_equipment_reports();
-			{
-				char text[128];
+			long clear_seconds = firefight_wave_clear_seconds();
+			char text[128];
 
+			firefight.phase = 3;
+			firefight.deadline = now + clear_seconds * TICKS_PER_SECOND;
+			firefight_equipment_reports();
+			if (clear_seconds > 3)
+				snprintf(text, sizeof(text), "Firefight: %s cleared - team score %ld",
+					clear_seconds == 7 ? "set" : "round", firefight.score);
+			else
 				snprintf(text, sizeof(text), "Firefight: wave %ld cleared - team score %ld", firefight.wave, firefight.score);
-				firefight_notice(text);
-			}
+			firefight_notice(text);
 		}
 		else if (now >= firefight.status_deadline)
 		{
@@ -1164,6 +1207,7 @@ static void firefight_update(void)
 			if (firefight.wave < LONG_MAX)
 				firefight.wave++;
 			csmemset(firefight.killed, 0, sizeof(firefight.killed));
+			firefight.unit_count = 0;
 			firefight.phase = 1;
 			firefight.deadline = now + 5 * TICKS_PER_SECOND;
 			firefight_notice("Firefight: reinforcements incoming");
@@ -1454,6 +1498,8 @@ void coop_enemies_new_game(
 	long wave_limit = config_integer("network.firefight_wave_limit");
 	long initial_enemies = config_integer("network.firefight_initial_enemies");
 	long wave_growth = config_integer("network.firefight_wave_growth");
+	long waves_per_round = config_integer("network.firefight_waves_per_round");
+	long rounds_per_set = config_integer("network.firefight_rounds_per_set");
 
 	csmemset(&coop_enemies, 0, sizeof(coop_enemies));
 	csmemset(&firefight, 0, sizeof(firefight));
@@ -1463,6 +1509,8 @@ void coop_enemies_new_game(
 	/* Map-start host rules only. Invalid values retain the default encounter;
 	   zero waves follows Faber's endless policy, not an empty free victory. */
 	firefight.wave_limit = wave_limit >= 0 && wave_limit <= 999 ? wave_limit : 3;
+	firefight.waves_per_round = waves_per_round > 0 && waves_per_round <= 32 ? (short)waves_per_round : 0;
+	firefight.rounds_per_set = rounds_per_set > 0 && rounds_per_set <= 32 ? (short)rounds_per_set : 0;
 	/* Extraction admits endless gear only with a valid native evacuation hub. */
 	firefight.gear = config_boolean("network.firefight_gear");
 	firefight.initial_enemies = initial_enemies >= 1 && initial_enemies <= FIREFIGHT_MAX_TRACKED_ENEMIES ?

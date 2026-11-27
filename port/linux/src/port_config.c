@@ -1999,6 +1999,16 @@ entry, which ChupathingyCE fixed in e3bd5a15) */
 		"Invalid values retain three waves. Fixed at map start; recognized\n"
 		"authored scripts still disable this director. No new raid timer.\n"
 		"Not complete Zombie/Extraction integration or large-horde proof." },
+	{ "network.firefight_waves_per_round", _config_integer, "0", "HALO_NET_FIREFIGHT_WAVES_PER_ROUND", _environment_value,
+		_platform_all,
+		"Host: group built-in Firefight waves into rounds (1 to 32). Zero keeps\n"
+		"continuous waves. Round breaks give the team more recovery time.\n"
+		"The overall wave limit and shared lives still apply." },
+	{ "network.firefight_rounds_per_set", _config_integer, "0", "HALO_NET_FIREFIGHT_ROUNDS_PER_SET", _environment_value,
+		_platform_all,
+		"Host: group Firefight rounds into sets (1 to 32) when rounds are enabled.\n"
+		"Zero plays rounds without sets. Set breaks give the team extra recovery\n"
+		"time. Both grouping settings are fixed when the map starts." },
 	{ "network.firefight_gear", _config_boolean, "false", "HALO_NET_FIREFIGHT_GEAR", _environment_value,
 		_platform_desktop,
 		"Host: share Extraction's persistent weapon/grenade stash with\n"

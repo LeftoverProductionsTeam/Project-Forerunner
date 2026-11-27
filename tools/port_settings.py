@@ -2514,6 +2514,16 @@ COOP_SETUP_SCREENS = [
             *[f"Clear {n} waves to win. Gear recovery follows\\nthe Persistent Gear setting." for n in (1, 2, 5, 10, 20)],
             "Keep the current configured wave limit, including\\ncustom values. No raid timer is added.",
         ]),
+        ("ff_rounds", "WAVES PER ROUND:", ["OFF", "1", "2", "3", "5", "10", "KEEP CURRENT"], [
+            "Play continuous waves without round breaks.",
+            *["Pause longer between rounds. The overall\\nwave limit still determines victory."] * 5,
+            "Keep the current waves per round.",
+        ]),
+        ("ff_sets", "ROUNDS PER SET:", ["OFF", "1", "2", "3", "5", "10", "KEEP CURRENT"], [
+            "Play rounds without set breaks.",
+            *["Pause longer at the end of a set. Requires\\nWaves Per Round to be enabled."] * 5,
+            "Keep the current rounds per set.",
+        ]),
         ("ff_enemies", "INITIAL ENEMIES:", ["2", "1", "4", "8", "16", "32", "KEEP CURRENT"], [
             "Initial actors in each wave before growth.\\nNative carrier children share the 32-body budget."
         ] * 6 + ["Keep the current configured initial population."]),

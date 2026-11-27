@@ -11346,6 +11346,10 @@ static struct gametype_option const gametype_options[] =
 	/* The final NULL choice keeps configured values outside these presets. */
 	{ "ff_waves_spinner", _option_setting, 0, 0, 8, { 0 }, "network.firefight_wave_limit",
 		{ "3", "0", "1", "2", "5", "10", "20", NULL } },
+	{ "ff_rounds_spinner", _option_setting, 0, 0, 7, { 0 }, "network.firefight_waves_per_round",
+		{ "0", "1", "2", "3", "5", "10", NULL } },
+	{ "ff_sets_spinner", _option_setting, 0, 0, 7, { 0 }, "network.firefight_rounds_per_set",
+		{ "0", "1", "2", "3", "5", "10", NULL } },
 	{ "ff_enemies_spinner", _option_setting, 0, 0, 7, { 0 }, "network.firefight_initial_enemies",
 		{ "2", "1", "4", "8", "16", "32", NULL } },
 	{ "ff_growth_spinner", _option_setting, 0, 0, 8, { 0 }, "network.firefight_wave_growth",

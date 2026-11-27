@@ -105,7 +105,7 @@ def test_firefight_setup_generated_screen():
     root = ET.fromstring(text)
     widgets = {widget.get('name'): widget for widget in root.findall('widget')}
     base = 'main_menu/multiplayer_type_select/server_settings/firefight_options/'
-    rows = ['ff_waves', 'ff_enemies', 'ff_growth', 'ff_lives', 'ff_resupply', 'ff_gear']
+    rows = ['ff_waves', 'ff_rounds', 'ff_sets', 'ff_enemies', 'ff_growth', 'ff_lives', 'ff_resupply', 'ff_gear']
     menu = widgets[base + 'firefight_options_menu']
     assert [child.get('widget') for child in menu.findall('child')][:-1] == [base + 'op_' + row for row in rows]
     for row in rows:

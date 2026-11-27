@@ -70,7 +70,7 @@ static void actor_move_to_point(long ai,real_point3d const *point,long a,long b)
 #include "under_test.inc"
 
 static struct {
- boolean enabled;short phase,unit_count,lives;long wave,wave_limit,score,deadline;
+ boolean enabled;short phase,unit_count,lives,waves_per_round,rounds_per_set;long wave,wave_limit,score,deadline;
  long units[FIREFIGHT_MAX_TRACKED_ENEMIES],last_damage_player[FIREFIGHT_MAX_TRACKED_ENEMIES];
  boolean killed[FIREFIGHT_MAX_TRACKED_ENEMIES];
 } firefight;
@@ -178,7 +178,50 @@ static int native_children(char const *name) {
  return 0;
 }
 
+static void test_progression(void)
+{
+ static const struct {
+  long wave,limit;
+  short waves,rounds;
+  long rest;
+  char const *label;
+ } cases[] = {
+  {2, 3, 0, 0, 3, "wave 2/3"},
+  {2, 0, 0, 0, 3, "wave 2/endless"},
+  {1, 0, 2, 2, 3, "set 1 round 1 wave 1/2"},
+  {2, 0, 2, 2, 5, "set 1 round 1 wave 2/2"},
+  {3, 0, 2, 2, 3, "set 1 round 2 wave 1/2"},
+  {4, 0, 2, 2, 7, "set 1 round 2 wave 2/2"},
+  {5, 0, 2, 2, 3, "set 2 round 1 wave 1/2"},
+  {3, 3, 2, 2, 3, "set 1 round 2 wave 1/2"},
+  {4, 4, 2, 2, 3, "set 1 round 2 wave 2/2"},
+  {4, 0, 2, 0, 5, "round 2 wave 2/2"},
+  {LONG_MAX, 0, 1, 1, 7, NULL},
+ };
+ char label[64], status[128], expected[128];
+ firefight.unit_count=0;
+ firefight.phase=1;
+ for (unsigned index=0;index<NUMBEROF(cases);index++) {
+  firefight.wave=cases[index].wave;
+  firefight.wave_limit=cases[index].limit;
+  firefight.waves_per_round=cases[index].waves;
+  firefight.rounds_per_set=cases[index].rounds;
+  CHECK(firefight_wave_clear_seconds()==cases[index].rest,"wrong time between waves");
+  firefight_wave_label(label,sizeof(label));
+  if(cases[index].label)
+   CHECK(!strcmp(label,cases[index].label),"wrong wave label");
+  else {
+   snprintf(expected,sizeof(expected),"set %ld round 1 wave 1/1",LONG_MAX);
+   CHECK(!strcmp(label,expected),"endless ordinal overflow");
+  }
+  firefight_format_status(status,sizeof(status));
+  snprintf(expected,sizeof(expected),"Firefight: %s preparing; enemies 0;",label);
+  CHECK(!strncmp(status,expected,strlen(expected)),"ready peer gets wrong wave information");
+ }
+}
+
 int main(int argc,char **argv) {
+ if(argc==2&&!strcmp(argv[1],"progression")){test_progression();return 0;}
  char const *name=argv[1];short i;long expected=handles[0];
  if(!strncmp(name,"child-",6)){child_setup();return native_children(name+6);}
  self.unit.actor_index=0x30000;self.unit.swarm_actor_index=NONE;
