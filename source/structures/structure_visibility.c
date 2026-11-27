@@ -284,6 +284,7 @@ static void structure_visibility_traverse_cluster(
 static void structure_visibility_find_clusters(
 	void);
 static short structure_visibility_build_surfaces_traverse_clusters(
+	struct structure_bsp const *structure,
 	long *surface_indices,
 	short maximum_count,
 	real_point3d const *bounding_sphere_center,
@@ -295,6 +296,7 @@ static short structure_visibility_build_surfaces_traverse_clusters(
 	short cluster_count,
 	short const *cluster_indices);
 static short structure_visibility_build_surfaces_traverse_leaf(
+	struct structure_bsp const *structure,
 	long leaf_index,
 	real_rectangle3d const *parent_bounds,
 	unsigned long *surface_flags,
@@ -307,6 +309,7 @@ static short structure_visibility_build_surfaces_traverse_leaf(
 	real_plane3d const *cull_planes,
 	short intersection);
 static short structure_visibility_build_surfaces_traverse_node(
+	struct structure_bsp const *structure,
 	long node_index,
 	real_rectangle3d const *parent_bounds,
 	unsigned long *surface_flags,
@@ -1245,6 +1248,7 @@ boolean structure_visibility_find_mirror(
 }
 
 static short structure_visibility_build_surfaces_traverse_clusters(
+	struct structure_bsp const *structure,
 	long *surface_indices,
 	short maximum_count,
 	real_point3d const *bounding_sphere_center,
@@ -1256,7 +1260,6 @@ static short structure_visibility_build_surfaces_traverse_clusters(
 	short cluster_count,
 	short const *cluster_indices)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
 	short found_count = 0;
 	long cluster_list_index;
 
@@ -1328,6 +1331,7 @@ static short structure_visibility_build_surfaces_traverse_clusters(
 }
 
 static short structure_visibility_build_surfaces_traverse_leaf(
+	struct structure_bsp const *structure,
 	long leaf_index,
 	real_rectangle3d const *parent_bounds,
 	unsigned long *surface_flags,
@@ -1341,8 +1345,7 @@ static short structure_visibility_build_surfaces_traverse_leaf(
 	short intersection)
 {
 	short found_count = 0;
-	struct structure_bsp *structure = global_structure_bsp_get();
-	struct structure_leaf *leaf;
+	struct structure_leaf const *leaf;
 	real_rectangle3d leaf_bounds;
 
 	/* port: a leaf (from the map) that is no leaf, or whose surfaces'
@@ -1435,6 +1438,7 @@ static short structure_visibility_build_surfaces_traverse_leaf(
 }
 
 static short structure_visibility_build_surfaces_traverse_node(
+	struct structure_bsp const *structure,
 	long node_index,
 	real_rectangle3d const *parent_bounds,
 	unsigned long *surface_flags,
@@ -1449,8 +1453,7 @@ static short structure_visibility_build_surfaces_traverse_node(
 	short depth)
 {
 	short found_count = 0;
-	struct structure_bsp *structure = global_structure_bsp_get();
-	struct collision_bsp *collision = TAG_BLOCK_GET_ELEMENT(
+	struct collision_bsp const *collision = TAG_BLOCK_GET_ELEMENT(
 		&structure->collision_bsp,
 		0,
 		struct collision_bsp);
@@ -1545,6 +1548,7 @@ static short structure_visibility_build_surfaces_traverse_node(
 				if (!(node->children[side] & LONG_MIN))
 				{
 					found_count += structure_visibility_build_surfaces_traverse_node(
+						structure,
 						node->children[side],
 						&node_bounds,
 						surface_flags,
@@ -1561,6 +1565,7 @@ static short structure_visibility_build_surfaces_traverse_node(
 				else if (node->children[side] != NONE)
 				{
 					found_count += structure_visibility_build_surfaces_traverse_leaf(
+						structure,
 						node->children[side],
 						&node_bounds,
 						surface_flags,
@@ -1591,7 +1596,7 @@ short structure_visibility_build_surfaces(
 	short cluster_count,
 	short const *cluster_indices)
 {
-	struct structure_bsp *structure = global_structure_bsp_get();
+	struct structure_bsp const *structure = render_structure_bsp();
 	unsigned long surface_flags[MAXIMUM_SURFACES_PER_STRUCTURE / LONG_BITS];
 	real_rectangle3d sphere_bounds;
 	struct location center_location;
@@ -1609,7 +1614,7 @@ short structure_visibility_build_surfaces(
 
 	/* port: a bsp (from the map) bigger than the flags hold has no surfaces
 	found in it (structure_visibility_compute reports it) */
-	if (!structure_bsp_port_verify(structure))
+	if (!structure || !structure->collision_bsp.count || !structure_bsp_port_verify(structure))
 	{
 		return 0;
 	}
@@ -1633,6 +1638,7 @@ short structure_visibility_build_surfaces(
 	if (bounding_sphere_radius < structure_sphere_threshold)
 	{
 		return structure_visibility_build_surfaces_traverse_node(
+			structure,
 			0,
 			&structure->world_bounds,
 			surface_flags,
@@ -1650,6 +1656,7 @@ short structure_visibility_build_surfaces(
 	if (cluster_indices)
 	{
 		return structure_visibility_build_surfaces_traverse_clusters(
+			structure,
 			surface_indices,
 			maximum_count,
 			bounding_sphere_center,
@@ -1662,16 +1669,18 @@ short structure_visibility_build_surfaces(
 			cluster_indices);
 	}
 
-	scenario_location_from_point(&center_location, bounding_sphere_center);
+	scenario_location_from_point_in_structure(&center_location, structure, bounding_sphere_center);
 	if (center_location.cluster_index != NONE)
 	{
-		found_cluster_count = structure_clusters_in_sphere(
+		found_cluster_count = structure_bsp_clusters_in_sphere(
+			structure,
 			center_location.cluster_index,
 			bounding_sphere_center,
 			bounding_sphere_radius,
 			MAXIMUM_CLUSTERS_PER_STRUCTURE,
 			found_cluster_indices);
 		return structure_visibility_build_surfaces_traverse_clusters(
+			structure,
 			surface_indices,
 			maximum_count,
 			bounding_sphere_center,
@@ -1685,6 +1694,7 @@ short structure_visibility_build_surfaces(
 	}
 
 	return structure_visibility_build_surfaces_traverse_node(
+		structure,
 		0,
 		&structure->world_bounds,
 		surface_flags,

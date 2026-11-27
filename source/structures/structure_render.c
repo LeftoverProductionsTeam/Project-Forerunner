@@ -1069,10 +1069,14 @@ void structure_render_specular_light(
 	short cluster_count,
 	short *cluster_indices)
 {
+	struct structure_bsp const *structure = render_structure_bsp();
 	long surface_indices[MAXIMUM_LOCALLY_RENDERED_SURFACES];
 	long *environment_surface_indices = surface_indices;
 	long environment_surface_count;
 	long environment_triangles_index;
+
+	if (!structure)
+		return;
 
 	profile_enter(render_structure_specular_lights_section);
 
@@ -1089,7 +1093,7 @@ void structure_render_specular_light(
 			cluster_count,
 			cluster_indices);
 		environment_triangles_index = structure_render_build_dynamic_triangles(
-			global_structure_bsp_get(),
+			structure,
 			surface_indices,
 			environment_surface_count,
 			NULL);
@@ -1108,8 +1112,8 @@ void structure_render_specular_light(
 		rasterizer_environment_specular_light_begin(rasterizer_light_index);
 
 		structure_render_pass(
-			global_structure_bsp_get(),
-			global_structure_bsp_index_get(),
+			structure,
+			render_structure_bsp_index(),
 			environment_surface_indices,
 			environment_surface_count,
 			environment_triangles_index,
@@ -1140,10 +1144,14 @@ void structure_render_diffuse_light(
 	short cluster_count,
 	short *cluster_indices)
 {
+	struct structure_bsp const *structure = render_structure_bsp();
 	long surface_indices[MAXIMUM_LOCALLY_RENDERED_SURFACES];
 	long *environment_surface_indices = surface_indices;
 	long environment_surface_count;
 	long environment_triangles_index;
+
+	if (!structure)
+		return;
 
 	profile_enter(render_structure_diffuse_lights_section);
 
@@ -1160,7 +1168,7 @@ void structure_render_diffuse_light(
 			cluster_count,
 			cluster_indices);
 		environment_triangles_index = structure_render_build_dynamic_triangles(
-			global_structure_bsp_get(),
+			structure,
 			surface_indices,
 			environment_surface_count,
 			NULL);
@@ -1179,8 +1187,8 @@ void structure_render_diffuse_light(
 		rasterizer_environment_diffuse_light_begin(rasterizer_light_index);
 
 		structure_render_pass(
-			global_structure_bsp_get(),
-			global_structure_bsp_index_get(),
+			structure,
+			render_structure_bsp_index(),
 			environment_surface_indices,
 			environment_surface_count,
 			environment_triangles_index,

@@ -1,5 +1,23 @@
 # Forerunner test evidence
 
+## Dynamic environment lighting in secondary views
+
+Private Win64 `f5b865a4c2037e89aa07434413c4e948a2f58a1f5aecec3ebfb92e3f48be5dc5`
+runs the native diffuse and specular point-light passes for the viewport BSP.
+Their cluster, node and leaf queries use that structure before submitting
+the matching render triangles. A compiled routing fixture covered both
+passes, the prebuilt full-viewport path, foreground and absent structures.
+Restoring foreground-only lookup failed the secondary-view assertion.
+
+Exact `d0c4c13b` / `36e2d953` launched through standard Extraction menus.
+Normal flashlight and fire input produced up to five dynamic lights in the
+Ice Fields view. At tick 751 a controlled camera switched the view to
+BSP 10 while only BSP 11 remained held. The lit tunnel rendered without a
+crash. The screenshot checks scene integrity; it does not isolate a dynamic
+light inside the secondary BSP. Run evidence is in
+`build/regional-env-light-f5b865a4`. Split-screen and a live secondary
+emitter remain acceptance gates.
+
 ## View-qualified regional lights and door occlusion
 
 Private Win64 `9e66c83d458604677ad667af44b88bfbb08d4cf4e21961086d60f8d394f64d34`

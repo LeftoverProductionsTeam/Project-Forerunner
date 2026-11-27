@@ -526,8 +526,7 @@ static void render_window(
 		if (render_view_bsp == NONE)
 			render_object_shadows();
 		HALO_PERF_RENDER_PART(_halo_perf_render_world);
-		if (render_view_bsp == NONE)
-			lights_render_diffuse();
+		lights_render_diffuse();
 
 		rasterizer_decals_begin(_decal_layer_light);
 		for (rendered_cluster_index = 0;
@@ -571,8 +570,7 @@ static void render_window(
 		}
 		rasterizer_decals_end();
 
-		if (render_view_bsp == NONE)
-			lights_render_specular();
+		lights_render_specular();
 		structure_render_specular_lightmaps();
 		structure_render_reflection_lightmap_masks();
 		if (render_view_bsp == NONE)
