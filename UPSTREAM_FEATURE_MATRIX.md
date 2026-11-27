@@ -453,6 +453,21 @@ interior, the released map's geometry, or multiplayer. The log is
 Adjacent capture `window00904.bmp` is the tunnel and `window01667.bmp`
 is the return outdoors.
 
+**Released MegaWorld seam check.** The same preview executable also
+passed BSP 0→12→0 on the released map `fcfe9d44` with receipt `d7c07e86`.
+The private solo trial used one setup placement followed by normal
+movement. Holds changed from BSP 0 at tick 150 to BSP 12 at tick 300 and
+back to BSP 0 at tick 600. The weapons and shields stayed stable during
+both switches. Halo's native lighting made the tunnel floor, walls and
+ceiling visible. FSR Quality resumed outside at 533×400 → 800×600 with
+history reset 5 and all 152 opaque sections textured. The process
+exited normally. In `build/native-bsp-pathtrace-stock-bloodgulch`, see
+`process-live-pathtrace-megaworld-infinity-release-fsr-return.log` and
+the matching capture folder. `window01151.bmp` shows the tunnel and
+`window01994.bmp` shows the traced return. This verifies local renderer
+fallback and restoration on released content. Multiplayer and traced
+indoor lighting remain open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
