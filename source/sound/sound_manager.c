@@ -4307,6 +4307,8 @@ static void refresh_listener(
 			struct observer_result const *camera =
 				observer_get_camera(local_player_index);
 			real_vector3d velocity; /* port: listener_measure_velocity */
+			struct location location;
+			struct structure_bsp const *structure;
 			boolean underwater;
 #ifdef HALO_OPENXR
 			struct observer_result tracked_listener;
@@ -4327,10 +4329,8 @@ static void refresh_listener(
 			}
 #endif
 			listener->valid = TRUE;
-			underwater = scenario_location_underwater(
-				&camera->location,
-				&camera->position,
-				NULL);
+			structure = observer_get_camera_structure(local_player_index, camera, &location);
+			underwater = scenario_location_underwater_in_structure(structure, &location, &camera->position, NULL);
 
 			if (listener->underwater != underwater)
 			{

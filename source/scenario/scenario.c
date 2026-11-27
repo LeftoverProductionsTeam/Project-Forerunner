@@ -1590,7 +1590,7 @@ void scenario_get_sound_environment(
 	struct sound_environment_definition const **sound_environment_out,
 	boolean *crossed_water_boundary)
 {
-	struct structure_bsp *structure_bsp;
+	struct structure_bsp const *structure_bsp;
 	long local_player_index;
 	long player_index;
 	long fog_index;
@@ -1622,20 +1622,17 @@ void scenario_get_sound_environment(
 		player_index = local_player_get_player_index((short)local_player_index);
 		if (player_index != NONE)
 		{
+			struct location location;
 			camera = observer_get_camera((short)local_player_index);
-			if (camera->location.cluster_index != NONE)
+			structure_bsp = observer_get_camera_structure((short)local_player_index, camera, &location);
+			if (structure_bsp && VALID_INDEX(location.cluster_index, structure_bsp->clusters.count))
 			{
-				match_assert(
-					"c:\\halo\\SOURCE\\scenario\\scenario.c",
-					0xC5,
-					global_structure_bsp);
-				structure_bsp = global_structure_bsp;
 				cluster = TAG_BLOCK_GET_ELEMENT(
 					&structure_bsp->clusters,
-					camera->location.cluster_index,
+					location.cluster_index,
 					struct structure_cluster);
-				fog_index = scenario_fog_region_get_fog_index(
-					scenario_get_fog_region_index(&camera->location, &camera->position));
+				fog_index = scenario_fog_region_get_fog_index_in_structure(structure_bsp,
+					scenario_get_fog_region_index_in_structure(structure_bsp, &location, &camera->position));
 
 				if (fog_index != NONE)
 				{

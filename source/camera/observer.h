@@ -105,6 +105,11 @@ void observer_update(
 
 struct observer_result const *observer_get_camera(
 	short local_player_index);
+struct structure_bsp;
+struct structure_bsp const *observer_get_camera_structure(
+	short local_player_index,
+	struct observer_result const *camera,
+	struct location *location);
 /* port: for the sounds' Doppler effect (sound_manager.c) */
 real_point3d const *observer_get_focus_position(
 	short local_player_index);
