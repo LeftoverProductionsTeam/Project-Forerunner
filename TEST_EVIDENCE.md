@@ -441,6 +441,19 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   (31201), then back to Ice Fields 10→11 (34320). The native log records
   the same Elite root e6a00431 throughout, with full health and shields on return.
   Broader visual review, Warthog crossings and the sealed pool merge remain open.
+  A separate fixed-camera Win64 OpenGL 800×600 comparison at
+  (928.481,183.101,-15.1), yaw -92, pitch 0, used Latest DEACA69B and exact
+  caches f5a4ca22 and c5bb94da. Both still show the exterior at this view.
+  BSP 11's sampled render/vertex-normal disagreements decreased from
+  177/315 to 52/315. Disabling optional structure culling also left the
+  wall absent on c5bb94da. The debug camera and BSP were positioned by
+  the existing test cues, with the player outside the tested view.
+  Evidence: build/ice-fields-opacity-c5bb94da/{f5a4ca22,c5bb94da}/window00360.bmp
+  and c5bb94da-no-structure-culling/window00240.bmp. The c5bb94da receipt
+  present on disk rehashed 1c52f0c9, distinct from the handoff's 04173bc0.
+  The comparison used Slayer without a mode receipt. Next compare the
+  exact view with a known opaque control and a live player in BSP 11
+  before attributing the remaining missing geometry or accepting the map.
 - **Reusable runtime diagnostics.** The private 2beae96a executable
   compiled, advertised playtest.regional_transition_log.v1 in discovery,
   and admitted b5178c77 from ordinary menus. The native transition log
