@@ -32,7 +32,7 @@ unsigned long mcc_cache_bsp_prepare_address(struct scenario_structure_bsp_refere
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
     unsigned long address, void **header, void **structure);
 struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference);
-struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_reference const *reference, boolean prefetch);
+struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_reference const *reference, boolean prefetch, unsigned long visible);
 boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *reference, boolean replace_oldest);
 void mcc_cache_bsp_discard_prepared(struct scenario_structure_bsp_reference const *reference);
 void mcc_cache_bsp_unload(struct scenario_structure_bsp_reference const *reference);
@@ -52,7 +52,7 @@ the shared code calls do nothing, their arguments unevaluated */
 #define mcc_cache_bsp_prepare_address(active, destination) ((void)sizeof(active), (void)sizeof(destination), 0ul)
 #define mcc_cache_bsp_load(a0, a1, a2, a3) ((void)sizeof(a0), (void)sizeof(a1), (void)sizeof(a2), (void)sizeof(a3), (boolean)0)
 #define mcc_cache_bsp_retained_structure(reference) ((void)sizeof(reference), (struct structure_bsp *)0)
-#define mcc_cache_bsp_preview(reference, prefetch) ((void)sizeof(reference), (void)sizeof(prefetch), (struct structure_bsp const *)0)
+#define mcc_cache_bsp_preview(reference, prefetch, visible) ((void)sizeof(reference), (void)sizeof(prefetch), (void)sizeof(visible), (struct structure_bsp const *)0)
 #define mcc_cache_bsp_retain(reference, replace_oldest) ((void)sizeof(reference), (void)sizeof(replace_oldest), (boolean)0)
 #define mcc_cache_bsp_discard_prepared(reference) ((void)sizeof(reference))
 #define mcc_cache_bsp_unload(reference) ((void)0)

@@ -115,6 +115,21 @@ pose reconstruction and the sleep decision. The Win64 candidate
 `e64c7fbee` compiled successfully. Direct scope timing at the corpse cap,
 custom skeleton acceptance and release validation remain open.
 
+On exact stock CE609 Rat Race `03a483b5`, Forge Tools failed before the CE
+name fix and opened afterward on Win64 `b7f811e0`. Normal Local Forge import
+and save preserved a native spotlight record and its credited metadata.
+Native HMV readback gave one `lifi` record at (16.669445, 0.421251, 0.123938)
+and a byte-identical save `9240fb81`. The title and operation are local-only.
+This checks the shared placement transaction, not every HMV 16 record kind.
+
+Private Win64 `132534c8` compiled two speculative BSP previews in the
+existing warm-slot budget. Each viewport's requests are considered before a
+single load attempt. The focused check covered filling both slots, preserving
+visible and ordinary warm entries, replacement throttling, failure suppression
+and one-slot fallback. Actual multi-neighbor junction rendering and foreground
+selection for split-screen terrain remain open. The existing
+`scenario_illumination_at_point` is an unused constant-output placeholder.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

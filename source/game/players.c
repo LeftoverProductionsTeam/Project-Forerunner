@@ -3883,7 +3883,7 @@ boolean players_position_crosses_bsp_route(short source_bsp, short destination_b
 }
 
 /* A marked campaign transition can lead to an unrelated coordinate space. */
-short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d const *forward,
+short players_visible_bsp_neighbor(short source_bsp, real_point3d const *position, real_vector3d const *forward,
 	boolean resident_only, short excluded_bsp)
 {
 	struct scenario const *scenario = global_scenario_try_and_get();
@@ -3891,7 +3891,8 @@ short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d c
 	short neighbor = NONE;
 	short index;
 
-	if (!scenario || !scenario_uses_regional_gameplay(scenario) || global_structure_bsp_index == NONE)
+	if (!scenario || !scenario_uses_regional_gameplay(scenario) ||
+		!VALID_INDEX(source_bsp, scenario->structure_bsp_references.count))
 		return NONE;
 	for (index = 0; index < MIN(scenario->bsp_switch_trigger_volumes.count, SHORT_MAX); index++)
 	{
@@ -3902,8 +3903,8 @@ short players_visible_bsp_neighbor(real_point3d const *position, real_vector3d c
 		real_vector3d delta;
 		real distance_squared;
 
-		if (route->cutscene_flag_index != NONE || route->source_structure_bsp_index != global_structure_bsp_index ||
-			route->destination_structure_bsp_index == global_structure_bsp_index ||
+		if (route->cutscene_flag_index != NONE || route->source_structure_bsp_index != source_bsp ||
+			route->destination_structure_bsp_index == source_bsp ||
 			route->destination_structure_bsp_index == excluded_bsp ||
 			!VALID_INDEX(route->destination_structure_bsp_index,
 				MIN(scenario->structure_bsp_references.count, MAXIMUM_STRUCTURE_BSPS_PER_SCENARIO)) ||

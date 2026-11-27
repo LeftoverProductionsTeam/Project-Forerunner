@@ -15,6 +15,7 @@
 #include "errors.h"
 #include "cache/cache_files.h"
 #include "game/game.h"
+#include "scenario/scenario.h"
 #include "scenario/scenario_definitions.h"
 #include "structures/structure_bsp_definitions.h"
 #include "interface/ui_widget.h"
@@ -68,7 +69,7 @@ short mcc_geometry_part_palette(struct mcc_runtime *runtime, void const *buffer,
 static struct mcc_runtime mcc_loaded_cache;
 static struct mcc_cache_bsp const *mcc_retained_bsps[2];
 static struct mcc_cache_bsp const *mcc_active_bsp;
-static struct mcc_cache_bsp const *mcc_preview_bsp;
+static uint32_t mcc_preview_bsps;
 static uint32_t mcc_failed_bsp_previews;
 static uint32_t mcc_bsp_preview_tick;
 static uint32_t mcc_bsps_in_use;
@@ -383,7 +384,7 @@ void mcc_cache_tags_unload(void)
 {
     memset(mcc_retained_bsps, 0, sizeof(mcc_retained_bsps));
     mcc_active_bsp = NULL;
-    mcc_preview_bsp = NULL;
+    mcc_preview_bsps = 0;
     mcc_failed_bsp_previews = 0;
     mcc_bsp_preview_tick = 0;
     mcc_bsps_in_use = 0;
@@ -605,6 +606,11 @@ static uint32_t mcc_cache_bsp_resident_address(struct mcc_cache_bsp const *bsp)
     return mcc_loaded_cache.bsp_addresses[bsp - mcc_loaded_cache.report.bsps];
 }
 
+static uint32_t mcc_cache_bsp_bit(struct mcc_cache_bsp const *bsp)
+{
+    return bsp ? UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps) : 0;
+}
+
 static boolean mcc_cache_bsp_pinned(struct mcc_cache_bsp const *bsp)
 {
     return bsp && (mcc_bsps_in_use & (UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps)));
@@ -749,7 +755,7 @@ static void mcc_cache_bsp_release(struct mcc_cache_bsp const *bsp)
 {
     uint32_t address = bsp ? mcc_cache_bsp_resident_address(bsp) : 0;
     if (!address || mcc_cache_bsp_in_use(bsp)) return;
-    if (bsp == mcc_preview_bsp) mcc_preview_bsp = NULL;
+    mcc_preview_bsps &= ~mcc_cache_bsp_bit(bsp);
     mcc_geometry_bsp_unload(&mcc_loaded_cache, bsp->tag_handle);
     mcc_bsp_release_claims(&mcc_loaded_cache, xbox_pointer(address), bsp->size);
 }
@@ -773,7 +779,7 @@ void mcc_cache_bsp_set_in_use(struct scenario_structure_bsp_reference const *ref
     if (in_use) {
         int slot = mcc_cache_bsp_retained_slot(bsp);
         mcc_bsps_in_use |= bit;
-        if (bsp == mcc_preview_bsp) mcc_preview_bsp = NULL;
+        mcc_preview_bsps &= ~bit;
         if (slot != NONE) mcc_cache_remove_retained_slot(slot);
     } else if (mcc_bsps_in_use & bit) {
         mcc_bsps_in_use &= ~bit;
@@ -793,7 +799,7 @@ static struct structure_bsp *mcc_cache_bsp_resident_structure(struct mcc_cache_b
 struct structure_bsp *mcc_cache_bsp_retained_structure(struct scenario_structure_bsp_reference const *reference)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
-    return bsp != mcc_preview_bsp ? mcc_cache_bsp_resident_structure(bsp) : NULL;
+    return (mcc_preview_bsps & mcc_cache_bsp_bit(bsp)) ? NULL : mcc_cache_bsp_resident_structure(bsp);
 }
 
 boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *reference,
@@ -809,7 +815,7 @@ boolean mcc_cache_bsp_load(struct scenario_structure_bsp_reference const *refere
         uint32_t resident = mcc_cache_bsp_resident_address(bsp);
         *header = xbox_pointer(resident);
         *structure = mcc_cache_bsp_resident_structure(bsp);
-        if (bsp == mcc_preview_bsp) mcc_preview_bsp = NULL;
+        mcc_preview_bsps &= ~mcc_cache_bsp_bit(bsp);
         if (slot != NONE) mcc_cache_remove_retained_slot(slot);
         return TRUE;
     }
@@ -850,55 +856,78 @@ boolean mcc_cache_bsp_retain(struct scenario_structure_bsp_reference const *refe
     if (!bsp || !mcc_cache_bsp_resident_address(bsp) || mcc_cache_bsp_retained_slot(bsp) != NONE)
         return FALSE;
     if (mcc_cache_bsp_pinned(bsp)) return TRUE;
-    if (replace_oldest && mcc_preview_bsp) {
-        slot = mcc_cache_bsp_retained_slot(mcc_preview_bsp);
-        mcc_cache_bsp_release(mcc_preview_bsp);
-        if (slot != NONE) mcc_cache_remove_retained_slot(slot);
-    }
-    if (mcc_retained_bsps[0] && !mcc_cache_bsp_keep_two_neighbors()) return FALSE;
-    if (mcc_retained_bsps[1]) {
+    slot = mcc_cache_bsp_keep_two_neighbors() ? NUMBEROF(mcc_retained_bsps) - 1 : 0;
+    if (mcc_retained_bsps[slot]) {
         if (!replace_oldest) return FALSE;
-        mcc_cache_bsp_release(mcc_retained_bsps[1]);
-        mcc_cache_remove_retained_slot(1);
+        if (slot == 1 && !(mcc_preview_bsps & mcc_cache_bsp_bit(mcc_retained_bsps[1])) &&
+            (mcc_preview_bsps & mcc_cache_bsp_bit(mcc_retained_bsps[0])))
+            slot = 0;
+        if (!mcc_cache_bsp_keep_two_neighbors() && !(mcc_preview_bsps & mcc_cache_bsp_bit(mcc_retained_bsps[slot])))
+            return FALSE;
+        mcc_cache_bsp_release(mcc_retained_bsps[slot]);
+        mcc_cache_remove_retained_slot(slot);
     }
     mcc_retained_bsps[1] = mcc_retained_bsps[0];
     mcc_retained_bsps[0] = bsp;
     return TRUE;
 }
 
-/* A view can borrow one spare warm slot. This does not expose new collision
- * to simulation; the normal BSP switch still owns activation. */
+static boolean mcc_cache_bsp_visible(struct mcc_cache_bsp const *bsp, unsigned long visible)
+{
+    struct scenario const *scenario = global_scenario_get();
+    short index;
+
+    if (!visible || !scenario)
+        return FALSE;
+    for (index = 0; index < scenario->structure_bsp_references.count && index < 32; ++index) {
+        if ((visible & (1UL << index)) &&
+            (uint32_t)TAG_BLOCK_GET_ELEMENT(&scenario->structure_bsp_references,
+                index, struct scenario_structure_bsp_reference)->structure_bsp.index == bsp->tag_handle)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+/* Views share the existing warm slots. Preview geometry stays out of
+ * simulation until the native regional transfer promotes its hold. */
 struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_reference const *reference,
-    boolean prefetch)
+    boolean prefetch, unsigned long visible)
 {
     struct mcc_cache_bsp const *bsp = mcc_cache_bsp_reference(reference);
     struct structure_bsp const *resident = mcc_cache_bsp_resident_structure(bsp);
-    int preview_slot, retained_count;
-    struct mcc_cache_bsp const *retained;
-    uint32_t bit, address, now;
+    int slot, replace = NONE;
+    int limit = mcc_cache_bsp_keep_two_neighbors() ? NUMBEROF(mcc_retained_bsps) : 1;
+    uint32_t bit, address = 0, now;
     void *header, *structure;
 
     if (resident || !prefetch || !mcc_active_bsp || !bsp || bsp == mcc_active_bsp)
         return resident;
-    bit = UINT32_C(1) << (bsp - mcc_loaded_cache.report.bsps);
+    bit = mcc_cache_bsp_bit(bsp);
     if (mcc_failed_bsp_previews & bit)
         return NULL;
     now = (uint32_t)game_time_get();
-    preview_slot = mcc_preview_bsp ? mcc_cache_bsp_retained_slot(mcc_preview_bsp) : NONE;
-    if (preview_slot != NONE && now - mcc_bsp_preview_tick < TICKS_PER_SECOND)
-        return NULL;
-    retained_count = (mcc_retained_bsps[0] != NULL) + (mcc_retained_bsps[1] != NULL) - (preview_slot != NONE);
-    if (retained_count > 1 || (retained_count && !mcc_cache_bsp_keep_two_neighbors()))
-        return NULL;
-    retained = mcc_retained_bsps[preview_slot == 0 ? 1 : 0];
-    address = mcc_cache_bsp_address_with_neighbors(mcc_active_bsp, bsp, retained, NULL);
+    if (!mcc_retained_bsps[limit - 1])
+        address = mcc_cache_bsp_address_with_neighbors(mcc_active_bsp, bsp, mcc_retained_bsps[0], mcc_retained_bsps[1]);
+
+    if (!address && now - mcc_bsp_preview_tick >= TICKS_PER_SECOND) {
+        for (slot = limit - 1; slot >= 0; --slot) {
+            struct mcc_cache_bsp const *old = mcc_retained_bsps[slot];
+            if (!old || !(mcc_preview_bsps & mcc_cache_bsp_bit(old)) || mcc_cache_bsp_visible(old, visible))
+                continue;
+            address = mcc_cache_bsp_address_with_neighbors(mcc_active_bsp, bsp, mcc_retained_bsps[1 - slot], NULL);
+            if (address) {
+                replace = slot;
+                break;
+            }
+        }
+    }
     if (!address)
         return NULL;
-    /* At frame start no view can still borrow this preview. Leave all
-     * gameplay holds and ordinary warm regions in place. */
-    if (preview_slot != NONE) {
-        mcc_cache_bsp_release(mcc_preview_bsp);
-        mcc_cache_remove_retained_slot(preview_slot);
+
+    /* This runs before the first viewport borrows the warm geometry. */
+    if (replace != NONE) {
+        mcc_cache_bsp_release(mcc_retained_bsps[replace]);
+        mcc_cache_remove_retained_slot(replace);
     }
     if (!mcc_cache_bsp_load(reference, address, &header, &structure) ||
         !structure_bsp_port_verify(structure) || !mcc_cache_bsp_retain(reference, FALSE)) {
@@ -906,7 +935,7 @@ struct structure_bsp const *mcc_cache_bsp_preview(struct scenario_structure_bsp_
         mcc_failed_bsp_previews |= bit;
         return NULL;
     }
-    mcc_preview_bsp = bsp;
+    mcc_preview_bsps |= bit;
     mcc_bsp_preview_tick = now;
     return structure;
 }

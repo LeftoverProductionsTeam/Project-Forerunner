@@ -102,6 +102,7 @@ struct scenario *global_scenario_get(void);
 boolean scenario_uses_regional_gameplay(struct scenario const *scenario);
 struct structure_bsp const *scenario_structure_bsp_try_and_get(short structure_bsp_index);
 struct structure_bsp const *scenario_structure_bsp_preview(short structure_bsp_index, boolean prefetch);
+void scenario_structure_bsp_prefetch_visible(short structure_bsp_index, unsigned long visible);
 struct scenario *global_scenario_try_and_get(void);
 struct structure_bsp *global_structure_bsp_get(void);
 struct collision_bsp *global_collision_bsp_get(void);

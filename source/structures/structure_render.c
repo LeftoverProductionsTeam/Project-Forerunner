@@ -706,12 +706,12 @@ static void structure_render_prepare_neighbors(void)
 	memset(render_neighbors, 0, sizeof(render_neighbors));
 	if (surface_limit <= 0 || render.camera.mirrored)
 		return;
-	nearest = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward, TRUE, NONE);
+	nearest = players_visible_bsp_neighbor(global_structure_bsp_index_get(), &render.camera.position, &render.camera.forward, TRUE, NONE);
 	if (nearest == NONE)
 		return;
 	/* Both residents share the existing surface budget. An invisible second
 	 * route leaves all of it to the nearest route. Neither lookup loads a BSP. */
-	other = players_visible_bsp_neighbor(&render.camera.position, &render.camera.forward, TRUE, nearest);
+	other = players_visible_bsp_neighbor(global_structure_bsp_index_get(), &render.camera.position, &render.camera.forward, TRUE, nearest);
 	structure_render_prepare_neighbor(secondary, other, 0, surface_limit / 2);
 	structure_render_prepare_neighbor(&render_neighbors[0], nearest, secondary->surface_count,
 		surface_limit - secondary->surface_count);

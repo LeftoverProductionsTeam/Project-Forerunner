@@ -885,20 +885,41 @@ void render_frame(
 	struct render_window *window;
 	point2d screenshot_combined_index;
 
-	/* Prepare at most one preview before submitting any split-screen or
-	 * stereo views. Each view can then read resident terrain independently. */
+	unsigned long visible = 0, cold = 0;
+	static short next_preview;
+	short request;
+
+	/* Collect both neighbor requests from every view before lending out
+	 * a warm slot. Do at most one load attempt per rendered frame. */
 	for (window_index = 0; window_index < window_count; window_index++)
 	{
-		short neighbor;
+		short source_bsp, first, second;
+		long unit;
 		window = &windoze[window_index];
 		if (window->console_window || window->local_player_index == NONE || window->render_camera.mirrored)
 			continue;
-		neighbor = players_visible_bsp_neighbor(&window->render_camera.position, &window->render_camera.forward, FALSE, NONE);
-		/* A warm neighbor can already be drawn and leaves the prefetch
-		 * opportunity available to another view. */
-		if (neighbor != NONE && !scenario_structure_bsp_preview(neighbor, FALSE))
+		unit = player_control_get_unit_index(window->local_player_index);
+		source_bsp = unit != NONE ? object_get_regional_bsp(unit) : NONE;
+		if (source_bsp == NONE)
+			source_bsp = global_structure_bsp_index_get();
+		first = players_visible_bsp_neighbor(source_bsp, &window->render_camera.position, &window->render_camera.forward, FALSE, NONE);
+		if (first == NONE)
+			continue;
+		visible |= 1UL << first;
+		second = players_visible_bsp_neighbor(source_bsp, &window->render_camera.position, &window->render_camera.forward, FALSE, first);
+		if (second != NONE)
+			visible |= 1UL << second;
+	}
+	for (request = 0; request < 32 && visible; ++request)
+		if ((visible & (1UL << request)) && !scenario_structure_bsp_preview(request, FALSE))
+			cold |= 1UL << request;
+	for (request = 0; request < 32 && cold; ++request)
+	{
+		short index = (next_preview + request) & 31;
+		if (cold & (1UL << index))
 		{
-			scenario_structure_bsp_preview(neighbor, TRUE);
+			next_preview = (index + 1) & 31;
+			scenario_structure_bsp_prefetch_visible(index, visible);
 			break;
 		}
 	}
