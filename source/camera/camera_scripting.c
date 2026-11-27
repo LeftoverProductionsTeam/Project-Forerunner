@@ -175,6 +175,8 @@ static struct scripted_camera_globals camera_script_globals =
 void scripted_camera_enable(
 	boolean enabled)
 {
+	if (camera_script_globals.enabled != enabled)
+		director_mark_render_camera_cut();
 	camera_script_globals.enabled = enabled;
 	sound_listener_motion_reset(NONE); /* port: entering or leaving a scripted camera is a cut */
 	camera_script_globals.first_update = TRUE;
@@ -206,6 +208,7 @@ void scripted_camera_set_animation(
 					camera_script_globals.camera_point_index = NONE;
 					camera_script_globals.relative_object_index = NONE;
 					camera_script_globals.mode = _camera_script_mode_animation;
+					director_mark_render_camera_cut();
 					sound_listener_motion_reset(NONE); /* port: a new track has no preceding motion sample */
 					camera_script_globals.first_update = TRUE;
 					camera_script_globals.animation_index = animation_index;
@@ -230,6 +233,7 @@ void scripted_camera_set_first_person(
 	if (unit_index != NONE)
 	{
 		camera_script_globals.mode = _camera_script_mode_first_person;
+		director_mark_render_camera_cut();
 		sound_listener_motion_reset(NONE); /* port: camera attachment changes discontinuously */
 		camera_script_globals.first_update = TRUE;
 		camera_script_globals.relative_object_index = unit_index;
@@ -250,6 +254,7 @@ void scripted_camera_set_dead(
 	if (unit_index != NONE)
 	{
 		camera_script_globals.mode = _camera_script_mode_dead;
+		director_mark_render_camera_cut();
 		sound_listener_motion_reset(NONE); /* port: camera attachment changes discontinuously */
 		camera_script_globals.first_update = TRUE;
 		camera_script_globals.relative_object_index = unit_index;
@@ -287,7 +292,10 @@ void scripted_camera_set(
 	camera_time = (short)transition_time / TICKS_PER_SECOND;
 	/* port: short cuts also need an explicit reset, before the observer moves */
 	if (camera_time <= 0)
+	{
+		director_mark_render_camera_cut();
 		sound_listener_motion_reset(NONE);
+	}
 	camera_script_globals.mode = _camera_script_mode_point;
 	camera_script_globals.first_update = TRUE;
 	camera_script_globals.camera_point_index = camera_point_index;

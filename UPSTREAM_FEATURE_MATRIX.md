@@ -395,6 +395,21 @@ The driver/compiler memory cause is unconfirmed. Native logs are in
 A Vulkan device reporting the ray-tracing capability absent remains
 untested.
 
+**Camera and map history.** Win64
+`fc03ac491d6066a6011b876c5d80ecf6ff6c13115c37c364ac4791dae0f24970`
+passes native director cuts and sky changes to the provider as history
+epochs. This covers bookmarks, camera-mode changes, restored games and
+instant scripted cuts. A separate world epoch still identifies each BSP
+upload. In the private native round trip log
+`build/native-bsp-pathtrace-stock-bloodgulch/process-live-pathtrace-history-roundtrip.log`,
+two Chill Out bookmark cuts kept world epoch 1 and advanced history to
+2 and 3. Switching to Sidewinder and back to Chill Out re-uploaded 80
+then 45 sections and advanced world epochs to 2 and 3. The provider
+confirmed resets 1 through 5 in order. The bounded harness ended the
+process after the console quit request failed to close it. The renderer
+checks had already passed. This checks changing maps in one process.
+A physical BSP seam and FSR history across that seam remain open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

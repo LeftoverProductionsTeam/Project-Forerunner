@@ -10,6 +10,7 @@
 #include "cache/cache_files.h"
 #include "cache/texture_cache.h"
 #include "game/game.h"
+#include "camera/director.h"
 #include "render/render_cameras.h"
 #include "render/render_sky_lighting.h"
 #include "shaders/shader_definitions.h"
@@ -85,7 +86,8 @@ static struct
 	char map[128];
 	short bsp, sky;
 	long last_tick;
-	unsigned long long mesh_generation;
+	unsigned long long mesh_generation, history_generation;
+	unsigned long camera_epoch;
 	int started, submitted, warming_reported, sky_available;
 } preview;
 
@@ -150,8 +152,9 @@ static void report_temporal_filtering(void)
 		return;
 	stats.structSize = sizeof(stats);
 	if (preview.temporal_statistics(&stats) == REMIXAPI_ERROR_CODE_SUCCESS)
-		platform_log("OpenRemix preview: temporal filtering requested %u, active %u, history %llu frames, NRD active %u",
-			stats.requestedTaa, stats.activeTaa, (unsigned long long)stats.historyFrames, stats.activeDenoiser);
+		platform_log("OpenRemix preview: temporal filtering requested %u, active %u, history %llu frames, resets %llu, NRD active %u",
+			stats.requestedTaa, stats.activeTaa, (unsigned long long)stats.historyFrames,
+			(unsigned long long)stats.historyResets, stats.activeDenoiser);
 }
 
 void pathtrace_provider_close_handles(struct win32_shared_frame_description *description)
@@ -601,7 +604,8 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 	remixapi_CameraTemporalEXT temporal = {0};
 	remixapi_InstanceInfo instance = {0};
 	remixapi_BackendCapabilitiesEXT capabilities = {0};
-	int new_scene;
+	int new_scene, new_sky;
+	unsigned long camera_epoch = director_render_camera_epoch();
 
 	if (!structure || !map || !*map || !strcmp(map, "ui") || strlen(map) >= sizeof(preview.map))
 		return pathtrace_provider_error;
@@ -615,7 +619,8 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 		strcpy(preview.map, map);
 	}
 	preview.last_tick = tick;
-	if ((new_scene || sky != preview.sky) && !upload_sky(sky))
+	new_sky = new_scene || sky != preview.sky;
+	if (new_sky && !upload_sky(sky))
 		return pathtrace_provider_error;
 	if (!preview.mesh && !upload_bsp(structure))
 		return pathtrace_provider_error;
@@ -624,6 +629,15 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, sh
 
 	temporal.sType = REMIXAPI_STRUCT_TYPE_CAMERA_TEMPORAL_EXT;
 	temporal.worldEpoch = preview.mesh_generation;
+	if (new_sky || preview.camera_epoch != camera_epoch)
+	{
+		preview.camera_epoch = camera_epoch;
+		++preview.history_generation;
+		preview.temporal_readback_frames = 0;
+		platform_log("OpenRemix preview: map %s BSP %d sky %d, world epoch %llu, history epoch %llu",
+			map, bsp, sky, preview.mesh_generation, preview.history_generation);
+	}
+	temporal.historyResetEpoch = preview.history_generation;
 	pose.sType = REMIXAPI_STRUCT_TYPE_CAMERA_INFO_PARAMETERIZED_EXT;
 	pose.pNext = &temporal;
 	pose.position = (remixapi_Float3D){camera->position.x, camera->position.z, camera->position.y};

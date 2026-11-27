@@ -503,6 +503,18 @@ void director_save_camera(
 	return;
 }
 
+static unsigned long render_camera_epoch;
+
+unsigned long director_render_camera_epoch(void)
+{
+	return render_camera_epoch;
+}
+
+void director_mark_render_camera_cut(void)
+{
+	++render_camera_epoch;
+}
+
 static void director_set_camera(
 	short local_player_index,
 	director_camera_update_proc camera_proc,
@@ -511,6 +523,7 @@ static void director_set_camera(
 	struct director *director = director_get(local_player_index);
 
 	director->camera_proc = camera_proc;
+	director_mark_render_camera_cut();
 	sound_listener_motion_reset(local_player_index); /* port: camera selection is not listener motion */
 	director->debug_input_scale = 1.f;
 	director->debug_controls = FALSE;
@@ -1612,6 +1625,7 @@ void director_initialize_for_new_map(
 	network_recording_review_close();
 #endif
 #endif
+	director_mark_render_camera_cut();
 	sound_listener_motion_reset(NONE); /* port: also called when restoring a saved game */
 	controller_remap_reset(); /* port: release held actions and camera context between maps */
 

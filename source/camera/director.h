@@ -147,6 +147,9 @@ short director_camera_deterministic(
 	real_vector3d *forward);
 void director_set_mode(
 	short mode);
+/* Renderer history must not span an explicit camera cut. */
+unsigned long director_render_camera_epoch(void);
+void director_mark_render_camera_cut(void);
 void director_save_camera(
 	void);
 void director_load_camera(
