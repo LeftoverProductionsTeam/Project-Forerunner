@@ -319,9 +319,15 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
 - **Covenant guest.** Deployed normally into pool 7, BSP 0, and the guest
   received the host's deployment message. Both logs show the Elite at
   (-127.706, 247.444, -17.113) at tick 48120. Both owned windows then
-  closed at 03:58:40–41. There is no live match to resume and no field
-  call or bank receipt for this run. Next start a private timerless pair
-  and finish one remote-owned Covenant field call, hub return and bank.
+  closed at 03:58:40–41 before any field call or bank. The new timerless
+  full-pools-covenant-bank-host/guest pair (PIDs 54404/25084 at capture)
+  joined normally, matching the cache hash and reporting two machines. The
+  guest dropped from the hub upper deck to the lower floor during approach
+  and was alive at (1311.893, 577.019, -15.650) at tick 7530. No new deploy
+  or bank was recorded. Next rejoin the guest normally if still on the lower
+  floor and use the verified upper bridge waypoint (1316.607, 579.386) before
+  turning south toward control 381. Then finish the remote field call, return
+  and bank on this exact pair.
 - **Compact world.** The 919fbcce infantry round trip via Carousel's stock
   teleporter remains accepted. Spark isolated f5a4ca22's missing wall to
   authored winding. Separate d05638dd ramp and e55f3851 opacity builds
@@ -329,16 +335,23 @@ screens, pid.txt and each private input feed. Reverify PID and path before use.
   the isolated compact-native-diagnostics run, PID 37812 at capture.
   Reproduced the old Ice Fields collision stop at (928.481, 183.101, -15.650),
   yaw -92, pitch 0, BSP 11, OpenGL 800×600. The corrected wall now visibly
-  occludes the exterior in screens/window16560.bmp near tick 4350. Broader
-  terrain/props and native foot and Warthog crossings remain open.
-  This geometry candidate still lacks the sealed full-world pools.
+  occludes the exterior in screens/window16560.bmp near tick 4350. From the
+  lower base the player walked around a visible boulder and reached the Ice
+  Fields seam on the surveyed route in collision-readback/ice-fields-lower-route.json.
+  Switches 21/20 passed on foot at ticks 24751/25300. Without a teleporter,
+  the player then crossed 11→10→3 (25858/28746), descended the new Carousel
+  ramp to (787.092, -21.746, -31.305), and walked uphill through 3→10
+  (31201), then back to Ice Fields 10→11 (34320). The native log records
+  the same Elite root e6a00431 throughout, with full health and shields on return.
+  Broader visual review, Warthog crossings and the sealed pool merge remain open.
 - **Reusable runtime diagnostics.** The private 2beae96a executable
   compiled, advertised playtest.regional_transition_log.v1 in discovery,
   and admitted b5178c77 from ordinary menus. The native transition log
   implementation preserves crossing validation. A focused compiled probe verified
-  context fields, per-player throttling and immediate success output. Live seam
-  emission and
-  editor presentation remain open. The older BSP fixture is stale against
+  context fields, per-player throttling and immediate success output. Normal
+  gameplay also emitted successful transfer records for both directions at
+  both repaired seams in the compact-native-diagnostics log. Spark editor
+  presentation remains open. The older BSP fixture is stale against
   current residency interfaces. Its unfinished changes were kept outside
   the source commit.
 - **Other gameplay gates.** Observe recovery of the same loose datum,

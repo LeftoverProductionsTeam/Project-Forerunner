@@ -1785,7 +1785,10 @@ Use the staged playtest's existing retained log tail for this readback.
 The optional feature describes runtime diagnostics. It is never a required
 map receipt feature, an indication that a map loaded, or evidence of
 successful traversal by itself. No commands, network messages, or receipt
-changes are needed for this log.
+changes are needed for this log. Native Win64 testing recorded ordinary foot
+crossings both ways at the repaired Ice Fields and Carousel switches on the private
+b5178c77 cache. See the exact pairing and log path in [TEST_EVIDENCE.md](TEST_EVIDENCE.md).
+Spark editor presentation and full vehicle traversal are pending.
 
 A pooled MegaWorld receipt uses the existing `extraction.regional_pools.v1`
 feature and `extractionPools` records. Promotion through the managed Windows

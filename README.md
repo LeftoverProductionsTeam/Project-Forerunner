@@ -23,9 +23,9 @@ If you're another Halo developer, here's what we've been working on.
 
 The managed Windows **Latest** playtest contains the released MegaWorld ground
 preview. In a separate full-world LAN trial, the UNSC host completed a field call,
-returned to base and banked gear. Covenant banking and the compact vehicle route
-remain open. Private authoring and runtime candidates require their own acceptance
-before release.
+returned to base and banked gear. A separate compact candidate passed both ways
+on foot at the repaired Ice Fields and Carousel seams. Covenant banking and
+compact vehicle travel remain open. Both candidates are private playtests.
 
 If you want to dig into the details, check the [development notes](FORERUNNER_MASTER_LEDGER.md), [test results](TEST_EVIDENCE.md), [Spark integration notes](SPARK_INTEGRATION_CONTRACT.md) and [compatibility matrix](COMPATIBILITY_MATRIX.md).
 
