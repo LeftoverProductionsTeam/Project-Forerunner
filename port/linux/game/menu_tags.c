@@ -2378,6 +2378,31 @@ static void pause_screen_patch(struct cache_file_tag_instance *instances, long s
 		pause_box_grow(instances, tag_get(UI_WIDGET_DEFINITION_TAG, children[box_child].widget_tag.index), *grow);
 		*box_grown = TRUE;
 	}
+	/* The split-screen button key starts inside the original list's vertical
+	   range, so shifting it as a generic sibling can leave it over the rows. */
+	if (box_child != NONE && definition->bounds.y1 - definition->bounds.y0 == 240)
+	{
+		short list_height = (short)(list_bottom - list_top + *grow);
+		for (child = 0; child < definition->child_widgets.count; child++)
+		{
+			long key_tag = children[child].widget_tag.index;
+			struct ui_widget_definition const *key;
+			short list_y;
+			if (key_tag == NONE || !tag_name_ends(key_tag, "\\button_key_sm"))
+				continue;
+			key = tag_get(UI_WIDGET_DEFINITION_TAG, key_tag);
+			list_y = (short)MIN(children[list_child].vertical_offset,
+				240 - 2 - key->bounds.y1 - 4 - list_height);
+			if (list_y >= 4)
+			{
+				children[box_child].vertical_offset = (short)MIN(children[box_child].vertical_offset, list_y - 2);
+				children[list_child].vertical_offset = list_y;
+				children[child].vertical_offset = (short)(list_y + list_height + 4);
+				return;
+			}
+			break;
+		}
+	}
 	/* the box within the screen (OpenCE's pause_box_fit: a split screen's
 	is 240 high, and the grown box can be taller than the room under the
 	Xbox's place for it), moved up as far as it must, with what is in it

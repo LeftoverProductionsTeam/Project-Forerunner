@@ -1,5 +1,23 @@
 # Forerunner test evidence
 
+## Split-screen pause navigation
+
+On the released `fcfe9d44` / `d7c07e86` Extraction preview, the
+Win64 `407f9675` top viewport clipped Leave Game and drew the
+button key between Controls and Moderation. Cache readback found
+the split-screen key anchored inside the original list's range.
+The existing pause patch now fits the list and key together for the
+stock split-screen box when the rows fit.
+
+Win64 `7d25057b747f90cbad4cc50f2bb73f5c9ac0bb241458103ce292e27e07273af5`
+opened the same map through normal menus. Start opened the pause
+menu, Down selected Leave Game with its full outline visible,
+and Back restored both gameplay views. The Covenant viewport
+continued to render underneath. See
+`build/regional-split-pause-7d25057b/window03996.bmp` and the adjacent
+receipt and native log. Tested with two local players at 800×600.
+Latest and Previous were preserved.
+
 ## Two local Extraction players in separate resident BSPs
 
 The existing local test launcher can exercise one-BSP Team Slayer.
