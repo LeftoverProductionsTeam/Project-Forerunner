@@ -4,6 +4,10 @@
 #ifdef HALO_OPENREMIX_SDK
 #include "pathtrace_provider.h"
 #include "pathtrace_scene.h"
+#ifdef HALO_BGFX
+#include "mcc_texture_cache.h"
+#include "../src/mcc_texture_bridge.h"
+#endif
 #include "bitmaps/bitmap_group.h"
 #include "bitmaps/bitmap_group_lookup.h"
 #include "bitmaps/bitmaps_sampling.h"
@@ -320,27 +324,46 @@ struct preview_mesh
 	unsigned int count, textured;
 };
 
+static int read_texture_pixels(struct bitmap_data *bitmap, pixel32 *pixels)
+{
+	short y;
+
+#ifdef HALO_BGFX
+	/* MCC owns converted pixels outside the Xbox texture cache. Resolve the
+	 * bitmap through the native renderer's registered descriptor. */
+	{
+		const void *resource = mcc_texture_cache_get(bitmap, TRUE);
+
+		if (resource)
+			return mcc_texture_bridge_decode_base(resource, bitmap->width, bitmap->height, pixels);
+	}
+#endif
+
+	if (!texture_cache_bitmap_load(bitmap))
+		return FALSE;
+	for (y = 0; y < bitmap->height; y++)
+		if (!bitmap_2d_read_color_row(bitmap, y, pixels + y * bitmap->width))
+			return FALSE;
+	return TRUE;
+}
+
 static void upload_texture(struct preview_texture *texture)
 {
 	struct bitmap_data *bitmap = bitmap_group_try_and_get_bitmap(texture->group, texture->page);
 	remixapi_TextureInfo info = {0};
 	pixel32 *pixels;
 	unsigned int bytes;
-	short y;
 
 	if (!bitmap || bitmap->width <= 0 || bitmap->height <= 0 || bitmap->width > maximum_preview_texture_side ||
 		bitmap->height > maximum_preview_texture_side)
 		return;
 	bytes = bitmap->width * bitmap->height * sizeof(*pixels);
-	if (bytes > maximum_preview_texture_bytes - preview.texture_bytes || !texture_cache_bitmap_load(bitmap))
+	if (bytes > maximum_preview_texture_bytes - preview.texture_bytes)
 		return;
 	pixels = malloc(bytes);
 	if (!pixels)
 		return;
-	for (y = 0; y < bitmap->height; y++)
-		if (!bitmap_2d_read_color_row(bitmap, y, pixels + y * bitmap->width))
-			break;
-	if (y == bitmap->height)
+	if (read_texture_pixels(bitmap, pixels))
 	{
 		info.sType = REMIXAPI_STRUCT_TYPE_TEXTURE_INFO;
 		info.hash = texture->hash;
@@ -404,7 +427,7 @@ static remixapi_MaterialHandle emissive_material(const struct pathtrace_material
 	return preview.emitters[i].handle;
 }
 
-static remixapi_MaterialHandle surface_material(const struct pathtrace_material *material)
+static remixapi_MaterialHandle surface_material(const struct pathtrace_material *material, int *textured)
 {
 	remixapi_MaterialInfo info = {0};
 	remixapi_MaterialInfoOpaqueEXT opaque = {0};
@@ -439,7 +462,10 @@ static remixapi_MaterialHandle surface_material(const struct pathtrace_material 
 	texture = &preview.textures[i];
 	emitter = emissive_material(material, texture);
 	if (emitter)
+	{
+		*textured = texture->handle != NULL;
 		return emitter;
+	}
 	if (!texture->handle)
 		return preview.material;
 	if (!texture->material[alpha])
@@ -457,6 +483,7 @@ static remixapi_MaterialHandle surface_material(const struct pathtrace_material 
 		info.albedoTexture = uri;
 		status(preview.api.CreateMaterial(&info, &texture->material[alpha]), "bind base bitmap");
 	}
+	*textured = texture->material[alpha] != NULL;
 	return texture->material[alpha] ? texture->material[alpha] : preview.material;
 }
 
@@ -467,6 +494,7 @@ static int upload_surface(void *context, const struct pathtrace_material *materi
 	remixapi_HardcodedVertex *vertices;
 	uint32_t *indices;
 	long i;
+	int textured = FALSE;
 
 	/* Native transparency is drawn over the traced opaque frame. */
 	if (!material->opaque)
@@ -488,9 +516,8 @@ static int upload_surface(void *context, const struct pathtrace_material *materi
 	surface->vertices_count = material->vertex_count;
 	surface->indices_values = indices;
 	surface->indices_count = material->surface_count * 3;
-	surface->material = surface_material(material);
-	if (surface->material != preview.material)
-		mesh->textured++;
+	surface->material = surface_material(material, &textured);
+	mesh->textured += textured;
 	for (i = 0; i < material->vertex_count; i++)
 	{
 		struct pathtrace_vertex vertex;

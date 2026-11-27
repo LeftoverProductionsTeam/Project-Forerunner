@@ -371,9 +371,8 @@ struct xgpu_render_target
 struct xgpu_render_target *xgpu_render_target_find(unsigned long data);
 
 #if defined(HALO_BGFX) || defined(HALO_CONSOLE_NATIVE_RENDERER) || defined(HALO_VULKAN)
-/* a level of a texture that is not compressed, as 32-bit ARGB words in the
-processor's order (B, G, R, A in memory on a little-endian one); FALSE
-without the memory for it */
+/* Decode one mip to 32-bit ARGB words in the processor's order
+ * (B, G, R, A bytes on little-endian hosts). Supports BC7 and DXT. */
 BOOL xgpu_texture_decode_level(const struct xgpu_texture_description *description, unsigned long level,
 	const unsigned char *source, const D3DCOLOR *palette, unsigned long *destination);
 /* a compressed texture's DXT kind (1, 3 or 5; 0 for any other), and the

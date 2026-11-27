@@ -1085,7 +1085,24 @@ static void texture_dump(GLenum target, const struct xgpu_texture_description *d
 BOOL xgpu_texture_decode_level(const struct xgpu_texture_description *description, unsigned long level,
 	const unsigned char *source, const D3DCOLOR *palette, unsigned long *destination)
 {
-	return decode_level(description, level, source, palette, destination);
+	unsigned char kind = format_information(description->format).kind;
+	unsigned long width = level_dimension(description->width, level);
+	unsigned long height = level_dimension(description->height, level);
+	unsigned long depth = level_dimension(description->depth, level);
+
+	switch (kind)
+	{
+	case _texel_bc7:
+		bc7_decode_level(source, width, height, depth, destination);
+		return TRUE;
+	case _texel_dxt1:
+	case _texel_dxt3:
+	case _texel_dxt5:
+		dxt_decode_level(kind, source, width, height, depth, destination);
+		return TRUE;
+	default:
+		return !description->compressed && decode_level(description, level, source, palette, destination);
+	}
 }
 
 int xgpu_texture_dxt(const struct xgpu_texture_description *description)

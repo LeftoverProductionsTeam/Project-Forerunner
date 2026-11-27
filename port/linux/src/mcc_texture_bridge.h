@@ -9,6 +9,11 @@ void *mcc_texture_bridge_register(void const *bitmap, unsigned long format,
 void *mcc_texture_bridge_register_linear(void const *bitmap, unsigned long format,
     unsigned long width, unsigned long height, unsigned long pitch, void const *pixels, unsigned long bytes);
 void mcc_texture_bridge_dispose(void);
+#ifdef HALO_BGFX
+/* Decode the registered 2D base level to width * height ARGB words. */
+int mcc_texture_bridge_decode_base(void const *resource, unsigned long width,
+    unsigned long height, unsigned long *destination);
+#endif
 /* Returns estimated GPU bytes charged, or zero when skipped/unsuccessful. */
 unsigned long mcc_texture_bridge_prepare(void const *bitmap, unsigned long budget);
 

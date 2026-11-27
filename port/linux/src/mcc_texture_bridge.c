@@ -231,6 +231,24 @@ BOOL xgpu_mcc_texture_source(DWORD const *resource,struct xgpu_texture_descripti
     return FALSE;
 }
 
+#ifdef HALO_BGFX
+int mcc_texture_bridge_decode_base(void const *resource, unsigned long width,
+    unsigned long height, unsigned long *destination)
+{
+    struct xgpu_texture_description description;
+    void const *source;
+    unsigned long bytes, level_bytes;
+    long hud_asset;
+
+    if (!destination || !xgpu_mcc_texture_source(resource, &description, &source, &bytes, &hud_asset) ||
+        description.width != width || description.height != height || description.depth != 1 || description.cube_map)
+        return FALSE;
+    level_bytes = xgpu_texture_level_bytes(&description, 0);
+    return level_bytes && level_bytes <= bytes &&
+        xgpu_texture_decode_level(&description, 0, source, NULL, destination);
+}
+#endif
+
 /* a texture the renderer could not make: counted, the first few named,
  * and the count logged when the map's textures go */
 static unsigned long mcc_texture_failures;

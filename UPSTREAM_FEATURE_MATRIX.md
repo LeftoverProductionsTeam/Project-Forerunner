@@ -410,6 +410,21 @@ process after the console quit request failed to close it. The renderer
 checks had already passed. This checks changing maps in one process.
 A physical BSP seam and FSR history across that seam remain open.
 
+**MegaWorld base textures.** The private preview now resolves MCC bitmap
+identities through the same converted texture registry as the native
+renderer and reuses its ARGB decoder, including DXT and BC7. The prior
+Win64 preview displayed the released MegaWorld `fcfe9d44` spawn with zero
+uploaded texture bytes. Win64
+`e3984d6dbc22d3afd567804ce5d1d4fa96edeb8d5bec3500d65caaeb7708fdf4`
+on the same map/receipt `d7c07e86` and BSP 0 uploaded 33,423,360 bytes
+across 90 of 152 opaque sections and composited at the same player spawn.
+The 32 MiB upload budget remains. Some surfaces still use fallback
+materials, and this dark spawn is insufficient to accept visual fidelity.
+Logs and matched screenshots are under `build/native-bsp-pathtrace-stock-bloodgulch`
+in the `pathtrace-megaworld-released-{spawn,textured-final}` sets.
+These are scripted startup renderer checks. Physical seam traversal and
+matched lighting comparisons remain open.
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |
