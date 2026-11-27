@@ -253,6 +253,22 @@ The sky is raster-composited. It still needs to illuminate the traced
 world alongside the baked lightmaps and native lights. Dynamic scene
 coverage and performance certification are still open.
 
+**Authored outdoor lighting.** Windows64 preview build
+`15E62ABE8152D7072366E5A441E9DEC6D657C335C676A210B62F20B63B6BF950`
+uses the current native sky slot. It submits that sky's strongest outdoor
+directional light and ambience to the pinned OpenRemix provider. Blood
+Gulch's live sun direction was `(-0.754, -0.643, -0.133)` in provider
+coordinates. Sidewinder used `(0.668, -0.438, 0.601)` on the preceding
+integration build `594A3DB8`. Both showed visibly distinct traced lighting
+with the native sky and first-person viewmodel. Chill Out stayed in
+raster at its indoor spawn without a trace mesh upload in the final build.
+Evidence is under `build/native-bsp-pathtrace-stock-bloodgulch` in
+`process-live-pathtrace-authored-sky-*.log` and the adjacent capture folders.
+Baked lighting, indoor clusters and the provider's single-sun limit remain
+open. Sidewinder showed white scenery silhouettes at the sky edge where the
+current depth-based composite needs a BSP coverage mask.
+[Invader HEK sky tag layout](https://github.com/SnowyMouse/invader/blob/master/src/tag/hek/definition/sky.json)
+
 ## Implementation and acceptance boundaries
 
 | Capability | Actual source examined | Current integration decision and evidence |

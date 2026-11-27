@@ -10586,13 +10586,13 @@ HRESULT WINAPI D3DDevice_PersistDisplay(void)
 #include "d3d8_bgfx.inl"
 #endif
 #if defined(_WIN32) && defined(HALO_64BIT) && !defined(HALO_SERVER)
-int halo_pathtrace_prepare(const struct structure_bsp *structure, short bsp,
+int halo_pathtrace_prepare(const struct structure_bsp *structure, short bsp, short sky,
 	const struct render_camera *camera, short x0, short y0, short x1, short y1)
 {
 #ifdef HALO_BGFX
-	return bg_pathtrace_prepare(structure, bsp, camera, x0, y0, x1, y1);
+	return bg_pathtrace_prepare(structure, bsp, sky, camera, x0, y0, x1, y1);
 #else
-	(void)structure; (void)bsp; (void)camera; (void)x0; (void)y0; (void)x1; (void)y1;
+	(void)structure; (void)bsp; (void)sky; (void)camera; (void)x0; (void)y0; (void)x1; (void)y1;
 	return 0;
 #endif
 }

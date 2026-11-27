@@ -21,6 +21,7 @@ symbols in this file:
 #include "cseries.h"
 
 #include "render.h"
+#include "render_sky_lighting.h"
 #include "cseries/errors.h"
 #include "models/model_animation_definitions.h"
 #include "models/model_definitions.h"
@@ -40,7 +41,10 @@ struct sky
 {
 	struct tag_reference model;
 	struct tag_reference animation_graph;
-	byte pad20[0x8C];
+	byte pad20[0x28];
+	real_rgb_color outdoor_ambient_color;
+	real outdoor_ambient_power;
+	byte pad58[0x54];
 	struct tag_block render_model_regions;
 	struct tag_block animations;
 	struct tag_block lights;
@@ -63,11 +67,18 @@ struct sky_light
 {
 	struct tag_reference lens_flare;
 	char marker_name[TAG_STRING_LENGTH + 1];
-	byte pad31[0x37];
+	byte pad30[0x1C];
+	unsigned long flags;
+	real_rgb_color color;
+	real power;
+	byte pad60[8];
 	real_euler_angles2d direction;
-	byte pad70[4];
+	real diameter;
 };
 
+typedef char verify_sky_outdoor_ambient_offset[offsetof(struct sky, outdoor_ambient_color) == 0x48 ? 1 : -1];
+typedef char verify_sky_light_color_offset[offsetof(struct sky_light, color) == 0x50 ? 1 : -1];
+typedef char verify_sky_light_direction_offset[offsetof(struct sky_light, direction) == 0x68 ? 1 : -1];
 typedef char verify_sky_animations_offset[offsetof(struct sky, animations) == 0xB8 ? 1 : -1];
 typedef char verify_sky_lights_offset[offsetof(struct sky, lights) == 0xC4 ? 1 : -1];
 typedef char verify_sky_animation_size[sizeof(struct sky_animation) == 0x24 ? 1 : -1];
@@ -89,6 +100,59 @@ boolean console_performance_sky(void);
 #endif
 
 /* ---------- public code */
+
+/* A standalone provider accepts one distant light. Choose the strongest
+ * outdoor entry and keep the map's outdoor ambient color independently.
+ * Tag fields follow Invader's HEK sky.json layout. */
+static real sky_radiance(const real_rgb_color *color, real power, real_rgb_color *radiance)
+{
+	if (!isfinite(power) || power <= 0.0f ||
+		!isfinite(color->red) || !isfinite(color->green) || !isfinite(color->blue))
+		return 0.0f;
+	*radiance = (real_rgb_color){
+		MAX(0.0f, color->red) * power,
+		MAX(0.0f, color->green) * power,
+		MAX(0.0f, color->blue) * power};
+	if (!isfinite(radiance->red) || !isfinite(radiance->green) || !isfinite(radiance->blue))
+	{
+		memset(radiance, 0, sizeof(*radiance));
+		return 0.0f;
+	}
+	return MAX(radiance->red, MAX(radiance->green, radiance->blue));
+}
+
+boolean render_sky_get_outdoor_lighting(short sky_index, struct render_sky_outdoor_lighting *lighting)
+{
+	enum { sky_light_exteriors_bit = 0, maximum_sky_lights = 8 };
+	const struct sky *sky = scenario_get_sky(sky_index);
+	real ambient, strongest = 0.0f;
+	long i;
+
+	memset(lighting, 0, sizeof(*lighting));
+	if (!sky)
+		return FALSE;
+	ambient = sky_radiance(&sky->outdoor_ambient_color, sky->outdoor_ambient_power, &lighting->ambient_radiance);
+	for (i = 0; i < sky->lights.count && i < maximum_sky_lights; i++)
+	{
+		const struct sky_light *light = TAG_BLOCK_GET_ELEMENT(&sky->lights, i, struct sky_light);
+		real_rgb_color radiance = {0};
+		real strength;
+
+		if (!TEST_FLAG(light->flags, sky_light_exteriors_bit) ||
+			!isfinite(light->direction.yaw) || !isfinite(light->direction.pitch))
+			continue;
+		strength = sky_radiance(&light->color, light->power, &radiance);
+		if (strength > strongest)
+		{
+			strongest = strength;
+			lighting->sunlight_radiance = radiance;
+			vector3d_from_euler_angles2d(&lighting->sunlight_direction, &light->direction);
+			negate_vector3d(&lighting->sunlight_direction, &lighting->sunlight_direction);
+			lighting->sunlight_diameter = isfinite(light->diameter) ? MAX(0.0f, light->diameter) : 0.0f;
+		}
+	}
+	return strongest > 0.0f || ambient > 0.0f;
+}
 
 void render_sky(
 	void)

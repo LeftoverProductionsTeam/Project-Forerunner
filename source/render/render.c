@@ -483,6 +483,7 @@ static void render_window(
 		if (rasterizer_target == _render_target_primary && !render.camera.mirrored &&
 			game_in_progress() && game_time_get() >= 30)
 			has_pathtrace_frame = halo_pathtrace_prepare(global_structure_bsp_get(), global_structure_bsp_index_get(),
+				render.visible_sky_index,
 				&render.camera, rasterizer_camera->viewport_bounds.x0, rasterizer_camera->viewport_bounds.y0,
 				rasterizer_camera->viewport_bounds.x1, rasterizer_camera->viewport_bounds.y1);
 #endif

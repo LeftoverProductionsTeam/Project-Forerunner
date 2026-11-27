@@ -4610,7 +4610,7 @@ static void bg_pathtrace_release(void)
 	bg_pathtrace.creating = bg_pathtrace.shown = FALSE;
 }
 
-static int bg_pathtrace_prepare(const struct structure_bsp *structure, short bsp,
+static int bg_pathtrace_prepare(const struct structure_bsp *structure, short bsp, short sky,
 	const struct render_camera *camera, short x0, short y0, short x1, short y1)
 {
 	const char *path = config_string("debug.pathtrace_provider");
@@ -4669,7 +4669,9 @@ static int bg_pathtrace_prepare(const struct structure_bsp *structure, short bsp
 		bg_pathtrace.creating = FALSE;
 		platform_log("OpenRemix preview: the Vulkan renderer imported the shared frame");
 	}
-	frame = pathtrace_provider_draw(structure, bsp, camera);
+	frame = pathtrace_provider_draw(structure, bsp, sky, camera);
+	if (frame == pathtrace_provider_no_sky)
+		return FALSE;
 	if (frame == pathtrace_provider_error ||
 		!bgfx_vk_shared_frame_copy(&bg_pathtrace.imported, bg_pathtrace.texture.idx) ||
 		frame == pathtrace_provider_unavailable)

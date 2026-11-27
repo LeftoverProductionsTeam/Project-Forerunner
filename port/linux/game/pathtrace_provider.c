@@ -11,6 +11,7 @@
 #include "cache/texture_cache.h"
 #include "game/game.h"
 #include "render/render_cameras.h"
+#include "render/render_sky_lighting.h"
 #include "structures/structure_bsp_definitions.h"
 
 #define REMIX_WINAPI_NO_INCLUDE
@@ -57,16 +58,16 @@ static struct
 	remixapi_Interface api;
 	PFN_remixapi_GetBackendCapabilitiesEXT capabilities;
 	remixapi_MaterialHandle material;
-	remixapi_LightHandle sunlight;
+	remixapi_LightHandle sunlight, ambient;
 	remixapi_MeshHandle mesh;
 	struct preview_texture textures[maximum_preview_textures];
 	unsigned int texture_count, texture_bytes;
 	const struct structure_bsp *structure;
 	char map[128];
-	short bsp;
+	short bsp, sky;
 	long last_tick;
 	unsigned long long mesh_generation;
-	int started, submitted;
+	int started, submitted, sky_available;
 } preview;
 
 typedef int (REMIXAPI_CALL *win32_configure_frame)(remixapi_EditorSharedFrameWin32 *);
@@ -111,6 +112,7 @@ void pathtrace_provider_close(void)
 	{
 		retire_bsp();
 		if (preview.sunlight) preview.api.DestroyLight(preview.sunlight);
+		if (preview.ambient) preview.api.DestroyLight(preview.ambient);
 		if (preview.material) preview.api.DestroyMaterial(preview.material);
 		preview.api.Shutdown();
 	}
@@ -128,8 +130,6 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	remixapi_EditorSharedFrameWin32 frame = {0};
 	remixapi_MaterialInfoOpaqueEXT opaque = {0};
 	remixapi_MaterialInfo material = {0};
-	remixapi_LightInfoDistantEXT distant = {0};
-	remixapi_LightInfo light = {0};
 	PFN_remixapi_InitializeLibrary initialize;
 	win32_configure_frame configure;
 	char full_path[1024];
@@ -182,14 +182,7 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	material.sType = REMIXAPI_STRUCT_TYPE_MATERIAL_INFO;
 	material.pNext = &opaque;
 	material.hash = 0x201;
-	distant.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO_DISTANT_EXT;
-	distant.direction = (remixapi_Float3D){-0.4f, -0.8f, -0.3f};
-	light.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO;
-	light.pNext = &distant;
-	light.hash = 0x203;
-	light.radiance = (remixapi_Float3D){3.0f, 3.0f, 3.0f};
-	if (!status(preview.api.CreateMaterial(&material, &preview.material), "create preview material") ||
-		!status(preview.api.CreateLight(&light, &preview.sunlight), "create preview light"))
+	if (!status(preview.api.CreateMaterial(&material, &preview.material), "create preview material"))
 		return FALSE;
 
 	frame.version = 1;
@@ -361,7 +354,6 @@ static int upload_bsp(const struct structure_bsp *structure)
 
 	if (!upload)
 		return FALSE;
-	retire_bsp();
 	++preview.mesh_generation;
 	memset(upload, 0, sizeof(*upload));
 	if (pathtrace_scene_visit(structure, upload_surface, upload))
@@ -385,7 +377,57 @@ static int upload_bsp(const struct structure_bsp *structure)
 	return mesh != NULL;
 }
 
-int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, const struct render_camera *camera)
+/* The provider's direct API takes one sun and one dome per frame. Explicit
+ * zero-radiance entries prevent a prior BSP's lighting carrying forward. */
+static int upload_sky(short sky)
+{
+	struct render_sky_outdoor_lighting native;
+	remixapi_LightInfo light = {0};
+	remixapi_LightInfoDistantEXT distant = {0};
+	remixapi_LightInfoDomeEXT dome = {0};
+
+	if (preview.sunlight) preview.api.DestroyLight(preview.sunlight);
+	if (preview.ambient) preview.api.DestroyLight(preview.ambient);
+	preview.sunlight = preview.ambient = NULL;
+	preview.sky = sky;
+	preview.sky_available = render_sky_get_outdoor_lighting(sky, &native);
+	if (!preview.sky_available)
+	{
+		platform_log("OpenRemix preview: sky %d has no outdoor light, using the native raster view", sky);
+		return TRUE;
+	}
+
+	light.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO;
+	distant.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO_DISTANT_EXT;
+	distant.direction = (remixapi_Float3D){native.sunlight_direction.i, native.sunlight_direction.k,
+		native.sunlight_direction.j};
+	if (distant.direction.x == 0.0f && distant.direction.y == 0.0f && distant.direction.z == 0.0f)
+		distant.direction.y = -1.0f;
+	/* The provider samples a cone about this axis. Cap it at a hemisphere
+	 * to keep even an over-broad authored source a valid direction. */
+	distant.angularDiameterDegrees = MIN(native.sunlight_diameter * 57.2957795f, 179.0f);
+	light.pNext = &distant;
+	light.hash = 0x203;
+	light.radiance = (remixapi_Float3D){native.sunlight_radiance.red, native.sunlight_radiance.green,
+		native.sunlight_radiance.blue};
+	if (!status(preview.api.CreateLight(&light, &preview.sunlight), "upload native sky sun"))
+		return FALSE;
+
+	dome.sType = REMIXAPI_STRUCT_TYPE_LIGHT_INFO_DOME_EXT;
+	dome.transform.matrix[0][0] = dome.transform.matrix[1][1] = dome.transform.matrix[2][2] = 1.0f;
+	light.pNext = &dome;
+	light.hash = 0x204;
+	light.radiance = (remixapi_Float3D){native.ambient_radiance.red, native.ambient_radiance.green, native.ambient_radiance.blue};
+	if (!status(preview.api.CreateLight(&light, &preview.ambient), "upload native ambient sky"))
+		return FALSE;
+	platform_log("OpenRemix preview: sky %d sun dir (%.3f %.3f %.3f), radiance (%.3f %.3f %.3f), diameter %.2f deg; ambient (%.3f %.3f %.3f)",
+		sky, distant.direction.x, distant.direction.y, distant.direction.z,
+		native.sunlight_radiance.red, native.sunlight_radiance.green, native.sunlight_radiance.blue,
+		distant.angularDiameterDegrees, light.radiance.x, light.radiance.y, light.radiance.z);
+	return TRUE;
+}
+
+int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, short sky, const struct render_camera *camera)
 {
 	const char *map = cache_file_loaded_map_name();
 	long tick = game_time_get();
@@ -393,19 +435,27 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, co
 	remixapi_CameraInfoParameterizedEXT pose = {0};
 	remixapi_InstanceInfo instance = {0};
 	remixapi_BackendCapabilitiesEXT capabilities = {0};
+	int new_scene;
 
 	if (!structure || !map || !*map || !strcmp(map, "ui") || strlen(map) >= sizeof(preview.map))
 		return pathtrace_provider_error;
-	if (!preview.mesh || preview.structure != structure || preview.bsp != bsp ||
-		tick < preview.last_tick || strcmp(map, preview.map))
+	new_scene = preview.structure != structure || preview.bsp != bsp ||
+		tick < preview.last_tick || strcmp(map, preview.map);
+	if (new_scene)
 	{
-		if (!upload_bsp(structure))
-			return pathtrace_provider_error;
+		retire_bsp();
 		preview.structure = structure;
 		preview.bsp = bsp;
 		strcpy(preview.map, map);
 	}
 	preview.last_tick = tick;
+	if ((new_scene || sky != preview.sky) && !upload_sky(sky))
+		return pathtrace_provider_error;
+	if (!preview.sky_available)
+		return pathtrace_provider_no_sky;
+	if (!preview.mesh && !upload_bsp(structure))
+		return pathtrace_provider_error;
+
 	pose.sType = REMIXAPI_STRUCT_TYPE_CAMERA_INFO_PARAMETERIZED_EXT;
 	pose.position = (remixapi_Float3D){camera->position.x, camera->position.z, camera->position.y};
 	pose.forward = (remixapi_Float3D){camera->forward.i, camera->forward.k, camera->forward.j};
@@ -427,7 +477,8 @@ int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, co
 	instance.transform.matrix[0][0] = instance.transform.matrix[1][1] = instance.transform.matrix[2][2] = 1.0f;
 	if (!status(preview.api.SetupCamera(&camera_info), "update live camera") ||
 		!status(preview.api.DrawInstance(&instance), "submit live BSP") ||
-		!status(preview.api.DrawLightInstance(preview.sunlight), "submit test light") ||
+		!status(preview.api.DrawLightInstance(preview.sunlight), "submit native sky sun") ||
+		!status(preview.api.DrawLightInstance(preview.ambient), "submit native ambient sky") ||
 		!status(preview.api.Present(NULL), "render shared frame"))
 		return pathtrace_provider_error;
 	if (!preview.submitted)
@@ -454,9 +505,9 @@ int pathtrace_provider_open(const char *path, unsigned int width, unsigned int h
 	return 0;
 }
 
-int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, const struct render_camera *camera)
+int pathtrace_provider_draw(const struct structure_bsp *structure, short bsp, short sky, const struct render_camera *camera)
 {
-	(void)structure; (void)bsp; (void)camera;
+	(void)structure; (void)bsp; (void)sky; (void)camera;
 	return -1;
 }
 
