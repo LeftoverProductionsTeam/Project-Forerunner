@@ -438,9 +438,23 @@ isolated trial and is outside this release.
 
 ## Original Zombie Apocalypse native checks
 
-Latest Win64 C339CC2D9B972FA4DBE7AD41FF45EE5FC7293D78D03D0DBF564B82A0B1E3E3F2
-contains the validated AI rollover recovery from d6a19efa5. Previous is
-18E298F5. The two Zombie map/receipt pairs and the Be Native and MegaWorld
+Latest Win64 3BC670B63399BA354F16FFB1B2B927275592E0E5D4EE6A742A88F00CC04C9EB5
+includes the full Host Zombie Apocalypse focus outline (4a5bc9fa4).
+Normal keyboard navigation showed the full label and all sides of the
+highlight. Frame: build/zombies-menu-wide-3bc670b6/screens/window02105.bmp.
+Previous is the carrier recovery runtime C339CC2D described below.
+
+A private LAN trial on C339CC2D started the guest before completing the
+host's map selection. The guest joined the provisional lobby, then the
+switch to MCC cache 12649191 changed the negotiated version from 45 to 44
+and disconnected it with version-too-old and an expired identity window.
+Both copies stopped and scratch was retired. No remote gameplay was sampled.
+Logs: build/zombie-lan-c339cc2d. Multiplayer carrier verification needs a
+join after the final MCC lobby is ready.
+
+The Win64 carrier-recovery release C339CC2D9B972FA4DBE7AD41FF45EE5FC7293D78D03D0DBF564B82A0B1E3E3F2
+contains the validated AI rollover recovery from d6a19efa5. Its previous
+build at promotion was 18E298F5. The two Zombie map/receipt pairs and the Be Native and MegaWorld
 pairs matched their pre-release hashes.
 
 The trace on native cache 12649191 found that clear-pose candidates were
