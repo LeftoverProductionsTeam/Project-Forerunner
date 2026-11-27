@@ -163,6 +163,25 @@ configuration matched their prior hashes.
 Controller chords, separate simultaneous devices, campaign-native acceptance,
 regional camera ownership, HREC tracks and the Theater player remain open.
 
+Win64 `97a90a99b416319c1cbdb13b1ab4dbe66175efc05f1b0ae6c6eb1ff0a93a9f96`
+captured its private Machinima view during an ordinary Zombie Apocalypse
+Play Solo session with Record My Games enabled. The HREC retained its
+ordinary player and object tracks. It also held 360 consecutive camera
+samples at ticks 198–557 and a stop at 558. The captured up vector changed
+with roll and the projection changed with the lens input. Leave Game
+closed the recording. The public filter removed both kinds of camera record
+and preserved neighboring game records. Its injected-fault control failed
+when the filter was deliberately removed.
+
+The existing local browser viewer opened the actual native HREC, selected
+Machinima, scrubbed, stepped backward and forward by one frame, advanced
+nine ticks over 1.2 seconds at quarter speed, and downloaded a 282208-byte
+WebM through Record video. The custom Zombie map displayed via the viewer's
+collision-wall fallback. Native Theater, native campaign recording and
+full native map presentation in playback remain open. Promoted the
+validated native writer to Latest with Previous `e15ab145`. Installed maps
+and configuration matched their prior hashes.
+
 ## Product Completion V2 Windows checkpoint
 
 - Win64 `63e69238ddb4ec1f590c24a30fa20a0cf0b389fbe82813b30c5f3518ec96e1d8`

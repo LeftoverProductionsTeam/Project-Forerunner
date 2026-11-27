@@ -237,6 +237,7 @@ smaller) */
     <button id="cam-first" class="on" title="Through the player's eyes (1)">Eyes</button>
     <button id="cam-third" title="Behind the player (2)">Behind</button>
     <button id="cam-free" title="Free camera: drag to turn, scroll to zoom (3)">Free</button>
+    <button id="cam-recorded" title="Play the recorded Machinima camera (4)" style="display:none">Machinima</button>
     <button id="xray" title="Players through walls (X)">X-ray</button>
     <button id="lines" class="on" title="Everyone's aim (A)">Aim lines</button>
     <button id="hudbutton" class="on" title="The player's HUD: health, shields, ammo, motion tracker (H)">HUD</button>
@@ -329,7 +330,7 @@ function newRecording() {
     marks: [], hills: [],
     // (a player's own recording: the recording machine's players, and
     // whether it was a client, whose far players are less exact)
-    locals: [], recordedByClient: false,
+    locals: [], recordedByClient: false, cameraTrack: [],
   };
 }
 
@@ -467,6 +468,26 @@ function addChunks(r, chunks) {
             marks.push({ kind: u8(), number: u16(), x: f32(), y: f32(), z: f32(), facing: f32() });
           }
           r.marks = marks;
+          break;
+        }
+        case 20: {
+          if (size !== 4 && size !== 44) break;
+          const cameraTick = u32();
+          const track = r.cameraTrack;
+          if (track.length && cameraTick <= track[track.length - 1].tick) break;
+          if (size === 4) {
+            track.push({ tick: cameraTick });
+            break;
+          }
+          const position = [f32(), f32(), f32()];
+          const forward = [f32(), f32(), f32()];
+          const up = [f32(), f32(), f32()];
+          const fov = f32();
+          const dot = forward.reduce((sum, value, i) => sum + value * up[i], 0);
+          if (position.some(value => !Number.isFinite(value) || Math.abs(value) > 5000) ||
+              Math.abs(Math.hypot(...forward) - 1) > 0.01 || Math.abs(Math.hypot(...up) - 1) > 0.01 ||
+              !Number.isFinite(dot) || Math.abs(dot) > 0.01 || !(fov > 0 && fov < Math.PI)) break;
+          track.push({ tick: cameraTick, position, forward, up, fov });
           break;
         }
         case 19: {
@@ -1268,9 +1289,31 @@ function aimVector(s) {
   return new THREE.Vector3(Math.cos(s.pitch) * Math.cos(s.yaw), Math.cos(s.pitch) * Math.sin(s.yaw), Math.sin(s.pitch));
 }
 
+// Stop at a shot boundary, a skipped run of frames or a bookmark jump.
+function recordedCameraAt(track, t) {
+  let lo = 0, hi = track.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (track[mid].tick <= t) lo = mid + 1; else hi = mid;
+  }
+  const a = track[lo - 1], b = track[lo];
+  if (!a?.position || t >= a.tick + 1 && (!b || b.tick - a.tick > 3)) return null;
+  if (!b?.position || b.tick - a.tick > 3 || t <= a.tick ||
+      Math.hypot(...a.position.map((value, i) => value - b.position[i])) > 2 ||
+      a.forward.reduce((dot, value, i) => dot + value * b.forward[i], 0) < 0 ||
+      a.up.reduce((dot, value, i) => dot + value * b.up[i], 0) < 0) return a;
+  const amount = (t - a.tick) / (b.tick - a.tick);
+  const blend = (left, right) => left.map((value, i) => value + (right[i] - value) * amount);
+  return { position: blend(a.position, b.position), forward: blend(a.forward, b.forward),
+    up: blend(a.up, b.up), fov: a.fov + (b.fov - a.fov) * amount };
+}
+
 function draw() {
   if (!rec) return;
+  const shot = cameraMode === "recorded" ? recordedCameraAt(rec.cameraTrack, tick) : null;
+  const viewMode = cameraMode === "recorded" && !shot ? "first" : cameraMode;
   const states = statesAt(tick);
+  const throughWalls = xray && !shot;
   for (const [slot, figure] of figures) {
     if (!states.has(slot)) figure.group.visible = false;
   }
@@ -1289,18 +1332,19 @@ function draw() {
     positions.setXYZ(0, 0, 0, s.eye);
     positions.setXYZ(1, dir.x * 25, dir.y * 25, s.eye + dir.z * 25);
     positions.needsUpdate = true;
-    figure.aim.visible = aimLines && !(cameraMode === "first" && slot === selected);
-    const own = cameraMode === "first" && slot === selected;
-    figure.body.visible = figure.head.visible = figure.label.visible = !own;
+    const own = viewMode === "first" && slot === selected;
+    figure.aim.visible = !shot && aimLines && !own;
+    figure.body.visible = figure.head.visible = !own;
+    figure.label.visible = !shot && !own;
     // (version 2: camouflage shows as the game shows it, nearly clear; the
     // visor shows where it aims)
     const pose = poseAt(slot, tick);
     const camo = pose && pose.flags & 2 ? Math.max(0.12, 1 - pose.camo * 0.88) : 1;
     for (const m of [figure.body, figure.head]) {
-      m.material.depthTest = !xray;
-      m.material.transparent = xray || camo < 1;
-      m.material.opacity = xray ? 0.85 : camo;
-      m.renderOrder = xray ? 2 : 0;
+      m.material.depthTest = !throughWalls;
+      m.material.transparent = throughWalls || camo < 1;
+      m.material.opacity = throughWalls ? 0.85 : camo;
+      m.renderOrder = throughWalls ? 2 : 0;
     }
     if (!figure.visor) {
       figure.visor = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.06), new THREE.MeshBasicMaterial({ color: 0xffc040 }));
@@ -1319,9 +1363,9 @@ function draw() {
       const tint = new THREE.Color(colorOf(slot)).lerp(new THREE.Color(0xffffff), 0.45);
       for (const m of figure.skinMaterials) {
         m.color.copy(tint);
-        m.transparent = xray || camo < 1;
-        m.opacity = xray ? 0.85 : camo;
-        m.depthTest = !xray;
+        m.transparent = throughWalls || camo < 1;
+        m.opacity = throughWalls ? 0.85 : camo;
+        m.depthTest = !throughWalls;
       }
     } else if (figure.skin) figure.skin.visible = false;
     figure.body.visible = figure.head.visible = !own && !real;
@@ -1335,13 +1379,17 @@ function draw() {
     drawWeapon(figure, s, own);
   }
   if (rec.marks !== marksBuiltFor) buildMarks();
+  if (marksGroup) marksGroup.visible = !shot;
   drawHill(tick);
+  if (hillMesh) hillMesh.group.visible = !shot;
   drawObjects(tick);
-  drawDeaths(tick);
+  drawDeaths(tick, !!shot);
+  if (heatMesh) heatMesh.visible = !shot;
+  if (heatLines) heatLines.visible = !shot;
   // (the hits of the last second: where they went from the shooter's eyes)
   for (const line of hitLines) { scene.remove(line); line.geometry.dispose(); }
   hitLines = [];
-  for (const hit of rec.hits) {
+  for (const hit of shot ? [] : rec.hits) {
     if (hit.tick > tick || hit.tick < tick - rec.game.rate) continue;
     const s = states.get(hit.shooter);
     if (!s) continue;
@@ -1356,12 +1404,19 @@ function draw() {
   }
   // (the camera)
   const s = selected != null ? states.get(selected) : null;
-  controls.enabled = cameraMode === "free";
-  if (cameraMode !== "free" && s) {
+  controls.enabled = viewMode === "free";
+  if (shot) {
+    camera.position.fromArray(shot.position);
+    camera.up.fromArray(shot.up).normalize();
+    camera.lookAt(new THREE.Vector3().fromArray(shot.forward).add(camera.position));
+    camera.fov = shot.fov * 180 / Math.PI;
+    camera.updateProjectionMatrix();
+  } else if (viewMode !== "free" && s) {
+    camera.up.set(0, 0, 1);
     const eye = new THREE.Vector3(s.x, s.y, s.z + s.eye);
     const dir = aimVector(s);
     camera.fov = s.flags & 8 ? 30 : 70;
-    if (cameraMode === "first") {
+    if (viewMode === "first") {
       camera.position.copy(eye);
       camera.lookAt(eye.clone().add(dir));
       followAt = null;
@@ -1382,7 +1437,10 @@ function draw() {
   }
   // (the HUD)
   const who = document.querySelector("#hud .who"), sub = document.querySelector("#hud .sub");
-  if (selected != null) {
+  if (shot) {
+    who.textContent = "";
+    sub.textContent = "";
+  } else if (selected != null) {
     const p = playerAt(selected, tick);
     who.textContent = p.name;
     who.style.color = "#" + colorOf(selected).toString(16).padStart(6, "0");
@@ -1394,8 +1452,9 @@ function draw() {
     realMap.sky.position.copy(camera.position);
   }
   renderer.render(scene, camera);
-  drawOverlay(states);
-  drawMinimap(states);
+  drawOverlay(states, !!shot);
+  minimap.style.visibility = shot ? "hidden" : "";
+  if (!shot) drawMinimap(states);
   if (scoresOn && Math.abs(tick - scoresDrawnAt) >= 15) { scoresDrawnAt = tick; renderScoreboard(); }
   updateKillcam();
 }
@@ -1459,9 +1518,9 @@ let deathMarks = [], heatMode = 0, heatMesh = null, heatLines = null;
 const heatOn = () => heatMode > 0;
 const deathGeometry = new THREE.BoxGeometry(0.7, 0.08, 0.04);
 
-function drawDeaths(t) {
+function drawDeaths(t, clean) {
   let used = 0;
-  for (const k of rec.killList || []) {
+  for (const k of clean ? [] : rec.killList || []) {
     if (!k.victimPos || t < k.tick || t > k.tick + 8 * rec.game.rate) continue;
     let mark = deathMarks[used];
     if (!mark) {
@@ -1548,7 +1607,7 @@ function enemyOf(a, b) {
   return !teams || playerAt(a, tick).team !== playerAt(b, tick).team;
 }
 
-function drawOverlay(states) {
+function drawOverlay(states, clean) {
   const w = overlay.clientWidth, h = overlay.clientHeight, dpr = Math.min(devicePixelRatio, 2);
   if (overlay.width !== Math.round(w * dpr) || overlay.height !== Math.round(h * dpr)) {
     overlay.width = Math.round(w * dpr);
@@ -1556,7 +1615,7 @@ function drawOverlay(states) {
   }
   og.setTransform(dpr, 0, 0, dpr, 0, 0);
   og.clearRect(0, 0, w, h);
-  if (!rec) return;
+  if (!rec || clean) return;
   const s = selected != null ? states.get(selected) : null;
   const pose = s ? poseAt(selected, tick) : null;
   // (everything drawn here in proportion to the view: a phone's is small,
@@ -2298,8 +2357,16 @@ function stepPlayer(forward) {
 }
 
 function setCamera(mode) {
+  if (mode === "recorded") {
+    const firstShot = rec?.cameraTrack.find(sample => sample.position);
+    if (!firstShot) return;
+    endKillcam();
+    if (!recordedCameraAt(rec.cameraTrack, tick)) seek(firstShot.tick);
+  }
   cameraMode = mode;
-  for (const m of ["first", "third", "free"]) document.getElementById("cam-" + m).classList.toggle("on", m === mode);
+  if (mode !== "recorded") camera.up.set(0, 0, 1);
+  for (const m of ["first", "third", "free", "recorded"])
+    document.getElementById("cam-" + m).classList.toggle("on", m === mode);
   if (mode === "free") controls.target.copy(camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(8)));
 }
 
@@ -2520,6 +2587,7 @@ document.getElementById("speed").onchange = e => { endKillcam(); speed = Number(
 document.getElementById("cam-first").onclick = () => setCamera("first");
 document.getElementById("cam-third").onclick = () => setCamera("third");
 document.getElementById("cam-free").onclick = () => setCamera("free");
+document.getElementById("cam-recorded").onclick = () => setCamera("recorded");
 document.getElementById("xray").onclick = e => { xray = !xray; e.target.classList.toggle("on", xray); };
 document.getElementById("lines").onclick = e => { aimLines = !aimLines; e.target.classList.toggle("on", aimLines); };
 for (const id of ["f-refused", "f-suspicious", "f-ok", "f-kills", "f-moves", "f-selected", "f-highlights", "f-objectives",
@@ -2580,6 +2648,7 @@ addEventListener("keydown", e => {
   else if (e.key === "1") setCamera("first");
   else if (e.key === "2") setCamera("third");
   else if (e.key === "3") setCamera("free");
+  else if (e.key === "4") setCamera("recorded");
   else if (e.key === "x" || e.key === "X") document.getElementById("xray").click();
   else if (e.key === "a" || e.key === "A") document.getElementById("lines").click();
   else if (e.key === "h" || e.key === "H") document.getElementById("hudbutton").click();
@@ -2835,6 +2904,7 @@ function describeGame() {
 // (shown: a recording read whole, or the first of one watched live)
 function show(r) {
   rec = r;
+  document.getElementById("cam-recorded").style.display = r.cameraTrack.some(sample => sample.position) ? "" : "none";
   document.getElementById("drop").style.display = "none";
   // (the last recording's players let go: their meshes, labels, skins)
   for (const figure of figures.values()) {

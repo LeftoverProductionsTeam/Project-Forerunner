@@ -397,6 +397,9 @@ symbols in this file:
 #include <emscripten.h> /* port: the browser runs the main loop (port/web/README.md) */
 #endif
 #include "camera/director.h"
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
+#include "network_recording.h"
+#endif
 #include "camera/observer.h"
 #include "cutscene/cinematics.h"
 #include "effects/player_effects.h"
@@ -4094,6 +4097,9 @@ static void main_game_render(
 
 		MAIN_STAGE("render: set_window_camera_values");
 		set_window_camera_values(window, observer);
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
+		network_recording_camera_frame(window->local_player_index, &window->rasterizer_camera);
+#endif
 		window->console_window = FALSE;
 	}
 

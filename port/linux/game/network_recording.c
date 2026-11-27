@@ -122,6 +122,10 @@ a type a reader does not know it skips:
               first), once each; a client's recording has the players far
               from its own less exactly than a host's
 
+ 20 camera:   private detached camera: tick (4), position, forward and up
+              (3 floats each), vertical field of view in radians (float).
+              A tick alone ends the shot.
+
 A block goes to the file every 10 seconds, or sooner when 192 kilobytes of
 records have come: a host that stops loses no more than that.
 
@@ -146,6 +150,10 @@ game's carnage report, <name>.json beside the copy gives its address:
 #include "cseries.h"
 #include "cseries/cseries_windows.h"
 #include "cseries/errors.h"
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
+#include "camera/director.h"
+#include "render/render_cameras.h"
+#endif
 #include "game/game.h"
 #include "game/game_engine.h"
 #include "game/players.h"
@@ -216,6 +224,7 @@ enum
 	_record_marks,
 	_record_hill,
 	_record_local,
+	_record_camera,
 };
 
 /* event_log.h's EVENT_LOG_* the public copy leaves out: a moderator's
@@ -276,6 +285,8 @@ static struct
 	public copy), and one a client makes */
 	boolean own;
 	boolean client;
+	long camera_tick;
+	boolean camera_open;
 	/* the file's name, and whether the player was told where to watch it */
 	char name[MAX_PATH];
 	boolean noted;
@@ -427,6 +438,8 @@ static unsigned long public_records(
 		if (size > length - read - 5)
 			break;
 		read += 5 + size;
+		if (type == _record_camera)
+			continue;
 		if (type != _record_game && type != _record_walls && type != _record_tag && type != _record_player &&
 			type != _record_map && type != _record_marks)
 		{
@@ -1314,6 +1327,8 @@ static void recording_start(
 	recording.started = TRUE;
 	recording.started_time = game_time_get();
 	recording.last_tick = game_time_get();
+	recording.camera_tick = NONE;
+	recording.camera_open = FALSE;
 	recording.flushed_time = game_time_get();
 	recording.length = 0;
 	recording.tag_count = 0;
@@ -1751,6 +1766,45 @@ static void recording_tick(
 	/* (the public copy's held back blocks, once old enough) */
 	public_write_due(FALSE);
 }
+
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
+void network_recording_camera_frame(short local_player_index, struct render_camera const *view)
+{
+	boolean active;
+	byte *at;
+
+	if (local_player_index != 0 || !recording.file || !recording.own || recording.client ||
+		recording.camera_tick == recording.last_tick || recording.last_tick != game_time_get() ||
+		!config_boolean("network.record_my_games"))
+		return;
+	active = director_machinima_active(local_player_index) &&
+		valid_real_point3d(&view->position) && valid_real_vector3d_axes2(&view->forward, &view->up) &&
+		valid_real(view->vertical_field_of_view) && view->vertical_field_of_view > 0.f &&
+		view->vertical_field_of_view < _pi;
+	if (!active && !recording.camera_open)
+		return;
+
+	at = recording_begin(_record_camera, 4 + (active ? 10 * 4 : 0));
+	if (!at)
+		return;
+	recording.camera_tick = recording.last_tick;
+	recording.camera_open = active;
+	at = put_u32(at, (unsigned long)recording.camera_tick);
+	if (active)
+	{
+		at = put_real(at, view->position.x);
+		at = put_real(at, view->position.y);
+		at = put_real(at, view->position.z);
+		at = put_real(at, view->forward.i);
+		at = put_real(at, view->forward.j);
+		at = put_real(at, view->forward.k);
+		at = put_real(at, view->up.i);
+		at = put_real(at, view->up.j);
+		at = put_real(at, view->up.k);
+		put_real(at, view->vertical_field_of_view);
+	}
+}
+#endif
 
 void network_recording_host_tick(
 	void)

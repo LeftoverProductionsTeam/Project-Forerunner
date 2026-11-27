@@ -124,6 +124,19 @@ int main(int argc, char **argv)
 		CHECK(!found((byte const *)"\x33\x33\x33\x33", 4, length), "the refused move is in the public copy");
 		return 0;
 	}
+	/* Personal camera samples and shot boundaries never become public. */
+	if (!strcmp(case_name, "no-camera-track"))
+	{
+		memset(record(_record_camera, 44), 0x31, 44);
+		memset(record(_record_camera, 4), 0x32, 4);
+		length = public_records(in, in_length, out, &live);
+		CHECK(length == 0 && !live, "private camera data made this a public block");
+
+		memset(record(_record_frame, 5), 0x33, 5);
+		length = public_records(in, in_length, out, &live);
+		CHECK(length == 10 && out[0] == _record_frame && live, "the ordinary frame around the private camera was lost");
+		return 0;
+	}
 	/* a record that runs past the block ends the reading, nothing after it */
 	if (!strcmp(case_name, "truncated"))
 	{

@@ -5157,9 +5157,19 @@ bookmark. On supported desktop sessions the operator can fly the camera,
 park it while controlling the character, and recall the saved pose. The
 director releases the view when a second machine connects. Spark can
 continue using the existing native cutscene point and HREC import workflows.
-Engine capability discovery has no new camera-operator token in this batch.
-Theater playback, camera track export and per-region detached rendering
-remain open.
+The engine writes the native operator view into the player's opt-in private
+HREC v2 recording as optional record type 20. A 44-byte little-endian
+payload contains a u32 game tick followed by ten f32 values in this order:
+world position XYZ, forward XYZ, up XYZ and the rendered vertical FOV in
+radians. A four-byte payload contains the end tick of the shot. A gap can
+also end a shot when the render loop misses a boundary. Values are captured
+from the rendered camera, including roll and effective vertical FOV.
+Spark can map each contiguous shot into its existing Director timeline
+when record 20 is present. Keep the basis vectors and distinguish the
+rendered vertical FOV from the native script camera's input lens.
+The recorder omits these records from public copies. Existing HREC readers
+can skip them by length. Native Theater, per-region detached rendering
+and capability discovery for camera operators remain open.
 
 Windows64/GL `build/native-delta-transport-complete-crew/result.json` passes two
 distinct authenticated players' normal boarding, seated insertion, native pilot

@@ -34,6 +34,12 @@ void network_recording_client_tick(void);
 /* each frame (chat_update): a recording whose network game has gone
 (its player left it, or the host's game ended for good) ends */
 void network_recording_update(void);
+
+#if defined(HALO_GAME_BROWSER) && !defined(HALO_WEB) && !defined(HALO_SERVER)
+struct render_camera;
+/* Capture the rendered detached operator view in the local recording only. */
+void network_recording_camera_frame(short local_player_index, struct render_camera const *view);
+#endif
 /* a bullet's hit on a player the fair play checks looked at: its shooter and
 target (player indices), where it hit, the verdict, how far off the
 shooter's aim it was (degrees) and how far it went */

@@ -9,13 +9,14 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from harness import build, enum_with, function, mutated, read, run  # noqa: E402
 
-CASES = ["no-private-data", "hit-without-verdict", "no-moves", "truncated", "no-moderation-events", "no-team-chat"]
+CASES = ["no-private-data", "hit-without-verdict", "no-moves", "truncated", "no-moderation-events", "no-team-chat", "no-camera-track"]
 
 # a fault in public_records, and the case that must catch it
 NEGATIVE_CONTROLS = {
     "private-data-kept": (("if (type == _record_player && size >= 7", "if (0 && type == _record_player && size >= 7"),
                           "no-private-data"),
     "verdict-kept": (("csmemset(out + written + 5 + 18, 0, 9);", ";"), "hit-without-verdict"),
+    "camera-kept": (("if (type == _record_camera)\n\t\t\tcontinue;", ""), "no-camera-track"),
     "moves-kept": (("if (type == _record_move)\n\t\t\tcontinue;", ""), "no-moves"),
     "join-shown-live": (("type != _record_tag && type != _record_player &&", "type != _record_tag &&"),
                         "no-private-data"),
